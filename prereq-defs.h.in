@@ -1,0 +1,68 @@
+
+/* ***************************************************************************
+ * This file is part of the SymPhas library, a framework for implementing
+ * solvers for phase-field problems with compile-time symbolic algebra.
+ *
+ * Copyright (c) 2018-2021 by Steven A. Silber and Mikko Karttunen
+ *
+ * SymPhas is free software, which can be redistributed or modified under
+ * the terms of the GNU Lesser General Public License (LGPL) as published
+ * by the Free Software Foundation; LGPL version 3, or later versions at
+ * your choice.
+ *
+ * SymPhas is distributed with the faith that it will be helpful and
+ * practical but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+ * General Public License for more details.
+ *
+ * ***************************************************************************
+ *
+ * This file is part of the SymPhas API. This file adds defines necessary
+ * the compilation of the program.
+ *
+ * ***************************************************************************
+ */
+
+#pragma once
+
+#cmakedefine USE_CONF
+#cmakedefine USE_IO
+#cmakedefine USE_PROC
+#cmakedefine01 PROC_ENABLED
+#cmakedefine BASIC_STENCILS
+#cmakedefine MODEL_INCLUDE_HEADER_NAME
+#cmakedefine MODEL_CALL_FUNCTION
+#cmakedefine PRINTABLE_EQUATIONS
+
+#if defined(USE_IO) && !defined(USING_IO)
+#define USING_IO
+#endif
+
+#if defined(USE_CONF) && !defined(USING_CONF)
+#define USING_CONF
+#endif
+
+#if defined(USE_PROC) && !defined(USING_PROC) && PROC_ENABLED
+#define USING_PROC
+#endif
+
+
+#if defined(MODEL_INCLUDE_HEADER_NAME) && !defined(MODEL_INCLUDE_HEADER)
+#define MODEL_INCLUDE_HEADER "@MODEL_INCLUDE_HEADER_NAME@"
+#endif
+
+#if defined(MODEL_CALL_FUNCTION) && !defined(MODEL_APPLY_CALL)
+#define MODEL_APPLY_CALL @MODEL_CALL_FUNCTION@
+#endif
+
+
+
+#cmakedefine SOLVER_INCLUDE_HEADER_NAME
+
+#ifdef SOLVER_INCLUDE_HEADER_NAME
+#include "@SOLVER_INCLUDE_HEADER_NAME@"
+#endif
+
+#ifdef SOLVER_INCLUDE_HEADER
+#include SOLVER_INCLUDE_HEADER
+#endif

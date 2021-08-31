@@ -1,0 +1,30 @@
+!Title of the Simulation
+#--------------------------------------------------------------------------------------
+#-- CONFIGURATION ---------------------------------------------------------------------
+#------ model -------------------------------------------------------------------------
+DIM				dimensions of model			: <INTEGER>
+ORDER			order of accuracy			: <INTEGER> (must correspond to existing stencil)
+PTL				laplacian stencil			: <INTEGER> (must correspond to existing stencil)
+PTB				bilaplacian stencil			: <INTEGER> (must correspond to existing stencil)
+PTG				gradlaplacian stencil		: <INTEGER> (must correspond to existing stencil)
+WIDTH			grid draw size				: <FLOAT>
+FORM			geometry of the grid		: [CARTESIAN, POLAR, ...]
+#------ boundary ----------------------------------------------------------------------
+RNGX			interval of x (inc bound)	: <X> <Y>
+RNGY			interval of y (inc bound)	: <X> <Y>
+BNDLT			bound type on x1			: [PERIODIC, CONSTANT, ...]
+BNDRT			bound type on x2			: [PERIODIC, CONSTANT, ...]
+BNDTP			bound type on y1			: [PERIODIC, CONSTANT, ...]
+BNDBT			bound type on y2			: [PERIODIC, CONSTANT, ...]
+INSIDE			the conditions inside		: <CONDITION> <FLOAT> <FLOAT> ...
+#------ system ------------------------------------------------------------------------
+MODEL			type of the model			: <MODELID> <CONST> <CONST> ...
+NAMES			given system names			: <NAME> <NAME> ...
+#------ time --------------------------------------------------------------------------
+DELTA			time increment				: <INTEGER>
+FRAMES			total time steps			: <INTEGER>
+SAVE			frame save interval			: <INTEGER> (interval or base) <INTEGER> (start) [ , EXP] (function)
+POSTPROC		save structure factor?		: [NO, <PFC, SF, ...> [NO, ABS, VEC] [@ <INTEGER> <INTEGER> [, EXP]]
+#--------------------------------------------------------------------------------------
+DIR				save directory				: <STRING>
+

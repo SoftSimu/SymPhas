@@ -1,0 +1,11 @@
+// Header which is configured at build time with basic definitions to support 
+// SymPhas functionality.
+
+#pragma once
+
+#define THREADS @THREAD_COUNT@
+#define VECTOR_TYPE_NAME @VECTOR_TYPE_NAME@
+
+
+
+

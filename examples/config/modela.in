@@ -1,0 +1,34 @@
+!Model A
+
+DIM				dimensions of model			: 3
+ORDER			order of accuracy			: 2
+PTL				laplacian stencil			: 5
+PTB				bilaplacian stencil			: 13
+PTG				gradlaplacian stencil		: 6
+WIDTH			grid draw size				: 1
+
+RNGX			interval of x				: @ 128
+RNGY			interval of y				: @ 128
+RNGZ			interval of z				: @ 64
+BNDLT			bound type on x1			: PERIODIC
+BNDRT			bound type on x2			: PERIODIC
+BNDTP			bound type on y1			: PERIODIC
+BNDBT			bound type on y2			: PERIODIC
+BNDFT			bound type on z1			: PERIODIC
+BNDBK			bound type on z2			: PERIODIC
+INSIDE			the conditions inside		: UNIFORM -1 1
+
+MODEL			type of the model			: MODELC
+
+DELTA			time increment				: 0.05
+FRAMES			total time steps			: 2500
+SAVE			frame save interval			: 2500
+SAVEINIT		save time index 0 data?		: NO
+
+DIR				save directory				: results
+#POSTPROC: {PCF ABS} {SF ABS} {SF VEC}
+#POSTPROC: {DGPCF @ 20 SPLIT}
+#POSTPROC: {SF ABS} {PCF VEC}
+
+#RUNS: 1
+#POSTPROC: {SF ABS} {SF VEC}

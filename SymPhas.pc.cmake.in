@@ -1,0 +1,9 @@
+libdir=@INSTALL_LIBDIR@
+includedir=@INSTALL_INCLUDEDIR@
+
+Name: SymPhas
+Description: Simulation of phase fields with compile-time symbolic algebra
+URL: @URL@
+Version: @VERSION@
+Libs: -L${libdir} -lsymphas
+Cflags: -I${includedir}

@@ -1,0 +1,57 @@
+
+/* ***************************************************************************
+ * This file is part of the SymPhas library, a framework for implementing
+ * solvers for phase-field problems with compile-time symbolic algebra.
+ *
+ * Copyright (c) 2018-2021 by Steven A. Silber and Mikko Karttunen
+ *
+ * SymPhas is free software, which can be redistributed or modified under
+ * the terms of the GNU Lesser General Public License (LGPL) as published
+ * by the Free Software Foundation; LGPL version 3, or later versions at
+ * your choice.
+ *
+ * SymPhas is distributed with the faith that it will be helpful and
+ * practical but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+ * General Public License for more details.
+ *
+ * ***************************************************************************
+ *
+ * MODULE:  io
+ * PURPOSE: Adds all the read functionality during the compilation.
+ *
+ * ***************************************************************************
+ */
+
+#cmakedefine USING_XDR
+
+#include "readgp.h"
+#include "readgpc.h"
+
+#ifdef USING_XDR
+#include "readxdr.h"
+
+#define XDRR_CASE(FUNCTION) \
+case WriterType::XDR: \
+	return symphas::io::xdr:: FUNCTION; \
+	break;
+
+#else
+#define XDRR_CASE(FUNCTION)
+#endif
+
+
+#define SWITCH_IO_READ(FUNCTION) \
+switch (params::writer) \
+{ \
+case WriterType::GNU: \
+	return symphas::io::gp:: FUNCTION; \
+	break; \
+case WriterType::COLUMN: \
+	return symphas::io::gpc:: FUNCTION; \
+	break; \
+XDRR_CASE(FUNCTION) \
+default: \
+	return BAD_INDEX; \
+}
+
