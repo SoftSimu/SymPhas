@@ -70,10 +70,6 @@ The API is distributed between a collection of several modules:
 The modules required for the simplest build of Symphas are **lib**, 
 **datatypes**, **sym** and **sol**.
 
-
-
-- terms of use??
-
 ## Getting Started with *SymPhas*
 
 
