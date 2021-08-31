@@ -1,7 +1,21 @@
 # Symphas
 
+
 *A compile-time formulated symbolic algebra framework for numerical solutions of phase field problems.*
 
+
+<p align="center">
+<img src="./docs/modelb2d.png" width="100">
+<img src="./docs/modelc2d0.png" width="100">
+<img src="./docs/modelc2d1.png" width="100">
+<img src="./docs/pfc_c.png" width="100"></p>
+</p>
+
+<p align="center">
+<img src="./docs/modelc3d.png" width="150">
+<img src="./docs/voronoi.png" width="150">
+<img src="./docs/modelb3d.png" width="130">
+</p>
 
 
 ## Introduction to *SymPhas*
