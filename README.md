@@ -89,7 +89,7 @@ The modules required for the simplest build of Symphas are **lib**,
 
 ### Download
 
-The entire *SymPhas* package can be downloaded from https://github.com/MetricManifold/SymPhas from the `release` branch. The package can be obtained by either downloading the repository packaged as a zip (i.e. through the Github website) or by cloning the repository, which will make it convenient to be up to date with the latest development.
+The entire *SymPhas* package can be downloaded from https://github.com/SoftSimu/SymPhas from the `release` branch. The package can be obtained by either downloading the repository packaged as a zip (i.e. through the Github website) or by cloning the repository, which will make it convenient to be up to date with the latest development.
 
 The *SymPhas* package comes with predefined model definitions and solvers, but can also be installed as a standalone API where the user defines custom solvers and driver.
 
@@ -112,7 +112,7 @@ Third party packages that are used and the version they have been tested with ar
 |Package|Tested Minimum Version|Required?|
 |-------|----------------------|---------|
 |[FFTW3](http://www.fftw.org/)|3.3.7|Yes|
-|[xdrfile](https://github.com/MetricManifold/libxdrfile)|2.1.2|No|
+|[xdrfile](https://github.com/SoftSimu/libxdrfile)|2.1.2|No|
 |[VTK](https://vtk.org/download/)|9.0|No|
 
 For any packages which are not required, they will automatically be excluded through the CMake build process if they are not found. If the required packages are not found, then the CMake configuration step will fail, in which case, the user can provide CMake with the installation location of that package.
@@ -147,7 +147,7 @@ Follow the below steps to install the dependencies.  If any of the packages are 
 
 Once *SymPhas* has been downloaded, use CMake to configure the build and installation process. Downloading and configuring can be done with:
     
-    git clone https://github.com/MetricManifold/SymPhas
+    git clone https://github.com/SoftSimu/SymPhas
     cd SymPhas
     git checkout release
     mkdir ./symphas-build
