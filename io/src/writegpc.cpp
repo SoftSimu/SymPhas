@@ -180,7 +180,7 @@ void symphas::io::gpc::save_grid_plotting<vector_t<3>>(const vector_t<3>* grid, 
 					fprintf(f, "%." AXIS_OUTPUT_ACCURACY_STR "f ", p0[n] + h[n] * p[n]);
 				}
 
-				vector_t<3> v = grid[index++];
+				vector_t<3> const &v = grid[index++];
 
 				double m = sqrt(v.v[0] * v.v[0] + v.v[1] * v.v[1] + v.v[2] * v.v[2]),
 					dx = v.v[0] / m,
@@ -232,7 +232,7 @@ void symphas::io::gpc::save_grid_plotting<vector_t<2>>(const vector_t<2>* grid, 
 					fprintf(f, "%." AXIS_OUTPUT_ACCURACY_STR "f ", p0[n] + h[n] * p[n]);
 				}
 
-				vector_t<2> v = grid[index++];
+				vector_t<2> const &v = grid[index++];
 
 				double m = sqrt(v.v[0] * v.v[0] + v.v[1] * v.v[1]),
 					dx = v.v[0] / m,
@@ -282,9 +282,9 @@ void symphas::io::gpc::save_grid_plotting<vector_t<1>>(const vector_t<1>* grid, 
 				{
 					fprintf(f, "%." AXIS_OUTPUT_ACCURACY_STR "f ", p0[n] + h[n] * p[n]);
 				}
-
-				vector_t<1> v = grid[index++];
-				fprintf(f, 	"%." DATA_OUTPUT_ACCURACY_STR "f\n", v.v);
+                
+                const vector_t<1> &data = grid[index++];
+				fprintf(f, 	"%." DATA_OUTPUT_ACCURACY_STR "f\n", *data.v);
 			}
 		}
 	}
