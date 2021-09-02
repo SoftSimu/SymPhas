@@ -867,7 +867,7 @@ If the index given in the `checkpoint` option is not found in the loaded checkpo
 
 ## Configuration
 
-The configuration file establishes the model and the parameters of its solution. The basic syntax of the configuration file allows the user to include comments when the line text begins with the `#` (pound) character. Additionally, if the line begins with the `!` (exclamation mark) character, the text that follows is taken to be the title of the simulation (there can only be one such line). 
+The configuration file contains the name of the model to simulate and the parameters of its solution. The basic syntax of the configuration file allows the user to include comments when the line text begins with the `#` (pound) character. Additionally, if the line begins with the `!` (exclamation mark) character, the text that follows is taken to be the title of the simulation (there can only be one such line). 
 
 The given title is also parsed into a filename friendly format which is assigned to the subdirectory into which the program output is saved.
 
@@ -903,7 +903,7 @@ The next group of parameters controls the system and the system generation:
 
 * `BND(LEFT|RIGHT|TOP|BOTTOM|FRONT|BACK)` a keyword, optionally followed by values, specifying the boundary condition and its parameters. 
 
-* `INSIDE` specifies the initial conditions of the system by passing a keyword followed by parameters associated with that keyword. There are both random and nonrandom types of initial conditions, as well as the ability to pass in a file of values with which to initialize the system. 
+* `INSIDE` specifies the initial conditions of the system by passing a keyword followed by parameters associated with that keyword. There are both random and nonrandom types of initial conditions, as well as the ability to pass in a file of values with which to initialize the system. In multi-phase-field systems, separate initial conditions can be given to every field by surrounding each initial condition specification in either quotes or brackets. The initial conditions are applied in order of the fields specified in the model definition. Any field not explicitly specified will use the initial conditions of the first field.
 
 
 The third parameter group only contains a single parameter, `MODEL`; it chooses the dynamical equations used to evolve the system from its initial conditions by selecting a specialized model. The configuration saves the string, and it is left to the user in the implementation to choose how to interpret it. By using the CMake configuration parameter `MODEL_CALL_FUNCTION` and defining models with `LINK_WITH_NAME`, this process can be automated.
