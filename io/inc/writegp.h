@@ -96,11 +96,13 @@
 #define MULTI_HEIGHT_LATEX(N) (MULTI_WIDTH_LATEX(N) * MULTI_HEIGHT_RATIO(N))
 
 
-#define MULTI_ALIGN_MARGIN_FMT R"~(
+constexpr char multi_align_fmt[] = R"~(
 set tmargin at screen %.3lf;
 set bmargin at screen %.3lf;
 set lmargin at screen %.3lf;
-set rmargin at screen %.3lf;)~"
+set rmargin at screen %.3lf;)~";
+#define MULTI_ALIGN_MARGIN_FMT multi_align_fmt
+
 
 #define MULTI_ALIGN_MARGIN_VALUES(x, y, N) \
 1 - (((MULTI_HEIGHT_PLOT(N) + 2 * MULTI_ALIGN_SEPARATION) / MULTI_HEIGHT_RATIO(N)) * (y) + MULTI_ALIGN_SEPARATION / MULTI_HEIGHT_RATIO(N)), \
