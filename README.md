@@ -115,11 +115,11 @@ Third party packages that are used and the version they have been tested with ar
 |[xdrfile](https://github.com/SoftSimu/libxdrfile)|2.1.2|No|
 |[VTK](https://vtk.org/download/)|9.0|No|
 
-For any packages which are not required, they will automatically be excluded through the CMake build process if they are not found. If the required packages are not found, then the CMake configuration step will fail, in which case, the user can provide CMake with the installation location of that package.
+For any packages which are not required, they will automatically be excluded from the CMake build process if they are not found. If the required packages are not found, then the CMake configuration step will fail, in which case, the user can provide CMake with the installation location of that package.
 
 The xdrfile package will allow output to the binary xdr format used in Gromacs. This is recommended if the output is very large. Additionally, VTK is recommended if real-time visualization is desired.
 
-When installing *SymPhas*, it is recommended to install to a directory which different from the system install directory (`/usr`), and also name the installation parent folder according to the configuration, as it may be desirable to install multiple configurations at once. An example would be having one installation configured only with the core modules, and another configured with all modules.
+When installing *SymPhas*, it is recommended to install to a directory which different from the system install directory (`/usr` or your home directory), and also name the installation output according to the configuration, as it may be desirable to install multiple configurations at once. An example would be having one installation configured only with the core modules (e.g., so headers are installed to `/usr/include/symphas-base/`), or another configured with all modules (e.g., so headers are installed to `/usr/include/symphas-all`).
 
 
 #### Linux Installation
@@ -203,7 +203,7 @@ After the CMake project is configured, compile and install the project using the
 
 ### Advanced Installation
 
-When configuring *SymPhas*, providing the variable `COMBINE_SHARED` set to true to the CMake invocation, a shared library called `symphas_all` will be created which **combines all the modules** built for that configuration. This is useful when compiling a driver file with `g++`, so that only a single library needs to be provided to the command line. The disadvantage is that the compile time will be increased.
+When configuring *SymPhas*, providing the variable `COMBINE_SHARED` set to true to the CMake invocation, a shared library called `symphas_all` will be created which **combines all the modules** built for that configuration. This is useful when compiling a driver file with `g++`, so that only a single _SymPhas_ library needs to be provided to the command line. The disadvantage is that the compile time will be increased.
 
 The following is a list of all CMake cache variables used for configuring *SymPhas*.
 
