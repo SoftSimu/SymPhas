@@ -4,10 +4,10 @@ ORDER			order of accuracy			: 2
 PTL				laplacian stencil			: 5
 PTB				bilaplacian stencil			: 13
 PTG				gradlaplacian stencil		: 6
-WIDTH			grid draw size				: 4
+WIDTH			grid draw size				: 0.2
 
-RNGX			interval of x				: 1 512
-RNGY			interval of y				: 1 512
+RNGX			interval of x				: @ 256
+RNGY			interval of y				: @ 256
 RNGZ			interval of z				: 1 64
 BNDLT			bound type on x1			: PERIODIC
 BNDRT			bound type on x2			: PERIODIC
@@ -15,14 +15,13 @@ BNDTP			bound type on y1			: PERIODIC
 BNDBT			bound type on y2			: PERIODIC
 BNDFT			bound type on z1			: PERIODIC
 BNDBK			bound type on z2			: PERIODIC
-INSIDE			the conditions inside		: "CONSTANT 0.5" "CIRCLESEEDS RND 10 1.5"
+INSIDE			the conditions inside		: "CONSTANT 0.4" "CIRCLESEEDS RND 50 0.5 0 1"
 
-MODEL			type of the model			: grayscott 6.8 3.06 0.1020 0.0550
+MODEL			type of the model			: grayscott 4e-3 2e-3 0.0980 0.0570
 
-DELTA			time increment				: .2
-FRAMES			total time steps			: 15000
-
-SAVE			frame save interval			: 15000
+DELTA			time increment				: .5
+FRAMES			total time steps			: 30000
+SAVE			frame save interval			: 30000
 
 
 SAVEINIT		save time index 0 data?		: YES
