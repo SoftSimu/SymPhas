@@ -44,7 +44,7 @@ namespace symphas
 	void find_solution(M& model, double dt, iter_type n)
 	{
 		double run_time = 0;
-		model.info(SYMPHAS_LOG);
+		model.print_info(SYMPHAS_LOG);
 		{
 			symphas::Time t;
 			run_model(model, n, dt, TIME_INIT + model.index() * dt);

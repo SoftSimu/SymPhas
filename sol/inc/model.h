@@ -470,7 +470,7 @@ public:
 	 * \param out The output file or stream to which to print the
 	 * information.
 	 */
-	void info(FILE* out) const
+	void print_info(FILE* out) const
 	{
 		fprintf(out, OUTPUT_BANNER);
 		fprintf(out, "Phase field problem of %zd system%s:\n", SN, (SN > 1) ? "s" : "");

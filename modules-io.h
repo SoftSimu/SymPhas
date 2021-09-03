@@ -192,7 +192,7 @@ namespace symphas
 		bool plotting_output = true, bool checkpoint = symphas::io::is_checkpoint_set())
 	{
 		M& model = *models;
-		model.info(SYMPHAS_LOG);
+		model.print_info(SYMPHAS_LOG);
 
 		if (checkpoint)
 		{
