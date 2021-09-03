@@ -27,6 +27,7 @@
 
 #include "readgp.h"
 #include "readgpc.h"
+#include "readgpmov.h"
 
 #ifdef USING_XDR
 #include "readxdr.h"
@@ -48,7 +49,10 @@ case WriterType::GNU: \
 	return symphas::io::gp:: FUNCTION; \
 	break; \
 case WriterType::COLUMN: \
-	return symphas::io::gpc:: FUNCTION; \
+	return symphas::io::gp::col:: FUNCTION; \
+	break; \
+case WriterType::MOVIE: \
+	return symphas::io::gp::mov:: FUNCTION; \
 	break; \
 XDRR_CASE(FUNCTION) \
 default: \

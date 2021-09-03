@@ -29,7 +29,7 @@
  * functions to write data from the grid to a file
  */
 template<>
-void symphas::io::gpc::save_grid_plotting<scalar_t>(const scalar_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::gp::col::save_grid_plotting<scalar_t>(const scalar_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 	
@@ -68,7 +68,7 @@ void symphas::io::gpc::save_grid_plotting<scalar_t>(const scalar_t* grid, sympha
 }
 
 template<>
-void symphas::io::gpc::save_grid_plotting<complex_t>(const complex_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::gp::col::save_grid_plotting<complex_t>(const complex_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 
@@ -108,7 +108,7 @@ void symphas::io::gpc::save_grid_plotting<complex_t>(const complex_t* grid, symp
 }
 
 template<>
-void symphas::io::gpc::save_grid_plotting<double[2]>(const double (*grid)[2], symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::gp::col::save_grid_plotting<double[2]>(const double (*grid)[2], symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 
@@ -149,7 +149,7 @@ void symphas::io::gpc::save_grid_plotting<double[2]>(const double (*grid)[2], sy
 }
 
 template<>
-void symphas::io::gpc::save_grid_plotting<vector_t<3>>(const vector_t<3>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::gp::col::save_grid_plotting<vector_t<3>>(const vector_t<3>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 
@@ -201,7 +201,7 @@ void symphas::io::gpc::save_grid_plotting<vector_t<3>>(const vector_t<3>* grid, 
 }
 
 template<>
-void symphas::io::gpc::save_grid_plotting<vector_t<2>>(const vector_t<2>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::gp::col::save_grid_plotting<vector_t<2>>(const vector_t<2>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 
@@ -252,7 +252,7 @@ void symphas::io::gpc::save_grid_plotting<vector_t<2>>(const vector_t<2>* grid, 
 
 
 template<>
-void symphas::io::gpc::save_grid_plotting<vector_t<1>>(const vector_t<1>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::gp::col::save_grid_plotting<vector_t<1>>(const vector_t<1>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 

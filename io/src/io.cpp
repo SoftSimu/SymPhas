@@ -47,6 +47,10 @@ protected:
 		{
 			writer = WriterType::COLUMN;
 		}
+		else if (std::strcmp(writer_name, "MOVIE") == 0)
+		{
+			writer = WriterType::MOVIE;
+		}
 		delete[] writer_name;
 		return writer;
 	}

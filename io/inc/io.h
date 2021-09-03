@@ -105,7 +105,8 @@ enum class WriterType
 { 
 	GNU, 
 	XDR,
-	COLUMN 
+	COLUMN,
+	MOVIE
 };
 
 

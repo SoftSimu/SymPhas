@@ -29,7 +29,7 @@
 #include "readgp.h"
 
 
-namespace symphas::io::gpc
+namespace symphas::io::gp::col
 {
 
 
@@ -58,24 +58,24 @@ namespace symphas::io::gpc
 
 //! \cond
 
-//! Specialization of symphas::io::gpc::read_block().
+//! Specialization of symphas::io::gp::col::read_block().
 template<>
-void symphas::io::gpc::read_block<scalar_t>(scalar_t* grid, symphas::grid_info ginfo, FILE* f);
-//! Specialization of symphas::io::gpc::read_block().
+void symphas::io::gp::col::read_block<scalar_t>(scalar_t* grid, symphas::grid_info ginfo, FILE* f);
+//! Specialization of symphas::io::gp::col::read_block().
 template<>
-void symphas::io::gpc::read_block<complex_t>(complex_t* grid, symphas::grid_info ginfo, FILE* f);
-//! Specialization of symphas::io::gpc::read_block().
+void symphas::io::gp::col::read_block<complex_t>(complex_t* grid, symphas::grid_info ginfo, FILE* f);
+//! Specialization of symphas::io::gp::col::read_block().
 template<>
-void symphas::io::gpc::read_block<double[2]>(double(*grid)[2], symphas::grid_info ginfo, FILE* f);
-//! Specialization of symphas::io::gpc::read_block().
+void symphas::io::gp::col::read_block<double[2]>(double(*grid)[2], symphas::grid_info ginfo, FILE* f);
+//! Specialization of symphas::io::gp::col::read_block().
 template<>
-void symphas::io::gpc::read_block<vector_t<3>>(vector_t<3>* grid, symphas::grid_info ginfo, FILE* f);
-//! Specialization of symphas::io::gpc::read_block().
+void symphas::io::gp::col::read_block<vector_t<3>>(vector_t<3>* grid, symphas::grid_info ginfo, FILE* f);
+//! Specialization of symphas::io::gp::col::read_block().
 template<>
-void symphas::io::gpc::read_block<vector_t<2>>(vector_t<2>* grid, symphas::grid_info ginfo, FILE* f);
-//! Specialization of symphas::io::gpc::read_block().
+void symphas::io::gp::col::read_block<vector_t<2>>(vector_t<2>* grid, symphas::grid_info ginfo, FILE* f);
+//! Specialization of symphas::io::gp::col::read_block().
 template<>
-void symphas::io::gpc::read_block<vector_t<1>>(vector_t<1>* grid, symphas::grid_info ginfo, FILE* f);
+void symphas::io::gp::col::read_block<vector_t<1>>(vector_t<1>* grid, symphas::grid_info ginfo, FILE* f);
 
 //! \endcond
 

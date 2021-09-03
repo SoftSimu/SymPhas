@@ -31,17 +31,17 @@
 #include "writedefines.h"
 #include "writegp.h"
 
-namespace symphas::io
+namespace symphas::io::gp
 {
 	//! Defines elements used in input and output for the text format.
 	/*!
 	 * The format of input/output is based on using it with the gnuplot
 	 * utility.
 	 */
-	namespace gpc {}
+	namespace col {}
 }
 
-namespace symphas::io::gpc
+namespace symphas::io::gp::col
 {
 
 	template<size_t D, typename Sp, typename... S>
@@ -75,24 +75,24 @@ namespace symphas::io::gpc
 
 //! \cond
 
-//! Specialization of symphas::io::gpc::save_grid_plotting().
+//! Specialization of symphas::io::gp::col::save_grid_plotting().
 template<>
-void symphas::io::gpc::save_grid_plotting<scalar_t>(const scalar_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);
-//! Specialization of symphas::io::gpc::save_grid_plotting().
+void symphas::io::gp::col::save_grid_plotting<scalar_t>(const scalar_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);
+//! Specialization of symphas::io::gp::col::save_grid_plotting().
 template<>
-void symphas::io::gpc::save_grid_plotting<complex_t>(const complex_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);
-//! Specialization of symphas::io::gpc::save_grid_plotting().
+void symphas::io::gp::col::save_grid_plotting<complex_t>(const complex_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);
+//! Specialization of symphas::io::gp::col::save_grid_plotting().
 template<>
-void symphas::io::gpc::save_grid_plotting<double[2]>(const double(*grid)[2], symphas::io::write_info winfo, symphas::grid_info ginfo);
-//! Specialization of symphas::io::gpc::save_grid_plotting().
+void symphas::io::gp::col::save_grid_plotting<double[2]>(const double(*grid)[2], symphas::io::write_info winfo, symphas::grid_info ginfo);
+//! Specialization of symphas::io::gp::col::save_grid_plotting().
 template<>
-void symphas::io::gpc::save_grid_plotting<vector_t<3>>(const vector_t<3>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);
-//! Specialization of symphas::io::gpc::save_grid_plotting().
+void symphas::io::gp::col::save_grid_plotting<vector_t<3>>(const vector_t<3>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);
+//! Specialization of symphas::io::gp::col::save_grid_plotting().
 template<>
-void symphas::io::gpc::save_grid_plotting<vector_t<2>>(const vector_t<2>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);
-//! Specialization of symphas::io::gpc::save_grid_plotting().
+void symphas::io::gp::col::save_grid_plotting<vector_t<2>>(const vector_t<2>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);
+//! Specialization of symphas::io::gp::col::save_grid_plotting().
 template<>
-void symphas::io::gpc::save_grid_plotting<vector_t<1>>(const vector_t<1>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);
+void symphas::io::gp::col::save_grid_plotting<vector_t<1>>(const vector_t<1>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);
 
 //! \endcond
 

@@ -20,6 +20,7 @@
 
 
 #include "writedefines.h"
+#include <mutex>
 
 
 void symphas::io::copy_data_file_name(const char* dir, const char* data_name, int index, size_t id, DataFileType type, char* out)
@@ -150,12 +151,16 @@ void symphas::io::copy_data_file_name(const char* dir, int index, size_t id, Dat
 FILE* symphas::io::open_data_file(const char* dir, const char* data_name, int index, size_t id, DataFileType type)
 {
 	static std::vector<std::tuple<std::string, size_t, DataFileType>> idlist;
+	static std::mutex idlist_mtx;
+
 	bool first_open = (std::find(idlist.begin(), idlist.end(), std::make_tuple(dir, id, type)) == idlist.end());
 	const char* mode = (params::single_output_file) ? "a" : "w";
 
 	if (first_open)
 	{
-		idlist.emplace_back(dir, id, type);
+		idlist_mtx.lock();
+		idlist.emplace_back( dir, id, type );
+		idlist_mtx.unlock();
 	}
 
 	const char* sw_mode = (first_open)
