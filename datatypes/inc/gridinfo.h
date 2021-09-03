@@ -510,6 +510,13 @@ inline void swap(symphas::grid_info& first, symphas::grid_info& second)
 #define INTERVAL_Yh intervals.at(Axis::Y).width()
 #define INTERVAL_Zh intervals.at(Axis::Z).width()
 
+#define INTERVAL_Xc_AT(i) intervals[i].at(Axis::X).count()
+#define INTERVAL_Yc_AT(i) intervals[i].at(Axis::Y).count()
+#define INTERVAL_Zc_AT(i) intervals[i].at(Axis::Z).count()
+#define INTERVAL_Xc intervals.at(Axis::X).count()
+#define INTERVAL_Yc intervals.at(Axis::Y).count()
+#define INTERVAL_Zc intervals.at(Axis::Z).count()
+
 
 //! \endcond
 
