@@ -56,7 +56,7 @@ template<typename E>
 struct OpOperator;
 
 
-template<size_t Z, typename G>
+template<size_t Z, typename G = OpVoid>
 struct Variable;
 template<typename G>
 struct NamedData;
@@ -69,6 +69,8 @@ template<typename Dd, typename V, typename E, typename T>
 struct OpFuncDerivative;
 template<size_t O, typename V, typename T>
 struct OpOperatorDerivative;
+template<Axis ax, size_t O, typename V, typename Sp>
+struct OpOperatorDirectionalDerivative;
 
 template<typename V, typename E1, typename E2>
 struct OpFuncConvolution;
@@ -95,6 +97,9 @@ struct OpFunc;
 template<auto f, typename V, typename E>
 struct OpFuncApply;
 
+
+template<size_t D, Axis ax>
+struct GridAxis;
 
 
 //! @}

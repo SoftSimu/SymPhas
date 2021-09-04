@@ -37,9 +37,15 @@ protected:
 		char* writer_name = new char[std::strlen(value) + 1];
 		symphas::lib::str_trim(writer_name, writer_name);
 		symphas::lib::to_upper(value, writer_name);
+		
+		// The default writer is the GNU matrix writer.
 		WriterType writer = WriterType::GNU;
 
-		if (std::strcmp(writer_name, "XDR") == 0)
+		if (std::strcmp(writer_name, "GNU") == 0)
+		{
+			writer = WriterType::GNU;
+		}
+		else if (std::strcmp(writer_name, "XDR") == 0)
 		{
 			writer = WriterType::XDR;
 		}
@@ -51,6 +57,17 @@ protected:
 		{
 			writer = WriterType::MOVIE;
 		}
+		else if (std::strcmp(writer_name, "CSV") == 0)
+		{
+			writer = WriterType::CSV;
+		}
+		else
+		{
+			fprintf(SYMPHAS_WARN, "the given writer/reader type '%s' "
+				"is not recognized\n", writer_name);
+		}
+
+
 		delete[] writer_name;
 		return writer;
 	}
@@ -62,6 +79,7 @@ DLLIO WriterType params::writer = WriterType::GNU;
 DLLIO WriterType params::reader = WriterType::GNU;
 DLLIO bool params::use_timestamp = true;
 DLLIO bool params::single_output_file = true;
+DLLIO bool params::single_input_file = true;
 DLLIO char* params::checkpoint = nullptr;
 DLLIO int params::checkpoint_count = 10;
 
@@ -70,14 +88,30 @@ bool add_io_params(param_map_type& param_map)
 {
 	using namespace params;
 
+
 	param_map["plots_only"] = std::make_pair(&plots_only, new param_assign<bool>);
+	param_map["writer_type"] = std::make_pair(&writer, new param_assign<WriterType>);
 	param_map["writer"] = std::make_pair(&writer, new param_assign<WriterType>);
+	param_map["reader_type"] = std::make_pair(&reader, new param_assign<WriterType>);
 	param_map["reader"] = std::make_pair(&reader, new param_assign<WriterType>);
 	param_map["use_timestamp"] = std::make_pair(&use_timestamp, new param_assign<bool>);
 	param_map["single_output_file"] = std::make_pair(&single_output_file, new param_assign<bool>);
+	param_map["single_input_file"] = std::make_pair(&single_input_file, new param_assign<bool>);
 	param_map["single_output"] = std::make_pair(&single_output_file, new param_assign<bool>);
+	param_map["single_input"] = std::make_pair(&single_input_file, new param_assign<bool>);
 	param_map["checkpoint"] = std::make_pair(&checkpoint, new param_assign<char*>);
 	param_map["checkpoint_count"] = std::make_pair(&checkpoint_count, new param_assign<int>);
+
+	using param_io_file_arr = bool*[2];
+	param_map["single_io_file"] = std::make_pair(
+		param_io_file_arr{ &single_input_file, &single_output_file },
+		new param_assign_multiple<bool, 2>);
+
+	using param_io_arr = WriterType*[2];
+	param_map["io_type"] = std::make_pair(
+		param_io_arr{ &reader, &writer },
+		new param_assign_multiple<WriterType, 2>);
+
 
 	return true;
 }

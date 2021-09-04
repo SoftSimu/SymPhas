@@ -505,6 +505,28 @@ namespace expr
 	};
 
 	//! Specialization based on expr::BaseData.
+	template<size_t N>
+	struct BaseData<Variable<N>>
+	{
+		static auto get(Variable<N> const& data, iter_type n)
+		{
+			return OpVoid{}.eval();
+		}
+		static auto get(Variable<N> const& data)
+		{
+			return OpVoid{};
+		}
+		static auto get(Variable<N>& data, iter_type n)
+		{
+			return OpVoid{}.eval();
+		}
+		static auto get(Variable<N>& data)
+		{
+			return OpVoid{};
+		}
+	};
+
+	//! Specialization based on expr::BaseData.
 	template<typename A>
 	struct BaseData<A&> : BaseData<A> {};
 }

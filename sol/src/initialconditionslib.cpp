@@ -95,7 +95,8 @@ std::map<const char*, Inside, symphas::internal::any_case_comparator> symphas::i
 	{"CIRCLESEEDS", Inside::SEEDSCIRCLE},
 	{"CS", Inside::SEEDSCIRCLE},
 	{"VORONOI", Inside::VORONOI},
-	{"VO", Inside::VORONOI}
+	{"VO", Inside::VORONOI},
+	{"EXPRESSION", Inside::EXPRESSION}
 };
 
 

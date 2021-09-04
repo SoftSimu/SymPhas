@@ -1160,6 +1160,11 @@ inline auto operator+(OpExpression<E> const& e, OpNegIdentity const)
 
 namespace expr
 {
+	//! Returns true if the base type matches between two types.
+	/*!
+	 * The base type of a type is evaluated by expr::base_data_type, and 
+	 * this will return true if the base type of two types is the same.
+	 */
 	template<typename G1, typename G2>
 	constexpr bool is_same_base = std::is_same<
 		typename expr::base_data_type<G1>::type,
@@ -2116,5 +2121,112 @@ auto OpBinaryDiv<E1, E2>::operator-() const
 {
 	return -a / b;
 }
+
+
+
+template<typename E1>
+auto operator+(OpExpression<E1> const& a, double b)
+{
+	return *static_cast<const E1*>(&a) + expr::make_literal(b);
+}
+
+template<typename E2>
+auto operator+(double a, OpExpression<E2> const& b)
+{
+	return expr::make_literal(a) + *static_cast<const E2*>(&b);
+}
+
+
+template<typename E1>
+auto operator-(OpExpression<E1> const& a, double b)
+{
+	return *static_cast<const E1*>(&a) - expr::make_literal(b);
+}
+
+template<typename E2>
+auto operator-(double a, OpExpression<E2> const& b)
+{
+	return expr::make_literal(a) - *static_cast<const E2*>(&b);
+}
+
+
+template<typename E1>
+auto operator*(OpExpression<E1> const& a, double b)
+{
+	return *static_cast<const E1*>(&a) * expr::make_literal(b);
+}
+
+template<typename E2>
+auto operator*(double a, OpExpression<E2> const& b)
+{
+	return expr::make_literal(a) * *static_cast<const E2*>(&b);
+}
+
+template<typename E1>
+auto operator/(OpExpression<E1> const& a, double b)
+{
+	return *static_cast<const E1*>(&a) / expr::make_literal(b);
+}
+
+template<typename E2>
+auto operator/(double a, OpExpression<E2> const& b)
+{
+	return expr::make_literal(a) / *static_cast<const E2*>(&b);
+}
+
+
+
+template<typename E1>
+auto operator+(OpExpression<E1> const& a, int b)
+{
+	return *static_cast<const E1*>(&a) + expr::make_literal(b);
+}
+
+template<typename E2>
+auto operator+(int a, OpExpression<E2> const& b)
+{
+	return expr::make_literal(a) + *static_cast<const E2*>(&b);
+}
+
+
+template<typename E1>
+auto operator-(OpExpression<E1> const& a, int b)
+{
+	return *static_cast<const E1*>(&a) - expr::make_literal(b);
+}
+
+template<typename E2>
+auto operator-(int a, OpExpression<E2> const& b)
+{
+	return expr::make_literal(a) - *static_cast<const E2*>(&b);
+}
+
+
+template<typename E1>
+auto operator*(OpExpression<E1> const& a, int b)
+{
+	return *static_cast<const E1*>(&a) * expr::make_literal(b);
+}
+
+template<typename E2>
+auto operator*(int a, OpExpression<E2> const& b)
+{
+	return expr::make_literal(a) * *static_cast<const E2*>(&b);
+}
+
+template<typename E1>
+auto operator/(OpExpression<E1> const& a, int b)
+{
+	return *static_cast<const E1*>(&a) / expr::make_literal(b);
+}
+
+template<typename E2>
+auto operator/(int a, OpExpression<E2> const& b)
+{
+	return expr::make_literal(a) / *static_cast<const E2*>(&b);
+}
+
+
+
 
 

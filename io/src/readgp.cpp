@@ -38,17 +38,22 @@ FILE* symphas::io::gp::open_gpgridf(const char* name)
 	return f;
 }
 
-
-symphas::grid_info symphas::io::gp::read_gp_header(int* index, FILE* f, bool read_header)
+template<>
+symphas::grid_info symphas::io::gp::read_header(FILE* f, int* index)
 {
 	symphas::grid_info ginfo{ nullptr, 0 };
-	if (read_header)
+
+	iter_type read_index = (index) ? *index : BAD_INDEX;
+	if (read_index < 0)
 	{
 		int dim;
 		if (fscanf(f, "%d", &dim) != 1)
 		{
-			*index = BAD_INDEX;
-			return { nullptr, dim };
+			if (index)
+			{
+				*index = BAD_INDEX;
+			}
+			ginfo = { nullptr, dim };
 		}
 
 		len_type* dims = new len_type[dim];
@@ -56,7 +61,10 @@ symphas::grid_info symphas::io::gp::read_gp_header(int* index, FILE* f, bool rea
 		{
 			if (fscanf(f, "%d", dims + i) != 1)
 			{
-				*index = BAD_INDEX;
+				if (index)
+				{
+					*index = BAD_INDEX;
+				}
 				return { nullptr, dim };
 			}
 		}
@@ -65,15 +73,18 @@ symphas::grid_info symphas::io::gp::read_gp_header(int* index, FILE* f, bool rea
 
 
 		/* the output of the intervals always goes x, y, z
-		 * keep checking size of dimension and print corresponding interval
-		 */
+			* keep checking size of dimension and print corresponding interval
+			*/
 
 		double left, right;
 		for (iter_type i = 0; i < dim; ++i)
 		{
 			if (fscanf(f, "%lf", &left) + fscanf(f, "%lf", &right) != 2)
 			{
-				*index = BAD_INDEX;
+				if (index)
+				{
+					*index = BAD_INDEX;
+				}
 				return { nullptr, dim };
 			}
 			ginfo.at(symphas::index_to_axis(i)).set_interval_count(left, right, dims[i]);
@@ -81,11 +92,15 @@ symphas::grid_info symphas::io::gp::read_gp_header(int* index, FILE* f, bool rea
 
 		delete[] dims;
 	}
-
-	if (fscanf(f, "%d", index) != 1)
+		
+	if (index)
 	{
-		*index = BAD_INDEX;
+		if (fscanf(f, "%d", index) != 1)
+		{
+			*index = BAD_INDEX;
+		}
 	}
+
 	return ginfo;
 }
 

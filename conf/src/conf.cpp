@@ -389,7 +389,7 @@ Conf symphas::conf::restore_checkpoint(param_map_type param_map, const char* dir
 		if (*lower > index)
 		{
 			fprintf(SYMPHAS_LOG, "the provided index does not match any candidates "
-				"in the list of completed indices, so loading from '%d' instead\n", *lower);
+				"in the list of completed indices, so using index '%d' instead\n", *lower);
 			params::start_index = *lower;
 		}
 		else
@@ -404,8 +404,7 @@ Conf symphas::conf::restore_checkpoint(param_map_type param_map, const char* dir
 
 	symphas::init_data_type load;
 	load.in = Inside::CHECKPOINT;
-	load.file.index = params::start_index;
-	load.file.name = load_name;
+	load.file = { load_name, params::start_index };
 
 	/* change the initial data so it is loaded from the saved name
 	 */
@@ -415,5 +414,10 @@ Conf symphas::conf::restore_checkpoint(param_map_type param_map, const char* dir
 	}
 
 	return configuration;
+}
+
+Conf symphas::conf::restore_checkpoint(const char* dir, int index)
+{
+	return restore_checkpoint({}, dir, index);
 }
 

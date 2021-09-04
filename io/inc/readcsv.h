@@ -17,15 +17,29 @@
  *
  * ***************************************************************************
  *
- * MODULE:  expr
- * PURPOSE: Includes new expressions that are implemented by the symbolic
- * algebra library.
+ * MODULE:  io
+ * PURPOSE: Defines the text input functionality for csv-type plot outputs.
  *
  * ***************************************************************************
  */
 
-
 #pragma once
 
-#include "expressiontypek.h"
-#include "expressionaxis.h"
+#include "readdefines.h"
+#include "readgp.h"
+
+
+namespace symphas::io::csv
+{
+
+	//! Plain text implementation of reading data.
+	template<typename T>
+	int read_grid(T* grid, symphas::io::read_info const& rinfo)
+	{
+		return symphas::io::gp::read_grid(grid, rinfo);
+	}
+
+	DECLARE_GP_HEADER_FUNCTIONS
+}
+
+

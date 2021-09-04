@@ -31,6 +31,7 @@
 
 #include "expressionconvolution.h"
 #include "expressionderivatives.h"
+#include "expressiontypeincludes.h"
 
 
 namespace expr
@@ -1204,6 +1205,35 @@ namespace expr::transform
 	template<size_t Z, typename Dd, typename V, typename E, typename Sp, typename G_F>
 	auto swap_grid(OpFuncDerivative<Dd, V, E, Sp> const& e, G_F&& g);
 
+
+	//! Swap a data term in the expression.
+	/*!
+	 * Swaps the instance of the variable term which matches the given index
+	 * for a different term or expression. If the term is not found, the
+	 * expression is returned unchanged.
+	 *
+	 * \param e The expression to search for the term to swap.
+	 * \param g The element which will replace the variable.
+	 *
+	 * \tparam Z The index of the variable to change.
+	 */
+	template<size_t Z, typename V, typename E, typename F, typename Arg0, typename... Args, typename G_F>
+	auto swap_grid(OpFunc<V, E, F, Arg0, Args...> const& e, G_F&& g);
+
+	//! Swap a data term in the expression.
+	/*!
+	 * Swaps the instance of the variable term which matches the given index
+	 * for a different term or expression. If the term is not found, the
+	 * expression is returned unchanged.
+	 *
+	 * \param e The expression to search for the term to swap.
+	 * \param g The element which will replace the variable.
+	 *
+	 * \tparam Z The index of the variable to change.
+	 */
+	template<size_t Z, auto f, typename V, typename E, typename G_F>
+	auto swap_grid(OpFuncApply<f, V, E> const& e, G_F&& g);
+
 	//
 
 	namespace
@@ -1323,6 +1353,331 @@ namespace expr::transform
 		return expr::make_operator_derivative<Dd::order>(e.value, e.solver)
 			* swap_grid<Z>(expr::compound_get::template expr(e), std::forward<G_F>(g));
 	}
+
+	template<size_t Z, typename V, typename E, typename F, typename Arg0, typename... Args, typename G_F>
+	auto swap_grid(OpFunc<V, E, F, Arg0, Args...> const& e, G_F&& g)
+	{
+		return OpFunc(e.name, e.value, swap_grid<Z>(e.e, std::forward<G_F>(g)), e.f, e.tt);
+	}
+
+	template<size_t Z, auto f, typename V, typename E, typename G_F>
+	auto swap_grid(OpFuncApply<f, V, E> const& e, G_F&& g)
+	{
+        auto eg = swap_grid<Z>(e.e, std::forward<G_F>(g));
+		return OpFuncApply<f, V, decltype(eg)>(e.value, eg);
+	}
+
+
+
+
+	/* A development of the previous algorithm which will swap the opvariable
+	 * based on the grid type. An important distinction is that the grid
+	 * will not be swapped if it is nested within a variable.
+	 */
+
+	 //! Swap a data term in the expression.
+	 /*!
+	  * Swaps the instance of the variable term which matches the given index
+	  * for a different term or expression. If the term is not found, the
+	  * expression is returned unchanged.
+	  *
+	  * \param e The expression to search for the term to swap.
+	  * \param g The element which will replace the variable.
+	  *
+	  * 	param Sg The type of the grid to match for the swap.
+	  */
+	template<typename Sg, typename E, typename G_F,
+		std::enable_if_t<!std::is_same<typename expr::base_data_type<E>::type, Sg>::value, int> = 0>
+	decltype(auto) swap_grid(E const& e, G_F&& g)
+	{
+		return e;
+	}
+
+
+	//! Swap a data term in the expression.
+	/*!
+	 * Swaps the instance of the variable term which matches the data type
+	 * for a different term or expression. If the term is not found, the
+	 * expression is returned unchanged.
+	 *
+	 * \param e The expression to search for the term to swap.
+	 * \param g The element which will replace the variable.
+	 *
+	 * \tparam Z The index of the variable to change.
+	 */
+
+	template<typename Sg, typename E, typename G_F,
+		std::enable_if_t<std::is_same<typename expr::base_data_type<E>::type, Sg>::value, int> = 0>
+		decltype(auto) swap_grid(E const& e, G_F&& g)
+	{
+		return std::forward<G_F>(std::forward<G_F>(g));
+	}
+
+	//! Swap a data term in the expression.
+	/*!
+	 * Implementation of a successful search, where the given variable term
+	 * associated with the prescribed type will be switched with the given
+	 * expression.
+	 *
+	 * \param v The term which is swapped.
+	 * \param g The element which will replace the variable.
+	 *
+	 * 	param Sg The type of the grid to match for the swap.
+	 */
+	template<typename Sg, typename T, typename G_F>
+	decltype(auto) swap_grid(OpLVariable<T, Sg> const& v, G_F&& g);
+
+	//! Swap a data term in the expression.
+	/*!
+	 * Implementation of a successful search, where the given variable term
+	 * associated with the prescribed type will be switched with the given
+	 * expression.
+	 *
+	 * \param v The term which is swapped.
+	 * \param g The element which will replace the variable.
+	 *
+	 * 	param Sg The type of the grid to match for the swap.
+	 */
+	template<typename Sg, typename T, typename G_F>
+	decltype(auto) swap_grid(OpLVariable<T, NamedData<Sg>> const& v, G_F&& g);
+
+	//! Swap a data term in the expression.
+	/*!
+	 * The variable will never be swapped, that has to be performed through
+	 * the index itself.
+	 *
+	 * \param v The term which is swapped.
+	 * \param g The element which will replace the variable.
+	 *
+	 * 	param Sg The type of the grid to match for the swap.
+	 */
+	template<typename Sg, size_t Z, typename G_F>
+	decltype(auto) swap_grid(Variable<Z, Sg> const& v, G_F&& g);
+
+	//! Swap a data term in the expression.
+	/*!
+	 * Swaps the instance of the variable term which matches the data type
+	 * for a different term or expression. If the term is not found, the
+	 * expression is returned unchanged.
+	 *
+	 * \param e The expression to search for the term to swap.
+	 * \param g The element which will replace the variable.
+	 *
+	 * 	param Sg The type of the grid to match for the swap.
+	 */
+	template<typename Sg, typename T, typename... Gs, typename G_F>
+	auto swap_grid(OpNLVariable<T, Gs...> const& e, G_F&& g);
+
+	//! Swap a data term in the expression.
+	/*!
+	 * Swaps the instance of the variable term which matches the data type
+	 * for a different term or expression. If the term is not found, the
+	 * expression is returned unchanged.
+	 *
+	 * \param e The expression to search for the term to swap.
+	 * \param g The element which will replace the variable.
+	 *
+	 * 	param Sg The type of the grid to match for the swap.
+	 */
+	template<typename Sg, typename E1, typename E2, typename G_F>
+	auto swap_grid(OpBinaryAdd<E1, E2> const& e, G_F&& g);
+
+	//! Swap a data term in the expression.
+	/*!
+	 * Swaps the instance of the variable term which matches the data type
+	 * for a different term or expression. If the term is not found, the
+	 * expression is returned unchanged.
+	 *
+	 * \param e The expression to search for the term to swap.
+	 * \param g The element which will replace the variable.
+	 *
+	 * 	param Sg The type of the grid to match for the swap.
+	 */
+	template<typename Sg, typename E1, typename E2, typename G_F>
+	auto swap_grid(OpBinarySub<E1, E2> const& e, G_F&& g);
+
+	//! Swap a data term in the expression.
+	/*!
+	 * Swaps the instance of the variable term which matches the data type
+	 * for a different term or expression. If the term is not found, the
+	 * expression is returned unchanged.
+	 *
+	 * \param e The expression to search for the term to swap.
+	 * \param g The element which will replace the variable.
+	 *
+	 * 	param Sg The type of the grid to match for the swap.
+	 */
+	template<typename Sg, typename E1, typename E2, typename G_F>
+	auto swap_grid(OpBinaryMul<E1, E2> const& e, G_F&& g);
+
+	//! Swap a data term in the expression.
+	/*!
+	 * Swaps the instance of the variable term which matches the data type
+	 * for a different term or expression. If the term is not found, the
+	 * expression is returned unchanged.
+	 *
+	 * \param e The expression to search for the term to swap.
+	 * \param g The element which will replace the variable.
+	 *
+	 * 	param Sg The type of the grid to match for the swap.
+	 */
+	template<typename Sg, typename V, typename E1, typename E2, typename G_F>
+	auto swap_grid(OpFuncConvolution<V, E1, E2> const& e, G_F&& g);
+
+
+	//! Swap a data term in the expression.
+	/*!
+	 * Swaps the instance of the variable term which matches the data type
+	 * for a different term or expression. If the term is not found, the
+	 * expression is returned unchanged.
+	 *
+	 * \param e The expression to search for the term to swap.
+	 * \param g The element which will replace the variable.
+	 *
+	 * 	param Sg The type of the grid to match for the swap.
+	 */
+	template<typename Sg, typename Dd, typename V, typename E, typename Sp, typename G_F>
+	auto swap_grid(OpFuncDerivative<Dd, V, E, Sp> const& e, G_F&& g);
+
+
+	//! Swap a data term in the expression.
+	/*!
+	 * Swaps the instance of the variable term which matches the data type
+	 * for a different term or expression. If the term is not found, the
+	 * expression is returned unchanged.
+	 *
+	 * \param e The expression to search for the term to swap.
+	 * \param g The element which will replace the variable.
+	 *
+	 * 	param Sg The type of the grid to match for the swap.
+	 */
+	template<typename Sg, typename V, typename E, typename F, typename Arg0, typename... Args, typename G_F>
+	auto swap_grid(OpFunc<V, E, F, Arg0, Args...> const& e, G_F&& g);
+
+
+	//! Swap a data term in the expression.
+	/*!
+	 * Swaps the instance of the variable term which matches the data type
+	 * for a different term or expression. If the term is not found, the
+	 * expression is returned unchanged.
+	 *
+	 * \param e The expression to search for the term to swap.
+	 * \param g The element which will replace the variable.
+	 *
+	 * 	param Sg The type of the grid to match for the swap.
+	 */
+	template<typename Sg, auto f, typename V, typename E, typename G_F>
+	auto swap_grid(OpFuncApply<f, V, E> const& e, G_F&& g);
+
+	//
+
+	namespace
+	{
+
+		/* swapping in the tuple
+		 */
+		template<typename Sg, typename... Gs, typename G_F, size_t... Is>
+		auto _swap_grid_tuple(std::tuple<Gs...> const& ts, G_F&& g, std::index_sequence<Is...>)
+		{
+			return std::make_tuple(swap_grid<Sg>(std::get<Is>(ts), std::forward<G_F>(g))...);
+		}
+	}
+
+	/* opvariable swapping (lowest level in the recursion)
+	 */
+
+	template<typename Sg, typename T, typename G_F>
+	decltype(auto) swap_grid(OpLVariable<T, Sg> const& v, G_F&& g)
+	{
+		return expr::make_op(v.value, swap_grid<Sg>(v.data, std::forward<G_F>(g)));
+	}
+
+	template<typename Sg, typename T, typename G_F>
+	decltype(auto) swap_grid(OpLVariable<T, NamedData<Sg>> const& v, G_F&& g)
+	{
+		return expr::make_op(v.value, swap_grid<Sg>(v.data, std::forward<G_F>(g)));
+	}
+
+	template<typename Sg, size_t Z, typename G_F>
+	decltype(auto) swap_grid(Variable<Z, Sg> const& v, G_F&& g)
+	{
+		return v;
+	}
+
+
+	template<typename Sg, typename T, typename... Gs, typename G_F>
+	auto swap_grid(OpNLVariable<T, Gs...> const& e, G_F&& g)
+	{
+		return OpNLVariable(e.value, _swap_grid_tuple<Sg>(e.datas, std::forward<G_F>(g), std::make_index_sequence<sizeof...(Gs)>{}));
+	}
+
+
+	/* recursive swapping
+	 */
+
+	template<typename Sg, typename E1, typename E2, typename G_F>
+	auto swap_grid(OpBinaryAdd<E1, E2> const& e, G_F&& g)
+	{
+		return swap_grid<Sg>(e.a, std::forward<G_F>(g)) + swap_grid<Sg>(e.b, std::forward<G_F>(g));
+	}
+
+	template<typename Sg, typename E1, typename E2, typename G_F>
+	auto swap_grid(OpBinarySub<E1, E2> const& e, G_F&& g)
+	{
+		return swap_grid<Sg>(e.a, std::forward<G_F>(g)) - swap_grid<Sg>(e.b, std::forward<G_F>(g));
+	}
+
+	template<typename Sg, typename E1, typename E2, typename G_F>
+	auto swap_grid(OpBinaryMul<E1, E2> const& e, G_F&& g)
+	{
+		return swap_grid<Sg>(e.a, std::forward<G_F>(g)) * swap_grid<Sg>(e.b, std::forward<G_F>(g));
+	}
+
+	template<typename Sg, typename V, typename E1, typename E2, typename G_F>
+	auto swap_grid(OpFuncConvolution<V, E1, E2> const& e, G_F&& g)
+	{
+		return expr::make_convolution(
+			e.value,
+			swap_grid<Sg>(e.a, std::forward<G_F>(g)),
+			swap_grid<Sg>(e.b, std::forward<G_F>(g)));
+	}
+
+	template<typename Sg, typename A1, typename A2, typename E, typename G_F>
+	auto swap_grid(OpChain<A1, A2, E> const& e, G_F&& g)
+	{
+		return e.combination * swap_grid<Sg>(expr::compound_get::expr(e), std::forward<G_F>(g));
+	}
+
+	template<typename Sg, typename A1, typename A2, typename E, typename G_F>
+	auto swap_grid(OpCombination<A1, A2, E> const& e, G_F&& g)
+	{
+		return e.combination * swap_grid<Sg>(expr::compound_get::expr(e), std::forward<G_F>(g));
+	}
+
+	/* a derivative is treated slightly differently; an operator needs to be applied because the
+	 * the swapped expression could result in a grid of a different type
+	 */
+
+	template<typename Sg, typename Dd, typename V, typename E, typename Sp, typename G_F>
+	auto swap_grid(OpFuncDerivative<Dd, V, E, Sp> const& e, G_F&& g)
+	{
+		return expr::make_operator_derivative<Dd::order>(e.value, e.solver)
+			* swap_grid<Sg>(expr::compound_get::template expr(e), std::forward<G_F>(g));
+	}
+
+	template<typename Sg, typename V, typename E, typename F, typename Arg0, typename... Args, typename G_F>
+	auto swap_grid(OpFunc<V, E, F, Arg0, Args...> const& e, G_F&& g)
+	{
+		return OpFunc(e.name, e.value, swap_grid<Sg>(e.e, std::forward<G_F>(g)), e.f, e.tt);
+	}
+
+	template<typename Sg, auto f, typename V, typename E, typename G_F>
+	auto swap_grid(OpFuncApply<f, V, E> const& e, G_F&& g)
+	{
+        auto eg = swap_grid<Sg>(e.e, std::forward<G_F>(g));
+		return OpFuncApply<f, V, decltype(eg)>(e.value, eg);
+	}
+
 
 }
 
@@ -1694,7 +2049,7 @@ namespace expr::split
 
 
 
-	 // there are several different cases a compound operator might have might happen:
+	 // there are several different cases a compound operator might happen:
 	 // 1. E is a function of only V(Z)
 	 // 2. E is a function of V(Z) and others, and contains a term that's only of V(Z)
 	 // 3. E is a function of V(Z) and others, but contains no terms only of V(Z)
@@ -1844,6 +2199,43 @@ namespace expr::split
 	 */
 	template<size_t Z, typename V, typename E1, typename E2>
 	auto separate_var(OpFuncConvolution<V, E1, E2> const& e);
+
+	//! Separates the expressions based on existence of the variable index.
+	/*!
+	 * Separates terms of the expression based on whether the term contains
+	 * only variable terms of the prescribed index. It will form two
+	 * expressions, `A` and `B`, such that `A` is an expression containing
+	 * only terms of variable index `Z`, and `B` is everything else, which
+	 * may also contain variables of index `Z`. If a term can't be separated
+	 * by subtracting or adding, then it will not be separated and
+	 * remain in the expression `B`. An example would be multiplying
+	 * the variable index `Z` by another variable with a different index.
+	 *
+	 * \param e The expression which is split.
+	 *
+	 * \tparam Z The index of the variable to separate.
+	 */
+	template<size_t Z, auto f, typename V, typename E>
+	auto separate_var(OpFuncApply<f, V, E> const& e);
+
+
+	//! Separates the expressions based on existence of the variable index.
+	/*!
+	 * Separates terms of the expression based on whether the term contains
+	 * only variable terms of the prescribed index. It will form two
+	 * expressions, `A` and `B`, such that `A` is an expression containing
+	 * only terms of variable index `Z`, and `B` is everything else, which
+	 * may also contain variables of index `Z`. If a term can't be separated
+	 * by subtracting or adding, then it will not be separated and
+	 * remain in the expression `B`. An example would be multiplying
+	 * the variable index `Z` by another variable with a different index.
+	 *
+	 * \param e The expression which is split.
+	 *
+	 * \tparam Z The index of the variable to separate.
+	 */
+	template<size_t Z, typename V, typename E, typename F, typename Arg0, typename... Args>
+	auto separate_var(OpFunc<V, E, F, Arg0, Args...> const& e);
 
 
 	//
@@ -2092,6 +2484,53 @@ namespace expr::split
 	auto separate_var(OpCombination<A1, A2, E> const& e)
 	{
 		return separate_var_combination<Z>(e);
+	}
+
+
+	namespace
+	{
+		template<size_t Z, auto f, typename V, typename E,
+			typename std::enable_if_t<svcg_pred<Z, E>, int> = 0>
+			auto separate_var_function_apply(OpFuncApply<f, V, E> const& e)
+		{
+			return pack_left(e);
+		}
+
+		template<size_t Z, auto f, typename V, typename E,
+			typename std::enable_if_t<!svcg_pred<Z, E>, int> = 0>
+			auto separate_var_function_apply(OpFuncApply<f, V, E> const& e)
+		{
+			return pack_right(e);
+		}
+	}
+
+	template<size_t Z, auto f, typename V, typename E>
+	auto separate_var(OpFuncApply<f, V, E> const& e)
+	{
+		return separate_var_function_apply<Z>(e);
+	}
+
+	namespace
+	{
+		template<size_t Z, typename V, typename E, typename F, typename Arg0, typename... Args,
+			typename std::enable_if_t<svcg_pred<Z, E>, int> = 0>
+			auto separate_var_function(OpFunc<V, E, F, Arg0, Args...> const& e)
+		{
+			return pack_left(e);
+		}
+
+		template<size_t Z, typename V, typename E, typename F, typename Arg0, typename... Args,
+			typename std::enable_if_t<!svcg_pred<Z, E>, int> = 0>
+			auto separate_var_function(OpFunc<V, E, F, Arg0, Args...> const& e)
+		{
+			return pack_right(e);
+		}
+	}
+
+	template<size_t Z, typename V, typename E, typename F, typename Arg0, typename... Args>
+	auto separate_var(OpFunc<V, E, F, Arg0, Args...> const& e)
+	{
+		return separate_var_function<Z>(e);
 	}
 
 

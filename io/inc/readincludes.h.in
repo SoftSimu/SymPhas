@@ -28,6 +28,7 @@
 #include "readgp.h"
 #include "readgpc.h"
 #include "readgpmov.h"
+#include "readcsv.h"
 
 #ifdef USING_XDR
 #include "readxdr.h"
@@ -42,8 +43,8 @@ case WriterType::XDR: \
 #endif
 
 
-#define SWITCH_IO_READ(FUNCTION) \
-switch (params::writer) \
+#define SWITCH_IO_READ(FUNCTION, DEFAULT) \
+switch (params::reader) \
 { \
 case WriterType::GNU: \
 	return symphas::io::gp:: FUNCTION; \
@@ -54,8 +55,11 @@ case WriterType::COLUMN: \
 case WriterType::MOVIE: \
 	return symphas::io::gp::mov:: FUNCTION; \
 	break; \
+case WriterType::CSV: \
+	return symphas::io::csv:: FUNCTION; \
+	break; \
 XDRR_CASE(FUNCTION) \
 default: \
-	return BAD_INDEX; \
+	return DEFAULT; \
 }
 

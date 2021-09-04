@@ -393,10 +393,20 @@ struct Solver
 	template<size_t O>
 	struct derivative;
 
+	//! The object which applies the derivative approximations.
+	template<Axis ax, size_t O>
+	struct directional_derivative;
+
 	template<size_t O, typename G>
 	decltype(auto) generalized_derivative(G&& e, iter_type n) const
 	{
 		return cast_const().template applied_generalized_derivative<O>(std::forward<G>(e), n);
+	}
+
+	template<Axis ax, size_t O, typename G>
+	decltype(auto) generalized_directional_derivative(G&& e, iter_type n) const
+	{
+		return cast_const().template applied_generalized_directional_derivative<ax, O>(std::forward<G>(e), n);
 	}
 
 	template<typename G>
@@ -684,6 +694,17 @@ struct Solver
 protected:
 
 
+	//! Default implementation of a derivative.
+	/*!
+	 * When the implemented solver doesn't implement derivative functions, default ones
+	 * are provided so that the compilation can still proceed, since expression derivatives
+	 * will use the derivative functions.
+	 */
+	template<Axis ax, size_t O>
+	auto applied_generalized_directional_derivative(...) const
+	{
+		return 0;
+	}
 
 	//! Default implementation of a derivative.
 	/*! 
@@ -818,6 +839,12 @@ protected:
 
 
 
+template<Axis ax, size_t O, typename Sp, typename G>
+auto apply_derivative(Sp const& sp, G&& e, iter_type n)
+{
+	return sp.template generalized_directional_derivative<ax, O>(std::forward<G>(e), n);
+}
+
 template<size_t O, typename Sp, typename G, typename std::enable_if_t<(O == 1), int> = 0>
 auto apply_derivative(Sp const& sp, G&& e, iter_type n)
 {
@@ -848,6 +875,7 @@ auto apply_derivative(Sp const& sp, G&& e, iter_type n)
 	return sp.template generalized_derivative<O>(std::forward<G>(e), n);
 }
 
+
 template<typename Sp>
 template<size_t O>
 struct Solver<Sp>::derivative
@@ -858,6 +886,20 @@ struct Solver<Sp>::derivative
 		return apply_derivative<O>(sp, std::forward<G>(e), n);
 	}
 	static const size_t order = O;
+};
+
+
+template<typename Sp>
+template<Axis ax, size_t O>
+struct Solver<Sp>::directional_derivative
+{
+	template<typename G>
+	auto operator()(Sp const& sp, G&& e, iter_type n) const
+	{
+		return apply_derivative<ax, O>(sp, std::forward<G>(e), n);
+	}
+	static const size_t order = O;
+	static const Axis axis = ax;
 };
 
 #include "provisionalsystemgroup.h"

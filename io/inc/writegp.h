@@ -681,7 +681,7 @@ R"~(
 		get_plot_fmt<D, S...>(sets);
 		print_plot_arrangement<sizeof...(S)>(gnuplot, BUFFER_LENGTH_L3);
 
-		char setcat[BUFFER_LENGTH];
+		char setcat[BUFFER_LENGTH_L2];
 
 		// copy over the names of the systems for given system number
 		for (size_t id = 0; id < sizeof...(S); ++id)
@@ -697,7 +697,7 @@ R"~(
 				? std::max(0, save.num_saves() - 1) 
 				: 0;
 
-			snprintf(setcat, BUFFER_LENGTH, sets[id], data_loc, index, names[id]);
+			snprintf(setcat, STR_ARR_LEN(setcat), sets[id], data_loc, index, names[id]);
 			std::strncat(gnuplot, setcat, 
 				std::min(
 					sizeof(gnuplot) / sizeof(char) - 1 - std::strlen(gnuplot),

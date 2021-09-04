@@ -70,6 +70,40 @@ namespace params
 	template<typename p_type>
 	struct param_assign;
 
+
+	//! Implementation of multiple parameter assignment.
+	/*!
+	 * Uses the params::param_assign functionality to assign the same type to
+	 * multiple parameters. This is useful for options which typically
+	 * should control more than one parameter at once, such as simultaneously
+	 * setting read and write parameters.
+	 *
+	 * \tparam p_type The parameter type name which will change how the parameter string is
+	 * parsed and assigned.
+	 */
+	template<typename p_type, size_t N>
+	struct param_assign_multiple : params::param_assign_base
+	{
+		//! Implementation to assign the same value to multiple parameters.
+		/*!
+		 * A new character string is created with the same length as value. The provided
+		 * value string is copied into the new one, and the new one is assigned to the parameter.
+		 *
+		 * \param param The parameter to assign.
+		 * \param value The value as a string to assign to `param`.
+		 */
+		void assign(void* params, const char* value)
+		{
+			using param_type = void*[N];
+			void* (&param_arr)[N] = *static_cast<param_type*>(params);
+
+			for (iter_type i = 0; i < N; ++i)
+			{
+				param_assign<p_type>{}.assign(param_arr[i], value);
+			}
+		}
+	};
+
 }
 
 //! Specialization of parameter assignment functionality for `bool` type.
@@ -270,12 +304,45 @@ namespace params
 
 	//! Flag indicating position of boundaries in the discrete grid.
 	/*!
-	 * Whether or not to extend the boundary when creating the grid
+	 * Whether or not to extend the boundary when creating the boundary grid.
 	 * choosing this to be true means that the grid sides are increased
 	 * by THICKNESS units (logically and in memory) rather than having the
 	 * interior be THICKNESS units less on each side from the given dimensions.
+	 * 
+	 * Briefly, this value will either:
+	 * - shrink the dimensions of the simulated 
+	 * phase-field system and recompute the spatial discretization, thereby 
+	 * maintaining the total grid size equal to what has been specified in 
+	 * configuration; or
+	 * - extend the dimensions beyond the dimensions specified in the
+	 * configuration, thereby maintaining the value of the spatial discretization
+	 * the same as given in the configuration.
+	 * 
+	 * **In more detail: (this only applies to the boundary system)**
+	 * 
+	 * This will affect the way the width is computed. When the configuration
+	 * is specified and the left and right endpoints are provided along with 
+	 * the width, this information is used to compute the system dimensions.
+	 * When params::extend_boundary is false, then the dimensions of the phase
+	 * field will be computed by reducing the computed system dimensions. Thus,
+	 * the system dimensions of the physical system will be reduced, and in
+	 * order to maintain the values of the left and right endpoints that were
+	 * provided, the spatial discretization will change.
+	 * 
+	 * However, when this value is true, then the boundary will be extended
+	 * from the computed system dimensions, so the simulated system spatial
+	 * discretization will precisely match what is provided in the 
+	 * configuration.
+	 * 
+	 * This value is false by default. However,
+	 * the latter case may be desired, so this value should be changed on
+	 * the command line.
+	 * It is false by default since it is desirable for the system 
+	 * dimensions to be exactly as provided in the configuration, for example,
+	 * so that dimensions that are a power of two are used to
+	 * maximize caching and other possible computations.
 	 */
-	DLLLIB extern bool boundary_ext;
+	DLLLIB extern bool extend_boundary;
 
 	//! Interval of updating VTK output.
 	/*!

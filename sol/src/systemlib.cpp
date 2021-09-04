@@ -45,7 +45,7 @@ void symphas::problem_parameters_type::set_initial_data(symphas::init_data_type*
 	}
 	else
 	{
-		fprintf(SYMPHAS_LOG, "the number of given initial data is larger than the number of systems\n");
+		fprintf(SYMPHAS_ERR, "the number of given initial data is larger than the number of systems\n");
 	}
 }
 
@@ -64,7 +64,7 @@ void symphas::problem_parameters_type::set_interval_data(symphas::interval_data_
 	}
 	else
 	{
-		fprintf(SYMPHAS_LOG, "the number of given interval data is larger than the number of systems\n");
+		fprintf(SYMPHAS_ERR, "the number of given interval data is larger than the number of systems\n");
 	}
 }
 
@@ -83,7 +83,7 @@ void symphas::problem_parameters_type::set_boundary_data(symphas::b_data_type* b
 	}
 	else
 	{
-		fprintf(SYMPHAS_LOG, "the number of given boundary data is larger than the number of systems\n");
+		fprintf(SYMPHAS_ERR, "the number of given boundary data is larger than the number of systems\n");
 	}
 }
 

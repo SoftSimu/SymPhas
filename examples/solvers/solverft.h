@@ -145,7 +145,7 @@ public:
 						(symphas::index_to_axis(n) == Axis::Y) ? 'y' :
 						(symphas::index_to_axis(n) == Axis::Z) ? 'z' : '?';
 					fprintf(SYMPHAS_WARN, "the grid spacing of system %d for axis '%c' is "
-						"not consistent, results will not reflect the given problem!",
+						"not consistent, results will not reflect the given problem!\n",
 						i, axis);
 				}
 			}
@@ -158,7 +158,7 @@ public:
 		for (iter_type i = 0; i < dim; ++i)
 		{
 			Axis side = symphas::index_to_axis(i);
-			dims[i] = parameters.get_interval_data()[0].at(side).count();
+			dims[i] = parameters.get_interval_data()[0].at(side).count() + 2 * THICKNESS;
 		}
 
 		auto s = SolverFT<St>{ dims, h };

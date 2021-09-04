@@ -30,6 +30,7 @@
 #include "prereq.h"
 #include "write.h"
 #include "read.h"
+#include "modelvirtual.h"
 
 
 namespace symphas
@@ -144,10 +145,6 @@ namespace symphas
 		}
 	}
 
-
-
-
-
 	//! Determine the solution of a phase field problem.
 	/*!
 	 * The phase field problem in the given model is run through the solver
@@ -166,8 +163,15 @@ namespace symphas
 	{
 		iter_type n = save.next_save(model.index()) - model.index();
 		bool done = run_model(model, n, dt, starttime);
-		return (done && !symphas::io::is_last_save(model.index(), save));
+		return (done && !save.is_last_save(model.index()));
 	}
+
+	template<size_t D, typename... S>
+	bool run_model(ModelVirtual<D, S...>& model)
+	{
+		return run_model(model, model.solver.save, 0);
+	}
+
 
 
 	//! Get the solution of the model using a standardized workflow.

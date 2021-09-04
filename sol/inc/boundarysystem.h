@@ -51,6 +51,7 @@ struct PhaseFieldSystem<BoundaryGrid, T, D> : PersistentSystemData<BoundaryGrid<
 	using parent_type::info;
 
 
+
 	//! Given the system information, generate the phase field.
 	/*!
 	 * Given the system information, generate the phase field. This includes
@@ -84,7 +85,22 @@ protected:
 
 	PhaseFieldSystem();
 
+	symphas::interval_data_type get_extended_intervals(symphas::interval_data_type vdata)
+	{
+		if (params::extend_boundary)
+		{
+			for (auto& [_, interval] : vdata)
+			{
+				interval.set_interval_count(
+					interval.left(), interval.right(),
+					interval.count() + 2 * THICKNESS);
+			}
+		}
+		return vdata;
+	}
+
 };
+
 
 
 
@@ -106,7 +122,7 @@ PhaseFieldSystem<BoundaryGrid, T, D>::PhaseFieldSystem(
 	symphas::init_data_type const& tdata, 
 	symphas::interval_data_type const& vdata, 
 	symphas::b_data_type const& bdata, size_t id) :
-	parent_type{ vdata, id }, BoundaryGroup<T, D>{ info.intervals, bdata }
+	parent_type{ get_extended_intervals(vdata), id }, BoundaryGroup<T, D>{ info.intervals, bdata }
 {
 	symphas::internal::populate_tdata(tdata, *static_cast<Grid<T, D>*>(this), &info, id);
 }

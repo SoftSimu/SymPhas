@@ -28,10 +28,15 @@
 #include "readdefines.h"
 
 
+// \cond
+#define DECLARE_GP_HEADER_FUNCTIONS \
+inline symphas::grid_info read_header(symphas::io::read_info const& rinfo, iter_type* index = nullptr) { return symphas::io::gp::read_header(rinfo, index); } \
+template<typename F> inline symphas::grid_info read_header(F* f, iter_type* index = nullptr) {return symphas::io::gp::read_header(f, index); }
+
+// \endcond
+
 namespace symphas::io::gp
 {
-	//! Read the header of the datafile.
-	symphas::grid_info read_gp_header(int* index, FILE* f, bool read_header = true);
 
 	//! Open the file which was written in the gnuplot (plain text) format.
 	FILE* open_gpgridf(const char* name);
@@ -41,8 +46,8 @@ namespace symphas::io::gp
 	/*!
 	 * Read one data block from the saved output, into the grid parameter.
 	 * This is used when there are multiple data indices written to the same
-	 * file, such as when params::single_output_file is chosen.
-	 * 
+	 * file, such as when params::single_input_file is chosen.
+	 *
 	 * \param grid The values into which to read the data.
 	 * \param ginfo The grid parameter specification.
 	 * \param f The pointer to the file that is accessed.
@@ -52,11 +57,25 @@ namespace symphas::io::gp
 
 	//! Plain text implementation of reading data.
 	template<typename T>
-	int read_grid(T* grid, symphas::io::read_info rinfo)
+	int read_grid(T* grid, symphas::io::read_info const& rinfo)
 	{
-		return read_grid_standardized(grid, rinfo, open_gpgridf, fclose, read_gp_header, read_block<T>);
+		return read_grid_standardized(grid, rinfo, open_gpgridf, fclose, read_block<T>);
 	}
 
+	//! Read the header of the datafile.
+	template<typename F>
+	symphas::grid_info read_header(F* f, int* index) { return { nullptr, 0 }; }
+	template<>
+	symphas::grid_info read_header(FILE* f, int* index);
+
+	inline symphas::grid_info read_header(symphas::io::read_info const& rinfo, iter_type* index = nullptr)
+	{
+		FILE* f = open_gpgridf(rinfo.name);
+		symphas::grid_info ginfo = read_header(f, index);
+		fclose(f);
+
+		return ginfo;
+	}
 }
 
 //! \cond

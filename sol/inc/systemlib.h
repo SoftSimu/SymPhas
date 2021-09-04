@@ -171,9 +171,12 @@ struct SystemData<Grid<T, D>> : Grid<T, D>, SystemInfo
 		Grid<T, D>{ grid::construct<::Grid, T, D>(vdata) }, 
 		SystemInfo{ { vdata }, id } 
 	{
-		for (iter_type i = info.dimension() - 1; i >= D; --i)
+		if (info.dimension() > 0)
 		{
-			info.intervals.erase(symphas::index_to_axis(i));
+			for (iter_type i = info.dimension() - 1; i >= D; --i)
+			{
+				info.intervals.erase(symphas::index_to_axis(i));
+			}
 		}
 	}
 
@@ -592,7 +595,10 @@ namespace symphas
 		//! Set the initial data of the problem parameters.
 		/*
 		 * Set the initial data of the problem parameters, to be applied to one
-		 * or more systems in a phase field problem initialization.
+		 * or more systems in a phase field problem initialization. If the
+		 * length of the given list is smaller than the number of systems
+		 * represented by this object, the remaining elements will be initialized
+		 * to the first of this list.
 		 *
 		 * \param tdata_set The list of initial data to apply. The i-th element
 		 * in the given list applies to the i-th phase field to the given phase
@@ -604,12 +610,26 @@ namespace symphas
 		{
 			set_initial_data(tdata_set, len - 1);
 		}
+		inline void set_initial_data(symphas::init_data_type const& tdata_set, iter_type i)
+		{
+			if (i < len)
+			{
+				tdata[i] = tdata_set;
+			}
+			else
+			{
+				throw std::out_of_range("given initial data element larger than list length\n");
+			}
+		}
 
 		//! Set the interval data of the problem parameters.
 		/*
 		 * Set the interval data of the problem parameters, to be applied to one
 		 * or more systems in a phase field problem initialization. The intervals
-		 * must match the system dimension.
+		 * must match the system dimension. If the
+		 * length of the given list is smaller than the number of systems
+		 * represented by this object, the remaining elements will be initialized
+		 * to the first of this list.
 		 *
 		 * \param vdata_set The list of interval data to apply. The i-th element
 		 * in the given list applies to the i-th phase field to the given phase
@@ -621,13 +641,27 @@ namespace symphas
 		{
 			set_interval_data(vdata_set, len - 1);
 		}
+		inline void set_interval_data(symphas::interval_data_type const& vdata_set, iter_type i)
+		{
+			if (i < len)
+			{
+				vdata[i] = vdata_set;
+			}
+			else
+			{
+				throw std::out_of_range("given interval data element larger than list length\n");
+			}
+		}
 
 
 		//! Set the boundary data of the problem parameters.
 		/*
 		 * Set the boundary data of the problem parameters, to be applied to one
 		 * or more systems in a phase field problem initialization. The boundary
-		 * dimension must match the system dimension.
+		 * dimension must match the system dimension. If the
+		 * length of the given list is smaller than the number of systems
+		 * represented by this object, the remaining elements will be initialized
+		 * to the first of this list.
 		 *
 		 * \param bdata_set The list of boundary data to apply. The i-th element
 		 * in the given list applies to the i-th phase field to the given phase
@@ -638,6 +672,17 @@ namespace symphas
 		inline void set_boundary_data(symphas::b_data_type* bdata_set)
 		{
 			set_boundary_data(bdata_set, len - 1);
+		}
+		inline void set_boundary_data(symphas::b_data_type const& bdata_set, iter_type i)
+		{
+			if (i < len)
+			{
+				bdata[i] = bdata_set;
+			}
+			else
+			{
+				throw std::out_of_range("given boundary data element larger than list length\n");
+			}
 		}
 
 
@@ -729,11 +774,11 @@ namespace symphas::internal
 
 
 	template<typename T, size_t D>
-	void populate_tdata(symphas::init_data_type const& tdata, Grid<T, D>& data,
-		[[maybe_unused]] symphas::grid_info* info, [[maybe_unused]] size_t id)
+	void populate_tdata(symphas::init_data_type const& tdata, 
+		Grid<T, D>& data, [[maybe_unused]] symphas::grid_info* info, [[maybe_unused]] size_t id)
 	{
 
-		if (!InitialConditions<T, D>{ tdata, data.dims }.initialize(data.values, id))
+		if (!InitialConditions<T, D>{ tdata, info->intervals, data.dims }.initialize(data.values, id))
 		{
 			fprintf(SYMPHAS_ERR, "the given initial condition algorithm is not valid\n");
 		}

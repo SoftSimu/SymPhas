@@ -114,9 +114,9 @@ namespace expr
 		static const int value = dimension;
 	};
 
-	//! Returns the list of all data types.
+	//! Constructs the list of all data types.
 	/*!
-	 * Returns a tuple type where the tuple template arguments are (uniquely
+	 * Constructs a tuple type where the tuple template arguments are (uniquely
 	 * listed) template arguments of the OpLVariables from the given
 	 * expression.
 	 */
@@ -223,6 +223,23 @@ namespace expr
 	{
 		static const bool value = false;
 	};
+
+	template<typename E>
+	struct is_directional_derivative
+	{
+
+	private:
+		template <typename T, typename = int>
+		struct HasAx : std::false_type {};
+
+		template <typename T>
+		struct HasAx<T, decltype((void)T::ax, 0)> : std::true_type { };
+
+	public:
+
+		static const bool value = HasAx<E>::value;
+	};
+
 
 	//! Combines type traits is_linear and is_combination.
 	template<typename E>
@@ -1150,6 +1167,18 @@ struct expr::expression_predicate : expr::is_linear<E>, expr::is_combination<E>
 	static const bool operator_like = expr::is_operator_like<E>::value;
 };
 
+template<Axis ax, size_t O, typename V, typename Sp>
+struct expr::is_directional_derivative<OpOperatorDirectionalDerivative<ax, O, V, Sp>>
+{
+	static const bool value = true;
+};
+
+
+template<typename Dd, typename V, typename E, typename Sp>
+struct expr::is_directional_derivative<OpFuncDerivative<Dd, V, E, Sp>>
+{
+	static const bool value = expr::is_directional_derivative<Dd>::value;
+};
 
 
 namespace expr
@@ -1594,6 +1623,63 @@ struct expr::property::vars<OpNLVariable<T, Gs...>>
 	static constexpr auto each_id()
 	{
 		return has_id<Y>();
+	}
+};
+
+//! Specialization based on expr::property::vars.
+template<auto f, typename V, typename E>
+struct expr::property::vars<OpFuncApply<f, V, E>>
+{
+	static constexpr auto get_ids()
+	{
+		return expr::property::vars<E>::get_ids();
+	}
+
+	template<size_t Y>
+	static constexpr bool has_id()
+	{
+		return expr::property::vars<E>::template has_id<Y>();
+	}
+
+	template<size_t Y>
+	static constexpr auto only_id()
+	{
+		return expr::property::vars<E>::template only_id<Y>();
+	}
+
+	template<size_t Y>
+	static constexpr auto each_id()
+	{
+		return expr::property::vars<E>::template each_id<Y>();
+	}
+};
+
+
+//! Specialization based on expr::property::vars.
+template<typename V, typename E, typename F, typename Arg0, typename... Args>
+struct expr::property::vars<OpFunc<V, E, F, Arg0, Args...>>
+{
+	static constexpr auto get_ids()
+	{
+		return expr::property::vars<E>::get_ids();
+	}
+
+	template<size_t Y>
+	static constexpr bool has_id()
+	{
+		return expr::property::vars<E>::template has_id<Y>();
+	}
+
+	template<size_t Y>
+	static constexpr auto only_id()
+	{
+		return expr::property::vars<E>::template only_id<Y>();
+	}
+
+	template<size_t Y>
+	static constexpr auto each_id()
+	{
+		return expr::property::vars<E>::template each_id<Y>();
 	}
 };
 

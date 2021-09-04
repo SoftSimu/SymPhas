@@ -78,10 +78,13 @@
  */
 enum class BoundaryType
 {
-	DEFAULT,		//!< Default boundaries, usually Dirichlet and Neumann conditions.
-	PERIODIC,		//!< Periodic boundaries, which tile the system.
-	OPEN,			//!< Boundary representing an open or free space on the other side.
-	NONE			//!< Not a boundary type, for a "no-op" boundary or for error checking.
+	DEFAULT,			//!< Default boundaries, usually Dirichlet and Neumann conditions.
+	OPEN,				//!< Boundary representing an open or free space on the other side.
+	NONE,				//!< Not a boundary type, for a "no-op" boundary or for error checking.
+	PERIODIC,			//!< Periodic boundaries, which tile the system.
+	PERIODIC0,			//!< Periodic boundaries, for sides that are only opposite.
+	PERIODIC3A,			//!< Periodic boundaries in 3D, for sides which have left adjacent
+	PERIODIC3AA			//!< Periodic boundaries in 3D, for sides which have top adjacent.
 };
 
 
