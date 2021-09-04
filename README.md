@@ -299,10 +299,10 @@ In the equation, the order parameter of index `N` is referred to by `op(N)`, and
 The first two lines use macro definitions to create a new name for the order parameter and its derivative with respect to time, to make it easier to use in the model definition. The model definition represents a phase field system with a real-valued order parameter evolved according to the equation:
 
 <p align="center">
-<img src="./docs/index-form1.png" height=25pt>
+<img src="./docs/index-form1.png" height=35pt>
 </p>
 
-> The definition of a model introduces to the global namespace a type alias, `model_<NAME>_t`  for the model class, where `<NAME>` is the name of the model. This is referenced later in the file to create the model. Refer to [Defining Models](#defining-models) for more information about this.
+> The definition of a model introduces to the global namespace a type alias, `model_<NAME>_t`  for the model class, where `<NAME>` is the name of the model. This is referenced later in the file to create the model, e.g., `MODEL(EX...` introduces the type alias `model_EX_t`. Refer to [Defining Models](#defining-models) for more information about this.
 
 After the model definition, the `main` function is defined (program entry point), and directly specifies the simulation that will be performed.
 
@@ -432,17 +432,17 @@ To compile this program, there are two options. The first is using CMake with th
 The CMake compilation can be configured by creating a directory `build` inside the `simple-driver` directory and executing the following command from inside `build`:
 
 ```properties
-cmake -DCMAKE_BUILD_TYPE:STRING="Release" -DUSE_IO:BOOL="True" -DSOLVER_INCLUDE_HEADER_DIR:PATH="../solvers" -DSOLVER_INCLUDE_HEADER_NAME:FILEPATH="solverinclude.h" ..
+cmake -DCMAKE_BUILD_TYPE:STRING="Release" -DUSE_IO:BOOL="True" -DSOLVER_INCLUDE_HEADER_DIR:PATH="../examples/solvers" -DSOLVER_INCLUDE_HEADER_NAME:FILEPATH="solverinclude.h" ..
 ```
 
 This can be directly executed and does not require the *SymPhas* package to be installed beforehand. The reason is that the configuration provided in `CMakeLists.txt` will add the source code directory as a subdirectory to this build. This will also add the **io** module to the build.
 
 > The `solvers` directory is added relative to the `CMakeLists.txt` file which is being executed.
 
-Defining the variables:
+Additionally defining the variables:
 
 ```properties
--DMODEL_INCLUDE_HEADER_DIR:PATH="../models" -DMODEL_INCLUDE_HEADER_NAME:FILEPATH="modelinclude.h" 
+-DMODEL_INCLUDE_HEADER_DIR:PATH="../examples/models" -DMODEL_INCLUDE_HEADER_NAME:FILEPATH="modelinclude.h" 
 ```
 
 will add all the models included in *SymPhas*, but will require that the model defined in `main.cpp` is removed or commented away.
@@ -549,7 +549,7 @@ expr::result(resultv);
 
 The variable `expr` above is equivalent to:
 <p align="center">
-<img src="./docs/index-form4.png">
+<img src="./docs/index-form4.png" height=35pt>
 </p>
 
 In order to get `u` to the power of 3, it is possible to multiply `u` three times, or use the function `expr::pow` as above (which is functionally the same thing), a template function with template parameter of non-negative integer.
@@ -807,9 +807,9 @@ The relationship of the `Side` value to the dimension of the system can be summa
 
 Empty entries indicate that the <span style="color:violet">`Side`</span> value is inapplicable to the corresponding dimension. For each <span style="color:violet">`Side`</span> value, the entries in the table describe: 1) the point in the Cartesian coordinate system corresponding to the boundary, and; 2) the boundary in terms of their relationship to a *D*-dimensional system as a (*D*-1)-dimensional object at the boundary point. The latter is best described by example:
 
-- In a 2-dimensional system, the value <span style="color:violet">`Side`</span>`::LEFT` represents the boundary at *x*<sub>0</sub>, given by the equation <img src="./docs/index-form2.png"> which is parallel to the *y*-axis. 
+- In a 2-dimensional system, the value <span style="color:violet">`Side`</span>`::LEFT` represents the boundary at *x*<sub>0</sub>, given by the equation <img src="./docs/index-form2.png" height=10pt> which is parallel to the *y*-axis. 
 - In a 3-dimensional system, the value <span style="color:violet">`Side`</span>`::BACK` corresponds to the grid points at *z*<sub>1</sub>, which is the boundary that is oriented to the *xy*-plane and given by the equation
- <img src="./docs/index-form3.png">.
+ <img src="./docs/index-form3.png" height=10pt>.
 
 In this way, a local coordinate system with origin based on the global coordinate system may be imposed on the boundary, allowing *SymPhas* to treat boundaries as independent systems in order to populate boundary values according to a given function (these are described in the documentation).
 
