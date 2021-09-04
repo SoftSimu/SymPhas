@@ -119,7 +119,7 @@ For any packages which are not required, they will automatically be excluded fro
 
 The xdrfile package will allow output to the binary xdr format used in Gromacs. This is recommended if the output is very large. Additionally, VTK is recommended if real-time visualization is desired.
 
-When installing *SymPhas*, it is recommended to install to a directory which different from the system install directory (`/usr` or your home directory), and also name the installation output according to the configuration, as it may be desirable to install multiple configurations at once. An example would be having one installation configured only with the core modules (e.g., so headers are installed to `/usr/include/symphas-base/`), or another configured with all modules (e.g., so headers are installed to `/usr/include/symphas-all`).
+When installing *SymPhas*, it is recommended to install to a directory which different from the system install directory (such as your home directory), and also name the installation output according to the configuration, as it may be desirable to install multiple configurations at once. An example would be having one installation configured only with the core modules (e.g., so headers are installed to `symphas-base/include/`), or another configured with all modules (e.g., so headers are installed to `symphas-all/include`). This is primarily
 
 
 #### Linux Installation
@@ -145,7 +145,7 @@ Follow the below steps to install the dependencies.  If any of the packages are 
 **Installing _SymPhas_**
 
 
-Once *SymPhas* has been downloaded, use CMake to configure the build and installation process. Downloading and configuring can be done with:
+Once *SymPhas* has been downloaded, use CMake to configure the build and installation process. Assuming that the current directory is `/path/of/download/`, downloading and configuring can be done with:
     
     git clone https://github.com/SoftSimu/SymPhas
     cd SymPhas
@@ -154,9 +154,9 @@ Once *SymPhas* has been downloaded, use CMake to configure the build and install
     cd symphas-build
     cmake -DCMAKE_INSTALL_PREFIX=/path/to/install ..
 
-> If you wish to use *SymPhas* headers and library without specifying the location directly to the compiler, then change `CMAKE_INSTALL_PREFIX` to the primary installation directory of your system. This directory is typically `/usr`.
+> If you wish to use *SymPhas* headers and library without specifying the location directly to the compiler, then change `CMAKE_INSTALL_PREFIX` to the primary installation directory of your system. This directory is typically `/usr`. In this case, it is recommended the installation does not include models or solvers to ensure that driver files have full control over solvers and models they use. This is particularly important because compiling drivers requires recompiling the associated solvers and/or models.
 
-Using the downloaded source directory `/path/of/download`, this will populate the current directory, `symphas-build`, with the default build configuration files and set the installation path of *SymPhas* to `/path/to/install`. Cache variables may be provided to the `cmake` invocation after the directory specification to change the configuration. The cache variables are listed and described in [**Advanced Installation**](#advanced-installation). 
+Using the *SymPhas* files in the directory `/path/of/download`, the current directory, `symphas-build`, will be populated with the default build configuration files and set the installation path of *SymPhas* to `/path/to/install`. Cache variables may be provided to the `cmake` invocation after the directory specification to change the configuration. The cache variables are listed and described in [**Advanced Installation**](#advanced-installation). 
 If using a graphical interface to CMake, then all the variables and descriptions will be listed. 
 
 > In a graphical interface, some variables may not appear until prerequisite variables are defined. Ensure that the project is fully configured by repeating the configuration step after any modification of variables.
@@ -168,6 +168,8 @@ Once *SymPhas* has been configured, execute the following commands to build and 
     make install
 
 A new driver file may now be created, compiled and linked to the *SymPhas* API. 
+
+> **Note**: *Depending on the configuration of the installation, building the driver might require additional macro defines to be provided, such as `MODEL_INCLUDE_HEADER` in order to point to the directory containing model definitions. This is described in advanced installation.*
 
 
 #### Windows Installation
@@ -203,11 +205,11 @@ After the CMake project is configured, compile and install the project using the
 
 ### Advanced Installation
 
-When configuring *SymPhas*, providing the variable `COMBINE_SHARED` set to true to the CMake invocation, a shared library called `symphas_all` will be created which **combines all the modules** built for that configuration. This is useful when compiling a driver file with `g++`, so that only a single _SymPhas_ library needs to be provided to the command line. The disadvantage is that the compile time will be increased.
+When configuring *SymPhas*, providing the variable `COMBINE_SHARED` set to true to the CMake invocation, a shared library called `symphas_all` will be created which **combines all the modules** built for that configuration. This is useful when compiling a driver file with `g++`, so that only a single _SymPhas_ library needs to be provided to the command line. This will result in increased compile time.
 
 The following is a list of all CMake cache variables used for configuring *SymPhas*.
 
-- `MODEL_CALL_FUNCTION` A function templated on the specialized model type. When models are associated with string names (see `LINK_WITH_NAME` in the documentation for details), selecting a model will invoke this function with the concrete model type passed as a template parameter. The full usage of this parameter is described in the documentation. Empty by default.
+- `MODEL_CALL_FUNCTION` Specifies the name of a function templated on the specialized model type. When models are associated with string names (see `LINK_WITH_NAME` in the documentation for details), selecting a model will invoke this function with the concrete model type passed as a template parameter. The full usage of this parameter is described in the documentation. Empty by default.
 
   > Models **cannot** be associated or selected by string names in an installation that does not have `MODEL_CALL_FUNCTION` configured. 
 
@@ -217,9 +219,11 @@ The following is a list of all CMake cache variables used for configuring *SymPh
 
   > When `MODEL_INCLUDE_HEADER_NAME` is configured, macros associated with model definitions are undefined after including the model definitions header in order to avoid name conflicts. Consequently, models cannot be defined elsewhere, such as in the driver file. If it is not configured, models must be specified through the driver file or by providing to the compiler the definition `MODEL_INCLUDE_HEADER` set to the name of the model definitions header.
 
-- `MODEL_INCLUDE_HEADER_DIR` The directory containing the file `MODEL_INCLUDE_HEADER_NAME`. All files included by this file must also exist in this directory. If this is a relative path, this will be relative to the source code root directory (that is, relative to \lstinline{CMakeLists.txt}). This is \lstinline{.} (the current working directory) by default.
+- `MODEL_INCLUDE_HEADER_DIR` The directory containing the file `MODEL_INCLUDE_HEADER_NAME`. All files included by this file must also exist in this directory. If this is a relative path, this will be relative to the source code root directory (that is, relative to the source project `CMakeLists.txt`). This is `.` (the current working directory) by default.
 
 - `SOLVER_INCLUDE_HEADER_NAME` The name of the file defining all the solvers. If solvers are defined in multiple header files, then this file includes those solvers which are desired to be compiled. This is empty by default.
+
+  > If it is not configured in the installation, solvers must be included by providing to the compiler the definition `SOLVER_INCLUDE_HEADER` set to the name of the solver definitions header.
 
 - `SOLVER_INCLUDE_HEADER_DIR` The directory containing the file `SOLVER_INCLUDE_HEADER_NAME` and solver definitions. All files included by this file must also exist in this directory. If this is a relative path, this will be relative to the source code root directory (relative to `CMakeLists.txt`). This is `.` by default.
 
@@ -235,15 +239,15 @@ The following is a list of all CMake cache variables used for configuring *SymPh
 
 #### Installing Provided Solvers and Model Definitions
 
-The source code is provided with solvers already available and can be found in the folder `examples/solvers` in the root directory. There are also model definitions  available in the `models` folder in the root directory.
+The source code is provided with solvers already available and can be found in the folder `examples/solvers` in the root directory. There are also model definitions available in the `examples/models` folder in the root directory.
 
-These can be specified in the CMake configuration with the variables above, in which case installing *SymPhas* will also put the solvers and models in the installation directory, allowing them to be accessed through any driver file.
+These can be specified in the CMake configuration with the variables above, in which case installing *SymPhas* will also put the solvers and models in the installation directory, allowing them to be accessed from any driver file. This will effectively introduce a group of "default" models available to all driver files which use this installation. 
 
 
 
 ## *SymPhas* API basics
 
-Each element in *SymPhas* is extensively documented in Doxygen, and the listing can be found in `docs` in the source code root directory. This section will describe how they are all used together, starting with a simple example of a driver file. A driver file requires at least one solver definition in a separate header file, and at least one model definition, defined either within in the driver file, or outside in a separate header file.
+Each element in *SymPhas* is extensively documented in Doxygen, and the listing can be found in `docs` from the source code root directory. This section will describe how they are all used together, starting with a simple example of a driver file. A driver file requires at least one solver definition in a separate header file, and at least one model definition, defined either within in the driver file, or outside in a separate header file.
 
 In describing elements in *SymPhas*, colour coding is applied to some names. The meaning of the colours is:
 
@@ -290,12 +294,12 @@ In its simplest form, the model definition is constructed using C++ macros defin
 - The phase field types, surrounded by parentheses, and are any of <span style="color:purple">`SCALAR`</span>, <span style="color:purple">`COMPLEX`</span> or <span style="color:purple">`VECTOR`</span>; and
 - The dynamical equations, specified by providing the equations to the macro <span style="color:purple">`MODEL_DEF`</span>.
 
-In the equation, the order parameter of index `N` is referred to by `op(N)`, and its time derivative is `dop(N)`. The dynamical equation of field `N` has the form: `dop(N) = ...`. The characters `c1` through `c5` are coefficients of the model that are passed upon model construction, with default value 1.
+In the equation, the order parameter of index `N` is referred to by `op(N)`, and its time derivative is `dop(N)`. The dynamical equation of field `N` has the form: `dop(N) = ...`. The characters `c1` through `c5` are coefficients of the model that are passed to the model constructor, with default value `1.0`.
 
 The first two lines use macro definitions to create a new name for the order parameter and its derivative with respect to time, to make it easier to use in the model definition. The model definition represents a phase field system with a real-valued order parameter evolved according to the equation:
 
 <p align="center">
-<img src="./docs/index-form1.png">
+<img src="./docs/index-form1.png" height=25pt>
 </p>
 
 > The definition of a model introduces to the global namespace a type alias, `model_<NAME>_t`  for the model class, where `<NAME>` is the name of the model. This is referenced later in the file to create the model. Refer to [Defining Models](#defining-models) for more information about this.
