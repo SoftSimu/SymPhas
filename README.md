@@ -1,4 +1,4 @@
-# Symphas
+# SymPhas
 
 
 *A compile-time formulated symbolic algebra framework for numerical solutions of phase field problems.*
@@ -49,7 +49,7 @@ derived work.*
 > *Since SymPhas is supported purely by academic funding, we kindly ask you cite 
 > our paper:*
 > 
-> - "SymPhas—General purpose software for phase-field, phase-field crystal and reaction-diffusion simulations", Steven A. Silber and Mikko Karttunen, submitted
+> - "SymPhasâ€”General purpose software for phase-field, phase-field crystal and reaction-diffusion simulations", Steven A. Silber and Mikko Karttunen, submitted
 
 While our goal is to continue expanding and improving SymPhas to enhance its usefulness for
 the research community, our resources are limited. We welcome any support such as
@@ -792,7 +792,7 @@ It is assumed that the system is oriented such that *x* is the horizontal axis, 
 
 The relationship of the `Side` value to the dimension of the system can be summarized:
 
-|Value| Axis Point | In 1 dimension <br/> (*x*<sub>0</sub>, *x*<sub>1</sub>) | In 2 dimensions <br/> (*x*<sub>0</sub>, *x*<sub>1</sub>) × (*y*<sub>0</sub>, *y*<sub>1</sub>)  | In 3 dimensions <br/> (*x*<sub>0</sub>, *x*<sub>1</sub>) × (*y*<sub>0</sub>, *y*<sub>1</sub>) × (*z*<sub>0</sub>, *z*<sub>1</sub>)  |
+|Value| Axis Point | In 1 dimension <br/> (*x*<sub>0</sub>, *x*<sub>1</sub>) | In 2 dimensions <br/> (*x*<sub>0</sub>, *x*<sub>1</sub>) Ã— (*y*<sub>0</sub>, *y*<sub>1</sub>)  | In 3 dimensions <br/> (*x*<sub>0</sub>, *x*<sub>1</sub>) Ã— (*y*<sub>0</sub>, *y*<sub>1</sub>) Ã— (*z*<sub>0</sub>, *z*<sub>1</sub>)  |
 |----------|----|-----------|-----------|-------|
 |`LEFT`   |*x*<sub>0</sub> | *x*<sub>0</sub> | *y*-axis at *x*<sub>0</sub> | *zy*-plane at *x*<sub>0</sub> |
 |`RIGHT`  |*x*<sub>1</sub> | *x*<sub>1</sub> | *y*-axis at *x*<sub>1</sub> | *zy*-plane at *x*<sub>1</sub> |
