@@ -3,6 +3,7 @@
 
 *A compile-time formulated symbolic algebra framework for numerical solutions of phase field problems.*
 
+**Preprint is available at:** [arXiv:2109.02598](https://arxiv.org/abs/2109.02598)
 
 <p align="center">
 <img src="./docs/modelb2d.png" width="100">
