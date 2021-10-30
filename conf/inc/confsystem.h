@@ -770,7 +770,8 @@ public:
 	{
 		for (auto i = 0; i < intervals_len; ++i)
 		{
-			intervals[i].at(ax).set_interval(interval.left(), interval.right(), h);
+            auto& interval = intervals[i].at(ax);
+			interval.set_interval(interval.left(), interval.right(), h);
 		}
 	}
 
