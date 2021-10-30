@@ -394,62 +394,55 @@ R"~(
 		);
 	}
 
+	template<size_t D, typename S0>
+	inline void plot_fmt(const char* &) {}
 
-	namespace
+	template<>
+	inline void plot_fmt<1, scalar_t>(const char*& gnu_set)
 	{
+		gnu_set = symphas::io::gp::gnu_1d;
+	}
 
-		template<size_t D, typename S0>
-		inline void plot_fmt(const char* &) {}
+	template<>
+	inline void plot_fmt<2, scalar_t>(const char* &gnu_set)
+	{
+		gnu_set = symphas::io::gp::gnu_s;
+	}
 
-		template<>
-		inline void plot_fmt<1, scalar_t>(const char*& gnu_set)
-		{
-			gnu_set = symphas::io::gp::gnu_1d;
-		}
+	template<>
+	inline void plot_fmt<3, scalar_t>(const char*& gnu_set)
+	{
+		gnu_set = symphas::io::gp::gnu_s;
+	}
 
-		template<>
-		inline void plot_fmt<2, scalar_t>(const char* &gnu_set)
-		{
-			gnu_set = symphas::io::gp::gnu_s;
-		}
+	template<>
+	inline void plot_fmt<1, complex_t>(const char*& gnu_set)
+	{
+		gnu_set = symphas::io::gp::gnu_1d;
+	}
 
-		template<>
-		inline void plot_fmt<3, scalar_t>(const char*& gnu_set)
-		{
-			gnu_set = symphas::io::gp::gnu_s;
-		}
+	template<>
+	inline void plot_fmt<2, complex_t>(const char* &gnu_set)
+	{
+		gnu_set = symphas::io::gp::gnu_s;
+	}
 
-		template<>
-		inline void plot_fmt<1, complex_t>(const char*& gnu_set)
-		{
-			gnu_set = symphas::io::gp::gnu_1d;
-		}
+	template<>
+	inline void plot_fmt<3, complex_t>(const char*& gnu_set)
+	{
+		gnu_set = symphas::io::gp::gnu_s;
+	}
 
-		template<>
-		inline void plot_fmt<2, complex_t>(const char* &gnu_set)
-		{
-			gnu_set = symphas::io::gp::gnu_s;
-		}
+	template<>
+	inline void plot_fmt<2, vector_t<2>>(const char* &gnu_set)
+	{
+		gnu_set = symphas::io::gp::gnu_2v;
+	}
 
-		template<>
-		inline void plot_fmt<3, complex_t>(const char*& gnu_set)
-		{
-			gnu_set = symphas::io::gp::gnu_s;
-		}
-
-		template<>
-		inline void plot_fmt<2, vector_t<2>>(const char* &gnu_set)
-		{
-			gnu_set = symphas::io::gp::gnu_2v;
-		}
-
-		template<>
-		inline void plot_fmt<3, vector_t<3>>(const char* &gnu_set)
-		{
-			gnu_set = symphas::io::gp::gnu_3v;
-		}
-
-
+	template<>
+	inline void plot_fmt<3, vector_t<3>>(const char* &gnu_set)
+	{
+		gnu_set = symphas::io::gp::gnu_3v;
 	}
 
 
@@ -585,7 +578,11 @@ R"~(
 						x = i % MULTI_COLUMN_NUM(saves),
 						y = i / MULTI_COLUMN_NUM(saves);
 					fprintf(gnu, MULTI_ALIGN_MARGIN_FMT, MULTI_ALIGN_MARGIN_VALUES(x, y, saves));
-					fprintf(gnu, sets[id], data_loc, i, display_title);
+
+					iter_type i0 = (params::single_output_file)
+						? std::max(0, i) : 0;
+
+					fprintf(gnu, sets[id], data_loc, i0, display_title);
 					fprintf(gnu, "\n\n");
 
 
@@ -684,7 +681,7 @@ R"~(
 		get_plot_fmt<D, S...>(sets);
 		print_plot_arrangement<sizeof...(S)>(gnuplot, BUFFER_LENGTH_L3);
 
-		char setcat[BUFFER_LENGTH];
+		char setcat[BUFFER_LENGTH_L2];
 
 		// copy over the names of the systems for given system number
 		for (size_t id = 0; id < sizeof...(S); ++id)
@@ -700,8 +697,11 @@ R"~(
 				? std::max(0, save.num_saves() - 1) 
 				: 0;
 
-			sprintf(setcat, sets[id], data_loc, index, names[id]);
-			std::strcat(gnuplot, setcat);
+			snprintf(setcat, STR_ARR_LEN(setcat), sets[id], data_loc, index, names[id]);
+			std::strncat(gnuplot, setcat, 
+				std::min(
+					sizeof(gnuplot) / sizeof(char) - 1 - std::strlen(gnuplot),
+					sizeof(setcat) / sizeof(char) - 1));
 
 		}
 		std::strcat(gnuplot, gnu_end);

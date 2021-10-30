@@ -34,10 +34,8 @@
  *
  */
 
-
 #include "modelspecialized.h"
 #include "modelpfc.h"
-#include "modelvirtual.h"
 #include "stencilincludes.h"
 #include "expressionfunctions.h"
 
@@ -137,15 +135,15 @@ struct model_call_wrapper
 
 
 //! Implements the association between a model and a name.
-#define MODEL_WRAPPER_FUNC(N, IMPL) \
+#define MODEL_WRAPPER_FUNC(NAME, IMPL) \
 template<> \
-struct model_call_wrapper<N> \
+struct model_call_wrapper<MODEL_INDEX_NAME(NAME)> \
 { \
 	template<template<typename> typename AppliedSolver, typename... Ts> \
 	static int call(size_t dimension, StencilParams stp, const char* name, Ts&& ...args) \
 	{ \
 		IMPL \
-		return model_call_wrapper<N - 1>::call<AppliedSolver>(dimension, stp, name, std::forward<Ts>(args)...); \
+		return model_call_wrapper<MODEL_INDEX_NAME(NAME) - 1>::call<AppliedSolver>(dimension, stp, name, std::forward<Ts>(args)...); \
 	} \
 };
 //! \endcond
@@ -242,23 +240,37 @@ MODEL_APPLY_CALL <MODEL<DIM, SOLVER<Stencil ## DIM ## d ## ORD ## h<Ll, Bb, Gg>>
 (stp.ptl == 17) ? (RUNMODEL2D4HN(SOLVER, MODEL, 17)) : \
 (stp.ptl == 21) ? (RUNMODEL2D4HN(SOLVER, MODEL, 21)) : INVALID_MODEL )
 
+// 4h
+#define RUNMODEL4H(SOLVER, MODEL_NAMESPACE, MODEL) ( \
+if constexpr (MODEL_NAMESPACE::allowed_model_dimensions<void, 2>::value) \
+	if (dimension == 2) return RUNMODEL2D4H(SOLVER, MODEL); \
+return INVALID_MODEL;
+
 // 2h
-#define RUNMODEL2H(SOLVER, MODEL) ( \
-(dimension == 2) ? (RUNMODEL2D2H(SOLVER, MODEL)) : \
-(dimension == 3) ? (RUNMODEL3D2H(SOLVER, MODEL)) : INVALID_MODEL )
+#define RUNMODEL2H(SOLVER, MODEL_NAMESPACE, MODEL) ( \
+if constexpr (MODEL_NAMESPACE::allowed_model_dimensions<void, 2>::value) \
+	if (dimension == 2) return RUNMODEL2D2H(SOLVER, MODEL); \
+if constexpr (MODEL_NAMESPACE::allowed_model_dimensions<void, 3>::value) \
+	if (dimension == 3) return RUNMODEL3D2H(SOLVER, MODEL); \
+return INVALID_MODEL;
 
 // full
-#define RUNMODEL(SOLVER, MODEL) ( \
-(stp.ord == 2) ? (RUNMODEL2H(SOLVER, MODEL)) : \
-(stp.ord == 4) ? (RUNMODEL2D4H(SOLVER, MODEL)) : INVALID_MODEL )
+#define RUNMODEL(SOLVER, MODEL_NAMESPACE, MODEL) ( \
+if (stp.ord == 2) (RUNMODEL2H(SOLVER, MODEL_NAMESPACE, MODEL)); \
+else if (stp.ord == 4) (RUNMODEL4H(SOLVER, MODEL_NAMESPACE, MODEL)) \
+else return INVALID_MODEL;
 
 #else
 
 
-#define RUNMODEL(SOLVER, MODEL) \
-(dimension == 1) ? RUNMODELNNN(SOLVER, MODEL, 3, 5, 4, 1, 2) : \
-(dimension == 2) ? RUNMODELNNN(SOLVER, MODEL, 5, 13, 6, 2, 2) : \
-(dimension == 3) ? RUNMODELNNN(SOLVER, MODEL, 15, 41, 10, 3, 2) : INVALID_MODEL
+#define RUNMODEL(SOLVER, MODEL_NAMESPACE, MODEL) \
+if constexpr (MODEL_NAMESPACE::allowed_model_dimensions<void, 1>::value) \
+	if (dimension == 1) return RUNMODELNNN(SOLVER, MODEL, 3, 5, 4, 1, 2); \
+if constexpr (MODEL_NAMESPACE::allowed_model_dimensions<void, 2>::value) \
+	if (dimension == 2) return RUNMODELNNN(SOLVER, MODEL, 9, 13, 6, 2, 2); \
+if constexpr (MODEL_NAMESPACE::allowed_model_dimensions<void, 3>::value) \
+	if (dimension == 3) return RUNMODELNNN(SOLVER, MODEL, 15, 41, 10, 3, 2); \
+return INVALID_MODEL;
 
 #endif
 
@@ -267,8 +279,16 @@ MODEL_APPLY_CALL <MODEL<DIM, SOLVER<Stencil ## DIM ## d ## ORD ## h<Ll, Bb, Gg>>
 #endif
 
 
+// **************************************************************************************
 
- // **************************************************************************************
+
+
+#define RESTRICT_DIMENSIONS(...) \
+template<size_t D> \
+struct allowed_model_dimensions<void, D> \
+{ static const bool value = symphas::lib::value_in_seq<D, std::index_sequence<__VA_ARGS__>>::value; };
+
+// **************************************************************************************
 
 //! The beginning of a definition for a model of a phase field problem.
 /*!
@@ -316,6 +336,8 @@ MODEL_APPLY_CALL <MODEL<DIM, SOLVER<Stencil ## DIM ## d ## ORD ## h<Ll, Bb, Gg>>
  */
 #define MODEL(NAME, TYPES, ...) \
 namespace model_ ## NAME { \
+template<typename, size_t D> \
+struct allowed_model_dimensions { static const bool value = true; }; \
 EQUATION_TRAIT_FORWARD_DECL \
 template<size_t Dm, typename Sp> \
 using OpTypes = typename ModelApplied<Dm, Sp>::template OpTypes<SINGLE_ARG TYPES>; \
@@ -509,8 +531,8 @@ MODEL_PREAMBLE_DEF((), __VA_ARGS__)
  */
 #define LINK_WITH_NAME(NAME, GIVEN_NAME) \
 NEXT_MODEL_INDEX(NAME) \
-MODEL_WRAPPER_FUNC(MODEL_INDEX_NAME(NAME), \
-if (std::strcmp(name, #GIVEN_NAME) == 0) { return RUNMODEL(AppliedSolver, model_ ## NAME::SpecializedModel); })
+MODEL_WRAPPER_FUNC(NAME, \
+if (std::strcmp(name, #GIVEN_NAME) == 0) { RUNMODEL(AppliedSolver, model_ ## NAME, model_ ## NAME::SpecializedModel); })
 
 #else
 
@@ -572,6 +594,8 @@ if (std::strcmp(name, #GIVEN_NAME) == 0) { return RUNMODEL(AppliedSolver, model_
  */
 #define PFC_TYPE(NAME, DEFAULTS, TYPES, ...) \
 namespace modelpfc_ ## NAME { \
+template<typename, size_t D> \
+struct allowed_model_dimensions { static const bool value = true; }; \
 struct PFCParameters : PFCParametersDefault<modelpfc_ ## NAME::PFCParameters> \
 { \
 	using parent_type = PFCParametersDefault<modelpfc_ ## NAME::PFCParameters>; \
@@ -680,8 +704,8 @@ const static size_t DEFAULT_MODE_N = N;
  */
 #define LINK_PFC_WITH_NAME(NAME, GIVEN_NAME) \
 NEXT_MODEL_INDEX(NAME) \
-MODEL_WRAPPER_FUNC(MODEL_INDEX_NAME(NAME), \
-if (std::strcmp(name, #GIVEN_NAME) == 0) { return RUNMODEL(AppliedSolver, modelpfc_ ## NAME::ModelPFCSpecialized); } )
+MODEL_WRAPPER_FUNC(NAME, \
+if (std::strcmp(name, #GIVEN_NAME) == 0) { RUNMODEL(AppliedSolver, modelpfc_ ## NAME, modelpfc_ ## NAME::ModelPFCSpecialized); } )
 
 #else
 
@@ -690,6 +714,10 @@ if (std::strcmp(name, #GIVEN_NAME) == 0) { return RUNMODEL(AppliedSolver, modelp
 
 #endif
 
+
+
+#define SYS_DIMS(N) parent_type::template system<N>().dims
+#define SYS_INTERVAL(N, AXIS) parent_type::template system<N>().get_info().intervals
 
 
 // **************************************************************************************
@@ -745,7 +773,29 @@ if (std::strcmp(name, #GIVEN_NAME) == 0) { return RUNMODEL(AppliedSolver, modelp
  * 
  * \param ORDER The order of the derivative.
  */
-#define dx(ORDER) expr::opopderivative<ORDER>(solver)
+#define Diff(ORDER) expr::make_operator_derivative<ORDER>(solver)
+
+ //! The directional derivative along x of first order.
+ /*!
+  * The first order directional derivative along x, which is applied to 
+  * expressions through multiplication.
+  */
+#define gradx expr::make_operator_directional_derivative<Axis::X, 1>(solver)
+
+//! The directional derivative along x of first order.
+/*!
+ * The first order directional derivative along x, which is applied to
+ * expressions through multiplication.
+ */
+#define grady expr::make_operator_directional_derivative<Axis::Y, 1>(solver)
+
+//! The directional derivative along x of first order.
+/*!
+ * The first order directional derivative along x, which is applied to
+ * expressions through multiplication.
+ */
+#define gradz expr::make_operator_directional_derivative<Axis::Z, 1>(solver)
+
 
 //! The laplacian of an expression.
 /*!
@@ -870,7 +920,10 @@ if (std::strcmp(name, #GIVEN_NAME) == 0) { return RUNMODEL(AppliedSolver, modelp
 #define Ii lit(complex_t(0, 1))
 
 
-
+#define x expr::make_var<Axis::X, D>(SYS_DIMS(0), SYS_INTERVAL(0, X))
+#define y expr::make_var<Axis::Y, D>(SYS_DIMS(0), SYS_INTERVAL(0, Y))
+#define z expr::make_var<Axis::Z, D>(SYS_DIMS(0), SYS_INTERVAL(0, Z))
+#define t parent_type::get_time_var()
 
 
 #define c1 param(1)		 //!< Coefficient at index 1 in the list of coefficients.

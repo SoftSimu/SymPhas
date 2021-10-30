@@ -613,6 +613,44 @@ namespace symphas::internal
 	}
 
 
+	// Parse the simple coefficients list
+	void parse_simple_coeff_list(const char* str, double*& coeff, size_t& coeff_len)
+	{
+		coeff_len = 0;
+		delete[] coeff;
+		coeff = nullptr;
+
+		char* strcpy = new char[std::strlen(str) + 1];
+		std::strcpy(strcpy, str);
+		char* tok = std::strtok(strcpy, " ");
+
+		if (tok)
+		{
+			do
+			{
+				char* endptr;
+				double parameter = strtod(tok, &endptr);
+
+				if (!*endptr)
+				{
+					double* new_coeff = new double[++coeff_len];
+					for (iter_type i = 0; i < coeff_len - 1; ++i)
+					{
+						new_coeff[i] = coeff[i];
+					}
+					new_coeff[coeff_len - 1] = parameter;
+					
+					delete[] coeff;
+					coeff = new_coeff;
+				}
+				else
+				{
+					fprintf(SYMPHAS_WARN, "the value '%s' given to the initial conditions "
+						"could not be interpreted, skipping...\n", tok);
+				}
+			} while ((tok = std::strtok(NULL, " ")) != 0);
+		}
+	}
 
 
 
@@ -698,7 +736,7 @@ std::vector<std::string> symphas::conf::parse_options(const char* options, bool 
 		 * input between double or single quotes, or spaces
 		 */
 
-		char buffer[BUFFER_LENGTH_R2];
+		char buffer[BUFFER_LENGTH];
 		bool add_option = false;
 		for (char chk : symphas::internal::OPTION_DELIMITERS)
 		{
@@ -850,7 +888,8 @@ SystemConf::SystemConf() :
 	tdata_len{ 0 },
 	bdata_len{ 0 },
 	names_len{ 0 },
-	coeff_len{ 0 }
+	coeff_len{ 0 },
+	init_coeff_copied{ false } 
 {}
 
 SystemConf::SystemConf(SystemConf const& other) : SystemConf()
@@ -902,6 +941,9 @@ SystemConf::SystemConf(SystemConf const& other) : SystemConf()
 		names[i] = new char[std::strlen(other.names[i]) + 1];
 		std::strcpy(names[i], other.names[i]);
 	}
+
+	init_coeff_copied = other.init_coeff_copied;
+
 }
 
 SystemConf::SystemConf(SystemConf&& other) noexcept : SystemConf()
@@ -1067,11 +1109,11 @@ SystemConf::SystemConf(std::vector<std::pair<std::string, std::string>> params, 
 
 
 	// set the final configuration parameters
-	parse_initial_condition_array(in_spec);
 	parse_model_spec(model_spec, dir);
 	parse_width(width_spec);
 	parse_interval_array(r_spec);
 	parse_boundaries_array(b_spec);
+	parse_initial_condition_array(in_spec);
 	set_directory(original_dir);
 
 #ifdef FILESYSTEM_HEADER_AVAILABLE
@@ -1330,32 +1372,48 @@ void SystemConf::parse_initial_condition_array(const char* value)
 
 void SystemConf::parse_initial_condition(const char* value, size_t n)
 {
-	char input[BUFFER_LENGTH_R2];
+	char input[BUFFER_LENGTH];
 	std::strncpy(input, value, sizeof(input) / sizeof(char) - 1);
 	symphas::lib::str_trim(input);
 
 	if (*input == CONFIG_OPTION_PREFIX_C)
 	{
 		char* tok = std::strtok(input, STR(CONFIG_OPTION_PREFIX));
-		tdata[n].file.name = new char[std::strlen(tok) + 1];
-		tdata[n].in = Inside::FILE;
+		char* file_name = new char[std::strlen(tok) + 1]{ 0 };
+		int index = 0;
 
-		if (sscanf(tok, "%s", tdata[n].file.name) < 1)
+		if (sscanf(tok, "%s %d", file_name, &index) < 2)
 		{
-			fprintf(SYMPHAS_ERR, "unable to read the filename given to the initial conditions, '%s'\n", value);
-			exit(841);
+			if (sscanf(tok, "%s", file_name) < 1)
+			{
+				fprintf(SYMPHAS_WARN, "unable to read the filename given to the initial conditions, '%s'\n", value);
+			}
 		}
+
+		if (file_name)
+		{
+			tdata[n].file = { file_name, index };
+			tdata[n].in = Inside::FILE;
+		}
+
+		delete[] file_name;
+
 		if ((tok = std::strtok(NULL, " ")) != 0)
 		{
-			if (sscanf(tok, "%d", &tdata[n].file.index) < 1)
+			iter_type index = 0;
+			if (sscanf(tok, "%d", &index) < 1)
 			{
 				fprintf(SYMPHAS_WARN, "unable to read the index given to the filename, '%s'\n", tok);
-				tdata[n].file.index = 0;
+				tdata[n].file.set_index(0);
+			}
+			else
+			{
+				tdata[n].file.set_index(index);
 			}
 		}
 		else
 		{
-			tdata[n].file.index = 0;
+			tdata[n].file.set_index(0);
 		}
 	}
 	else
@@ -1365,134 +1423,173 @@ void SystemConf::parse_initial_condition(const char* value, size_t n)
 		std::strncpy(name, tok, sizeof(name) / sizeof(char) - 1);
 
 		tdata[n].in = symphas::in_from_str(tok);
-		switch (tdata[n].in)
-		{
-		case Inside::GAUSSIAN:
-		{
-			tdata[n].data.gp[0] = 0;		// mean
-			tdata[n].data.gp[1] = 0.25;		// std deviation
-			break;
-		}
-		case Inside::UNIFORM:
-		{
-			tdata[n].data.gp[0] = -1;		// minimum value
-			tdata[n].data.gp[1] = 1;		// maximum value
-			break;
-		}
-		case Inside::CAPPED:
-		{
-			tdata[n].data.gp[0] = -1;		// minimum value
-			tdata[n].data.gp[1] = 1;		// maximum value
-			break;
-		}
-		case Inside::CONSTANT:
-		{
-			tdata[n].data.gp[0] = 0;		// the constant value
-			break;
-		}
-		case Inside::CIRCLE:
-		{
-			tdata[n].data.gp[0] = 2;		// ratio of the x width
-			tdata[n].data.gp[1] = 2;		// ratio of the y width
-			if (dimension == 3)
-			{
-				tdata[n].data.gp[2] = 2;	// ratio of z width
-			}
-			break;
-		}
-		case Inside::HEXAGONAL:
-		{
-			tdata[n].data.gp[0] = 1;		// ratio of density along x
-			tdata[n].data.gp[1] = 1;		// ratio of density along y
-			if (dimension == 2)
-			{
-				tdata[n].data.gp[2] = 2;	// ratio of size of nodes
-			}
-			else if (dimension == 3)
-			{
-				tdata[n].data.gp[2] = 1;	// ratio of density along z
-				tdata[n].data.gp[3] = 2;	// ratio of density of nodes
-			}
-			break;
-		}
-		case Inside::CUBIC:
-		{
-			tdata[n].data.gp[0] = 1;		// same as HEX
-			tdata[n].data.gp[1] = 1;
-			if (dimension == 2)
-			{
-				tdata[n].data.gp[2] = 2;
-			}
-			else if (dimension == 3)
-			{
-				tdata[n].data.gp[2] = 1;
-				tdata[n].data.gp[3] = 2;
-			}
-			break;
-		}
-		case Inside::SEEDSSQUARE:
-		{
-			tdata[n].data.gp[0] = 10;		// the number of seeds in the system
-			tdata[n].data.gp[1] = 1;		// the scale factor of the size
-			// the value inside the seed
-			tdata[n].data.gp[2] = params::init_inside_val;
-			// the value outside the seed
-			tdata[n].data.gp[3] = params::init_outside_val;
-			break;
-		}
-		case Inside::SEEDSCIRCLE:
-		{
-			tdata[n].data.gp[0] = 10;
-			tdata[n].data.gp[1] = 1;
-			tdata[n].data.gp[2] = params::init_inside_val;
-			tdata[n].data.gp[3] = params::init_outside_val;
-			break;
-		}
-		default:
-			break;
-		}
-
 		tdata[n].intag = 0;
-		while ((tok = std::strtok(NULL, " ")) != 0)
+
+		if (tdata[n].in == Inside::EXPRESSION)
 		{
-			InsideTag tag = symphas::in_tag_from_str(tok);
-			if (tag != InsideTag::NONE)
+			tok = std::strtok(NULL, " ");
+			char* expression_name = new char[std::strlen(tok) + 1];
+
+			if (sscanf(tok, "%s", expression_name) < 1)
 			{
-				tdata[n].intag = symphas::build_intag(tdata[n].intag, tag);
+				fprintf(SYMPHAS_ERR, "unable to read the expression name given to the initial conditions, '%s'\n", value);
+				exit(841);
 			}
 			else
 			{
+				tdata[n].expr_data = expression_name;
+			}
+
+			delete[] expression_name;
+			tok = std::strtok(NULL, " ");
+		}
+		else
+		{
+			switch (tdata[n].in)
+			{
+			case Inside::GAUSSIAN:
+			{
+				tdata[n].data.gp[0] = 0;		// mean
+				tdata[n].data.gp[1] = 0.25;		// std deviation
 				break;
+			}
+			case Inside::UNIFORM:
+			{
+				tdata[n].data.gp[0] = -1;		// minimum value
+				tdata[n].data.gp[1] = 1;		// maximum value
+				break;
+			}
+			case Inside::CAPPED:
+			{
+				tdata[n].data.gp[0] = -1;		// minimum value
+				tdata[n].data.gp[1] = 1;		// maximum value
+				break;
+			}
+			case Inside::CONSTANT:
+			{
+				tdata[n].data.gp[0] = 0;		// the constant value
+				break;
+			}
+			case Inside::CIRCLE:
+			{
+				tdata[n].data.gp[0] = 2;		// ratio of the x width
+				tdata[n].data.gp[1] = 2;		// ratio of the y width
+				if (dimension == 3)
+				{
+					tdata[n].data.gp[2] = 2;	// ratio of z width
+				}
+				break;
+			}
+			case Inside::HEXAGONAL:
+			{
+				tdata[n].data.gp[0] = 1;		// ratio of density along x
+				tdata[n].data.gp[1] = 1;		// ratio of density along y
+				if (dimension == 2)
+				{
+					tdata[n].data.gp[2] = 2;	// ratio of size of nodes
+				}
+				else if (dimension == 3)
+				{
+					tdata[n].data.gp[2] = 1;	// ratio of density along z
+					tdata[n].data.gp[3] = 2;	// ratio of density of nodes
+				}
+				break;
+			}
+			case Inside::CUBIC:
+			{
+				tdata[n].data.gp[0] = 1;		// same as HEX
+				tdata[n].data.gp[1] = 1;
+				if (dimension == 2)
+				{
+					tdata[n].data.gp[2] = 2;
+				}
+				else if (dimension == 3)
+				{
+					tdata[n].data.gp[2] = 1;
+					tdata[n].data.gp[3] = 2;
+				}
+				break;
+			}
+			case Inside::SEEDSSQUARE:
+			{
+				tdata[n].data.gp[0] = 10;		// the number of seeds in the system
+				tdata[n].data.gp[1] = 1;		// the scale factor of the size
+				// the value inside the seed
+				tdata[n].data.gp[2] = params::init_inside_val;
+				// the value outside the seed
+				tdata[n].data.gp[3] = params::init_outside_val;
+				break;
+			}
+			case Inside::SEEDSCIRCLE:
+			{
+				tdata[n].data.gp[0] = 10;
+				tdata[n].data.gp[1] = 1;
+				tdata[n].data.gp[2] = params::init_inside_val;
+				tdata[n].data.gp[3] = params::init_outside_val;
+				break;
+			}
+			default:
+				break;
+			}
+
+
+			while ((tok = std::strtok(NULL, " ")) != 0)
+			{
+				InsideTag tag = symphas::in_tag_from_str(tok);
+				if (tag != InsideTag::NONE)
+				{
+					tdata[n].intag = symphas::build_intag(tdata[n].intag, tag);
+				}
+				else
+				{
+					break;
+				}
 			}
 		}
 
 		size_t gp_count = 0;
 		if (tok)
 		{
-			do
+			if (*tok == CONFIG_OPTION_PREFIX_C)
 			{
-				char* endptr;
-				double parameter = strtod(tok, &endptr);
-
-				if (!*endptr)
+				if (tdata[n].in == Inside::EXPRESSION)
 				{
-					if (gp_count < NUM_INIT_CONSTANTS)
-					{
-						tdata[n].data.gp[gp_count++] = parameter;
-					}
-					else
-					{
-						fprintf(SYMPHAS_WARN, "only %d numeric arguments may be provided "
-							"to the initial conditions\n", NUM_INIT_CONSTANTS);
-						break;
-					}
+					tdata[n].expr_data.set_coeff(coeff, coeff_len);
 				}
 				else
 				{
-					fprintf(SYMPHAS_WARN, "the value '%s' given to the initial conditions "
-						"could not be interpreted, skipping...\n", tok);
+					std::copy(coeff, coeff + std::min(coeff_len, size_t(NUM_INIT_CONSTANTS)), tdata[n].data.gp);
+
+					if (coeff_len > NUM_INIT_CONSTANTS)
+					{
+						fprintf(SYMPHAS_WARN, "using only %d numeric arguments from model coefficients\n",
+							NUM_INIT_CONSTANTS);
+					}
 				}
-			} while ((tok = std::strtok(NULL, " ")) != 0);
+				init_coeff_copied = true;
+			}
+			else
+			{
+				double* init_coeff;
+				size_t init_coeff_len;
+				symphas::internal::parse_simple_coeff_list(tok, init_coeff, init_coeff_len);
+
+				if (tdata[n].in == Inside::EXPRESSION)
+				{
+					tdata[n].expr_data.set_coeff(init_coeff, init_coeff_len);
+				}
+				else
+				{
+					std::copy(init_coeff, init_coeff + std::min(init_coeff_len, size_t(NUM_INIT_CONSTANTS)), tdata[n].data.gp);
+					if (init_coeff_len > NUM_INIT_CONSTANTS)
+					{
+						fprintf(SYMPHAS_WARN, "only %d numeric arguments may be provided "
+							"to the initial conditions\n", NUM_INIT_CONSTANTS);
+					}
+				}
+
+				delete[] init_coeff;
+			}
 		}
 
 		auto message_unset = [&](size_t m)
@@ -1868,6 +1965,8 @@ void swap(SystemConf& first, SystemConf& second)
 	swap(first.tdata_len, second.tdata_len);
 	swap(first.names_len, second.names_len);
 	swap(first.coeff_len, second.coeff_len);
+
+	swap(first.init_coeff_copied, second.init_coeff_copied);
 }
 
 
@@ -1946,7 +2045,10 @@ void SystemConf::write(const char* savedir, const char* name) const
 		fprintf(f, "%c ", open);
 		for (iter_type d = 0; d < dimension; ++d)
 		{
-			fprintf(f, "%lf ", intervals[i].at(symphas::index_to_axis(d)).width());
+			auto& interval = intervals[i].at(symphas::index_to_axis(d));
+			double width =  interval.width();
+			fprintf(f, "%lf ", width);
+
 		}
 		fprintf(f, "%c", close);
 	}
@@ -1981,7 +2083,7 @@ void SystemConf::write(const char* savedir, const char* name) const
 			}
 			for (iter_type n = 0; n < bdata[i].at(side).argc; ++n)
 			{
-				fprintf(f, "%.4lf ", bdata[i].at(side).params[n]);
+				fprintf(f, "%.8E ", bdata[i].at(side).params[n]);
 			}
 			fprintf(f, "%c", close);
 		}
@@ -2021,29 +2123,57 @@ void SystemConf::write(const char* savedir, const char* name) const
 	fprintf(f, CONFIG_NAME_FMT, symphas::internal::C_INSIDE);
 	for (iter_type i = 0; i < tdata_len; ++i)
 	{
-		fprintf(f, "%c %s ", open, symphas::str_from_in(tdata[i].in));
-		
-		size_t tag = tdata[i].intag;
-		size_t pos = 0;
-		while (tag > 0)
+		fprintf(f, "%c ", open);
+
+		if (tdata[i].in != Inside::NONE)
 		{
-			bool is_bit_set = (tag & (1ull << pos)) > 0;
-			if (is_bit_set)
+			if (tdata[i].in == Inside::EXPRESSION)
 			{
-				tag = (tag & ~(1ull << pos));
-				const char* tag_name = symphas::str_from_in_tag(static_cast<InsideTag>(pos));
-				if (tag_name)
+				fprintf(f, "%s %s ", symphas::str_from_in(tdata[i].in), tdata[i].expr_data.get_name());
+				if (!init_coeff_copied)
 				{
-					fprintf(f, "%s ", tag_name);
+					for (iter_type n = 0; n < tdata[i].expr_data.get_num_coeff(); ++n)
+					{
+						fprintf(f, "%.8E ", tdata[i].expr_data.get_coeff()[n]);
+					}
+				}
+				else
+				{
+					fprintf(f, STR(CONFIG_OPTION_PREFIX));
 				}
 			}
-			pos += 1;
+			else if (tdata[i].in == Inside::FILE || tdata[i].in == Inside::CHECKPOINT)
+			{
+				fprintf(f, STR(CONFIG_OPTION_PREFIX) " %s %d", tdata[i].file.get_name(), tdata[i].file.get_index());
+			}
+			else
+			{
+				fprintf(f, "%s ", symphas::str_from_in(tdata[i].in));
+
+				size_t tag = tdata[i].intag;
+				size_t pos = 0;
+				while (tag > 0)
+				{
+					bool is_bit_set = (tag & (1ull << pos)) > 0;
+					if (is_bit_set)
+					{
+						tag = (tag & ~(1ull << pos));
+						const char* tag_name = symphas::str_from_in_tag(static_cast<InsideTag>(pos));
+						if (tag_name)
+						{
+							fprintf(f, "%s ", tag_name);
+						}
+					}
+					pos += 1;
+
+				}
+				for (iter_type n = 0; n < NUM_INIT_CONSTANTS; ++n)
+				{
+					fprintf(f, "%.8E ", tdata[i].data.gp[n]);
+				}
+			}
 		}
 
-		for (iter_type n = 0; n < NUM_INIT_CONSTANTS; ++n)
-		{
-			fprintf(f, "%.4f ", tdata[i].data.gp[n]);
-		}
 		fprintf(f, "%c", close);
 	}
 	fprintf(f, "\n");

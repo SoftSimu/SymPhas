@@ -33,8 +33,6 @@ struct XDRFILE;
 
 namespace symphas::io::xdr
 {
-	//! Read the header of the xdr datafile.
-	symphas::grid_info read_xdr_header(int* ginfo, XDRFILE* f, bool read_header = true);
 
 	//! Open the file which was written in the xdr (binary) format.
 	XDRFILE* open_xdrgridf(const char* name);
@@ -46,7 +44,7 @@ namespace symphas::io::xdr
 	/*!
 	 * Read one data block from the saved output, into the grid parameter.
 	 * This is used when there are multiple data indices written to the same
-	 * file, such as when params::single_output_file is chosen.
+	 * file, such as when params::single_input_file is chosen.
 	 *
 	 * \param grid The values into which to read the data.
 	 * \param ginfo The grid parameter specification.
@@ -58,45 +56,47 @@ namespace symphas::io::xdr
 	//! Read the xdr data into the given array.
 	/*!
 	 * This is an xdr implementation of symphas::io::read_grid().
-	 * 
+	 *
 	 * It will read the header and other file information until it reaches the
-	 * index, and then it will read the data corresponding to that index and 
+	 * index, and then it will read the data corresponding to that index and
 	 * return the index which was read from.
-	 * If the index was not found, because either data could not be read or the 
-	 * index found does not end up matching the requested index, that index 
+	 * If the index was not found, because either data could not be read or the
+	 * index found does not end up matching the requested index, that index
 	 * will instead be returned.
-	 * 
+	 *
 	 * \param grid The array into which values are read.
 	 * \param rinfo Information about the data file that is read from.
 	 */
 	template<typename T>
-	int read_grid(T* grid, symphas::io::read_info rinfo)
+	int read_grid(T* grid, symphas::io::read_info const& rinfo)
 	{
-		return read_grid_standardized(grid, rinfo, open_xdrgridf, xdrfile_close, read_xdr_header, read_block<T>);
+		return read_grid_standardized(grid, rinfo, open_xdrgridf, xdrfile_close, read_block<T>);
 	}
+
+
+	//! Read the header of the xdr datafile.
+	/*!
+	 * When the given index is less than 0, then the full file
+	 * header is parsed.
+	 */
+	template<typename F>
+	symphas::grid_info read_header(F* f, int* index) { return { nullptr, 0 }; }
+	template<>
+	symphas::grid_info read_header(XDRFILE* f, int* index);
+
+	inline symphas::grid_info read_header(symphas::io::read_info const& rinfo, iter_type* index = nullptr)
+	{
+		XDRFILE* x = open_xdrgridf(rinfo.name);
+		symphas::grid_info ginfo = read_header(x, index);
+		xdrfile_close(x);
+
+		return ginfo;
+	}
+
 }
 
 //! \cond
-
-//! Specialization based on symphas::io::xdr::read_block.
-template<>
-void symphas::io::xdr::read_block<scalar_t>(scalar_t* grid, symphas::grid_info ginfo, XDRFILE* f);
-//! Specialization based on symphas::io::xdr::read_block.
-template<>
-void symphas::io::xdr::read_block<complex_t>(complex_t* grid, symphas::grid_info ginfo, XDRFILE* f);
-//! Specialization based on symphas::io::xdr::read_block.
-template<>
-void symphas::io::xdr::read_block<double[2]>(double(*grid)[2], symphas::grid_info ginfo, XDRFILE* f);
-//! Specialization based on symphas::io::xdr::read_block.
-template<>
-void symphas::io::xdr::read_block<vector_t<3>>(vector_t<3>* grid, symphas::grid_info ginfo, XDRFILE* f);
-//! Specialization based on symphas::io::xdr::read_block.
-template<>
-void symphas::io::xdr::read_block<vector_t<2>>(vector_t<2>* grid, symphas::grid_info ginfo, XDRFILE* f);
-//! Specialization based on symphas::io::xdr::read_block.
-template<>
-void symphas::io::xdr::read_block<vector_t<1>>(vector_t<1>* grid, symphas::grid_info ginfo, XDRFILE* f);
-
+SPECIALIZE_READ_BLOCK_FILE(xdr, XDRFILE)
 //! \endcond
 
 

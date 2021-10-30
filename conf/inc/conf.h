@@ -134,7 +134,6 @@ namespace symphas::conf
 	 */
 	Conf restore_checkpoint(param_map_type param_map, const char* dir, int index = -1);
 
-
 	//! See restore_checkpoint().
 	/*!
 	 * Uses information given by the variable params::checkpoint.
@@ -142,7 +141,19 @@ namespace symphas::conf
 	 * \param param_map The list of parameter keys to use when reading the backup
 	 * checkpoint.
 	 */
-	Conf restore_checkpoint(param_map_type param_map);
+	Conf restore_checkpoint(param_map_type param_map = {});
+
+	//! See restore_checkpoint().
+	/*!
+	 * Uses information given by the variable params::checkpoint. Does not
+	 * populate a param_map.
+	 *
+	 * \param dir The directory from which the checkpoint is retrieved. This
+	 * directory must have the folder "checkpoint".
+	 * \param index The solution index retrieved from the checkpoint.
+	 */
+	Conf restore_checkpoint(const char* dir, int index = -1);
+
 }
 
 

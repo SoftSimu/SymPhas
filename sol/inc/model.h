@@ -107,7 +107,7 @@ struct model_field_name
  * Manages the solver and acts as the interface to the solver to manage
  * the time evolution of the phase fields. Does not contain the interface to
  * the `equation` step; this is left to the specialization.
- *
+ * 
  * \tparam D The dimension size of the phase field problem, hence the dimension
  * of all systems in the model.
  * \tparam Sp The stencil type.
@@ -124,17 +124,17 @@ struct Model
 
 protected:
 
-	Model() 
-		: _s{ construct_systems({}, {}, {}, 0) }, 
+	Model()
+		: _s{ construct_systems({}, {}, {}, 0) },
 		solver{ Sp::make_solver() }, lastindex{ params::start_index }, coeff{ nullptr }, num_coeff{ 0 } {}
 
 public:
 
 	//! Get the type of the `N`-th phase field.
 	/*!
-	 * Get the type of the `N` System from the list of systems. The system 
+	 * Get the type of the `N` System from the list of systems. The system
 	 * represents the phase field.
-	 * 
+	 *
 	 * \tparam N The phase field index to get the type.
 	 */
 	template<size_t N>
@@ -145,7 +145,7 @@ public:
 	/*!
 	 * A new model is created using the problem parameters. The model
 	 * coefficients for the dynamical equations are also stored.
-	 * 
+	 *
 	 * \param coeff The list of coefficients for this model.
 	 * \param num_coeff The number of coefficients provided.
 	 * \param parameters The problem parameters for the phase field problem
@@ -153,8 +153,8 @@ public:
 	 */
 	Model(double const* coeff, size_t num_coeff, symphas::problem_parameters_type const& parameters) :
 		_s{ construct_systems(parameters.get_initial_data(), parameters.get_interval_data(), parameters.get_boundary_data(), parameters.length()) },
-		solver{ Sp::make_solver(parameters) }, coeff{ (num_coeff > 0) ? new double[num_coeff] : nullptr }, 
-		num_coeff{ num_coeff }, lastindex{ params::start_index }
+		solver{ Sp::make_solver(get_updated_parameters(parameters)) }, coeff{ (num_coeff > 0) ? new double[num_coeff] : nullptr },
+		num_coeff{ num_coeff }, lastindex{ params::start_index }, time{ 0 }
 	{
 		std::copy(coeff, coeff + num_coeff, this->coeff);
 		visualize();
@@ -315,7 +315,7 @@ public:
 	template<size_t N>
 	void copy_field_values(type_of_S<N>* into) const
 	{
-		auto grid = std::get<N>(_s).persist(into);
+		std::get<N>(_s).persist(into);
 	}
 
 	//! Copy the values of the `I`-th field of the given type.
@@ -347,6 +347,21 @@ public:
 	template<typename Type, size_t I, typename std::enable_if_t<(num_fields<Type>() == 0), int> = 0>
 	void copy_field_type_values([[maybe_unused]] Type* into) const {}
 
+	//! Return the values of the `N`-th field as a Grid. 
+	/*!
+	 * Copies the values from the field and returns a new Grid, ensuring that
+	 * only the true phase field values are copied. I.e. this means that for
+	 * systems which use boundaries, the boundary domain is not included.
+	 *
+	 * \tparam N The index of the phase field which is copied from.
+	 */
+	template<size_t N>
+	auto get_field() const
+	{
+		Grid<type_of_S<N>, D> out(std::get<N>(_s).get_info().get_dims().get());
+		std::get<N>(_s).persist(out.values);
+		return out;
+	}
 
 	//! Persists all the systems managed by the model.
 	/*!
@@ -381,6 +396,7 @@ public:
 	 */
 	void update_systems(double time)
 	{
+		this->time = time;
 		update_systems(time, std::make_index_sequence<SN>{});
 	}
 	
@@ -448,6 +464,16 @@ public:
 		return system<I>().as_grid();
 	}
 
+	//! Returns a symbolic variable for the time value of the model.
+	/*!
+	 * Returns a symbolic variable for the time value of the model. The
+	 * variable maintains the time value as a pointer to the time value managed
+	 * by the model.
+	 */
+	auto get_time_var()
+	{
+		return expr::make_op(TimeValue{ &time });
+	}
 
 	//! Returns the tuple of all model systems.
 	/*!
@@ -470,7 +496,7 @@ public:
 	 * \param out The output file or stream to which to print the
 	 * information.
 	 */
-	void info(FILE* out) const
+	void print_info(FILE* out) const
 	{
 		fprintf(out, OUTPUT_BANNER);
 		fprintf(out, "Phase field problem of %zd system%s:\n", SN, (SN > 1) ? "s" : "");
@@ -505,6 +531,9 @@ protected:
 	 */
 	iter_type lastindex;
 
+	//! The current simulation time.
+	double time;
+
 #ifdef VTK_ON
 
 	std::thread viz_thread;
@@ -537,9 +566,23 @@ protected:
 #endif
 
 	template<size_t... Is>
+	void construct_interval_data(symphas::interval_data_type (&intervals)[SN], std::index_sequence<Is...>)
+	{
+		(((intervals[Is] = system<Is>().get_info().intervals), ...));
+	}
+
+	auto get_updated_parameters(symphas::problem_parameters_type parameters)
+	{
+		symphas::interval_data_type intervals[SN];
+		construct_interval_data(intervals, std::make_index_sequence<SN>{});
+		parameters.set_interval_data(intervals, SN);
+		return parameters;
+	}
+
+	template<size_t... Is>
 	auto construct_systems(const symphas::init_data_type* tdata, const symphas::interval_data_type *vdata, const symphas::b_data_type *bdata, std::index_sequence<Is...>)
 	{
-		return std::make_tuple((SolverSystemApplied<S>(tdata[Is], vdata[Is], bdata[Is], Is))...);
+		return std::make_tuple(SolverSystemApplied<S>(tdata[Is], vdata[Is], bdata[Is], Is)...);
 	}
 
 	auto construct_systems(const symphas::init_data_type* tdata, const symphas::interval_data_type* vdata, const symphas::b_data_type* bdata, size_t data_len)

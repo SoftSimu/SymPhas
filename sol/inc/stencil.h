@@ -94,9 +94,9 @@ template<size_t DD, size_t OA = DEFAULT_STENCIL_ACCURACY>
 struct GeneralizedStencil
 {
 	len_type dims[DD];
-	double h;
+	double divh;
 
-	GeneralizedStencil(const len_type* dims, double h) : h{ h }
+	GeneralizedStencil(const len_type* dims, double h) : divh{ 1. / h }
 	{
 		std::copy(dims, dims + DD, this->dims);
 	}

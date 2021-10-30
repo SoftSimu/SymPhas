@@ -29,7 +29,7 @@ file(GLOB_RECURSE SOURCES_LIB "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 
 
 
-set(THREAD_COUNT 1)
+set(THREAD_COUNT 2)
 set(VECTOR_TYPE_NAME VectorValue)
 
 #add_library(fftw3_imported SHARED IMPORTED)

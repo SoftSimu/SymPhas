@@ -211,58 +211,27 @@ namespace grid
 //! @}
 
 
+//! Generic template for returning the result of the math function.
+/*!
+ * For a value of generic type which is not accepted by any overloads,
+ * it is explicitly cast to the type `complex_t` to compute the result.
+ */
+#define MATH_FUNCTION_OVERLOADS(NAME, FUNC) \
+inline scalar_t _ ## NAME(int v) { return FUNC(static_cast<scalar_t>(v)); } \
+inline scalar_t _ ## NAME(scalar_t v) { return FUNC(v); } \
+inline complex_t _ ## NAME(complex_t v) { return FUNC(v); } \
+template<typename T> \
+auto _ ## NAME(T v) { return _ ## NAME(static_cast<complex_t>(v)); } \
+template<typename T> \
+auto NAME(T v) { return _ ## NAME(v); }
+
 namespace symphas::math
 {
 	namespace
 	{
 
-		//! Generic template for returning sine of a value.
-		/*!
-		 * For a value of generic type which is not accepted by any overloads,
-		 * it is explicitly cast to the type `complex_t` to compute the result.
-		 */
-		template<typename T>
-		T sin_apply(T v)
-		{
-			return sin_apply(static_cast<complex_t>(v));
-		}
-
-		template<>
-		inline scalar_t sin_apply(scalar_t v)
-		{
-			return std::sin(v);
-		}
-
-		template<>
-		inline complex_t sin_apply(complex_t v)
-		{
-			return std::sin(v);
-		}
 
 
-		//! Generic template for returning cosine of a value.
-		/*!
-		 * For a value of generic type which is not accepted by any overloads,
-		 * it is explicitly cast to the type `complex_t` to compute the result.
-		 */
-		template<typename T>
-		T cos_apply(T v)
-		{
-			return cos_apply(static_cast<complex_t>(v));
-		}
-
-
-		template<>
-		inline scalar_t cos_apply(scalar_t v)
-		{
-			return std::cos(v);
-		}
-
-		template<>
-		inline complex_t cos_apply(complex_t v)
-		{
-			return std::cos(v);
-		}
 	}
 	
 	//! Returns conjugate complex number for a generic type.
@@ -337,29 +306,20 @@ namespace symphas::math
 	}
 
 
-	//! Returns the cosine of a value of a generic type.
-	/*!
-	 * Since additional types are introduced in the SymPhas library, an
-	 * extension of the standard library `cos` function is implemented to
-	 * apply to additional types.
-	 */
-	template<typename T>
-	auto cos(T const& v)
-	{
-		return cos_apply(v);
-	}
+	MATH_FUNCTION_OVERLOADS(cos, std::cos);
+	MATH_FUNCTION_OVERLOADS(sin, std::sin);
+	MATH_FUNCTION_OVERLOADS(tan, std::tan);
+	MATH_FUNCTION_OVERLOADS(cosh, std::cosh);
+	MATH_FUNCTION_OVERLOADS(sinh, std::sinh);
+	MATH_FUNCTION_OVERLOADS(tanh, std::tanh);
+	MATH_FUNCTION_OVERLOADS(acos, std::acos);
+	MATH_FUNCTION_OVERLOADS(asin, std::asin);
+	MATH_FUNCTION_OVERLOADS(atan, std::atan);
+	MATH_FUNCTION_OVERLOADS(acosh, std::acosh);
+	MATH_FUNCTION_OVERLOADS(asinh, std::asinh);
+	MATH_FUNCTION_OVERLOADS(atanh, std::atanh);
+	MATH_FUNCTION_OVERLOADS(sqrt, std::sqrt);
 
-	//! Returns the sine of a value of a generic type.
-	/*!
-	 * Since additional types are introduced in the SymPhas library, an
-	 * extension of the standard library `sin` function is implemented to
-	 * apply to additional types.
-	 */
-	template<typename T>
-	auto sin(T const& v)
-	{
-		return sin_apply(v);
-	}
 }
 
 
@@ -753,32 +713,45 @@ namespace symphas::lib
 	// **************************************************************************************
 
 	//! Joining a single sequence simply returns it.
+	template<typename T, size_t... Ys>
+	constexpr auto seq_join(std::integer_sequence<T, Ys...>)
+	{
+		return std::integer_sequence<T, Ys...>{};
+	}
+
+	//! Joins two index sequences.
+	template<typename T, size_t... Ys, size_t... Qs>
+	constexpr auto seq_join(std::integer_sequence<T, Ys...>, std::integer_sequence<T, Qs...>)
+	{
+		return std::integer_sequence<T, Ys..., Qs...>{};
+	}
+
+	//! Joins two index sequences.
+	template<typename T, size_t... Ys, size_t... Qs, typename... Seqs>
+	constexpr auto seq_join(std::integer_sequence<T, Ys...>, std::integer_sequence<T, Qs...>, Seqs... seqs)
+	{
+		return seq_join(std::integer_sequence<T, Ys..., Qs...>{}, seqs...);
+	}
+
+
+	template<typename T, size_t... Ys>
+	constexpr auto seq_neg(std::integer_sequence<int, Ys...>)
+	{
+		return std::integer_sequence<int, -Ys...>{};
+	}
+
 	template<size_t... Ys>
-	constexpr auto seq_join(std::index_sequence<Ys...>)
+	constexpr auto seq_neg(std::index_sequence<Ys...>)
 	{
-		return std::index_sequence<Ys...>{};
-	}
-
-	//! Joins two index sequences.
-	template<size_t... Ys, size_t... Qs>
-	constexpr auto seq_join(std::index_sequence<Ys...>, std::index_sequence<Qs...>)
-	{
-		return std::index_sequence<Ys..., Qs...>{};
-	}
-
-	//! Joins two index sequences.
-	template<size_t... Ys, size_t... Qs, typename... Seqs>
-	constexpr auto seq_join(std::index_sequence<Ys...>, std::index_sequence<Qs...>, Seqs... seqs)
-	{
-		return seq_join(std::index_sequence<Ys..., Qs...>{}, seqs...);
+		return std::integer_sequence<int, -int(Ys)...>{};
 	}
 
 
 	//! Adding a single sequence simply returns it.
-	template<size_t... Ys>
-	constexpr auto seq_add(std::index_sequence<Ys...>)
+	template<typename T, size_t... Ys>
+	constexpr auto seq_add(std::integer_sequence<T, Ys...>)
 	{
-		return std::index_sequence<Ys...>{};
+		return std::integer_sequence<T, Ys...>{};
 	}
 
 	//! Adds two index sequences.
@@ -788,28 +761,28 @@ namespace symphas::lib
 	 * to have 0s in the remaining entries, so that a sequence equal in length
 	 * to the longest sequence is always returned.
 	 */
-	template<size_t... Ys, size_t... Qs>
-	constexpr auto seq_add(std::index_sequence<Ys...>, std::index_sequence<Qs...>)
+	template<typename T, size_t... Ys, size_t... Qs>
+	constexpr auto seq_add(std::integer_sequence<T, Ys...>, std::integer_sequence<T, Qs...>)
 	{
 		if constexpr (sizeof...(Ys) == sizeof...(Qs))
 		{
-			return std::index_sequence<(Qs + Ys)...>{};
+			return std::integer_sequence<T, (Qs + Ys)...>{};
 		}
 		else if constexpr (sizeof...(Ys) > sizeof...(Qs))
 		{
 			return seq_join(
 				seq_add(
-					symphas::lib::get_seq_lt<sizeof...(Qs)>(std::index_sequence<Ys...>{}),
-					std::index_sequence<Qs...>{}),
-				symphas::lib::get_seq_ge<sizeof...(Qs)>(std::index_sequence<Ys...>{}));
+					symphas::lib::get_seq_lt<sizeof...(Qs)>(std::integer_sequence<T, Ys...>{}),
+					std::integer_sequence<T, Qs...>{}),
+				symphas::lib::get_seq_ge<sizeof...(Qs)>(std::integer_sequence<T, Ys...>{}));
 		}
 		else
 		{
 			return seq_join(
 				seq_add(
-					std::index_sequence<Ys...>{},
-					symphas::lib::get_seq_lt<sizeof...(Ys)>(std::index_sequence<Qs...>{})),
-				symphas::lib::get_seq_ge<sizeof...(Ys)>(std::index_sequence<Qs...>{}));
+					std::integer_sequence<T, Ys...>{},
+					symphas::lib::get_seq_lt<sizeof...(Ys)>(std::integer_sequence<T, Qs...>{})),
+				symphas::lib::get_seq_ge<sizeof...(Ys)>(std::integer_sequence<T, Qs...>{}));
 		}
 	}
 
@@ -820,11 +793,34 @@ namespace symphas::lib
 	 * to have 0s in the remaining entries, so that a sequence equal in length
 	 * to the longest sequence is always returned.
 	 */
-	template<size_t... Ys, size_t... Qs, typename... Seqs>
-	constexpr auto seq_add(std::index_sequence<Ys...>, std::index_sequence<Qs...>, Seqs... seqs)
+	template<typename T, size_t... Ys, size_t... Qs, typename... Seqs>
+	constexpr auto seq_add(std::integer_sequence<T, Ys...>, std::integer_sequence<T, Qs...>, Seqs... seqs)
 	{
-		return seq_add(seq_add(std::index_sequence<Ys...>{}, std::index_sequence<Qs...>{}), seqs...);
+		return seq_add(seq_add(std::integer_sequence<T, Ys...>{}, std::integer_sequence<T, Qs...>{}), seqs...);
 	}
+
+
+	//! Subtracting a single sequence simply returns it.
+	template<typename T, size_t... Ys>
+	constexpr auto seq_sub(std::integer_sequence<T, Ys...>)
+	{
+		return std::integer_sequence<T, Ys...>{};
+	}
+
+	//! Subtracts multiple index sequences from the first one.
+	/*!
+	 * The values are subtracted pointwise, between two index sequences. When
+	 * sequences are not of equal size, the shortest one is considered
+	 * to have 0s in the remaining entries, so that a sequence equal in length
+	 * to the longest sequence is always returned. The sequences are
+	 * all subtracted from the first one.
+	 */
+	template<typename T, size_t... Ys, size_t... Qs, typename... Seqs>
+	constexpr auto seq_sub(std::integer_sequence<T, Ys...>, std::integer_sequence<T, Qs...>, Seqs... seqs)
+	{
+		return seq_sub(seq_add(std::integer_sequence<int, int(Ys)...>{}, seq_neg(std::integer_sequence<T, Qs...>{})), seqs...);
+	}
+
 
 	//! The index sequence result type of joining multiple sequences.
 	template<typename Seq, typename... Seqs>
@@ -840,12 +836,41 @@ namespace symphas::lib
 		using type = decltype(seq_add(std::declval<Seq>(), std::declval<Seqs>()...));
 	};
 
+	//! The index sequence result type of adding multiple sequences.
+	template<typename Seq, typename... Seqs>
+	struct seq_sub_result
+	{
+		using type = decltype(seq_sub(std::declval<Seq>(), std::declval<Seqs>()...));
+	};
+
 	//! Alias for the join result of multiple sequences.
 	template<typename... Seqs>
 	using seq_join_t = typename seq_join_result<Seqs...>::type;
+
 	//! Alias for the add result of multiple sequences.
 	template<typename... Seqs>
 	using seq_add_t = typename seq_add_result<Seqs...>::type;
+
+	//! Alias for the add result of multiple sequences.
+	template<typename... Seqs>
+	using seq_sub_t = typename seq_sub_result<Seqs...>::type;
+
+
+	template<size_t N, typename T>
+	struct value_in_seq;
+
+	template<size_t N>
+	struct value_in_seq<N, std::index_sequence<>>
+	{
+		static const bool value = false;
+	};
+
+	template<size_t N, size_t I0, size_t... Is>
+	struct value_in_seq<N, std::index_sequence<I0, Is...>>
+	{
+		static const bool value = (I0 == N) || (value_in_seq<N, std::index_sequence<Is...>>::value);
+	};
+
 
 	//! Concatenates two tuple lists together into one tuple type.
 	/*
@@ -1358,7 +1383,7 @@ namespace symphas::lib
 	 * \tparam T0 Type of terminating value.
 	 */
 	template<typename T0>
-	auto max_value(T0 val0)
+	constexpr auto max_value(T0 val0)
 	{
 		return val0;
 	}
@@ -1382,7 +1407,7 @@ namespace symphas::lib
 	 * \tparam Ts List of types of the additional compared value list.
 	 */
 	template<typename T0, typename T1, typename... Ts>
-	auto max_value(T0 val0, T1 val1, Ts ...vals) -> add_result_t<T0, T1, Ts...>
+	constexpr auto max_value(T0 val0, T1 val1, Ts ...vals) -> add_result_t<T0, T1, Ts...>
 	{
 		auto amin = max_value(val1, vals...);
 		return (val0 > amin) ? val0 : amin;
@@ -1401,7 +1426,7 @@ namespace symphas::lib
 	 * \tparam T0 Type of terminating value.
 	 */
 	template<typename T0>
-	auto min_value(T0 val0)
+	constexpr auto min_value(T0 val0)
 	{
 		return val0;
 	}
@@ -1425,7 +1450,7 @@ namespace symphas::lib
 	 * \tparam Ts List of types of the additional compared value list.
 	 */
 	template<typename T0, typename T1, typename... Ts>
-	auto min_value(T0 val0, T1 val1, Ts ...vals) -> add_result_t<T0, T1, Ts...>
+	constexpr auto min_value(T0 val0, T1 val1, Ts ...vals) -> add_result_t<T0, T1, Ts...>
 	{
 		auto amin = min_value(val1, vals...);
 		return (val0 < amin) ? val0 : amin;

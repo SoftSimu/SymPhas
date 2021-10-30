@@ -24,70 +24,7 @@ MODEL(EX, (SCALAR),
 
 #endif
 
-struct full_fill
-{
-	scalar_t constant;
-	full_fill(scalar_t constant) : constant{ constant } {}
-	scalar_t operator()(iter_type, len_type const*, size_t)
-	{
-		return constant;
-	}
-};
 
-
-struct half_fill
-{
-	scalar_t constant;
-	half_fill(scalar_t constant) : constant{ constant } {}
-	scalar_t operator()(iter_type n, len_type const* dims, size_t dimension)
-	{
-		if (dimension == 2)
-		{
-			axis_coord_t x = n % dims[0];
-			axis_coord_t y = n / dims[0];
-			return (x < dims[0] / 2) ? constant : 0;
-		}
-		else if (dimension == 3)
-		{
-			axis_coord_t x = n % dims[0];
-			axis_coord_t y = (n / dims[0]) % dims[1];
-			axis_coord_t z = n / (dims[0] * dims[1]);
-			return (x < dims[0] / 2) ? constant : 0;
-		}
-		return 0;
-	}
-};
-
-
-struct quarter_fill
-{
-	scalar_t constant;
-	quarter_fill(scalar_t constant) : constant{ constant } {}
-	scalar_t operator()(iter_type n, len_type const* dims, size_t dimension)
-	{
-		if (dimension == 2)
-		{
-			axis_coord_t x = n % dims[0];
-			axis_coord_t y = n / dims[0];
-			return (
-				x < dims[0] / 2 
-				&& y < dims[1] / 2) 
-				? constant : 0;
-		}
-		else if (dimension == 3)
-		{
-			axis_coord_t x = n % dims[0];
-			axis_coord_t y = (n / dims[0]) % dims[1];
-			axis_coord_t z = n / (dims[0] * dims[1]);
-			return (
-				x < dims[0] / 2
-				&& y < dims[1] / 2
-				&& z < dims[2] / 2)
-				? constant : 0;
-		}
-		return 0;
-	}
-};
 
 int main(int argc, char* argv[])
 {
@@ -148,10 +85,10 @@ int main(int argc, char* argv[])
 		exit(102);
 	}
 
-	
+
 
 	symphas::init(argv[1], argv + 2, argc - 2);
-
+	
 
 #	ifdef USING_CONF
 	simulate::initiate(symphas::conf::config().get_model_name(), symphas::conf::config().get_coeff_list(), symphas::conf::config().coeff_count());

@@ -32,9 +32,12 @@ bool add_base_params(param_map_type& param_map)
 	using namespace params;
 
 	param_map["title"] = std::make_pair(&title, new param_assign<char*>);
-	param_map["boundary_ext"] = std::make_pair(&boundary_ext, new param_assign<bool>);
-	param_map["boundary_extend"] = std::make_pair(&boundary_ext, new param_assign<bool>);
+	param_map["extend_boundary"] = std::make_pair(&extend_boundary, new param_assign<bool>);
+	param_map["extend_boundaryend"] = std::make_pair(&extend_boundary, new param_assign<bool>);
+	param_map["extend_boundary"] = std::make_pair(&extend_boundary, new param_assign<bool>);
+	param_map["extend_boundaries"] = std::make_pair(&extend_boundary, new param_assign<bool>);
 	param_map["visualization"] = std::make_pair(&viz_interval, new param_assign<int>);
+	param_map["visualize"] = std::make_pair(&viz_interval, new param_assign<int>);
 	param_map["viz_interval"] = std::make_pair(&viz_interval, new param_assign<int>);
 	param_map["init_inside_val"] = std::make_pair(&init_inside_val, new param_assign<double>);
 	param_map["init_inside"] = std::make_pair(&init_inside_val, new param_assign<double>);
@@ -48,7 +51,7 @@ bool add_base_params(param_map_type& param_map)
 
 
 DLLLIB char* params::title = nullptr;
-DLLLIB bool params::boundary_ext = false;
+DLLLIB bool params::extend_boundary = false;
 DLLLIB int params::viz_interval = 0;
 DLLLIB double params::init_inside_val = 1;
 DLLLIB double params::init_outside_val = -1;

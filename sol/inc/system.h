@@ -57,6 +57,13 @@ struct PhaseFieldSystem : PersistentSystemData<G<T, D>>
 	using parent_type::info;
 	using parent_type::data_len;
 
+	//! Create a phase field system using the boundary data.
+	/*!
+	 * Initialize a phase field system using the provided boundary data. The
+	 * initial conditions are treated as default, refer to symphas::init_data_type
+	 * for details on the default value.
+	 */
+	PhaseFieldSystem(symphas::interval_data_type const& vdata, size_t id = 0);
 	PhaseFieldSystem(symphas::init_data_type const& tdata, symphas::interval_data_type const& vdata, size_t id = 0);
 	PhaseFieldSystem(symphas::init_data_type const& tdata, symphas::interval_data_type const& vdata, symphas::b_data_type const&, size_t id = 0) :
 		PhaseFieldSystem(tdata, vdata, id) {}
@@ -89,6 +96,13 @@ PhaseFieldSystem<G, T, D>::PhaseFieldSystem(
 	symphas::internal::populate_tdata(tdata, static_cast<G<T, D>&>(*this), &info, id);
 }
 
+
+template<template<typename, size_t> typename G, typename T, size_t D>
+PhaseFieldSystem<G, T, D>::PhaseFieldSystem(
+	symphas::interval_data_type const& vdata,
+	size_t id) :
+	PhaseFieldSystem(symphas::init_data_type{}, vdata, id) 
+{}
 
 
 

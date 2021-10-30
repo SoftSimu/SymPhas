@@ -88,6 +88,7 @@ struct Solver;
 
 //! Generates code which will associate a function with a display name.
 #define SYEX_PRINT_FUNCTION_STRUCT_IMPL(F, FMT_STR) \
+using f_arg_ ## F = typename expr::eval_type<E>::type; \
 static size_t print(wrap_f<&symphas::math:: F <typename expr::eval_type<E>::type>>, FILE* out, const char* str) { return fprintf(out, FMT_STR, str); } \
 static size_t print(wrap_f<&symphas::math:: F <typename expr::eval_type<E>::type>>, char* out, const char* str) { return sprintf(out, FMT_STR, str); } \
 static constexpr size_t print_length(wrap_f<&symphas::math:: F <typename expr::eval_type<E>::type>>) { return sizeof(FMT_STR) / sizeof(char) - 3; }
@@ -157,8 +158,19 @@ namespace symphas::internal
 		SYEX_PRINT_FUNCTION_STRUCT(modulus, "\\left|{%s}\\right|", "|%s|");
 		SYEX_PRINT_FUNCTION_STRUCT(real, "\\Re" SYEX_DERIV_APPLIED_EXPR_FMT, "Re" SYEX_DERIV_APPLIED_EXPR_FMT);
 		SYEX_PRINT_FUNCTION_STRUCT(imag, "\\Im" SYEX_DERIV_APPLIED_EXPR_FMT, "Im" SYEX_DERIV_APPLIED_EXPR_FMT);
-		SYEX_PRINT_FUNCTION_STRUCT(sin, "\\sin" SYEX_DERIV_APPLIED_EXPR_FMT, "sin" SYEX_DERIV_APPLIED_EXPR_FMT);
 		SYEX_PRINT_FUNCTION_STRUCT(cos, "\\cos" SYEX_DERIV_APPLIED_EXPR_FMT, "cos" SYEX_DERIV_APPLIED_EXPR_FMT);
+		SYEX_PRINT_FUNCTION_STRUCT(sin, "\\sin" SYEX_DERIV_APPLIED_EXPR_FMT, "sin" SYEX_DERIV_APPLIED_EXPR_FMT);
+		SYEX_PRINT_FUNCTION_STRUCT(tan, "\\tan" SYEX_DERIV_APPLIED_EXPR_FMT, "tan" SYEX_DERIV_APPLIED_EXPR_FMT);
+		SYEX_PRINT_FUNCTION_STRUCT(cosh, "\\cosh" SYEX_DERIV_APPLIED_EXPR_FMT, "cosh" SYEX_DERIV_APPLIED_EXPR_FMT);
+		SYEX_PRINT_FUNCTION_STRUCT(sinh, "\\sinh" SYEX_DERIV_APPLIED_EXPR_FMT, "sinh" SYEX_DERIV_APPLIED_EXPR_FMT);
+		SYEX_PRINT_FUNCTION_STRUCT(tanh, "\\tanh" SYEX_DERIV_APPLIED_EXPR_FMT, "tanh" SYEX_DERIV_APPLIED_EXPR_FMT);
+		SYEX_PRINT_FUNCTION_STRUCT(acos, "\\acos" SYEX_DERIV_APPLIED_EXPR_FMT, "acos" SYEX_DERIV_APPLIED_EXPR_FMT);
+		SYEX_PRINT_FUNCTION_STRUCT(asin, "\\asin" SYEX_DERIV_APPLIED_EXPR_FMT, "asin" SYEX_DERIV_APPLIED_EXPR_FMT);
+		SYEX_PRINT_FUNCTION_STRUCT(atan, "\\atan" SYEX_DERIV_APPLIED_EXPR_FMT, "atan" SYEX_DERIV_APPLIED_EXPR_FMT);
+		SYEX_PRINT_FUNCTION_STRUCT(acosh, "\\acosh" SYEX_DERIV_APPLIED_EXPR_FMT, "acosh" SYEX_DERIV_APPLIED_EXPR_FMT);
+		SYEX_PRINT_FUNCTION_STRUCT(asinh, "\\asinh" SYEX_DERIV_APPLIED_EXPR_FMT, "asinh" SYEX_DERIV_APPLIED_EXPR_FMT);
+		SYEX_PRINT_FUNCTION_STRUCT(atanh, "\\atanh" SYEX_DERIV_APPLIED_EXPR_FMT, "atanh" SYEX_DERIV_APPLIED_EXPR_FMT);
+		SYEX_PRINT_FUNCTION_STRUCT(sqrt, "\\sqrt" SYEX_DERIV_APPLIED_EXPR_FMT, "sqrt" SYEX_DERIV_APPLIED_EXPR_FMT);
 
 	public:
 

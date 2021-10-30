@@ -26,7 +26,7 @@
 
 
 template<>
-void symphas::io::gpc::read_block<scalar_t>(scalar_t* grid, symphas::grid_info ginfo, FILE* f)
+void symphas::io::gp::col::read_block<scalar_t>(scalar_t* grid, symphas::grid_info ginfo, FILE* f)
 {
 	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
 	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
@@ -50,7 +50,7 @@ void symphas::io::gpc::read_block<scalar_t>(scalar_t* grid, symphas::grid_info g
 }
 
 template<>
-void symphas::io::gpc::read_block<complex_t>(complex_t* grid, symphas::grid_info ginfo, FILE* f)
+void symphas::io::gp::col::read_block<complex_t>(complex_t* grid, symphas::grid_info ginfo, FILE* f)
 {
 	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
 	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
@@ -77,7 +77,7 @@ void symphas::io::gpc::read_block<complex_t>(complex_t* grid, symphas::grid_info
 }
 
 template<>
-void symphas::io::gpc::read_block<double[2]>(double(*grid)[2], symphas::grid_info ginfo, FILE* f)
+void symphas::io::gp::col::read_block<double[2]>(double(*grid)[2], symphas::grid_info ginfo, FILE* f)
 {
 	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
 	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
@@ -101,7 +101,7 @@ void symphas::io::gpc::read_block<double[2]>(double(*grid)[2], symphas::grid_inf
 }
 
 template<>
-void symphas::io::gpc::read_block<vector_t<3>>(vector_t<3>* grid, symphas::grid_info ginfo, FILE* f)
+void symphas::io::gp::col::read_block<vector_t<3>>(vector_t<3>* grid, symphas::grid_info ginfo, FILE* f)
 {
 	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
 	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
@@ -132,7 +132,7 @@ void symphas::io::gpc::read_block<vector_t<3>>(vector_t<3>* grid, symphas::grid_
 }
 
 template<>
-void symphas::io::gpc::read_block<vector_t<2>>(vector_t<2>* grid, symphas::grid_info ginfo, FILE* f)
+void symphas::io::gp::col::read_block<vector_t<2>>(vector_t<2>* grid, symphas::grid_info ginfo, FILE* f)
 {
 	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
 	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
@@ -164,7 +164,7 @@ void symphas::io::gpc::read_block<vector_t<2>>(vector_t<2>* grid, symphas::grid_
 
 
 template<>
-void symphas::io::gpc::read_block<vector_t<1>>(vector_t<1>* grid, symphas::grid_info ginfo, FILE* f)
+void symphas::io::gp::col::read_block<vector_t<1>>(vector_t<1>* grid, symphas::grid_info ginfo, FILE* f)
 {
 	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
 	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();

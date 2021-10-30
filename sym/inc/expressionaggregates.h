@@ -298,6 +298,36 @@ namespace expr
 	}
 
 	//! Gets the string name associated with the data.
+	template<size_t N>
+	const char* get_op_name(Variable<N> const& a)
+	{
+		static size_t NN = 0;
+		static char** names;
+		const char prefix[] = "var";
+		if (N >= NN)
+		{
+			char** new_names = new char* [N + 1];
+			for (iter_type i = 0; i < NN; ++i)
+			{
+				new_names[i] = new char[std::strlen(names[i]) + 1];
+				std::strcpy(new_names[i], names[i]);
+			}
+			for (size_t i = NN; i <= N; ++i)
+			{
+				new_names[i] = new char[STR_ARR_LEN(prefix) + symphas::lib::num_digits(N)];
+				sprintf(new_names[i], "%s%zd", prefix, N);
+			}
+			delete[] names;
+			names = new_names;
+			return names[N];
+		}
+		else
+		{
+			return names[N];
+		}
+	}
+
+	//! Gets the string name associated with the data.
 	template<typename T>
 	const char* get_op_name(T* ptr)
 	{
@@ -560,7 +590,7 @@ namespace expr
 	 * Variable.
 	 *
 	 * \param data The data from which to create an OpLVariable.
-	 * 
+	 *
 	 * \tparam Z The index of the Variable to create.
 	 * \tparam A The type of the data to make an OpLVariable.
 	 */
@@ -841,7 +871,6 @@ struct OpLVariable<OpNegIdentity, G> : OpExpression<OpLVariable<OpNegIdentity, G
 	OpNegIdentity value;	//!< Member is added to standardize member access across all OpLVariable specializations.
 	G data;					//!< The data which this variable represents.
 };
-
 
 
 template<typename G>

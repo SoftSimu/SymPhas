@@ -133,9 +133,7 @@ namespace symphas
 	 *
 	 * The interval will also return the number of discrete elements used to
 	 * represent it, i.e. the size of the grid dimension corresponding to the
-	 * interval. If the parameter params::boundary_ext is `true`, then the number of
-	 * discrete elements will be increased by twice the number of layers required
-	 * by the boundary (for the left and right sides).
+	 * interval. 
 	 */
 	struct interval_element_type
 	{
@@ -160,30 +158,10 @@ namespace symphas
 		 * contains its endpoints; for example, an interval between 0 and 2 with
 		 * a spatial width of 1 means there are 3 discrete elements in the
 		 * interval (elements 0, 1 and 2).
-		 *
-		 * The algorithm also considers the total number of discrete elements in the
-		 * case that the params::boundary_ext parameter is true: additional points
-		 * will be added to reflect the discrete elements extend across the
-		 * physically defined interval.
-
-		 * In this case, the endpoints are actually the true endpoints of the
-		 * interval when the data is fully generated, because the boundary regions
-		 * are not considered part of the actual data set and so exist beyond the
-		 * endpoints. When the boundary is considered to be within the endpoints,
-		 * then the endpoints are not actually true to the region being time
-		 * evolved; however, the \f$h\f$ parameter is always constant so the results
-		 * will always be consistent.
 		 */
 		len_type count() const
 		{
-			if (params::boundary_ext)
-			{
-				return direct_count() + 2 * THICKNESS;
-			}
-			else
-			{
 				return direct_count();
-			}
 		}
 
 		//! Returns the left endpoint of the interval.
@@ -191,7 +169,7 @@ namespace symphas
 		 * The endpoint that is returned is always the physical end point with which
 		 * the interval is initialized with.
 		 */
-		double left() const
+		axis_coord_t left() const
 		{
 			return data[0];
 		}
@@ -201,12 +179,19 @@ namespace symphas
 		 * The endpoint that is returned is always the physical end point with which
 		 * the interval is initialized with.
 		 */
-		double right() const
+		axis_coord_t right() const
 		{
 			return data[1];
 		}
 
 		//! Returns the grid spacing.
+		/*!
+		 * The grid spacing is always computed with respect
+		 * to the number of elements in the domain.
+		 * That is, whether the boundaries are extended.
+		 * Specifying the width directly always returns the correct
+		 * width.
+		 */
 		double width() const
 		{
 			return h;
@@ -221,10 +206,7 @@ namespace symphas
 		//! Sets the beginning and end values of the interval. 
 		/*
 		 * Given the start and the end of the interval, which are the left and
-		 * right endpoints, respectively, the interval data is initialized. If the
-		 * parameters has specified to extend the interval to accommodate grid
-		 * boundaries with params::boundary_ext, the initialized values are not
-		 * changed. This difference is only reflected in function count().
+		 * right endpoints, respectively, the interval data is initialized.
 		 *
 		 * The design of this initialization is such that intervals can always be
 		 * used to initialize each other using the values returned by left() and
@@ -258,11 +240,6 @@ namespace symphas
 		 */
 		void set_interval_count(double left, double right, len_type count)
 		{
-			if (params::boundary_ext)
-			{
-				count -= 2 * THICKNESS;
-			}
-
 			double width = std::abs(right - left) / (count - 1);
 			set_interval(left, right, width);
 		}
@@ -283,10 +260,6 @@ namespace symphas
 		 */
 		void set_interval_count(double width, len_type count)
 		{
-			if (params::boundary_ext)
-			{
-				count -= 2 * THICKNESS;
-			}
 			set_interval(0, (count - 1) * width, width);
 		}
 	};
@@ -509,6 +482,13 @@ inline void swap(symphas::grid_info& first, symphas::grid_info& second)
 #define INTERVAL_Xh intervals.at(Axis::X).width()
 #define INTERVAL_Yh intervals.at(Axis::Y).width()
 #define INTERVAL_Zh intervals.at(Axis::Z).width()
+
+#define INTERVAL_Xc_AT(i) intervals[i].at(Axis::X).count()
+#define INTERVAL_Yc_AT(i) intervals[i].at(Axis::Y).count()
+#define INTERVAL_Zc_AT(i) intervals[i].at(Axis::Z).count()
+#define INTERVAL_Xc intervals.at(Axis::X).count()
+#define INTERVAL_Yc intervals.at(Axis::Y).count()
+#define INTERVAL_Zc intervals.at(Axis::Z).count()
 
 
 //! \endcond

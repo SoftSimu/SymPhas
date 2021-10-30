@@ -284,6 +284,10 @@ protected:
 	size_t names_len;							//!< The number of phase field names provided.
 	size_t coeff_len;							//!< The number of coefficients provided.
 
+private:
+
+	bool init_coeff_copied;
+
 public:
 
 
@@ -707,6 +711,35 @@ public:
 
 
 	//! Set the interval on the given axis for the system at the given index.
+	void set_intervals(symphas::interval_data_type interval, int n)
+	{
+		if (n < intervals_len)
+		{
+			intervals[n] = interval;
+			set_dimensions(n);
+		}
+		else
+		{
+			auto extendv = new symphas::interval_data_type[n + 1]{};
+			auto extendm = new len_type * [n] {};
+			for (iter_type i = 0; i < intervals_len; ++i)
+			{
+				extendv[i] = intervals[i];
+				extendm[i] = dims[i];
+			}
+
+			delete[] intervals;
+			delete[] dims;
+
+			intervals = extendv;
+			dims = extendm;
+			intervals_len = n + 1;
+
+			set_intervals(interval, n);
+		}
+	}
+
+	//! Set the interval on the given axis for the system at the given index.
 	void set_interval(symphas::interval_element_type interval, Axis ax, int n)
 	{
 		if (n < intervals_len)
@@ -716,23 +749,32 @@ public:
 		}
 		else
 		{
-			auto extendv = new symphas::interval_data_type[n + 1]{};
-			auto extendm = new len_type*[n]{};
-			for (iter_type i = 0; i < intervals_len; ++i)
-			{
-				extendv[i] = intervals[i];
-				extendm[i] = dims[i];
-			}
-			delete[] intervals;
-			delete[] dims;
-
-			intervals = extendv;
-			dims = extendm;
-			intervals_len = n + 1;
-
+			set_intervals(intervals[0], n);
 			set_interval(interval, ax, n);
 		}
 	}
+
+	void set_width(double h)
+	{
+		for (auto i = 0; i < intervals_len; ++i)
+		{
+			for (auto& [_, interval] : intervals[i])
+			{
+				interval.set_interval(interval.left(), interval.right(), h);
+			}
+		}
+	}
+
+	template<Axis ax>
+	void set_width(double h)
+	{
+		for (auto i = 0; i < intervals_len; ++i)
+		{
+            auto& interval = intervals[i].at(ax);
+			interval.set_interval(interval.left(), interval.right(), h);
+		}
+	}
+
 
 	//! Clears all the coefficients by making the coefficient list zero.
 	/*!

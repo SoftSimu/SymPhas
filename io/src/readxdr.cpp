@@ -34,34 +34,54 @@ void symphas::io::xdr::xdrfile_close(XDRFILE* f)
 	::xdrfile_close(f);
 }
 
-symphas::grid_info symphas::io::xdr::read_xdr_header(int* index, XDRFILE* f, bool read_header)
+template<>
+symphas::grid_info symphas::io::xdr::read_header(XDRFILE* f, int* index)
 {
 	symphas::grid_info ginfo{ nullptr, 0 };
-	if (read_header)
+
+	iter_type read_index = (index) ? *index : BAD_INDEX;
+	if (read_index < 0)
 	{
 		/* test the first input to see if there are characters
-		 * if there nothing is read, then return index -1
-		 */
+			* if there nothing is read, then return index -1
+			*/
 		int dim;
 		if (xdrfile_read_int(&dim, 1, f) != 1)
 		{
-			*index = BAD_INDEX;
+			if (index)
+			{
+				*index = BAD_INDEX;
+			}
 			return { nullptr, dim };
 		}
 
 		int* dims = new int[dim];
-		xdrfile_read_int(dims, dim, f);
+		if (xdrfile_read_int(dims, dim, f) != dim)
+		{
+			if (index)
+			{
+				*index = BAD_INDEX;
+			}
+			return { nullptr, dim };
+		}
 
 		ginfo = symphas::grid_info{ dims, dim };
 
 		/* the output of the intervals always goes x, y, z
-		 * keep checking size of dimension and print corresponding interval
-		 */
+			* keep checking size of dimension and print corresponding interval
+			*/
 
 		double v[2];
 		for (iter_type i = 0; i < dim; ++i)
 		{
-			xdrfile_read_double(v, 2, f);
+			if (xdrfile_read_double(v, 2, f) != 2)
+			{
+				if (index)
+				{
+					*index = BAD_INDEX;
+				}
+				return { nullptr, dim };
+			}
 			ginfo.at(symphas::index_to_axis(i)).set_interval_count(v[0], v[1], dims[i]);
 		}
 
@@ -69,10 +89,13 @@ symphas::grid_info symphas::io::xdr::read_xdr_header(int* index, XDRFILE* f, boo
 	}
 
 	/* if nothing was read, then -1 should be returned
-	 */
-	if (xdrfile_read_int(index, 1, f) != 1)
+		*/
+	if (index)
 	{
-		*index = BAD_INDEX;
+		if (xdrfile_read_int(index, 1, f) != 1)
+		{
+			*index = BAD_INDEX;
+		}
 	}
 	return ginfo;
 }

@@ -203,6 +203,9 @@ namespace expr::property
 	template<auto f, typename V, typename E>
 	auto get_data(OpFuncApply<f, V, E> const& e);
 	//! Specialization based on expr::property::get_data(E const&).
+	template<typename V, typename E, typename F, typename Arg0, typename... Args>
+	auto get_data(OpFunc<V, E, F, Arg0, Args...> const& e);
+	//! Specialization based on expr::property::get_data(E const&).
 	template<typename V, typename E1, typename E2>
 	auto get_data(OpFuncConvolution<V, E1, E2> const& e);
 	//! Specialization based on expr::property::get_data(E const&).
@@ -281,6 +284,12 @@ namespace expr::property
 		return get_data(e.e);
 	}
 
+	template<typename V, typename E, typename F, typename Arg0, typename... Args>
+	auto get_data(OpFunc<V, E, F, Arg0, Args...> const& e)
+	{
+		return get_data(e.e);
+	}
+
 	template<typename V, typename E1, typename E2>
 	auto get_data(OpFuncConvolution<V, E1, E2> const& e)
 	{
@@ -354,7 +363,7 @@ namespace expr::property
 		template<size_t Z, typename D0, typename... Ds>
 		auto get_data_variable_apply(std::tuple<D0, Ds...> const& datas)
 		{
-			return get_data_variable_apply(symphas::lib::get_tuple_ge<1>(datas));
+			return get_data_variable_apply<Z>(symphas::lib::get_tuple_ge<1>(datas));
 		}
 	}
 
@@ -406,6 +415,9 @@ namespace expr::property
 	//! Specialization based on expr::property::data_len(E const&).
 	template<auto f, typename V, typename E>
 	len_type data_len(OpFuncApply<f, V, E> const& e);
+	//! Specialization based on expr::property::data_len(E const&).
+	template<typename V, typename E, typename F, typename Arg0, typename... Args>
+	len_type data_len(OpFunc<V, E, F, Arg0, Args...> const& e);
 	//! Specialization based on expr::property::data_len(E const&).
 	template<typename V, typename E1, typename E2>
 	len_type data_len(OpFuncConvolution<V, E1, E2> const& e);
@@ -504,6 +516,12 @@ namespace expr::property
 		return data_len(e.e);
 	}
 
+	template<typename V, typename E, typename F, typename Arg0, typename... Args>
+	len_type data_len(OpFunc<V, E, F, Arg0, Args...> const& e)
+	{
+		return data_len(e.e);
+	}
+
 	template<typename V, typename E1, typename E2>
 	len_type data_len(OpFuncConvolution<V, E1, E2> const& e)
 	{
@@ -588,6 +606,9 @@ namespace expr::property
 	//! Specialization based on expr::property::data_dimensions(E const&).
 	template<auto f, typename V, typename E>
 	const len_type* data_dimensions(OpFuncApply<f, V, E> const& e);
+	//! Specialization based on expr::property::data_dimensions(E const&).
+	template<typename V, typename E, typename F, typename Arg0, typename... Args>
+	const len_type* data_dimensions(OpFunc<V, E, F, Arg0, Args...> const& e);
 	//! Specialization based on expr::property::data_dimensions(E const&).
 	template<typename V, typename E1, typename E2>
 	const len_type* data_dimensions(OpFuncConvolution<V, E1, E2> const& e);
@@ -682,6 +703,12 @@ namespace expr::property
 
 	template<auto f, typename V, typename E>
 	const len_type* data_dimensions(OpFuncApply<f, V, E> const& e)
+	{
+		return data_dimensions(e.e);
+	}
+
+	template<typename V, typename E, typename F, typename Arg0, typename... Args>
+	const len_type* data_dimensions(OpFunc<V, E, F, Arg0, Args...> const& e)
 	{
 		return data_dimensions(e.e);
 	}

@@ -53,11 +53,11 @@
 
 
 //! Returns the outer value to an initial condition.
-#define IC_OUTER_VALUE (symphas::internal::tag_bit_compare(init_data.intag, InsideTag::INVERT) \
+#define IC_OUTER_VALUE (symphas::internal::tag_bit_compare(tdata.intag, InsideTag::INVERT) \
 	? params::init_inside_val \
 	: params::init_outside_val)
 //! Returns the interior value to an initial condition.
-#define IC_INNER_VALUE (symphas::internal::tag_bit_compare(init_data.intag, InsideTag::INVERT) \
+#define IC_INNER_VALUE (symphas::internal::tag_bit_compare(tdata.intag, InsideTag::INVERT) \
 	? params::init_outside_val \
 	: params::init_inside_val)
 
@@ -87,6 +87,7 @@ enum class Inside
 	VORONOI,			//!< Generate values in a Voronoi diagram.
 	FILE, 				//!< Values are read in from a file.
 	CHECKPOINT,			//!< Values are read in from a checkpoint.
+	EXPRESSION,			//!< An equation that is specified similar to the model definitions.
 	NONE				//!< Represents no initial condition.
 };
 
@@ -197,7 +198,7 @@ namespace symphas
 	//! Contains data representing how to read data as initial conditions.
 	struct init_data_read
 	{
-		init_data_read(iter_type index, const char* name) :
+		init_data_read(const char* name, iter_type index) :
 			index{ index }, name{ (name && std::strlen(name) > 0) ? new char[std::strlen(name) + 1] : nullptr }
 		{
 			if (this->name)
@@ -207,10 +208,10 @@ namespace symphas
 		}
 
 
-		init_data_read(const char* name) : init_data_read(0, name) {}
-		init_data_read() : init_data_read(0, "") {}
+		init_data_read(const char* name) : init_data_read(name, 0) {}
+		init_data_read() : init_data_read("", 0) {}
 
-		init_data_read(init_data_read const& other) : init_data_read(other.index, other.name) {}
+		init_data_read(init_data_read const& other) : init_data_read(other.name, other.index) {}
 		init_data_read(init_data_read&& other) : init_data_read() { swap(*this, other); }
 		init_data_read& operator=(init_data_read other) { swap(*this, other); return *this; }
 
@@ -222,6 +223,39 @@ namespace symphas
 			swap(first.name, second.name);
 		}
 
+		//! Get the index that the file object refers to.
+		/*!
+		 * The index is associated with the data that is read from the file. 
+		 * When this object is used to read data at the given file, the index 
+		 * might be used to get to the correct index data in the file, or it 
+		 * might be compared to the index found in the file.
+		 */
+		iter_type get_index() const
+		{
+			return index;
+		}
+
+		//! Get the name of the file that will be accessed. 
+		/*!
+		 * Get the name of the file that will be accessed. If this is referring
+		 * to checkpoint data, then only the name of the solution directory, 
+		 * that is the one that the `checkpoint` folder is, will be named.
+		 */
+		const char* get_name() const
+		{
+			return name;
+		}
+		
+		//! Set the index of the read data.
+		/*!
+		 * Set the index of the read data.
+		 */
+		void set_index(iter_type index)
+		{
+			this->index = index;
+		}
+
+	protected:
 
 		iter_type index;					//!< The index to retrieve from the file.
 		char* name;							//!< The name of the file to retrieve.
@@ -303,9 +337,79 @@ namespace symphas
 		}
 
 		F f;
+	};
 
+
+	//! Stores information about a initial condition expression.
+	/*!
+	 * Initial conditions can be defined using a symbolic algebra expression,
+	 * in terms of the axis variables (\f$x\f$, \f$y\f$ and \f$z\f$), as well as the
+	 * coefficients which are passed as part of the configuration. Without
+	 * using a configuration, the coefficients can be initialized with a member
+	 * function.
+	 */
+	struct init_data_expr : init_data_read
+	{
+		init_data_expr(const char* name, const double* coeff, size_t num_coeff) : 
+			init_data_read(name), coeff{ (num_coeff > 0) ? new double[num_coeff] : nullptr }, num_coeff{ num_coeff }
+		{
+			std::copy(coeff, coeff + num_coeff, this->coeff);
+		}
+
+		init_data_expr(const char* name) : init_data_expr(name, nullptr, 0) {}
+		init_data_expr() : init_data_read(), coeff{ nullptr }, num_coeff{ 0 } {}
+
+		init_data_expr(init_data_expr const& other) : init_data_expr(other.name, other.coeff, other.num_coeff) {}
+		init_data_expr(init_data_expr&& other) : init_data_expr() { swap(*this, other); }
+		init_data_expr& operator=(init_data_expr other) { swap(*this, other); return *this; }
+
+		//! Set the coefficients for the initial expression.
+		/*!
+		 * Set the coefficients to be used in the initial expression.
+		 * 
+		 * \param new_coeff The list of new coefficients to store in this
+		 * object.
+		 * \param new_num_coeff The length of the new list of coefficients.
+		 */
+		void set_coeff(const double* new_coeff, size_t new_num_coeff)
+		{
+			if (num_coeff != new_num_coeff)
+			{
+				delete[] coeff;
+				coeff = new double[new_num_coeff];
+			}
+			
+			std::copy(new_coeff, new_coeff + new_num_coeff, coeff);
+			num_coeff = new_num_coeff;
+		}
+
+		//! Return the list of coefficients in the initial expression.
+		const double* get_coeff() const
+		{
+			return coeff;
+		}
+
+		//! Return the number of coefficients in the initial expression.
+		size_t get_num_coeff() const
+		{
+			return num_coeff;
+		}
+
+		friend void swap(init_data_expr& first, init_data_expr& second)
+		{
+			using std::swap;
+			swap(static_cast<init_data_read&>(first), static_cast<init_data_read&>(second));
+			swap(first.coeff, second.coeff);
+			swap(first.num_coeff, second.num_coeff);
+		}
+
+	protected:
+
+		double* coeff;
+		size_t num_coeff;
 
 	};
+
 
 	//template<typename F>
 	//init_data_functor(F)->init_data_functor<F>;
@@ -396,6 +500,26 @@ namespace symphas
 		init_data_type(Inside in, init_data_read file) : 
 			in{ in }, intag{ symphas::build_intag(InsideTag::DEFAULT) }, file{ file } {}
 
+		//! Create initial conditions data from a file.
+		/*!
+		 * Initial conditions data is sourced from a file. The file type
+		 * is assumed to be Inside::FILE.
+		 *
+		 * \param file Information about the file.
+		 */
+		init_data_type(init_data_read file) :
+			init_data_type(Inside::FILE, file) {}
+
+		//! Create initial conditions data from a file.
+		/*!
+		 * Initial conditions data is sourced from a file. The file type
+		 * is assumed to be Inside::FILE.
+		 *
+		 * \param file Information about the file.
+		 */
+		init_data_type(init_data_expr expr_data) :
+			in{ Inside::EXPRESSION }, intag{ symphas::build_intag(InsideTag::DEFAULT) }, expr_data{ expr_data } {}
+
 		//! Create initial conditions using a given functor.
 		/*!
 		 * Initial conditions data is generated using a functor from the
@@ -467,6 +591,7 @@ namespace symphas
 			init_data_functor<void>* f_init;	//!< Separate functor to generate the initial conditions.
 			init_data_parameters data;			//!< The parameters used by the initial condition algorithm.
 			init_data_read file;				//!< The file from which the field is populated.
+			init_data_expr expr_data;			//!< The file from which the field is populated.
 		};
 	};
 
@@ -514,7 +639,6 @@ inline void swap(symphas::init_data_type& first, symphas::init_data_type& second
 {
 	symphas::swap(first, second);
 }
-
 
 
 // ********************************************************************************

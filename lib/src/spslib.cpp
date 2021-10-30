@@ -495,7 +495,11 @@ void symphas::lib::make_directory(std::filesystem::path dir, int err_no)
 		bool created = std::filesystem::create_directories(dir);
 		if (!created)
 		{
-			fprintf(SYMPHAS_ERR, "%d error creating directory '%s'\n", err_no + 1, dir.c_str());
+			if (!std::filesystem::exists(dir))
+			{
+				fprintf(SYMPHAS_ERR, "%d error creating directory '%s'\n",
+					err_no + 1, dir.string().c_str());
+			}
 		}
 	}
 }
@@ -515,7 +519,13 @@ void symphas::lib::make_directory(const char* dir, int err_no)
 		std::strcat(build_tree, tok);
 		if (!CreateDirectory(build_tree, NULL) && (ERROR_ALREADY_EXISTS != GetLastError()))
 		{
-			fprintf(SYMPHAS_ERR, "%d error creating directory '%s'\n", err_no + 2, build_tree);
+			DWORD dwAttrib = GetFileAttributes(build_tree);
+			if (dwAttrib != INVALID_FILE_ATTRIBUTES &&
+				(dwAttrib & FILE_ATTRIBUTE_DIRECTORY))
+			{
+				fprintf(SYMPHAS_ERR, "%d error creating directory '%s'\n", err_no + 2, build_tree);
+			}
+
 		}
 	} 
 	while ((tok = std::strtok(NULL, "/\\")) != 0);

@@ -27,6 +27,8 @@
 
 #include "writegp.h"
 #include "writegpc.h"
+#include "writegpmov.h"
+#include "writecsv.h"
 
 #ifdef USING_XDR
 #include "writexdr.h"
@@ -48,7 +50,13 @@ case WriterType::GNU: \
 	symphas::io::gp:: FUNCTION; \
 	break; \
 case WriterType::COLUMN: \
-	symphas::io::gpc:: FUNCTION; \
+	symphas::io::gp::col:: FUNCTION; \
+	break; \
+case WriterType::MOVIE: \
+	symphas::io::gp::mov:: FUNCTION; \
+	break; \
+case WriterType::CSV: \
+	symphas::io::csv:: FUNCTION; \
 	break; \
 XDRW_CASE(FUNCTION) \
 default: ; \

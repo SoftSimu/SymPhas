@@ -58,23 +58,22 @@ struct model_select
 
 // undefine all the parameters
 
-#undef A
-#undef B
-#undef C
-#undef D
-#undef E
-#undef F
-#undef G
-#undef H
-
-#undef AA
-#undef BB
-#undef CC
-#undef DD
-#undef EE
-#undef FF
-#undef GG
-#undef HH
+#undef c1 
+#undef c2 
+#undef c3 
+#undef c4 
+#undef c5 
+#undef c6 
+#undef c7 
+#undef c8 
+#undef c9 
+#undef c10
+#undef c11
+#undef c12
+#undef c13
+#undef c14
+#undef c15
+#undef c16
 
 // order parameter names
 
@@ -89,9 +88,15 @@ struct model_select
 #undef grad
 #undef param
 
-#undef i
+#undef Ii
 #undef lit
 #undef one
+
+
+#undef x
+#undef y
+#undef z
+#undef t
 
 // functions
 
@@ -111,9 +116,40 @@ struct model_select
 #undef DYNAMIC
 #undef MODE
 
+
 #endif
 
 #endif
+
+
+template<size_t D>
+struct init_expr_select
+{
+	/* returns false if there is no model with the given name
+	 */
+	template<typename T>
+	auto call(const char* name, T* values, len_type const* dims, symphas::interval_data_type const& vdata, double const* coeff, size_t num_coeff)
+	{
+        using namespace symphas::internal;
+		constexpr int last_index = decltype(init_expr_counter(init_expr_count_index<255>{}))::value;
+		return init_expr_call_wrapper<D, last_index - 1>::template call(name, values, dims, vdata, coeff, num_coeff);
+	}
+};
+
+template<size_t D, typename T>
+bool match_init_expr(const char* initname, T* values, len_type const* dims, symphas::interval_data_type const& vdata, double const* coeff, size_t num_coeff)
+{
+	init_expr_select<D> ie;
+
+	if (ie.call(initname, values, dims, vdata, coeff, num_coeff) < 0)
+	{
+		fprintf(SYMPHAS_ERR, "unknown initialization equation provided, '%s'\n", initname);
+		return false;
+	}
+	return true;
+}
+
+
 
 
 

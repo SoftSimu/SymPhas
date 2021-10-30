@@ -1,0 +1,27 @@
+!Allen Cahn MMS
+
+DIM				dimensions of model			: 2
+ORDER			order of accuracy			: 2
+PTL				laplacian stencil			: 5
+PTB				bilaplacian stencil			: 13
+PTG				gradlaplacian stencil		: 6
+WIDTH			grid draw size				: 0.002
+
+RNGX			interval of x				: 0 0.998
+RNGY			interval of y				: 0 0.5
+BNDLT			bound type on x1			: PERIODIC
+BNDRT			bound type on x2			: PERIODIC
+BNDTP			bound type on y1			: CONSTANT 1
+BNDBT			bound type on y2			: CONSTANT 0
+
+INSIDE			the conditions inside		: EXPRESSION MMS_AC_FINAL @
+INSIDE			the conditions inside		: EXPRESSION MMS_AC_INIT @
+
+MODEL			type of the model			: AC_MMS 0.0004 0.0075 25.1327412287 0.03 69.115038379 0.19634954084
+
+DELTA			time increment				: 0.001
+FRAMES			total time steps			: 8000
+SAVE			frame save interval			: 8000
+SAVEINIT		save time index 0 data?		: YES
+
+DIR				save directory				: results

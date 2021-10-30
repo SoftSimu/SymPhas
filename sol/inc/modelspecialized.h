@@ -470,13 +470,17 @@ struct TraitProvisionalModel : TraitProvisional<TraitEquationModel, parent_trait
  * specified.
  */
 #define EQUATION_TRAIT_PREAMBLE(...) \
+using namespace expr; \
 template<typename parent_trait> \
 struct TraitEquationModel : TraitEquation<TraitEquationModel, parent_trait> \
 { \
 	using parent_type = TraitEquation<TraitEquationModel, parent_trait>; \
 	using parent_type::solver; \
 	using parent_type::parent_type; \
-	auto make_equations() { __VA_ARGS__
+	auto make_equations() { \
+	using namespace std; using namespace expr; \
+	constexpr size_t D = model_dimension<parent_type>::value; \
+	__VA_ARGS__
 
 //! Defines a TraitEquation child class used to define dynamical equations.
 /*!

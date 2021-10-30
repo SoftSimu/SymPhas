@@ -10,7 +10,7 @@
  * by the Free Software Foundation; LGPL version 3, or later versions at
  * your choice.
  *
- * SymPhas is distributed with the faith that it will be helpful and
+ * SymPhas is distributed with the faith that it will be divhelpful and
  * practical but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
  * General Public License for more details.
@@ -44,11 +44,11 @@ template<>
 struct apply_laplacian_2d4h<9>
 {
 	template<typename T>
-	auto operator()(T* const v, double h2, len_type lenX)
+	auto operator()(T* const v, double divh2, len_type lenX)
 	{
 		return (-vx2_ - vx2 - vy2 - vy2_
 			+ 16. * (vx_ + vx + vy + vy_) - 60. * v0
-			) * h2 * (1.0 / 12);
+			) * divh2 * (1.0 / 12);
 	}
 };
 
@@ -56,14 +56,14 @@ template<>
 struct apply_laplacian_2d4h<17>
 {
 	template<typename T>
-	auto operator()(T* const v, double h2, len_type lenX)
+	auto operator()(T* const v, double divh2, len_type lenX)
 	{
 		return (-(vx2y2 + vx2_y2 + vx2y2_ + vx2_y2_)
 			- 8. * (vx2 + vx2_ + vy2 + vy2_) +
 			16. * (vxy + vx_y + vxy_ + vx_y_) +
 			128. * (vx + vx_ + vy + vy_)
 			- 540. * v0
-			) * h2 * (1.0 / 120);
+			) * divh2 * (1.0 / 120);
 	}
 };
 
@@ -71,7 +71,7 @@ template<>
 struct apply_laplacian_2d4h<21>
 {
 	template<typename T>
-	auto operator()(T* const v, double h2, len_type lenX)
+	auto operator()(T* const v, double divh2, len_type lenX)
 	{
 		return (-2. * (vx2y + vx2_y + vx2y_ + vx2_y_ +
 			vxy2 + vx_y2 + vxy2_ + vx_y2_)
@@ -79,7 +79,7 @@ struct apply_laplacian_2d4h<21>
 			16. * (vxy + vx_y + vxy_ + vx_y_) +
 			52. * (vx + vx_ + vy + vy_)
 			- 252. * v0
-			) * h2 * (1.0 / 60);
+			) * divh2 * (1.0 / 60);
 	}
 };
 
@@ -88,7 +88,7 @@ template<>
 struct apply_bilaplacian_2d4h<21>
 {
 	template<typename T>
-	auto operator()(T* const v, double h4, len_type lenX)
+	auto operator()(T* const v, double divh4, len_type lenX)
 	{
 		return (-4. * (vx3 + vx3_ + vy3 + vy3_)
 			- (vx2y2 + vx2_y2 + vx2y2_ + vx2_y2_)
@@ -96,7 +96,7 @@ struct apply_bilaplacian_2d4h<21>
 			+ 64. * (vxy + vx_y + vxy_ + vx_y_)
 			- 284. * (vx + vx_ + vy + vy_)
 			+ 700. * v0
-			) * h4 * (1.0 / 24);
+			) * divh4 * (1.0 / 24);
 	}
 };
 
@@ -104,7 +104,7 @@ template<>
 struct apply_bilaplacian_2d4h<25>
 {
 	template<typename T>
-	auto operator()(T* const v, double h4, len_type lenX)
+	auto operator()(T* const v, double divh4, len_type lenX)
 	{
 		return (-(vx3 + vx3_ + vy3 + vy3_)
 			- (vx2y + vx2_y + vx2y_ + vx2_y_ + vxy2 + vx_y2 + vxy2_ + vx_y2_) +
@@ -112,7 +112,7 @@ struct apply_bilaplacian_2d4h<25>
 			20. * (vxy + vx_y + vxy_ + vx_y_)
 			- 77. * (vx + vx_ + vy + vy_) +
 			184. * v0
-			) * h4 * (1.0 / 6);
+			) * divh4 * (1.0 / 6);
 	}
 };
 
@@ -120,7 +120,7 @@ template<>
 struct apply_bilaplacian_2d4h<33>
 {
 	template<typename T>
-	auto operator()(T* const v, double h4, len_type lenX)
+	auto operator()(T* const v, double divh4, len_type lenX)
 	{
 		return (-17. * (vx3y3 + vx3_y3 + vx3y3_ + vx3_y3_)
 			- 236. * (vx3 + vx3_ + vy3 + vy3_)
@@ -130,7 +130,7 @@ struct apply_bilaplacian_2d4h<33>
 			+ 5049. * (vxy + vx_y + vxy_ + vx_y_)
 			- 19116. * (vx + vx_ + vy + vy_)
 			+ 45724. * v0
-			) * h4 * (1.0 / 1620);
+			) * divh4 * (1.0 / 1620);
 	}
 };
 
@@ -138,7 +138,7 @@ template<>
 struct apply_bilaplacian_2d4h<37>
 {
 	template<typename T>
-	auto operator()(T* const v, double h4, len_type lenX)
+	auto operator()(T* const v, double divh4, len_type lenX)
 	{
 		return (-17. * (vx3y + vx3_y + vx3y_ + vx3_y_ + vxy3 + vx_y3 + vxy3_ + vx_y3_)
 			+ 4. * (vx3 + vx3_ + vy3 + vy3_)
@@ -148,7 +148,7 @@ struct apply_bilaplacian_2d4h<37>
 			- 374. * (vxy + vx_y + vxy_ + vx_y_)
 			- 764. * (vx + vx_ + vy + vy_)
 			+ 3116. * v0
-			) * h4 * (1.0 / 180);
+			) * divh4 * (1.0 / 180);
 	}
 };
 
@@ -156,20 +156,20 @@ template<>
 struct apply_gradlaplacian_2d4h<14>
 {
 	template<typename T>
-	auto operator()(T* const v, double h3, len_type lenX)
+	auto operator()(T* const v, double divh3, len_type lenX)
 	{
 		auto x = (-6. * (vx3 - vx3_)
 			- (vx2y2 - vx2_y2 + vx2y2_ - vx2_y2_)
 			+ 50. * (vx2 - vx2_)
 			+ 32. * (vxy - vx_y + vxy_ - vx_y_)
 			- 142. * (vx - vx_)
-			) * h3 * (1.0 / 48);
+			) * divh3 * (1.0 / 48);
 		auto y = (-6. * (vy3 - vy3_)
 			- (vx2y2 - vx2y2_ + vx2_y2 - vx2_y2_)
 			+ 50. * (vy2 - vy2_)
 			+ 32. * (vxy - vxy_ + vx_y - vx_y_)
 			- 142. * (vy - vy_)
-			) * h3 * (1.0 / 48);
+			) * divh3 * (1.0 / 48);
 		return VectorValue<T, 2>{ x, y };
 	}
 };
@@ -178,7 +178,7 @@ template<>
 struct apply_gradlaplacian_2d4h<18>
 {
 	template<typename T>
-	auto operator()(T* const v, double h3, len_type lenX)
+	auto operator()(T* const v, double divh3, len_type lenX)
 	{
 		auto x = (-3. * (vx3)
 			-2. * (vx2y - vx2_y + vx2y_ - vx2_y_)
@@ -186,14 +186,14 @@ struct apply_gradlaplacian_2d4h<18>
 			-(vxy2 - vx_y2 + vxy2_ - vx_y2_)
 			+ 20. * (vxy - vx_y + vxy_ - vx_y_)
 			- 77. * (vx)
-			) * h3 * (1.0 / 24);
+			) * divh3 * (1.0 / 24);
 		auto y = (-3. * (vy3)
 			-2. * (vxy2 - vxy2_ + vx_y2 - vx_y2_)
 			+ 28. * (vy2)
 			-(vx2y - vx2y_ + vx2_y - vx2_y_)
 			+ 20. * (vxy - vxy_ + vx_y - vx_y_)
 			- 77. * (vy)
-			) * h3 * (1.0 / 24);
+			) * divh3 * (1.0 / 24);
 		return VectorValue<T, 2>{ x, y };
 	}
 };
@@ -202,7 +202,7 @@ template<>
 struct apply_gradlaplacian_2d4h<26>
 {
 	template<typename T>
-	auto operator()(T* const v, double h3, len_type lenX)
+	auto operator()(T* const v, double divh3, len_type lenX)
 	{
 		auto x = (-17. * (vx3y3 - vx3_y3 + vx3y3_ - vx3_y3_)
 			- 236. * (vx3)
@@ -212,7 +212,7 @@ struct apply_gradlaplacian_2d4h<26>
 			-252. * (vxy2 - vx_y2 + vxy2_ - vx_y2_)
 			+ 1683. * (vxy - vx_y + vxy_ - vx_y_)
 			- 6372. * (vx)
-			) / (2160. * h3);
+			) / (2160. * divh3);
 		auto y = (-17. * (vx3y3 - vx3y3_ + vx3_y3 - vx3_y3_)
 			- 236. * (vy3)
 			+234. * (vx2y2 - vx2y2_ + vx2_y2 - vx2_y2_)
@@ -221,7 +221,7 @@ struct apply_gradlaplacian_2d4h<26>
 			-252. * (vx2y - vx2y_ + vx2_y - vx2_y_)
 			+ 1683. * (vxy - vxy_ + vx_y - vx_y_)
 			- 6372. * (vy)
-			) / (2160. * h3);
+			) / (2160. * divh3);
 		return VectorValue<T, 2>{ x, y };
 	}
 };
@@ -230,7 +230,7 @@ template<>
 struct apply_gradlaplacian_2d4h<30>
 {
 	template<typename T>
-	auto operator()(T* const v, double h3, len_type lenX)
+	auto operator()(T* const v, double divh3, len_type lenX)
 	{
 		auto x = (-51. * (vx3y - vx3_y + vx3y_ - vx3_y_)
 			+ 12. * (vx3)
@@ -241,7 +241,7 @@ struct apply_gradlaplacian_2d4h<30>
 			+ 188. * (vxy2 - vx_y2 + vxy2_ - vx_y2_)
 			- 374. * (vxy - vx_y + vxy_ - vx_y_)
 			- 764. * (vx)
-			) * h3 * (1.0 / 720);
+			) * divh3 * (1.0 / 720);
 		auto y = (-51. * (vxy3 - vxy3_ + vx_y3 - vx_y3_)
 			+ 12. * (vy3)
 			-58. * (vx2y2 - vx2y2_ + vx2_y2 - vx2_y2_)
@@ -251,7 +251,7 @@ struct apply_gradlaplacian_2d4h<30>
 			+ 188. * (vx2y - vx2y_ + vx2_y - vx2_y_)
 			- 374. * (vxy - vxy_ + vx_y - vx_y_)
 			- 764. * (vy)
-			) * h3 * (1.0 / 720);
+			) * divh3 * (1.0 / 720);
 		return VectorValue<T, 2>{ x, y };
 	}
 };

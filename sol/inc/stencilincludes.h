@@ -70,9 +70,9 @@ namespace symphas::internal
 
 		//! Construct a new stencil from the system dimensions and \f$h\f$.
 		StencilBase1d2h(const len_type* dims, double h) : parent_type(dims, h),
-			h2{ h * h }, h3{ h * h2 }, h4{ h2 * h2 } {}
+			divh2{ divh * divh }, divh3{ divh * divh2 }, divh4{ divh2 * divh2 } {}
 
-		double h2, h3, h4;
+		double divh2, divh3, divh4;
 
 		//! Gradient of the field.
 		template<typename T>
@@ -91,9 +91,9 @@ namespace symphas::internal
 
 		//! Construct a new stencil from the system dimensions and \f$h\f$.
 		StencilBase2d2h(const len_type* dims, double h) : parent_type(dims, h),
-			h2{ h * h }, h3{ h * h2 }, h4{ h2 * h2 } {}
+			divh2{ divh * divh }, divh3{ divh * divh2 }, divh4{ divh2 * divh2 } {}
 
-		double h2, h3, h4;
+		double divh2, divh3, divh4;
 
 		//! Gradient of the field.
 		template<typename T>
@@ -112,9 +112,9 @@ namespace symphas::internal
 
 		//! Construct a new stencil from the system dimensions and \f$h\f$.
 		StencilBase3d2h(const len_type* dims, double h) : parent_type(dims, h),
-			h2{ h * h }, h3{ h * h2 }, h4{ h2 * h2 }{}
+			divh2{ divh * divh }, divh3{ divh * divh2 }, divh4{ divh2 * divh2 } {}
 
-		double h2, h3, h4;
+		double divh2, divh3, divh4;
 
 		//! Gradient of the field.
 		template<typename T>
@@ -126,7 +126,7 @@ namespace symphas::internal
 	template<>
 	inline auto StencilBase1d2h::gradient<scalar_t>(scalar_t* const v) const
 	{
-		return VectorValue<scalar_t, 1>{ (vx_ + vx - 2. * v0) / h };
+		return VectorValue<scalar_t, 1>{ (vx_ + vx - 2. * v0) * divh };
 	}
 
 	template<>
@@ -134,8 +134,8 @@ namespace symphas::internal
 	{
 		const len_type& lenX = dims[0];
 		return VectorValue<scalar_t, 2>{
-			(vx_ + vx - 2. * v0) / h,
-				(vy_ + vy - 2. * v0) / h };
+			(vx_ + vx - 2. * v0) * divh,
+				(vy_ + vy - 2. * v0) * divh };
 	}
 
 	template<>
@@ -144,9 +144,9 @@ namespace symphas::internal
 		const len_type& lenX = dims[0];
 		const len_type& lenY = dims[1];
 		return VectorValue<scalar_t, 3>{
-			(vx_ + vx - 2. * v0) / h,
-				(vy_ + vy - 2. * v0) / h,
-				(vz_ + vz - 2. * v0) / h };
+			(vx_ + vx - 2. * v0) * divh,
+				(vy_ + vy - 2. * v0) * divh,
+				(vz_ + vz - 2. * v0) * divh };
 	}
 
 
@@ -184,9 +184,9 @@ namespace symphas::internal
 
 		//! Construct a new stencil from the system dimensions and \f$h\f$.
 		StencilBase2d4h(const len_type* dims, double h) : parent_type(dims, h),
-			h2{ h * h }, h3{ h * h2 }, h4{ h2 * h2 } {}
+			divh2{ divh * divh }, divh3{ divh * divh2 }, divh4{ divh2 * divh2 } {}
 
-		double h2, h3, h4;
+		double divh2, divh3, divh4;
 
 		//! Gradient of the field.
 		template<typename T>
@@ -198,8 +198,8 @@ namespace symphas::internal
 	{
 		const len_type& lenX = dims[0];
 		return VectorValue<scalar_t, 2>{
-			-(vx_ + vx - 2. * v0) / h,
-				-(vy_ + vy - 2. * v0) / h };
+			-(vx_ + vx - 2. * v0) * divh,
+				-(vy_ + vy - 2. * v0) * divh };
 	}
 
 	template<typename T>
@@ -234,21 +234,21 @@ struct Stencil1d2h : symphas::internal::StencilBase1d2h, Stencil<Stencil1d2h<L, 
 	template<typename T>
 	auto laplacian(T* const v) const
 	{
-		return apply_laplacian_1d2h<L>{}(v, h2);
+		return apply_laplacian_1d2h<L>{}(v, divh2);
 	}
 
 	//! Bilaplacian (4th order derivative) of the field.
 	template<typename T>
 	auto bilaplacian(T* const v) const
 	{
-		return apply_bilaplacian_1d2h<B>{}(v, h4);
+		return apply_bilaplacian_1d2h<B>{}(v, divh4);
 	}
 
 	//! Gradlaplacian (gradient of the laplacian) of the field.
 	template<typename T>
 	auto gradlaplacian(T* const v) const
 	{
-		return apply_gradlaplacian_1d2h<G>{}(v, h3);
+		return apply_gradlaplacian_1d2h<G>{}(v, divh3);
 	}
 
 };
@@ -278,21 +278,21 @@ struct Stencil2d2h : symphas::internal::StencilBase2d2h, Stencil<Stencil2d2h<L, 
 	template<typename T>
 	inline auto laplacian(T* const v) const
 	{
-		return apply_laplacian_2d2h<L>{}(v, h2, dims[0]);
+		return apply_laplacian_2d2h<L>{}(v, divh2, dims[0]);
 	}
 
 	//! Bilaplacian (4th order derivative) of the field.
 	template<typename T>
 	inline auto bilaplacian(T* const v) const
 	{
-		return apply_bilaplacian_2d2h<B>{}(v, h4, dims[0]);
+		return apply_bilaplacian_2d2h<B>{}(v, divh4, dims[0]);
 	}
 
 	//! Gradlaplacian (gradient of the laplacian) of the field.
 	template<typename T>
 	inline auto gradlaplacian(T* const v) const
 	{
-		return apply_gradlaplacian_2d2h<G>{}(v, h3, dims[0]);
+		return apply_gradlaplacian_2d2h<G>{}(v, divh3, dims[0]);
 	}
 
 };
@@ -321,21 +321,21 @@ struct Stencil3d2h : symphas::internal::StencilBase3d2h, Stencil<Stencil3d2h<L, 
 	template<typename T>
 	inline auto laplacian(T* const v) const
 	{
-		return apply_laplacian_3d2h<L>{}(v, h2, dims[0], dims[1]);
+		return apply_laplacian_3d2h<L>{}(v, divh2, dims[0], dims[1]);
 	}
 
 	//! Bilaplacian (4th order derivative) of the field.
 	template<typename T>
 	inline auto bilaplacian(T* const v) const
 	{
-		return apply_bilaplacian_3d2h<B>{}(v, h4, dims[0], dims[1]);
+		return apply_bilaplacian_3d2h<B>{}(v, divh4, dims[0], dims[1]);
 	}
 
 	//! Gradlaplacian (gradient of the laplacian) of the field.
 	template<typename T>
 	inline auto gradlaplacian(T* const v) const
 	{
-		return apply_gradlaplacian_3d2h<G>{}(v, h3, dims[0], dims[1]);
+		return apply_gradlaplacian_3d2h<G>{}(v, divh3, dims[0], dims[1]);
 	}
 };
 
@@ -367,21 +367,21 @@ struct Stencil2d4h : symphas::internal::StencilBase2d4h, Stencil<Stencil2d4h<L, 
 	template<typename T>
 	inline auto laplacian(T* const v) const
 	{
-		return apply_laplacian_2d4h<L>{}(v, h3, dims[0]);
+		return apply_laplacian_2d4h<L>{}(v, divh3, dims[0]);
 	}
 
 	//! Bilaplacian (4th order derivative) of the field.
 	template<typename T>
 	inline auto bilaplacian(T* const v) const
 	{
-		return apply_bilaplacian_2d4h<B>{}(v, h3, dims[0]);
+		return apply_bilaplacian_2d4h<B>{}(v, divh3, dims[0]);
 	}
 
 	//! Gradlaplacian (gradient of the laplacian) of the field.
 	template<typename T>
 	inline auto gradlaplacian(T* const v) const
 	{
-		return apply_gradlaplacian_2d4h<G>{}(v, h3, dims[0]);
+		return apply_gradlaplacian_2d4h<G>{}(v, divh3, dims[0]);
 	}
 };
 

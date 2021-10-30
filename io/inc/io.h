@@ -47,7 +47,6 @@
 //! Relative name of the directory storing all the checkpoint information.
 #define CHECKPOINT_DIR "checkpoint"
 
-
  /* the name of the backup configuration
   */
 
@@ -59,6 +58,29 @@
 
 //! Relative location of the backup configuration, format string.
 #define BACKUP_CONFIG_LOC_FMT "%s/" CHECKPOINT_DIR "/" BACKUP_CONFIG_NAME "." CONFIG_EXTENSION
+
+
+
+/*
+ * name formatting strings
+ */
+
+#define DATA_DIR_RELATIVE_PLOT ".."		//!< The directory of data relative to the plot configuration.
+#define PHASEFIELD_DATA_NAME "data"	//!< Name used to identify the file of the phase field grid.
+#define POSTFIX_ID_FMT "%zd"			//!< Format for printing the ID value of data.
+#define OUTPUT_INDEX_WIDTH_STR "9"		//!< The maximum number of digits in the a solution index value.
+#define OUTPUT_DATA_DIR "%s/" DATA_DIR	//!< The output data directory.
+
+#define OUTPUT_PLOT_EXTENSION "gp"		//!< The extension given to plot files which are printed.
+#define OUTPUT_DATA_EXTENSION "txt"		//!< The extension given to data output files.
+
+ /* the format of the checkpoint datafile name, which is always the same regardless of the
+  * type of printer or compilation options
+  * the format is simply the defined data name, without any extension
+  * if the data is saved in individual files per index, then the index is also prepended
+  */
+#define OUTPUT_CHECKPOINT_FMT "%s/" CHECKPOINT_DIR "/" PHASEFIELD_DATA_NAME POSTFIX_ID_FMT
+#define OUTPUT_CHECKPOINT_INDEX_FMT "%s/" CHECKPOINT_DIR "/" PHASEFIELD_DATA_NAME POSTFIX_ID_FMT "_%d"
 
 
 
@@ -105,7 +127,9 @@ enum class WriterType
 { 
 	GNU, 
 	XDR,
-	COLUMN 
+	COLUMN,
+	MOVIE,
+	CSV
 };
 
 
@@ -165,6 +189,14 @@ namespace params
 	 * This is `true` by default.
 	 */
 	DLLIO extern bool single_output_file;
+
+	//! Indicates whether the input data comes from the same file.
+	/*!
+	 * The input is given in either separate files or appended to a single file.
+	 *
+	 * This is `true` by default.
+	 */
+	DLLIO extern bool single_input_file;
 
 	//! Indicates whether a checkpoint should be made.
 	/*!
@@ -383,6 +415,14 @@ struct SaveParams
 		SaveParams(base, INDEX_INIT, stop) {}
 	SaveParams(double base) :
 		SaveParams(base, DEFAULT_SAVE_STOP) {}
+
+
+	SaveParams(iter_type base, iter_type start, iter_type stop) :
+		SaveParams(static_cast<double>(base), start, stop) {}
+	SaveParams(iter_type base, iter_type stop) :
+		SaveParams(static_cast<double>(base), stop) {}
+	SaveParams(iter_type base) :
+		SaveParams(static_cast<double>(base)) {}
 
 	SaveParams() : SaveParams(DEFAULT_SAVE_BASE) {}
 

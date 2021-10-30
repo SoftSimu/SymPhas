@@ -34,7 +34,8 @@ list(APPEND SOURCES_IO
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/readgp.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/readgpc.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/writegp.cpp"
-	"${CMAKE_CURRENT_SOURCE_DIR}/src/writegpc.cpp")
+	"${CMAKE_CURRENT_SOURCE_DIR}/src/writegpc.cpp"
+	"${CMAKE_CURRENT_SOURCE_DIR}/src/writecsv.cpp")
 
 if(${xdrfile_FOUND})
 	set(USING_XDR 1)
