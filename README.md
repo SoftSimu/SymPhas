@@ -5,6 +5,8 @@
 
 **Preprint is available at:** [arXiv:2109.02598](https://arxiv.org/abs/2109.02598)
 
+**Article accepted for publication in Advanced Theory and Simulations (Nov 2021)**
+
 <p align="center">
 <img src="./docs/modelb2d.png" width="100">
 <img src="./docs/modelc2d0.png" width="100">
