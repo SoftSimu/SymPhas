@@ -42,9 +42,9 @@ XDRFILE* open_xdrgridf(symphas::io::write_info winfo, bool is_checkpoint)
 	return f;
 }
 
-void print_xdr_header(int index, size_t id, symphas::grid_info ginfo, XDRFILE* f)
+void print_xdr_header(int index, size_t id, symphas::grid_info const& ginfo, symphas::io::write_info const& winfo, XDRFILE* f)
 {
-	static std::vector<size_t> idlist;
+	static std::vector<std::pair<std::string, size_t>> idlist;
 	if (!params::single_output_file || (std::find(idlist.begin(), idlist.end(), id) == idlist.end()))
 	{
 
@@ -72,9 +72,9 @@ void print_xdr_header(int index, size_t id, symphas::grid_info ginfo, XDRFILE* f
 		}
 
 
-		if (std::find(idlist.begin(), idlist.end(), id) == idlist.end())
+		if (std::find(idlist.begin(), idlist.end(), std::make_pair(winfo.dir_str_ptr, id)) == idlist.end())
 		{
-			idlist.push_back(id);
+			idlist.emplace_back(winfo.dir_str_ptr, id);
 		}
 	}
 	xdrfile_write_int(&index, 1, f);
@@ -88,7 +88,7 @@ void print_xdr_header(int index, size_t id, symphas::grid_info ginfo, XDRFILE* f
 void save_xdr(const scalar_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo, bool is_checkpoint)
 {
 	XDRFILE* f = open_xdrgridf(winfo, is_checkpoint);
-	print_xdr_header(winfo.index, winfo.id, ginfo, f);
+	print_xdr_header(winfo.index, winfo.id, ginfo, winfo, f);
 	xdrfile_write_double(const_cast<double*>(grid), ginfo.num_points(), f);
 	xdrfile_close(f);
 }
@@ -97,7 +97,7 @@ void save_xdr(const complex_t* grid, symphas::io::write_info winfo, symphas::gri
 {
 	const double* data = reinterpret_cast<const double*>(grid);
 	XDRFILE* f = open_xdrgridf(winfo, is_checkpoint);
-	print_xdr_header(winfo.index, winfo.id, ginfo, f);
+	print_xdr_header(winfo.index, winfo.id, ginfo, winfo, f);
 	xdrfile_write_double(const_cast<double*>(data), ginfo.num_points() * 2, f);
 	xdrfile_close(f);
 }
@@ -106,7 +106,7 @@ void save_xdr(const double(*grid)[2], symphas::io::write_info winfo, symphas::gr
 {
 	const double* data = reinterpret_cast<const double*>(grid);
 	XDRFILE* f = open_xdrgridf(winfo, is_checkpoint);
-	print_xdr_header(winfo.index, winfo.id, ginfo, f);
+	print_xdr_header(winfo.index, winfo.id, ginfo, winfo, f);
 	xdrfile_write_double(const_cast<double*>(data), ginfo.num_points() * 2, f);
 	xdrfile_close(f);
 }
@@ -114,7 +114,7 @@ void save_xdr(const double(*grid)[2], symphas::io::write_info winfo, symphas::gr
 void save_xdr(const vector_t<3>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo, bool is_checkpoint)
 {
 	XDRFILE* f = open_xdrgridf(winfo, is_checkpoint);
-	print_xdr_header(winfo.index, winfo.id, ginfo, f);
+	print_xdr_header(winfo.index, winfo.id, ginfo, winfo, f);
 
 	for (iter_type k = 0, ii = 0; k < ginfo.at(Axis::Z).count(); ++k)
 	{
@@ -137,7 +137,7 @@ void save_xdr(const vector_t<3>* grid, symphas::io::write_info winfo, symphas::g
 void save_xdr(const vector_t<2>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo, bool is_checkpoint)
 {
 	XDRFILE* f = open_xdrgridf(winfo, is_checkpoint);
-	print_xdr_header(winfo.index, winfo.id, ginfo, f);
+	print_xdr_header(winfo.index, winfo.id, ginfo, winfo, f);
 
 	for (iter_type j = 0, ii = 0; j < ginfo.at(Axis::Y).count(); ++j)
 	{
@@ -156,7 +156,7 @@ void save_xdr(const vector_t<2>* grid, symphas::io::write_info winfo, symphas::g
 void save_xdr(const vector_t<1>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo, bool is_checkpoint)
 {
 	XDRFILE* f = open_xdrgridf(winfo, is_checkpoint);
-	print_xdr_header(winfo.index, winfo.id, ginfo, f);
+	print_xdr_header(winfo.index, winfo.id, ginfo, winfo, f);
 
 	for (iter_type i = 0; i < ginfo.at(Axis::X).count(); ++i)
 	{

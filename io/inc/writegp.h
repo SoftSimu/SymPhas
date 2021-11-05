@@ -472,7 +472,7 @@ R"~(
 	 * \param ginfo Information about the grid.
 	 * \param f The file buffer to write to.
 	 */
-	void print_gp_header(int index, size_t id, symphas::grid_info ginfo, FILE* f);
+	void print_gp_header(int index, size_t id, symphas::grid_info const& ginfo, symphas::io::write_info const& winfo, FILE* f);
 
 	//! Writes a data array to a file for plotting.
 	/*!
