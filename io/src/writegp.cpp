@@ -40,8 +40,8 @@ DLLIO std::pair<const char*, double*> symphas::io::gp::alignment::key_par_pairs[
 
 void symphas::io::gp::print_gp_header(int index, size_t id, symphas::grid_info const& ginfo, symphas::io::write_info const& winfo, FILE* f)
 {
-	static std::vector<std::pair<std::string, size_t>> idlist;
-	if (!params::single_output_file || (std::find(idlist.begin(), idlist.end(), id) == idlist.end()))
+	static std::vector<std::tuple<std::string, size_t>> idlist;
+	if (!params::single_output_file || (std::find(idlist.begin(), idlist.end(), std::make_tuple(winfo.dir_str_ptr, id)) == idlist.end()))
 	{
 		fprintf(f, "%d ", ginfo.dimension());
 
@@ -60,7 +60,7 @@ void symphas::io::gp::print_gp_header(int index, size_t id, symphas::grid_info c
 			fprintf(f, "%lf %lf ", interval.left(), interval.right());
 		}
 
-		if (std::find(idlist.begin(), idlist.end(), std::make_pair(winfo.dir_str_ptr, id)) == idlist.end())
+		if (std::find(idlist.begin(), idlist.end(), std::make_tuple(winfo.dir_str_ptr, id)) == idlist.end())
 		{
 			idlist.emplace_back(winfo.dir_str_ptr, id);
 		}
