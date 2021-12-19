@@ -1570,7 +1570,7 @@ void SystemConf::parse_initial_condition(const char* value, size_t n)
 			}
 			else
 			{
-				double* init_coeff;
+				double* init_coeff = nullptr;
 				size_t init_coeff_len;
 				symphas::internal::parse_simple_coeff_list(tok, init_coeff, init_coeff_len);
 
