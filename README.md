@@ -5,7 +5,8 @@
 
 **Preprint is available at:** [arXiv:2109.02598](https://arxiv.org/abs/2109.02598)
 
-**Article accepted for publication in Advanced Theory and Simulations (Nov 2021)**
+**Article:**
+- [SymPhas—General purpose software for phase-field, phase-field crystal and reaction-diffusion simulations](https://doi.org/10.1002/adts.202100351),   Steven A. Silber and Mikko Karttunen, Adv. Theor. Sim. 5, 2100351 (2022). 
 
 <p align="center">
 <img src="./docs/modelb2d.png" width="100">
