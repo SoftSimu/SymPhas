@@ -52,9 +52,7 @@ the same license as SymPhas, which is LGPL v3. It also must clearly be labeled a
 derived work.*
 >
 > *Since SymPhas is supported purely by academic funding, we kindly ask you cite 
-> our paper:*
-> 
-> - "SymPhas—General purpose software for phase-field, phase-field crystal and reaction-diffusion simulations", Steven A. Silber and Mikko Karttunen, submitted
+> our paper listed at the top of this page.*
 
 While our goal is to continue expanding and improving SymPhas to enhance its usefulness for
 the research community, our resources are limited. We welcome any support such as
