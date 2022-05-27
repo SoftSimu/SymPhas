@@ -755,6 +755,18 @@ namespace expr
 	{
 		return "";
 	}
+
+	template<typename T>
+	size_t print_with_coeff(T&&, ...)
+	{
+		return 0;
+	}
+
+	template<typename T>
+	size_t coeff_print_length(T&&, ...)
+	{
+		return 0;
+	}
 }
 
 #endif

@@ -190,7 +190,10 @@ struct OpExpression
 
 #else
 
-	size_t print(...) const {}
+	size_t print(...) const
+	{
+		return 0;
+	}
 
 #endif
 

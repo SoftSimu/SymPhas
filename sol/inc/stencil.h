@@ -37,7 +37,7 @@
 
 #pragma once
 
-#include "definitions.h"
+#include "spslib.h"
 
 #define DEFAULT_STENCIL_ACCURACY 2
 

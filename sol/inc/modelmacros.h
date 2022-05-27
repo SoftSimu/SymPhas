@@ -236,7 +236,7 @@ namespace symphas::lib::internal
 		}
 		else
 		{
-			return cl_type::size<I + 1> * get_search_offset<I + 1>(CrossProductList<Seq0, Seqs...>{});
+			return cl_type::template size<I + 1> * get_search_offset<I + 1>(CrossProductList<Seq0, Seqs...>{});
 		}
 	}
 
