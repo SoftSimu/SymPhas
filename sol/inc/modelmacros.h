@@ -325,6 +325,17 @@ namespace symphas::lib::internal
 
 }
 
+namespace symphas::internal
+{
+	template<
+		template<size_t, typename> typename Model,
+		template<typename> typename Solver,
+		size_t D, size_t O, size_t... Ps,
+		typename... Ts
+	>
+	auto run_model_call(std::index_sequence<D, O, Ps...>, Ts&& ...args);
+}
+
 template<
 	template<size_t, typename> typename Model, 
 	template<typename> typename Solver, 
@@ -359,12 +370,10 @@ protected:
 	template<size_t D, size_t O, size_t... Ps>
 	struct StencilFromSeq<std::index_sequence<D, O, Ps...>>
 	{
-		using type = typename SelfSelectingStencil<D, O>::template Points<Ps...>;
-		
 		template<typename... Ts>
 		auto operator()(Ts&& ...args)
 		{
-			return MODEL_APPLY_CALL<Model<D, Solver<type>>>(std::forward<Ts>(args)...);
+			return symphas::internal::run_model_call<Model, Solver>(std::index_sequence<D, O, Ps...>{}, std::forward<Ts>(args)...);
 		}
 	};
 
