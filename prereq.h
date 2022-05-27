@@ -27,13 +27,15 @@
 
 #include "prereq-defs.h"
 #include "system.h"
-
+#include "solver.h"
+#include "stencilincludes.h"
 
 #ifdef MODULES_EXPORT
 #define DLLMOD DLLEXPORT
 #else
 #define DLLMOD DLLIMPORT
 #endif
+
 
 template<typename T, typename Ty>
 struct symphas::internal::solver_supported_type_match
@@ -224,5 +226,65 @@ namespace symphas
 	void init(const char* config, const char* const* param_list, size_t num_params);
 }
 
+
+
+// \cond
+
+template<>
+struct Solver<GeneralizedStencil<0>> : Solver<Solver<GeneralizedStencil<0>>>
+{
+	using id_type = void;
+
+	static auto make_solver(...)
+	{
+		return Solver<GeneralizedStencil<0>>{};
+	}
+
+	template<size_t En, typename SS, typename S, typename E>
+	auto form_expr_one(SS&&, std::pair<S, E>&& e)
+	{
+		return e;
+	}
+
+	/*
+	 * forward euler method for actually updating the grid
+	 */
+	template<typename S>
+	void step(S& sys, double dt) {}
+
+
+	/*
+	 * the parameter is a tuple with the first parameter being a Variable object with ref
+	 * base type, and the ref is a reference to the system; like this, the variable index is
+	 * packaged and the equality operator is deferred to the oplvariable
+	 */
+	template<typename S, typename E>
+	inline void equation(std::pair<S, E>& r)
+	{
+		auto& [sys, equation] = r;
+		expr::prune::update(equation);
+		expr::result(equation, sys.get().frame);
+	}
+};
+
+// \endcond
+
+//! Placeholder solver.
+/*!
+ * A placeholder solver which will avoid errors when no concrete solver is implemented
+ * or provided in the driver implementation.
+ */
+template<>
+struct Solver<void> : Solver<Solver<GeneralizedStencil<0>>>
+{
+	using id_type = void;
+};
+
+
+template<>
+struct symphas::internal::solver_supported_type_match<void, void>
+{
+	static const bool value = true;
+};
 
 

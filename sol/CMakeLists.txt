@@ -25,8 +25,6 @@ set(CUSTOM_SYS_IMPLEMENTATION_HEADER "" CACHE STRING "the header for additional 
 set(MODEL_CALL_FUNCTION "" CACHE STRING "a function templated on the specialized model type")
 
 
-
-
 if(USE_VTK)
 	find_package(VTK COMPONENTS
 		CommonColor
@@ -57,8 +55,15 @@ if(USE_VTK)
 	endif()
 endif()
 
+
 if(CUSTOM_SYS_IMPLEMENTATION_HEADER)
-	list(APPEND ADD_DEFINITIONS CUSTOM_SYS_HEADER="${CUSTOM_SYS_IMPLEMENTATION_HEADER}")
+	if(EXISTS ${CMAKE_SOURCE_DIR}/${CUSTOM_SYS_IMPLEMENTATION_HEADER})
+		list(APPEND ADD_DEFINITIONS CUSTOM_SYS_HEADER="${CMAKE_SOURCE_DIR}/${CUSTOM_SYS_IMPLEMENTATION_HEADER}")
+	elseif(SOLVER_INCLUDE_HEADER_DIR AND EXISTS ${SOLVER_INCLUDE_HEADER_DIR}/${CUSTOM_SYS_IMPLEMENTATION_HEADER})
+		list(APPEND ADD_DEFINITIONS CUSTOM_SYS_HEADER="${SOLVER_INCLUDE_HEADER_DIR}/${CUSTOM_SYS_IMPLEMENTATION_HEADER}")
+	else()
+		message(STATUS "custom system implementation header not found (place header in cmake source directory)")
+	endif()
 endif()
 
 if(MODEL_CALL_FUNCTION)
@@ -78,10 +83,10 @@ endif()
 
 message(STATUS "definitions added to module 'sol' are ${ADD_DEFINITIONS}")
 
-
 add_library(symphas_sol_o OBJECT ${SOURCES_SOL})
 target_include_directories(symphas_sol_o PUBLIC 
 	${VTK_INCLUDE_DIRS}
+	${CUSTOM_SYS_INCLUDE}
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
 	$<INSTALL_INTERFACE:include>)
 target_link_libraries(symphas_sol_o PUBLIC symphas_sym PRIVATE ${ADD_LIBRARIES})

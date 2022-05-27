@@ -127,80 +127,79 @@ for (int iter_j = 0; iter_j < __M; ++iter_j) \
 for (int iter_i = 0; iter_i < __L; ++iter_i, ++INDEX, ++ENTRY) { OP; }
 
 
-// ALL THESE TO DO:
 
 //! Iterates over the left face of a 3d grid.
 #define ITER_GRID3_LEFT_3A(OP, __L, __M, __N) \
-for (int iter_i = 0, __SZ1 = __L * THICKNESS, INDEX = 0, ENTRY = 0; iter_i < __N; ++iter_i) \
-for (int iter_j = 0; iter_j < __M; ++iter_j, INDEX += __L - THICKNESS) \
+for (int iter_i = 0, __SZ1 = __L * THICKNESS, INDEX = __L * __M * THICKNESS + __SZ1, ENTRY = 0; iter_i < __N - THICKNESS - THICKNESS; ++iter_i, INDEX += __SZ1 + __SZ1) \
+for (int iter_j = 0; iter_j < __M - THICKNESS - THICKNESS; ++iter_j, INDEX += __L - THICKNESS) \
 for (int iter_k = THICKNESS - 1; iter_k >= 0; --iter_k, ++INDEX, ++ENTRY) { OP; }
 
 //! Iterates over the right face of a 3d grid.
 #define ITER_GRID3_RIGHT_3A(OP, __L, __M, __N) \
-for (int iter_i = 0, __SZ1 = __L * THICKNESS, __SZ2 = __L - THICKNESS, INDEX = __SZ2, ENTRY = 0; iter_i < __N; ++iter_i) \
-for (int iter_j = 0; iter_j < __M; ++iter_j, INDEX += __SZ2) \
+for (int iter_i = 0, __SZ1 = __L * THICKNESS, __SZ2 = __L - THICKNESS, INDEX = __L * __M * THICKNESS + __SZ1 + __SZ2, ENTRY = 0; iter_i < __N - THICKNESS - THICKNESS; ++iter_i, INDEX += __SZ1 + __SZ1) \
+for (int iter_j = 0; iter_j < __M - THICKNESS - THICKNESS; ++iter_j, INDEX += __SZ2) \
 for (int iter_k = 0; iter_k < THICKNESS; ++iter_k, ++INDEX, ++ENTRY) { OP; }
 
 //! Iterates over the top face of a 3d grid.
 #define ITER_GRID3_TOP_3A(OP, __L, __M, __N) \
-for (int iter_j = 0, __SZ2 = __L * (__M - THICKNESS), INDEX = 0, ENTRY = 0; iter_j < __N; ++iter_j, INDEX += __SZ2) \
-for (int iter_k = 0; iter_k < THICKNESS; ++iter_k) \
-for (int iter_i = 0; iter_i < __L; ++iter_i, ++INDEX, ++ENTRY) { OP; }
+for (int iter_j = 0, __SZ2 = __L * (__M - THICKNESS), INDEX = __L * __M * THICKNESS + THICKNESS, ENTRY = 0; iter_j < __N - THICKNESS - THICKNESS; ++iter_j, INDEX += __SZ2) \
+for (int iter_k = 0; iter_k < THICKNESS; ++iter_k, INDEX += THICKNESS + THICKNESS) \
+for (int iter_i = 0; iter_i < __L - THICKNESS - THICKNESS; ++iter_i, ++INDEX, ++ENTRY) { OP; }
 
 //! Iterates over the bottom face of a 3d grid.
 #define ITER_GRID3_BOTTOM_3A(OP, __L, __M, __N) \
-for (int iter_j = 0, __SZ2 = __L * (__M - THICKNESS), INDEX = __SZ2, ENTRY = 0; iter_j < __N; ++iter_j, INDEX += __SZ2) \
-for (int iter_k = THICKNESS - 1; iter_k >= 0; --iter_k) \
-for (int iter_i = 0; iter_i < __L; ++iter_i, ++INDEX, ++ENTRY) { OP; }
+for (int iter_j = 0, __SZ2 = __L * (__M - THICKNESS), INDEX = __L * __M * THICKNESS + __SZ2 + THICKNESS, ENTRY = 0; iter_j < __N - THICKNESS - THICKNESS; ++iter_j, INDEX += __SZ2) \
+for (int iter_k = THICKNESS - 1; iter_k >= 0; --iter_k, INDEX += THICKNESS + THICKNESS) \
+for (int iter_i = 0; iter_i < __L - THICKNESS - THICKNESS; ++iter_i, ++INDEX, ++ENTRY) { OP; }
 
 //! Iterates over the front face of a 3d grid.
 #define ITER_GRID3_FRONT_3A(OP, __L, __M) \
-for (int iter_k = THICKNESS - 1, INDEX = 0, ENTRY = 0; iter_k >= 0; --iter_k) \
-for (int iter_j = 0; iter_j < __M; ++iter_j) \
-for (int iter_i = 0; iter_i < __L; ++iter_i, ++INDEX, ++ENTRY) { OP; }
+for (int iter_k = THICKNESS - 1, __SZ1 = __L * THICKNESS, INDEX = __SZ1 + THICKNESS, ENTRY = 0; iter_k >= 0; --iter_k, INDEX += __SZ1 + __SZ1) \
+for (int iter_j = 0; iter_j < __M - THICKNESS - THICKNESS; ++iter_j, INDEX += THICKNESS + THICKNESS) \
+for (int iter_i = 0; iter_i < __L - THICKNESS - THICKNESS; ++iter_i, ++INDEX, ++ENTRY) { OP; }
 
 //! Iterates over the back face of a 3d grid.
 #define ITER_GRID3_BACK_3A(OP, __L, __M, __N) \
-for (int iter_k = 0, INDEX = __L * __M * (__N - THICKNESS), ENTRY = 0; iter_k < THICKNESS; ++iter_k) \
-for (int iter_j = 0; iter_j < __M; ++iter_j) \
-for (int iter_i = 0; iter_i < __L; ++iter_i, ++INDEX, ++ENTRY) { OP; }
+for (int iter_k = 0, __SZ1 = __L * THICKNESS, INDEX = __SZ1 + __L * __M * (__N - THICKNESS) + THICKNESS, ENTRY = 0; iter_k < THICKNESS; ++iter_k, INDEX += __SZ1 + __SZ1) \
+for (int iter_j = 0; iter_j < __M - THICKNESS - THICKNESS; ++iter_j, INDEX += THICKNESS + THICKNESS) \
+for (int iter_i = 0; iter_i < __L - THICKNESS - THICKNESS; ++iter_i, ++INDEX, ++ENTRY) { OP; }
 
 
 //! Iterates over the left face of a 3d grid.
 #define ITER_GRID3_LEFT_3AA(OP, __L, __M, __N) \
-for (int iter_i = 0, __SZ1 = __L * THICKNESS, INDEX = 0, ENTRY = 0; iter_i < __N; ++iter_i) \
-for (int iter_j = 0; iter_j < __M; ++iter_j, INDEX += __L - THICKNESS) \
+for (int iter_i = 0, __SZ1 = __L * THICKNESS, INDEX = __L * __M * THICKNESS + __SZ1, ENTRY = 0; iter_i < __N - THICKNESS - THICKNESS; ++iter_i, INDEX += __SZ1 + __SZ1) \
+for (int iter_j = 0; iter_j < __M - THICKNESS - THICKNESS; ++iter_j, INDEX += __L - THICKNESS) \
 for (int iter_k = THICKNESS - 1; iter_k >= 0; --iter_k, ++INDEX, ++ENTRY) { OP; }
 
 //! Iterates over the right face of a 3d grid.
 #define ITER_GRID3_RIGHT_3AA(OP, __L, __M, __N) \
-for (int iter_i = 0, __SZ1 = __L * THICKNESS, __SZ2 = __L - THICKNESS, INDEX = __SZ2, ENTRY = 0; iter_i < __N; ++iter_i) \
-for (int iter_j = 0; iter_j < __M; ++iter_j, INDEX += __SZ2) \
+for (int iter_i = 0, __SZ1 = __L * THICKNESS, __SZ2 = __L - THICKNESS, INDEX = __L * __M * THICKNESS + __SZ1 + __SZ2, ENTRY = 0; iter_i < __N - THICKNESS - THICKNESS; ++iter_i, INDEX += __SZ1 + __SZ1) \
+for (int iter_j = 0; iter_j < __M - THICKNESS - THICKNESS; ++iter_j, INDEX += __SZ2) \
 for (int iter_k = 0; iter_k < THICKNESS; ++iter_k, ++INDEX, ++ENTRY) { OP; }
 
 //! Iterates over the top face of a 3d grid.
 #define ITER_GRID3_TOP_3AA(OP, __L, __M, __N) \
-for (int iter_j = 0, __SZ2 = __L * (__M - THICKNESS), INDEX = 0, ENTRY = 0; iter_j < __N; ++iter_j, INDEX += __SZ2) \
-for (int iter_k = 0; iter_k < THICKNESS; ++iter_k) \
-for (int iter_i = 0; iter_i < __L; ++iter_i, ++INDEX, ++ENTRY) { OP; }
+for (int iter_j = 0, __SZ2 = __L * (__M - THICKNESS), INDEX = __L * __M * THICKNESS + THICKNESS, ENTRY = 0; iter_j < __N - THICKNESS - THICKNESS; ++iter_j, INDEX += __SZ2) \
+for (int iter_k = 0; iter_k < THICKNESS; ++iter_k, INDEX += THICKNESS + THICKNESS) \
+for (int iter_i = 0; iter_i < __L - THICKNESS - THICKNESS; ++iter_i, ++INDEX, ++ENTRY) { OP; }
 
 //! Iterates over the bottom face of a 3d grid.
 #define ITER_GRID3_BOTTOM_3AA(OP, __L, __M, __N) \
-for (int iter_j = 0, __SZ2 = __L * (__M - THICKNESS), INDEX = __SZ2, ENTRY = 0; iter_j < __N; ++iter_j, INDEX += __SZ2) \
-for (int iter_k = THICKNESS - 1; iter_k >= 0; --iter_k) \
-for (int iter_i = 0; iter_i < __L; ++iter_i, ++INDEX, ++ENTRY) { OP; }
+for (int iter_j = 0, __SZ2 = __L * (__M - THICKNESS), INDEX = __L * __M * THICKNESS + __SZ2 + THICKNESS, ENTRY = 0; iter_j < __N - THICKNESS - THICKNESS; ++iter_j, INDEX += __SZ2) \
+for (int iter_k = THICKNESS - 1; iter_k >= 0; --iter_k, INDEX += THICKNESS + THICKNESS) \
+for (int iter_i = 0; iter_i < __L - THICKNESS - THICKNESS; ++iter_i, ++INDEX, ++ENTRY) { OP; }
 
 //! Iterates over the front face of a 3d grid.
 #define ITER_GRID3_FRONT_3AA(OP, __L, __M) \
-for (int iter_k = THICKNESS - 1, INDEX = 0, ENTRY = 0; iter_k >= 0; --iter_k) \
-for (int iter_j = 0; iter_j < __M; ++iter_j) \
-for (int iter_i = 0; iter_i < __L; ++iter_i, ++INDEX, ++ENTRY) { OP; }
+for (int iter_k = THICKNESS - 1, __SZ1 = __L * THICKNESS, INDEX = __SZ1 + THICKNESS, ENTRY = 0; iter_k >= 0; --iter_k, INDEX += __SZ1 + __SZ1) \
+for (int iter_j = 0; iter_j < __M - THICKNESS - THICKNESS; ++iter_j, INDEX += THICKNESS + THICKNESS) \
+for (int iter_i = 0; iter_i < __L - THICKNESS - THICKNESS; ++iter_i, ++INDEX, ++ENTRY) { OP; }
 
 //! Iterates over the back face of a 3d grid.
 #define ITER_GRID3_BACK_3AA(OP, __L, __M, __N) \
-for (int iter_k = 0, INDEX = __L * __M * (__N - THICKNESS), ENTRY = 0; iter_k < THICKNESS; ++iter_k) \
-for (int iter_j = 0; iter_j < __M; ++iter_j) \
-for (int iter_i = 0; iter_i < __L; ++iter_i, ++INDEX, ++ENTRY) { OP; }
+for (int iter_k = 0, __SZ1 = __L * THICKNESS, INDEX = __SZ1 + __L * __M * (__N - THICKNESS) + THICKNESS, ENTRY = 0; iter_k < THICKNESS; ++iter_k, INDEX += __SZ1 + __SZ1) \
+for (int iter_j = 0; iter_j < __M - THICKNESS - THICKNESS; ++iter_j, INDEX += THICKNESS + THICKNESS) \
+for (int iter_i = 0; iter_i < __L - THICKNESS - THICKNESS; ++iter_i, ++INDEX, ++ENTRY) { OP; }
 
 
 
@@ -288,74 +287,74 @@ for (int iter_k = 0; iter_k < THICKNESS; ++iter_k, ++INDEX, ++ENTRY) { OP; }
 
 //! Iterates over the edge at the top and front faces of a 3d grid.
 #define ITER_GRID3_FRONT_TOP_ALL(OP, __L, __M) \
-for (int iter_i = 0, __SZ2 = __L * (__M - THICKNESS), INDEX = THICKNESS, ENTRY = 0; iter_i < THICKNESS; ++iter_i, INDEX += __SZ2) \
-for (int iter_j = 0; iter_j < THICKNESS; ++iter_j, INDEX += THICKNESS + THICKNESS) \
-for (int iter_k = 0; iter_k < __L - THICKNESS - THICKNESS; ++iter_k, ++INDEX, ++ENTRY) { OP; }
+for (int iter_i = 0, __SZ2 = __L * (__M - THICKNESS), INDEX = 0, ENTRY = 0; iter_i < THICKNESS; ++iter_i, INDEX += __SZ2) \
+for (int iter_j = 0; iter_j < THICKNESS; ++iter_j) \
+for (int iter_k = 0; iter_k < __L; ++iter_k, ++INDEX, ++ENTRY) { OP; }
 
 //! Iterates over the edge at the bottom and front faces of a 3d grid.
 #define ITER_GRID3_FRONT_BOTTOM_ALL(OP, __L, __M) \
-for (int iter_i = 0, __SZ2 = __L * (__M - THICKNESS), INDEX = __SZ2 + THICKNESS, ENTRY = 0; iter_i < THICKNESS; ++iter_i, INDEX += __SZ2) \
-for (int iter_j = 0; iter_j < THICKNESS; ++iter_j, INDEX += THICKNESS + THICKNESS) \
-for (int iter_k = 0; iter_k < __L - THICKNESS - THICKNESS; ++iter_k, ++INDEX, ++ENTRY) { OP; }
+for (int iter_i = 0, __SZ2 = __L * (__M - THICKNESS), INDEX = __SZ2, ENTRY = 0; iter_i < THICKNESS; ++iter_i, INDEX += __SZ2) \
+for (int iter_j = 0; iter_j < THICKNESS; ++iter_j) \
+for (int iter_k = 0; iter_k < __L; ++iter_k, ++INDEX, ++ENTRY) { OP; }
 
 //! Iterates over the edge at the left and top faces of a 3d grid.
 #define ITER_GRID3_LEFT_TOP_ALL(OP, __L, __M, __N) \
-for (int iter_i = 0, __SZ1 = __L - THICKNESS, __SZ2 = __L * (__M - THICKNESS), INDEX = __L * __M * THICKNESS, ENTRY = 0; iter_i < __N - THICKNESS - THICKNESS; ++iter_i, INDEX += __SZ2) \
+for (int iter_i = 0, __SZ1 = __L - THICKNESS, __SZ2 = __L * (__M - THICKNESS), INDEX = 0, ENTRY = 0; iter_i < __N; ++iter_i, INDEX += __SZ2) \
 for (int iter_j = 0; iter_j < THICKNESS; ++iter_j, INDEX += __SZ1) \
 for (int iter_k = 0; iter_k < THICKNESS; ++iter_k, ++INDEX, ++ENTRY) { OP; }
 
 //! Iterates over the edge at the left and bottom faces of a 3d grid.
 #define ITER_GRID3_LEFT_BOTTOM_ALL(OP, __L, __M, __N) \
-for (int iter_i = 0, __SZ1 = __L - THICKNESS, __SZ2 = __L * (__M - THICKNESS), INDEX = __L * __M * THICKNESS + __SZ2, ENTRY = 0; iter_i < __N - THICKNESS - THICKNESS; ++iter_i, INDEX += __SZ2) \
+for (int iter_i = 0, __SZ1 = __L - THICKNESS, __SZ2 = __L * (__M - THICKNESS), INDEX = __SZ2, ENTRY = 0; iter_i < __N; ++iter_i, INDEX += __SZ2) \
 for (int iter_j = 0; iter_j < THICKNESS; ++iter_j, INDEX += __SZ1) \
 for (int iter_k = 0; iter_k < THICKNESS; ++iter_k, ++INDEX, ++ENTRY) { OP; }
 
 //! Iterates over the edge at the back and top faces of a 3d grid.
 #define ITER_GRID3_BACK_TOP_ALL(OP, __L, __M, __N) \
-for (int iter_i = 0, __SZ2 = __L * (__M - THICKNESS), INDEX = __L * __M * (__N - THICKNESS) + THICKNESS, ENTRY = 0; iter_i < THICKNESS; ++iter_i, INDEX += __SZ2) \
-for (int iter_j = 0; iter_j < THICKNESS; ++iter_j, INDEX += THICKNESS + THICKNESS) \
-for (int iter_k = 0; iter_k < __L - THICKNESS - THICKNESS; ++iter_k, ++INDEX, ++ENTRY) { OP; }
+for (int iter_i = 0, __SZ2 = __L * (__M - THICKNESS), INDEX = __L * __M * (__N - THICKNESS), ENTRY = 0; iter_i < THICKNESS; ++iter_i, INDEX += __SZ2) \
+for (int iter_j = 0; iter_j < THICKNESS; ++iter_j) \
+for (int iter_k = 0; iter_k < __L; ++iter_k, ++INDEX, ++ENTRY) { OP; }
 
 //! Iterates over the edge at the bottom and back faces of a 3d grid.
 #define ITER_GRID3_BACK_BOTTOM_ALL(OP, __L, __M, __N) \
-for (int iter_i = 0, __SZ2 = __L * (__M - THICKNESS), INDEX = __L * __M * (__N - THICKNESS) + __SZ2 + THICKNESS, ENTRY = 0; iter_i < THICKNESS; ++iter_i, INDEX += __SZ2) \
-for (int iter_j = 0; iter_j < THICKNESS; ++iter_j, INDEX += THICKNESS + THICKNESS) \
-for (int iter_k = 0; iter_k < __L - THICKNESS - THICKNESS; ++iter_k, ++INDEX, ++ENTRY) { OP; }
+for (int iter_i = 0, __SZ2 = __L * (__M - THICKNESS), INDEX = __L * __M * (__N - THICKNESS) + __SZ2, ENTRY = 0; iter_i < THICKNESS; ++iter_i, INDEX += __SZ2) \
+for (int iter_j = 0; iter_j < THICKNESS; ++iter_j) \
+for (int iter_k = 0; iter_k < __L; ++iter_k, ++INDEX, ++ENTRY) { OP; }
 
 //! Iterates over the edge at the right and top faces of a 3d grid.
 #define ITER_GRID3_RIGHT_TOP_ALL(OP, __L, __M, __N) \
-for (int iter_i = 0, __SZ1 = __L - THICKNESS, __SZ2 = __L * (__M - THICKNESS), INDEX = __L * __M * THICKNESS + __SZ1, ENTRY = 0; iter_i < __N - THICKNESS - THICKNESS; ++iter_i, INDEX += __SZ2) \
+for (int iter_i = 0, __SZ1 = __L - THICKNESS, __SZ2 = __L * (__M - THICKNESS), INDEX = __SZ1, ENTRY = 0; iter_i < __N; ++iter_i, INDEX += __SZ2) \
 for (int iter_j = 0; iter_j < THICKNESS; ++iter_j, INDEX += __SZ1) \
 for (int iter_k = 0; iter_k < THICKNESS; ++iter_k, ++INDEX, ++ENTRY) { OP; }
 
 //! Iterates over the edge at the bottom and right faces of a 3d grid.
 #define ITER_GRID3_RIGHT_BOTTOM_ALL(OP, __L, __M, __N) \
-for (int iter_i = 0, __SZ1 = __L - THICKNESS, __SZ2 = __L * (__M - THICKNESS), INDEX = __L * __M * THICKNESS + __SZ1 + __SZ2, ENTRY = 0; iter_i < __N - THICKNESS - THICKNESS; ++iter_i, INDEX += __SZ2) \
+for (int iter_i = 0, __SZ1 = __L - THICKNESS, __SZ2 = __L * (__M - THICKNESS), INDEX = __SZ1 + __SZ2, ENTRY = 0; iter_i < __N; ++iter_i, INDEX += __SZ2) \
 for (int iter_j = 0; iter_j < THICKNESS; ++iter_j, INDEX += __SZ1) \
 for (int iter_k = 0; iter_k < THICKNESS; ++iter_k, ++INDEX, ++ENTRY) { OP; }
 
 //! Iterates over the edge at the front and left faces of a 3d grid.
 #define ITER_GRID3_FRONT_LEFT_ALL(OP, __L, __M) \
-for (int iter_i = 0, __SZ1 = __L * THICKNESS, __SZ2 = __L - THICKNESS, INDEX = __SZ1, ENTRY = 0; iter_i < THICKNESS; ++iter_i, INDEX += __SZ1 + __SZ1) \
-for (int iter_j = 0; iter_j < __M - THICKNESS - THICKNESS; ++iter_j, INDEX += __SZ2) \
+for (int iter_i = 0, __SZ2 = __L - THICKNESS, INDEX = 0, ENTRY = 0; iter_i < THICKNESS; ++iter_i) \
+for (int iter_j = 0; iter_j < __M; ++iter_j, INDEX += __SZ2) \
 for (int iter_k = 0; iter_k < THICKNESS; ++iter_k, ++INDEX, ++ENTRY) { OP; }
 
 //! Iterates over the edge at the front and right faces of a 3d grid.
 #define ITER_GRID3_FRONT_RIGHT_ALL(OP, __L, __M) \
-for (int iter_i = 0, __SZ1 = __L * THICKNESS, __SZ2 = __L - THICKNESS, INDEX = __SZ1 + __SZ2, ENTRY = 0; iter_i < THICKNESS; ++iter_i, INDEX += __SZ1 + __SZ1) \
-for (int iter_j = 0; iter_j < __M - THICKNESS - THICKNESS; ++iter_j, INDEX += __SZ2) \
+for (int iter_i = 0, __SZ2 = __L - THICKNESS, INDEX = __SZ2, ENTRY = 0; iter_i < THICKNESS; ++iter_i) \
+for (int iter_j = 0; iter_j < __M; ++iter_j, INDEX += __SZ2) \
 for (int iter_k = 0; iter_k < THICKNESS; ++iter_k, ++INDEX, ++ENTRY) { OP; }
 
 //! Iterates over the edge at the left and back faces of a 3d grid.
 #define ITER_GRID3_BACK_LEFT_ALL(OP, __L, __M, __N) \
-for (int iter_i = 0, __SZ1 = __L * THICKNESS, __SZ2 = __L - THICKNESS, INDEX = __SZ1 + __L * __M * (__N - THICKNESS), ENTRY = 0; iter_i < THICKNESS; ++iter_i, INDEX += __SZ1 + __SZ1) \
-for (int iter_j = 0; iter_j < __M - THICKNESS - THICKNESS; ++iter_j, INDEX += __SZ2) \
+for (int iter_i = 0, __SZ2 = __L - THICKNESS, INDEX = __L * __M * (__N - THICKNESS), ENTRY = 0; iter_i < THICKNESS; ++iter_i) \
+for (int iter_j = 0; iter_j < __M; ++iter_j, INDEX += __SZ2) \
 for (int iter_k = 0; iter_k < THICKNESS; ++iter_k, ++INDEX, ++ENTRY) { OP; }
 
 //! Iterates over the edge at the right and back faces of a 3d grid.
 #define ITER_GRID3_BACK_RIGHT_ALL(OP, __L, __M, __N) \
-for (int iter_i = 0, __SZ1 = __L * THICKNESS, __SZ2 = __L - THICKNESS, INDEX = __SZ1 + __SZ2 + __L * __M * (__N - THICKNESS), ENTRY = 0; iter_i < THICKNESS; ++iter_i, INDEX += __SZ1 + __SZ1) \
-for (int iter_j = 0; iter_j < __M - THICKNESS - THICKNESS; ++iter_j, INDEX += __SZ2) \
+for (int iter_i = 0, __SZ2 = __L - THICKNESS, INDEX = __SZ2 + __L * __M * (__N - THICKNESS), ENTRY = 0; iter_i < THICKNESS; ++iter_i) \
+for (int iter_j = 0; iter_j < __M; ++iter_j, INDEX += __SZ2) \
 for (int iter_k = 0; iter_k < THICKNESS; ++iter_k, ++INDEX, ++ENTRY) { OP; }
 
 

@@ -710,6 +710,234 @@ namespace symphas::lib
 
 
 
+	namespace internal
+	{
+		
+
+		template<typename Seq, typename... Seqs>
+		static size_t constexpr seq_len_product()
+		{
+			if constexpr (sizeof...(Seqs) == 0)
+			{
+				return Seq::size();
+			}
+			else
+			{
+				return Seq::size() * seq_len_product<Seqs...>();
+			}
+		}
+
+
+		template<typename T, size_t V>
+		static size_t constexpr get_value_from_seq(std::integer_sequence<T, V>)
+		{
+			return V;
+		}
+
+		template<size_t N, typename T, T... Es, typename = std::enable_if_t<(N < sizeof...(Es)), int>>
+		static size_t constexpr seq_value(std::integer_sequence<T, Es...>)
+		{
+			return get_value_from_seq(std::tuple_element_t<N, std::tuple<std::integer_sequence<T, Es>...>>{});
+		}
+
+
+		template<typename T>
+		struct CrossProductFunctions
+		{
+			template<T... Es>
+			using seq_t = std::integer_sequence<T, Es...>;
+
+			// **********************************************************
+			// Expand the cross list into a full tuple of sequences representing the row of combined values.
+
+			template<T E1>
+			static auto constexpr expand2(seq_t<E1>, seq_t<>)
+			{
+				return std::make_tuple();
+			}
+
+			template<T E1, T E2, T... E2s>
+			static auto constexpr expand2(seq_t<E1>, seq_t<E2, E2s...>)
+			{
+				return std::tuple_cat(
+					std::make_tuple(seq_t<E1, E2>{}),
+					expand2(seq_t<E1>{}, seq_t<E2s...>{}));
+			}
+
+			template<T E1, T... E1s>
+			static auto constexpr expand1(seq_t<E1, E1s...>, seq_t<>)
+			{
+				return std::tuple<>{};
+			}
+
+			template<T E2, T... E2s>
+			static auto constexpr expand1(seq_t<>, seq_t<E2, E2s...>)
+			{
+				return std::tuple<>{};
+			}
+
+			static auto constexpr expand1(seq_t<>, seq_t<>)
+			{
+				return std::tuple<>{};
+			}
+
+			template<T E1, T... E1s, T E2, T... E2s>
+			static auto constexpr expand1(seq_t<E1, E1s...>, seq_t<E2, E2s...>)
+			{
+				return std::tuple_cat(
+					expand2(seq_t<E1>{}, seq_t<E2, E2s...>{}),
+					expand1(seq_t<E1s...>{}, seq_t<E2, E2s...>{}));
+			}
+
+			template<T... E1s>
+			static auto constexpr expand33(seq_t<E1s...>, seq_t<>)
+			{
+				return std::make_tuple();
+			}
+
+
+			template<T... E1s, T E2, T... E2s>
+			static auto constexpr expand33(seq_t<E1s...>, seq_t<E2, E2s...>)
+			{
+				return std::tuple_cat(
+					std::make_tuple(symphas::lib::seq_join(seq_t<E1s...>{}, seq_t<E2>{})),
+					expand33(seq_t<E1s...>{}, seq_t<E2s...>{}));
+			}
+
+			template<T E, T... Es>
+			static auto constexpr expand22(std::tuple<>, seq_t<E, Es...>)
+			{
+				return std::tuple<>{};
+			}
+
+			template<typename Row, typename... Rows, T E, T... Es>
+			static auto constexpr expand22(std::tuple<Row, Rows...>, seq_t<E, Es...>)
+			{
+				return std::tuple_cat(
+						expand33(Row{}, seq_t<E, Es...>{}),
+						expand22(std::tuple<Rows...>{}, seq_t<E, Es...>{}));
+			}
+
+			template<typename Row, typename... Rows, T E, T... Es, typename List0, typename... Lists>
+			static auto constexpr expand22(std::tuple<Row, Rows...>, seq_t<E, Es...>, List0, Lists...)
+			{
+				return expand22(
+					std::tuple_cat(
+						expand33(Row{}, seq_t<E, Es...>{}),
+						expand22(std::tuple<Rows...>{}, seq_t<E, Es...>{})), 
+					List0{}, Lists{}...);
+			}
+
+			template<T E, T... Es, typename List0, typename... Lists>
+			static auto constexpr expand11(seq_t<E, Es...>, List0, Lists...)
+			{
+				return expand22(expand1(seq_t<E, Es...>{}, List0{}), Lists{}...);
+			}
+
+
+			// **********************************************************
+			// Selects only a single row without constructing the whole cross list.
+
+			template<size_t N>
+			static auto constexpr select(seq_t<>)
+			{
+				return std::integer_sequence<T>{};
+			}
+
+			template<size_t N, T E, T... Es>
+			static auto constexpr select(seq_t<E, Es...>)
+			{
+				return std::integer_sequence<T, seq_value<N>(seq_t<E, Es...>{})>{};
+			}
+
+			template<size_t N, T E, T... Es, typename Seq, typename... Seqs, size_t L = seq_len_product<Seq, Seqs...>(), size_t N0 = N / L, size_t N1 = N - N0 * L>
+			static auto constexpr select(seq_t<E, Es...>, Seq, Seqs...)
+			{
+				return symphas::lib::seq_join(std::integer_sequence<T, seq_value<N0>(seq_t<E, Es...>{})>{}, select<N1>(Seq{}, Seqs{}...));
+			}
+		};
+	}
+
+	/*! 
+	 * Generate the cross product or cross join of all the numeric elements in the
+	 * provided std::integer_sequence types.
+	 * 
+	 * \tparam Lists The std::integer_sequence containing a list of values which are
+	 * cross joined.
+	 */
+	template<typename... Lists>
+	struct CrossProductList;
+
+	template<>
+	struct CrossProductList<>
+	{
+		//using type = std::tuple<>;
+		static const size_t count = 0;
+		static const size_t rank = 0;
+	};
+
+	template<typename T, T... Es>
+	struct CrossProductList<std::integer_sequence<T, Es...>>
+	{
+		//using type = std::tuple<std::integer_sequence<T, Es>...>;
+
+		static const size_t count = sizeof...(Es);
+		static const size_t rank = 1;
+
+		template<size_t N>
+		static const size_t size = std::integer_sequence<T, Es...>::size();
+
+		template<size_t N, typename = std::enable_if_t<(N < count), int>>
+		using row = std::tuple_element_t<N, std::tuple<std::integer_sequence<T, Es>...>>;
+
+	};
+
+
+	template<typename T, T... E1s, T... E2s>
+	struct CrossProductList<std::integer_sequence<T, E1s...>, std::integer_sequence<T, E2s...>>
+	{
+		//using type = decltype(internal::CrossProductFunctions<T>::expand1(
+		//	std::declval<std::integer_sequence<T, E1s...>>(),
+		//	std::declval<std::integer_sequence<T, E2s...>>()));
+
+		static const size_t count = (sizeof...(E1s) * sizeof...(E2s));
+		static const size_t rank = 2;
+
+		template<size_t N>
+		static const size_t size = std::tuple_element_t<N, std::tuple<std::integer_sequence<T, E1s...>, std::integer_sequence<T, E2s...>>>::size();
+
+		template<size_t N, typename = std::enable_if_t<(N < count), int>>
+		using row = decltype(internal::CrossProductFunctions<T>::select<N>(
+			std::declval<std::integer_sequence<T, E1s...>>(),
+			std::declval<std::integer_sequence<T, E2s...>>()));
+	};
+
+	template<typename T, T... Es, typename List1, typename List2, typename... Lists>
+	struct CrossProductList<std::integer_sequence<T, Es...>, List1, List2, Lists...>
+	{
+		//using type = decltype(internal::CrossProductFunctions<T>::expand11(
+		//	std::declval<std::integer_sequence<T, Es...>>(),
+		//	std::declval<List1>(),
+		//	std::declval<List2>(),
+		//	std::declval<Lists>()...));
+
+		static const size_t count = internal::seq_len_product<std::integer_sequence<T, Es...>, List1, List2, Lists...>();
+		static const size_t rank = 3 + sizeof...(Lists);
+
+		template<size_t N>
+		static const size_t size = std::tuple_element_t<N, std::tuple<std::integer_sequence<T, Es...>, List1, List2, Lists...>>::size();
+
+		template<size_t N, typename = std::enable_if_t<(N < count), int>>
+		using row = decltype(internal::CrossProductFunctions<T>::select<N>(
+			std::declval<std::integer_sequence<T, Es...>>(),
+			std::declval<List1>(),
+			std::declval<List2>(),
+			std::declval<Lists>()...));
+
+	};
+
+
+
 	// **************************************************************************************
 
 	//! Joining a single sequence simply returns it.
@@ -1018,10 +1246,10 @@ namespace symphas::lib
 		}
 
 
-		template<size_t... Ns>
-		auto get_seq_from_tuple(std::tuple<std::index_sequence<Ns...>> const&)
+		template<typename T, size_t... Ns>
+		auto get_seq_from_tuple(std::tuple<std::integer_sequence<T, Ns>...> const&)
 		{
-			return std::index_sequence<Ns...>{};
+			return std::integer_sequence<T, Ns...>{};
 		}
 
 
@@ -2262,7 +2490,14 @@ namespace symphas::lib
 	template<size_t I, size_t... Ns>
 	auto get_seq_ge(std::index_sequence<Ns...> const& seq)
 	{
-		return get_seq_ge<I>(std::tuple<std::index_sequence<Ns>...>{}, std::make_index_sequence<sizeof...(Ns) - I>{});
+		if constexpr (sizeof...(Ns) < I)
+		{
+			return std::index_sequence<>{};
+		}
+		else
+		{
+			return get_seq_ge<I>(std::tuple<std::index_sequence<Ns>...>{}, std::make_index_sequence<sizeof...(Ns) - I>{});
+		}
 	}
 
 	template<size_t I, size_t... Ns>

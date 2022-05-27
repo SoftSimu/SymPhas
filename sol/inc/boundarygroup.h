@@ -296,34 +296,54 @@ namespace symphas::internal
 		template<typename B, typename T, size_t D>
 		void operator()(B* boundaries, BoundaryType types[D * 2], Grid<T, D>& grid, iter_type, double time)
 		{
-			if constexpr (D == 3)
+			if (types[I] == BoundaryType::OPEN)
 			{
-				switch (types[I])
-				{
-				case BoundaryType::PERIODIC3A:
-					symphas::internal::update_boundary<BoundaryType::PERIODIC3A, symphas::index_to_side(I), D - 1>{}(boundaries[I], grid);
-					break;
-				case BoundaryType::PERIODIC3AA:
-					symphas::internal::update_boundary<BoundaryType::PERIODIC3AA, symphas::index_to_side(I), D - 1>{}(boundaries[I], grid);
-					break;
-				}
-			}
-			switch (types[I])
-			{
-			case BoundaryType::PERIODIC:
-				symphas::internal::update_boundary<BoundaryType::PERIODIC, symphas::index_to_side(I), D - 1>{}(boundaries[I], grid);
-				break;
-			case BoundaryType::PERIODIC0:
-				symphas::internal::update_boundary<BoundaryType::PERIODIC0, symphas::index_to_side(I), D - 1>{}(boundaries[I], grid);
-				break;
-			case BoundaryType::DEFAULT:
-				symphas::internal::update_boundary<BoundaryType::DEFAULT, symphas::index_to_side(I), D - 1>{}(boundaries[I], grid, time);
-				break;
-			case BoundaryType::OPEN:
 				throw;
+			}
+			else if (types[I] == BoundaryType::DEFAULT)
+			{
+				symphas::internal::update_boundary<BoundaryType::DEFAULT, symphas::index_to_side(I), D - 1>{}(boundaries[I], grid, time);
+			}
+			else
+			{
+				if constexpr (D == 3)
+				{
+					switch (types[I])
+					{
+					case BoundaryType::PERIODIC3A:
+						symphas::internal::update_boundary<BoundaryType::PERIODIC3A, symphas::index_to_side(I), D - 1>{}(boundaries[I], grid);
+						break;
+					case BoundaryType::PERIODIC3AA:
+						symphas::internal::update_boundary<BoundaryType::PERIODIC3AA, symphas::index_to_side(I), D - 1>{}(boundaries[I], grid);
+						break;
+					case BoundaryType::PERIODIC0:
+						symphas::internal::update_boundary<BoundaryType::PERIODIC0, symphas::index_to_side(I), D - 1>{}(boundaries[I], grid);
+						break;
+					case BoundaryType::PERIODIC:
+						symphas::internal::update_boundary<BoundaryType::PERIODIC, symphas::index_to_side(I), D - 1>{}(boundaries[I], grid);
+						break;
+					}
+				}
+				else if constexpr (D == 2)
+				{
+					switch (types[I])
+					{
+					case BoundaryType::PERIODIC:
+						symphas::internal::update_boundary<BoundaryType::PERIODIC, symphas::index_to_side(I), D - 1>{}(boundaries[I], grid);
+						break;
+					case BoundaryType::PERIODIC0:
+						symphas::internal::update_boundary<BoundaryType::PERIODIC0, symphas::index_to_side(I), D - 1>{}(boundaries[I], grid);
+						break;
+					}
+				}
+				else
+				{
+					symphas::internal::update_boundary<BoundaryType::PERIODIC, symphas::index_to_side(I), D - 1>{}(boundaries[I], grid);
+				}
 			}
 		}
 	};
+
 
 	template<size_t I>
 	struct update_boundary_recurse;

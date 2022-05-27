@@ -148,145 +148,322 @@ struct model_call_wrapper<MODEL_INDEX_NAME(NAME)> \
 };
 //! \endcond
 
+namespace symphas::internal
+{
 
-// Calls a desired function with the model.
-/*!
- * Sets up being able to call models with the ::model_select class. See this
- * class for more details.
- * 
- * Select the model type using the first three provided parameters,
- * and the remaining generic parameters are passed to a function defined in the
- * build process, so that executing the model. The parameters apply to the 
- * finite different stencils; the stencil sizes are chosen. In this way
- * however, a model is instantiated for each combination of stencils.
- *
- * This requires that one definition is specified: #MODEL_APPLY_CALL.
- * 
- * The definition #MODEL_APPLY_CALL, which is a function that needs to be
- * a template function of at least one type, the model type, which the selection 
- * tree will then call if the name corresponds to the given model name by  
- * checking all names until the corresponding model name is found, moreover, the given
- * function may only return an integer value which should not equal #INVALID_MODEL.
- * 
- * The parameters to the #MODEL_APPLY_CALL method are given after the selection
- * parameters.
- * 
- * At the individual function level, the macro definition assembles a 
- * ternary tree in order to run the model on the correct solver type based on the
- * stencil and dimension.
- * 
- * The given function #MODEL_APPLY_CALL may have multiple template parameters, but
- * the first must always be the model type, meaning that specifying the first parameter
- * may not necessarily fully qualify the method MODEL_APPLY_CALL.
- */
-#define RUNMODELNNN(SOLVER, MODEL, Ll, Bb, Gg, DIM, ORD) \
-MODEL_APPLY_CALL <MODEL<DIM, SOLVER<Stencil ## DIM ## d ## ORD ## h<Ll, Bb, Gg>>>> (std::forward<Ts>(args)...)
+	/*!
+	 * Defines the "point number" for the given finite difference approximation,
+	 * based on the index of the derivative that is approximated, as well as its
+	 * dimension and order of accuracy.
+	 *
+	 * \tparam N The order of the derivative for the point list.
+	 * \tparam D Dimension of derivative.
+	 * \tparam O The order of accuracy of the derivative.
+	 */
+	template<size_t N, size_t D, size_t O>
+	struct StencilPointList;
+
+	template<size_t D>
+	struct OrderList
+	{
+		using type = std::index_sequence<2>;
+	};
+}
+
+
+// **************************************************************************************
+
+
+#define MAKE_STENCIL_POINT_LIST(N, DIM, ORD, PS) \
+template<> struct symphas::internal::StencilPointList<N, DIM, ORD> { using type = std::index_sequence<SINGLE_ARG PS>; };
+
+#define MAKE_AVAILABLE_ORDER_LIST(DIM, ORDS) \
+template<> struct symphas::internal::OrderList<DIM> { using type = std::index_sequence<SINGLE_ARG ORDS>; };
 
 #if !defined(DEBUG) && defined(ALL_STENCILS)
 
-  // 2d 2h
-#define RUNMODEL2D2HNN(SOLVER, MODEL, L, B) ( \
-(stp.ptg == 6) ? (RUNMODELNNN(SOLVER, MODEL, L, B, 6, 2, 2)) : \
-(stp.ptg == 8) ? (RUNMODELNNN(SOLVER, MODEL, L, B, 8, 2, 2)) : \
-(stp.ptg == 12) ? (RUNMODELNNN(SOLVER, MODEL, L, B, 12, 2, 2)) : \
-(stp.ptg == 16) ? (RUNMODELNNN(SOLVER, MODEL, L, B, 16, 2, 2)) : INVALID_MODEL ) 
+MAKE_STENCIL_POINT_LIST(2, 1, 2, (3))
+MAKE_STENCIL_POINT_LIST(4, 1, 2, (5))
+MAKE_STENCIL_POINT_LIST(3, 1, 2, (4))
 
-#define RUNMODEL2D2HN(SOLVER, MODEL, L) ( \
-(stp.ptb == 13) ? (RUNMODEL2D2HNN(SOLVER, MODEL, L, 13)) : \
-(stp.ptb == 17) ? (RUNMODEL2D2HNN(SOLVER, MODEL, L, 17)) : \
-(stp.ptb == 21) ? (RUNMODEL2D2HNN(SOLVER, MODEL, L, 21)) : INVALID_MODEL )
+MAKE_STENCIL_POINT_LIST(2, 2, 2, (5, 9))
+MAKE_STENCIL_POINT_LIST(4, 2, 2, (13, 17, 21))
+MAKE_STENCIL_POINT_LIST(3, 2, 2, (6, 8, 12, 16))
+MAKE_STENCIL_POINT_LIST(2, 2, 4, (9, 17, 21))
+MAKE_STENCIL_POINT_LIST(4, 2, 4, (21, 25, 33, 37))
+MAKE_STENCIL_POINT_LIST(3, 2, 4, (14, 18, 26, 30))
 
-#define RUNMODEL2D2H(SOLVER, MODEL) ( \
-(stp.ptl == 5) ? (RUNMODEL2D2HN(SOLVER, MODEL, 5)) : \
-(stp.ptl == 9) ? (RUNMODEL2D2HN(SOLVER, MODEL, 9)) : 0 )
+MAKE_STENCIL_POINT_LIST(2, 3, 2, (7, 15, 19, 21, 27))
+MAKE_STENCIL_POINT_LIST(4, 3, 2, (21, 25, 41, 52, 57))
+MAKE_STENCIL_POINT_LIST(3, 3, 2, (10, 12, 28, 36, 40))
 
-// 3d 2h
-#define RUNMODEL3D2HNN(SOLVER, MODEL, L, B) ( \
-(stp.ptg == 10) ? (RUNMODELNNN(SOLVER, MODEL, L, B, 10, 3, 2)) : \
-(stp.ptg == 12) ? (RUNMODELNNN(SOLVER, MODEL, L, B, 12, 3, 2)) : \
-(stp.ptg == 28) ? (RUNMODELNNN(SOLVER, MODEL, L, B, 28, 3, 2)) : \
-(stp.ptg == 36) ? (RUNMODELNNN(SOLVER, MODEL, L, B, 36, 3, 2)) : \
-(stp.ptg == 40) ? (RUNMODELNNN(SOLVER, MODEL, L, B, 40, 3, 2)) : INVALID_MODEL )
-
-#define RUNMODEL3D2HN(SOLVER, MODEL, L) ( \
-(stp.ptb == 21) ? (RUNMODEL3D2HNN(SOLVER, MODEL, L, 21)) : \
-(stp.ptb == 25) ? (RUNMODEL3D2HNN(SOLVER, MODEL, L, 25)) : \
-(stp.ptb == 41) ? (RUNMODEL3D2HNN(SOLVER, MODEL, L, 41)) : \
-(stp.ptb == 52) ? (RUNMODEL3D2HNN(SOLVER, MODEL, L, 52)) : \
-(stp.ptb == 57) ? (RUNMODEL3D2HNN(SOLVER, MODEL, L, 57)) : INVALID_MODEL )
-
-#define RUNMODEL3D2H(SOLVER, MODEL) ( \
-(stp.ptl == 7) ? (RUNMODEL3D2HN(SOLVER, MODEL, 7)) : \
-(stp.ptl == 15) ? (RUNMODEL3D2HN(SOLVER, MODEL, 15)) : \
-(stp.ptl == 19) ? (RUNMODEL3D2HN(SOLVER, MODEL, 19)) : \
-(stp.ptl == 21) ? (RUNMODEL3D2HN(SOLVER, MODEL, 21)) : \
-(stp.ptl == 27) ? (RUNMODEL3D2HN(SOLVER, MODEL, 27)) : INVALID_MODEL )
-
-// 2d 4h
-#define RUNMODEL2D4HNN(SOLVER, MODEL, L, B) ( \
-(stp.ptg == 14) ? (RUNMODELNNN(SOLVER, MODEL, L, B, 14, 2, 4)) : \
-(stp.ptg == 18) ? (RUNMODELNNN(SOLVER, MODEL, L, B, 18, 2, 4)) : \
-(stp.ptg == 26) ? (RUNMODELNNN(SOLVER, MODEL, L, B, 26, 2, 4)) : \
-(stp.ptg == 30) ? (RUNMODELNNN(SOLVER, MODEL, L, B, 30, 2, 4)) : INVALID_MODEL ) 
-
-#define RUNMODEL2D4HN(SOLVER, MODEL, L) ( \
-(stp.ptb == 21) ? (RUNMODEL2D4HNN(SOLVER, MODEL, L, 21)) : \
-(stp.ptb == 25) ? (RUNMODEL2D4HNN(SOLVER, MODEL, L, 25)) : \
-(stp.ptb == 33) ? (RUNMODEL2D4HNN(SOLVER, MODEL, L, 33)) : \
-(stp.ptb == 37) ? (RUNMODEL2D4HNN(SOLVER, MODEL, L, 37)) : INVALID_MODEL )
-
-#define RUNMODEL2D4H(SOLVER, MODEL) ( \
-(stp.ptl == 9) ? (RUNMODEL2D4HN(SOLVER, MODEL, 9)) : \
-(stp.ptl == 17) ? (RUNMODEL2D4HN(SOLVER, MODEL, 17)) : \
-(stp.ptl == 21) ? (RUNMODEL2D4HN(SOLVER, MODEL, 21)) : INVALID_MODEL )
-
-// 4h
-#define RUNMODEL4H(SOLVER, MODEL_NAMESPACE, MODEL) ( \
-if constexpr (MODEL_NAMESPACE::allowed_model_dimensions<void, 2>::value) \
-	if (dimension == 2) return RUNMODEL2D4H(SOLVER, MODEL); \
-return INVALID_MODEL;
-
-// 2h
-#define RUNMODEL2H(SOLVER, MODEL_NAMESPACE, MODEL) ( \
-if constexpr (MODEL_NAMESPACE::allowed_model_dimensions<void, 2>::value) \
-	if (dimension == 2) return RUNMODEL2D2H(SOLVER, MODEL); \
-if constexpr (MODEL_NAMESPACE::allowed_model_dimensions<void, 3>::value) \
-	if (dimension == 3) return RUNMODEL3D2H(SOLVER, MODEL); \
-return INVALID_MODEL;
-
-// full
-#define RUNMODEL(SOLVER, MODEL_NAMESPACE, MODEL) ( \
-if (stp.ord == 2) (RUNMODEL2H(SOLVER, MODEL_NAMESPACE, MODEL)); \
-else if (stp.ord == 4) (RUNMODEL4H(SOLVER, MODEL_NAMESPACE, MODEL)) \
-else return INVALID_MODEL;
+MAKE_AVAILABLE_ORDER_LIST(1, (2))
+MAKE_AVAILABLE_ORDER_LIST(2, (2, 4))
+MAKE_AVAILABLE_ORDER_LIST(3, (2))
 
 #else
 
+MAKE_STENCIL_POINT_LIST(2, 1, 2, (3))
+MAKE_STENCIL_POINT_LIST(4, 1, 2, (5))
+MAKE_STENCIL_POINT_LIST(3, 1, 2, (4))
 
-#define RUNMODEL(SOLVER, MODEL_NAMESPACE, MODEL) \
-if constexpr (MODEL_NAMESPACE::allowed_model_dimensions<void, 1>::value) \
-	if (dimension == 1) return RUNMODELNNN(SOLVER, MODEL, 3, 5, 4, 1, 2); \
-if constexpr (MODEL_NAMESPACE::allowed_model_dimensions<void, 2>::value) \
-	if (dimension == 2) return RUNMODELNNN(SOLVER, MODEL, 9, 13, 6, 2, 2); \
-if constexpr (MODEL_NAMESPACE::allowed_model_dimensions<void, 3>::value) \
-	if (dimension == 3) return RUNMODELNNN(SOLVER, MODEL, 15, 41, 10, 3, 2); \
-return INVALID_MODEL;
+MAKE_STENCIL_POINT_LIST(2, 2, 2, (9))
+MAKE_STENCIL_POINT_LIST(4, 2, 2, (13))
+MAKE_STENCIL_POINT_LIST(3, 2, 2, (6))
+
+MAKE_STENCIL_POINT_LIST(2, 3, 2, (7))
+MAKE_STENCIL_POINT_LIST(4, 3, 2, (21))
+MAKE_STENCIL_POINT_LIST(3, 3, 2, (10))
+
 
 #endif
 
-#else
-
-#endif
 
 
 // **************************************************************************************
 
 
 
-#define RESTRICT_DIMENSIONS(...) \
-template<size_t D> \
-struct allowed_model_dimensions<void, D> \
-{ static const bool value = symphas::lib::value_in_seq<D, std::index_sequence<__VA_ARGS__>>::value; };
+namespace symphas::lib::internal
+{
+	template<size_t I, typename Seq0, typename... Seqs>
+	constexpr size_t get_search_offset(CrossProductList<Seq0, Seqs...>)
+	{
+		using cl_type = CrossProductList<Seq0, Seqs...>;
+		if constexpr (I + 1 >= cl_type::rank)
+		{
+			return 1;
+		}
+		else
+		{
+			return cl_type::size<I + 1> * get_search_offset<I + 1>(CrossProductList<Seq0, Seqs...>{});
+		}
+	}
+
+	template<typename>
+	struct SearchCrossListReturn
+	{
+		bool operator()()
+		{
+			return false;
+		}
+	};
+
+	template<size_t... As>
+	struct SearchCrossListReturn<std::index_sequence<As...>>
+	{
+		bool operator()()
+		{
+			return true;
+		}
+	};
+
+	template<size_t I0, size_t I, size_t L>
+	auto matches(const size_t(&)[L], std::index_sequence<>)
+	{
+		return false;
+	}
+
+	template<size_t I0, size_t I, size_t L, size_t V, size_t... Vs>
+	auto matches(const size_t(&parameters)[L], std::index_sequence<V, Vs...>)
+	{
+		if constexpr (I0 == 0)
+		{
+			return (parameters[I] == V);
+		}
+		else
+		{
+			return matches<I0 - 1, I>(parameters, std::index_sequence<Vs...>{});
+		}
+	}
+
+	template<size_t I, size_t Pos, template<typename> typename F, size_t L, 
+		typename Seq0, typename... Seqs, typename... Ts, 
+		typename = std::enable_if_t<(L == CrossProductList<Seq0, Seqs...>::rank), int>>
+	auto search(const size_t(&parameters)[L], CrossProductList<Seq0, Seqs...>, Ts&& ...args)
+	{
+		using cl_type = CrossProductList<Seq0, Seqs...>;
+
+		if constexpr (Pos >= cl_type::count)
+		{
+			return F<void>{}(std::forward<Ts>(args)...);
+		}
+		else
+		{
+			using row_type = typename cl_type::template row<Pos>;
+
+			if constexpr (I >= L)
+			{
+				return F<row_type>{}(std::forward<Ts>(args)...);
+			}
+			else
+			{
+				if (matches<I, I>(parameters, row_type{}))
+				{
+					return search<I + 1, Pos, F>(parameters, cl_type{}, std::forward<Ts>(args)...);
+				}
+				else
+				{
+					constexpr size_t offset = get_search_offset<I>(cl_type{});
+					return search<I, Pos + offset, F>(parameters, cl_type{}, std::forward<Ts>(args)...);
+				}
+			}
+		}
+	}
+	
+	template<template<typename> typename F, size_t L, typename Seq0, typename... Seqs, typename... Ts>
+	auto search(const size_t(&parameters)[L], CrossProductList<Seq0, Seqs...>, Ts&& ...args)
+	{
+		return search<0, 0, F>(parameters, CrossProductList<Seq0, Seqs...>{}, std::forward<Ts>(args)...);
+	}
+
+	template<size_t L, typename Seq0, typename... Seqs, typename... Ts>
+	auto search(const size_t(&parameters)[L], CrossProductList<Seq0, Seqs...>, Ts&& ...args)
+	{
+		return search<0, 0, SearchCrossListReturn>(parameters, CrossProductList<Seq0, Seqs...>{}, std::forward<Ts>(args)...);
+	}
+
+}
+
+template<
+	template<size_t, typename> typename Model, 
+	template<typename> typename Solver, 
+	template<typename, size_t> typename allowed_model_dimensions>
+struct ModelSelect
+{
+
+protected:
+
+	using dim_ord_list_t = std::tuple<
+		std::tuple<std::index_sequence<1>, typename symphas::internal::OrderList<1>::type>,
+		std::tuple<std::index_sequence<2>, typename symphas::internal::OrderList<2>::type>,
+		std::tuple<std::index_sequence<3>, typename symphas::internal::OrderList<3>::type>>;
+
+	template<size_t D, size_t O>
+	using cross_list_t = symphas::lib::CrossProductList<std::index_sequence<D>, std::index_sequence<O>,
+		typename symphas::internal::StencilPointList<2, D, O>::type,
+		typename symphas::internal::StencilPointList<3, D, O>::type,
+		typename symphas::internal::StencilPointList<4, D, O>::type>;
+
+	template<typename>
+	struct StencilFromSeq
+	{
+		template<typename... Ts>
+		auto operator()(Ts&& ...)
+		{
+			fprintf(SYMPHAS_WARN, "the provided stencil point values are not implemented\n");
+			return INVALID_MODEL;
+		}
+	};
+
+	template<size_t D, size_t O, size_t... Ps>
+	struct StencilFromSeq<std::index_sequence<D, O, Ps...>>
+	{
+		using type = typename SelfSelectingStencil<D, O>::template Points<Ps...>;
+		
+		template<typename... Ts>
+		auto operator()(Ts&& ...args)
+		{
+			return MODEL_APPLY_CALL<Model<D, Solver<type>>>(std::forward<Ts>(args)...);
+		}
+	};
+
+	size_t parameters[5];
+
+	template<size_t D, typename... Ts>
+	auto search_ord(std::index_sequence<>, Ts&& ...) const
+	{
+		fprintf(SYMPHAS_WARN, "the provided order of accuracy '%zd' is invalid for constructing the model\n", parameters[1]);
+		return INVALID_MODEL;
+	}
+
+	template<size_t D, size_t O, size_t... Os, typename... Ts>
+	auto search_ord(std::index_sequence<O, Os...>, Ts&& ...args) const
+	{
+		if (parameters[1] == O)
+		{
+			return symphas::lib::internal::search<StencilFromSeq>(parameters, cross_list_t<D, O>{}, std::forward<Ts>(args)...);
+		}
+		else
+		{
+			return search_ord<D>(std::index_sequence<Os...>{}, std::forward<Ts>(args)...);
+		}
+	}
+
+	template<typename... Ts>
+	auto search_dim(std::tuple<>, Ts&& ...) const
+	{
+		fprintf(SYMPHAS_WARN, "the provided dimension value '%zd' is invalid for constructing the model\n", parameters[0]);
+		return INVALID_MODEL;
+	}
+
+	template<size_t D, size_t... Ns, typename... Seqs, typename... Ts>
+	auto search_dim(std::tuple<std::tuple<std::index_sequence<D>, std::index_sequence<Ns...>>, Seqs...>, Ts&& ...args) const
+	{
+		if constexpr (allowed_model_dimensions<void, D>::value)
+		{
+			if (parameters[0] == D)
+			{
+				return search_ord<D>(std::index_sequence<Ns...>{}, std::forward<Ts>(args)...);
+			}
+		}
+		return search_dim(std::tuple<Seqs...>{}, std::forward<Ts>(args)...);
+	}
+
+public:
+
+	ModelSelect(size_t dimension, StencilParams stp)
+		: parameters{ dimension, stp.ord, stp.ptl, stp.ptg, stp.ptb } {}
+
+	template<typename... Ts>
+	auto operator()(Ts&& ...args) const
+	{
+		return search_dim(dim_ord_list_t{}, std::forward<Ts>(args)...);
+	}
+
+};
+
+
+// Calls a desired function with the model.
+/*!
+ * Sets up being able to call models with the ::model_select class. See this
+ * class for more details.
+ *
+ * Select the model type using the first three provided parameters,
+ * and the remaining generic parameters are passed to a function defined in the
+ * build process, so that executing the model. The parameters apply to the
+ * finite different stencils; the stencil sizes are chosen. In this way
+ * however, a model is instantiated for each combination of stencils.
+ *
+ * This requires that one definition is specified: #MODEL_APPLY_CALL.
+ *
+ * The definition #MODEL_APPLY_CALL, which is a function that needs to be
+ * a template function of at least one type, the model type, which the selection
+ * tree will then call if the name corresponds to the given model name by
+ * checking all names until the corresponding model name is found, moreover, the given
+ * function may only return an integer value which should not equal #INVALID_MODEL.
+ *
+ * The parameters to the #MODEL_APPLY_CALL method are given after the selection
+ * parameters.
+ *
+ * At the individual function level, the macro definition assembles a
+ * ternary tree in order to run the model on the correct solver type based on the
+ * stencil and dimension.
+ *
+ * The given function #MODEL_APPLY_CALL may have multiple template parameters, but
+ * the first must always be the model type, meaning that specifying the first parameter
+ * may not necessarily fully qualify the method MODEL_APPLY_CALL.
+ */
+
+#define RUNMODEL(MODEL, SOLVER, MODEL_NAMESPACE) \
+return ModelSelect<MODEL, SOLVER, MODEL_NAMESPACE::allowed_model_dimensions>( dimension, stp )(std::forward<Ts>(args)...);
+
+
+#else
+
+#endif
+
+
 
 // **************************************************************************************
 
@@ -532,7 +709,7 @@ MODEL_PREAMBLE_DEF((), __VA_ARGS__)
 #define LINK_WITH_NAME(NAME, GIVEN_NAME) \
 NEXT_MODEL_INDEX(NAME) \
 MODEL_WRAPPER_FUNC(NAME, \
-if (std::strcmp(name, #GIVEN_NAME) == 0) { RUNMODEL(AppliedSolver, model_ ## NAME, model_ ## NAME::SpecializedModel); })
+if (std::strcmp(name, #GIVEN_NAME) == 0) { RUNMODEL(model_ ## NAME::SpecializedModel, AppliedSolver, model_ ## NAME); })
 
 #else
 
@@ -705,7 +882,7 @@ const static size_t DEFAULT_MODE_N = N;
 #define LINK_PFC_WITH_NAME(NAME, GIVEN_NAME) \
 NEXT_MODEL_INDEX(NAME) \
 MODEL_WRAPPER_FUNC(NAME, \
-if (std::strcmp(name, #GIVEN_NAME) == 0) { RUNMODEL(AppliedSolver, modelpfc_ ## NAME, modelpfc_ ## NAME::ModelPFCSpecialized); } )
+if (std::strcmp(name, #GIVEN_NAME) == 0) { RUNMODEL(modelpfc_ ## NAME::ModelPFCSpecialized, AppliedSolver, modelpfc_ ## NAME); } )
 
 #else
 
@@ -716,9 +893,14 @@ if (std::strcmp(name, #GIVEN_NAME) == 0) { RUNMODEL(AppliedSolver, modelpfc_ ## 
 
 
 
-#define SYS_DIMS(N) parent_type::template system<N>().dims
-#define SYS_INTERVAL(N, AXIS) parent_type::template system<N>().get_info().intervals
+// **************************************************************************************
 
+
+
+#define RESTRICT_DIMENSIONS(...) \
+template<size_t D> \
+struct allowed_model_dimensions<void, D> \
+{ static const bool value = symphas::lib::value_in_seq<D, std::index_sequence<__VA_ARGS__>>::value; };
 
 // **************************************************************************************
 
@@ -942,6 +1124,12 @@ if (std::strcmp(name, #GIVEN_NAME) == 0) { RUNMODEL(AppliedSolver, modelpfc_ ## 
 #define c14 param(14)	 //!< Coefficient at index 14 in the list of coefficients.
 #define c15 param(15)	 //!< Coefficient at index 15 in the list of coefficients.
 #define c16 param(16)	 //!< Coefficient at index 16 in the list of coefficients.
+
+
+ // **************************************************************************************
+
+#define SYS_DIMS(N) parent_type::template system<N>().dims
+#define SYS_INTERVAL(N, AXIS) parent_type::template system<N>().get_info().intervals
 
  //! @}
 

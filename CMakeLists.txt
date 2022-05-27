@@ -62,12 +62,9 @@ set(MODEL_INCLUDE_HEADER_NAME "" CACHE STRING "the name of the header file withi
 #
 # construct a list of the base group names
 
+set(GROUP_NAMES_0 "")
 list(APPEND GROUP_NAMES_0 lib datatypes sym sol)
 
-
-if(USE_PROC)
-	list(APPEND GROUP_NAMES_0 proc)
-endif()
 
 if(USE_IO)
 	set(USE_PROC ON CACHE BOOL "include the module for data post processing")
@@ -82,6 +79,9 @@ if(USE_CONF)
 	list(APPEND GROUP_NAMES_0 conf)
 endif()
 
+if(USE_PROC)
+	list(APPEND GROUP_NAMES_0 proc)
+endif()
 
 foreach(GROUP_NAME ${GROUP_NAMES_0})
 	
@@ -163,6 +163,9 @@ if(MODEL_INCLUDE_HEADER_NAME)
 		unset(MODEL_INCLUDE_HEADER_NAME)
 	endif()
 
+else()
+	set(MODEL_INCLUDE_HEADER_DIR ${CMAKE_SOURCE_DIR})
+
 endif()
 
 
@@ -186,7 +189,10 @@ if(SOLVER_INCLUDE_HEADER_NAME)
 		message(WARNING "the folder ${SOLVER_INCLUDE_HEADER_DIR} does not contain ${SOLVER_INCLUDE_HEADER_NAME}")
 		unset(SOLVER_INCLUDE_HEADER_NAME)
 	endif()
-	
+
+else()
+	set(SOLVER_INCLUDE_HEADER_DIR ${CMAKE_SOURCE_DIR})
+
 endif()
 
 
@@ -280,7 +286,7 @@ if(SOLVER_INCLUDE_HEADER_NAME
 	message(STATUS "installing solver definition headers.. ${INCLUDE_FILES}")
 endif()
 
-if(MODEL_INCLUDE_HEADER_NAME 
+if(MODEL_INCLUDE_HEADER_NAME
 	AND NOT ${MODEL_INCLUDE_HEADER_DIR} STREQUAL ${SOLVER_INCLUDE_HEADER_DIR}
 	AND NOT ${MODEL_INCLUDE_HEADER_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
 

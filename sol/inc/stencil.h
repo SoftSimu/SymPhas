@@ -54,7 +54,8 @@
 //!
 /*!
  * Basic stencil object on which concrete stencils are inherited. This stencil
- * is used for uniform grids where the 
+ * is used for uniform grids where the spatial discretization is identical across
+ * dimensions.
  */
 template<typename Sp>
 struct Stencil
@@ -82,7 +83,7 @@ struct Stencil
 	}
 };
 
-//! A generalized derivative object.
+//! A generalized derivative stencil.
 /*!
  * A generalized derivative object that will produce stencils for any order of
  * derivative with a maximum boundary expansion of 3.
@@ -120,6 +121,35 @@ struct GeneralizedStencil
 		 */
 
 		return *v;
+	}
+
+};
+
+//! A specialization of the generalized derivative which returns the original value.
+/*!
+ * This specialization is meant to match the return value type for the 
+ * derivative of the specified order. It does not actually compute the derivative
+ * and is primarily used for testing by substituting it where a functional
+ * stencil is intended. 
+ */
+template<>
+struct GeneralizedStencil<0, DEFAULT_STENCIL_ACCURACY>
+{
+	GeneralizedStencil(...) {}
+
+	template<size_t OD, typename T>
+	auto apply(T* const v) const
+	{
+		using namespace std;
+		using namespace symphas::math;
+		if constexpr (OD % 2 == 1)
+		{
+			return *v;
+		}
+		else
+		{
+			return abs(*v);
+		}
 	}
 
 };

@@ -32,6 +32,7 @@
 
 #include "stencilh2.h"
 #include "stencilh4.h"
+#include <utility>
 
 
 /*!
@@ -47,13 +48,23 @@
  */
 struct StencilParams
 {
-	StencilParams() : ord{ 2 }, ptl{ 5 }, ptb{ 13 }, ptg{ 6 } {}
+	constexpr StencilParams(unsigned short ord, unsigned short ptl, unsigned short ptg, unsigned short ptb)
+		: ord{ ord }, ptl{ ptl }, ptg{ ptg }, ptb{ ptb } {}
+	StencilParams() : ord{ 0 }, ptl{ 0 }, ptg{ 0 }, ptb{ 0 } {}
 
-	size_t
+	unsigned short
 		ord,	//!< Order of accuracy for the stencils.
 		ptl,	//!< Number of cells involved in the Laplacian stencil.
-		ptb,	//!< Number of cells involved in the bilaplacian stencil.
-		ptg;	//!< Number of cells involved in the gradlaplacian stencil.
+		ptg,	//!< Number of cells involved in the gradlaplacian stencil.
+		ptb;	//!< Number of cells involved in the bilaplacian stencil.
+
+	constexpr operator size_t() const
+	{
+		return (ord & 7ull)
+			| ((ptl & 63ull) << 3ull)
+			| ((ptg & 63ull) << 9ull)
+			| ((ptb & 63ull) << 15ull);
+	}
 };
 
 namespace symphas::internal
@@ -220,10 +231,10 @@ namespace symphas::internal
  * \tparam B The number of points for the bilaplacian.
  * \tparam G The number of points for the gradlaplacian.
  */
-template <size_t L, size_t B, size_t G>
-struct Stencil1d2h : symphas::internal::StencilBase1d2h, Stencil<Stencil1d2h<L, B, G>>
+template <size_t L, size_t G, size_t B>
+struct Stencil1d2h : symphas::internal::StencilBase1d2h, Stencil<Stencil1d2h<L, G, B>>
 {
-	using parent_type = Stencil<Stencil1d2h<L, B, G>>;
+	using parent_type = Stencil<Stencil1d2h<L, G, B>>;
 	using base_type = symphas::internal::StencilBase1d2h;
 	
 	using base_type::base_type;
@@ -264,11 +275,11 @@ struct Stencil1d2h : symphas::internal::StencilBase1d2h, Stencil<Stencil1d2h<L, 
  * \tparam B The number of points for the bilaplacian.
  * \tparam G The number of points for the gradlaplacian.
  */
-template <size_t L, size_t B, size_t G>
-struct Stencil2d2h : symphas::internal::StencilBase2d2h, Stencil<Stencil2d2h<L, B, G>>
+template <size_t L, size_t G, size_t B>
+struct Stencil2d2h : symphas::internal::StencilBase2d2h, Stencil<Stencil2d2h<L, G, B>>
 {
 	using base_type = symphas::internal::StencilBase2d2h;
-	using parent_type = Stencil<Stencil2d2h<L, B, G>>;
+	using parent_type = Stencil<Stencil2d2h<L, G, B>>;
 
 	using base_type::base_type;
 	using base_type::gradient;
@@ -307,11 +318,11 @@ struct Stencil2d2h : symphas::internal::StencilBase2d2h, Stencil<Stencil2d2h<L, 
  * \tparam B The number of points for the bilaplacian.
  * \tparam G The number of points for the gradlaplacian.
  */
-template <size_t L, size_t B, size_t G>
-struct Stencil3d2h : symphas::internal::StencilBase3d2h, Stencil<Stencil3d2h<L, B, G>>
+template <size_t L, size_t G, size_t B>
+struct Stencil3d2h : symphas::internal::StencilBase3d2h, Stencil<Stencil3d2h<L, G, B>>
 {
 	using base_type = symphas::internal::StencilBase3d2h;
-	using parent_type = Stencil<Stencil3d2h<L, B, G>>;
+	using parent_type = Stencil<Stencil3d2h<L, G, B>>;
 
 	using base_type::base_type;
 	using base_type::gradient;
@@ -352,11 +363,11 @@ struct Stencil3d2h : symphas::internal::StencilBase3d2h, Stencil<Stencil3d2h<L, 
  * \tparam B The number of points for the bilaplacian.
  * \tparam G The number of points for the gradlaplacian.
  */
-template <size_t L, size_t B, size_t G>
-struct Stencil2d4h : symphas::internal::StencilBase2d4h, Stencil<Stencil2d4h<L, B, G>>
+template <size_t L, size_t G, size_t B>
+struct Stencil2d4h : symphas::internal::StencilBase2d4h, Stencil<Stencil2d4h<L, G, B>>
 {
 	using base_type = symphas::internal::StencilBase2d4h;
-	using parent_type = Stencil<Stencil2d4h<L, B, G>>;
+	using parent_type = Stencil<Stencil2d4h<L, G, B>>;
 
 	using base_type::base_type;
 	using base_type::gradient;
@@ -384,6 +395,58 @@ struct Stencil2d4h : symphas::internal::StencilBase2d4h, Stencil<Stencil2d4h<L, 
 		return apply_gradlaplacian_2d4h<G>{}(v, divh3, dims[0]);
 	}
 };
+
+template<size_t DD, size_t OA>
+struct SelfSelectingStencil : GeneralizedStencil<DD, OA>, Stencil<SelfSelectingStencil<DD, OA>>
+{
+	using base_type = GeneralizedStencil<DD, OA>;
+	using base_type::base_type;
+};
+
+
+
+template<>
+struct SelfSelectingStencil<1, 2> : GeneralizedStencil<1, 2>, Stencil<SelfSelectingStencil<1, 2>>
+{
+	using base_type = GeneralizedStencil<1, 2>;
+	using base_type::base_type;
+	
+	template<size_t... Ps>
+	using Points = Stencil1d2h<Ps...>;
+};
+
+template<>
+struct SelfSelectingStencil<2, 2> : GeneralizedStencil<2, 2>, Stencil<SelfSelectingStencil<2, 2>>
+{
+	using base_type = GeneralizedStencil<2, 2>;
+	using base_type::base_type;
+
+	template<size_t... Ps>
+	using Points = Stencil2d2h<Ps...>;
+};
+
+template<>
+struct SelfSelectingStencil<2, 4> : GeneralizedStencil<2, 4>, Stencil<SelfSelectingStencil<2, 4>>
+{
+	using base_type = GeneralizedStencil<2, 4>;
+	using base_type::base_type;
+
+	template<size_t... Ps>
+	using Points = Stencil2d4h<Ps...>;
+};
+
+
+template<>
+struct SelfSelectingStencil<3, 2> : GeneralizedStencil<3, 2>, Stencil<SelfSelectingStencil<3, 2>>
+{
+	using base_type = GeneralizedStencil<3, 2>;
+	using base_type::base_type;
+
+	template<size_t... Ps>
+	using Points = Stencil3d2h<Ps...>;
+};
+
+
 
 //! @}
 
