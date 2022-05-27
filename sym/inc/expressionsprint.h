@@ -26,6 +26,7 @@
 
 #pragma once
 
+
 #include <stdarg.h>
 
 #include "expressions.h"
@@ -34,6 +35,8 @@
 
 template<typename Sp>
 struct Solver;
+
+#ifdef PRINTABLE_EQUATIONS
 
 //! \cond
 
@@ -729,4 +732,30 @@ namespace expr
 #undef SYEX_DEFINE_FUNCTION_STRUCT_DELEGATE
 #undef SYEX_PRINT_FUNCTION_STRUCT
 
+#else
+
+namespace expr
+{
+	//! Empty implementation of printing an expression.
+	/*!
+	 * Empty implementation for the print function when #PRINTABLE_EQUATIONS is
+	 * not used. Therefore, the print function can still be invoked but there is no effect.
+	 */ 
+	template<typename T>
+	auto printf(T&&, ...) {}
+
+
+	//! Empty implementation for obtaining a variable's string represenation.
+	/*!
+	 * Empty implementation for the obtaining the name of a variable when #PRINTABLE_EQUATIONS is
+	 * not used. Therefore, this function can still be invoked but there is no effect.
+	 */
+	template<typename T>
+	auto get_op_name(T&&, ...) 
+	{
+		return "";
+	}
+}
+
+#endif
 

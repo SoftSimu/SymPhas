@@ -477,6 +477,8 @@ struct OpOperatorCombination : OpOperator<OpOperatorCombination<A1, A2>>
 		return ::OpOperatorCombination(-f, -g);
 	}
 
+#ifdef PRINTABLE_EQUATIONS
+
 	size_t print(FILE* out) const
 	{
 		size_t n = 0;
@@ -504,6 +506,7 @@ struct OpOperatorCombination : OpOperator<OpOperatorCombination<A1, A2>>
 		return f.print_length() + g.print_length() + SYEX_COMBINATION_FMT_LEN;
 	}
 
+#endif
 
 	//! Apply this operator an expression.
 	/*!
@@ -588,6 +591,8 @@ public:
 	}
 
 
+#ifdef PRINTABLE_EQUATIONS
+
 	size_t print(FILE* out) const
 	{
 		size_t n = combination.print(out);
@@ -611,6 +616,8 @@ public:
 		return combination.print_length() + e.print_length() 
 			+ SYEX_COMBINATION_APPLY_FMT_LEN;
 	}
+
+#endif
 
 	friend struct expr::compound_get;
 
@@ -665,6 +672,8 @@ public:
 		return combination * -e;
 	}
 
+#ifdef PRINTABLE_EQUATIONS
+
 	size_t print(FILE* out) const
 	{
 		size_t n = combination.print(out);
@@ -689,6 +698,7 @@ public:
 			+ SYEX_COMBINATION_APPLY_FMT_LEN;
 	}
 
+#endif
 
 	friend struct expr::compound_get;
 
@@ -742,6 +752,7 @@ struct OpOperatorChain : OpOperator<OpOperatorChain<A1, A2>>
 		return OpChain(*this, *static_cast<E const*>(&a));
 	}
 
+#ifdef PRINTABLE_EQUATIONS
 
 	size_t print(FILE* out) const
 	{
@@ -769,6 +780,8 @@ struct OpOperatorChain : OpOperator<OpOperatorChain<A1, A2>>
 	{
 		return f.print_length() + g.print_length() + SYEX_CHAIN_FMT_LEN;
 	}
+
+#endif
 
 
 	A1 f; //!< Operator which is applied to the result of operator `g` on an expression.
@@ -838,6 +851,8 @@ public:
 	}
 
 
+#ifdef PRINTABLE_EQUATIONS
+
 	size_t print(FILE* out) const
 	{
 		size_t n = combination.print(out);
@@ -861,6 +876,8 @@ public:
 		return combination.print_length() + e.print_length()
 			+ SYEX_CHAIN_APPLY_FMT_LEN;
 	}
+
+#endif
 
 
 	friend struct expr::compound_get;
@@ -924,6 +941,8 @@ public:
 		return combination * -e;
 	}
 
+#ifdef PRINTABLE_EQUATIONS
+
 	size_t print(FILE* out) const
 	{
 		size_t n = combination.print(out);
@@ -947,6 +966,8 @@ public:
 		return combination.print_length() + e.print_length()
 			+ SYEX_CHAIN_APPLY_FMT_LEN;
 	}
+
+#endif
 
 	friend struct expr::compound_get;
 
@@ -1040,6 +1061,8 @@ struct OpMap : OpExpression<OpMap<G, V, E>>
 	}
 
 
+#ifdef PRINTABLE_EQUATIONS
+
 	size_t print(FILE* out) const
 	{
 		size_t n = expr::print_with_coeff(out, value);
@@ -1063,6 +1086,8 @@ struct OpMap : OpExpression<OpMap<G, V, E>>
 		return expr::coeff_print_length(value) + e.print_length()
 			+ SYEX_CHAIN_APPLY_FMT_LEN;
 	}
+
+#endif
 
 
 	friend struct expr::compound_get;

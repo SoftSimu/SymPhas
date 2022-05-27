@@ -152,6 +152,8 @@ struct OpExpression
 	}
 
 
+#ifdef PRINTABLE_EQUATIONS
+
 	//! Print the string representation of this expression to the file.
 	/*!
 	 * The string representation of this expression is printed to the given
@@ -185,6 +187,12 @@ struct OpExpression
 	{
 		return cast().print_length();
 	}
+
+#else
+
+	size_t print(...) const {}
+
+#endif
 
 	auto& cast() const
 	{
@@ -305,10 +313,17 @@ struct OpLiteral : OpExpression<OpLiteral<T>>
 	}
 
 
+#ifdef PRINTABLE_EQUATIONS
+
 	size_t print(FILE* out) const;
 	size_t print(char* out) const;
 	size_t print_length() const;
+
+#endif
+
 };
+
+#ifdef PRINTABLE_EQUATIONS
 
 template<>
 inline size_t OpLiteral<double>::print(FILE* out) const
@@ -448,6 +463,7 @@ inline size_t OpLiteral<complex_t>::print_length() const
 	}
 }
 
+#endif
 
 // ******************************************************************************************
 
@@ -513,6 +529,8 @@ struct OpIdentity : OpExpression<OpIdentity>
 		return symphas::lib::get_identity<scalar_t>();
 	}
 
+#ifdef PRINTABLE_EQUATIONS
+
 	size_t print(FILE* out) const
 	{
 		return fprintf(out, "1");
@@ -527,6 +545,8 @@ struct OpIdentity : OpExpression<OpIdentity>
 	{
 		return 1;
 	}
+
+#endif
 
 	auto operator-() const;
 
@@ -816,6 +836,8 @@ namespace symphas::internal
 {
 	using expr::has_coeff;
 
+#ifdef PRINTABLE_EQUATIONS
+
 	inline std::tuple<size_t, size_t> print_sep(char* out, const char* sep)
 	{
 		size_t n = sprintf(out, "%s", sep);
@@ -979,6 +1001,8 @@ namespace symphas::internal
 			return n;
 		}
 	}
+
+#endif
 }
 
 
@@ -1011,6 +1035,8 @@ struct OpBinaryAdd : OpExpression<OpBinaryAdd<E1, E2>>
 
 	auto operator-() const;
 
+#ifdef PRINTABLE_EQUATIONS
+
 	size_t print(FILE* out) const
 	{
 		size_t n = a.print(out);
@@ -1029,6 +1055,8 @@ struct OpBinaryAdd : OpExpression<OpBinaryAdd<E1, E2>>
 	{
 		return a.print_length() + b.print_length() + SYEX_BINARY_FMT_LEN;
 	}
+
+#endif
 
 	E1 a;		//!< Left hand side of the binary operator.
 	E2 b;		//!< Right hand side of the binary operator.
@@ -1067,6 +1095,8 @@ struct OpBinarySub : OpExpression<OpBinarySub<E1, E2>>
 	auto operator-() const;
 
 
+#ifdef PRINTABLE_EQUATIONS
+
 	size_t print(FILE* out) const
 	{
 		size_t n = a.print(out);
@@ -1085,6 +1115,8 @@ struct OpBinarySub : OpExpression<OpBinarySub<E1, E2>>
 	{
 		return a.print_length() + b.print_length() + SYEX_BINARY_FMT_LEN;
 	}
+
+#endif
 
 	E1 a;		//!< Left hand side of the binary operator.
 	E2 b;		//!< Right hand side of the binary operator.
@@ -1115,6 +1147,8 @@ namespace symphas::internal
 {
 	using expr::has_coeff;
 	using expr::has_pmi_coeff;
+
+#ifdef PRINTABLE_EQUATIONS
 
 	template<typename E1, typename E2, std::enable_if_t<(!has_coeff<E1> && !has_pmi_coeff<E2>), int> = 0>
 	size_t mul_print(FILE* out, OpExpression<E1> const& a, OpExpression<E2> const& b)
@@ -1213,6 +1247,7 @@ namespace symphas::internal
 		return n;
 	}
 
+#endif
 
 }
 
@@ -1229,6 +1264,8 @@ struct OpBinaryMul : OpExpression<OpBinaryMul<E1, E2>>
 
 	auto operator-() const;
 
+#ifdef PRINTABLE_EQUATIONS
+
 	size_t print(FILE* out) const
 	{
 		return symphas::internal::mul_print(out, a, b);
@@ -1243,6 +1280,8 @@ struct OpBinaryMul : OpExpression<OpBinaryMul<E1, E2>>
 	{
 		return a.print_length() + b.print_length() + SYEX_MUL_FMT_LEN;
 	}
+
+#endif
 
 	E1 a;		//!< Left hand side of the binary operator.
 	E2 b;		//!< Right hand side of the binary operator.
@@ -1286,6 +1325,8 @@ struct OpBinaryDiv : OpExpression<OpBinaryDiv<E1, E2>>
 
 	auto operator-() const;
 
+#ifdef PRINTABLE_EQUATIONS
+
 	size_t print(FILE* out) const
 	{
 		size_t n = 0;
@@ -1313,6 +1354,8 @@ struct OpBinaryDiv : OpExpression<OpBinaryDiv<E1, E2>>
 	{
 		return a.print_length() + b.print_length() + SYEX_DIV_FMT_LEN;
 	}
+
+#endif
 
 	E1 a;		//!< Left hand side of the binary operator.
 	E2 b;		//!< Right hand side of the binary operator.

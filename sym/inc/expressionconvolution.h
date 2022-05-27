@@ -201,6 +201,7 @@ struct OpFuncConvolution : OpExpression<OpFuncConvolution<V, E1, E2>>
 		return symphas::internal::make_convolution::get(-value, a, b);
 	}
 
+#ifdef PRINTABLE_EQUATIONS
 
 	size_t print(FILE* out) const
 	{
@@ -229,6 +230,8 @@ struct OpFuncConvolution : OpExpression<OpFuncConvolution<V, E1, E2>>
 		return expr::coeff_print_length(value) + SYEX_CONVOLUTION_FMT_LEN
 			+ a.print_length() + b.print_length();
 	}
+
+#endif
 
 	E1 a;		//!< First expression in the convolution.
 	E2 b;		//!< Second expression in the convolution.
@@ -332,9 +335,7 @@ struct OpFuncConvolution<V, GaussianSmoothing<D>, E> : OpExpression<OpFuncConvol
 		return symphas::internal::make_convolution::get(-value, smoother, e);
 	}
 
-
-	/* print statements
-	 */
+#ifdef PRINTABLE_EQUATIONS
 
 	size_t print(FILE* out) const
 	{
@@ -364,6 +365,7 @@ struct OpFuncConvolution<V, GaussianSmoothing<D>, E> : OpExpression<OpFuncConvol
 			+ e.print_length() + smoother.print_length();
 	}
 
+#endif
 
 	E e;							//!< The expression to populate the first grid.
 	V value;						//!< Value multiplying the result of this convolution.
@@ -464,10 +466,7 @@ struct OpFuncConvolution<V, GaussianSmoothing<D>, OpLVariable<OpIdentity, G>> :
 		return symphas::internal::make_convolution::get_g(-value, smoother, data);
 	}
 
-
-	/* print statements
-	 */
-
+#ifdef PRINTABLE_EQUATIONS
 
 	size_t print(FILE* out) const
 	{
@@ -497,6 +496,7 @@ struct OpFuncConvolution<V, GaussianSmoothing<D>, OpLVariable<OpIdentity, G>> :
 			+ smoother.print_length() + std::strlen(expr::get_op_name(data));
 	}
 
+#endif
 
 	V value;						//!< Value multiplying the result of this convolution.
 	GaussianSmoothing<D> smoother;	//!< The smoothing kernel.

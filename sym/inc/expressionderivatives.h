@@ -317,6 +317,8 @@ struct OpFuncDerivative : OpExpression<OpFuncDerivative<Dd, V, E, Sp>>
 		return symphas::internal::make_derivative<Dd>::get(-value, e, solver);
 	}
 
+#ifdef PRINTABLE_EQUATIONS
+
 	size_t print(FILE* out) const
 	{
 		size_t n = expr::print_with_coeff(out, value);
@@ -343,6 +345,7 @@ struct OpFuncDerivative : OpExpression<OpFuncDerivative<Dd, V, E, Sp>>
 			+ symphas::internal::print_deriv<order>::print_length() + e.print_length();
 	}
 
+#endif
 
 	solver_op_type<Sp> solver;		//!< Solver that applies the derivative function.
 	V value;						//!< Value multiplying the result of this derivative.
@@ -389,6 +392,8 @@ struct OpFuncDerivative<Dd, V, OpLVariable<OpIdentity, G>, Sp> : OpExpression<Op
 	}
 
 
+#ifdef PRINTABLE_EQUATIONS
+
 	size_t print(FILE* out) const
 	{
 		size_t n = expr::print_with_coeff(out, value);
@@ -411,6 +416,7 @@ struct OpFuncDerivative<Dd, V, OpLVariable<OpIdentity, G>, Sp> : OpExpression<Op
 			+ symphas::internal::print_deriv<order>::print_length() + std::strlen(expr::get_op_name(data));
 	}
 
+#endif
 
 	solver_op_type<Sp> solver;		//!< Solver that applies the derivative function.
 	V value;						//!< Value multiplying the result of this derivative.
@@ -622,6 +628,8 @@ struct OpOperatorDerivative : OpOperator<OpOperatorDerivative<O, V, Sp>>
 	}
 
 
+#ifdef PRINTABLE_EQUATIONS
+
 	size_t print(FILE* out) const
 	{
 		size_t n = expr::print_with_coeff(out, value);
@@ -641,6 +649,8 @@ struct OpOperatorDerivative : OpOperator<OpOperatorDerivative<O, V, Sp>>
 	{
 		return expr::coeff_print_length(value) + symphas::internal::print_deriv<O>::print_length();
 	}
+
+#endif
 
 	solver_op_type<Sp> solver;
 	V value;
@@ -736,6 +746,8 @@ struct OpOperatorDirectionalDerivative : OpOperator<OpOperatorDirectionalDerivat
 	}
 
 
+#ifdef PRINTABLE_EQUATIONS
+
 	size_t print(FILE* out) const
 	{
 		size_t n = expr::print_with_coeff(out, value);
@@ -755,6 +767,8 @@ struct OpOperatorDirectionalDerivative : OpOperator<OpOperatorDirectionalDerivat
 	{
 		return expr::coeff_print_length(value) + symphas::internal::print_deriv<O>::print_length();
 	}
+
+#endif
 
 	solver_op_type<Sp> solver;
 	V value;

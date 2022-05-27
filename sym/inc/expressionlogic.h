@@ -329,17 +329,17 @@ ADD_RULE_NL_CONDITION(true, (SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPES), (SINGLE_
 
 
 
-/*
- * in the case of more complicated object inheritance heirarchies, a base type needs to be defined
+/*!
+ * In the case of more complicated object inheritance heirarchies, a base type needs to be defined
  * in order for the expressions to detect the correct type in their evaluations, as the type
  * heirarchy will be descended into to determine relationships
  * (for instance, it may be useful to define
  * a child of an object if it has certain identites, that way it is parameterized as a special type to
  * be accepted by the appropriate function)
  *
- * the first argument are the template arguments to the to the defining objects
- * the second argument is the base type
- * the third argument is the parent of the base type
+ * \param TEMPLATE Template arguments to the to the defining objects
+ * \param The base type itself
+ * \param Parent of the base type
  */
 
 #define DEFINE_BASE_TYPE(TEMPLATE, TYPE, PARENT) \

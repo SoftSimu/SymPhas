@@ -100,6 +100,8 @@ struct OpFuncIntegral : OpExpression<OpFuncIntegral<Z, V, E>>
 
 	}
 
+#ifdef PRINTABLE_EQUATIONS
+
 	size_t print(FILE* out) const
 	{
 		return expr::print_with_coeff(out, "", value);
@@ -114,6 +116,8 @@ struct OpFuncIntegral : OpExpression<OpFuncIntegral<Z, V, E>>
 	{
 		return expr::coeff_print_length(value);
 	}
+
+#endif
 
 	V value;							// value multiplying the result of this derivative
 

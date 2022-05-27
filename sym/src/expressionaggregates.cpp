@@ -21,8 +21,11 @@
 
 #include "expressionaggregates.h"
 
+#ifdef PRINTABLE_EQUATIONS
 
 DLLEXPR int expr::NAME_PTR_POS = 0;
 DLLEXPR std::vector<const void*> expr::NAME_PTRS;
 DLLEXPR std::vector<char*> expr::MORE_NAMES;
+
+#endif
 

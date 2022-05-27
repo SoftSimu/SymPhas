@@ -71,6 +71,8 @@ struct Variable : G
 template<typename G>
 struct NamedData : G
 {
+#ifdef PRINTABLE_EQUATIONS
+
 	//! Constructs the named instance using the given data.
 	/*!
 	 * Constructs the named instance using the given data, which is passed
@@ -80,6 +82,7 @@ struct NamedData : G
 	 * \param name The name of the data.
 	 */
 	NamedData(G data, std::string name) : G(data), name{ name } {}
+
 
 	//! Constructs the named instance represented by the given expression.
 	/*!
@@ -101,6 +104,14 @@ struct NamedData : G
 	}
 
 	std::string name;	//!< Name given to the data.
+
+#else
+
+	NamedData(G data, ...) : G(data) {}
+
+#endif
+
+
 };
 
 //! Gives a name to a data array, to be used in expressions.
@@ -118,6 +129,9 @@ struct NamedData : G
 template<typename G>
 struct NamedData<G*>
 {
+
+#ifdef PRINTABLE_EQUATIONS
+
 	//! Constructs the named instance using the given data.
 	/*!
 	 * Constructs the named instance using the given data, which is passed
@@ -147,6 +161,15 @@ struct NamedData<G*>
 		delete[] str;
 	}
 
+	std::string name;	//!< Name given to the data.
+
+#else
+
+	NamedData(G* data, ...) : data{ data } {}
+
+#endif
+
+
 	operator G* ()
 	{
 		return data;
@@ -157,7 +180,6 @@ struct NamedData<G*>
 		return data;
 	}
 
-	std::string name;	//!< Name given to the data.
 	G* data;			//!< Pointer to the data.
 };
 
@@ -173,6 +195,8 @@ struct NamedData<G*>
 template<>
 struct NamedData<scalar_t>
 {
+#ifdef PRINTABLE_EQUATIONS
+
 	//! Constructs the named instance using the given data.
 	/*!
 	 * Constructs the named instance using the given data, which is passed
@@ -202,16 +226,24 @@ struct NamedData<scalar_t>
 		delete[] str;
 	}
 
+	std::string name;	//!< Name given to the data.
+
+#else
+
+	NamedData(scalar_t data, ...) : data{ data } {}
+
+#endif
+
 	operator scalar_t()
 	{
 		return data;
 	}
+
 	operator const scalar_t() const
 	{
 		return data;
 	}
 
-	std::string name;	//!< Name given to the data.
 	scalar_t data;		//!< Data value.
 };
 
@@ -250,9 +282,7 @@ namespace expr
 		return Variable<Z, symphas::ref<G>>(g);
 	}
 
-
-
-
+#ifdef PRINTABLE_EQUATIONS
 
 	DLLEXPR extern int NAME_PTR_POS;					//!< Current position in selecting name for arbitrary data pointers.
 	DLLEXPR extern std::vector<const void*> NAME_PTRS;	//!< List of all data pointers with names associated with them.
@@ -370,6 +400,7 @@ namespace expr
 		}
 	}
 
+#endif
 }
 
 
@@ -722,6 +753,8 @@ struct OpLVariable : OpExpression<OpLVariable<T, G>>
 		return OpLVariable<decltype(v), G>(-value, data);
 	}
 
+#ifdef PRINTABLE_EQUATIONS
+
 	size_t print(FILE* out) const
 	{
 		return expr::print_with_coeff(out, expr::get_op_name(data), value);
@@ -736,6 +769,8 @@ struct OpLVariable : OpExpression<OpLVariable<T, G>>
 	{
 		return expr::coeff_print_length(value) + std::strlen(expr::get_op_name(data));
 	}
+
+#endif
 
 	T value;			//!< Coefficient of the variable term.
 	G data;				//!< The data which this variable represents.
@@ -773,6 +808,8 @@ struct OpLVariable<OpIdentity, G> : OpExpression<OpLVariable<OpIdentity, G>>
 		return OpLVariable<OpNegIdentity, G>(OpNegIdentity{}, data);
 	}
 
+#ifdef PRINTABLE_EQUATIONS
+
 	size_t print(FILE* out) const
 	{
 		return expr::print_with_coeff(out, expr::get_op_name(data), OpIdentity{});
@@ -787,6 +824,8 @@ struct OpLVariable<OpIdentity, G> : OpExpression<OpLVariable<OpIdentity, G>>
 	{
 		return expr::coeff_print_length(value) + std::strlen(expr::get_op_name(data));
 	}
+
+#endif
 
 	/* when the opvariable is the special type that it has an identity as its constant, we
 	 * can use it as an LHS
@@ -837,6 +876,8 @@ struct OpLVariable<OpNegIdentity, G> : OpExpression<OpLVariable<OpNegIdentity, G
 		return OpLVariable<OpIdentity, G>(OpIdentity{}, data);
 	}
 
+#ifdef PRINTABLE_EQUATIONS
+
 	size_t print(FILE* out) const
 	{
 		return expr::print_with_coeff(out, expr::get_op_name(data), OpNegIdentity{});
@@ -851,6 +892,8 @@ struct OpLVariable<OpNegIdentity, G> : OpExpression<OpLVariable<OpNegIdentity, G
 	{
 		return expr::coeff_print_length(value) + std::strlen(expr::get_op_name(data));
 	}
+
+#endif
 
 	/* when the opvariable is the special type that it has an identity as its constant, we
 	 * can use it as an LHS
@@ -915,6 +958,7 @@ namespace symphas::internal
 	};
 
 
+#ifdef PRINTABLE_EQUATIONS
 
 	template<typename type, typename count, typename... Gs>
 	struct print_op;
@@ -977,6 +1021,7 @@ namespace symphas::internal
 		}
 	};
 
+#endif
 
 }
 
@@ -1050,6 +1095,8 @@ struct OpNLVariable : OpExpression<OpNLVariable<T, Gs...>>
 		return OpNLVariable<decltype(v), Gs...>(-value, datas);
 	}
 
+#ifdef PRINTABLE_EQUATIONS
+
 	size_t print(FILE* out) const
 	{
 		return _print(out, std::make_index_sequence<sizeof...(Gs)>{});
@@ -1065,6 +1112,8 @@ struct OpNLVariable : OpExpression<OpNLVariable<T, Gs...>>
 		return _print_length(std::make_index_sequence<sizeof...(Gs)>{});
 	}
 
+#endif
+
 	auto as_mul() const
 	{
 		return _as_mul();
@@ -1074,9 +1123,6 @@ struct OpNLVariable : OpExpression<OpNLVariable<T, Gs...>>
 	T value;
 
 protected:
-
-	template<typename type, typename count, typename... G0s>
-	friend struct symphas::internal::print_op;
 
 	template<size_t I = 0>
 	auto _as_mul() const
@@ -1089,6 +1135,11 @@ protected:
 	{
 		return ((value * ... * expr::BaseData<Gs>::get(std::get<Is>(datas), n)));
 	}
+
+#ifdef PRINTABLE_EQUATIONS
+
+	template<typename type, typename count, typename... G0s>
+	friend struct symphas::internal::print_op;
 
 	template<size_t I, size_t pow>
 	std::pair<size_t, size_t> print_op_apply(FILE* out) const
@@ -1180,6 +1231,9 @@ protected:
 		return expr::coeff_print_length(value)
 			+ pr{}(this, (int*)(0), std::make_index_sequence<sizeof...(Gs)>{});
 	}
+
+#endif
+
 };
 
 template<typename... Gs>

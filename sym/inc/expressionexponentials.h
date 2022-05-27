@@ -160,6 +160,8 @@ struct OpExponential : OpExpression<OpExponential<V, E>>
 	}
 
 
+#ifdef PRINTABLE_EQUATIONS
+
 	size_t print(FILE* out) const
 	{
 		size_t n = expr::print_with_coeff(out, value);
@@ -182,6 +184,8 @@ struct OpExponential : OpExpression<OpExponential<V, E>>
 	{
 		return expr::coeff_print_length(value) + SYEX_EXP_FMT_LEN + e.print_length();
 	}
+
+#endif
 
 	E e;							//!< The expression which is exponentiated.
 	V value;						//!< Value multiplying the result of this convolution.
@@ -242,8 +246,8 @@ struct OpExponential<V, OpLVariable<S, G>> : OpExpression<OpExponential<V, OpLVa
 		return symphas::internal::make_exponential::get_g(-value, data);
 	}
 
-	/* print statements
-	 */
+
+#ifdef PRINTABLE_EQUATIONS
 
 	size_t print(FILE* out) const
 	{
@@ -270,6 +274,8 @@ struct OpExponential<V, OpLVariable<S, G>> : OpExpression<OpExponential<V, OpLVa
 		return expr::coeff_print_length(value) + expr::coeff_print_length(pow) 
 			+ SYEX_EXP_FMT_LEN + std::strlen(expr::get_op_name(data));
 	}
+
+#endif
 
 	V value;			//!< Value multiplying the result of this convolution.
 	S pow;				//!< The coefficient of the original variable.

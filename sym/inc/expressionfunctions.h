@@ -147,6 +147,8 @@ struct OpFuncApply : OpExpression<OpFuncApply<f, V, E>>
 		return symphas::internal::make_function<f>::template get(-value, e);
 	}
 
+#ifdef PRINTABLE_EQUATIONS
+
 	size_t print(FILE* out) const
 	{
 		char* str = new char[e.print_length() + 1];
@@ -176,6 +178,8 @@ struct OpFuncApply : OpExpression<OpFuncApply<f, V, E>>
 		return expr::coeff_print_length(value) + e.print_length()
 			+ symphas::internal::print_f_op<E>::template print_length<f>();
 	}
+
+#endif
 
 	E e;			//!< The expression to which the function is applied.
 	V value;		//!< Coefficient of the function expression term.
@@ -621,6 +625,8 @@ struct OpFunc<V, E, F, void> : OpExpression<OpFunc<V, E, F, void>>
 		return OpFunc<decltype(-value), E, F, void>(name, -value, e, f);
 	}
 
+#ifdef PRINTABLE_EQUATIONS
+
 	size_t print(FILE* out) const
 	{
 		size_t n = expr::print_with_coeff(out, value);
@@ -645,6 +651,7 @@ struct OpFunc<V, E, F, void> : OpExpression<OpFunc<V, E, F, void>>
 			+ name.length() + SYEX_LAMBDA_FUNC_FMT_LEN;
 	}
 
+#endif
 
 	friend struct expr::compound_get;
 
@@ -737,6 +744,8 @@ public:
 		return swap_x<ArgNs...>(*static_cast<const Xs*>(&xs)...);
 	}
 
+#ifdef PRINTABLE_EQUATIONS
+
 	size_t print(FILE* out) const
 	{
 		return e.print(out);
@@ -746,6 +755,13 @@ public:
 	{
 	    return e.print(out);
 	}
+
+	size_t print_length() const
+	{
+		return e.print_length();
+	}
+
+#endif
 
 	E e;				//!< The substitutable function.
 };

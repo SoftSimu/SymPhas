@@ -86,7 +86,7 @@ struct GaussianSmoothing : OpExpression<GaussianSmoothing<D>>
 
 
 
-
+#ifdef PRINTABLE_EQUATIONS
 	/* print statements
 	 */
 
@@ -104,7 +104,7 @@ struct GaussianSmoothing : OpExpression<GaussianSmoothing<D>>
 	{
 		return 1;
 	}
-
+#endif
 
 	auto operator*(GaussianSmoothing<D> const& other) const
 	{
