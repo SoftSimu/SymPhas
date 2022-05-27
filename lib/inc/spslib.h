@@ -2555,7 +2555,7 @@ namespace symphas::lib
 #endif
 
 
-	/*! Based on the condition, return the value.
+	//! Based on the condition, return the value.
 	/*!
 	 * Used for initializing constant variables by evaluating the constant
 	 * expression condition and returning the first given parameter

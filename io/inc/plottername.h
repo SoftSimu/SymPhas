@@ -18,45 +18,12 @@
  * ***************************************************************************
  *
  * MODULE:  io
- * PURPOSE: Adds all the write functionality during the compilation.
+ * PURPOSE: Defines the name of the gnuplot gui plot to be used on the
+ *          particular system.
  *
  * ***************************************************************************
  */
 
-#cmakedefine USING_XDR
 
-#include "writegp.h"
-#include "writegpc.h"
-#include "writegpmov.h"
-#include "writecsv.h"
+#define GNU_PLOTTER windows
 
-#ifdef USING_XDR
-#include "writexdr.h"
-
-#define XDRW_CASE(FUNCTION) \
-case WriterType::XDR: \
-	symphas::io::xdr:: FUNCTION; \
-	break;
-
-#else
-#define XDRW_CASE(FUNCTION)
-#endif
-
-#define SWITCH_IO_WRITE(FUNCTION) \
-switch (params::writer) \
-{ \
-case WriterType::GNU: \
-	symphas::io::gp:: FUNCTION; \
-	break; \
-case WriterType::COLUMN: \
-	symphas::io::gp::col:: FUNCTION; \
-	break; \
-case WriterType::MOVIE: \
-	symphas::io::gp::mov:: FUNCTION; \
-	break; \
-case WriterType::CSV: \
-	symphas::io::csv:: FUNCTION; \
-	break; \
-XDRW_CASE(FUNCTION) \
-default: ; \
-}

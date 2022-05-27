@@ -329,7 +329,7 @@ set output "%s"
 )~"
 #else
 R"~(
-set terminal windows size )~" PLOT_SQUARE_DIMENSION_WIN R"~(
+set terminal )~" STR(GNU_PLOTTER) "~( size )~" PLOT_SQUARE_DIMENSION_WIN R"~(
 )~"
 #endif
 R"~(
@@ -354,7 +354,7 @@ set multiplot layout %zd,%d
 R"~(
 set colorbox
 set key outside top center
-set terminal windows size )~" PLOT_MULTI_DIMENSION_WIN R"~(
+set terminal )~" STR(GNU_PLOTTER) "~( size )~" PLOT_MULTI_DIMENSION_WIN R"~(
 set multiplot layout %zd,2 title "%s"
 )~"
 #endif

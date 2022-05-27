@@ -49,6 +49,13 @@ else()
 	message(STATUS "xdrfile package was not found!")
 endif()
 
+if(MSVC)
+	set(GNU_PLOTTER "windows")
+else()
+	set(GNU_PLOTTER "qt")
+endif()
+
+configure_file("inc/plottername.h.in" "${CMAKE_CURRENT_SOURCE_DIR}/inc/plottername.h")
 configure_file("inc/readincludes.h.in" "${CMAKE_CURRENT_SOURCE_DIR}/inc/readincludes.h")
 configure_file("inc/writeincludes.h.in" "${CMAKE_CURRENT_SOURCE_DIR}/inc/writeincludes.h")
 
