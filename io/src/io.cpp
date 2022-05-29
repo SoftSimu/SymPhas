@@ -563,8 +563,6 @@ iter_type SaveParams::next_save(iter_type current) const
 				double alph0 = 1.0;
 				while (diff >= eps)
 				{
-					double den = df(alph0);
-					double num = f(alph0);
 					double alph1 = alph0 - f(alph0) / df(alph0);
 					diff = std::abs(alph1 - alph0);
 					alph0 = alph1;

@@ -297,10 +297,10 @@ struct OpFuncDerivative : OpExpression<OpFuncDerivative<Dd, V, E, Sp>>
 	 * object.
 	 */
 	OpFuncDerivative(V value, E const& e, solver_op_type<Sp> solver) : 
-		e{ e }, solver{ solver }, value{ value }, grid{ expr::property::data_dimensions(e) } { /*update();*/ }
+		grid{ expr::property::data_dimensions(e) }, value{ value }, e{ e }, solver{ solver } { /*update();*/ }
 
 	OpFuncDerivative(E const& e, solver_op_type<Sp> solver) : 
-		e{ e }, solver{ solver }, value{ OpIdentity{} }, grid{ expr::property::data_dimensions(e) } { /*update();*/ }
+		grid{ expr::property::data_dimensions(e) }, value{ OpIdentity{} }, e{ e }, solver{ solver } { /*update();*/ }
 
 	inline auto eval(iter_type n) const
 	{
@@ -346,9 +346,6 @@ struct OpFuncDerivative : OpExpression<OpFuncDerivative<Dd, V, E, Sp>>
 	}
 
 #endif
-
-	solver_op_type<Sp> solver;		//!< Solver that applies the derivative function.
-	V value;						//!< Value multiplying the result of this derivative.
 	
 	friend struct expr::compound_get;
 
@@ -356,12 +353,20 @@ struct OpFuncDerivative : OpExpression<OpFuncDerivative<Dd, V, E, Sp>>
 protected:
 
 	result_grid grid;				//!< Grid storing the intermediate values.
+
+public:
+
+	V value;						//!< Value multiplying the result of this derivative.
+
+protected:
+
 	E e;							//!< Expression object specifying grid values.
 
-};
+public:
 
-template<typename Dd, typename E, typename Sp>
-OpFuncDerivative(E, Sp)->OpFuncDerivative<Dd, OpIdentity, E, Sp>;
+	solver_op_type<Sp> solver;		//!< Solver that applies the derivative function.
+
+};
 
 //! Specialization of an OpLVariable of the concrete derivative expression.
 /*!
@@ -378,8 +383,8 @@ struct OpFuncDerivative<Dd, V, OpLVariable<OpIdentity, G>, Sp> : OpExpression<Op
 	static const size_t order = Dd::order; //!< The order of this derivative.
 
 	template<typename V0, typename V1, typename std::enable_if<std::is_convertible<mul_result_t<V0, V1>, V>::value, int>::type = 0>
-	OpFuncDerivative(V0 value, OpLVariable<V1, G> const& e, solver_op_type<Sp> solver) : data{ e.data }, solver{ solver }, value{ e.value * value } {}
-	OpFuncDerivative(V value, G data, solver_op_type<Sp> solver) : data{ data }, solver{ solver }, value{ value } {}
+	OpFuncDerivative(V0 value, OpLVariable<V1, G> const& e, solver_op_type<Sp> solver) : data{ e.data }, value{ e.value * value }, solver{ solver } {}
+	OpFuncDerivative(V value, G data, solver_op_type<Sp> solver) : data{ data }, value{ value }, solver{ solver } {}
 
 	inline auto eval(iter_type n) const
 	{
@@ -418,23 +423,22 @@ struct OpFuncDerivative<Dd, V, OpLVariable<OpIdentity, G>, Sp> : OpExpression<Op
 
 #endif
 
-	solver_op_type<Sp> solver;		//!< Solver that applies the derivative function.
-	V value;						//!< Value multiplying the result of this derivative.
-
 	friend struct expr::compound_get;
 
 	template<typename S1, typename Dd2, typename V2, typename G2, typename T2>
 	friend auto operator*(OpLiteral<S1> const& a, OpFuncDerivative<Dd2, V2, OpLVariable<OpIdentity, G2>, T2> const& b);
 
 protected:
+
 	G data;
+
+public:
+
+	V value;						//!< Value multiplying the result of this derivative.
+	solver_op_type<Sp> solver;		//!< Solver that applies the derivative function.
+
 };
 
-
-template<typename Dd, typename V0, typename V1, typename G, typename Sp>
-OpFuncDerivative(V0, OpLVariable<V1, G>, Sp)->OpFuncDerivative<Dd, mul_result_t<V0, V1>, OpLVariable<OpIdentity, G>, Sp>;
-template<typename Dd, typename V, typename G, typename Sp>
-OpFuncDerivative(OpLVariable<V, G>, Sp)->OpFuncDerivative<Dd, V, OpLVariable<OpIdentity, G>, Sp>;
 
 /* multiplication of a derivative object by a literal
  */
@@ -652,8 +656,8 @@ struct OpOperatorDerivative : OpOperator<OpOperatorDerivative<O, V, Sp>>
 
 #endif
 
-	solver_op_type<Sp> solver;
 	V value;
+	solver_op_type<Sp> solver;
 };
 
 
@@ -770,8 +774,8 @@ struct OpOperatorDirectionalDerivative : OpOperator<OpOperatorDirectionalDerivat
 
 #endif
 
-	solver_op_type<Sp> solver;
 	V value;
+	solver_op_type<Sp> solver;
 };
 
 
@@ -795,7 +799,6 @@ namespace symphas::internal
 		template<typename V, typename E, typename Sp>
 		auto operator()(V v, OpExpression<E> const& e, solver_op_type<Sp> t)
 		{
-			using G = deriv_working_grid<E>;
 			return expr::nth_derivative_apply<O, Sp>::template get(v, *static_cast<E const*>(&e), t);
 		}
 	};
@@ -806,7 +809,6 @@ namespace symphas::internal
 		template<typename V, typename E, typename Sp>
 		auto operator()(V v, OpExpression<E> const& e, solver_op_type<Sp> t)
 		{
-			using G = deriv_working_grid<E>;
 			return expr::gradient_apply<Sp>::template get(v, *static_cast<E const*>(&e), t);
 		}
 	};
@@ -818,7 +820,6 @@ namespace symphas::internal
 		template<typename V, typename E, typename Sp>
 		auto operator()(V v, OpExpression<E> const& e, solver_op_type<Sp> t)
 		{
-			using G = deriv_working_grid<E>;
 			return expr::laplacian_apply<Sp>::template get(v, *static_cast<E const*>(&e), t);
 		}
 	};
@@ -830,7 +831,6 @@ namespace symphas::internal
 		template<typename V, typename E, typename Sp>
 		auto operator()(V v, OpExpression<E> const& e, solver_op_type<Sp> t)
 		{
-			using G = deriv_working_grid<E>;
 			return expr::gradlaplacian_apply<Sp>::template get(v, *static_cast<E const*>(&e), t);
 		}
 	};
@@ -841,7 +841,6 @@ namespace symphas::internal
 		template<typename V, typename E, typename Sp>
 		auto operator()(V v, OpExpression<E> const& e, solver_op_type<Sp> t)
 		{
-			using G = deriv_working_grid<E>;
 			return expr::bilaplacian_apply<Sp>::template get(v, *static_cast<E const*>(&e), t);
 		}
 	};

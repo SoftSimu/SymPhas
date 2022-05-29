@@ -187,8 +187,8 @@ struct OpExponential : OpExpression<OpExponential<V, E>>
 
 #endif
 
-	E e;							//!< The expression which is exponentiated.
 	V value;						//!< Value multiplying the result of this convolution.
+	E e;							//!< The expression which is exponentiated.
 
 	friend struct expr::compound_get;
 

@@ -308,6 +308,8 @@ namespace symphas
 		//! Generate a copy of the functor.
 		virtual init_data_functor<void>* make_copy() const = 0;
 
+		virtual ~init_data_functor() {}
+
 	};
 
 	template<typename F>

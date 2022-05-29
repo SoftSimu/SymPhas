@@ -197,8 +197,8 @@ Conf::Conf(std::vector<std::pair<std::string, std::string>> options, const char*
 #ifdef USING_PROC
 	, DataConf(options)
 #endif
-	, sim_done{ false }
 	, computed_indices{ {} }
+	, sim_done{ false }
 {}
 
 Conf::Conf(const char* file) : Conf{ symphas::conf::make_config(file) } {}
@@ -209,8 +209,8 @@ Conf::Conf(symphas::problem_parameters_type const& parameters, const char* title
 #ifdef USING_PROC
 	, DataConf()
 #endif
-	, sim_done{ false }
 	, computed_indices{ {} }
+	, sim_done{ false }
 {}
 
 

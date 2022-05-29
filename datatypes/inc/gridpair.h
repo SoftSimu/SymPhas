@@ -58,14 +58,14 @@ struct FourierGrid : Block<T>
 	 * \param dimensions The dimensions of the grid to create.
 	 */
 	FourierGrid(const len_type* dimensions) : 
-		Block<T>{ symphas::dft::len<S, D>(dimensions) }, dims{ 0 },
-		p_in_out{ symphas::dft::new_fftw_plan<D, S, T>{}(values, values, dimensions) }
+		Block<T>{ symphas::dft::len<S, D>(dimensions) },
+		p_in_out{ symphas::dft::new_fftw_plan<D, S, T>{}(values, values, dimensions) }, dims{ 0 }
 	{
 		std::copy(dimensions, dimensions + D, dims);
 	}
 	FourierGrid(FourierGrid<S, T, D> const& other) : 
-		Block<T>{ symphas::dft::len<S, D>(other.dims) }, dims{ 0 },
-		p_in_out{ symphas::dft::new_fftw_plan<D, S, T>{}(values, values, other.dims) }
+		Block<T>{ symphas::dft::len<S, D>(other.dims) },
+		p_in_out{ symphas::dft::new_fftw_plan<D, S, T>{}(values, values, other.dims) }, dims{ 0 }
 	{
 		std::copy(other.dims, other.dims + D, dims);
 	}
@@ -120,7 +120,7 @@ struct FourierGrid : Block<T>
 
 protected:
 
-	FourierGrid() : Block<T>{}, p_in_out{ NULL }, dims{ 0 } {}
+	FourierGrid() : Block<T>{}, dims{ 0 }, p_in_out{ NULL } {}
 
 	len_type dims[D];
 	fftw_plan p_in_out;

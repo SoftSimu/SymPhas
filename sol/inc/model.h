@@ -171,7 +171,7 @@ public:
 	Model(symphas::problem_parameters_type const& parameters) : Model(nullptr, 0, parameters) {}
 
 	Model(Model<D, Sp, S...> const& other) : 
-		lastindex{ other.lastindex }, solver{ other.solver }, _s{ other._s },
+		_s{ other._s }, solver{ other.solver }, lastindex{ other.lastindex },
 		coeff{ (other.num_coeff > 0) ? new double[other.num_coeff] : nullptr }, num_coeff{ other.num_coeff }
 	{
 		std::copy(other.coeff, other.coeff + other.num_coeff, coeff);

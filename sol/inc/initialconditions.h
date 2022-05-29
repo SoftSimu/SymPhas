@@ -265,7 +265,7 @@ namespace symphas::internal
 		 * which is the first index in the iterator.
 		 */
 		ic_iterator(difference_type pos = 0)
-			: init{ nullptr }, pos{ pos }, fill{} {}
+			: fill{}, init{ nullptr }, pos{ pos } {}
 
 		//! Create an iterator starting at the given position.
 		/*!
@@ -277,7 +277,7 @@ namespace symphas::internal
 		 * which is the first index in the iterator.
 		 */
 		explicit ic_iterator(E const& e, difference_type pos = 0)
-			: init{ static_cast<E const*>(&e) }, pos{ pos }, fill{} {}
+			: fill{}, init{ static_cast<E const*>(&e) }, pos{ pos } {}
 
 
 		ic_iterator(ic_iterator<T, D> const& other) :

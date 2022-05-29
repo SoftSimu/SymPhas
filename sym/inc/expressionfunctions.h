@@ -185,9 +185,6 @@ struct OpFuncApply : OpExpression<OpFuncApply<f, V, E>>
 	V value;		//!< Coefficient of the function expression term.
 };
 
-template<auto f, typename V, typename E>
-OpFuncApply(V, E)->OpFuncApply<f, V, E>;
-
 
 template<typename S1, auto f2, typename V2, typename E2>
 auto operator*(OpLiteral<S1> const& a, OpFuncApply<f2, V2, E2> const& b)

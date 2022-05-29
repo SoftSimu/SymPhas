@@ -55,9 +55,6 @@
 template<typename T>
 struct WriteParallel
 {
-	mutable bool done;			//!< Used to indicate whether the writing job is complete.
-	mutable std::thread* thr;	//!< Thread used to in writing to file.
-
 	WriteParallel(len_type len) : snapshot{ len }, done{ true }, thr{ nullptr } {}
 
 	void write(symphas::io::write_info w, symphas::grid_info g) const
@@ -93,6 +90,11 @@ protected:
 	}
 
 	Block<T> snapshot;
+
+public:
+
+	mutable bool done;			//!< Used to indicate whether the writing job is complete.
+	mutable std::thread* thr;	//!< Thread used to in writing to file.
 };
 #endif
 
@@ -562,7 +564,7 @@ namespace symphas
 		 */
 		size_t len;
 
-		problem_parameters_type() : len{ 0 }, tdata{ nullptr }, vdata{ nullptr }, bdata{ nullptr }, dt{ 1.0 } {}
+		problem_parameters_type() : tdata{ nullptr }, vdata{ nullptr }, bdata{ nullptr }, len{ 0 }, dt{ 1.0 } {}
 
 	public:
 
@@ -575,8 +577,9 @@ namespace symphas
 		 *
 		 * \param len The number of systems that the problem parameters refer to.
 		 */
-		problem_parameters_type(const size_t len) : len{ len }, dt{ 1.0 },
-			tdata{ new symphas::init_data_type[len] }, vdata{ new symphas::interval_data_type[len] }, bdata{ new symphas::b_data_type[len] } {}
+		problem_parameters_type(const size_t len) : 
+			tdata{ new symphas::init_data_type[len] }, vdata{ new symphas::interval_data_type[len] }, bdata{ new symphas::b_data_type[len] },
+			len{ len }, dt{ 1.0 } {}
 
 		problem_parameters_type(problem_parameters_type const& other);
 

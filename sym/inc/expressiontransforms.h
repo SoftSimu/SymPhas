@@ -989,7 +989,7 @@ namespace expr::transform
 		char* gname = new char[e.print_length() + STR_ARR_LEN(SYEX_FT_OF_OP_FMT_A SYEX_FT_OF_OP_FMT_B)];
 		size_t n = sprintf(gname, SYEX_FT_OF_OP_FMT_A);
 		n += e.print(gname + n);
-		n =+ sprintf(gname + n, SYEX_FT_OF_OP_FMT_B);
+		n += sprintf(gname + n, SYEX_FT_OF_OP_FMT_B);
 		auto op = expr::make_op(NamedData(to_fftw_grid(e), gname));
 
 		delete[] gname;
@@ -3475,7 +3475,6 @@ template<typename T1, typename T2, typename... G1s, typename... G2s,
 	size_t N = ((expr::factor_count_list<G1s, G2s...>::value + ...)), typename std::enable_if<(N > 0), int>::type = 0>
 auto operator/(OpNLVariable<T1, G1s...> const& a, OpNLVariable<T2, G2s...> const& b)
 {
-	using factor_list = typename expr::grid_types<OpNLVariable<T2, G2s...>>::type;
 	auto f = expr::split::factor_list<G2s...>(a);
 	auto g = expr::split::factor_list<G1s...>(b);
 	return f.second / g.second;

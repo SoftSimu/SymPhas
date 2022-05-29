@@ -480,6 +480,7 @@ struct TraitEquationModel : TraitEquation<TraitEquationModel, parent_trait> \
 	auto make_equations() { \
 	using namespace std; using namespace expr; \
 	constexpr size_t D = model_dimension<parent_type>::value; \
+	UNUSED(D) \
 	__VA_ARGS__
 
 //! Defines a TraitEquation child class used to define dynamical equations.

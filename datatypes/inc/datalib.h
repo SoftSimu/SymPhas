@@ -1284,7 +1284,6 @@ namespace symphas::internal
 			}
 		}
 
-		iter_type i = 0;
 		iter_type duplicates = 0;
 
 		for (iter_type i = 0; i < len - duplicates; ++i)

@@ -395,7 +395,6 @@ namespace symphas::internal
 	template<size_t O1, size_t O2, typename E1, typename E2, typename std::enable_if_t<(O1 == O2), int> = 0>
 	auto k_wave_identity(E1 const& a, E2 const& b)
 	{
-		constexpr size_t D = expr::grid_dim<E1>::dimension;
 		return expr::make_literal(a.value / b.value);
 	}
 

@@ -129,6 +129,7 @@ struct NamedData : G
 template<typename G>
 struct NamedData<G*>
 {
+	G* data;			//!< Pointer to the data.
 
 #ifdef PRINTABLE_EQUATIONS
 
@@ -180,7 +181,6 @@ struct NamedData<G*>
 		return data;
 	}
 
-	G* data;			//!< Pointer to the data.
 };
 
 
@@ -195,6 +195,8 @@ struct NamedData<G*>
 template<>
 struct NamedData<scalar_t>
 {
+	scalar_t data;		//!< Data value.
+
 #ifdef PRINTABLE_EQUATIONS
 
 	//! Constructs the named instance using the given data.
@@ -244,7 +246,6 @@ struct NamedData<scalar_t>
 		return data;
 	}
 
-	scalar_t data;		//!< Data value.
 };
 
 template<typename G>

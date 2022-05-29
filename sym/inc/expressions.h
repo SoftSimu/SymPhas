@@ -686,10 +686,10 @@ namespace expr
 	 */
 	template<typename E1, typename E2>
 	constexpr bool identity_comparator_enabled =
-		(std::is_same<E1, OpIdentity>::value && std::is_convertible<E2, identity_eval_t>::value ||
-			std::is_same<E2, OpIdentity>::value && std::is_convertible<E1, identity_eval_t>::value ||
-			std::is_same<E1, OpNegIdentity>::value && std::is_convertible<E2, identity_eval_t>::value ||
-			std::is_same<E2, OpNegIdentity>::value && std::is_convertible<E1, identity_eval_t>::value);
+		((std::is_same<E1, OpIdentity>::value && std::is_convertible<E2, identity_eval_t>::value) ||
+			(std::is_same<E2, OpIdentity>::value && std::is_convertible<E1, identity_eval_t>::value) ||
+			(std::is_same<E1, OpNegIdentity>::value && std::is_convertible<E2, identity_eval_t>::value) ||
+			(std::is_same<E2, OpNegIdentity>::value && std::is_convertible<E1, identity_eval_t>::value));
 
 
 	using symphas::internal::test_coeff_attribute;

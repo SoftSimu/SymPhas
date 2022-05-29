@@ -322,7 +322,7 @@ struct Block
 	 * 
 	 * \param len The number of values to create.
 	 */
-	Block(len_type len) : len{ len }, values{ (len > 0) ? new T[len] : nullptr } 
+	Block(len_type len) : values{ (len > 0) ? new T[len] : nullptr }, len { len }
 	{
 		std::fill(values, values + len, T{});
 	}
@@ -370,7 +370,7 @@ struct Block
 
 protected:
 
-	Block() : len{ 0 }, values{ nullptr } {}
+	Block() : values{ nullptr }, len{ 0 } {}
 
 
 };

@@ -35,12 +35,14 @@ set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 
-set(COMBINE_SHARED ON)
+set(COMBINE_SHARED ON CACHE BOOL "create a single dll to include in the compilation of an executable")
+
+set(ADDITIONAL_COMPILE_OPTIONS "")
 
 if(MSVC)
-	add_compile_options(/D_CRT_SECURE_NO_WARNINGS /bigobj)
-else()
+	list(APPEND ADDITIONAL_COMPILE_OPTIONS "/D_CRT_SECURE_NO_WARNINGS /bigobj ")
 endif()
+
 
 set(LIBDIR "lib")
 set(INCLUDEDIR "include")
@@ -57,6 +59,16 @@ set(SOLVER_INCLUDE_HEADER_NAME "" CACHE STRING "the name of the header file with
 set(MODEL_INCLUDE_HEADER_DIR "." CACHE PATH "the location of the header file defining the model definitions")
 set(MODEL_INCLUDE_HEADER_NAME "" CACHE STRING "the name of the header file within MODEL_INCLUDE_HEADER_DIR")
 
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+	list(APPEND ADDITIONAL_COMPILE_OPTIONS "/F85894592")
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	list(APPEND ADDITIONAL_COMPILE_OPTIONS "-Wno-unused-function")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftime-trace")
+endif()
+
+add_compile_options(${ADDITIONAL_COMPILE_OPTIONS})
+message(STATUS ${ADDITIONAL_COMPILE_OPTIONS})
 
 
 #
@@ -111,7 +123,6 @@ foreach(GROUP_NAME ${GROUP_NAMES_0})
 endforeach()
 
 
-
 set(MODULES_SOURCE "prereq.cpp")
 if(USE_IO)
 	list(APPEND MODULES_SOURCE "modules-io.cpp")
@@ -130,10 +141,7 @@ target_compile_features(${PROJECT_NAME}
 
 target_link_libraries(${PROJECT_NAME} PUBLIC ${SYMPHAS_DEP_LIBS})
 set_target_properties(${SYMPHAS_DEP_LIBS} ${PROJECT_NAME} PROPERTIES CXX_STANDARD 17)
-
-if(MSVC)
-	target_compile_options(${PROJECT_NAME} PUBLIC /F85894592 /D_CRT_SECURE_NO_WARNINGS /bigobj)
-endif()
+target_compile_options(${PROJECT_NAME} PUBLIC ${ADDITIONAL_COMPILE_OPTIONS})
 
 
 if(ENABLE_TIMINGS)
@@ -212,12 +220,6 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 	$<INSTALL_INTERFACE:include>)
 	
-find_package(OpenMP)
-if (OPENMP_FOUND)
-    target_link_libraries(${PROJECT_NAME} PUBLIC OpenMP::OpenMP_CXX)
-	message(STATUS "Using OpenMP")
-endif()
-
 # installation of symphas
 # install libraries and install header files into the include directory
 

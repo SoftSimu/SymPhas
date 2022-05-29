@@ -224,7 +224,7 @@ void symphas::io::csv::save_grid_plotting<vector_t<2>>(const vector_t<2>* grid, 
 				iter_type ii = i + j * L + k * L * M;
 
 				vector_t<2> v = grid[ii];
-				double m = sqrt(v.v[0] * v.v[0] + v.v[1] * v.v[1] + v.v[2] * v.v[2]),
+				double m = sqrt(v.v[0] * v.v[0] + v.v[1] * v.v[1]),
 					dx = v.v[0] / m,
 					dy = v.v[1] / m;
 
@@ -264,9 +264,6 @@ void symphas::io::csv::save_grid_plotting<vector_t<1>>(const vector_t<1>* grid, 
 				iter_type ii = i + j * L + k * L * M;
 
 				vector_t<1> v = grid[ii];
-				double m = sqrt(v.v[0] * v.v[0] + v.v[1] * v.v[1] + v.v[2] * v.v[2]),
-					dx = v.v[0] / m,
-					dy = v.v[1] / m;
 
 				fprintf(f,
 					"\"%." DATA_OUTPUT_ACCURACY_STR "f\"",

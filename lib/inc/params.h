@@ -135,8 +135,9 @@ protected:
 
 	bool extract_bool(const char* value)
 	{
-		char* cpy = new char[std::strlen(value) + 1];
-		std::strcpy(cpy, value);
+		size_t len = std::strlen(value) + 1;
+		char* cpy = new char[len];
+		std::strncpy(cpy, value, len);
 		symphas::lib::to_lower(cpy);
 
 		if (std::strcmp(cpy, "true") == 0
@@ -231,8 +232,9 @@ protected:
 
 	char* extract_string(const char* value)
 	{
-		char* save_value = new char[std::strlen(value) + 1];
-		std::strcpy(save_value, value);
+		size_t len = std::strlen(value) + 1;
+		char* save_value = new char[len];
+		std::strncpy(save_value, value, len);
 		return save_value;
 	}
 };
