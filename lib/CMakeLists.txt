@@ -68,6 +68,20 @@ else()
 	endif()
 endif()
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+	target_compile_options(symphas_lib_o PUBLIC -F85894592)
+	target_compile_definitions(symphas_lib_o PUBLIC /bigobj _CRT_SECURE_NO_WARNINGS)
+else()
+endif()
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	if(MSVC)
+		target_compile_definitions(symphas_lib_o PUBLIC _CRT_SECURE_NO_WARNINGS)
+	endif()
+	target_compile_options(symphas_lib_o PUBLIC -Wno-unused-function -ftime-trace)
+endif()
+
+
 add_library(symphas_lib SHARED)
 target_link_libraries(symphas_lib PUBLIC symphas_lib_o)
 

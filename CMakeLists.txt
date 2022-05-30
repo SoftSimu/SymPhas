@@ -37,12 +37,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 
 set(COMBINE_SHARED ON CACHE BOOL "create a single dll to include in the compilation of an executable")
 
-set(ADDITIONAL_COMPILE_OPTIONS "")
-
-if(MSVC)
-	list(APPEND ADDITIONAL_COMPILE_OPTIONS "/D_CRT_SECURE_NO_WARNINGS /bigobj ")
-endif()
-
 
 set(LIBDIR "lib")
 set(INCLUDEDIR "include")
@@ -58,18 +52,6 @@ set(SOLVER_INCLUDE_HEADER_DIR "." CACHE PATH "the location of the header file de
 set(SOLVER_INCLUDE_HEADER_NAME "" CACHE STRING "the name of the header file within SOLVER_INCLUDE_HEADER_DIR")
 set(MODEL_INCLUDE_HEADER_DIR "." CACHE PATH "the location of the header file defining the model definitions")
 set(MODEL_INCLUDE_HEADER_NAME "" CACHE STRING "the name of the header file within MODEL_INCLUDE_HEADER_DIR")
-
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-	list(APPEND ADDITIONAL_COMPILE_OPTIONS "/F85894592")
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-	list(APPEND ADDITIONAL_COMPILE_OPTIONS "-Wno-unused-function")
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftime-trace")
-endif()
-
-add_compile_options(${ADDITIONAL_COMPILE_OPTIONS})
-message(STATUS ${ADDITIONAL_COMPILE_OPTIONS})
-
 
 #
 # construct a list of the base group names
@@ -142,7 +124,6 @@ target_compile_features(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME} PUBLIC ${SYMPHAS_DEP_LIBS})
 set_target_properties(${SYMPHAS_DEP_LIBS} ${PROJECT_NAME} PROPERTIES CXX_STANDARD 17)
 target_compile_options(${PROJECT_NAME} PUBLIC ${ADDITIONAL_COMPILE_OPTIONS})
-
 
 if(ENABLE_TIMINGS)
 	list(APPEND ADD_DEFINITIONS PRINT_TIMINGS)
