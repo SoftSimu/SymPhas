@@ -59,11 +59,12 @@ namespace symphas::io
 	/*!
 	 * Save a list of points to a file.
 	 *
-	 * \param data The data which is persisted.
-	 * \param dir The directory to save the data.
-	 * \param index The current solution index of the data.
-	 * \param id An identifying value associated with the data.
-	 * \param name A name associated with the data used to name the file.
+	 * \param data The data that is persisted to the file.
+	 * \param dir The directory of the file that is created.
+	 * \param index The identifying index of the data that is saved, e.g. the time index.
+	 * \param id An identifying number corresponding to the type of data, e.g. the phase-field id
+	 * from which the data comes from.
+	 * \param abs_name A string name of the data which is used to make the name of the file.
 	 */
 	template<typename T>
 	void save_pts_default(
@@ -75,11 +76,12 @@ namespace symphas::io
 	/*!
 	 * Save a list of points to a file.
 	 *
-	 * \param data The data which is persisted.
-	 * \param dir The directory to save the data.
-	 * \param index The current solution index of the data.
-	 * \param id An identifying value associated with the data.
-	 * \param name A name associated with the data used to name the file.
+	 * \param data The data that is persisted to the file.
+	 * \param dir The directory of the file that is created.
+	 * \param index The identifying index of the data that is saved, e.g. the time index.
+	 * \param id An identifying number corresponding to the type of data, e.g. the phase-field id
+	 * from which the data comes from.
+	 * \param abs_name A string name of the data which is used to make the name of the file.
 	 */
 	template<size_t N>
 	void save_pts_default(
@@ -93,27 +95,29 @@ namespace symphas::io
 	/*!
 	 * Save a list of points to a file.
 	 *
-	 * \param data The data which is persisted.
-	 * \param dir The directory to save the data.
-	 * \param index The current solution index of the data.
-	 * \param id An identifying value associated with the data.
-	 * \param name A name associated with the data used to name the file.
+	 * \param data The data that is persisted to the file.
+	 * \param dir The directory of the file that is created.
+	 * \param index The identifying index of the data that is saved, e.g. the time index.
+	 * \param id An identifying number corresponding to the type of data, e.g. the phase-field id
+	 * from which the data comes from.
+	 * \param abs_name A string name of the data which is used to make the name of the file.
 	 */
 	template<typename T>
 	void save_abs_default(
 		std::vector<std::pair<axis_1d_type, T>> const& data,
-		const char* dir = ".", iter_type index = 0, size_t id = 0, 
+		const char* dir = ".", iter_type index = 0, size_t id = 0,
 		const char* name = DEFAULT_ABS_NAME);
 
 	//! Default method for saving a list of real-valued numbers to a file.
 	/*!
 	 * Save a list of points to a file.
 	 *
-	 * \param data The data which is persisted.
-	 * \param dir The directory to save the data.
-	 * \param index The current solution index of the data.
-	 * \param id An identifying value associated with the data.
-	 * \param name A name associated with the data used to name the file.
+	 * \param data The data that is persisted to the file.
+	 * \param dir The directory of the file that is created.
+	 * \param index The identifying index of the data that is saved, e.g. the time index.
+	 * \param id An identifying number corresponding to the type of data, e.g. the phase-field id
+	 * from which the data comes from.
+	 * \param abs_name A string name of the data which is used to make the name of the file.
 	 */
 	template<size_t N>
 	void save_abs_default(
@@ -125,11 +129,12 @@ namespace symphas::io
 	/*!
 	 * Save a list of points to a file.
 	 *
-	 * \param data The data which is persisted.
-	 * \param dir The directory to save the data.
-	 * \param index The current solution index of the data.
-	 * \param id An identifying value associated with the data.
-	 * \param name A name associated with the data used to name the file.
+	 * \param data The data that is persisted to the file.
+	 * \param dir The directory of the file that is created.
+	 * \param index The identifying index of the data that is saved, e.g. the time index.
+	 * \param id An identifying number corresponding to the type of data, e.g. the phase-field id
+	 * from which the data comes from.
+	 * \param abs_name A string name of the data which is used to make the name of the file.
 	 */
 	void save_abs_default(
 		std::vector<std::pair<axis_1d_type, complex_t>> const& data,
@@ -142,27 +147,29 @@ namespace symphas::io
 	/*!
 	 * Save a list of points to a file.
 	 *
-	 * \param data The data which is persisted.
-	 * \param dir The directory to save the data.
-	 * \param index The current solution index of the data.
-	 * \param id An identifying value associated with the data.
-	 * \param name A name associated with the data used to name the file.
+	 * \param data The data that is persisted to the file.
+	 * \param dir The directory of the file that is created.
+	 * \param index The identifying index of the data that is saved, e.g. the time index.
+	 * \param id An identifying number corresponding to the type of data, e.g. the phase-field id
+	 * from which the data comes from.
+	 * \param abs_name A string name of the data which is used to make the name of the file.
 	 */
 	template<size_t D>
 	void save_vec_default(
 		std::vector<std::pair<typename axis_nd<D>::type, scalar_t>> const& data,
-		const char* dir = ".", iter_type index = 0, size_t id = 0, 
+		const char* dir = ".", iter_type index = 0, size_t id = 0,
 		const char* name = DEFAULT_VEC_NAME);
 
 	//! Default method for saving a list of vector-valued numbers to a file.
 	/*!
 	 * Save a list of points to a file.
 	 *
-	 * \param data The data which is persisted.
-	 * \param dir The directory to save the data.
-	 * \param index The current solution index of the data.
-	 * \param id An identifying value associated with the data.
-	 * \param name A name associated with the data used to name the file.
+	 * \param data The data that is persisted to the file.
+	 * \param dir The directory of the file that is created.
+	 * \param index The identifying index of the data that is saved, e.g. the time index.
+	 * \param id An identifying number corresponding to the type of data, e.g. the phase-field id
+	 * from which the data comes from.
+	 * \param abs_name A string name of the data which is used to make the name of the file.
 	 */
 	template<size_t D>
 	void save_vec_default(
@@ -175,11 +182,12 @@ namespace symphas::io
 	/*!
 	 * Save a list of points to a file.
 	 *
-	 * \param data The data which is persisted.
-	 * \param dir The directory to save the data.
-	 * \param index The current solution index of the data.
-	 * \param id An identifying value associated with the data.
-	 * \param name A name associated with the data used to name the file.
+	 * \param data The data that is persisted to the file.
+	 * \param dir The directory of the file that is created.
+	 * \param index The identifying index of the data that is saved, e.g. the time index.
+	 * \param id An identifying number corresponding to the type of data, e.g. the phase-field id
+	 * from which the data comes from.
+	 * \param abs_name A string name of the data which is used to make the name of the file.
 	 */
 	template<size_t D, size_t N>
 	void save_vec_default(
@@ -191,15 +199,16 @@ namespace symphas::io
 	//! Save a list of points to a file.
 	/*!
 	 * Save a list of points to a file.
-	 * 
-	 * \param data The data which is persisted.
-	 * \param dir The directory to save the data.
-	 * \param index The current solution index of the data.
-	 * \param id An identifying value associated with the data.
+	 *
+	 * \param data The data that is persisted to the file.
+	 * \param dir The directory of the file that is created.
+	 * \param index The identifying index of the data that is saved, e.g. the time index.
+	 * \param id An identifying number corresponding to the type of data, e.g. the phase-field id
+	 * from which the data comes from.
 	 */
 	template<typename S = void>
 	void save_pts(
-		std::vector<std::tuple<iter_type, axis_1d_type, scalar_t>> const& data, 
+		std::vector<std::tuple<iter_type, axis_1d_type, scalar_t>> const& data,
 		const char* dir = ".", iter_type index = 0, size_t id = 0)
 	{
 		save_pts_default(data, dir, index, id);
@@ -209,10 +218,11 @@ namespace symphas::io
 	/*!
 	 * Save a list of points to a file.
 	 *
-	 * \param data The data which is persisted.
-	 * \param dir The directory to save the data.
-	 * \param index The current solution index of the data.
-	 * \param id An identifying value associated with the data.
+	 * \param data The data that is persisted to the file.
+	 * \param dir The directory of the file that is created.
+	 * \param index The identifying index of the data that is saved, e.g. the time index.
+	 * \param id An identifying number corresponding to the type of data, e.g. the phase-field id
+	 * from which the data comes from.
 	 */
 	template<typename S = void, size_t N = 2>
 	void save_pts(
@@ -226,15 +236,15 @@ namespace symphas::io
 	//! Save a list of points to a file.
 	/*!
 	 * Save a list of points to a file.
-	 *
-	 * \param data The data which is persisted.
-	 * \param dir The directory to save the data.
-	 * \param index The current solution index of the data.
-	 * \param id An identifying value associated with the data.
+	 * \param data The data that is persisted to the file.
+	 * \param dir The directory of the file that is created.
+	 * \param index The identifying index of the data that is saved, e.g. the time index.
+	 * \param id An identifying number corresponding to the type of data, e.g. the phase-field id
+	 * from which the data comes from.
 	 */
 	template<typename S = void>
 	void save_pts(
-		std::vector<std::tuple<iter_type, axis_1d_type, complex_t>> const& data, 
+		std::vector<std::tuple<iter_type, axis_1d_type, complex_t>> const& data,
 		const char* dir = ".", iter_type index = 0, size_t id = 0)
 	{
 		save_pts_default(data, dir, index, id);
@@ -245,10 +255,11 @@ namespace symphas::io
 	/*!
 	 * Save a list of points to a file.
 	 *
-	 * \param field The field which is persisted.
-	 * \param dir The directory to save the data.
-	 * \param index The current solution index of the data.
-	 * \param id An identifying value associated with the data.
+	 * \param data The data that is persisted to the file.
+	 * \param dir The directory of the file that is created.
+	 * \param index The identifying index of the data that is saved, e.g. the time index.
+	 * \param id An identifying number corresponding to the type of data, e.g. the phase-field id
+	 * from which the data comes from.
 	 */
 	template<typename T, typename S = void>
 	void save_pts(Field<iter_type*, std::pair<iter_type, T>*> field,
@@ -268,10 +279,11 @@ namespace symphas::io
 	/*!
 	 * Save a list of real-valued numbers to a file.
 	 *
-	 * \param data The data which is persisted.
-	 * \param dir The directory to save the data.
-	 * \param index The current solution index of the data.
-	 * \param id An identifying value associated with the data.
+	 * \param data The data that is persisted to the file.
+	 * \param dir The directory of the file that is created.
+	 * \param index The identifying index of the data that is saved, e.g. the time index.
+	 * \param id An identifying number corresponding to the type of data, e.g. the phase-field id
+	 * from which the data comes from.
 	 */
 	template<typename S = void>
 	void save_abs(
@@ -309,10 +321,11 @@ namespace symphas::io
 	/*!
 	 * Save a list of points to a file.
 	 *
-	 * \param field The field which is persisted.
-	 * \param dir The directory to save the data.
-	 * \param index The current solution index of the data.
-	 * \param id An identifying value associated with the data.
+	 * \param data The data that is persisted to the file.
+	 * \param dir The directory of the file that is created.
+	 * \param index The identifying index of the data that is saved, e.g. the time index.
+	 * \param id An identifying number corresponding to the type of data, e.g. the phase-field id
+	 * from which the data comes from.
 	 */
 	template<typename T, typename S = void>
 	void save_abs(FieldAxis<1, T*> field,
@@ -331,10 +344,11 @@ namespace symphas::io
 	/*!
 	 * Save a list of points to a file.
 	 *
-	 * \param field The field which is persisted.
-	 * \param dir The directory to save the data.
-	 * \param index The current solution index of the data.
-	 * \param id An identifying value associated with the data.
+	 * \param data The data that is persisted to the file.
+	 * \param dir The directory of the file that is created.
+	 * \param index The identifying index of the data that is saved, e.g. the time index.
+	 * \param id An identifying number corresponding to the type of data, e.g. the phase-field id
+	 * from which the data comes from.
 	 */
 	template<typename T, typename S = void>
 	void save_abs(Field<scalar_t*, T*> field,
@@ -353,10 +367,11 @@ namespace symphas::io
 	/*!
 	 * Save a list of points to a file.
 	 *
-	 * \param field The field which is persisted.
-	 * \param dir The directory to save the data.
-	 * \param index The current solution index of the data.
-	 * \param id An identifying value associated with the data.
+	 * \param data The data that is persisted to the file.
+	 * \param dir The directory of the file that is created.
+	 * \param index The identifying index of the data that is saved, e.g. the time index.
+	 * \param id An identifying number corresponding to the type of data, e.g. the phase-field id
+	 * from which the data comes from.
 	 */
 	template<typename T, typename S = void>
 	void save_abs(T* field, len_type len,
@@ -377,14 +392,15 @@ namespace symphas::io
 	/*!
 	 * Save a list of 1-dimensional vector-valued numbers to a file.
 	 *
-	 * \param data The data which is persisted.
-	 * \param dir The directory to save the data.
-	 * \param index The current solution index of the data.
-	 * \param id An identifying value associated with the data.
+	 * \param data The data that is persisted to the file.
+	 * \param dir The directory of the file that is created.
+	 * \param index The identifying index of the data that is saved, e.g. the time index.
+	 * \param id An identifying number corresponding to the type of data, e.g. the phase-field id
+	 * from which the data comes from.
 	 */
 	template<typename S = void>
 	void save_vec(
-		std::vector<std::pair<axis_1d_type, scalar_t>> const& data, 
+		std::vector<std::pair<axis_1d_type, scalar_t>> const& data,
 		const char* dir = ".", iter_type index = 0, size_t id = 0)
 	{
 		save_vec_default<1>(symphas::lib::to_scalar_field<1>(data), dir, index, id);
@@ -394,14 +410,15 @@ namespace symphas::io
 	/*!
 	 * Save a list of 1-dimensional vector-valued complex numbers to a file.
 	 *
-	 * \param data The data which is persisted.
-	 * \param dir The directory to save the data.
-	 * \param index The current solution index of the data.
-	 * \param id An identifying value associated with the data.
+	 * \param data The data that is persisted to the file.
+	 * \param dir The directory of the file that is created.
+	 * \param index The identifying index of the data that is saved, e.g. the time index.
+	 * \param id An identifying number corresponding to the type of data, e.g. the phase-field id
+	 * from which the data comes from.
 	 */
 	template<typename S = void>
 	void save_vec(
-		std::vector<std::pair<axis_1d_type, complex_t>> const& data, 
+		std::vector<std::pair<axis_1d_type, complex_t>> const& data,
 		const char* dir = ".", iter_type index = 0, size_t id = 0)
 	{
 		save_vec_default<1>(data, dir, index, id);
@@ -411,14 +428,15 @@ namespace symphas::io
 	/*!
 	 * Save a list of 2-dimensional vector-valued numbers to a file.
 	 *
-	 * \param data The data which is persisted.
-	 * \param dir The directory to save the data.
-	 * \param index The current solution index of the data.
-	 * \param id An identifying value associated with the data.
+	 * \param data The data that is persisted to the file.
+	 * \param dir The directory of the file that is created.
+	 * \param index The identifying index of the data that is saved, e.g. the time index.
+	 * \param id An identifying number corresponding to the type of data, e.g. the phase-field id
+	 * from which the data comes from.
 	 */
 	template<typename S = void>
 	void save_vec(
-		std::vector<std::pair<axis_2d_type, scalar_t>> const& data, 
+		std::vector<std::pair<axis_2d_type, scalar_t>> const& data,
 		const char* dir = ".", iter_type index = 0, size_t id = 0)
 	{
 		save_vec_default<2>(symphas::lib::to_scalar_field<2>(data), dir, index, id);
@@ -428,14 +446,15 @@ namespace symphas::io
 	/*!
 	 * Save a list of 2-dimensional vector-valued complex numbers to a file.
 	 *
-	 * \param data The data which is persisted.
-	 * \param dir The directory to save the data.
-	 * \param index The current solution index of the data.
-	 * \param id An identifying value associated with the data.
+	 * \param data The data that is persisted to the file.
+	 * \param dir The directory of the file that is created.
+	 * \param index The identifying index of the data that is saved, e.g. the time index.
+	 * \param id An identifying number corresponding to the type of data, e.g. the phase-field id
+	 * from which the data comes from.
 	 */
 	template<typename S = void>
 	void save_vec(
-		std::vector<std::pair<axis_2d_type, complex_t>> const& data, 
+		std::vector<std::pair<axis_2d_type, complex_t>> const& data,
 		const char* dir = ".", iter_type index = 0, size_t id = 0)
 	{
 		save_vec_default<2>(data, dir, index, id);
@@ -445,14 +464,15 @@ namespace symphas::io
 	/*!
 	 * Save a list of 3-dimensional vector-valued numbers to a file.
 	 *
-	 * \param data The data which is persisted.
-	 * \param dir The directory to save the data.
-	 * \param index The current solution index of the data.
-	 * \param id An identifying value associated with the data.
+	 * \param data The data that is persisted to the file.
+	 * \param dir The directory of the file that is created.
+	 * \param index The identifying index of the data that is saved, e.g. the time index.
+	 * \param id An identifying number corresponding to the type of data, e.g. the phase-field id
+	 * from which the data comes from.
 	 */
 	template<typename S = void>
 	void save_vec(
-		std::vector<std::pair<axis_3d_type, scalar_t>> const& data, 
+		std::vector<std::pair<axis_3d_type, scalar_t>> const& data,
 		const char* dir = ".", iter_type index = 0, size_t id = 0)
 	{
 		save_vec_default<3>(symphas::lib::to_scalar_field<3>(data), dir, index, id);
@@ -462,14 +482,15 @@ namespace symphas::io
 	/*!
 	 * Save a list of 3-dimensional vector-valued complex numbers to a file.
 	 *
-	 * \param data The data which is persisted.
-	 * \param dir The directory to save the data.
-	 * \param index The current solution index of the data.
-	 * \param id An identifying value associated with the data.
+	 * \param data The data that is persisted to the file.
+	 * \param dir The directory of the file that is created.
+	 * \param index The identifying index of the data that is saved, e.g. the time index.
+	 * \param id An identifying number corresponding to the type of data, e.g. the phase-field id
+	 * from which the data comes from.
 	 */
 	template<typename S = void>
 	void save_vec(
-		std::vector<std::pair<axis_3d_type, complex_t>> const& data, 
+		std::vector<std::pair<axis_3d_type, complex_t>> const& data,
 		const char* dir = ".", iter_type index = 0, size_t id = 0)
 	{
 		save_vec_default<3>(data, dir, index, id);
@@ -482,10 +503,11 @@ namespace symphas::io
 	/*!
 	 * Save a list of 1-dimensional vector-valued numbers to a file.
 	 *
-	 * \param data The data which is persisted.
-	 * \param dir The directory to save the data.
-	 * \param index The current solution index of the data.
-	 * \param id An identifying value associated with the data.
+	 * \param data The data that is persisted to the file.
+	 * \param dir The directory of the file that is created.
+	 * \param index The identifying index of the data that is saved, e.g. the time index.
+	 * \param id An identifying number corresponding to the type of data, e.g. the phase-field id
+	 * from which the data comes from.
 	 */
 	template<typename S = void, size_t N = 2>
 	void save_vec(
@@ -499,10 +521,11 @@ namespace symphas::io
 	/*!
 	 * Save a list of 2-dimensional vector-valued numbers to a file.
 	 *
-	 * \param data The data which is persisted.
-	 * \param dir The directory to save the data.
-	 * \param index The current solution index of the data.
-	 * \param id An identifying value associated with the data.
+	 * \param data The data that is persisted to the file.
+	 * \param dir The directory of the file that is created.
+	 * \param index The identifying index of the data that is saved, e.g. the time index.
+	 * \param id An identifying number corresponding to the type of data, e.g. the phase-field id
+	 * from which the data comes from.
 	 */
 	template<typename S = void, size_t N = 2>
 	void save_vec(
@@ -516,10 +539,11 @@ namespace symphas::io
 	/*!
 	 * Save a list of 3-dimensional vector-valued numbers to a file.
 	 *
-	 * \param data The data which is persisted.
-	 * \param dir The directory to save the data.
-	 * \param index The current solution index of the data.
-	 * \param id An identifying value associated with the data.
+	 * \param data The data that is persisted to the file.
+	 * \param dir The directory of the file that is created.
+	 * \param index The identifying index of the data that is saved, e.g. the time index.
+	 * \param id An identifying number corresponding to the type of data, e.g. the phase-field id
+	 * from which the data comes from.
 	 */
 	template<typename S = void, size_t N = 2>
 	void save_vec(
@@ -535,10 +559,11 @@ namespace symphas::io
 	/*!
 	 * Save a list of points to a file.
 	 *
-	 * \param field The field which is persisted.
-	 * \param dir The directory to save the data.
-	 * \param index The current solution index of the data.
-	 * \param id An identifying value associated with the data.
+	 * \param data The data that is persisted to the file.
+	 * \param dir The directory of the file that is created.
+	 * \param index The identifying index of the data that is saved, e.g. the time index.
+	 * \param id An identifying number corresponding to the type of data, e.g. the phase-field id
+	 * from which the data comes from.
 	 */
 	template<size_t D, typename T, typename S = void>
 	void save_vec(FieldAxis<D, T*> field,
@@ -574,7 +599,6 @@ namespace symphas::io
  *
  * implementation of save functions
  */
-
 
 template<typename T>
 void symphas::io::save_pts_default(std::vector<std::tuple<iter_type, axis_1d_type, T>> const& data, const char* dir, int index, size_t id, const char* abs_name)
