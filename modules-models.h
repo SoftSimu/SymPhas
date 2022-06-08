@@ -38,6 +38,27 @@
 
 namespace symphas::internal
 {
+
+	template<size_t D>
+	void print_stencil_message(const char* (&deriv_names)[D], size_t(&stencil_values)[D])
+	{
+		int max_name_len = 0;
+		for (iter_type i = 0; i < D; ++i)
+		{
+			int name_len = std::strlen(deriv_names[i]);
+			max_name_len = (name_len > max_name_len) ? name_len : max_name_len;
+		}
+
+		fprintf(SYMPHAS_LOG, "the finite difference stencils of the solver use the "
+			"following point values:\n");
+
+		for (iter_type i = 0; i < D; ++i)
+		{
+			fprintf(SYMPHAS_LOG, "\t%-*s : %zd\n", max_name_len, deriv_names[i], stencil_values[i]);
+		}
+	}
+
+
 	template<
 		template<size_t, typename> typename Model,
 		template<typename> typename Solver,
@@ -46,6 +67,10 @@ namespace symphas::internal
 	>
 	auto run_model_call(std::index_sequence<D, O, Ps...>, Ts&& ...args)
 	{
+		const char* names[]{ "laplacian", "gradlaplacian", "bilaplacian" };
+		size_t values[]{ Ps... };
+		print_stencil_message(names, values);
+
 		using type = typename SelfSelectingStencil<D, O>::template Points<Ps...>;
 		return MODEL_APPLY_CALL<Model<D, Solver<type>>>(std::forward<Ts>(args)...);
 	}
