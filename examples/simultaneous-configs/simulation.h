@@ -72,14 +72,16 @@ namespace simulate
 #ifdef USING_CONF
 		model_select m{ symphas::conf::config().dimension, symphas::conf::config().stp };
 #else
-		model_select m{ 2, StencilParams{} };
+		model_select m{ 2, StencilParams{2, 9, 6, 13} };
 #endif
 
+#ifdef SOLVER_INCLUDE_HEADER
 		if (m.call<SOLVER_TYPE>(modelname, coeff, num_coeff) == INVALID_MODEL)
 		{
 			fprintf(SYMPHAS_ERR, "Unknown model provided, '%s'\n", modelname);
 			exit(101);
 		}
+#endif
 
 #ifdef PRINT_TIMINGS
 		print_timings(SYMPHAS_LOG);

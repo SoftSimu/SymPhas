@@ -1,10 +1,11 @@
 #include <iostream>
 
-#ifdef MODEL_INCLUDE_HEADER
+#include "symphas.h"
+
+#if (defined(MODEL_INCLUDE_HEADER) && defined(USING_MODEL_SELECTION))
 #include "simulation.h"
 
 #else
-#include "symphas.h"
 
 #define dpsi dop(1)
 #define psi op(1)
@@ -39,7 +40,7 @@ int main(int argc, char* argv[])
 
 #else
 
-#	if !defined(MODEL_INCLUDE_HEADER) || !defined(USING_MODEL_SELECTION)
+#	if (!defined(MODEL_INCLUDE_HEADER) || !defined(USING_MODEL_SELECTION))
 
 	UNUSED(argc);
 	UNUSED(argv);
@@ -66,8 +67,13 @@ int main(int argc, char* argv[])
 	pp.set_interval_data(&vdata);
 	pp.set_problem_time_step(dt);
 
+#		ifdef SOLVER_INCLUDE_HEADER
 	model_EX_t<2, SOLVER_TYPE<Stencil2d2h<5, 9, 6>>> model{ pp };
 	symphas::find_solution(model, dt, 50);
+#		else
+	model_EX_t<2, Solver<void>> model{ pp };
+#		endif
+
 	auto pfdata = model.grid<0>();
 
 #		ifdef USING_IO
@@ -76,7 +82,6 @@ int main(int argc, char* argv[])
 
 #	else
 
-
 	Time t("entire simulation");
 
 	if (argc == 1)
@@ -84,11 +89,8 @@ int main(int argc, char* argv[])
 		fprintf(SYMPHAS_ERR, "the first argument specifying the configuration must be provided\n");
 		exit(102);
 	}
-
-
-
-	symphas::init(argv[1], argv + 2, argc - 2);
 	
+	symphas::init(argv[1], argv + 2, argc - 2);
 
 #	ifdef USING_CONF
 	simulate::initiate(symphas::conf::config().get_model_name(), symphas::conf::config().get_coeff_list(), symphas::conf::config().coeff_count());
