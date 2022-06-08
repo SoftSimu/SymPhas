@@ -1084,15 +1084,15 @@ SystemConf::SystemConf(std::vector<std::pair<std::string, std::string>> params, 
 		exit(8010);
 	}
 
-	if (stp.ptl == 0)
+	if (stp.ptl == StencilParams{}.ptl)
 	{
 		select_stencil(2, STR(CONFIG_OPTION_PREFIX));
 	}
-	if (stp.ptg == 0)
+	if (stp.ptg == StencilParams{}.ptg)
 	{
 		select_stencil(3, STR(CONFIG_OPTION_PREFIX));
 	}
-	if (stp.ptb == 0)
+	if (stp.ptb == StencilParams{}.ptb)
 	{
 		select_stencil(4, STR(CONFIG_OPTION_PREFIX));
 	}
@@ -1882,20 +1882,28 @@ void SystemConf::select_stencil(size_t order, const char* str)
 	if (*str == CONFIG_OPTION_PREFIX_C)
 	{
 		StencilParams default_stp = DefaultStencil{ dimension, stp.ord }();
-
-		switch (order)
+		if (default_stp != StencilParams{})
 		{
-		case 2:
-			stp.ptl = default_stp.ptl;
-			break;
-		case 3:
-			stp.ptg = default_stp.ptg;
-			break;
-		case 4:
-			stp.ptb = default_stp.ptb;
-			break;
-		default:
-			fprintf(SYMPHAS_WARN, msg, order);
+
+			switch (order)
+			{
+			case 2:
+				stp.ptl = default_stp.ptl;
+				break;
+			case 3:
+				stp.ptg = default_stp.ptg;
+				break;
+			case 4:
+				stp.ptb = default_stp.ptb;
+				break;
+			default:
+				fprintf(SYMPHAS_WARN, msg, order);
+			}
+		}
+		else
+		{
+			fprintf(SYMPHAS_WARN, "not able to select a default stencil witht he given "
+				"dimension (%zd) and order of accuracy (%zd)", dimension, stp.ord);
 		}
 	}
 	else
