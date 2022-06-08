@@ -42,10 +42,10 @@ namespace symphas::internal
 	template<size_t D>
 	void print_stencil_message(const char* (&deriv_names)[D], size_t(&stencil_values)[D])
 	{
-		int max_name_len = 0;
+		size_t max_name_len = 0;
 		for (iter_type i = 0; i < D; ++i)
 		{
-			int name_len = std::strlen(deriv_names[i]);
+			size_t name_len = std::strlen(deriv_names[i]);
 			max_name_len = (name_len > max_name_len) ? name_len : max_name_len;
 		}
 
@@ -54,7 +54,7 @@ namespace symphas::internal
 
 		for (iter_type i = 0; i < D; ++i)
 		{
-			fprintf(SYMPHAS_LOG, "\t%-*s : %zd\n", max_name_len, deriv_names[i], stencil_values[i]);
+			fprintf(SYMPHAS_LOG, "\t%-*s : %zd\n", static_cast<int>(max_name_len), deriv_names[i], stencil_values[i]);
 		}
 	}
 
