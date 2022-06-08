@@ -1902,8 +1902,8 @@ void SystemConf::select_stencil(size_t order, const char* str)
 		}
 		else
 		{
-			fprintf(SYMPHAS_WARN, "not able to select a default stencil witht he given "
-				"dimension (%zd) and order of accuracy (%zd)", dimension, stp.ord);
+			fprintf(SYMPHAS_WARN, "not able to select a default stencil with the given "
+				"dimension (%zd) and order of accuracy (%hu)", dimension, stp.ord);
 		}
 	}
 	else
