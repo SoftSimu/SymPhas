@@ -55,7 +55,7 @@ struct PhaseFieldSystem : PersistentSystemData<G<T, D>>
 {
 	using parent_type = PersistentSystemData<G<T, D>>;
 	using parent_type::info;
-	using parent_type::data_len;
+	using parent_type::length;
 
 	//! Create a phase field system using the boundary data.
 	/*!

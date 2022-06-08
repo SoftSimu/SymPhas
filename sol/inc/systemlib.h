@@ -207,7 +207,7 @@ struct SystemData<Grid<T, D>> : Grid<T, D>, SystemInfo
 	 * The elements which are considered true data are the interior domain,
 	 * that is, all non-boundary elements. Return the count of these elements.
 	 */
-	auto data_len() const
+	auto length() const
 	{
 		return len;
 	}
@@ -221,11 +221,24 @@ struct SystemData<Grid<T, D>> : Grid<T, D>, SystemInfo
 	{
 		std::copy(
 #ifdef EXECUTION_HEADER_AVAILABLE
-			std::execution::par, 
+			std::execution::par_unseq,
 #endif
 			values, values + len, out);
 	}
 
+	//! Copies the input data into the system values.
+	/*!
+	 * The values of the system data block are initialized from the
+	 * given values, correctly transcribing all values.
+	 */
+	void fill(const T* in) const
+	{
+		std::copy(
+#ifdef EXECUTION_HEADER_AVAILABLE
+			std::execution::par_unseq,
+#endif
+			in, in + len, values);
+	}
 
 protected:
 
@@ -298,7 +311,7 @@ struct SystemData<BoundaryGrid<T, D>> : BoundaryGrid<T, D>, SystemInfo
 	 * The elements which are considered true data are the interior domain,
 	 * that is, all non-boundary elements. Return the count of these elements.
 	 */
-	auto data_len() const
+	auto length() const
 	{
 		return grid::length_interior<D>(dims);
 	}
@@ -314,6 +327,15 @@ struct SystemData<BoundaryGrid<T, D>> : BoundaryGrid<T, D>, SystemInfo
 		grid::copy_interior(*this, out);
 	}
 
+	//! Copies the input data into the system values.
+	/*!
+	 * The values of the system data block are initialized from the
+	 * given values, correctly transcribing all values.
+	 */
+	void fill(const T* in) const
+	{
+		grid::fill_interior(in, values, dims);
+	}
 
 protected:
 
@@ -352,7 +374,7 @@ struct PersistentSystemData<G<T, D>> : SystemData<G<T, D>>
 	using parent_type::id;
 	using parent_type::info;
 	using parent_type::persist;
-	using parent_type::data_len;
+	using parent_type::length;
 
 	//! Create a system that can persist data to disk.
 	/*!
@@ -360,7 +382,7 @@ struct PersistentSystemData<G<T, D>> : SystemData<G<T, D>>
 	 * grid instance and information defining that grid.
 	 */
 	PersistentSystemData(symphas::interval_data_type const& vdata, size_t id) :
-		parent_type(vdata, id), writer{ data_len() } {}
+		parent_type(vdata, id), writer{ length() } {}
 
 	void persist() const
 	{
@@ -439,13 +461,13 @@ struct PersistentSystemData<G<T, D>> : SystemData<G<T, D>>
 	using field_type = symphas::FieldAxis<D, T*>;
 	operator field_type() const
 	{
-		auto values = std::make_shared<T[]>(data_len());
+		auto values = std::make_shared<T[]>(length());
 		persist(values.get());
 
 		return {
 			std::shared_ptr<axis_nd_t<D>[]>(std::move(symphas::lib::new_system_axis_list<D>(info.intervals))),
 			values,
-			data_len() };
+			length() };
 	}
 
 	field_type as_field() const
@@ -509,12 +531,12 @@ struct PersistentSystemData<G<T, D>> : SystemData<G<T, D>>
 	using parent_type::info;
 
 	using parent_type::persist;
-	using parent_type::data_len;
+	using parent_type::length;
 
 
 	Block<T> get_snapshot() const
 	{
-		Block<T> data(data_len());
+		Block<T> data(length());
 		persist(data.values);
 		return std::move(data);
 	}
