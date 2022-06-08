@@ -143,10 +143,10 @@ NEW_SOLVER(SolverSP)
 
 
 	template<typename S>
-	void step(S&&, double) {}
+	void step(S&&, double) const {}
 
 	template<size_t Z, typename S, typename T>
-	void equation(std::pair<Variable<Z, symphas::ref<S>>, T>& r)
+	void equation(std::pair<Variable<Z, symphas::ref<S>>, T>& r) const
 	{
 		auto& [sys, data] = r;
 		data.update();
@@ -160,7 +160,7 @@ NEW_SOLVER(SolverSP)
 	 * and the other containing nonlinear terms
 	 */
 	template<size_t En, typename... Ss, size_t Z, typename S, typename E, typename T_src = typename grid::value_type_of<S>::type, size_t D = grid::dimension_of<S>::value>
-	decltype(auto) form_expr_one(std::tuple<Ss...> const& systems, std::pair<Variable<Z, symphas::ref<S>>, E>&& e)
+	decltype(auto) form_expr_one(std::tuple<Ss...> const& systems, std::pair<Variable<Z, symphas::ref<S>>, E>&& e) const
 	{
 		auto&& [sys, equation] = e;
 		auto&& [linear, nonlinear] = expr::split::by_linear(equation);
@@ -193,7 +193,7 @@ NEW_SOLVER(SolverSP)
 
 		// the nonlinear equation which is solved, append it to the tuple of equation data
 		auto&& data = SpectralData(
-			expr::make_op(NamedData(A, A_expression)),
+			expr::make_op(NamedData(std::move(A), A_expression)),
 			Bs, 
 			nls, 
 			sys.get().frame_t, 
@@ -234,7 +234,7 @@ NEW_SOLVER(SolverSP)
 	 * \param r The pair consisting of the data and equation.
 	 */
 	template<typename G, typename E>
-	void evaluate_one(std::pair<G, E>& r)
+	void evaluate_one(std::pair<G, E>& r) const
 	{
 		if constexpr (!expr::is_nonlinear<E>::value)
 		{
@@ -257,7 +257,7 @@ NEW_SOLVER(SolverSP)
 	 * \param r The pair consisting of the data and equation.
 	 */
 	template<typename G, typename E>
-	void evaluate_one(std::pair<G, E>&& r)
+	void evaluate_one(std::pair<G, E>&& r) const
 	{
 		if constexpr (!expr::is_nonlinear<E>::value)
 		{

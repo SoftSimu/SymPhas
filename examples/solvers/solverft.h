@@ -25,6 +25,7 @@
  * ***************************************************************************
  */
 
+#pragma once
 
 #include "solver.h"
 #include "expressions.h"
@@ -90,7 +91,7 @@ public:
 	 * forward euler method for actually updating the grid
 	 */
 	template<typename S>
-	void step(S &sys, double dt)
+	void step(S &sys, double dt) const
 	{
 		expr::result_interior(expr::make_op(sys) + expr::make_op(dt, sys.dframe), sys);
 	}
@@ -102,7 +103,7 @@ public:
 	 * packaged and the equality operator is deferred to the oplvariable
 	 */
 	template<typename S, typename E>
-	inline void equation(std::pair<S, E>& r)
+	inline void equation(std::pair<S, E>& r) const
 	{
 		auto& [sys, equation] = r;
 		expr::prune::update(equation);
@@ -117,7 +118,7 @@ public:
 	 */
 
 	template<size_t En, typename SS, typename S, typename E>
-	auto form_expr_one(SS&&, std::pair<S, E>&& e)
+	auto form_expr_one(SS&&, std::pair<S, E>&& e) const
 	{
 		auto [sys, equation] = e;
 		auto eq_ft = expr::distribute_operators(equation);
@@ -173,7 +174,7 @@ public:
 	// given the grid/equation pair, evaluate the equation into the grid
 	// element by element
 	template<typename G, typename E>
-	void evaluate_one(std::pair<G, E>& r)
+	void evaluate_one(std::pair<G, E>& r) const
 	{
 		auto& [grid, equation] = r;
 		if constexpr (expr::has_state<E>::value)
@@ -185,7 +186,7 @@ public:
 	}
 
 	template<typename G, typename E>
-	void evaluate_one(std::pair<G, E>&& r)
+	void evaluate_one(std::pair<G, E>&& r) const
 	{
 		auto& [grid, equation] = r;
 		if constexpr (expr::has_state<E>::value)

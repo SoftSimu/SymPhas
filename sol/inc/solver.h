@@ -214,7 +214,7 @@ namespace symphas
  *
  *
  * For the core solver functionality, three functions must be implemented,
- * `form_expr_one`, `equation` and `step`.
+ * `form_expr_one`, `equation` and `step`. These are all `const` functions.
  * 
  * The first function will be given an equation of motion and will be required
  * to create an object from this equation that will be used to update the
@@ -223,7 +223,7 @@ namespace symphas
  * 
  * ```cpp
  * template<size_t En, typename SS, typename S, typename E>
- * auto form_expr_one(SS&&, std::pair<S, E>&& e)
+ * auto form_expr_one(SS&&, std::pair<S, E>&& e) const
  * ```
  * 
  * The template parameter `En` is the index of the order parameter for which
@@ -254,7 +254,7 @@ namespace symphas
  * 
  * ```cpp
  * template<size_t En, typename SS, typename... Es>
- * decltype(auto) form_expr(SS&& s, Es&& ...es)
+ * decltype(auto) form_expr(SS&& s, Es&& ...es) const
  * ```
  * 
  * where `es...` are all the equations of motion.
@@ -268,7 +268,7 @@ namespace symphas
  * 
  * ```cpp
  * template<typename S, typename E>
- * void equation(std::pair<S, E>& r)
+ * void equation(std::pair<S, E>& r) const
  * ```
  * 
  * The last function will step the solution through time, that is, it has
@@ -277,7 +277,7 @@ namespace symphas
  * 
  * ```cpp
  * template<typename S>
- * void step(S& sys, double dt)
+ * void step(S& sys, double dt) const
  * ```
  * 
  * The type `S` is the phase field system, depending on the type that
@@ -450,9 +450,9 @@ struct Solver
 	 * \param dt The time step.
 	 */
 	template<typename S>
-	void step(S&& ss, double dt)
+	void step(S&& ss, double dt) const
 	{
-		cast().template step(std::forward<S>(ss), dt);
+		cast_const().template step(std::forward<S>(ss), dt);
 	}
 
 	//! Evaluate the equations.
@@ -466,7 +466,7 @@ struct Solver
 	 * solution at this solution stage.
 	 */
 	template<typename... Rs>
-	void equations(std::tuple<Rs...>& rs)
+	void equations(std::tuple<Rs...>& rs) const
 	{
 		equations_apply(rs, std::make_index_sequence<std::tuple_size<std::tuple<Rs...>>::value>{});
 	}
@@ -482,7 +482,7 @@ struct Solver
 	 * solution at this solution stage.
 	 */
 	template<typename... Rs>
-	void equations(std::tuple<Rs...>&& rs)
+	void equations(std::tuple<Rs...>&& rs) const
 	{
 		equations_apply(rs, std::make_index_sequence<std::tuple_size<std::tuple<Rs...>>::value>{});
 	}
@@ -498,15 +498,15 @@ struct Solver
 	 * solution at this solution stage.
 	 */
 	template<typename... Rs>
-	void equations(Rs&& ... rs)
+	void equations(Rs&& ... rs) const
 	{
-		((..., cast().equation(std::forward<Rs>(rs))));
+		((..., cast_const().equation(std::forward<Rs>(rs))));
 	}
 
 	//! Evaluate the equations.
 	/*!
-	 * For unsupported types, OpVoid will be returned for the equation that 
-	 * needs to be processed. When OpVoid is given, then no action is taken 
+	 * For unsupported types, OpVoid will be returned for the equation that
+	 * needs to be processed. When OpVoid is given, then no action is taken
 	 * (since it is equivalently zero).
 	 */
 	void equations(symphas::internal::solver_unsupported_equation) {}
@@ -518,9 +518,9 @@ struct Solver
 	 * stored by the corresponding left hand side data.
 	 */
 	template<typename... Rs>
-	inline void evaluate(std::tuple<Rs...>& rs)
+	inline void evaluate(std::tuple<Rs...>& rs) const
 	{
-		cast().evaluate_apply(rs, std::make_index_sequence<sizeof...(Rs)>{});
+		cast_const().evaluate_apply(rs, std::make_index_sequence<sizeof...(Rs)>{});
 	}
 
 	//! Evaluate the given list of elements, typically equation/data pairs.
@@ -529,9 +529,9 @@ struct Solver
 	 * stored by the corresponding left hand side data.
 	 */
 	template<typename... Rs>
-	inline void evaluate(std::tuple<Rs...>&& rs)
+	inline void evaluate(std::tuple<Rs...>&& rs) const
 	{
-		cast().evaluate_apply(rs, std::make_index_sequence<sizeof...(Rs)>{});
+		cast_const().evaluate_apply(rs, std::make_index_sequence<sizeof...(Rs)>{});
 	}
 
 	//! Evaluate the given list of elements, typically equation/data pairs.
@@ -540,9 +540,9 @@ struct Solver
 	 * stored by the corresponding left hand side data.
 	 */
 	template<typename... Rs>
-	inline void evaluate(Rs&&... rs)
+	inline void evaluate(Rs&&... rs) const
 	{
-		((..., cast().evaluate_one(std::forward<Rs>(rs))));
+		((..., cast_const().evaluate_one(std::forward<Rs>(rs))));
 	}
 
 
@@ -552,9 +552,9 @@ struct Solver
 	 * stored by the corresponding left hand side data.
 	 */
 	template<typename R>
-	inline void equation(R&& r)
+	inline void equation(R&& r) const
 	{
-		cast().equation(std::forward<R>(r));
+		cast_const().equation(std::forward<R>(r));
 	}
 
 
@@ -572,9 +572,9 @@ struct Solver
 	 */
 	template<size_t En, typename... S, typename... Es, 
 		typename std::enable_if_t<symphas::internal::solver_supported_systems<Sp, S...>::value, int> = 0>
-	decltype(auto) form_expr_all(std::tuple<S...> const& systems, Es&& ...es)
+	decltype(auto) form_expr_all(std::tuple<S...> const& systems, Es&& ...es) const
 	{
-		return cast().template form_expr<En>(systems, std::forward<Es>(es)...);
+		return cast_const().template form_expr<En>(systems, std::forward<Es>(es)...);
 	}
 
 	//! No equation is created for incompatible types.
@@ -587,7 +587,7 @@ struct Solver
 	 */
 	template<size_t En, typename... S, typename... Es, 
 		typename std::enable_if_t<!symphas::internal::solver_supported_systems<Sp, S...>::value, int> = 0>
-	decltype(auto) form_expr_all(std::tuple<S...> const&, Es&& ...)
+	decltype(auto) form_expr_all(std::tuple<S...> const&, Es&& ...) const
 	{
 		return symphas::internal::solver_unsupported_equation{};
 	}
@@ -606,9 +606,9 @@ struct Solver
 	 */
 	template<size_t En, typename... S, typename... Es, 
 		typename std::enable_if_t<symphas::internal::solver_supported_systems<Sp, S...>::value, int> = 0>
-	decltype(auto) form_expr_all(std::tuple<S const&...>&& systems, Es&& ...es)
+	decltype(auto) form_expr_all(std::tuple<S const&...>&& systems, Es&& ...es) const
 	{
-		return cast().template form_expr<En>(systems, std::forward<Es>(es)...);
+		return cast_const().template form_expr<En>(systems, std::forward<Es>(es)...);
 	}
 
 	//! Create the equation which is evaluated by the solver iteratively.
@@ -621,7 +621,7 @@ struct Solver
 	 */
 	template<size_t En, typename... S, typename... Es, 
 		typename std::enable_if_t<!symphas::internal::solver_supported_systems<Sp, S...>::value, int> = 0>
-		decltype(auto) form_expr_all(std::tuple<S const&...>&& systems, Es&& ...)
+		decltype(auto) form_expr_all(std::tuple<S const&...>&& systems, Es&& ...) const
 	{
 		return symphas::internal::solver_unsupported_equation{};
 	}
@@ -760,9 +760,9 @@ protected:
 
 	//! Indirection used when the expression may be invalid.
 	template<size_t En, typename SS, typename... Es>
-	decltype(auto) form_expr(SS&& s, Es&& ...es)
+	decltype(auto) form_expr(SS&& s, Es&& ...es) const
 	{
-		return std::make_tuple(cast().template form_expr_one<En>(std::forward<SS>(s), std::forward<Es>(es))...);
+		return std::make_tuple(cast_const().template form_expr_one<En>(std::forward<SS>(s), std::forward<Es>(es))...);
 	}
 
 	//! Applied implementation of evaluating a list of elements.
@@ -771,7 +771,7 @@ protected:
 	 * it avoids disambiguation when using std::apply to forward tuples.
 	 */
 	template<typename... Rs, size_t... Is>
-	inline void equations_apply(std::tuple<Rs...>& rs, std::index_sequence<Is...>)
+	inline void equations_apply(std::tuple<Rs...>& rs, std::index_sequence<Is...>) const
 	{
 		((..., equations(std::get<Is>(rs))));
 	}
@@ -782,25 +782,25 @@ protected:
 	 * See Solver::_equations.
 	 */
 	template<typename... Rs, size_t... Is>
-	inline void evaluate_apply(std::tuple<Rs...>& rs, std::index_sequence<Is...>)
+	inline void evaluate_apply(std::tuple<Rs...>& rs, std::index_sequence<Is...>) const
 	{
 		((..., cast().evaluate_one(std::get<Is>(rs))));
 	}
 	template<typename... Rs, size_t... Is>
-	inline void evaluate_apply(std::tuple<Rs...>&& rs, std::index_sequence<Is...>)
+	inline void evaluate_apply(std::tuple<Rs...>&& rs, std::index_sequence<Is...>) const
 	{
 		((..., cast().evaluate_one(std::get<Is>(rs))));
 	}
 
 
 	//! Evaluate the result of the equation into the given data.
-	/*! 
+	/*!
 	 * Evaluate the equation into the given data.
-	 * 
+	 *
 	 * \param r The pair consisting of the data and equation.
 	 */
 	template<typename G, typename E, typename std::enable_if_t<expr::has_state<E>::value, int> = 0>
-	void evaluate_one(std::pair<G, E>& r)
+	void evaluate_one(std::pair<G, E>& r) const
 	{
 		auto&& [grid, equation] = r;
 		expr::prune::update(equation);
@@ -808,7 +808,7 @@ protected:
 	}
 
 	template<typename G, typename E, typename std::enable_if_t<!expr::has_state<E>::value, int> = 0>
-	void evaluate_one(std::pair<G, E>& r)
+	void evaluate_one(std::pair<G, E>& r) const
 	{
 		auto&& [grid, equation] = r;
 		expr::result(equation, expr::BaseData<G>::get(grid));
@@ -821,7 +821,7 @@ protected:
 	 * \param r The pair consisting of the data and equation.
 	 */
 	template<typename G, typename E, typename std::enable_if_t<expr::has_state<E>::value, int> = 0>
-	void evaluate_one(std::pair<G, E>&& r)
+	void evaluate_one(std::pair<G, E>&& r) const
 	{
 		auto& [grid, equation] = r;
 		expr::prune::update(equation);
@@ -829,7 +829,7 @@ protected:
 	}
 
 	template<typename G, typename E, typename std::enable_if_t<!expr::has_state<E>::value, int> = 0>
-	void evaluate_one(std::pair<G, E>&& r)
+	void evaluate_one(std::pair<G, E>&& r) const
 	{
 		auto& [grid, equation] = r;
 		expr::result(equation, expr::BaseData<G>::get(grid));
