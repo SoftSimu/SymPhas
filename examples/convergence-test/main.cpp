@@ -9,6 +9,9 @@ int main(int argc, char* argv[])
 	symphas::init(argv[1], argv + 2, argc - 2);
 
 
+	using solver = SolverFT<Stencil2d2h<9, 13, 6>>;
+	using model = model_AC_MMS_t<2, solver>;
+
 	char convergence_f_name[] = "convergence_results_dt.csv";
 	FILE* f = fopen(convergence_f_name, "w");
 	fprintf(f, "dt, N, L2\n");
@@ -40,7 +43,7 @@ int main(int argc, char* argv[])
 	c.set_directory(buffer);
 
 	c.save = SaveParams(0, 0);
-	model_AC_MMS_t<2, SolverFT<Stencil2d2h<9, 13, 6>>> model_final(c.get_coeff_list(), c.coeff_count(), pp);
+	model model_final(c.get_coeff_list(), c.coeff_count(), pp);
 	symphas::find_solution(model_final, c);
 	symphas::io::write_plot_config(model_final, c.get_result_dir(), c.save);
 
@@ -62,7 +65,7 @@ int main(int argc, char* argv[])
 		c.save = SaveParams(N, N);
 
 
-		model_AC_MMS_t<2, SolverFT<Stencil2d2h<9, 13, 6>>> model_simulate(c.get_coeff_list(), c.coeff_count(), pp);
+		model model_simulate(c.get_coeff_list(), c.coeff_count(), pp);
 		symphas::find_solution(model_simulate, c);
 		symphas::io::write_plot_config(model_simulate, c.get_result_dir());
 
@@ -115,7 +118,7 @@ int main(int argc, char* argv[])
 		symphas::init_data_type first_init(symphas::init_data_expr("MMS_AC_INIT", init_data.expr_data.get_coeff(), init_data.expr_data.get_num_coeff()));
 		pp.set_initial_data(first_init, 0);
 
-		model_AC_MMS_t<2, SolverFT<Stencil2d2h<9, 13, 6>>> model_simulate(c.get_coeff_list(), c.coeff_count(), pp);
+		model model_simulate(c.get_coeff_list(), c.coeff_count(), pp);
 		symphas::find_solution(model_simulate, c);
 		symphas::io::write_plot_config(model_simulate, c.get_result_dir());
 
@@ -126,7 +129,7 @@ int main(int argc, char* argv[])
 		c.set_directory(buffer);
 
 		c.save = SaveParams(0, 0);
-		model_AC_MMS_t<2, SolverFT<Stencil2d2h<9, 13, 6>>> model_final(c.get_coeff_list(), c.coeff_count(), pp);
+		model model_final(c.get_coeff_list(), c.coeff_count(), pp);
 		symphas::find_solution(model_final, c);
 		symphas::io::write_plot_config(model_final, c.get_result_dir(), c.save);
 
