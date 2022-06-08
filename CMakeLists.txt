@@ -240,11 +240,11 @@ endif()
 
 
 
-configure_file("symphas.h.in" "symphas.h")
-configure_file("prereq-defs.h.in" "prereq-defs.h")
+#configure_file("symphas.h.in" "symphas.h")
+#configure_file("prereq-defs.h.in" "prereq-defs.h")
 
-configure_file("symphas.h.in" "${CMAKE_CURRENT_SOURCE_DIR}/symphas.h")
-configure_file("prereq-defs.h.in" "${CMAKE_CURRENT_SOURCE_DIR}/prereq-defs.h")
+configure_file("symphas.h.in" "${CMAKE_SOURCE_DIR}/inc/symphas.h")
+configure_file("prereq-defs.h.in" "${CMAKE_SOURCE_DIR}/inc/prereq-defs.h")
 
 install(TARGETS ${SYMPHAS_OBJ_LIBS} EXPORT SymPhasDepends)
 foreach(LIB ${SYMPHAS_LIBS})
@@ -255,8 +255,7 @@ foreach(LIB ${SYMPHAS_LIBS})
 		RUNTIME DESTINATION ${BINDIR})
 endforeach()
 
-
-foreach(GROUP_NAME ${GROUP_NAMES})
+foreach(GROUP_NAME IN LISTS GROUP_NAMES ITEMS "${CMAKE_SOURCE_DIR}")
 	file(GLOB_RECURSE INCLUDE_FILES "${GROUP_NAME}/inc/*.h")
 	install(FILES ${INCLUDE_FILES} DESTINATION ${INCLUDEDIR})
 	message(STATUS "module '${GROUP_NAME}' headers will be installed to ${INCLUDEDIR}")

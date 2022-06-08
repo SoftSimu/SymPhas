@@ -23,7 +23,6 @@ find_package(FFTW3 REQUIRED)
 
 include_directories(SYSTEM ${FFTW_INCLUDE_PATH})
 
-
 file(GLOB_RECURSE SOURCES_LIB "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 
 
@@ -37,7 +36,7 @@ set(VECTOR_TYPE_NAME VectorValue)
 #	IMPORTED_LOCATION "${FFTW_DIR}/bin/fftw3.dll"
 #	IMPORTED_IMPLIB "${FFTW3_LIBRARY_DIRS}/fftw3.lib")
 
-configure_file("inc/names.h.in" "${CMAKE_CURRENT_SOURCE_DIR}/inc/names.h")
+configure_file("inc/names.h.in" "${CMAKE_SOURCE_DIR}/inc/names.h")
 	
 if(NOT MSVC)
 	list(APPEND ADD_LINUX_LIBS tbb m ${CMAKE_THREAD_LIBS_INIT})
@@ -46,6 +45,7 @@ endif()
 add_library(symphas_lib_o OBJECT ${SOURCES_LIB})
 target_include_directories(symphas_lib_o PRIVATE ${FFTW3_INCLUDE_DIRS} PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
+	$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/inc>
 	$<INSTALL_INTERFACE:include>)
 target_link_directories(symphas_lib_o PUBLIC ${FFTW3_LIBRARY_DIRS})
 target_link_libraries(symphas_lib_o PUBLIC ${ADD_LINUX_LIBS} PRIVATE ${FFTW3_LIBRARIES})
