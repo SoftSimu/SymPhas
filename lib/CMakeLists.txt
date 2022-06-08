@@ -79,7 +79,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 		target_compile_definitions(symphas_lib_o PUBLIC _CRT_SECURE_NO_WARNINGS)
 	endif()
 	target_compile_options(symphas_lib_o PUBLIC 
-		-Wno-unused-variable -Wno-unused-function -ftime-trace)
+		-Wno-unused-variable -Wno-unused-function -ftime-trace -mavx)
 endif()
 
 
