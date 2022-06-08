@@ -54,7 +54,7 @@ namespace symphas
 		const char* desc;
 		FILE* out;
 
-		Time(FILE* out, const char* str, Ts... args) : out{ out }, start_s{ std::chrono::steady_clock::now() }, desc{ get_desc(str, args...) } {}
+		Time(FILE* out, const char* str, Ts... args) : start_s{ std::chrono::steady_clock::now() }, desc{ get_desc(str, args...) }, out{ out } {}
 		Time(const char* str, Ts... args) : Time(SYMPHAS_LOG, str, args...) {}
 
 		double current_duration()
@@ -73,10 +73,10 @@ namespace symphas
 
 		static const int DESC_LEN = 1024;
 
-		const char* get_desc(const char* str, Ts... args)
+		const char* get_desc(const char* fmt, Ts... args)
 		{
 			char* desc0 = new char[DESC_LEN] {};
-			snprintf(desc0, DESC_LEN, str, args...);
+			snprintf(desc0, DESC_LEN, fmt, args...);
 			return desc0;
 		}
 	};
