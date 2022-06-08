@@ -577,7 +577,7 @@ namespace grid
 
 		//! Create a new boundary with the given parameters.
 		BoundaryDefaultTagged(double* constants, size_t num_constants) :
-			support_type(), parent_type(constants, num_constants) {}
+			parent_type(constants, num_constants), support_type() {}
 
 		//! Initialize a boundary value to the result of the Gaussian function.
 		/*!
@@ -618,7 +618,7 @@ namespace grid
 
 		//! Create a new boundary with the given parameters.
 		BoundaryDefaultTagged(double* constants, size_t num_constants) :
-			support_type(), parent_type(constants, num_constants) {}
+			parent_type(constants, num_constants), support_type() {}
 
 
 		//! Initialize a boundary value to the result of the Gaussian function.
@@ -661,7 +661,7 @@ namespace grid
 
 		//! Create a new boundary with the given parameters.
 		BoundaryDefaultTagged(double* constants, size_t num_constants) :
-			support_type(), parent_type(constants, num_constants) {}
+			parent_type(constants, num_constants), support_type() {}
 
 
 		//! Initialize a boundary value to the result of the Gaussian function.
@@ -700,7 +700,7 @@ namespace grid
 
 		//! Create a new boundary with the given parameters.
 		BoundaryDefaultTagged(double* constants, size_t num_constants) :
-			support_type(), parent_type(constants, num_constants) {}
+			parent_type(constants, num_constants), support_type() {}
 
 
 		//! Initialize a boundary value to the result of the Gaussian function.
@@ -743,7 +743,7 @@ namespace grid
 		using parent_type::_D;
 
 		BoundaryDefaultTagged(double* constants, size_t num_constants) :
-			support_type(), parent_type(constants, num_constants) {}
+			parent_type(constants, num_constants), support_type() {}
 
 
 		//! Initialize a boundary value to the result of the Gaussian function.
@@ -786,7 +786,7 @@ namespace grid
 
 		//! Create a new boundary with the given parameters.
 		BoundaryDefaultTagged(double* constants, size_t num_constants) :
-			support_type(), parent_type(constants, num_constants) {}
+			parent_type(constants, num_constants), support_type() {}
 
 
 		//! Initialize a boundary value to a constant value.
@@ -823,7 +823,7 @@ namespace grid
 
 		//! Create a new boundary with the given parameters.
 		BoundaryDefaultTagged(double* constants, size_t num_constants) :
-			support_type(), parent_type(constants, num_constants) {}
+			parent_type(constants, num_constants), support_type() {}
 
 
 		//! Initialize a boundary value to the result of the linear function.
@@ -860,7 +860,7 @@ namespace grid
 
 		//! Create a new boundary with the given parameters.
 		BoundaryDefaultTagged(double* constants, size_t num_constants) :
-			support_type(), parent_type(constants, num_constants) {}
+			parent_type(constants, num_constants), support_type() {}
 
 
 		//! Initialize a boundary value to the result of the linear function.
@@ -899,7 +899,7 @@ namespace grid
 
 		//! Create a new boundary with the given parameters.
 		BoundaryDefaultTagged(double* constants, size_t num_constants) :
-			support_type(), parent_type(constants, num_constants) {}
+			parent_type(constants, num_constants), support_type() {}
 
 		//! Initialize a boundary value to the result of the linear function.
 		/*!
@@ -938,7 +938,7 @@ namespace grid
 
 		//! Create a new boundary with the given parameters.
 		BoundaryDefaultTagged(double* constants, size_t num_constants) :
-			support_type(), parent_type(constants, num_constants) {}
+			parent_type(constants, num_constants), support_type() {}
 
 
 		//! Initialize a boundary value to the result of the linear function.
@@ -977,7 +977,7 @@ namespace grid
 
 		//! Create a new boundary with the given parameters.
 		BoundaryDefaultTagged(double* constants, size_t num_constants) :
-			support_type(), parent_type(constants, num_constants) {}
+			parent_type(constants, num_constants), support_type() {}
 
 		//! Initialize a boundary value to the result of the linear function.
 		/*!
@@ -1017,7 +1017,7 @@ namespace grid
 
 		//! Create a new boundary with the given parameters.
 		BoundaryDefaultTagged(double* constants, size_t num_constants) :
-			support_type(), parent_type(constants, num_constants) {}
+			parent_type(constants, num_constants), support_type() {}
 
 
 		//! Initialize a boundary value to the result of the linear function.
@@ -1057,7 +1057,7 @@ namespace grid
 
 		//! Create a new boundary with the given parameters.
 		BoundaryDefaultTagged(double* constants, size_t num_constants) :
-			support_type(), parent_type(constants, num_constants),
+			parent_type(constants, num_constants), support_type(),
 			mt_eng{ std::random_device{}() }, prob_dist(_A, _B), th(-symphas::PI, symphas::PI) {}
 
 		//! Initialize a boundary value a random value.
@@ -1137,7 +1137,7 @@ namespace grid
 		using support_type = BoundarySupportClass<BoundaryNone, T, D>;
 
 		//! Create a new boundary with the given parameters.
-		BoundaryDefaultTagged() : support_type(), parent_type(nullptr, 0) {}
+		BoundaryDefaultTagged() : parent_type(nullptr, 0), support_type() {}
 
 		void update(T& val, axis_coord_t, axis_coord_t, double) const {}
 		void set_defaults() {}
@@ -1384,21 +1384,24 @@ namespace symphas
 
 		for (auto side : { Side::LEFT, Side::RIGHT })
 		{
-			boundaries[symphas::side_to_index(side)] = symphas::internal::new_boundary<T, 0>(bdata.at(side));
-
-			if (bdata.at(side).type == BoundaryType::DEFAULT)
+			if (bdata.find(side) != bdata.end())
 			{
-				double interval = 0;
-				if (side == Side::LEFT)
-				{
-					interval = INTERVAL_X0;
-				}
-				if (side == Side::RIGHT)
-				{
-					interval = INTERVAL_Xn;
-				}
+				boundaries[symphas::side_to_index(side)] = symphas::internal::new_boundary<T, 0>(bdata.at(side));
 
-				static_cast<b_default_type<T>*>(boundaries[symphas::side_to_index(side)])->init(interval);
+				if (bdata.at(side).type == BoundaryType::DEFAULT)
+				{
+					double interval = 0;
+					if (side == Side::LEFT)
+					{
+						interval = INTERVAL_X0;
+					}
+					if (side == Side::RIGHT)
+					{
+						interval = INTERVAL_Xn;
+					}
+
+					static_cast<b_default_type<T>*>(boundaries[symphas::side_to_index(side)])->init(interval);
+				}
 			}
 		}
 	}
@@ -1415,41 +1418,43 @@ namespace symphas
 
 		for (auto side : { Side::LEFT, Side::RIGHT, Side::TOP, Side::BOTTOM })
 		{
-			boundaries[symphas::side_to_index(side)] = symphas::internal::new_boundary<T, 1>(bdata.at(side));
-
-			if (bdata.at(side).type == BoundaryType::DEFAULT)
+			if (bdata.find(side) != bdata.end())
 			{
-				double interval[2]{ 0 };
-				double h = 0;
+				boundaries[symphas::side_to_index(side)] = symphas::internal::new_boundary<T, 1>(bdata.at(side));
 
-				if (side == Side::TOP)
+				if (bdata.at(side).type == BoundaryType::DEFAULT)
 				{
-					interval[0] = INTERVAL_X0;
-					interval[1] = INTERVAL_Xn;
-					h = INTERVAL_Xh;
-				}
-				else if (side == Side::BOTTOM)
-				{
-					interval[0] = INTERVAL_X0;
-					interval[1] = INTERVAL_Xn;
-					h = INTERVAL_Xh;
-				}
-				else if (side == Side::RIGHT)
-				{
-					interval[0] = INTERVAL_Y0;
-					interval[1] = INTERVAL_Yn;
-					h = INTERVAL_Yh;
-				}
-				else if (side == Side::LEFT)
-				{
-					interval[0] = INTERVAL_Y0;
-					interval[1] = INTERVAL_Yn;
-					h = INTERVAL_Yh;
-				}
+					double interval[2]{ 0 };
+					double h = 0;
 
-				static_cast<b_default_type<T>*>(boundaries[symphas::side_to_index(side)])->init(interval, h);
+					if (side == Side::TOP)
+					{
+						interval[0] = INTERVAL_X0;
+						interval[1] = INTERVAL_Xn;
+						h = INTERVAL_Xh;
+					}
+					else if (side == Side::BOTTOM)
+					{
+						interval[0] = INTERVAL_X0;
+						interval[1] = INTERVAL_Xn;
+						h = INTERVAL_Xh;
+					}
+					else if (side == Side::RIGHT)
+					{
+						interval[0] = INTERVAL_Y0;
+						interval[1] = INTERVAL_Yn;
+						h = INTERVAL_Yh;
+					}
+					else if (side == Side::LEFT)
+					{
+						interval[0] = INTERVAL_Y0;
+						interval[1] = INTERVAL_Yn;
+						h = INTERVAL_Yh;
+					}
+
+					static_cast<b_default_type<T>*>(boundaries[symphas::side_to_index(side)])->init(interval, h);
+				}
 			}
-
 		}
 	}
 
@@ -1465,76 +1470,79 @@ namespace symphas
 
 		for (auto side : { Side::LEFT, Side::RIGHT, Side::TOP, Side::BOTTOM, Side::FRONT, Side::BACK })
 		{
-			boundaries[symphas::side_to_index(side)] = symphas::internal::new_boundary<T, 2>(bdata.at(side));
-
-			if (bdata.at(side).type == BoundaryType::DEFAULT)
+			if (bdata.find(side) != bdata.end())
 			{
-				double interval[4]{ 0 };
-				double h[2]{ 0 };
+				boundaries[symphas::side_to_index(side)] = symphas::internal::new_boundary<T, 2>(bdata.at(side));
 
-				if (side == Side::RIGHT)
+				if (bdata.at(side).type == BoundaryType::DEFAULT)
 				{
-					interval[0] = INTERVAL_Z0;
-					interval[1] = INTERVAL_Zn;
-					interval[2] = INTERVAL_Y0;
-					interval[3] = INTERVAL_Yn;
+					double interval[4]{ 0 };
+					double h[2]{ 0 };
 
-					h[0] = INTERVAL_Zh;
-					h[1] = INTERVAL_Yh;
+					if (side == Side::RIGHT)
+					{
+						interval[0] = INTERVAL_Z0;
+						interval[1] = INTERVAL_Zn;
+						interval[2] = INTERVAL_Y0;
+						interval[3] = INTERVAL_Yn;
+
+						h[0] = INTERVAL_Zh;
+						h[1] = INTERVAL_Yh;
+					}
+					else if (side == Side::LEFT)
+					{
+						interval[0] = INTERVAL_Z0;
+						interval[1] = INTERVAL_Zn;
+						interval[2] = INTERVAL_Y0;
+						interval[3] = INTERVAL_Yn;
+
+						h[0] = INTERVAL_Zh;
+						h[1] = INTERVAL_Yh;
+					}
+					else if (side == Side::TOP)
+					{
+						interval[0] = INTERVAL_X0;
+						interval[1] = INTERVAL_Xn;
+						interval[2] = INTERVAL_Z0;
+						interval[3] = INTERVAL_Zn;
+
+						h[0] = INTERVAL_Xh;
+						h[1] = INTERVAL_Zh;
+					}
+					else if (side == Side::BOTTOM)
+					{
+						interval[0] = INTERVAL_X0;
+						interval[1] = INTERVAL_Xn;
+						interval[2] = INTERVAL_Z0;
+						interval[3] = INTERVAL_Zn;
+
+						h[0] = INTERVAL_Xh;
+						h[1] = INTERVAL_Zh;
+					}
+					else if (side == Side::FRONT)
+					{
+						interval[0] = INTERVAL_X0;
+						interval[1] = INTERVAL_Xn;
+						interval[2] = INTERVAL_Y0;
+						interval[3] = INTERVAL_Yn;
+
+						h[0] = INTERVAL_Xh;
+						h[1] = INTERVAL_Yh;
+					}
+					else if (side == Side::BACK)
+					{
+						interval[0] = INTERVAL_Xn;
+						interval[1] = INTERVAL_X0;
+						interval[2] = INTERVAL_Yn;
+						interval[3] = INTERVAL_Y0;
+
+						h[0] = INTERVAL_Xh;
+						h[1] = INTERVAL_Yh;
+					}
+
+
+					static_cast<b_default_type<T>*>(boundaries[symphas::side_to_index(side)])->init(interval, h);
 				}
-				else if (side == Side::LEFT)
-				{
-					interval[0] = INTERVAL_Z0;
-					interval[1] = INTERVAL_Zn;
-					interval[2] = INTERVAL_Y0;
-					interval[3] = INTERVAL_Yn;
-
-					h[0] = INTERVAL_Zh;
-					h[1] = INTERVAL_Yh;
-				}
-				else if (side == Side::TOP)
-				{
-					interval[0] = INTERVAL_X0;
-					interval[1] = INTERVAL_Xn;
-					interval[2] = INTERVAL_Z0;
-					interval[3] = INTERVAL_Zn;
-
-					h[0] = INTERVAL_Xh;
-					h[1] = INTERVAL_Zh;
-				}
-				else if (side == Side::BOTTOM)
-				{
-					interval[0] = INTERVAL_X0;
-					interval[1] = INTERVAL_Xn;
-					interval[2] = INTERVAL_Z0;
-					interval[3] = INTERVAL_Zn;
-
-					h[0] = INTERVAL_Xh;
-					h[1] = INTERVAL_Zh;
-				}
-				else if (side == Side::FRONT)
-				{
-					interval[0] = INTERVAL_X0;
-					interval[1] = INTERVAL_Xn;
-					interval[2] = INTERVAL_Y0;
-					interval[3] = INTERVAL_Yn;
-
-					h[0] = INTERVAL_Xh;
-					h[1] = INTERVAL_Yh;
-				}
-				else if (side == Side::BACK)
-				{
-					interval[0] = INTERVAL_Xn;
-					interval[1] = INTERVAL_X0;
-					interval[2] = INTERVAL_Yn;
-					interval[3] = INTERVAL_Y0;
-
-					h[0] = INTERVAL_Xh;
-					h[1] = INTERVAL_Yh;
-				}
-
-
-				static_cast<b_default_type<T>*>(boundaries[symphas::side_to_index(side)])->init(interval, h);
 			}
 		}
 	}

@@ -120,10 +120,10 @@ struct FourierGrid : Block<T>
 
 protected:
 
-	FourierGrid() : Block<T>{}, dims{ 0 }, p_in_out{ NULL } {}
+	FourierGrid() : Block<T>{}, p_in_out{ NULL }, dims{ 0 } {}
 
-	len_type dims[D];
 	fftw_plan p_in_out;
+	len_type dims[D];
 };
 
 
@@ -250,6 +250,7 @@ protected:
 	}
 
 	MapGridFourier() : MapGrid<S, T, D>{}, p_in_out{ NULL } {}
+
 	fftw_plan p_in_out;
 };
 

@@ -156,7 +156,8 @@ namespace symphas
 		 * \param data_y The dependent data.
 		 * \param len The length of the data.
 		 */
-		Field(X data_x, Y* data_y, len_type len) : data{ data_x, data_y }, len{ len } {}
+		Field(X data_x, Y* data_y, len_type len) : 
+			data{ data_x, data_y }, len{ len }, y{ data.second.get() } {}
 
 		//! Create a new field out of the data. 
 		/*!
@@ -167,7 +168,8 @@ namespace symphas
 		 * \param data_y The dependent data.
 		 * \param len The length of the data.
 		 */
-		Field(X data_x, std::shared_ptr<Y[]> data_y, len_type len) : data{ data_x, data_y }, len{ len } {}
+		Field(X data_x, std::shared_ptr<Y[]> data_y, len_type len) : 
+			data{ data_x, data_y }, len{ len }, y{ data.second.get() } {}
 
 		//! Create a new field out of the block data. 
 		/*!
@@ -178,7 +180,8 @@ namespace symphas
 		 * \param data_x The independent data.
 		 * \param block The dependent data.
 		 */
-		Field(X data_x, Block<Y> const& block) : data{ data_x, new Y[block.len] }, len{ block.len }
+		Field(X data_x, Block<Y> const& block) : 
+			data{ data_x, new Y[block.len] }, len{ block.len }, y{ data.second.get() }
 		{
 			for (iter_type i = 0; i < block.len; ++i)
 			{
@@ -187,6 +190,17 @@ namespace symphas
 		}
 
 		Field(len_type len = 1) : data{ X{}, new Y[len]{} }, len{ len } {}
+
+
+		Field(Field<X, Y*> const& other) : Field(other.data.first, other.data.second, other.len) {}
+		Field(Field<X, Y*>&& other) : Field(other.data.first, other.data.second, other.len) {}
+		Field<X, Y*>& operator=(Field<X, Y*> other)
+		{
+			std::swap(data, other.data);
+			std::swap(len, other.len);
+			std::swap(y, other.y);
+			return *this;
+		}
 
 
 		//! Get the reference to the independent data.
@@ -233,8 +247,12 @@ namespace symphas
 
 	protected:
 
-		len_type len;
 		std::pair<X, std::shared_ptr<Y[]>> data;
+		len_type len;
+
+	public:
+
+		Y* y;
 
 	};
 
@@ -283,8 +301,8 @@ namespace symphas
 		 * \param len The length of the data.
 		 */
 		Field(X* data_x, Y* data_y, len_type len) :
-			data{ std::shared_ptr<X[]>(data_x), std::shared_ptr<Y[]>(data_y) },
-			x{ data.first.get() }, y{ data.second.get() }, len{ len } {}
+			data{ std::shared_ptr<X[]>(data_x), std::shared_ptr<Y[]>(data_y) }, len{ len },
+			x{ data.first.get() }, y{ data.second.get() } {}
 
 		//! Create a new field out of the lists of data. 
 		/*!
@@ -400,8 +418,8 @@ namespace symphas
 
 	protected:
 
-		len_type len;
 		std::pair<std::shared_ptr<X[]>, std::shared_ptr<Y[]>> data;
+		len_type len;
 
 	public:
 
@@ -573,9 +591,22 @@ namespace symphas
 		using y = typename field_data_type<typename FieldAxis<D, Y>::parent_type>::y;
 	};
 
-
+	//! Obtain the data type of the x-axis of the Field.
+	/*!
+	 * Obtains the data type of the x-axis of the given Field type. This is always the
+	 * direct type, which in the case of a Field of an array in `X` (e.g. `Field<X*, _>`)
+	 * would be a pointer type. This is likewise for FieldAxis, which inherits from
+	 * `Field<axis_nd_t<D>, _>`.
+	 */
 	template<typename F>
 	using field_x_t = typename field_data_type<F>::x;
+
+	//! Obtain the data type of the y-axis of the Field.
+	/*!
+	 * Obtains the data type of the y-axis of the given Field type. This is always the
+	 * direct type, which in the case of a Field of an array in `Y` (e.g. `Field<_, Y*>`)
+	 * would be a pointer type. 
+	 */
 	template<typename F>
 	using field_y_t = typename field_data_type<F>::y;
 
@@ -597,8 +628,9 @@ namespace symphas::lib
 	 * \param data_y The data which is transformed.
 	 * \param len The length of the data series that is transformed.
 	 */
-	template<typename T>
-	auto fourier_transform(const axis_1d_type* data_x, const T* data_y, const len_type len, bool backward = false)
+	template<typename Y,
+		typename = decltype(symphas::dft::dft(std::declval<Y*>(), std::declval<complex_t*>(), std::declval<len_type>(), std::declval<bool>()))>
+	auto fourier_transform(const axis_1d_type* data_x, const Y* data_y, const len_type len, bool backward = false)
 	{
 		axis_1d_type* dft_x = new axis_1d_type[len];
 		complex_t* dft_y = new complex_t[len];
@@ -622,8 +654,9 @@ namespace symphas::lib
 	 * \param data_y The data which is transformed.
 	 * \param len The length of the data series that is transformed.
 	 */
-	template<typename T>
-	auto fourier_transform(const axis_2d_type* data_x, const T* data_y, const len_type len, bool backward = false)
+	template<typename Y,
+		typename = decltype(symphas::dft::dft(std::declval<Y*>(), std::declval<complex_t*>(), std::declval<len_type>(), std::declval<bool>()))>
+	auto fourier_transform(const axis_2d_type* data_x, const Y* data_y, const len_type len, bool backward = false)
 	{
 		axis_2d_type* dft_x = new axis_2d_type[len];
 		complex_t* dft_y = new complex_t[len];
@@ -645,8 +678,9 @@ namespace symphas::lib
 	 * \param data_y The data which is transformed.
 	 * \param len The length of the data series that is transformed.
 	 */
-	template<typename T>
-	auto fourier_transform(const axis_3d_type* data_x, const T* data_y, const len_type len, bool backward = false)
+	template<typename Y,
+		typename = decltype(symphas::dft::dft(std::declval<Y*>(), std::declval<complex_t*>(), std::declval<len_type>(), std::declval<bool>()))>
+	auto fourier_transform(const axis_3d_type* data_x, const Y* data_y, const len_type len, bool backward = false)
 	{
 		axis_3d_type* dft_x = new axis_3d_type[len];
 		complex_t* dft_y = new complex_t[len];
@@ -669,7 +703,8 @@ namespace symphas::lib
 	 * \param data_y The data which is transformed.
 	 * \param len The length of the data series that is transformed.
 	 */
-	template<typename Y>
+	template<typename Y,
+		typename = decltype(symphas::dft::dft(std::declval<Y*>(), std::declval<complex_t*>(), std::declval<len_type>(), std::declval<bool>()))>
 	auto fourier_transform(const iter_type* data_x, const Y* data_y, const len_type len, bool backward = false)
 	{
 		complex_t* dft_y = new complex_t[len];
@@ -691,8 +726,9 @@ namespace symphas::lib
 	 * \param data_y The data which is transformed.
 	 * \param len The length of the data series that is transformed.
 	 */
-	template<typename X, typename Y, typename std::enable_if<!std::is_pointer<X>::value, int>::type = 0>
-	auto fourier_transform(const X data_x, const Y* data_y, const len_type len, bool backward = false)
+	template<typename X, typename Y, typename std::enable_if<!std::is_pointer<X>::value, int>::type = 0, 
+		typename = decltype(symphas::dft::dft(std::declval<Y*>(), std::declval<complex_t*>(), std::declval<len_type>(), std::declval<bool>()))>
+	auto fourier_transform(const X data_x, const Y* data_y, const len_type len, bool backward = false) 
 	{
 		complex_t* dft_y = new complex_t[len];
 		symphas::dft::dft(data_y, dft_y, len, backward);
@@ -708,7 +744,8 @@ namespace symphas::lib
 	 * 
 	 * \param data The data which is transformed.
 	 */
-	template<typename X, typename Y>
+	template<typename X, typename Y,
+		typename = decltype(fourier_transform(decltype(std::declval<Field<X, Y*>>())::data_x(), decltype(std::declval<Field<X, Y*>>())::y, std::declval<len_type>(), std::declval<bool>()))>
 	auto fourier_transform(Field<X, Y*> const& data, bool backward = false)
 	{
 		return fourier_transform(data.data_x(), data.y, data.length(), backward);
@@ -721,7 +758,8 @@ namespace symphas::lib
 	 *
 	 * \param data The data which is transformed.
 	 */
-	template<typename X, typename Y>
+	template<typename X, typename Y,
+		typename = decltype(fourier_transform(decltype(std::declval<Field<X*, Y*>>())::x, decltype(std::declval<Field<X*, Y*>>())::y, std::declval<len_type>(), std::declval<bool>())) >
 	auto fourier_transform(Field<X*, Y*> const& data, bool backward = false)
 	{
 		return fourier_transform(data.x, data.y, data.length(), backward);

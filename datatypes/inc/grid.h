@@ -556,9 +556,9 @@ struct BoundaryGrid<T, 3> : Grid<T, 3>
 
 public:
 	BoundaryGrid(std::initializer_list<len_type> dimensions) : BoundaryGrid(dimensions.begin()) {}
-	BoundaryGrid(const len_type* dimensions) : Grid<T, 3>(dimensions), len_inner{ grid::length_interior<3>(dims) }, inners{ grid::interior_indices_list<3>(dims) } {}
-	BoundaryGrid(Grid<T, 3> const& other) : Grid<T, 3>(other), len_inner{ grid::length_interior<3>(dims) }, inners{ grid::interior_indices_list<3>(dims) } {}
-	BoundaryGrid(Grid<T, 3>&& other) noexcept : Grid<T, 3>(other), len_inner{ grid::length_interior<3>(dims) }, inners{ grid::interior_indices_list<3>(dims) } {}
+	BoundaryGrid(const len_type* dimensions) : Grid<T, 3>(dimensions), inners{ grid::interior_indices_list<3>(dims) }, len_inner{ grid::length_interior<3>(dims) } {}
+	BoundaryGrid(Grid<T, 3> const& other) : Grid<T, 3>(other), inners{ grid::interior_indices_list<3>(dims) }, len_inner{ grid::length_interior<3>(dims) } {}
+	BoundaryGrid(Grid<T, 3>&& other) noexcept : Grid<T, 3>(other), inners{ grid::interior_indices_list<3>(dims) }, len_inner{ grid::length_interior<3>(dims) } {}
 
 
 	T& invalue(iter_type i)
@@ -628,9 +628,9 @@ struct BoundaryGrid<T, 2> : Grid<T, 2>
 
 public:
 	BoundaryGrid(std::initializer_list<len_type> dimensions) : BoundaryGrid(dimensions.begin()) {}
-	BoundaryGrid(const len_type* dimensions) : Grid<T, 2>(dimensions), len_inner{ grid::length_interior<2>(dims) }, inners{ grid::interior_indices_list<2>(dims) } {}
-	BoundaryGrid(Grid<T, 2> const& other) : Grid<T, 2>(other), len_inner{ grid::length_interior<2>(dims) }, inners{ grid::interior_indices_list<2>(dims) } {}
-	BoundaryGrid(Grid<T, 2>&& other) noexcept : Grid<T, 2>(other), len_inner{ grid::length_interior<2>(dims) }, inners{ grid::interior_indices_list<2>(dims) } {}
+	BoundaryGrid(const len_type* dimensions) : Grid<T, 2>(dimensions), inners{ grid::interior_indices_list<2>(dims) }, len_inner{ grid::length_interior<2>(dims) } {}
+	BoundaryGrid(Grid<T, 2> const& other) : Grid<T, 2>(other), inners{ grid::interior_indices_list<2>(dims) }, len_inner{ grid::length_interior<2>(dims) } {}
+	BoundaryGrid(Grid<T, 2>&& other) noexcept : Grid<T, 2>(other), inners{ grid::interior_indices_list<2>(dims) }, len_inner{ grid::length_interior<2>(dims) } {}
 
 	T& invalue(iter_type i)
 	{
@@ -692,9 +692,9 @@ struct BoundaryGrid<T, 1> : Grid<T, 1>
 
 public:
 	BoundaryGrid(std::initializer_list<len_type> dimensions) : BoundaryGrid(dimensions.begin()) {}
-	BoundaryGrid(const len_type* dimensions) : Grid<T, 1>(dimensions), len_inner{ grid::length_interior<1>(dims) }, inners{ grid::interior_indices_list<1>(dims) } {}
-	BoundaryGrid(Grid<T, 1> const& other) : Grid<T, 1>(other), len_inner{ grid::length_interior<1>(dims) }, inners{ grid::interior_indices_list<1>(dims) } {}
-	BoundaryGrid(Grid<T, 1>&& other) noexcept : Grid<T, 1>(other), len_inner{ grid::length_interior<1>(dims) }, inners{ grid::interior_indices_list<1>(dims) } {}
+	BoundaryGrid(const len_type* dimensions) : Grid<T, 1>(dimensions), inners{ grid::interior_indices_list<1>(dims) }, len_inner{ grid::length_interior<1>(dims) } {}
+	BoundaryGrid(Grid<T, 1> const& other) : Grid<T, 1>(other), inners{ grid::interior_indices_list<1>(dims) }, len_inner{ grid::length_interior<1>(dims) } {}
+	BoundaryGrid(Grid<T, 1>&& other) noexcept : Grid<T, 1>(other), inners{ grid::interior_indices_list<1>(dims) }, len_inner{ grid::length_interior<1>(dims) } {}
 
 	T& invalue(iter_type i)
 	{
@@ -827,53 +827,66 @@ void BoundaryGrid<T, 1>::copy_ptr_right(T** into)
 
 namespace grid
 {
-	//! Copy the interior values of the grid into an array.
-	/*!
-	 * The interior values of the given grid are copied into an array.
-	 * It is assumed that the array has enough space to store all the interior
-	 * values. For computing the number of interior points, see 
-	 * grid::length_interior(len_type const*). The grid is 1-dimensional.
-	 * 
-	 * \param g The grid from which the interior values are copied.
-	 * \param t The array into which the values are copied.
-	 */
-	template<typename T>
-	void copy_interior(Grid<T, 1> const& g, T* t)
-	{
-		ITER_GRID1(t[ENTRY] = g.values[INDEX], g.dims[0])
-	}
-
-
-	//! Copy the interior values of the grid into an array.
-	/*!
-	 * Implementation of copying interior values for a 2-dimensional Grid, see
-	 * grid::copy_interior(Grid<T, 1> const&, T*).
-	 *
-	 * \param g The grid from which the interior values are copied.
-	 * \param t The array into which the values are copied.
-	 */
-	template<typename T>
-	void copy_interior(Grid<T, 2> const& g, T* t)
-	{
-		ITER_GRID2(t[ENTRY] = g.values[INDEX], g.dims[0], g.dims[1]);
-	}
-
-	//! Copy the interior values of the grid into an array.
-	/*!
-	 * Implementation of copying interior values for a 3-dimensional Grid, see
-	 * grid::copy_interior(Grid<T, 1> const&, T*).
-	 *
-	 * \param g The grid from which the interior values are copied.
-	 * \param t The array into which the values are copied.
-	 */
-	template<typename T>
-	void copy_interior(Grid<T, 3> const& g, T* t)
-	{
-		ITER_GRID3(t[ENTRY] = g.values[INDEX], g.dims[0], g.dims[1], g.dims[2]);
-	}
-
 	namespace
 	{
+
+		//! Copy the interior values of the grid into an array.
+		/*!
+		 * Fills the interior values of an array using ghost cells for the boundary.
+		 *
+		 * \tparam T Type of the array.
+		 * \tparam D The dimensions of the array.
+		 */
+		template<typename T, size_t D>
+		struct fill_interior_apply;
+
+		template<typename T>
+		struct fill_interior_apply<T, 1>
+		{
+			//! Copy an array into the interior values of another. 
+			/*!
+			 * \param input The grid from which the sequential values are copied.
+			 * \param output The array into which the values are transcribed in interior-based
+			 * sequencing.
+			 * \param dims The dimension of the interior region.
+			 */
+			void operator()(const T* input, T* output, const len_type* dims)
+			{
+				ITER_GRID1(output[INDEX] = input[ENTRY], dims[0])
+			}
+		};
+
+		template<typename T>
+		struct fill_interior_apply<T, 2>
+		{
+			//! Copy an array into the interior values of another. 
+			/*!
+			 * \param input The grid from which the sequential values are copied.
+			 * \param output The array into which the values are transcribed in interior-based
+			 * sequencing.
+			 * \param dims The dimension of the interior region.
+			 */
+			void operator()(const T* input, T* output, const len_type* dims)
+			{
+				ITER_GRID2(output[INDEX] = input[ENTRY], dims[0], dims[1])
+			}
+		};
+
+		template<typename T>
+		struct fill_interior_apply<T, 3>
+		{
+			//! Copy an array into the interior values of another. 
+			/*!
+			 * \param input The grid from which the sequential values are copied.
+			 * \param output The array into which the values are transcribed in interior-based
+			 * sequencing.
+			 * \param dims The dimension of the interior region.
+			 */
+			void operator()(const T* input, T* output, const len_type* dims)
+			{
+				ITER_GRID3(output[INDEX] = input[ENTRY], dims[0], dims[1], dims[2])
+			}
+		};
 
 		//! Create a new grid of the given primary type.
 		/*!
@@ -926,6 +939,66 @@ namespace grid
 				return { dims };
 			}
 		};
+	}
+
+	//! Copy the interior values of the grid into an array.
+	/*!
+	 * The interior values of the given grid are copied into an array.
+	 * It is assumed that the array has enough space to store all the interior
+	 * values. For computing the number of interior points, see
+	 * grid::length_interior(len_type const*). The grid is 1-dimensional.
+	 *
+	 * \param input The grid from which the interior values are copied.
+	 * \param output The array into which the values are copied.
+	 */
+	template<typename T>
+	void copy_interior(Grid<T, 1> const& input, T* output)
+	{
+		ITER_GRID1(output[ENTRY] = input.values[INDEX], input.dims[0])
+	}
+
+
+	//! Copy the interior values of the grid into an array.
+	/*!
+	 * Implementation of copying interior values for a 2-dimensional Grid, see
+	 * grid::copy_interior(Grid<T, 1> const&, T*).
+	 *
+	 * \param input The grid from which the interior values are copied.
+	 * \param output The array into which the values are copied.
+	 */
+	template<typename T>
+	void copy_interior(Grid<T, 2> const& input, T* output)
+	{
+		ITER_GRID2(output[ENTRY] = input.values[INDEX], input.dims[0], input.dims[1]);
+	}
+
+	//! Copy the interior values of the grid into an array.
+	/*!
+	 * Implementation of copying interior values for a 3-dimensional Grid, see
+	 * grid::copy_interior(Grid<T, 1> const&, T*).
+	 *
+	 * \param input The grid from which the interior values are copied.
+	 * \param output The array into which the values are copied.
+	 */
+	template<typename T>
+	void copy_interior(Grid<T, 3> const& input, T* output)
+	{
+		ITER_GRID3(output[ENTRY] = input.values[INDEX], input.dims[0], input.dims[1], input.dims[2]);
+	}
+
+	//! Copy the interior values of the grid into an array.
+	/*!
+	 * Fills the interior values of an array using ghost cells for the boundary.
+	 *
+	 * \param input The grid from which the sequential values are copied.
+	 * \param output The array into which the values are transcribed in interior-based
+	 * sequencing.
+	 * \param dims The dimension of the interior region.
+	 */
+	template<typename T, size_t D>
+	void fill_interior(const T* input, T* output, const len_type(&dims)[D])
+	{
+		fill_interior_apply<T, D>{}(input, output, dims);
 	}
 
 	//! Create a new grid with of the given base type and dimension.
