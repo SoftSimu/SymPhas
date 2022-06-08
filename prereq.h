@@ -206,8 +206,8 @@ namespace symphas
 
 		for (iter_type i = model.index(); i < end; i = model.index())
 		{
-			model_iteration(model, dt, time);
 			time += dt * (model.index() - i);
+			model_iteration(model, dt, time);
 		}
 		return true;
 	}
