@@ -732,7 +732,6 @@ namespace symphas::internal
 	inline void save_vec_default_print(std::vector<std::pair<axis_nd_t<2>, scalar_t>> const& data, FILE* f)
 	{
 		auto [L, M] = symphas::lib::get_dimensions<2>(data);
-		auto it = data.begin();
 
 		fprintf(f, "% 10d ", 0);
 		for (iter_type i = 0; i < L; i++)
@@ -863,7 +862,11 @@ void symphas::io::save_vec_default(std::vector<std::pair<axis_nd_t<D>, scalar_t>
 	symphas::lib::fill_sorted_ranges(data, ranges, extrema);
 
 	char rangestr[BUFFER_LENGTH];
-	snprintf(rangestr, BUFFER_LENGTH, symphas::io::gp::ranges_axis_2d, ranges[0], ranges[1], ranges[2], ranges[3]);
+
+	if constexpr (D > 1)
+	{
+		snprintf(rangestr, BUFFER_LENGTH, symphas::io::gp::ranges_axis_2d, ranges[0], ranges[1], ranges[2], ranges[3]);
+	}
 	const char* sets[] = { defset[0], defset[1] };
 
 	symphas::io::write_postproc_plot_file(sets, 2, dir, vec_name, index, id, rangestr);
