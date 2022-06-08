@@ -741,8 +741,8 @@ namespace expr
 	 * Empty implementation for the print function when #PRINTABLE_EQUATIONS is
 	 * not used. Therefore, the print function can still be invoked but there is no effect.
 	 */ 
-	template<typename T>
-	auto printf(T&&, ...) {}
+	template<typename... T>
+	auto printf(T&&...) {}
 
 
 	//! Empty implementation for obtaining a variable's string represenation.
@@ -750,20 +750,20 @@ namespace expr
 	 * Empty implementation for the obtaining the name of a variable when #PRINTABLE_EQUATIONS is
 	 * not used. Therefore, this function can still be invoked but there is no effect.
 	 */
-	template<typename T>
-	auto get_op_name(T&&, ...) 
+	template<typename... T>
+	auto get_op_name(T&&...)
 	{
 		return "";
 	}
 
-	template<typename T>
-	size_t print_with_coeff(T&&, ...)
+	template<typename... T>
+	size_t print_with_coeff(T&&...)
 	{
 		return 0;
 	}
 
-	template<typename T>
-	size_t coeff_print_length(T&&, ...)
+	template<typename... T>
+	size_t coeff_print_length(T&&...)
 	{
 		return 0;
 	}

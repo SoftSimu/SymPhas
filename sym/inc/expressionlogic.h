@@ -446,6 +446,15 @@ namespace expr
 		}
 	};
 
+	//! Helper for accessing data encapsulated by different types.
+	/*!
+	 * For the different types of objects that be data to an OpLVariable, a
+	 * method is implemented to correctly obtain the value (the data point) at a
+	 * given index. Additionally, the entire data itself can be obtained.
+	 */
+	template<typename A>
+	struct BaseData<A const> : BaseData<A> {};
+
 	//! Specialization based on expr::BaseData.
 	template<typename A>
 	struct BaseData<A*>

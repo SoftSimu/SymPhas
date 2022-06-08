@@ -107,7 +107,8 @@ struct NamedData : G
 
 #else
 
-	NamedData(G data, ...) : G(data) {}
+	template<typename T>
+	NamedData(G data, T&&) : G(data) {}
 
 #endif
 
@@ -166,7 +167,8 @@ struct NamedData<G*>
 
 #else
 
-	NamedData(G* data, ...) : data{ data } {}
+	template<typename T>
+	NamedData(G* data, T&&) : data{ data } {}
 
 #endif
 
@@ -232,7 +234,8 @@ struct NamedData<scalar_t>
 
 #else
 
-	NamedData(scalar_t data, ...) : data{ data } {}
+	template<typename T>
+	NamedData(scalar_t data, T&&) : data{ data } {}
 
 #endif
 
@@ -248,10 +251,26 @@ struct NamedData<scalar_t>
 
 };
 
+#ifdef PRINTABLE_EQUATIONS
+
 template<typename G>
 NamedData(G&, std::string)->NamedData<symphas::ref<G>>;
 template<typename G>
+NamedData(G&&, std::string)->NamedData<G>;
+template<typename G>
 NamedData(G*, std::string)->NamedData<G*>;
+
+
+#else
+
+template<typename G, typename T>
+NamedData(G&, T&&)->NamedData<symphas::ref<G>>;
+template<typename G, typename T>
+NamedData(G&&, T&&)->NamedData<G>;
+template<typename G, typename T>
+NamedData(G*, T&&)->NamedData<G*>;
+
+#endif
 
 
 namespace expr
