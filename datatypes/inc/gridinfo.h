@@ -447,6 +447,10 @@ public:
 		return dims;
 	}
 
+	operator symphas::interval_data_type() const
+	{
+		return intervals;
+	}
 };
 
 inline void swap(symphas::grid_info& first, symphas::grid_info& second)
