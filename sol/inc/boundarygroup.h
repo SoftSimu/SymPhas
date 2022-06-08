@@ -225,6 +225,11 @@ namespace symphas::internal
 template<typename T, size_t D>
 BoundaryGroup<T, D>::BoundaryGroup(symphas::interval_data_type const& vdata, symphas::b_data_type const& bdata)
 {
+	for (iter_type i = 0; i < D * 2; ++i)
+	{
+		boundaries[i] = nullptr;
+	}
+
 	for (auto&& [side, data] : bdata)
 	{
 		types[symphas::side_to_index(side)] = data.type;
@@ -322,6 +327,8 @@ namespace symphas::internal
 					case BoundaryType::PERIODIC:
 						symphas::internal::update_boundary<BoundaryType::PERIODIC, symphas::index_to_side(I), D - 1>{}(boundaries[I], grid);
 						break;
+					default:
+						throw;
 					}
 				}
 				else if constexpr (D == 2)
@@ -334,6 +341,8 @@ namespace symphas::internal
 					case BoundaryType::PERIODIC0:
 						symphas::internal::update_boundary<BoundaryType::PERIODIC0, symphas::index_to_side(I), D - 1>{}(boundaries[I], grid);
 						break;
+					default:
+						throw;
 					}
 				}
 				else
