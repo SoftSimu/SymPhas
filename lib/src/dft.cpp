@@ -131,13 +131,13 @@ namespace symphas::dft
 		{
 			axis_coord_t x = ((data_x[i][0] < avg[0])
 				? avg[0] - data_x[i][0] - dx
-				: extrema[1] - (data_x[i][0] + dx - avg[0]));
+				: (extrema[1] - (data_x[i][0] + dx - avg[0])));
 			axis_coord_t y = ((data_x[i][1] < avg[1])
 				? avg[1] - data_x[i][1] - dy
-				: extrema[3] - (data_x[i][1] + dy - avg[1]));
+				: (extrema[3] - (data_x[i][1] + dy - avg[1])));
 			axis_coord_t z = ((data_x[i][2] < avg[2])
 				? avg[2] - data_x[i][2] - dz
-				: extrema[5] - (data_x[i][2] + dz - avg[2]));
+				: (extrema[5] - (data_x[i][2] + dz - avg[2])));
 
 			dft_x[i] =
 				axis_nd_t<3>{
@@ -188,10 +188,10 @@ namespace symphas::dft
 		{
 			axis_coord_t x = ((data_x[i][0] < avg[0])
 				? avg[0] - data_x[i][0] - dx
-				: extrema[1] - (data_x[i][0] + dx - avg[0]));
+				: (extrema[1] - (data_x[i][0] + dx - avg[0])));
 			axis_coord_t y = ((data_x[i][1] < avg[1])
 				? avg[1] - data_x[i][1] - dy
-				: extrema[3] - (data_x[i][1] + dy - avg[1]));
+				: (extrema[3] - (data_x[i][1] + dy - avg[1])));
 
 			dft_x[i] =
 				axis_nd_t<2>{
@@ -208,17 +208,115 @@ namespace symphas::dft
 		extrema[1] += dx;
 
 		axis_coord_t avg = (extrema[1] + extrema[0]) / 2;
-		axis_coord_t adj[]{ avg - extrema[0], extrema[1] - avg };
 
 		double rx = (2.0 * symphas::PI / (extrema[1] - extrema[0]));
 		for (iter_type i = 0; i < len; ++i)
 		{
 			axis_coord_t x = ((data_x[i] < avg)
 				? avg - data_x[i] - dx
-				: extrema[1] - (data_x[i] + dx - avg));
+				: (extrema[1] - (data_x[i] + dx - avg)));
 
 			dft_x[i] =
 				axis_nd_t<1>{ rx * x };
+		}
+	}
+
+	
+	void fill_x_axis(axis_nd_t<3>* dft_x, const axis_coord_t(&x)[2], len_type L,
+		const axis_coord_t(&y)[2], len_type M, const axis_coord_t(&z)[2], len_type N)
+	{
+		axis_coord_t
+			dx = (x[1] - x[0]) / (L - 1),
+			dy = (y[1] - y[0]) / (M - 1),
+			dz = (z[1] - z[0]) / (N - 1);
+
+		axis_coord_t avg[]{
+			(x[1] + dx + x[0]) / 2,
+			(y[1] + dy + y[0]) / 2,
+			(z[1] + dz + z[0]) / 2 };
+
+		double rx = (2.0 * symphas::PI / ((x[1] + dx - x[0]) * dx));
+		double ry = (2.0 * symphas::PI / ((y[1] + dy - y[0]) * dy));
+		double rz = (2.0 * symphas::PI / ((z[1] + dz - z[0]) * dz));
+
+		for (iter_type i = 0; i < L; ++i)
+		{
+			for (iter_type j = 0; j < M; ++j)
+			{
+				for (iter_type k = 0; k < N; ++k)
+				{
+					axis_nd_t<3> data{ i * dx + x[0], j * dy + y[0], k * dz + z[0] };
+
+					axis_coord_t x0 = ((data[0] < avg[0])
+						? avg[0] - data[0] - dx
+						: (x[1] + dx - (data[0] + dx - avg[0])));
+					axis_coord_t y0 = ((data[1] < avg[1])
+						? avg[1] - data[1] - dy
+						: (y[1] + dy - (data[1] + dy - avg[1])));
+					axis_coord_t z0 = ((data[2] < avg[2])
+						? avg[2] - data[2] - dz
+						: (z[1] + dz - (data[2] + dz - avg[2])));
+
+					dft_x[i + j * L + k * L * M] =
+						axis_nd_t<3>{
+							rx * x0,
+							ry * y0,
+							rz * z0 };
+				}
+			}
+		}
+	}
+
+	void fill_x_axis(axis_nd_t<2>* dft_x, const axis_coord_t(&x)[2], len_type L, const axis_coord_t(&y)[2], len_type M)
+	{
+		axis_coord_t
+			dx = (x[1] - x[0]) / (L - 1),
+			dy = (y[1] - y[0]) / (M - 1);
+
+		axis_coord_t avg[]{
+			((x[1] + dx) + x[0]) / 2,
+			((y[1] + dy) + y[0]) / 2 };
+
+		double rx = (2.0 * symphas::PI / ((x[1] + dx - x[0]) * dx));
+		double ry = (2.0 * symphas::PI / ((y[1] + dy - y[0]) * dy));
+
+		for (iter_type i = 0; i < L; ++i)
+		{
+			for (iter_type j = 0; j < M; ++j)
+			{
+				axis_nd_t<2> data{ i * dx + x[0], j * dy + y[0]};
+
+				axis_coord_t x0 = ((data[0] < avg[0])
+					? avg[0] - data[0] - dx
+					: (x[1] + dx - (data[0] + dx - avg[0])));
+				axis_coord_t y0 = ((data[1] < avg[1])
+					? avg[1] - data[1] - dy
+					: (y[1] + dy - (data[1] + dy - avg[1])));
+
+				dft_x[i + j * L] =
+					axis_nd_t<2>{
+						rx * x0,
+						ry * y0 };
+			}
+		}
+	}
+
+	void fill_x_axis(axis_nd_t<1>* dft_x, const axis_coord_t(&x)[2], len_type len)
+	{
+		axis_coord_t dx = (x[1] - x[0]) / (len - 1);
+		axis_coord_t avg = ((x[1] + dx) + x[0]) / 2;
+		axis_coord_t adj[]{ avg - x[0], (x[1] + dx) - avg };
+
+		double rx = (2.0 * symphas::PI / ((x[1] + dx) - x[0]));
+		for (iter_type i = 0; i < len; ++i)
+		{
+			scalar_t data_x = i * dx + x[0];
+			axis_coord_t x0 = ((data_x < avg)
+				? avg - data_x - dx
+				: (x[1] + dx - (data_x + dx - avg)));
+
+			dft_x[i] =
+				axis_nd_t<1>{ rx * x0 };
 		}
 	}
 
@@ -232,7 +330,6 @@ inline void long_dft(T* data, complex_t* out, len_type len, bool backward = fals
 	int const dL = static_cast<int>(len) / 2;
 	for (iter_type ii = 0; ii < len; ++ii)
 	{
-		std::complex xx(0.0);
 		double ti = 0, p_ti = (2.0 * symphas::PI / len) * (ii);
 		for (iter_type i = 0; i < len; ++i, ti += p_ti)
 		{
