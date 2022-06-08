@@ -304,15 +304,16 @@ namespace symphas
 
 					for (iter_type i = 0; i < num_models; ++i)
 					{
-						running = run_model(models[i], n, dt, TIME_INIT + models[i].index() * dt) && running;
+						running = run_model(models[i], n, dt, models[i].get_time() + dt) && running;
 					}
 					running = !save.is_last_save(model.index()) && running;
 
 					run_time += t.current_duration();
 					iteration_display_time = t.current_duration();
-
-					print_progress();
+				
 				}
+
+				print_progress();
 				data_persistence();
 			}
 		}
