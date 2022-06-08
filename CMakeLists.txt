@@ -69,13 +69,14 @@ else()
 	set(USE_CONF OFF)
 endif()
 
+if(USE_PROC)
+	list(APPEND GROUP_NAMES_0 proc)
+endif()
+
 if(USE_CONF)
 	list(APPEND GROUP_NAMES_0 conf)
 endif()
 
-if(USE_PROC)
-	list(APPEND GROUP_NAMES_0 proc)
-endif()
 
 foreach(GROUP_NAME ${GROUP_NAMES_0})
 	
