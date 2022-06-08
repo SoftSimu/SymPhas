@@ -663,6 +663,8 @@ public:
 	 */
 	void set_directory(const char* directory);
 
+	void select_stencil(size_t order, const char* str);
+
 	//! Set the boundary on the given side for the system at the given index.
 	void set_boundary(symphas::b_element_type boundary, Side side, int n)
 	{

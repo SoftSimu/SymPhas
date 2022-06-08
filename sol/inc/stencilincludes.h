@@ -447,8 +447,268 @@ struct SelfSelectingStencil<3, 2> : GeneralizedStencil<3, 2>, Stencil<SelfSelect
 };
 
 
+//! @}
+
+namespace symphas::internal
+{
+
+	/*!
+	 * Defines the "point number" for the given finite difference approximation,
+	 * based on the index of the derivative that is approximated, as well as its
+	 * dimension and order of accuracy.
+	 *
+	 * \tparam N The order of the derivative for the point list.
+	 * \tparam D Dimension of derivative.
+	 * \tparam O The order of accuracy of the derivative.
+	 */
+	template<size_t N, size_t D, size_t O>
+	struct StencilPointList;
+
+	template<size_t D>
+	struct OrderList
+	{
+		using type = std::index_sequence<2>;
+	};
+}
+
+
+// **************************************************************************************
+
+
+#define MAKE_STENCIL_POINT_LIST(N, DIM, ORD, PS) \
+template<> struct symphas::internal::StencilPointList<N, DIM, ORD> { using type = std::index_sequence<SINGLE_ARG PS>; };
+
+#define MAKE_AVAILABLE_ORDER_LIST(DIM, ORDS) \
+template<> struct symphas::internal::OrderList<DIM> { using type = std::index_sequence<SINGLE_ARG ORDS>; };
+
+#if !defined(DEBUG) && defined(ALL_STENCILS)
+
+MAKE_STENCIL_POINT_LIST(2, 1, 2, (3))
+MAKE_STENCIL_POINT_LIST(4, 1, 2, (5))
+MAKE_STENCIL_POINT_LIST(3, 1, 2, (4))
+
+MAKE_STENCIL_POINT_LIST(2, 2, 2, (5, 9))
+MAKE_STENCIL_POINT_LIST(4, 2, 2, (13, 17, 21))
+MAKE_STENCIL_POINT_LIST(3, 2, 2, (6, 8, 12, 16))
+MAKE_STENCIL_POINT_LIST(2, 2, 4, (9, 17, 21))
+MAKE_STENCIL_POINT_LIST(4, 2, 4, (21, 25, 33, 37))
+MAKE_STENCIL_POINT_LIST(3, 2, 4, (14, 18, 26, 30))
+
+MAKE_STENCIL_POINT_LIST(2, 3, 2, (7, 15, 19, 21, 27))
+MAKE_STENCIL_POINT_LIST(4, 3, 2, (21, 25, 41, 52, 57))
+MAKE_STENCIL_POINT_LIST(3, 3, 2, (10, 12, 28, 36, 40))
+
+MAKE_AVAILABLE_ORDER_LIST(1, (2))
+MAKE_AVAILABLE_ORDER_LIST(2, (2, 4))
+MAKE_AVAILABLE_ORDER_LIST(3, (2))
+
+#else
+
+MAKE_STENCIL_POINT_LIST(2, 1, 2, (3))
+MAKE_STENCIL_POINT_LIST(4, 1, 2, (5))
+MAKE_STENCIL_POINT_LIST(3, 1, 2, (4))
+
+MAKE_STENCIL_POINT_LIST(2, 2, 2, (9))
+MAKE_STENCIL_POINT_LIST(4, 2, 2, (13))
+MAKE_STENCIL_POINT_LIST(3, 2, 2, (6))
+
+MAKE_STENCIL_POINT_LIST(2, 3, 2, (7))
+MAKE_STENCIL_POINT_LIST(4, 3, 2, (21))
+MAKE_STENCIL_POINT_LIST(3, 3, 2, (10))
+
+
+#endif
+
+
+namespace symphas::lib::internal
+{
+	template<size_t I, typename Seq0, typename... Seqs>
+	constexpr size_t get_search_offset(CrossProductList<Seq0, Seqs...>)
+	{
+		using cl_type = CrossProductList<Seq0, Seqs...>;
+		if constexpr (I + 1 >= cl_type::rank)
+		{
+			return 1;
+		}
+		else
+		{
+			return cl_type::template size<I + 1> *get_search_offset<I + 1>(CrossProductList<Seq0, Seqs...>{});
+		}
+	}
+
+	template<typename>
+	struct SearchCrossListReturn
+	{
+		bool operator()()
+		{
+			return false;
+		}
+	};
+
+	template<size_t... As>
+	struct SearchCrossListReturn<std::index_sequence<As...>>
+	{
+		bool operator()()
+		{
+			return true;
+		}
+	};
+
+	template<size_t I0, size_t I, size_t L>
+	auto matches(const size_t(&)[L], std::index_sequence<>)
+	{
+		return false;
+	}
+
+	template<size_t I0, size_t I, size_t L, size_t V, size_t... Vs>
+	auto matches(const size_t(&parameters)[L], std::index_sequence<V, Vs...>)
+	{
+		if constexpr (I0 == 0)
+		{
+			return (parameters[I] == V);
+		}
+		else
+		{
+			return matches<I0 - 1, I>(parameters, std::index_sequence<Vs...>{});
+		}
+	}
+
+	template<size_t I, size_t Pos, template<typename> typename F, size_t L,
+		typename Seq0, typename... Seqs, typename... Ts,
+		typename = std::enable_if_t<(L == CrossProductList<Seq0, Seqs...>::rank), int>>
+		auto search(const size_t(&parameters)[L], CrossProductList<Seq0, Seqs...>, Ts&& ...args)
+	{
+		using cl_type = CrossProductList<Seq0, Seqs...>;
+
+		if constexpr (Pos >= cl_type::count)
+		{
+			return F<void>{}(std::forward<Ts>(args)...);
+		}
+		else
+		{
+			using row_type = typename cl_type::template row<Pos>;
+
+			if constexpr (I >= L)
+			{
+				return F<row_type>{}(std::forward<Ts>(args)...);
+			}
+			else
+			{
+				if (matches<I, I>(parameters, row_type{}))
+				{
+					return search<I + 1, Pos, F>(parameters, cl_type{}, std::forward<Ts>(args)...);
+				}
+				else
+				{
+					constexpr size_t offset = get_search_offset<I>(cl_type{});
+					return search<I, Pos + offset, F>(parameters, cl_type{}, std::forward<Ts>(args)...);
+				}
+			}
+		}
+	}
+
+	template<template<typename> typename F, size_t L, typename Seq0, typename... Seqs, typename... Ts>
+	auto search(const size_t(&parameters)[L], CrossProductList<Seq0, Seqs...>, Ts&& ...args)
+	{
+		return search<0, 0, F>(parameters, CrossProductList<Seq0, Seqs...>{}, std::forward<Ts>(args)...);
+	}
+
+	template<size_t L, typename Seq0, typename... Seqs, typename... Ts>
+	auto search(const size_t(&parameters)[L], CrossProductList<Seq0, Seqs...>, Ts&& ...args)
+	{
+		return search<0, 0, SearchCrossListReturn>(parameters, CrossProductList<Seq0, Seqs...>{}, std::forward<Ts>(args)...);
+	}
+
+}
+
+namespace symphas::internal
+{
+
+	using dim_ord_list_t = std::tuple<
+		std::tuple<std::index_sequence<1>, typename symphas::internal::OrderList<1>::type>,
+		std::tuple<std::index_sequence<2>, typename symphas::internal::OrderList<2>::type>,
+		std::tuple<std::index_sequence<3>, typename symphas::internal::OrderList<3>::type>>;
+
+	template<size_t D, size_t O>
+	using cross_list_t = symphas::lib::CrossProductList<std::index_sequence<D>, std::index_sequence<O>,
+		typename symphas::internal::StencilPointList<2, D, O>::type,
+		typename symphas::internal::StencilPointList<3, D, O>::type,
+		typename symphas::internal::StencilPointList<4, D, O>::type>;
+
+}
+
+
+/*!
+ * \addtogroup stencil
+ * @{
+ */
+
+
+
+struct DefaultStencil
+{
+protected:
+
+	template<size_t D>
+	auto search_ord(std::index_sequence<>) const
+	{
+		return StencilParams{};
+	}
+
+	template<size_t D, size_t O, size_t... Os>
+	auto search_ord(std::index_sequence<O, Os...>) const
+	{
+		if (parameters[1] == O)
+		{
+			using pl = typename symphas::internal::cross_list_t<D, O>::template row<0>;
+			return StencilParams{ O,
+				symphas::lib::internal::seq_value<2>(pl{}),
+				symphas::lib::internal::seq_value<3>(pl{}),
+				symphas::lib::internal::seq_value<4>(pl{}) };
+		}
+		else
+		{
+			return search_ord<D>(std::index_sequence<Os...>{});
+		}
+	}
+
+	template<typename... Ts>
+	auto search_dim(std::tuple<>) const
+	{
+		return StencilParams{};
+	}
+
+	template<size_t D, size_t... Ns, typename... Seqs>
+	auto search_dim(std::tuple<std::tuple<std::index_sequence<D>, std::index_sequence<Ns...>>, Seqs...>) const
+	{
+		if (parameters[0] == D)
+		{
+			return search_ord<D>(std::index_sequence<Ns...>{});
+		}
+		else
+		{
+			return search_dim(std::tuple<Seqs...>{});
+		}
+	}
+
+	size_t parameters[2];
+
+public:
+
+	DefaultStencil(size_t dimension, size_t order)
+		: parameters{ dimension, order } {}
+
+	auto operator()() const
+	{
+		return search_dim(symphas::internal::dim_ord_list_t{});
+	}
+};
+
+
+
 
 //! @}
+
 
 
 #undef v0

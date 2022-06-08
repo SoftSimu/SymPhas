@@ -85,7 +85,6 @@ namespace symphas::internal
 		}
 
 		symphas::lib::str_trim(spec + end, str);
-		size_t N = std::strlen(str);
 		if (end < std::strlen(spec))
 		{
 			char* ptr;
@@ -868,25 +867,25 @@ std::vector<std::string> symphas::conf::parse_options(const char* options, bool 
 
 
 SystemConf::SystemConf() :
-	g{ Geometry::CARTESIAN },
 	dimension{ 1 },
-	stp{ StencilParams{} },
 	dt{ 0.0 },
+	stp{ StencilParams{} },
 	runs{ 1 },
 	save{ SaveParams{} },
-	dims{ nullptr },
-	intervals{ nullptr },
-	bdata{ nullptr },
-	tdata{ nullptr },
+	g{ Geometry::CARTESIAN },
 	root_dir{ nullptr },
 	result_dir{ nullptr },
 	title{ nullptr },
 	model{ nullptr },
 	names{ nullptr },
 	coeff{ 0 },
+	intervals{ nullptr },
+	bdata{ nullptr },
+	tdata{ nullptr },
+	dims{ nullptr },
 	intervals_len{ 0 },
-	tdata_len{ 0 },
 	bdata_len{ 0 },
+	tdata_len{ 0 },
 	names_len{ 0 },
 	coeff_len{ 0 },
 	init_coeff_copied{ false } 
@@ -1040,9 +1039,9 @@ SystemConf::SystemConf(std::vector<std::pair<std::string, std::string>> params, 
 	{
 		{ symphas::internal::C_DIM,		[&](const char* v) { dimension = atoi(v); } },
 		{ symphas::internal::C_ORDER,	[&](const char* v) { stp.ord = atoi(v); } },
-		{ symphas::internal::C_PTL,		[&](const char* v) { stp.ptl = atoi(v); } },
-		{ symphas::internal::C_PTB,		[&](const char* v) { stp.ptb = atoi(v); } },
-		{ symphas::internal::C_PTG,		[&](const char* v) { stp.ptg = atoi(v); } },
+		{ symphas::internal::C_PTL,		[&](const char* v) { select_stencil(2, v); } },
+		{ symphas::internal::C_PTB,		[&](const char* v) { select_stencil(4, v); } },
+		{ symphas::internal::C_PTG,		[&](const char* v) { select_stencil(3, v); } },
 		{ symphas::internal::C_WIDTH,	[&](const char* v) { std::strncpy(width_spec, v, sizeof(width_spec) / sizeof(char) - 1); } },
 		{ symphas::internal::C_FORM,	[&](const char* v) { parse_form(v); } },
 		{ symphas::internal::C_RNGX,	[&](const char* v) { copy_range_f(v, Axis::X); } },
@@ -1079,8 +1078,27 @@ SystemConf::SystemConf(std::vector<std::pair<std::string, std::string>> params, 
 	save.set_stop(stop_index);
 	symphas::io::parse_save_str(save_spec, &save);
 
+	if (stp.ord == 0)
+	{
+		fprintf(SYMPHAS_ERR, "an order of accuracy greater than 0 must be selected\n");
+		exit(8010);
+	}
+
+	if (stp.ptl == 0)
+	{
+		select_stencil(2, STR(CONFIG_OPTION_PREFIX));
+	}
+	if (stp.ptg == 0)
+	{
+		select_stencil(3, STR(CONFIG_OPTION_PREFIX));
+	}
+	if (stp.ptb == 0)
+	{
+		select_stencil(4, STR(CONFIG_OPTION_PREFIX));
+	}
+
 	// check integrity of parameters
-	if (stp.ord < 1 || stp.ptl < 1 || stp.ptb < 1 || stp.ptg < 1)
+	if (stp.ptl < 1 || stp.ptb < 1 || stp.ptg < 1)
 	{
 		fprintf(SYMPHAS_ERR, "a stencil parameter is out of range\n");
 		exit(8011);
@@ -1858,6 +1876,51 @@ void SystemConf::set_directory(const char* directory)
 	}
 }
 
+void SystemConf::select_stencil(size_t order, const char* str)
+{
+	const char msg[] = "derivative order '%zd' is invalid in selection of stencil point values\n";
+	if (*str == CONFIG_OPTION_PREFIX_C)
+	{
+		StencilParams default_stp = DefaultStencil{ dimension, stp.ord }();
+
+		switch (order)
+		{
+		case 2:
+			stp.ptl = default_stp.ptl;
+			break;
+		case 3:
+			stp.ptg = default_stp.ptg;
+			break;
+		case 4:
+			stp.ptb = default_stp.ptb;
+			break;
+		default:
+			fprintf(SYMPHAS_WARN, msg, order);
+		}
+	}
+	else
+	{
+		unsigned short value = std::strtoul(str, NULL, 10);
+		if (value > 0 && errno != ERANGE)
+		{
+			switch (order)
+			{
+			case 2:
+				stp.ptl = value;
+				break;
+			case 3:
+				stp.ptg = value;
+				break;
+			case 4:
+				stp.ptb = value;
+				break;
+			default:
+				fprintf(SYMPHAS_WARN, msg, order);
+			}
+		}
+	}
+}
+
 
 void SystemConf::parse_model_spec(const char* value, const char* dir)
 {
@@ -2032,10 +2095,10 @@ void SystemConf::write(const char* savedir, const char* name) const
 
 
 	fprintf(f, CONFIG_NAME_FMT "%zd\n", symphas::internal::C_DIM, dimension);
-	fprintf(f, CONFIG_NAME_FMT "%zd\n", symphas::internal::C_ORDER, stp.ord);
-	fprintf(f, CONFIG_NAME_FMT "%zd\n", symphas::internal::C_PTL, stp.ptl);
-	fprintf(f, CONFIG_NAME_FMT "%zd\n", symphas::internal::C_PTB, stp.ptb);
-	fprintf(f, CONFIG_NAME_FMT "%zd\n", symphas::internal::C_PTG, stp.ptg);
+	fprintf(f, CONFIG_NAME_FMT "%I32d\n", symphas::internal::C_ORDER, stp.ord);
+	fprintf(f, CONFIG_NAME_FMT "%I32d\n", symphas::internal::C_PTL, stp.ptl);
+	fprintf(f, CONFIG_NAME_FMT "%I32d\n", symphas::internal::C_PTB, stp.ptb);
+	fprintf(f, CONFIG_NAME_FMT "%I32d\n", symphas::internal::C_PTG, stp.ptg);
 	fprintf(f, CONFIG_NAME_FMT "%s\n", symphas::internal::C_FORM, "");
 
 

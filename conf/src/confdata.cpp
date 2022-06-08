@@ -81,7 +81,7 @@ void DataConf::write(const char* savedir, const char* name) const
 				{
 					fprintf(f, "%s ", "ABS");
 				}
-				else if (proc.type == ProcessType::VEC)
+				else if (proc.type == ProcessType::VECTOR)
 				{
 					fprintf(f, "%s ", "VEC");
 				}

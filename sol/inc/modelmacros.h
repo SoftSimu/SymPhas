@@ -148,185 +148,13 @@ struct model_call_wrapper<MODEL_INDEX_NAME(NAME)> \
 };
 //! \endcond
 
-namespace symphas::internal
-{
-
-	/*!
-	 * Defines the "point number" for the given finite difference approximation,
-	 * based on the index of the derivative that is approximated, as well as its
-	 * dimension and order of accuracy.
-	 *
-	 * \tparam N The order of the derivative for the point list.
-	 * \tparam D Dimension of derivative.
-	 * \tparam O The order of accuracy of the derivative.
-	 */
-	template<size_t N, size_t D, size_t O>
-	struct StencilPointList;
-
-	template<size_t D>
-	struct OrderList
-	{
-		using type = std::index_sequence<2>;
-	};
-}
 
 
 // **************************************************************************************
 
-
-#define MAKE_STENCIL_POINT_LIST(N, DIM, ORD, PS) \
-template<> struct symphas::internal::StencilPointList<N, DIM, ORD> { using type = std::index_sequence<SINGLE_ARG PS>; };
-
-#define MAKE_AVAILABLE_ORDER_LIST(DIM, ORDS) \
-template<> struct symphas::internal::OrderList<DIM> { using type = std::index_sequence<SINGLE_ARG ORDS>; };
-
-#if !defined(DEBUG) && defined(ALL_STENCILS)
-
-MAKE_STENCIL_POINT_LIST(2, 1, 2, (3))
-MAKE_STENCIL_POINT_LIST(4, 1, 2, (5))
-MAKE_STENCIL_POINT_LIST(3, 1, 2, (4))
-
-MAKE_STENCIL_POINT_LIST(2, 2, 2, (5, 9))
-MAKE_STENCIL_POINT_LIST(4, 2, 2, (13, 17, 21))
-MAKE_STENCIL_POINT_LIST(3, 2, 2, (6, 8, 12, 16))
-MAKE_STENCIL_POINT_LIST(2, 2, 4, (9, 17, 21))
-MAKE_STENCIL_POINT_LIST(4, 2, 4, (21, 25, 33, 37))
-MAKE_STENCIL_POINT_LIST(3, 2, 4, (14, 18, 26, 30))
-
-MAKE_STENCIL_POINT_LIST(2, 3, 2, (7, 15, 19, 21, 27))
-MAKE_STENCIL_POINT_LIST(4, 3, 2, (21, 25, 41, 52, 57))
-MAKE_STENCIL_POINT_LIST(3, 3, 2, (10, 12, 28, 36, 40))
-
-MAKE_AVAILABLE_ORDER_LIST(1, (2))
-MAKE_AVAILABLE_ORDER_LIST(2, (2, 4))
-MAKE_AVAILABLE_ORDER_LIST(3, (2))
-
-#else
-
-MAKE_STENCIL_POINT_LIST(2, 1, 2, (3))
-MAKE_STENCIL_POINT_LIST(4, 1, 2, (5))
-MAKE_STENCIL_POINT_LIST(3, 1, 2, (4))
-
-MAKE_STENCIL_POINT_LIST(2, 2, 2, (9))
-MAKE_STENCIL_POINT_LIST(4, 2, 2, (13))
-MAKE_STENCIL_POINT_LIST(3, 2, 2, (6))
-
-MAKE_STENCIL_POINT_LIST(2, 3, 2, (7))
-MAKE_STENCIL_POINT_LIST(4, 3, 2, (21))
-MAKE_STENCIL_POINT_LIST(3, 3, 2, (10))
-
-
-#endif
-
-
-
-// **************************************************************************************
-
-
-
-namespace symphas::lib::internal
-{
-	template<size_t I, typename Seq0, typename... Seqs>
-	constexpr size_t get_search_offset(CrossProductList<Seq0, Seqs...>)
-	{
-		using cl_type = CrossProductList<Seq0, Seqs...>;
-		if constexpr (I + 1 >= cl_type::rank)
-		{
-			return 1;
-		}
-		else
-		{
-			return cl_type::template size<I + 1> * get_search_offset<I + 1>(CrossProductList<Seq0, Seqs...>{});
-		}
-	}
-
-	template<typename>
-	struct SearchCrossListReturn
-	{
-		bool operator()()
-		{
-			return false;
-		}
-	};
-
-	template<size_t... As>
-	struct SearchCrossListReturn<std::index_sequence<As...>>
-	{
-		bool operator()()
-		{
-			return true;
-		}
-	};
-
-	template<size_t I0, size_t I, size_t L>
-	auto matches(const size_t(&)[L], std::index_sequence<>)
-	{
-		return false;
-	}
-
-	template<size_t I0, size_t I, size_t L, size_t V, size_t... Vs>
-	auto matches(const size_t(&parameters)[L], std::index_sequence<V, Vs...>)
-	{
-		if constexpr (I0 == 0)
-		{
-			return (parameters[I] == V);
-		}
-		else
-		{
-			return matches<I0 - 1, I>(parameters, std::index_sequence<Vs...>{});
-		}
-	}
-
-	template<size_t I, size_t Pos, template<typename> typename F, size_t L, 
-		typename Seq0, typename... Seqs, typename... Ts, 
-		typename = std::enable_if_t<(L == CrossProductList<Seq0, Seqs...>::rank), int>>
-	auto search(const size_t(&parameters)[L], CrossProductList<Seq0, Seqs...>, Ts&& ...args)
-	{
-		using cl_type = CrossProductList<Seq0, Seqs...>;
-
-		if constexpr (Pos >= cl_type::count)
-		{
-			return F<void>{}(std::forward<Ts>(args)...);
-		}
-		else
-		{
-			using row_type = typename cl_type::template row<Pos>;
-
-			if constexpr (I >= L)
-			{
-				return F<row_type>{}(std::forward<Ts>(args)...);
-			}
-			else
-			{
-				if (matches<I, I>(parameters, row_type{}))
-				{
-					return search<I + 1, Pos, F>(parameters, cl_type{}, std::forward<Ts>(args)...);
-				}
-				else
-				{
-					constexpr size_t offset = get_search_offset<I>(cl_type{});
-					return search<I, Pos + offset, F>(parameters, cl_type{}, std::forward<Ts>(args)...);
-				}
-			}
-		}
-	}
-	
-	template<template<typename> typename F, size_t L, typename Seq0, typename... Seqs, typename... Ts>
-	auto search(const size_t(&parameters)[L], CrossProductList<Seq0, Seqs...>, Ts&& ...args)
-	{
-		return search<0, 0, F>(parameters, CrossProductList<Seq0, Seqs...>{}, std::forward<Ts>(args)...);
-	}
-
-	template<size_t L, typename Seq0, typename... Seqs, typename... Ts>
-	auto search(const size_t(&parameters)[L], CrossProductList<Seq0, Seqs...>, Ts&& ...args)
-	{
-		return search<0, 0, SearchCrossListReturn>(parameters, CrossProductList<Seq0, Seqs...>{}, std::forward<Ts>(args)...);
-	}
-
-}
-
 namespace symphas::internal
 {
+
 	template<
 		template<size_t, typename> typename Model,
 		template<typename> typename Solver,
@@ -334,27 +162,20 @@ namespace symphas::internal
 		typename... Ts
 	>
 	auto run_model_call(std::index_sequence<D, O, Ps...>, Ts&& ...args);
+
+	template<template<size_t, typename> typename M, size_t D>
+	struct allowed_model_dimensions { static const bool value = true; };
+
 }
 
 template<
 	template<size_t, typename> typename Model, 
-	template<typename> typename Solver, 
-	template<typename, size_t> typename allowed_model_dimensions>
+	template<typename> typename Solver>
 struct ModelSelect
 {
 
 protected:
 
-	using dim_ord_list_t = std::tuple<
-		std::tuple<std::index_sequence<1>, typename symphas::internal::OrderList<1>::type>,
-		std::tuple<std::index_sequence<2>, typename symphas::internal::OrderList<2>::type>,
-		std::tuple<std::index_sequence<3>, typename symphas::internal::OrderList<3>::type>>;
-
-	template<size_t D, size_t O>
-	using cross_list_t = symphas::lib::CrossProductList<std::index_sequence<D>, std::index_sequence<O>,
-		typename symphas::internal::StencilPointList<2, D, O>::type,
-		typename symphas::internal::StencilPointList<3, D, O>::type,
-		typename symphas::internal::StencilPointList<4, D, O>::type>;
 
 	template<typename>
 	struct StencilFromSeq
@@ -379,6 +200,8 @@ protected:
 
 	size_t parameters[5];
 
+	// Run model from stencil parameters.
+
 	template<size_t D, typename... Ts>
 	auto search_ord(std::index_sequence<>, Ts&& ...) const
 	{
@@ -391,7 +214,8 @@ protected:
 	{
 		if (parameters[1] == O)
 		{
-			return symphas::lib::internal::search<StencilFromSeq>(parameters, cross_list_t<D, O>{}, std::forward<Ts>(args)...);
+			return symphas::lib::internal::search<StencilFromSeq>(
+				parameters, symphas::internal::cross_list_t<D, O>{}, std::forward<Ts>(args)...);
 		}
 		else
 		{
@@ -409,7 +233,7 @@ protected:
 	template<size_t D, size_t... Ns, typename... Seqs, typename... Ts>
 	auto search_dim(std::tuple<std::tuple<std::index_sequence<D>, std::index_sequence<Ns...>>, Seqs...>, Ts&& ...args) const
 	{
-		if constexpr (allowed_model_dimensions<void, D>::value)
+		if constexpr (symphas::internal::allowed_model_dimensions<Model, D>::value)
 		{
 			if (parameters[0] == D)
 			{
@@ -419,6 +243,7 @@ protected:
 		return search_dim(std::tuple<Seqs...>{}, std::forward<Ts>(args)...);
 	}
 
+
 public:
 
 	ModelSelect(size_t dimension, StencilParams stp)
@@ -427,9 +252,8 @@ public:
 	template<typename... Ts>
 	auto operator()(Ts&& ...args) const
 	{
-		return search_dim(dim_ord_list_t{}, std::forward<Ts>(args)...);
+		return search_dim(symphas::internal::dim_ord_list_t{}, std::forward<Ts>(args)...);
 	}
-
 };
 
 
@@ -465,7 +289,7 @@ public:
  */
 
 #define RUNMODEL(MODEL, SOLVER, MODEL_NAMESPACE) \
-return ModelSelect<MODEL, SOLVER, MODEL_NAMESPACE::allowed_model_dimensions>( dimension, stp )(std::forward<Ts>(args)...);
+return ModelSelect<MODEL, SOLVER>( dimension, stp )(std::forward<Ts>(args)...);
 
 
 #else
@@ -522,13 +346,11 @@ return ModelSelect<MODEL, SOLVER, MODEL_NAMESPACE::allowed_model_dimensions>( di
  */
 #define MODEL(NAME, TYPES, ...) \
 namespace model_ ## NAME { \
-template<typename, size_t D> \
-struct allowed_model_dimensions { static const bool value = true; }; \
 EQUATION_TRAIT_FORWARD_DECL \
 template<size_t Dm, typename Sp> \
 using OpTypes = typename ModelApplied<Dm, Sp>::template OpTypes<SINGLE_ARG TYPES>; \
 template<typename> struct using_provisional { template<size_t Dm, typename Sp> using type = typename OpTypes<Dm, Sp>::template Specialized<TraitEquationModel>; }; \
-__VA_ARGS__ } \
+	__VA_ARGS__ } \
 template<size_t Dm, typename Sp> \
 using model_ ## NAME ## _t = model_ ## NAME ::SpecializedModel<Dm, Sp>;
 
@@ -780,8 +602,6 @@ if (std::strcmp(name, #GIVEN_NAME) == 0) { RUNMODEL(model_ ## NAME::SpecializedM
  */
 #define PFC_TYPE(NAME, DEFAULTS, TYPES, ...) \
 namespace modelpfc_ ## NAME { \
-template<typename, size_t D> \
-struct allowed_model_dimensions { static const bool value = true; }; \
 struct PFCParameters : PFCParametersDefault<modelpfc_ ## NAME::PFCParameters> \
 { \
 	using parent_type = PFCParametersDefault<modelpfc_ ## NAME::PFCParameters>; \
@@ -908,7 +728,7 @@ if (std::strcmp(name, #GIVEN_NAME) == 0) { RUNMODEL(modelpfc_ ## NAME::ModelPFCS
 
 #define RESTRICT_DIMENSIONS(...) \
 template<size_t D> \
-struct allowed_model_dimensions<void, D> \
+struct ::symphas::internal::allowed_model_dimensions<SpecializedModel, D> \
 { static const bool value = symphas::lib::value_in_seq<D, std::index_sequence<__VA_ARGS__>>::value; };
 
 // **************************************************************************************
