@@ -346,13 +346,17 @@ return ModelSelect<MODEL, SOLVER>( dimension, stp )(std::forward<Ts>(args)...);
  */
 #define MODEL(NAME, TYPES, ...) \
 namespace model_ ## NAME { \
+template<typename T, size_t D> struct allowed_model_dimensions { static const bool value = true; }; \
 EQUATION_TRAIT_FORWARD_DECL \
 template<size_t Dm, typename Sp> \
 using OpTypes = typename ModelApplied<Dm, Sp>::template OpTypes<SINGLE_ARG TYPES>; \
 template<typename> struct using_provisional { template<size_t Dm, typename Sp> using type = typename OpTypes<Dm, Sp>::template Specialized<TraitEquationModel>; }; \
 	__VA_ARGS__ } \
 template<size_t Dm, typename Sp> \
-using model_ ## NAME ## _t = model_ ## NAME ::SpecializedModel<Dm, Sp>;
+using model_ ## NAME ## _t = model_ ## NAME ::SpecializedModel<Dm, Sp>; \
+template<size_t D> \
+struct symphas::internal::allowed_model_dimensions<model_ ## NAME ## _t, D> \
+{ static const bool value = model_ ## NAME::allowed_model_dimensions<void, D>::value; };
 
 
 
@@ -728,7 +732,7 @@ if (std::strcmp(name, #GIVEN_NAME) == 0) { RUNMODEL(modelpfc_ ## NAME::ModelPFCS
 
 #define RESTRICT_DIMENSIONS(...) \
 template<size_t D> \
-struct ::symphas::internal::allowed_model_dimensions<SpecializedModel, D> \
+struct allowed_model_dimensions<void, D> \
 { static const bool value = symphas::lib::value_in_seq<D, std::index_sequence<__VA_ARGS__>>::value; };
 
 // **************************************************************************************

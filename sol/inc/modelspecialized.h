@@ -175,8 +175,8 @@ struct ModelApplied<D, Sp>::OpTypes<S...>::Specialized : eq_type
 	Specialized(impl_type<SpecializedModel, Sp0>&& other) :
 		parent_type(static_cast<eq_type_solver<Sp0>>(other)), equations{ parent_type::make_equations() } {}
 
-	impl_type<typename ModelApplied<D, Sp>::template OpTypes<S...>::Specialized, Sp>& operator=(
-		impl_type<typename ModelApplied<D, Sp>::template OpTypes<S...>::Specialized, Sp> other)
+	impl_type<ModelApplied<D, Sp>::template OpTypes<S...>::template Specialized, Sp>& operator=(
+		impl_type<ModelApplied<D, Sp>::template OpTypes<S...>::template Specialized, Sp> other)
 	{
 		using std::swap;
 
@@ -261,8 +261,8 @@ struct ModelApplied<D, Sp>::OpTypes<S...>::ProvTypes<P...>::Specialized : eq_typ
 		provisionals{ parent_type::make_provisionals() },
 		equations{ parent_type::make_equations() } {}
 	
-	impl_type<typename ModelApplied<D, Sp>::template OpTypes<S...>::template ProvTypes<P...>::Specialized, Sp>& operator=(
-		impl_type<typename ModelApplied<D, Sp>::template OpTypes<S...>::template ProvTypes<P...>::Specialized, Sp> other)
+	impl_type<ModelApplied<D, Sp>::template OpTypes<S...>::template ProvTypes<P...>::template Specialized, Sp>& operator=(
+		impl_type<ModelApplied<D, Sp>::template OpTypes<S...>::template ProvTypes<P...>::template Specialized, Sp> other)
 	{
 		using std::swap;
 		
