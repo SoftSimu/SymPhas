@@ -39,7 +39,7 @@ namespace symphas::internal
 		using parent_model::solver;
 
 		template<typename... A>
-		auto make_equations(A&&... a)
+		auto make_equations(A&&... a) const
 		{
 			((..., expr::printf(std::get<1>(std::forward<A>(a)), "given equation")));
 			return solver.template form_expr_all<model_num_parameters<parent_model>::value>(_s, std::forward<A>(a)...);
@@ -55,7 +55,7 @@ namespace symphas::internal
 		using parent_trait::solver;
 
 		template<typename... A>
-		auto make_equations(A&&... a)
+		auto make_equations(A&&... a) const
 		{
 			((..., expr::printf(std::get<1>(std::forward<A>(a)), "given equation")));
 			return solver.template form_expr_all<model_num_parameters<parent_trait>::value>(forward_systems(), std::forward<A>(a)...);
@@ -66,18 +66,18 @@ namespace symphas::internal
 		template<typename... Ts1, typename... Ts2, size_t... Is1, size_t... Is2>
 		decltype(auto) forward_systems(
 			std::tuple<Ts1...> const& a, std::tuple<Ts2...> const& b,
-			std::index_sequence<Is1...>, std::index_sequence<Is2...>)
+			std::index_sequence<Is1...>, std::index_sequence<Is2...>) const
 		{
 			return std::forward_as_tuple(std::get<Is1>(a)..., std::get<Is2>(b)...);
 		}
 
 		template<typename... Ts1, typename... Ts2>
-		decltype(auto) forward_systems(std::tuple<Ts1...> const& a, std::tuple<Ts2...> const& b)
+		decltype(auto) forward_systems(std::tuple<Ts1...> const& a, std::tuple<Ts2...> const& b) const
 		{
 			return forward_systems(a, b, std::make_index_sequence<sizeof...(Ts1)>{}, std::make_index_sequence<sizeof...(Ts2)>{});
 		}
 
-		decltype(auto) forward_systems()
+		decltype(auto) forward_systems() const
 		{
 			return forward_systems(_s, temp._s);
 		}
@@ -150,9 +150,14 @@ struct ModelApplied<D, Sp>::OpTypes<S...>::Specialized : eq_type
 {
 	using M = Model<D, Sp, S...>;
 	using M::solver;
+	
+	template<typename Sp0>
+	using eq_type_solver = Eq<symphas::internal::MakeEquation<Model<D, Sp0, S...>>>;
 
+	template<template<template<typename> typename, typename> typename SpecializedModel, typename Sp0>
+	using impl_type = SpecializedModel<Eq, Eq<symphas::internal::MakeEquation<Model<D, Sp0, S...>>>>;
+	
 	using parent_type = eq_type;
-	using impl_type = typename ModelApplied<D, Sp>::template OpTypes<S...>::template Specialized<Eq, eq_type>;
 	using parent_type::parent_type;
 
 	using eqs = typename std::invoke_result_t<decltype(&parent_type::make_equations), parent_type>;
@@ -161,11 +166,17 @@ struct ModelApplied<D, Sp>::OpTypes<S...>::Specialized : eq_type
 	Specialized(double const* coeff, size_t num_coeff, symphas::problem_parameters_type const& parameters) :
 		parent_type(coeff, num_coeff, parameters), equations{ parent_type::make_equations() } {}
 	Specialized(symphas::problem_parameters_type const& parameters) : Specialized(nullptr, 0, parameters) {}
-	Specialized(impl_type const& other) :
-		parent_type(*static_cast<parent_type const*>(&other)), equations{ parent_type::make_equations() } {}
-	Specialized(impl_type&& other) :
-		parent_type(static_cast<parent_type>(other)), equations{ parent_type::make_equations() } {}
-	impl_type& operator=(impl_type other)
+
+	template<template<template<typename> typename, typename> typename SpecializedModel, typename Sp0>
+	Specialized(impl_type<SpecializedModel, Sp0> const& other) :
+		parent_type(*static_cast<eq_type_solver<Sp0> const*>(&other)), equations{ parent_type::make_equations() } {}
+
+	template<template<template<typename> typename, typename> typename SpecializedModel, typename Sp0>
+	Specialized(impl_type<SpecializedModel, Sp0>&& other) :
+		parent_type(static_cast<eq_type_solver<Sp0>>(other)), equations{ parent_type::make_equations() } {}
+
+	impl_type<typename ModelApplied<D, Sp>::template OpTypes<S...>::Specialized, Sp>& operator=(
+		impl_type<typename ModelApplied<D, Sp>::template OpTypes<S...>::Specialized, Sp> other)
 	{
 		using std::swap;
 
@@ -184,7 +195,7 @@ struct ModelApplied<D, Sp>::OpTypes<S...>::Specialized : eq_type
 		M::solver.equations(equations);
 	}
 
-	void print_equations()
+	void print_equations() const
 	{
 		print_equations(std::make_index_sequence<sizeof...(S)>{});
 	}
@@ -194,7 +205,7 @@ struct ModelApplied<D, Sp>::OpTypes<S...>::Specialized : eq_type
 protected:
 
 	template<size_t... Is>
-	void print_equations(std::index_sequence<Is...>)
+	void print_equations(std::index_sequence<Is...>) const
 	{
 		// TODO
 	}
@@ -213,8 +224,17 @@ struct ModelApplied<D, Sp>::OpTypes<S...>::ProvTypes<P...>::Specialized : eq_typ
 	using M = Model<D, Sp, S...>;
 	using M::solver;
 
+
+
+	template<typename Sp0>
+	using pr_type_solver = Pr<Model<D, Sp0, S...>, P...>;
+	template<typename Sp0>
+	using eq_type_solver = Eq<symphas::internal::MakeEquationProvisional<pr_type_solver<Sp0>>>;
+
+	template<template<template<typename> typename, template<typename, typename...> typename, typename, typename> typename SpecializedModel, typename Sp0>
+	using impl_type = SpecializedModel<Eq, Pr, pr_type_solver<Sp0>, eq_type_solver<Sp0>>;
+
 	using parent_type = eq_type;
-	using impl_type = typename ModelApplied<D, Sp>::template OpTypes<S...>::template ProvTypes<P...>::template Specialized<Eq, Pr, pr_type, eq_type>;
 	using parent_type::parent_type;
 	using parent_type::temp;
 
@@ -228,11 +248,21 @@ struct ModelApplied<D, Sp>::OpTypes<S...>::ProvTypes<P...>::Specialized : eq_typ
 	Specialized(double const* coeff, size_t num_coeff, symphas::problem_parameters_type const& parameters) :
 		parent_type(coeff, num_coeff, parameters), provisionals{ parent_type::make_provisionals() }, equations{ parent_type::make_equations() } {}
 	Specialized(symphas::problem_parameters_type const& parameters) : Specialized(nullptr, 0, parameters) {}
-	Specialized(impl_type const& other) :
-		parent_type(*static_cast<parent_type const*>(&other)), provisionals{ parent_type::make_provisionals() }, equations{ parent_type::make_equations() } {}
-	Specialized(impl_type&& other) :
-		parent_type(static_cast<parent_type>(other)), provisionals{ parent_type::make_provisionals() }, equations{ parent_type::make_equations() } {}
-	impl_type& operator=(impl_type other)
+
+	template<template<template<typename> typename, template<typename, typename...> typename, typename, typename> typename SpecializedModel, typename Sp0>
+	Specialized(impl_type<SpecializedModel, Sp0> const& other) :
+		parent_type(*static_cast<eq_type_solver<Sp0> const*>(&other)),
+		provisionals{ parent_type::make_provisionals() },
+		equations{ parent_type::make_equations() } {}
+	
+	template<template<template<typename> typename, template<typename, typename...> typename, typename, typename> typename SpecializedModel, typename Sp0>
+	Specialized(impl_type<SpecializedModel, Sp0>&& other) :
+		parent_type(static_cast<eq_type_solver<Sp0>>(other)),
+		provisionals{ parent_type::make_provisionals() },
+		equations{ parent_type::make_equations() } {}
+	
+	impl_type<typename ModelApplied<D, Sp>::template OpTypes<S...>::template ProvTypes<P...>::Specialized, Sp>& operator=(
+		impl_type<typename ModelApplied<D, Sp>::template OpTypes<S...>::template ProvTypes<P...>::Specialized, Sp> other)
 	{
 		using std::swap;
 		
@@ -280,7 +310,7 @@ struct ModelApplied<D, Sp>::OpTypes<S...>::ProvTypes<P...>::Specialized : eq_typ
 		return temp.template grid<I>();
 	}
 
-	void print_equations()
+	void print_equations() const
 	{
 		print_equations(std::make_index_sequence<sizeof...(S)>{}, std::make_index_sequence<sizeof...(P)>{});
 	}
@@ -290,7 +320,7 @@ protected:
 
 
 	template<size_t... Is, size_t... Js>
-	void print_equations(std::index_sequence<Is...>, std::index_sequence<Js...>)
+	void print_equations(std::index_sequence<Is...>, std::index_sequence<Js...>) const
 	{
 		((expr::printf(std::get<1>(std::get<Js>(provisionals)), "var%zd"), ...));
 	}
@@ -324,7 +354,7 @@ struct TraitEquation : parent_trait
 	{
 		return expr::make_op<I>(
 			NamedData(
-				parent_trait::template grid<I>(), 
+				parent_trait::template grid<I>(),
 				model_field_name<enclosing_type>{}(I)
 			));
 	}
@@ -419,7 +449,7 @@ struct TraitProvisional : TraitEquation<enclosing_type, parent_model>
 protected:
 
 	template<typename... A>
-	auto make_provisionals(A&&... a)
+	auto make_provisionals(A&&... a) const
 	{
 		return std::make_tuple(std::forward<A>(a)...);
 	}
@@ -478,10 +508,10 @@ struct TraitEquationModel : TraitEquation<TraitEquationModel, parent_trait> \
 	using parent_type::solver; \
 	using parent_type::parent_type; \
 	auto make_equations() { \
-	using namespace std; using namespace expr; \
-	constexpr size_t D = model_dimension<parent_type>::value; \
-	UNUSED(D) \
-	__VA_ARGS__
+		using namespace std; using namespace expr; \
+		constexpr size_t D = model_dimension<parent_type>::value; \
+		UNUSED(D) \
+		__VA_ARGS__
 
 //! Defines a TraitEquation child class used to define dynamical equations.
 /*!
@@ -521,4 +551,57 @@ struct model_field_name<model_ ## MODEL_NAME::TraitEquationModel> \
 };
 
 //! @}
+
+
+//! Copy construct the model with a new solver.
+/*!
+ * A new model is constructed with using instead the given solver. The phase-field
+ * data from the given model is copied over as well.
+ *
+ * \tparam M The model type that from which is counted the phase fields
+ */
+template<typename Sp>
+struct model_swap_solver
+{
+
+protected:
+
+	template<template<size_t, typename> typename M, size_t D, typename Sp0>
+	static constexpr auto with_new_solver(M<D, Sp0> model)
+	{
+		return M<D, Sp>(model);
+	}
+
+	template<
+		template<template<typename> typename, typename> typename SpecializedModel,
+		template<typename> typename Eq,
+		size_t D, typename Sp0, typename... S>
+	static constexpr auto with_new_solver(SpecializedModel<Eq, Eq<symphas::internal::MakeEquation<Model<D, Sp0, S...>>>> const& model)
+	{
+		using type = typename ModelApplied<D, Sp>::template OpTypes<S...>::template Specialized<Eq>;
+		return type(model);
+	}
+
+	template<
+		template<template<typename> typename, template<typename, typename...> typename, typename, typename> typename Specialized,
+		template<typename> typename Eq,
+		template<typename, typename...> typename Pr,
+		size_t D, typename Sp0, typename... S, typename... P>
+	static constexpr auto with_new_solver(
+		Specialized<Eq, Pr, Pr<Model<D, Sp0, S...>, P...>, Eq<symphas::internal::MakeEquationProvisional<Pr<Model<D, Sp0, S...>, P...>>>> const& model)
+	{
+		return typename ModelApplied<D, Sp>::template OpTypes<S...>::template ProvTypes<P...>::template Specialized<Eq, Pr>(model);
+	}
+
+
+public:
+
+	template<typename M>
+	auto operator()(M const& model)
+	{
+		return with_new_solver(model);
+	}
+};
+
+
 

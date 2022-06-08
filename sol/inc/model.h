@@ -126,7 +126,7 @@ protected:
 
 	Model()
 		: _s{ construct_systems({}, {}, {}, 0) },
-		solver{ Sp::make_solver() }, lastindex{ params::start_index }, coeff{ nullptr }, num_coeff{ 0 } {}
+		solver{ Sp::make_solver() }, coeff{ nullptr }, num_coeff{ 0 }, lastindex{ params::start_index }, time{ 0 } {}
 
 public:
 
@@ -171,8 +171,8 @@ public:
 	Model(symphas::problem_parameters_type const& parameters) : Model(nullptr, 0, parameters) {}
 
 	Model(Model<D, Sp, S...> const& other) : 
-		_s{ other._s }, solver{ other.solver }, lastindex{ other.lastindex },
-		coeff{ (other.num_coeff > 0) ? new double[other.num_coeff] : nullptr }, num_coeff{ other.num_coeff }
+		_s{ other._s }, solver{ other.solver }, coeff{ (other.num_coeff > 0) ? new double[other.num_coeff] : nullptr }, 
+		num_coeff{ other.num_coeff }, lastindex{ other.lastindex }, time{ other.time }
 	{
 		std::copy(other.coeff, other.coeff + other.num_coeff, coeff);
 		visualize();
@@ -189,6 +189,29 @@ public:
 		return *this;
 	}
 
+	template<typename Sp0, typename = std::enable_if_t<!std::is_same<Sp, Sp0>::value, int>>
+	Model(Model<D, Sp0, S...> const& other) :
+		_s{ construct_systems(other.systems_tuple()) }, solver{ Sp::make_solver(generate_parameters()) }, coeff{ (other.get_num_coeff() > 0) ? new double[other.get_num_coeff()] : nullptr },
+		num_coeff{ other.get_num_coeff() }, lastindex{ other.index() }, time{ other.get_time()}
+	{
+		std::copy(other.get_coeff(), other.get_coeff() + other.get_num_coeff(), coeff);
+		update_systems(time);
+		visualize();
+	}
+
+	template<typename Sp0, typename = std::enable_if_t<!std::is_same<Sp, Sp0>::value, int>>
+	Model(Model<D, Sp0, S...>&& other) noexcept : Model()
+	{
+		swap(*this, other);
+	}
+
+	template<typename Sp0, typename = std::enable_if_t<!std::is_same<Sp, Sp0>::value, int>>
+	Model<D, Sp0, S...>& operator=(Model<D, Sp0, S...> other)
+	{
+		swap(*this, other);
+		return *this;
+	}
+
 	~Model()
 	{
 		devisualize();
@@ -200,15 +223,41 @@ public:
 		using std::swap;
 
 
-		swap(first.lastindex, second.lastindex);
 		swap(first.solver, second.solver);
 		swap(first._s, second._s);
 		swap(first.coeff, second.coeff);
 		swap(first.num_coeff, second.num_coeff);
+		swap(first.lastindex, second.lastindex);
+		swap(first.time, second.time);
 
 #ifdef VTK_ON
 		swap(first.viz_thread, second.viz_thread);
 #endif
+	}
+
+	template<typename Sp0, typename = std::enable_if_t<!std::is_same<Sp, Sp0>::value, int>>
+	friend void swap(Model<D, Sp, S...>& first, Model<D, Sp0, S...>& second)
+	{
+		using std::swap;
+
+		swap(first._s, second._s);
+		swap(first.coeff, second.coeff);
+		swap(first.num_coeff, second.num_coeff);
+		swap(first.lastindex, second.lastindex);
+		swap(first.time, second.time);
+
+#ifdef VTK_ON
+		swap(first.viz_thread, second.viz_thread);
+#endif
+	}
+
+	//! Returns the list of coefficients.
+	/*!
+	 * Returns a pointer to the array of coefficients used in the dynamic equations.
+	 */
+	const double* get_coeff() const
+	{
+		return coeff;
 	}
 
 	//! Get the current solution index.
@@ -220,6 +269,36 @@ public:
 	iter_type index() const
 	{
 		return lastindex;
+	}
+
+	//! Return the number of coefficients saved by the model.
+	/*!
+	 * Returns the number of coefficients that are used by the model in
+	 * the dynamic equations.
+	 */
+	auto get_num_coeff() const
+	{
+		return num_coeff;
+	}
+
+	//! Returns the current simulation time of the model.
+	/*!
+	 * Returns the current simulation time of the model.
+	 */
+	auto get_time() const
+	{
+		return time;
+	}
+
+	//! Returns a symbolic variable for the time value of the model.
+	/*!
+	 * Returns a symbolic variable for the time value of the model. The
+	 * variable maintains the time value as a pointer to the time value managed
+	 * by the model.
+	 */
+	auto get_time_var()
+	{
+		return expr::make_op(TimeValue{ &time });
 	}
 
 	//! Get the number of fields of the given types.
@@ -464,17 +543,6 @@ public:
 		return system<I>().as_grid();
 	}
 
-	//! Returns a symbolic variable for the time value of the model.
-	/*!
-	 * Returns a symbolic variable for the time value of the model. The
-	 * variable maintains the time value as a pointer to the time value managed
-	 * by the model.
-	 */
-	auto get_time_var()
-	{
-		return expr::make_op(TimeValue{ &time });
-	}
-
 	//! Returns the tuple of all model systems.
 	/*!
 	 * Directly returns the list of all systems of this model.
@@ -579,6 +647,21 @@ protected:
 		return parameters;
 	}
 
+	auto generate_parameters()
+	{
+		symphas::problem_parameters_type parameters(SN);
+		populate_parameters(parameters, std::make_index_sequence<SN>{});
+		return parameters;
+	}
+
+	template<size_t... Is>
+	auto populate_parameters(symphas::problem_parameters_type &parameters, std::index_sequence<Is...>)
+	{
+		double dt = 1.0;
+		parameters.set_problem_time_step(dt);
+		((parameters.set_interval_data(system<Is>().get_info().intervals, Is), ...));
+	}
+
 	template<size_t... Is>
 	auto construct_systems(const symphas::init_data_type* tdata, const symphas::interval_data_type *vdata, const symphas::b_data_type *bdata, std::index_sequence<Is...>)
 	{
@@ -611,6 +694,54 @@ protected:
 		{
 			return construct_systems(tdata, vdata, bdata, std::make_index_sequence<SN>{});
 		}
+	}
+
+	template<size_t I, typename other_sys_type,
+		typename std::enable_if_t<!std::is_same<other_sys_type, std::tuple_element_t<I, std::tuple<SolverSystemApplied<S>...>>>::value, int> = 0>
+	SolverSystemApplied<std::tuple_element_t<I, std::tuple<S...>>> construct_system(other_sys_type const& system) const
+	{
+		using value_type = std::tuple_element_t<I, std::tuple<S...>>;
+
+		symphas::b_data_type boundaries{};
+		for (iter_type i = 0; i < D * 2; ++i)
+		{
+			boundaries[symphas::index_to_side(i)] = BoundaryType::PERIODIC;
+		}
+
+		bool extend_boundary = params::extend_boundary;
+		params::extend_boundary = true;
+
+		auto new_system = SolverSystemApplied<std::tuple_element_t<I, std::tuple<S...>>>(
+			symphas::init_data_type{}, system.info.intervals, boundaries, system.id);
+
+		params::extend_boundary = extend_boundary;
+
+		value_type* swap_arr = new value_type[system.length()];
+		system.persist(swap_arr);
+		new_system.fill(swap_arr);
+
+		delete[] swap_arr;
+
+		return new_system;
+	}
+
+	template<size_t I, typename other_sys_type,
+		typename std::enable_if_t<std::is_same<other_sys_type, std::tuple_element_t<I, std::tuple<SolverSystemApplied<S>...>>>::value, int> = 0>
+	SolverSystemApplied<std::tuple_element_t<I, std::tuple<S...>>> construct_system(other_sys_type const& system) const
+	{
+		return SolverSystemApplied<std::tuple_element_t<I, std::tuple<S...>>>(system);
+	}
+
+	template<typename... Ss, size_t... Is>
+	std::tuple<SolverSystemApplied<S>...> construct_systems(std::tuple<Ss...> const& systems, std::index_sequence<Is...>) const
+	{
+		return std::make_tuple(construct_system<Is>(std::get<Is>(systems))...);
+	}
+
+	template<typename... Ss>
+	auto construct_systems(std::tuple<Ss...> const& systems) const
+	{
+		return construct_systems(systems, std::make_index_sequence<sizeof...(Ss)>{});
 	}
 
 	template<size_t... Is>
@@ -791,7 +922,6 @@ public:
 };
 
 
-
 //! Obtain the solver type used by the given model.
 /*!
  * Uses type traits to obtain the solver type used by the given model. The 
@@ -826,6 +956,30 @@ public:
 
 	using type = typename std::invoke_result_t<decltype(&model_solver<M>::get_type), M*>::type;
 };
+
+template<typename M>
+using model_solver_t = typename model_solver<M>::type;
+
+
+//! Obtain the phase-field value type corresponding to the given index. 
+/*!
+ * Wrapper for a model's member type, Model::type_of_S, which provides
+ * the type of the field at the given index.
+ * 
+ * \tparam M The model type.
+ * \tparam N The index of the field to get the type.
+ */
+template<typename M, size_t N, typename = typename M::template type_of_S<0>>
+struct model_field
+{
+	using type = typename M::template type_of_S<N>;
+};
+
+template<typename M, size_t N>
+using model_field_t = typename model_field<M, N>::type;
+
+
+
 
 #undef SN
 
