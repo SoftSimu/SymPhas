@@ -31,7 +31,7 @@ R"~(
 set term epslatex color size )~" PLOT_DISPLAY_SIZE_LATEX
 #else
 R"~(
-set terminal )~" STR(GNU_PLOTTER) "~( 1 size )~" PLOT_DISPLAY_SIZE_WIN
+set terminal )~" STR(GNU_PLOTTER) R"~( 1 size )~" PLOT_DISPLAY_SIZE_WIN
 #endif
 
 R"~(
@@ -67,7 +67,7 @@ set ylabel "$r_y$"
 set xlabel "$r_x$")~"
 #else
 R"~(
-set terminal )~" STR(GNU_PLOTTER) "~( 1 size )~" PLOT_DISPLAY_SQSIZE_WIN R"~(
+set terminal )~" STR(GNU_PLOTTER) R"~( 1 size )~" PLOT_DISPLAY_SQSIZE_WIN R"~(
 set ylabel "r_y"
 set xlabel "r_x")~"
 #endif
@@ -84,13 +84,13 @@ unset key
 R"~(
 set title "%s Data Field Values at $t = %.2lf$"
 set output %s"
-plot "%s" matrix nonuniform w image
+plot "%s" index %d matrix nonuniform w image
 unset output
 )~"
 #else
 R"~(
 set title "Data Field Values"
-plot "%s" matrix nonuniform w image
+plot "%s" index %d matrix nonuniform w image
 )~"
 #endif
 };
