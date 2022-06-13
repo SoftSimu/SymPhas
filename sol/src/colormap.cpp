@@ -38,17 +38,72 @@
 #include <vtkDataSetMapper.h>
 #include <vtkSimpleElevationFilter.h>
 #include <vtkPlaneSource.h>
+#include <vtkNew.h>
+#include <vtkColorSeries.h>
+#include <vtkPolyDataMapper.h>
+#include <vtkColorTransferFunction.h>
+#include <vtkCommand.h>
+#include <vtkAlgorithmOutput.h>
+#include <vtkProgrammableFilter.h>
+
+
 
 #pragma warning(pop)
 
+const double red[]{ 247, 22, 22, 1 };
+const double blue[]{ 20, 43, 222, 1 };
+
+
+struct filter_params
+{
+	vtkDoubleArray* scalars;
+	vtkPlaneSource* plane;
+	vtkPolyDataMapper* mapper;
+};
 
 void timercallback(vtkObject* caller, long unsigned int vtkNotUsed(eventId), void* clientData, void* vtkNotUsed(callData))
 {
-	vtkSmartPointer<vtkInteractorStyleImage> programmableFilter = static_cast<vtkInteractorStyleImage*>(clientData);
-	vtkRenderWindowInteractor* iren = static_cast<vtkRenderWindowInteractor*>(caller);
+	//vtkSmartPointer<vtkDoubleArray> scalars = static_cast<vtkDoubleArray*>(clientData);
 
-	programmableFilter->Modified();
+	filter_params& p = *static_cast<filter_params*>(clientData);
+	vtkSmartPointer<vtkRenderWindowInteractor> iren = static_cast<vtkRenderWindowInteractor*>(caller);
+
 	iren->Render();
+	p.scalars->Modified();
+	//p.mapper->Update();
+	//iren->Render();
+}
+
+
+
+namespace LookupTables
+{
+	auto RedBlue()
+	{
+		// Map the scalar values in the image to colors with a lookup table:
+		vtkNew<vtkLookupTable> lookupTable;
+		//lookupTable->SetRange(-0.5, 0.5);
+		lookupTable->SetHueRange(.05, .7);
+		lookupTable->SetSaturationRange(.7, .7);
+		lookupTable->SetValueRange(.6, .6);
+		lookupTable->SetRampToLinear();
+
+		//lookupTable->SetNumberOfTableValues(1024);
+		lookupTable->SetTableRange(-1., 1.);
+		//lookupTable->SetTableValue(0, red);
+		//lookupTable->SetTableValue(lookupTable->GetNumberOfTableValues() - 1, blue);// lookupTable->GetNumberOfTableValues() -
+		lookupTable->IndexedLookupOff();
+		lookupTable->Build();
+
+		return lookupTable;
+	}
+};
+
+void update_filter(void* arguments)
+{
+	filter_params &p = *static_cast<filter_params*>(arguments);
+	//p.filter->GetPolyDataOutput()->GetPointData()->SetScalars(p.data);
+	//p.filter->GetPolyDataOutput()->(p.filter->GetInput());
 }
 
 void ColourPlot2d::init(scalar_t* values, len_type* dims)
@@ -63,17 +118,17 @@ void ColourPlot2d::init(scalar_t* values, len_type* dims)
 		scalars->SetArray(values, len, 1);
 
 		vtkNew<vtkPlaneSource> plane;
-		plane->SetXResolution(dims[0]);
-		plane->SetYResolution(dims[1]);
+		plane->SetXResolution(dims[0] - 1);
+		plane->SetYResolution(dims[1] - 1);
 		plane->Update();
 		plane->GetOutput()->GetPointData()->SetScalars(scalars);
 
 
-		// Map the scalar values in the image to colors with a lookup table:
 		vtkNew<vtkLookupTable> lookupTable;
-		lookupTable->SetNumberOfTableValues(1024);
-		lookupTable->SetRange(-0.5, 0.5);
-		lookupTable->Build();
+		vtkNew<vtkColorSeries> colorSeries;
+		colorSeries->SetColorScheme(vtkColorSeries::ColorSchemes::CITRUS);
+		colorSeries->BuildLookupTable(lookupTable, vtkColorSeries::ORDINAL);
+		
 
 		//vtkNew<vtkSimpleElevationFilter> filter;
 		//filter->SetInputConnection(image->GetOutputPort());
@@ -83,16 +138,15 @@ void ColourPlot2d::init(scalar_t* values, len_type* dims)
 		//scalarValuesToColors->PassAlphaToOutputOn();
 		//scalarValuesToColors->SetInputData(image);
 
-		// Create an image actor
-		vtkNew<vtkDataSetMapper> magnitude;
-		magnitude->SetInputConnection(plane->GetOutputPort());
-		magnitude->SetScalarRange(-1, 1);
-		magnitude->ScalarVisibilityOn();
-		magnitude->SetLookupTable(lookupTable);
+		vtkNew<vtkPolyDataMapper> mapper;
+		mapper->SetInputConnection(plane->GetOutputPort());
+		mapper->SetScalarRange(-.5, .5);
+		//mapper->ScalarVisibilityOn();
+		mapper->SetLookupTable(lookupTable);
 		//plotMapper->GetProperty()->SetInterpolationTypeToNearest();
 
 		vtkNew<vtkActor> plotActor;
-		plotActor->SetMapper(magnitude);
+		plotActor->SetMapper(mapper);
 
 		vtkNew<vtkRenderer> renderer;
 		vtkNew<vtkRenderWindow> renderWindow;
@@ -100,24 +154,29 @@ void ColourPlot2d::init(scalar_t* values, len_type* dims)
 		vtkNew<vtkRenderWindowInteractor> renderWindowInteractor;
 
 		renderWindow->AddRenderer(renderer);
-		//renderWindowInteractor->SetInteractorStyle(style);
+		renderWindowInteractor->SetInteractorStyle(style);
 		renderWindowInteractor->SetRenderWindow(renderWindow);
+		
+		renderWindow->SetSize(500, 500);
+		renderWindow->SetWindowName("SymPhas");
+
 
 		// first initialize the render interactor
-		///renderWindowInteractor->Initialize();
+		renderWindowInteractor->Initialize();
+
+		filter_params* p = new filter_params{ scalars, plane, mapper };
 
 		// now we can add a timer based on the callback method
-		//renderWindowInteractor->CreateRepeatingTimer(std::max(params::viz_interval, 50));
-		//vtkNew<vtkCallbackCommand> timerCallback;
-		//timerCallback->SetCallback(timercallback);
-		//timerCallback->SetClientData(scalarValuesToColors);
+		vtkNew<vtkCallbackCommand> timerCallback;
+		timerCallback->SetCallback(timercallback);
+		timerCallback->SetClientData(p);
 
-		//renderWindowInteractor->AddObserver(vtkCommand::TimerEvent, timerCallback);
+		renderWindowInteractor->AddObserver(vtkCommand::TimerEvent, timerCallback);
+		renderWindowInteractor->CreateRepeatingTimer(std::max(params::viz_interval, 20));
 
 		// Visualize
 		renderer->AddActor(plotActor);
 		renderer->ResetCamera();
-		
 		
 
 		renderWindow->Render();

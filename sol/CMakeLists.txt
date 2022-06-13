@@ -36,13 +36,17 @@ if(USE_VTK)
 		CommonMisc
 		CommonSystem
 		CommonTransforms
+		InteractionStyle
 		FiltersCore
 		FiltersGeneral
 		FiltersSources
+		FiltersProgrammable
 		ImagingCore
-		InteractionStyle
 		RenderingCore
 		kwiml
+		RenderingGL2PSOpenGL2
+		RenderingOpenGL2
+		QUIET
 	)
 	
 	if(${VTK_FOUND})
@@ -89,23 +93,23 @@ target_include_directories(symphas_sol_o PUBLIC
 	${CUSTOM_SYS_INCLUDE}
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
 	$<INSTALL_INTERFACE:include>)
-target_link_libraries(symphas_sol_o PUBLIC symphas_sym PRIVATE ${ADD_LIBRARIES})
+target_link_libraries(symphas_sol_o PUBLIC symphas_sym PUBLIC ${ADD_LIBRARIES})
 target_compile_definitions(symphas_sol_o PUBLIC ${ADD_DEFINITIONS})
 
 if(USE_IO)
 	target_link_libraries(symphas_sol_o PUBLIC symphas_io)
 endif()
 
-if(${VTK_FOUND})
-	vtk_module_autoinit(
-		TARGETS symphas_sol_o
-		MODULES ${VTK_LIBRARIES}
-    )
-endif()
 
 
 add_library(symphas_sol SHARED)
 target_link_libraries(symphas_sol PUBLIC symphas_sol_o)
 
+if(${VTK_FOUND})
+	vtk_module_autoinit(
+		TARGETS symphas_sol symphas_sol_o
+		MODULES ${VTK_LIBRARIES}
+    )
+endif()
 
 

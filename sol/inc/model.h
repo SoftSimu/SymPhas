@@ -605,17 +605,19 @@ protected:
 #ifdef VTK_ON
 
 	std::thread viz_thread;
+	
 
 	void visualize()
 	{
 		if constexpr (num_fields<scalar_t>() > 0)
 		{
-			//auto& frame = grid<index_of_type<scalar_t>()>();
-			//auto viz = new ColourPlot2d;
-			//viz->init(frame.values, frame.dims);
-			//viz_thread = std::thread([&]()
-			//	{
-			//	});
+			auto& frame = grid<index_of_type<scalar_t>()>();
+			viz_thread = std::thread([&]()
+				{
+					ColourPlot2d viz{};
+					viz.init(frame.values, frame.dims);
+				});
+			viz_thread.detach();
 		}
 	}
 
