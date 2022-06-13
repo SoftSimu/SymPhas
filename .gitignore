@@ -315,10 +315,6 @@ CMakeCache.txt
 CMakeSettings.json
 out
 .vs*
-lib/inc/names.h
-io/inc/writeincludes.h
-io/inc/readincludes.h
-symphas.h
 
 doxy_warn
 cpp.hint
