@@ -1860,7 +1860,7 @@ void SystemConf::set_directory(const char* directory)
 			&& i < 10)
 		{
 			char dir_buffer[BUFFER_LENGTH];
-			sprintf(dir_buffer, "%s%s" TIMESTAMP_ID_APPEND, append_dir, ts_buffer, ++i);
+			sprintf(dir_buffer, "%s/%s" TIMESTAMP_ID_APPEND, append_dir, ts_buffer, ++i);
 
 			char* new_dir = new char[std::strlen(dir_buffer) + 1];
 			sprintf(new_dir, "%s", dir_buffer);
