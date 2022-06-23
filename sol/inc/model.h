@@ -125,8 +125,12 @@ struct Model
 protected:
 
 	Model()
-		: _s{ construct_systems({}, {}, {}, 0) },
-		solver{ Sp::make_solver() }, coeff{ nullptr }, num_coeff{ 0 }, lastindex{ params::start_index }, time{ 0 } {}
+		: _s{ construct_systems({}, {}, {}, 0) }, solver{ Sp::make_solver() }, coeff{ nullptr }, num_coeff{ 0 }, 
+		lastindex{ params::start_index }, time{ 0 }
+#ifdef VTK_ON
+		, viz_update{ nullptr }
+#endif 
+	{}
 
 public:
 
@@ -155,6 +159,9 @@ public:
 		_s{ construct_systems(parameters.get_initial_data(), parameters.get_interval_data(), parameters.get_boundary_data(), parameters.length()) },
 		solver{ Sp::make_solver(get_updated_parameters(parameters)) }, coeff{ (num_coeff > 0) ? new double[num_coeff] : nullptr },
 		num_coeff{ num_coeff }, lastindex{ params::start_index }, time{ 0 }
+#ifdef VTK_ON
+		, viz_update{ nullptr }
+#endif
 	{
 		std::copy(coeff, coeff + num_coeff, this->coeff);
 		visualize();
@@ -173,6 +180,9 @@ public:
 	Model(Model<D, Sp, S...> const& other) : 
 		_s{ other._s }, solver{ other.solver }, coeff{ (other.num_coeff > 0) ? new double[other.num_coeff] : nullptr }, 
 		num_coeff{ other.num_coeff }, lastindex{ other.lastindex }, time{ other.time }
+#ifdef VTK_ON
+		, viz_update{ nullptr }
+#endif
 	{
 		std::copy(other.coeff, other.coeff + other.num_coeff, coeff);
 		visualize();
@@ -193,6 +203,9 @@ public:
 	Model(Model<D, Sp0, S...> const& other) :
 		_s{ construct_systems(other.systems_tuple()) }, solver{ Sp::make_solver(generate_parameters()) }, coeff{ (other.get_num_coeff() > 0) ? new double[other.get_num_coeff()] : nullptr },
 		num_coeff{ other.get_num_coeff() }, lastindex{ other.index() }, time{ other.get_time()}
+#ifdef VTK_ON
+		, viz_update{ nullptr }
+#endif
 	{
 		std::copy(other.get_coeff(), other.get_coeff() + other.get_num_coeff(), coeff);
 		update_systems(time);
@@ -232,6 +245,7 @@ public:
 
 #ifdef VTK_ON
 		swap(first.viz_thread, second.viz_thread);
+		swap(first.viz_update, second.viz_update);
 #endif
 	}
 
@@ -248,6 +262,7 @@ public:
 
 #ifdef VTK_ON
 		swap(first.viz_thread, second.viz_thread);
+		swap(first.viz_update, second.viz_update);
 #endif
 	}
 
@@ -490,6 +505,15 @@ public:
 	{
 		++lastindex;
 		step(std::make_index_sequence<SN>{}, dt);
+
+#ifdef VTK_ON
+		if (viz_update 
+			&& params::viz_interval 
+			&& lastindex % params::viz_interval == 0)
+		{
+			viz_update->update();
+		}
+#endif
 	}
 
 	//! Returns the system at the given index.
@@ -605,6 +629,7 @@ protected:
 #ifdef VTK_ON
 
 	std::thread viz_thread;
+	ColourPlotUpdater* viz_update;
 	
 
 	void visualize()
@@ -615,9 +640,8 @@ protected:
 			viz_thread = std::thread([&]()
 				{
 					ColourPlot2d viz{};
-					viz.init(frame.values, frame.dims);
+					viz.init(frame.values, frame.dims, lastindex, viz_update);
 				});
-			viz_thread.detach();
 		}
 	}
 
@@ -625,7 +649,7 @@ protected:
 	{
 		if constexpr (num_fields<scalar_t>() > 0)
 		{
-			//viz_thread.join();
+			viz_thread.join();
 		}
 	}
 

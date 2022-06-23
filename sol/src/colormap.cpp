@@ -45,39 +45,54 @@
 #include <vtkCommand.h>
 #include <vtkAlgorithmOutput.h>
 #include <vtkProgrammableFilter.h>
-
+#include <vtkImageActor.h>
+#include <vtkImageData.h>
+#include <vtkImageMapToColors.h>
+#include <vtkImageMapper3D.h>
+#include <vtkImageImport.h>
 
 
 #pragma warning(pop)
 
-const double red[]{ 247, 22, 22, 1 };
-const double blue[]{ 20, 43, 222, 1 };
-
 
 struct filter_params
 {
-	vtkDoubleArray* scalars;
-	vtkPlaneSource* plane;
-	vtkPolyDataMapper* mapper;
+	filter_params(vtkImageImport* imageImport) : imageImport{ imageImport }, m{}, render_flag{ false } {}
+
+	vtkImageImport* imageImport;
+	
+	std::mutex m;
+	std::condition_variable cv;
+	bool render_flag;
 };
+
 
 void timercallback(vtkObject* caller, long unsigned int vtkNotUsed(eventId), void* clientData, void* vtkNotUsed(callData))
 {
 	//vtkSmartPointer<vtkDoubleArray> scalars = static_cast<vtkDoubleArray*>(clientData);
-
 	filter_params& p = *static_cast<filter_params*>(clientData);
-	vtkSmartPointer<vtkRenderWindowInteractor> iren = static_cast<vtkRenderWindowInteractor*>(caller);
+	
+	std::lock_guard<std::mutex> lock(p.m);
+	if (p.render_flag)
+	{
+		vtkSmartPointer<vtkRenderWindowInteractor> iren = static_cast<vtkRenderWindowInteractor*>(caller);
+		iren->Render();
+		p.render_flag = false;
+		p.cv.notify_all();
 
-	iren->Render();
-	p.scalars->Modified();
-	//p.mapper->Update();
-	//iren->Render();
+	}
 }
 
 
 
 namespace LookupTables
 {
+
+	const int red[]{ 247, 22, 22 };
+	const int purple[]{ 161, 52, 235 };
+	const int blue[]{ 20, 43, 222 };
+
+
 	auto RedBlue()
 	{
 		// Map the scalar values in the image to colors with a lookup table:
@@ -88,29 +103,126 @@ namespace LookupTables
 		lookupTable->SetValueRange(.6, .6);
 		lookupTable->SetRampToLinear();
 
-		//lookupTable->SetNumberOfTableValues(1024);
+		lookupTable->SetNumberOfTableValues(512);
 		lookupTable->SetTableRange(-1., 1.);
-		//lookupTable->SetTableValue(0, red);
-		//lookupTable->SetTableValue(lookupTable->GetNumberOfTableValues() - 1, blue);// lookupTable->GetNumberOfTableValues() -
 		lookupTable->IndexedLookupOff();
 		lookupTable->Build();
 
 		return lookupTable;
 	}
+
+	auto OneTwoThree(const double one[3], const double two[2], const double three[3])
+	{
+		vtkNew<vtkColorTransferFunction> colorFunction;
+		colorFunction->SetColorSpaceToRGB();
+		colorFunction->SetColorSpaceToDiverging();
+		colorFunction->AddRGBPoint(0.0, one[0], one[1], one[2]);
+		colorFunction->AddRGBPoint(0.5, two[0], two[1], two[2]);
+		colorFunction->AddRGBPoint(1.0, three[0], three[1], three[2]);
+
+		vtkNew<vtkLookupTable> lookupTable;
+		lookupTable->SetNumberOfTableValues(512);
+		lookupTable->SetTableRange(-0.5, 0.5);
+		lookupTable->Build();
+
+		size_t num_colors = lookupTable->GetNumberOfTableValues();
+		for (auto i = 0; i < num_colors; ++i)
+		{
+			double rgb[4] = { 0.0, 0.0, 0.0, 1.0 };
+			colorFunction->GetColor(static_cast<double>(i) / num_colors, rgb);
+			lookupTable->SetTableValue(i, rgb);
+		}
+
+		return lookupTable;
+	}
+
+	auto OneTwoThree(const int one[3], const int two[2], const int three[3])
+	{
+		double one_d[]{ one[0] / 256., one[1] / 256., one[2] / 256. };
+		double two_d[]{ two[0] / 256., two[1] / 256., two[2] / 256. };
+		double three_d[]{ three[0] / 256., three[1] / 256., three[2] / 256. };
+		return OneTwoThree(one_d, two_d, three_d);
+	}
+
+
+	auto OneTwoThree(vtkColor3ub cone, vtkColor3ub ctwo, vtkColor3ub cthree)
+	{
+		int one[]{ cone.GetRed(), cone.GetGreen(), cone.GetBlue() };
+		int two[]{ ctwo.GetRed(), ctwo.GetGreen(), ctwo.GetBlue() };
+		int three[]{ cthree.GetRed(), cthree.GetGreen(), cthree.GetBlue() };
+		return OneTwoThree(one, two, three);
+	}
+
+	auto RedPurpleBlue()
+	{
+		return OneTwoThree(red, purple, blue);
+	}
+	auto ColorSeriesCopy(vtkColorSeries::ColorSchemes cs)
+	{
+		vtkNew<vtkColorSeries> colorSeries;
+		colorSeries->SetColorScheme(cs);
+
+
+		vtkNew<vtkColorTransferFunction> colorFunction;
+		colorFunction->SetColorSpaceToRGB();
+		colorFunction->SetColorSpaceToDiverging();
+
+		for (iter_type i = 0; i < colorSeries->GetNumberOfColors(); ++i)
+		{
+			unsigned char* color_unscaled = colorSeries->GetColor(i).GetData();
+			double color[3]{};
+			for (iter_type n = 0; n < 3; ++n)
+			{
+				color[n] = color_unscaled[n] / 256.;
+			}
+			colorFunction->AddRGBPoint(i / static_cast<double>(colorSeries->GetNumberOfColors() - 1), color[0], color[1], color[2]);
+		}
+
+
+		vtkNew<vtkLookupTable> lookupTable;
+		lookupTable->SetNumberOfTableValues(512);
+		lookupTable->SetTableRange(-0.5, 0.5);
+		lookupTable->Build();
+
+		size_t num_colors = lookupTable->GetNumberOfTableValues();
+		for (auto i = 0; i < num_colors; ++i)
+		{
+			double rgb[4] = { 0.0, 0.0, 0.0, 1.0 };
+			colorFunction->GetColor(static_cast<double>(i) / num_colors, rgb);
+			lookupTable->SetTableValue(i, rgb);
+		}
+
+		return lookupTable;
+	}
+
 };
 
-void update_filter(void* arguments)
-{
-	filter_params &p = *static_cast<filter_params*>(arguments);
-	//p.filter->GetPolyDataOutput()->GetPointData()->SetScalars(p.data);
-	//p.filter->GetPolyDataOutput()->(p.filter->GetInput());
-}
 
-void ColourPlot2d::init(scalar_t* values, len_type* dims)
+struct ColourPlotUpdaterConcrete : ColourPlotUpdater
 {
+	ColourPlotUpdaterConcrete(filter_params *data) : data{ data } {}
+	filter_params *data;
+
+	virtual void update()
+	{
+		{
+			std::lock_guard<std::mutex> lock(data->m);
+			data->imageImport->Modified();
+			data->render_flag = true;
+		}
+
+		std::unique_lock<std::mutex> lock(data->m);
+		data->cv.wait(lock, [&] { return !data->render_flag; });
+
+	}
+};
+
+
+void ColourPlot2d::init(scalar_t* values, len_type* dims, iter_type &index, ColourPlotUpdater* &updater)
+{
+	static bool one = false;
 	
-	params::viz_interval = 4;
-	if (params::viz_interval > 0)
+	if (!one)
 	{
 		size_t len = grid::length<2>(dims);
 
@@ -120,15 +232,37 @@ void ColourPlot2d::init(scalar_t* values, len_type* dims)
 		vtkNew<vtkPlaneSource> plane;
 		plane->SetXResolution(dims[0] - 1);
 		plane->SetYResolution(dims[1] - 1);
+		plane->SetOrigin(0, 0, 0);
+		plane->SetPoint1(1.0, 0.0, 0);
+		plane->SetPoint2(0.0, -static_cast<double>(dims[1]) / dims[0], 0);
 		plane->Update();
 		plane->GetOutput()->GetPointData()->SetScalars(scalars);
 
 
-		vtkNew<vtkLookupTable> lookupTable;
-		vtkNew<vtkColorSeries> colorSeries;
-		colorSeries->SetColorScheme(vtkColorSeries::ColorSchemes::CITRUS);
-		colorSeries->BuildLookupTable(lookupTable, vtkColorSeries::ORDINAL);
-		
+
+
+		vtkNew<vtkImageData> imageData;
+		imageData->SetDimensions(dims[0], dims[1], 1);
+		imageData->GetPointData()->SetScalars(scalars);
+
+		vtkNew<vtkImageImport> imageImport;
+		imageImport->SetDataSpacing(.1, .1, .1);
+		imageImport->SetDataOrigin(0, 0, 0);
+		imageImport->SetWholeExtent(0, dims[0] - 1, 0, dims[1] - 1, 0, 0);
+		imageImport->SetDataExtentToWholeExtent();
+		imageImport->SetDataScalarTypeToDouble();
+		imageImport->SetNumberOfScalarComponents(1);
+		imageImport->SetImportVoidPointer(values);
+		imageImport->Update();
+
+
+		vtkNew<vtkImageMapToColors> mapColors;
+		mapColors->SetLookupTable(LookupTables::RedBlue());
+		mapColors->SetInputConnection(imageImport->GetOutputPort());
+
+
+		vtkNew<vtkImageActor> imageActor;
+		imageActor->GetMapper()->SetInputConnection(mapColors->GetOutputPort());
 
 		//vtkNew<vtkSimpleElevationFilter> filter;
 		//filter->SetInputConnection(image->GetOutputPort());
@@ -142,7 +276,7 @@ void ColourPlot2d::init(scalar_t* values, len_type* dims)
 		mapper->SetInputConnection(plane->GetOutputPort());
 		mapper->SetScalarRange(-.5, .5);
 		//mapper->ScalarVisibilityOn();
-		mapper->SetLookupTable(lookupTable);
+		mapper->SetLookupTable(LookupTables::RedBlue());
 		//plotMapper->GetProperty()->SetInterpolationTypeToNearest();
 
 		vtkNew<vtkActor> plotActor;
@@ -157,14 +291,14 @@ void ColourPlot2d::init(scalar_t* values, len_type* dims)
 		renderWindowInteractor->SetInteractorStyle(style);
 		renderWindowInteractor->SetRenderWindow(renderWindow);
 		
-		renderWindow->SetSize(500, 500);
+		renderWindow->SetSize(1000, 500);
 		renderWindow->SetWindowName("SymPhas");
 
 
 		// first initialize the render interactor
 		renderWindowInteractor->Initialize();
 
-		filter_params* p = new filter_params{ scalars, plane, mapper };
+		filter_params* p = new filter_params{ imageImport };
 
 		// now we can add a timer based on the callback method
 		vtkNew<vtkCallbackCommand> timerCallback;
@@ -172,17 +306,25 @@ void ColourPlot2d::init(scalar_t* values, len_type* dims)
 		timerCallback->SetClientData(p);
 
 		renderWindowInteractor->AddObserver(vtkCommand::TimerEvent, timerCallback);
-		renderWindowInteractor->CreateRepeatingTimer(std::max(params::viz_interval, 20));
+		renderWindowInteractor->CreateRepeatingTimer(10);
 
 		// Visualize
-		renderer->AddActor(plotActor);
+		renderer->AddActor(imageActor);
 		renderer->ResetCamera();
-		
+
+		one = true;
+		updater = new ColourPlotUpdaterConcrete{ p };
 
 		renderWindow->Render();
 		renderWindowInteractor->Start();
 	}
+	else
+	{
+		updater = new ColourPlotUpdater{};
+	}
 }
+
+
 
 
 

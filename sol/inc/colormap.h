@@ -30,8 +30,14 @@
 
 #include "grid.h"
 
+struct ColourPlotUpdater
+{
+	virtual void update() {}
+	virtual ~ColourPlotUpdater() {}
+};
+
 
 struct ColourPlot2d
 {
-	void init(scalar_t* values, len_type* dims);
+	void init(scalar_t* values, len_type* dims, iter_type &index, ColourPlotUpdater* &updater);
 };
