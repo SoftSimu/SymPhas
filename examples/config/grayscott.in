@@ -1,20 +1,14 @@
 !GrayScott_2
 DIM				dimensions of model			: 2
 ORDER			order of accuracy			: 2
-PTL				laplacian stencil			: 5
-PTB				bilaplacian stencil			: 13
-PTG				gradlaplacian stencil		: 6
 WIDTH			grid draw size				: 0.2
 
 RNGX			interval of x				: @ 256
 RNGY			interval of y				: @ 256
-RNGZ			interval of z				: 1 64
 BNDLT			bound type on x1			: PERIODIC
 BNDRT			bound type on x2			: PERIODIC
 BNDTP			bound type on y1			: PERIODIC
 BNDBT			bound type on y2			: PERIODIC
-BNDFT			bound type on z1			: PERIODIC
-BNDBK			bound type on z2			: PERIODIC
 INSIDE			the conditions inside		: "CONSTANT 0.4" "CIRCLESEEDS RND 50 0.5 0 1"
 
 MODEL			type of the model			: grayscott 4e-3 2e-3 0.0980 0.0570
@@ -26,7 +20,7 @@ SAVE			frame save interval			: 30000
 
 SAVEINIT		save time index 0 data?		: YES
 
-DIR											: testing
+DIR											: simulations
 
 
 

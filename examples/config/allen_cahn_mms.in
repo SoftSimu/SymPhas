@@ -24,4 +24,4 @@ FRAMES			total time steps			: 8000
 SAVE			frame save interval			: 8000
 SAVEINIT		save time index 0 data?		: YES
 
-DIR				save directory				: results
+DIR				save directory				: convergence_tests

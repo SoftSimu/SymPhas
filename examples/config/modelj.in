@@ -2,9 +2,6 @@
 
 DIM				dimensions of model			: 3
 ORDER			order of accuracy			: 2
-PTL				laplacian stencil			: 5
-PTB				bilaplacian stencil			: 13
-PTG				gradlaplacian stencil		: 6
 WIDTH			grid draw size				: 1
 
 RNGX			interval of x				: 1 256
@@ -25,4 +22,4 @@ FRAMES			total time steps			: 10000
 SAVE			frame save interval			: 10 EXP
 SAVEINIT		save time index 0 data?		: NO
 
-DIR				save directory				: results
+DIR				save directory				: simulations
