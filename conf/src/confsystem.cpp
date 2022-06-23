@@ -1436,6 +1436,7 @@ void SystemConf::parse_initial_condition(const char* value, size_t n)
 	}
 	else
 	{
+		char* pos0 = input;
 		char* tok = std::strtok(input, " ");
 		char name[BUFFER_LENGTH];
 		std::strncpy(name, tok, sizeof(name) / sizeof(char) - 1);
@@ -1589,17 +1590,16 @@ void SystemConf::parse_initial_condition(const char* value, size_t n)
 			else
 			{
 				double* init_coeff = nullptr;
-				size_t init_coeff_len;
-				symphas::internal::parse_simple_coeff_list(tok, init_coeff, init_coeff_len);
+				symphas::internal::parse_simple_coeff_list(value + (tok - pos0), init_coeff, gp_count);
 
 				if (tdata[n].in == Inside::EXPRESSION)
 				{
-					tdata[n].expr_data.set_coeff(init_coeff, init_coeff_len);
+					tdata[n].expr_data.set_coeff(init_coeff, gp_count);
 				}
 				else
 				{
-					std::copy(init_coeff, init_coeff + std::min(init_coeff_len, size_t(NUM_INIT_CONSTANTS)), tdata[n].data.gp);
-					if (init_coeff_len > NUM_INIT_CONSTANTS)
+					std::copy(init_coeff, init_coeff + std::min(gp_count, size_t(NUM_INIT_CONSTANTS)), tdata[n].data.gp);
+					if (gp_count > NUM_INIT_CONSTANTS)
 					{
 						fprintf(SYMPHAS_WARN, "only %d numeric arguments may be provided "
 							"to the initial conditions\n", NUM_INIT_CONSTANTS);
