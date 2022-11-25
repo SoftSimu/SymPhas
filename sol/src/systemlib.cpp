@@ -27,10 +27,12 @@ symphas::problem_parameters_type::problem_parameters_type(problem_parameters_typ
 	set_initial_data(other.tdata, len);
 	set_interval_data(other.vdata, len);
 	set_boundary_data(other.bdata, len);
-	set_problem_time_step(other.dt);
+	set_time_step(other.dt);
+	time = other.time;
+	index = other.index;
 }
 
-void symphas::problem_parameters_type::set_initial_data(symphas::init_data_type* tdata_set, size_t n)
+void symphas::problem_parameters_type::set_initial_data(const symphas::init_data_type* tdata_set, size_t n)
 {
 	if (n <= len)
 	{
@@ -49,7 +51,7 @@ void symphas::problem_parameters_type::set_initial_data(symphas::init_data_type*
 	}
 }
 
-void symphas::problem_parameters_type::set_interval_data(symphas::interval_data_type* vdata_set, size_t n)
+void symphas::problem_parameters_type::set_interval_data(const symphas::interval_data_type* vdata_set, size_t n)
 {
 	if (n <= len)
 	{
@@ -68,7 +70,7 @@ void symphas::problem_parameters_type::set_interval_data(symphas::interval_data_
 	}
 }
 
-void symphas::problem_parameters_type::set_boundary_data(symphas::b_data_type* bdata_set, size_t n)
+void symphas::problem_parameters_type::set_boundary_data(const symphas::b_data_type* bdata_set, size_t n)
 {
 	if (n <= len)
 	{
@@ -134,6 +136,8 @@ void symphas::swap(symphas::problem_parameters_type& first, symphas::problem_par
 	swap(first.bdata, second.bdata);
 	swap(first.dt, second.dt);
 	swap(first.len, second.len);
+	swap(first.time, second.time);
+	swap(first.index, second.index);
 }
 
 

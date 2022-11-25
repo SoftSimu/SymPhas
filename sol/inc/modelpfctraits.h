@@ -25,13 +25,10 @@
 
 #pragma once
 
-#include "model.h"
+#include "modelspecialized.h"
 #include "expressionderivatives.h"
 #include "expressionconvolution.h"
 
-/* whether the model exhibits conserved or nonconserved dynamics
- */
-enum class DynamicType { CONSERVED, NONCONSERVED };
 
 /*
  * modifiers that affect the behaviour of the PFC model, in terms of different
@@ -50,12 +47,12 @@ template<typename Parameters>
 struct PFCParametersDefault
 {
 	template<size_t N>
-	static constexpr DynamicType dynamic_val_apply()
+	static constexpr symphas::internal::DynamicType dynamic_val_apply()
 	{
 		return Parameters::DEFAULT_DYNAMIC;
 	}
 	template<size_t N>
-	static constexpr DynamicType dynamic_val()
+	static constexpr symphas::internal::DynamicType dynamic_val()
 	{
 		return Parameters::template dynamic_val_apply<N>();
 	}
@@ -77,7 +74,7 @@ protected:
 	/* default parameter values
 	 */
 
-	static const DynamicType DEFAULT_DYNAMIC = DynamicType::NONCONSERVED;
+	static const symphas::internal::DynamicType DEFAULT_DYNAMIC = symphas::internal::DynamicType::NONCONSERVED;
 	static const size_t DEFAULT_MODE_N = 1;
 
 };
@@ -95,7 +92,7 @@ protected:
 template<typename PFC>
 struct PFCTraitDynamic
 {
-	template<size_t N, DynamicType dd, typename std::enable_if_t<(dd == DynamicType::CONSERVED), int> = 0>
+	template<size_t N, symphas::internal::DynamicType dd, typename std::enable_if_t<(dd == symphas::internal::DynamicType::CONSERVED), int> = 0>
 	auto construct_dynamic()
 	{
 		return
@@ -103,7 +100,7 @@ struct PFCTraitDynamic
 				expr::laplacian(cast().template bulk_pfc_dynamic_N<N>() + cast().template coupled_pfc_dynamic_N<N>(), cast().solver));
 	}
 
-	template<size_t N, DynamicType dd, typename std::enable_if_t<(dd == DynamicType::NONCONSERVED), int> = 0>
+	template<size_t N, symphas::internal::DynamicType dd, typename std::enable_if_t<(dd == symphas::internal::DynamicType::NONCONSERVED), int> = 0>
 	auto construct_dynamic()
 	{
 		return

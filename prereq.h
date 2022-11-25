@@ -37,74 +37,6 @@
 #endif
 
 
-template<typename T, typename Ty>
-struct symphas::internal::solver_supported_type_match
-{
-	static const bool value = false;
-};
-
-
-/* implementation of suported system, after the specialization of individual supported types
- */
-template<typename T, typename S>
-struct symphas::internal::solver_supported_system
-{
-
-protected:
-
-	template<typename Ty>
-	struct supported_wrap
-	{
-		static const bool value = solver_supported_type<T, void>::value || solver_supported_type<T, Ty>::value;
-	};
-
-	template<typename Ty>
-	static constexpr auto is_supported(Block<Ty>)
-	{
-		return supported_wrap<Ty>{};
-	}
-
-	static constexpr auto get_value(S s)
-	{
-		return is_supported(s);
-	}
-
-	using wrap_type = typename std::invoke_result_t<decltype(&solver_supported_system<T, S>::get_value), S>;
-
-public:
-
-	static const size_t value = wrap_type::value;
-};
-
-
-
-template<typename T, typename... S>
-struct symphas::internal::solver_supported_systems
-{
-	static const size_t value = ((solver_supported_system<T, S>::value && ...));
-};
-
-
-template<typename T>
-struct symphas::internal::solver_system_type_match
-{
-	template<typename Ty, size_t D>
-	using type = SolverSystem<Ty, D>;
-};
-
-template<typename T>
-struct symphas::internal::provisional_system_type_match
-{
-	template<typename Ty, size_t D>
-	using type = ProvisionalSystem<Ty, D>;
-};
-
-
-
-#ifdef USING_PROC
-#include "proc.h"
-#endif
-
 // include all the models
 #ifdef MODEL_TESTS
 #include "testdefs.h"
@@ -202,11 +134,11 @@ namespace symphas
 	bool run_model(M& model, iter_type n, double dt, double starttime = 0)
 	{
 		double time = starttime;
-		iter_type end = model.index() + n;
+		iter_type end = model.get_index() + n;
 
-		for (iter_type i = model.index(); i < end; i = model.index())
+		for (iter_type i = model.get_index(); i < end; i = model.get_index())
 		{
-			time += dt * (model.index() - i);
+			time += dt * (model.get_index() - i);
 			model_iteration(model, dt, time);
 		}
 		return true;

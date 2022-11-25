@@ -2,8 +2,8 @@
 #pragma once
 
 #include "initialconditionslib.h"
-#include "expressionrules.h"
-#include "expressionfunctions.h"
+#include "expressionlib.h"
+#include "expressions.h"
 
 
 #define INITIAL_CONDITION_EQUATION(NAME, DIMENSIONS, EQUATION) \
@@ -55,7 +55,7 @@ struct symphas::internal::init_expr_call_wrapper<D, N> \
 	template<typename T> \
 	static int call(const char* name, T* values, len_type const* dims, symphas::interval_data_type const& vdata, double const* coeff, size_t num_coeff) \
 	{ \
-		if constexpr (symphas::lib::value_in_seq<D, std::index_sequence<SINGLE_ARG DIMENSIONS>>::value) \
+		if constexpr (symphas::lib::is_value_in_seq<D, std::index_sequence<SINGLE_ARG DIMENSIONS>>::value) \
 		{ IMPL } \
 		return init_expr_call_wrapper<D, N - 1>::call(name, values, dims, vdata, coeff, num_coeff); \
 	} \

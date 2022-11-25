@@ -19,9 +19,5 @@
  */
 
 
-#include "expressiontransforms.h"
-#include "expressionsprint.h"
-#include "expressionfunctions.h"
-#include "expressionexponentials.h"
-#include "expressionconvolution.h"
+#include "expressionlib.h"
 

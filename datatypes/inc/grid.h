@@ -28,6 +28,7 @@
 
 #include <iostream>
 #include <cassert>
+#include <random>
 
 #include "griditer.h"
 #include "gridinfo.h"
@@ -358,9 +359,30 @@ struct Block
 	 * 
 	 * \param i The index of the value to return.
 	 */
-	T& operator[](iter_type i) const
+	const T& operator[](iter_type i) const
 	{
 		return values[i];
+	}
+
+	//! Return the value at the \p i index in the list.
+	/*!
+	 * Return the value from the list from index \p i.
+	 *
+	 * \param i The index of the value to return.
+	 */
+	T& operator[](iter_type i)
+	{
+		return values[i];
+	}
+
+	operator const T* () const
+	{
+		return values;
+	}
+
+	operator T* ()
+	{
+		return values;
 	}
 
 	~Block()
@@ -374,6 +396,231 @@ protected:
 
 
 };
+
+template<size_t N, typename T>
+struct multi_value
+{
+	T* value[N];
+
+	multi_value(T* value[N]) : multi_value()
+	{
+		for (iter_type i = 0; i < N; ++i)
+		{
+			this->value[i] = value[i];
+		}
+	}
+
+	const T& operator[](iter_type i) const
+	{
+		return *(value[i]);
+	}
+
+	T& operator[](iter_type i)
+	{
+		return *(value[i]);
+	}
+
+	//! Return a multi_value as a vector for compatibility.
+	operator any_vector_t<T, N>() const;
+
+	//! Set the values of the multi_value from a vector.
+	/*!
+	 * Assigning the value from a vector can update the values
+	 * in the MultiBlock list, using the pointers stored by
+	 * the multi_value object.
+	 */
+	multi_value& operator=(any_vector_t<T, N> const& vector);
+	multi_value& operator=(any_vector_t<T, N>&& vector);
+	multi_value& operator=(multi_value<N, T> const& other);
+	multi_value& operator=(multi_value<N, T>&& other);
+
+	multi_value(multi_value<N, T> const& other) : multi_value(other.value) {}
+	multi_value(multi_value<N, T>&& other) : multi_value(other.value) {}
+
+	//! Set the values of the multi_value from a vector.
+	/*!
+	 * Assigning the value from a vector can update the values
+	 * in the MultiBlock list, using the pointers stored by
+	 * the multi_value object.
+	 */
+	 //multi_value& operator=(multi_value other);
+
+	multi_value() : value{} {}
+
+
+};
+
+//! Manages an array of values of arbitrary type.
+/*!
+ * Basic array type object used in constructing the finite difference grid.
+ * Values are always initialized to the empty value.
+ *
+ * \tparam T The value type of the underlying array.
+ */
+template<size_t N, typename T>
+struct MultiBlock
+{
+
+	T* values[N];	//!< The list of values managed by this object.
+	len_type len;	//!< The number of values in the list.
+
+
+	//! Create this object with \p len values.
+	/*!
+	 * Create this object with \p len values. The length can be 0, in which case
+	 * no memory will be allocated, no values can be accessed, but the
+	 * object can still be constructed.
+	 *
+	 * \param len The number of values to create.
+	 */
+	MultiBlock(len_type len) : values{ 0 }, len{ len }
+	{
+		for (iter_type n = 0; n < N; ++n)
+		{
+			values[n] = (len > 0) ? new T[len] : nullptr;
+			std::fill(values[n], values[n] + len, T{});
+		}
+	}
+
+	explicit MultiBlock(const len_type* len, size_t dimensions = 1) : MultiBlock((len != nullptr) ? grid::length(len, dimensions) : 0) {}
+
+	MultiBlock(MultiBlock<N, T> const& other) : MultiBlock(other.len)
+	{
+		for (iter_type n = 0; n < N; ++n)
+		{
+			std::copy(other.values[n], other.values[n] + other.len, values[n]);
+		}
+	}
+
+	MultiBlock(MultiBlock<N, T>&& other) noexcept : MultiBlock()
+	{
+		swap(*this, other);
+	}
+
+	MultiBlock& operator=(MultiBlock<N, T> other)
+	{
+		swap(*this, other);
+		return *this;
+	}
+
+	friend void swap(MultiBlock<N, T>& first, MultiBlock<N, T>& second)
+	{
+		using std::swap;
+		swap(first.len, second.len);
+		swap(first.values, second.values);
+	}
+
+	//! Return the value at the \p i index in the list.
+	/*!
+	 * Return the value from the list from index \p i.
+	 *
+	 * \param i The index of the value to return.
+	 */
+	multi_value<N, T> operator[](iter_type i) const
+	{
+		multi_value<N, T> value;
+		for (iter_type n = 0; n < N; ++n)
+		{
+			value.value[n] = values[n] + i;
+		}
+		return value;
+	}
+
+	T* operator()(Axis ax) const
+	{
+		return values[symphas::axis_to_index(ax)];
+	}
+
+	~MultiBlock()
+	{
+		for (iter_type n = 0; n < N; ++n)
+		{
+			delete[] values[n];
+		}
+	}
+
+protected:
+
+	MultiBlock() : values{ 0 }, len{ 0 } {}
+
+};
+
+
+template<size_t N, typename T>
+multi_value<N, T>::operator any_vector_t<T, N>() const
+{
+	any_vector_t<T, N> vector;
+
+	for (iter_type i = 0; i < N; ++i)
+	{
+		vector[i] = *(value[i]);
+	}
+
+	return vector;
+}
+
+
+template<size_t N, typename T>
+multi_value<N, T>& multi_value<N, T>::operator=(any_vector_t<T, N> const& vector)
+{
+	for (iter_type i = 0; i < N; ++i)
+	{
+		*(value[i]) = vector[i];
+	}
+
+	return *this;
+}
+
+template<size_t N, typename T>
+multi_value<N, T>& multi_value<N, T>::operator=(any_vector_t<T, N>&& vector)
+{
+	for (iter_type i = 0; i < N; ++i)
+	{
+		*(value[i]) = vector[i];
+	}
+
+	return *this;
+}
+
+template<size_t N, typename T>
+multi_value<N, T>& multi_value<N, T>::operator=(multi_value<N, T> const& other)
+{
+	any_vector_t<T, N> vector = other;
+	*this = vector;
+	return *this;
+}
+
+template<size_t N, typename T>
+multi_value<N, T>& multi_value<N, T>::operator=(multi_value<N, T>&& other)
+{
+	any_vector_t<T, N> vector = other;
+	*this = vector;
+	return *this;
+}
+
+template<size_t N, typename T, typename V>
+auto operator*(multi_value<N, T> const& a, V&& b)
+{
+	return any_vector_t<T, N>(a) * std::forward<V>(b);
+}
+
+template<size_t N, typename T, typename V>
+auto operator*(V&& a, multi_value<N, T> const& b)
+{
+	return std::forward<V>(a) * any_vector_t<T, N>(b);
+}
+
+template<size_t N, typename T, typename V>
+auto operator+(multi_value<N, T> const& a, multi_value<N, V> const& b)
+{
+	return any_vector_t<T, N>(a) + any_vector_t<V, N>(a);
+}
+
+template<size_t N, typename T, typename V>
+auto operator-(multi_value<N, T> const& a, multi_value<N, V> const& b)
+{
+	return any_vector_t<T, N>(a) -any_vector_t<V, N>(a);
+}
 
 // ***********************************************************************************************
 
@@ -390,8 +637,7 @@ protected:
 template<typename T, size_t D>
 struct Grid : Block<T>
 {
-	
-protected:
+private:
 
 	void set_dimensions(const len_type* dimensions)
 	{
@@ -454,6 +700,87 @@ protected:
 
 };
 
+template<typename T, size_t D>
+struct Grid<any_vector_t<T, D>, D> : MultiBlock<D, T>
+{
+	using parent_type = MultiBlock<D, T>;
+	using parent_type::parent_type;
+
+private:
+
+	void set_dimensions(const len_type* dimensions)
+	{
+		if (dimensions == nullptr)
+		{
+			std::fill(dims, dims + D, 0);
+		}
+		else
+		{
+			for (iter_type i = 0; i < D; ++i)
+			{
+				dims[i] = dimensions[i];
+			}
+		}
+	}
+
+public:
+
+	len_type dims[D];		//!< Dimensions of the grid, arranged beginning from the horizontal coordinate.
+
+	//! Create a grid of the prescribed dimensions.
+	/*!
+	 * Creates a new grid using the given dimensions. The number of values in
+	 * the grid directly correspond to the dimensions, equal to the product
+	 * of all dimensions.
+	 *
+	 * \param dimensions The dimensions of the grid.
+	 */
+	Grid(std::initializer_list<len_type> dimensions) :
+		parent_type{ grid::length<D>(dimensions.begin()) }, dims{ 0 }
+	{
+		set_dimensions(dimensions.begin());
+	}
+
+	//! Create a grid of the prescribed dimensions.
+	/*!
+	 * Creates a new grid using the given dimensions. The number of values in
+	 * the grid directly correspond to the dimensions, equal to the product
+	 * of all dimensions.
+	 *
+	 * \param dimensions The dimensions of the grid.
+	 */
+	Grid(const len_type* dimensions) :
+		parent_type{ grid::length<D>(dimensions) }, dims{ 0 }
+	{
+		set_dimensions(dimensions);
+	}
+
+	const Grid<any_vector_t<T, D>, D>& as_grid() const
+	{
+		return *this;
+	}
+
+	Grid<any_vector_t<T, D>, D>& as_grid()
+	{
+		return *this;
+	}
+
+	const T* axis(Axis ax) const
+	{
+		return parent_type::values[symphas::axis_to_index(ax)];
+	}
+
+	T* axis(Axis ax)
+	{
+		return parent_type::values[symphas::axis_to_index(ax)];
+	}
+
+protected:
+
+	Grid() : Grid(nullptr) {}
+
+};
+
 
 // ***********************************************************************************************
 
@@ -473,8 +800,8 @@ protected:
 template<typename T, size_t D>
 struct BoundaryGrid : Grid<T, D>
 {
-	using Block<T>::values;
-	using Grid<T, D>::dims;
+	using parent_type = Grid<T, D>;
+	using parent_type::dims;
 
 #ifdef MULTITHREAD
 
@@ -487,11 +814,11 @@ public:
 	BoundaryGrid(Grid<T, D> const& other) : Grid<T, D>{ other }, len_inner{ grid::length_interior<D>(dims) }, inners{ grid::interior_indices_list<D>(dims) } {}
 	BoundaryGrid(Grid<T, D>&& other) noexcept : Grid<T, D>{ other }, len_inner{ grid::length_interior<D>(dims) }, inners{ grid::interior_indices_list<D>(dims) } {}
 
-
-	T& invalue(iter_type i)
+/*
+	decltype(auto) operator[](iter_type i)
 	{
-		return values[inners[i]];
-	}
+		return parent_type::operator[](inners[i]);
+	}*/
 
 #else
 
@@ -499,7 +826,7 @@ public:
 	BoundaryGrid(Grid<T, D> const& other) : Grid<T, D>{ other } {}
 	BoundaryGrid(Grid<T, D>&& other) noexcept : Grid<T, D>{ other } {}
 
-	T& invalue(iter_type i)
+	decltype(auto) operator[](iter_type i)
 	{
 		iter_type index = 0;
 		for (iter_type n = 0; n < D; ++n)
@@ -516,7 +843,7 @@ public:
 			index += ci + THICKNESS;
 		}
 
-		return values[index];
+		return parent_type::operator[](index);
 	}
 
 #endif
@@ -546,8 +873,8 @@ protected:
 template <typename T>
 struct BoundaryGrid<T, 3> : Grid<T, 3>
 {
-	using Block<T>::values;
-	using Grid<T, 3>::dims;
+	using parent_type = Grid<T, 3>;
+	using parent_type::dims;
 
 #ifdef MULTITHREAD
 
@@ -560,11 +887,10 @@ public:
 	BoundaryGrid(Grid<T, 3> const& other) : Grid<T, 3>(other), inners{ grid::interior_indices_list<3>(dims) }, len_inner{ grid::length_interior<3>(dims) } {}
 	BoundaryGrid(Grid<T, 3>&& other) noexcept : Grid<T, 3>(other), inners{ grid::interior_indices_list<3>(dims) }, len_inner{ grid::length_interior<3>(dims) } {}
 
-
-	T& invalue(iter_type i)
+	/*decltype(auto) operator[](iter_type i)
 	{
-		return values[inners[i]];
-	}
+		return parent_type::operator[](inners[i]);
+	}*/
 
 #else
 
@@ -573,12 +899,13 @@ public:
 	BoundaryGrid(Grid<T, 3>&& other) noexcept : Grid<T, 3>(other) {}
 
 
-	T& invalue(iter_type i)
+	decltype(auto) operator[](iter_type i)
 	{
 		iter_type xi = i % dims[0];
 		iter_type yi = (i / dims[0]) % dims[1];
 		iter_type zi = i / (dims[0] * dims[1]);
-		return values[(zi + THICKNESS) * dims[0] * dims[1] + (yi + THICKNESS) * dims[0] + (xi + THICKNESS)];
+		iter_type ii = (zi + THICKNESS) * dims[0] * dims[1] + (yi + THICKNESS) * dims[0] + (xi + THICKNESS);
+		return parent_type::operator[](ii);
 	}
 
 #endif
@@ -596,12 +923,12 @@ public:
 		return *this;
 	}
 
-	void copy_ptr_left(T** into);
-	void copy_ptr_right(T** into);
-	void copy_ptr_top(T** into);
-	void copy_ptr_bottom(T** into);
-	void copy_ptr_front(T** into);
-	void copy_ptr_back(T** into);
+	//void copy_ptr_left(T** into);
+	//void copy_ptr_right(T** into);
+	//void copy_ptr_top(T** into);
+	//void copy_ptr_bottom(T** into);
+	//void copy_ptr_front(T** into);
+	//void copy_ptr_back(T** into);
 
 
 protected:
@@ -618,8 +945,8 @@ protected:
 template <typename T>
 struct BoundaryGrid<T, 2> : Grid<T, 2>
 {
-	using Block<T>::values;
-	using Grid<T, 2>::dims;
+	using parent_type = Grid<T, 2>;
+	using parent_type::dims;
 
 #ifdef MULTITHREAD
 
@@ -632,10 +959,10 @@ public:
 	BoundaryGrid(Grid<T, 2> const& other) : Grid<T, 2>(other), inners{ grid::interior_indices_list<2>(dims) }, len_inner{ grid::length_interior<2>(dims) } {}
 	BoundaryGrid(Grid<T, 2>&& other) noexcept : Grid<T, 2>(other), inners{ grid::interior_indices_list<2>(dims) }, len_inner{ grid::length_interior<2>(dims) } {}
 
-	T& invalue(iter_type i)
-	{
-		return values[inners[i]];
-	}
+	//decltype(auto) operator[](iter_type i)
+	//{
+	//	return parent_type::operator[](inners[i]);
+	//}
 
 #else
 
@@ -643,19 +970,20 @@ public:
 	BoundaryGrid(Grid<T, 2> const& other) : Grid<T, 2>(other) {}
 	BoundaryGrid(Grid<T, 2>&& other) noexcept : Grid<T, 2>(other) {}
 
-	T& invalue(iter_type i)
+	decltype(auto) operator[](iter_type i)
 	{
 		iter_type xi = i % dims[0];
 		iter_type yi = i / dims[0];
-		return values[(yi + THICKNESS) * dims[0] + (xi + THICKNESS)];
+		iter_type ii = (yi + THICKNESS) * dims[0] + (xi + THICKNESS);
+		return parent_type::operator[](ii);
 	}
 
 #endif
 
-	void copy_ptr_left(T** into);
-	void copy_ptr_right(T** into);
-	void copy_ptr_top(T** into);
-	void copy_ptr_bottom(T** into);
+	//void copy_ptr_left(T** into);
+	//void copy_ptr_right(T** into);
+	//void copy_ptr_top(T** into);
+	//void copy_ptr_bottom(T** into);
 
 
 	const BoundaryGrid<T, 2>& as_grid() const
@@ -682,8 +1010,8 @@ protected:
 template <typename T>
 struct BoundaryGrid<T, 1> : Grid<T, 1>
 {
-	using Block<T>::values;
-	using Grid<T, 1>::dims;
+	using parent_type = Grid<T, 1>;
+	using parent_type::dims;
 
 #ifdef MULTITHREAD
 
@@ -696,10 +1024,10 @@ public:
 	BoundaryGrid(Grid<T, 1> const& other) : Grid<T, 1>(other), inners{ grid::interior_indices_list<1>(dims) }, len_inner{ grid::length_interior<1>(dims) } {}
 	BoundaryGrid(Grid<T, 1>&& other) noexcept : Grid<T, 1>(other), inners{ grid::interior_indices_list<1>(dims) }, len_inner{ grid::length_interior<1>(dims) } {}
 
-	T& invalue(iter_type i)
-	{
-		return values[inners[i]];
-	}
+	//decltype(auto) operator[](iter_type i)
+	//{
+	//	return parent_type::operator[](inners[i]);
+	//}
 
 #else
 
@@ -707,9 +1035,9 @@ public:
 	BoundaryGrid(Grid<T, 1> const& other) : Grid<T, 1>(other) {}
 	BoundaryGrid(Grid<T, 1>&& other) noexcept : Grid<T, 1>(other) {}
 
-	T& invalue(iter_type i)
+	decltype(auto) invalue(iter_type i)
 	{
-		return values[i + THICKNESS];
+		return parent_type::operator[](i + THICKNESS);
 	}
 
 #endif
@@ -725,8 +1053,8 @@ public:
 		return *this;
 	}
 
-	void copy_ptr_left(T** into);
-	void copy_ptr_right(T** into);
+	//void copy_ptr_left(T** into);
+	//void copy_ptr_right(T** into);
 
 
 protected:
@@ -746,79 +1074,79 @@ protected:
 // **************************************************************************************
 
 
-
-template<typename T>
-void BoundaryGrid<T, 3>::copy_ptr_left(T** into)
-{
-	ITER_GRID3_LEFT(into[ENTRY] = values + INDEX, dims[0], dims[1], dims[2]);
-}
-
-template<typename T>
-void BoundaryGrid<T, 3>::copy_ptr_right(T** into)
-{
-	ITER_GRID3_RIGHT(into[ENTRY] = values + INDEX, dims[0], dims[1], dims[2]);
-}
-
-template<typename T>
-void BoundaryGrid<T, 3>::copy_ptr_top(T** into)
-{
-	ITER_GRID3_TOP(into[ENTRY] = values + INDEX, dims[0], dims[1], dims[2]);
-}
-
-template<typename T>
-void BoundaryGrid<T, 3>::copy_ptr_bottom(T** into)
-{
-	ITER_GRID3_BOTTOM(into[ENTRY] = values + INDEX, dims[0], dims[1], dims[2]);
-}
-
-template<typename T>
-void BoundaryGrid<T, 3>::copy_ptr_front(T** into)
-{
-	ITER_GRID3_FRONT(into[ENTRY] = values + INDEX, dims[0], dims[1]);
-}
-
-template<typename T>
-void BoundaryGrid<T, 3>::copy_ptr_back(T** into)
-{
-	ITER_GRID3_BACK(into[ENTRY] = values + INDEX, dims[0], dims[1], dims[2]);
-}
-
-template<typename T>
-void BoundaryGrid<T, 2>::copy_ptr_left(T** into)
-{
-
-	ITER_GRID2_LEFT(into[ENTRY] = values + INDEX, dims[0], dims[1]);
-}
-
-template<typename T>
-void BoundaryGrid<T, 2>::copy_ptr_right(T** into)
-{
-	ITER_GRID2_RIGHT(into[ENTRY] = values + INDEX, dims[0], dims[1]);
-}
-
-template<typename T>
-void BoundaryGrid<T, 2>::copy_ptr_top(T** into)
-{
-	ITER_GRID2_TOP(into[ENTRY] = values + INDEX, dims[0]);
-}
-
-template<typename T>
-void BoundaryGrid<T, 2>::copy_ptr_bottom(T** into)
-{
-	ITER_GRID2_BOTTOM(into[ENTRY] = values + INDEX, dims[0], dims[1]);
-}
-
-template<typename T>
-void BoundaryGrid<T, 1>::copy_ptr_left(T** into)
-{
-	ITER_GRID1_LEFT(into[ENTRY] = values + INDEX);
-}
-
-template<typename T>
-void BoundaryGrid<T, 1>::copy_ptr_right(T** into)
-{
-	ITER_GRID1_RIGHT(into[ENTRY] = values + INDEX, dims[0]);
-}
+//
+//template<typename T>
+//void BoundaryGrid<T, 3>::copy_ptr_left(T** into)
+//{
+//	ITER_GRID3_LEFT(into[ENTRY] = &parent_type::operator[](INDEX), dims[0], dims[1], dims[2]);
+//}
+//
+//template<typename T>
+//void BoundaryGrid<T, 3>::copy_ptr_right(T** into)
+//{
+//	ITER_GRID3_RIGHT(into[ENTRY] = values + INDEX, dims[0], dims[1], dims[2]);
+//}
+//
+//template<typename T>
+//void BoundaryGrid<T, 3>::copy_ptr_top(T** into)
+//{
+//	ITER_GRID3_TOP(into[ENTRY] = values + INDEX, dims[0], dims[1], dims[2]);
+//}
+//
+//template<typename T>
+//void BoundaryGrid<T, 3>::copy_ptr_bottom(T** into)
+//{
+//	ITER_GRID3_BOTTOM(into[ENTRY] = values + INDEX, dims[0], dims[1], dims[2]);
+//}
+//
+//template<typename T>
+//void BoundaryGrid<T, 3>::copy_ptr_front(T** into)
+//{
+//	ITER_GRID3_FRONT(into[ENTRY] = values + INDEX, dims[0], dims[1]);
+//}
+//
+//template<typename T>
+//void BoundaryGrid<T, 3>::copy_ptr_back(T** into)
+//{
+//	ITER_GRID3_BACK(into[ENTRY] = values + INDEX, dims[0], dims[1], dims[2]);
+//}
+//
+//template<typename T>
+//void BoundaryGrid<T, 2>::copy_ptr_left(T** into)
+//{
+//
+//	ITER_GRID2_LEFT(into[ENTRY] = values + INDEX, dims[0], dims[1]);
+//}
+//
+//template<typename T>
+//void BoundaryGrid<T, 2>::copy_ptr_right(T** into)
+//{
+//	ITER_GRID2_RIGHT(into[ENTRY] = values + INDEX, dims[0], dims[1]);
+//}
+//
+//template<typename T>
+//void BoundaryGrid<T, 2>::copy_ptr_top(T** into)
+//{
+//	ITER_GRID2_TOP(into[ENTRY] = values + INDEX, dims[0]);
+//}
+//
+//template<typename T>
+//void BoundaryGrid<T, 2>::copy_ptr_bottom(T** into)
+//{
+//	ITER_GRID2_BOTTOM(into[ENTRY] = values + INDEX, dims[0], dims[1]);
+//}
+//
+//template<typename T>
+//void BoundaryGrid<T, 1>::copy_ptr_left(T** into)
+//{
+//	ITER_GRID1_LEFT(into[ENTRY] = values + INDEX);
+//}
+//
+//template<typename T>
+//void BoundaryGrid<T, 1>::copy_ptr_right(T** into)
+//{
+//	ITER_GRID1_RIGHT(into[ENTRY] = values + INDEX, dims[0]);
+//}
 
 
 
@@ -850,7 +1178,7 @@ namespace grid
 			 * sequencing.
 			 * \param dims The dimension of the interior region.
 			 */
-			void operator()(const T* input, T* output, const len_type* dims)
+			void operator()(const T* input, Grid<T, 1> &output, const len_type* dims)
 			{
 				ITER_GRID1(output[INDEX] = input[ENTRY], dims[0])
 			}
@@ -866,7 +1194,7 @@ namespace grid
 			 * sequencing.
 			 * \param dims The dimension of the interior region.
 			 */
-			void operator()(const T* input, T* output, const len_type* dims)
+			void operator()(const T* input, Grid<T, 2> &output, const len_type* dims)
 			{
 				ITER_GRID2(output[INDEX] = input[ENTRY], dims[0], dims[1])
 			}
@@ -882,11 +1210,63 @@ namespace grid
 			 * sequencing.
 			 * \param dims The dimension of the interior region.
 			 */
-			void operator()(const T* input, T* output, const len_type* dims)
+			void operator()(const T* input, Grid<T, 3> &output, const len_type* dims)
 			{
 				ITER_GRID3(output[INDEX] = input[ENTRY], dims[0], dims[1], dims[2])
 			}
 		};
+
+		template<typename T>
+		struct fill_interior_apply<any_vector_t<T, 1>, 1>
+		{
+			//! Copy an array into the interior values of another. 
+			/*!
+			 * \param input The grid from which the sequential values are copied.
+			 * \param output The array into which the values are transcribed in interior-based
+			 * sequencing.
+			 * \param dims The dimension of the interior region.
+			 */
+			void operator()(const any_vector_t<T, 1>* input, Grid<any_vector_t<T, 1>, 1>& output, const len_type* dims)
+			{
+				ITER_GRID1(output.axis(Axis::X).values[INDEX] = input[ENTRY][0], dims[0])
+			}
+		};
+
+		template<typename T>
+		struct fill_interior_apply<any_vector_t<T, 2>, 2>
+		{
+			//! Copy an array into the interior values of another. 
+			/*!
+			 * \param input The grid from which the sequential values are copied.
+			 * \param output The array into which the values are transcribed in interior-based
+			 * sequencing.
+			 * \param dims The dimension of the interior region.
+			 */
+			void operator()(const any_vector_t<T, 2>* input, Grid<any_vector_t<T, 2>, 2>& output, const len_type* dims)
+			{
+				ITER_GRID2(output.axis(Axis::X).values[INDEX] = input[ENTRY][0], dims[0], dims[1])
+				ITER_GRID2(output.axis(Axis::Y).values[INDEX] = input[ENTRY][1], dims[0], dims[1])
+			}
+		};
+
+		template<typename T>
+		struct fill_interior_apply<any_vector_t<T, 3>, 3>
+		{
+			//! Copy an array into the interior values of another. 
+			/*!
+			 * \param input The grid from which the sequential values are copied.
+			 * \param output The array into which the values are transcribed in interior-based
+			 * sequencing.
+			 * \param dims The dimension of the interior region.
+			 */
+			void operator()(const any_vector_t<T, 3>* input, Grid<any_vector_t<T, 3>, 3>& output, const len_type* dims)
+			{
+				ITER_GRID3(output.axis(Axis::X).values[INDEX] = input[ENTRY][0], dims[0], dims[1], dims[2])
+				ITER_GRID3(output.axis(Axis::Y).values[INDEX] = input[ENTRY][1], dims[0], dims[1], dims[2])
+				ITER_GRID3(output.axis(Axis::Z).values[INDEX] = input[ENTRY][2], dims[0], dims[1], dims[2])
+			}
+		};
+
 
 		//! Create a new grid of the given primary type.
 		/*!
@@ -941,6 +1321,325 @@ namespace grid
 		};
 	}
 
+
+	//! Copies the system data into the given array.
+	/*!
+	 * The values of the system data block are copied into a new one. The copy
+	 * is performed point-wise for all data points.
+	 */
+	template<typename T, typename S>
+	void copy(Block<T> const& from, S* to)
+	{
+		std::copy(
+#ifdef EXECUTION_HEADER_AVAILABLE
+			std::execution::par_unseq,
+#endif
+			from.values, from.values + from.len, to);
+	}
+
+	//! Copies the system data into the given array.
+	/*!
+	 * The values of the system data block are copied into a new one. The copy
+	 * is performed point-wise for all data points.
+	 */
+	template<typename T, typename S>
+	void copy(Block<T> const& from, Block<S>& to)
+	{
+		copy(from, to.values);
+	}
+
+	//! Copies the system data into the given array.
+	/*!
+	 * The values of the system data block are copied into a new one. The copy
+	 * is performed point-wise for all data points.
+	 */
+	template<typename T, typename S>
+	void copy(MultiBlock<1, T> const& grid, any_vector_t<S, 1>* out)
+	{
+		std::for_each(
+#ifdef EXECUTION_HEADER_AVAILABLE
+			std::execution::par_unseq,
+#endif
+			out, out + grid.len,
+			[&] (auto& e) {
+				size_t i = &e - out;
+				e = any_vector_t<T, 1>{
+					grid(Axis::X)[i] };
+			});
+	}
+
+	//! Copies the system data into the given array.
+	/*!
+	 * The values of the system data block are copied into a new one. The copy
+	 * is performed point-wise for all data points.
+	 */
+	template<typename T, typename S>
+	void copy(MultiBlock<2, T> const& grid, any_vector_t<S, 2>* out)
+	{
+		std::for_each(
+#ifdef EXECUTION_HEADER_AVAILABLE
+			std::execution::par_unseq,
+#endif
+			out, out + grid.len,
+			[&] (auto& e) {
+				size_t i = &e - out;
+				e = any_vector_t<T, 2>{
+					grid(Axis::X)[i],
+					grid(Axis::Y)[i] };
+			});
+	}
+
+	//! Copies the system data into the given array.
+	/*!
+	 * The values of the system data block are copied into a new one. The copy
+	 * is performed point-wise for all data points.
+	 */
+	template<typename T, typename S>
+	void copy(MultiBlock<3, T> const& grid, any_vector_t<S, 3>* out)
+	{
+		std::for_each(
+#ifdef EXECUTION_HEADER_AVAILABLE
+			std::execution::par_unseq,
+#endif
+			out, out + grid.len,
+			[&] (auto& e) {
+				size_t i = &e - out;
+				e = any_vector_t<S, 3>{
+					grid(Axis::X)[i],
+					grid(Axis::Y)[i],
+					grid(Axis::Z)[i] };
+			});
+	}
+
+	//! Fills the block-type data with values from the array.
+	/*!
+	 * The values of the system data block are initialized from the
+	 * given values, correctly transcribing all values.
+	 */
+	template<typename S, typename T>
+	void fill(const S* in, Block<T>& out)
+	{
+		std::copy(
+#ifdef EXECUTION_HEADER_AVAILABLE
+			std::execution::par_unseq,
+#endif
+			in, in + out.len, out.values);
+	}
+
+
+	//! Fills the block-type data with values from the array.
+	/*!
+	 * The values of the system data block are copied into a new one. The copy
+	 * is performed point-wise for all data points.
+	 */
+	template<typename S, typename T>
+	void fill(const any_vector_t<S, 1>* in, MultiBlock<1, T>& out)
+	{
+		std::for_each(
+#ifdef EXECUTION_HEADER_AVAILABLE
+			std::execution::par_unseq,
+#endif
+			in, in + out.len,
+			[&] (auto& e) {
+				size_t i = &e - in;
+				out(Axis::X)[i] = e[0];
+			});
+	}
+
+	//! Fills the block-type data with values from the array.
+	/*!
+	 * The values of the system data block are copied into a new one. The copy
+	 * is performed point-wise for all data points.
+	 */
+	template<typename S, typename T>
+	void fill(const any_vector_t<S, 2>* in, MultiBlock<2, T>& out)
+	{
+		std::for_each(
+#ifdef EXECUTION_HEADER_AVAILABLE
+			std::execution::par_unseq,
+#endif
+			in, in + grid.len,
+			[&] (auto& e) {
+				size_t i = &e - in;
+				out(Axis::X)[i] = e[0];
+				out(Axis::Y)[i] = e[1];
+			});
+	}
+
+	//! Copies the system data into the given array.
+	/*!
+	 * The values of the system data block are copied into a new one. The copy
+	 * is performed point-wise for all data points.
+	 */
+	template<typename S, typename T>
+	void fill(const any_vector_t<S, 3>* in, MultiBlock<3, T>& out)
+	{
+		std::for_each(
+#ifdef EXECUTION_HEADER_AVAILABLE
+			std::execution::par_unseq,
+#endif
+			in, in + grid.len,
+			[&] (auto& e) {
+				size_t i = &e - in;
+				out(Axis::X)[i] = e[0];
+				out(Axis::Y)[i] = e[1];
+				out(Axis::Z)[i] = e[2];
+			});
+	}
+
+
+	//! Copies the system data into the given array.
+	/*!
+	 * The values of the system data block are copied into a new one. The copy
+	 * is performed point-wise for all data points.
+	 */
+	template<typename T>
+	void fill_random(T* data, len_type len, scalar_t min, scalar_t max)
+	{
+		std::random_device rd;
+		std::mt19937 gen(rd());
+		std::uniform_real_distribution<double> dist(min, max);
+
+		std::for_each(
+#ifdef EXECUTION_HEADER_AVAILABLE
+			std::execution::par_unseq,
+#endif
+			data, data + len,
+			[&] (auto& e) {
+				e = dist(gen);
+			});
+	}
+
+	//! Copies the system data into the given array.
+	/*!
+	 * The values of the system data block are copied into a new one. The copy
+	 * is performed point-wise for all data points.
+	 */
+	template<typename T>
+	void fill_random(Block<T>& grid, scalar_t min, scalar_t max)
+	{
+		std::random_device rd;
+		std::mt19937 gen(rd());
+		std::uniform_real_distribution<double> dist(min, max);
+
+		std::for_each(
+#ifdef EXECUTION_HEADER_AVAILABLE
+			std::execution::par_unseq,
+#endif
+			grid.values, grid.values + grid.len,
+			[&] (auto& e) {
+				e = dist(gen);
+			});
+	}
+
+
+	//! Copies the system data into the given array.
+	/*!
+	 * The values of the system data block are copied into a new one. The copy
+	 * is performed point-wise for all data points.
+	 */
+	inline void fill_random(Block<complex_t>& grid, scalar_t min, scalar_t max)
+	{
+		std::random_device rd;
+		std::mt19937 gen(rd());
+		std::uniform_real_distribution<double> dist(min, max);
+
+		std::for_each(
+#ifdef EXECUTION_HEADER_AVAILABLE
+			std::execution::par_unseq,
+#endif
+			grid.values, grid.values + grid.len,
+			[&] (auto& e) {
+				e = { dist(gen), dist(gen) };
+			});
+	}
+
+	//! Copies the system data into the given array.
+	/*!
+	 * The values of the system data block are copied into a new one. The copy
+	 * is performed point-wise for all data points.
+	 */
+	template<typename T, size_t N>
+	void fill_random(MultiBlock<N, T>& grid, scalar_t min, scalar_t max)
+	{
+		std::random_device rd;
+		std::mt19937 gen(rd());
+		std::uniform_real_distribution<double> dist(min, max);
+
+		for (iter_type i = 0; i < D; ++i)
+		{
+			std::for_each(
+#ifdef EXECUTION_HEADER_AVAILABLE
+				std::execution::par_unseq,
+#endif
+				grid.values[i], grid.values[i] + grid.len,
+				[&] (auto& e) {
+					e = dist(gen);
+				});
+		}
+	}
+
+	//! Copies the system data into the given array.
+	/*!
+	 * The values of the system data block are copied into a new one. The copy
+	 * is performed point-wise for all data points.
+	 */
+	template<typename T>
+	void fill_n(T* data, len_type len, scalar_t min, scalar_t max)
+	{
+		std::for_each(
+#ifdef EXECUTION_HEADER_AVAILABLE
+			std::execution::par_unseq,
+#endif
+			data, data + len,
+			[&] (auto& e) {
+				e = T(&e - data);
+			});
+	}
+
+	//! Copies the system data into the given array.
+	/*!
+	 * The values of the system data block are copied into a new one. The copy
+	 * is performed point-wise for all data points.
+	 */
+	template<typename T>
+	void fill_n(Block<T>& grid, scalar_t min, scalar_t max)
+	{
+		std::for_each(
+#ifdef EXECUTION_HEADER_AVAILABLE
+			std::execution::par_unseq,
+#endif
+			grid.values, grid.values + grid.len,
+			[&] (auto& e) {
+				e = T(&e - grid.values);
+			});
+	}
+
+	//! Copies the system data into the given array.
+	/*!
+	 * The values of the system data block are copied into a new one. The copy
+	 * is performed point-wise for all data points.
+	 */
+	template<typename T, size_t N>
+	void fill_n(MultiBlock<N, T>& grid, scalar_t min, scalar_t max)
+	{
+		for (iter_type i = 0; i < D; ++i)
+		{
+			std::for_each(
+#ifdef EXECUTION_HEADER_AVAILABLE
+				std::execution::par_unseq,
+#endif
+				grid.values[i], grid.values[i] + grid.len,
+				[&] (auto& e) {
+					e = T(&e - grid.values[i]);
+				});
+		}
+	}
+
+
+
+
+
 	//! Copy the interior values of the grid into an array.
 	/*!
 	 * The interior values of the given grid are copied into an array.
@@ -988,6 +1687,55 @@ namespace grid
 
 	//! Copy the interior values of the grid into an array.
 	/*!
+	 * The interior values of the given grid are copied into an array.
+	 * It is assumed that the array has enough space to store all the interior
+	 * values. For computing the number of interior points, see
+	 * grid::length_interior(len_type const*). The grid is 1-dimensional.
+	 *
+	 * \param input The grid from which the interior values are copied.
+	 * \param output The array into which the values are copied.
+	 */
+	template<typename T>
+	void copy_interior(Grid<any_vector_t<T, 1>, 1> const& input, any_vector_t<T, 1>* output)
+	{
+		ITER_GRID1(output[ENTRY][0] = input(Axis::X)[INDEX], input.dims[0])
+	}
+
+
+	//! Copy the interior values of the grid into an array.
+	/*!
+	 * Implementation of copying interior values for a 2-dimensional Grid, see
+	 * grid::copy_interior(Grid<T, 1> const&, T*).
+	 *
+	 * \param input The grid from which the interior values are copied.
+	 * \param output The array into which the values are copied.
+	 */
+	template<typename T>
+	void copy_interior(Grid<any_vector_t<T, 2>, 2> const& input, any_vector_t<T, 2>* output)
+	{
+		ITER_GRID2(output[ENTRY][0] = input(Axis::X)[INDEX], input.dims[0], input.dims[1]);
+		ITER_GRID2(output[ENTRY][1] = input(Axis::Y)[INDEX], input.dims[0], input.dims[1]);
+	}
+
+	//! Copy the interior values of the grid into an array.
+	/*!
+	 * Implementation of copying interior values for a 3-dimensional Grid, see
+	 * grid::copy_interior(Grid<T, 1> const&, T*).
+	 *
+	 * \param input The grid from which the interior values are copied.
+	 * \param output The array into which the values are copied.
+	 */
+	template<typename T>
+	void copy_interior(Grid<any_vector_t<T, 3>, 3> const& input, any_vector_t<T, 3>* output)
+	{
+		ITER_GRID3(output[ENTRY][0] = input(Axis::X)[INDEX], input.dims[0], input.dims[1], input.dims[2]);
+		ITER_GRID3(output[ENTRY][1] = input(Axis::Y)[INDEX], input.dims[0], input.dims[1], input.dims[2]);
+		ITER_GRID3(output[ENTRY][2] = input(Axis::Z)[INDEX], input.dims[0], input.dims[1], input.dims[2]);
+	}
+
+
+	//! Copy the interior values of the grid into an array.
+	/*!
 	 * Fills the interior values of an array using ghost cells for the boundary.
 	 *
 	 * \param input The grid from which the sequential values are copied.
@@ -996,7 +1744,7 @@ namespace grid
 	 * \param dims The dimension of the interior region.
 	 */
 	template<typename T, size_t D>
-	void fill_interior(const T* input, T* output, const len_type(&dims)[D])
+	void fill_interior(const T* input, Grid<T, D> &output, const len_type(&dims)[D])
 	{
 		fill_interior_apply<T, D>{}(input, output, dims);
 	}
@@ -1055,6 +1803,11 @@ namespace grid
 			return {};
 		}
 
+		template<size_t N, typename T>
+		static constexpr wrap_type<any_vector_t<T, N>> cast(MultiBlock<N, T>)
+		{
+			return {};
+		}
 
 		static constexpr auto call_wrap(G g)
 		{

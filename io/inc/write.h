@@ -28,84 +28,115 @@
 
 #include "writeincludes.h"
 
-
-template<typename T>
+template<typename T, typename>
 void symphas::io::save_grid_plotting(const T* values, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
-	SWITCH_IO_WRITE(save_grid_plotting<T>(values, winfo, ginfo))
+	SWITCH_IO_WRITE(save_grid_plotting(values, winfo, ginfo))
 }
 
 template<typename T, size_t N>
-void symphas::io::save_grid_plotting(T(*values)[N], symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::save_grid_plotting(const T(*values)[N], symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	using data_unit = T[N];
-	SWITCH_IO_WRITE(save_grid_plotting<data_unit>(values, winfo, ginfo))
+	SWITCH_IO_WRITE(save_grid_plotting(values, winfo, ginfo))
 }
 
-template<typename T>
+template<typename T, size_t N>
+void symphas::io::save_grid_plotting(T* const(&values)[N], symphas::io::write_info winfo, symphas::grid_info ginfo)
+{
+	using data_unit = T*[N];
+	SWITCH_IO_WRITE(save_grid_plotting(values, winfo, ginfo))
+}
+
+
+template<typename T, typename>
 void symphas::io::save_grid(const T* values, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
-	SWITCH_IO_WRITE(save_grid<T>(values, winfo, ginfo))
+	SWITCH_IO_WRITE(save_grid(values, winfo, ginfo))
 }
 
 template<typename T, size_t N>
-void symphas::io::save_grid(T(*values)[N], symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::save_grid(const T(*values)[N], symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
-	using data_unit = T[N];
-	SWITCH_IO_WRITE(save_grid<data_unit>(values, winfo, ginfo))
+	SWITCH_IO_WRITE(save_grid(values, winfo, ginfo))
+}
+
+template<typename T, size_t N>
+void symphas::io::save_grid(T* const(&values)[N], symphas::io::write_info winfo, symphas::grid_info ginfo)
+{
+	SWITCH_IO_WRITE(save_grid(values, winfo, ginfo))
 }
 
 
 //! Default argument overload of symphas::io::save_grid(const T*, symphas::io::write_info, symphas::grid_info).
-template<typename T>
-void symphas::io::save_grid(const T(*values), symphas::grid_info ginfo)
+template<typename T, typename>
+void symphas::io::save_grid(const T* values, symphas::grid_info ginfo)
 {
-	save_grid<T>(values, symphas::io::write_info{}, ginfo);
+	save_grid(values, symphas::io::write_info{}, ginfo);
 }
 
 //! Default argument overload of symphas::io::save_grid(const T*, symphas::io::write_info, symphas::grid_info).
 template<typename T, size_t N>
-void symphas::io::save_grid(T(*values)[N], symphas::grid_info ginfo)
+void symphas::io::save_grid(const T(*values)[N], symphas::grid_info ginfo)
 {
 	using data_unit = T[N];
-	save_grid<data_unit>(values, symphas::io::write_info{}, ginfo);
+	save_grid(values, symphas::io::write_info{}, ginfo);
+}
+
+//! Default argument overload of symphas::io::save_grid(const T*, symphas::io::write_info, symphas::grid_info).
+template<typename T, size_t N>
+void symphas::io::save_grid(T* const(&values)[N], symphas::grid_info ginfo)
+{
+	using data_unit = T[N];
+	save_grid(values, symphas::io::write_info{}, ginfo);
 }
 
 
 
-
 //! Default argument overload of symphas::io::save_grid(const T*, symphas::io::write_info, symphas::grid_info).
-template<typename T>
-void symphas::io::save_grid(const T(*values), symphas::io::write_info winfo, const len_type* dims, size_t dimension)
+template<typename T, typename>
+void symphas::io::save_grid(const T* values, symphas::io::write_info winfo, const len_type* dims, size_t dimension)
 {
 	symphas::io::save_grid(values, winfo, symphas::grid_info{ dims, dimension });
 }
 
 //! Default argument overload of symphas::io::save_grid(const T*, symphas::io::write_info, symphas::grid_info).
 template<typename T, size_t N>
-void symphas::io::save_grid(T(*values)[N], symphas::io::write_info winfo, const len_type* dims, size_t dimension)
+void symphas::io::save_grid(const T(*values)[N], symphas::io::write_info winfo, const len_type* dims, size_t dimension)
 {
-	using data_unit = T[N];
+	symphas::io::save_grid(values, winfo, symphas::grid_info{ dims, dimension });
+}
+
+//! Default argument overload of symphas::io::save_grid(const T*, symphas::io::write_info, symphas::grid_info).
+template<typename T, size_t N>
+void symphas::io::save_grid(T* const(&values)[N], symphas::io::write_info winfo, const len_type* dims, size_t dimension)
+{
 	symphas::io::save_grid(values, winfo, symphas::grid_info{ dims, dimension });
 }
 
 
-
-
 //! Default argument overload of symphas::io::save_grid(const T*, symphas::io::write_info, symphas::grid_info).
-template<typename T>
-void symphas::io::save_grid(const T(*values), const len_type* dims, size_t dimension)
+template<typename T, typename>
+void symphas::io::save_grid(const T* values, const len_type* dims, size_t dimension)
 {
 	symphas::io::save_grid(values, symphas::io::write_info{}, dims, dimension);
 }
 
 //! Default argument overload of symphas::io::save_grid(const T*, symphas::io::write_info, symphas::grid_info).
 template<typename T, size_t N>
-void symphas::io::save_grid(T(*values)[N], const len_type* dims, size_t dimension)
+void symphas::io::save_grid(const T(*values)[N], const len_type* dims, size_t dimension)
 {
-	using data_unit = T[N];
 	symphas::io::save_grid(values, symphas::io::write_info{}, dims, dimension);
 }
+
+//! Default argument overload of symphas::io::save_grid(const T*, symphas::io::write_info, symphas::grid_info).
+template<typename T, size_t N>
+void symphas::io::save_grid(T* const(&values)[N], const len_type* dims, size_t dimension)
+{
+	symphas::io::save_grid(values, symphas::io::write_info{}, dims, dimension);
+}
+
+
 
 
 template<typename M>

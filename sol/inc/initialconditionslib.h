@@ -30,6 +30,7 @@
 #include <random>
 
 #include "params.h"
+#include "grid.h"
 
 
 //! The width of a distribution when using randomness.
@@ -342,6 +343,43 @@ namespace symphas
 	};
 
 
+	template<typename T>
+	struct init_data_functor<Block<T>> : init_data_functor<void>
+	{
+		using parent_type = init_data_functor<void>;
+
+		//! Create the initial condition algorithm based on a functor.
+		/*!
+		 * Create the initial condition algorithm based on a functor.
+		 */
+		init_data_functor(Block<T> const& source) : parent_type(), source{ &source } {}
+
+		void initialize(T* values, len_type const* dims, size_t dimension) override
+		{
+			len_type len = std::min(source->len, grid::length(dims, dimension));
+#			pragma omp parallel for
+			for (iter_type n = 0; n < len; ++n)
+			{
+				values[n] = source->values[n];
+			}
+		}
+
+		init_data_functor<void>* make_copy() const override
+		{
+			return new init_data_functor<Block<T>>(*this);
+		}
+
+		Block<T> const* source;
+	};
+
+
+	template<typename T, size_t D>
+	init_data_functor(Grid<T, D>)->init_data_functor<Block<T>>;
+	template<typename T, size_t D>
+	init_data_functor(BoundaryGrid<T, D>)->init_data_functor<Block<T>>;
+	template<typename T>
+	init_data_functor(Block<T>)->init_data_functor<Block<T>>;
+
 	//! Stores information about a initial condition expression.
 	/*!
 	 * Initial conditions can be defined using a symbolic algebra expression,
@@ -547,23 +585,7 @@ namespace symphas
 
 		init_data_type(init_data_type const& other) : init_data_type()
 		{
-			in = other.in;
-			intag = other.intag;
-
-			if (other.in == Inside::FILE)
-			{
-				file = other.file;
-			}
-			else if (
-				other.in == Inside::NONE 
-				&& symphas::internal::tag_bit_compare(other.intag, InsideTag::DEFAULT))
-			{
-				f_init = other.f_init->make_copy();
-			}
-			else
-			{
-				data = other.data;
-			}
+			other.copy_to(*this);
 		}
 
 		init_data_type operator=(init_data_type other)
@@ -572,7 +594,14 @@ namespace symphas
 			return *this;
 		}
 
-		friend void swap(init_data_type& first, init_data_type& second);
+		friend void swap(init_data_type& first, init_data_type& second)
+		{
+			init_data_type tmp;
+
+			first.copy_to(tmp);
+			second.copy_to(first);
+			tmp.copy_to(second);
+		}
 
 
 		~init_data_type()
@@ -585,6 +614,7 @@ namespace symphas
 		}
 
 
+
 		Inside in;							//!< Type of interior random generation, min/max values.
 		size_t intag;						//!< Modifies the algorithm generating interior values.
 
@@ -595,16 +625,37 @@ namespace symphas
 			init_data_read file;				//!< The file from which the field is populated.
 			init_data_expr expr_data;			//!< The file from which the field is populated.
 		};
+
+		void copy_to(init_data_type &other) const
+		{
+			other.in = in;
+			other.intag = intag;
+
+			if (in == Inside::FILE)
+			{
+				other.file = file;
+			}
+			else if (
+				in == Inside::NONE
+				&& symphas::internal::tag_bit_compare(intag, InsideTag::DEFAULT))
+			{
+				other.f_init = f_init->make_copy();
+			}
+			else if (in == Inside::EXPRESSION)
+			{
+				other.expr_data = expr_data;
+			}
+			else
+			{
+				for (iter_type i = 0; i < NUM_INIT_CONSTANTS; ++i)
+				{
+					other.data.gp[i] = data.gp[i];
+				}
+			}
+		}
+
 	};
-
-	inline void swap(init_data_type& first, init_data_type& second)
-	{
-		using std::swap;
-		swap(first.in, second.in);
-		swap(first.intag, second.intag);
-		swap(first.data, second.data);
-	}
-
+	void swap(init_data_type& first, init_data_type& second);
 
 	//! From the given string, get the corresponding initial condition.
 	/*!
@@ -635,6 +686,7 @@ namespace symphas
 	 * represents the initial tag is returned.
 	 */
 	const char* str_from_in_tag(InsideTag in);
+
 }
 
 inline void swap(symphas::init_data_type& first, symphas::init_data_type& second)

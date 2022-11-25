@@ -32,7 +32,6 @@
 
 #include "stencilh2.h"
 #include "stencilh4.h"
-#include <utility>
 
 
 /*!
@@ -87,7 +86,7 @@ namespace symphas::internal
 
 		//! Gradient of the field.
 		template<typename T>
-		auto gradient(T* const) const;
+		auto gradient(T* const, const len_type(&)[1]) const = delete;
 	};
 
 
@@ -108,7 +107,7 @@ namespace symphas::internal
 
 		//! Gradient of the field.
 		template<typename T>
-		auto gradient(T* const) const;
+		auto gradient(T* const, const len_type(&)[2]) const = delete;
 	};
 
 
@@ -129,59 +128,28 @@ namespace symphas::internal
 
 		//! Gradient of the field.
 		template<typename T>
-		auto gradient(T* const) const;
+		auto gradient(T* const, const len_type(&)[3]) const = delete;
 	};
 
 
 
 	template<>
-	inline auto StencilBase1d2h::gradient<scalar_t>(scalar_t* const v) const
+	inline auto StencilBase1d2h::gradient<scalar_t>(scalar_t* const v, const len_type (&stride)[1]) const
 	{
-		return VectorValue<scalar_t, 1>{ (vx_ + vx - 2. * v0) * divh };
+		return -0.5 * (vx_ - vx) * divh;
 	}
 
 	template<>
-	inline auto StencilBase2d2h::gradient<scalar_t>(scalar_t* const v) const
+	inline auto StencilBase2d2h::gradient<scalar_t>(scalar_t* const v, const len_type (&stride)[2]) const
 	{
-		const len_type& lenX = dims[0];
-		return VectorValue<scalar_t, 2>{
-			(vx_ + vx - 2. * v0) * divh,
-				(vy_ + vy - 2. * v0) * divh };
+		return -0.5 * (vx_ - vx) * divh;
 	}
 
 	template<>
-	inline auto StencilBase3d2h::gradient<scalar_t>(scalar_t* const v) const
+	inline auto StencilBase3d2h::gradient<scalar_t>(scalar_t* const v, const len_type (&stride)[3]) const
 	{
-		const len_type& lenX = dims[0];
-		const len_type& lenY = dims[1];
-		return VectorValue<scalar_t, 3>{
-			(vx_ + vx - 2. * v0) * divh,
-				(vy_ + vy - 2. * v0) * divh,
-				(vz_ + vz - 2. * v0) * divh };
+		return -0.5 * (vx_ - vx) * divh;
 	}
-
-
-	template<typename T>
-	auto StencilBase1d2h::gradient(T* const) const
-	{
-		fprintf(SYMPHAS_ERR, "using gradient on incompatible type.\n");
-		exit(2);
-	}
-
-	template<typename T>
-	auto StencilBase2d2h::gradient(T* const) const
-	{
-		fprintf(SYMPHAS_ERR, "using gradient on incompatible type.\n");
-		exit(2);
-	}
-
-	template<typename T>
-	auto StencilBase3d2h::gradient(T* const) const
-	{
-		fprintf(SYMPHAS_ERR, "using gradient on incompatible type.\n");
-		exit(2);
-	}
-
 
 
 	//! Implements the gradient for the 2-dimensional stencil.
@@ -201,23 +169,13 @@ namespace symphas::internal
 
 		//! Gradient of the field.
 		template<typename T>
-		auto gradient(T* const) const;
+		auto gradient(T* const, const len_type(&)[2]) const;
 	};
 
 	template<>
-	inline auto StencilBase2d4h::gradient<scalar_t>(scalar_t* const v) const
+	inline auto StencilBase2d4h::gradient<scalar_t>(scalar_t* const v, const len_type (&stride)[2]) const
 	{
-		const len_type& lenX = dims[0];
-		return VectorValue<scalar_t, 2>{
-			-(vx_ + vx - 2. * v0) * divh,
-				-(vy_ + vy - 2. * v0) * divh };
-	}
-
-	template<typename T>
-	auto StencilBase2d4h::gradient(T* const) const
-	{
-		fprintf(SYMPHAS_ERR, "using gradient on incompatible type.\n");
-		exit(2);
+		return (1 / 12.) * ((vx2_ - vx2) - 8 * (vx_ - vx)) * divh;
 	}
 }
 
@@ -243,23 +201,23 @@ struct Stencil1d2h : symphas::internal::StencilBase1d2h, Stencil<Stencil1d2h<L, 
 
 	//! Laplacian (2nd order derivative) of the field.
 	template<typename T>
-	auto laplacian(T* const v) const
+	auto laplacian(T* const v, const len_type (&stride)[1]) const
 	{
-		return apply_laplacian_1d2h<L>{}(v, divh2);
+		return apply_laplacian_1d2h<L>{}(v, divh2, stride);
 	}
 
 	//! Bilaplacian (4th order derivative) of the field.
 	template<typename T>
-	auto bilaplacian(T* const v) const
+	auto bilaplacian(T* const v, const len_type (&stride)[1]) const
 	{
-		return apply_bilaplacian_1d2h<B>{}(v, divh4);
+		return apply_bilaplacian_1d2h<B>{}(v, divh4, stride);
 	}
 
 	//! Gradlaplacian (gradient of the laplacian) of the field.
 	template<typename T>
-	auto gradlaplacian(T* const v) const
+	auto gradlaplacian(T* const v, const len_type (&stride)[1]) const
 	{
-		return apply_gradlaplacian_1d2h<G>{}(v, divh3);
+		return apply_gradlaplacian_1d2h<G>{}(v, divh3, stride);
 	}
 
 };
@@ -287,23 +245,23 @@ struct Stencil2d2h : symphas::internal::StencilBase2d2h, Stencil<Stencil2d2h<L, 
 
 	//! Laplacian (2nd order derivative) of the field.
 	template<typename T>
-	inline auto laplacian(T* const v) const
+	inline auto laplacian(T* const v, const len_type(&stride)[2]) const
 	{
-		return apply_laplacian_2d2h<L>{}(v, divh2, dims[0]);
+		return apply_laplacian_2d2h<L>{}(v, divh2, stride);
 	}
 
 	//! Bilaplacian (4th order derivative) of the field.
 	template<typename T>
-	inline auto bilaplacian(T* const v) const
+	inline auto bilaplacian(T* const v, const len_type(&stride)[2]) const
 	{
-		return apply_bilaplacian_2d2h<B>{}(v, divh4, dims[0]);
+		return apply_bilaplacian_2d2h<B>{}(v, divh4, stride);
 	}
 
 	//! Gradlaplacian (gradient of the laplacian) of the field.
 	template<typename T>
-	inline auto gradlaplacian(T* const v) const
+	inline auto gradlaplacian(T* const v, const len_type (&stride)[2]) const
 	{
-		return apply_gradlaplacian_2d2h<G>{}(v, divh3, dims[0]);
+		return apply_gradlaplacian_2d2h<G>{}(v, divh3, stride);
 	}
 
 };
@@ -330,23 +288,23 @@ struct Stencil3d2h : symphas::internal::StencilBase3d2h, Stencil<Stencil3d2h<L, 
 
 	//! Laplacian (2nd order derivative) of the field.
 	template<typename T>
-	inline auto laplacian(T* const v) const
+	inline auto laplacian(T* const v, const len_type (&stride)[3]) const
 	{
-		return apply_laplacian_3d2h<L>{}(v, divh2, dims[0], dims[1]);
+		return apply_laplacian_3d2h<L>{}(v, divh2, stride);
 	}
 
 	//! Bilaplacian (4th order derivative) of the field.
 	template<typename T>
-	inline auto bilaplacian(T* const v) const
+	inline auto bilaplacian(T* const v, const len_type (&stride)[3]) const
 	{
-		return apply_bilaplacian_3d2h<B>{}(v, divh4, dims[0], dims[1]);
+		return apply_bilaplacian_3d2h<B>{}(v, divh4, stride);
 	}
 
 	//! Gradlaplacian (gradient of the laplacian) of the field.
 	template<typename T>
-	inline auto gradlaplacian(T* const v) const
+	inline auto gradlaplacian(T* const v, const len_type (&stride)[3]) const
 	{
-		return apply_gradlaplacian_3d2h<G>{}(v, divh3, dims[0], dims[1]);
+		return apply_gradlaplacian_3d2h<G>{}(v, divh3, stride);
 	}
 };
 
@@ -376,27 +334,27 @@ struct Stencil2d4h : symphas::internal::StencilBase2d4h, Stencil<Stencil2d4h<L, 
 
 	//! Laplacian (2nd order derivative) of the field.
 	template<typename T>
-	inline auto laplacian(T* const v) const
+	inline auto laplacian(T* const v, const len_type (&stride)[2]) const
 	{
-		return apply_laplacian_2d4h<L>{}(v, divh3, dims[0]);
+		return apply_laplacian_2d4h<L>{}(v, divh3, stride);
 	}
 
 	//! Bilaplacian (4th order derivative) of the field.
 	template<typename T>
-	inline auto bilaplacian(T* const v) const
+	inline auto bilaplacian(T* const v, const len_type (&stride)[2]) const
 	{
-		return apply_bilaplacian_2d4h<B>{}(v, divh3, dims[0]);
+		return apply_bilaplacian_2d4h<B>{}(v, divh3, stride);
 	}
 
 	//! Gradlaplacian (gradient of the laplacian) of the field.
 	template<typename T>
-	inline auto gradlaplacian(T* const v) const
+	inline auto gradlaplacian(T* const v, const len_type (&stride)[2]) const
 	{
-		return apply_gradlaplacian_2d4h<G>{}(v, divh3, dims[0]);
+		return apply_gradlaplacian_2d4h<G>{}(v, divh3, stride);
 	}
 };
 
-template<size_t DD, size_t OA>
+template<size_t DD, size_t OA = 2>
 struct SelfSelectingStencil : GeneralizedStencil<DD, OA>, Stencil<SelfSelectingStencil<DD, OA>>
 {
 	using base_type = GeneralizedStencil<DD, OA>;
@@ -516,8 +474,9 @@ MAKE_STENCIL_POINT_LIST(2, 3, 2, (7))
 MAKE_STENCIL_POINT_LIST(4, 3, 2, (21))
 MAKE_STENCIL_POINT_LIST(3, 3, 2, (10))
 
-
 #endif
+
+#define AVAILABLE_DIMENSIONS 2
 
 
 namespace symphas::lib::internal
@@ -624,10 +583,9 @@ namespace symphas::lib::internal
 namespace symphas::internal
 {
 
-	using dim_ord_list_t = std::tuple<
-		std::tuple<std::index_sequence<1>, typename symphas::internal::OrderList<1>::type>,
-		std::tuple<std::index_sequence<2>, typename symphas::internal::OrderList<2>::type>,
-		std::tuple<std::index_sequence<3>, typename symphas::internal::OrderList<3>::type>>;
+	template<size_t... Ds>
+	using dim_ord_list_t = symphas::lib::types_list<
+		symphas::lib::types_list<std::index_sequence<Ds>, typename symphas::internal::OrderList<Ds>::type>...>;
 
 	template<size_t D, size_t O>
 	using cross_list_t = symphas::lib::CrossProductList<std::index_sequence<D>, std::index_sequence<O>,
@@ -662,9 +620,9 @@ protected:
 		{
 			using pl = typename symphas::internal::cross_list_t<D, O>::template row<0>;
 			return StencilParams{ O,
-				symphas::lib::internal::seq_value<2>(pl{}),
-				symphas::lib::internal::seq_value<3>(pl{}),
-				symphas::lib::internal::seq_value<4>(pl{}) };
+				static_cast<unsigned short>(symphas::lib::internal::seq_value<2>(pl{})),
+				static_cast<unsigned short>(symphas::lib::internal::seq_value<3>(pl{})),
+				static_cast<unsigned short>(symphas::lib::internal::seq_value<4>(pl{})) };
 		}
 		else
 		{
@@ -673,13 +631,13 @@ protected:
 	}
 
 	template<typename... Ts>
-	auto search_dim(std::tuple<>) const
+	auto search_dim(symphas::lib::types_list<>) const
 	{
 		return StencilParams{};
 	}
 
 	template<size_t D, size_t... Ns, typename... Seqs>
-	auto search_dim(std::tuple<std::tuple<std::index_sequence<D>, std::index_sequence<Ns...>>, Seqs...>) const
+	auto search_dim(symphas::lib::types_list<symphas::lib::types_list<std::index_sequence<D>, std::index_sequence<Ns...>>, Seqs...>) const
 	{
 		if (parameters[0] == D)
 		{
@@ -687,7 +645,7 @@ protected:
 		}
 		else
 		{
-			return search_dim(std::tuple<Seqs...>{});
+			return search_dim(symphas::lib::types_list<Seqs...>{});
 		}
 	}
 
@@ -700,7 +658,7 @@ public:
 
 	auto operator()() const
 	{
-		return search_dim(symphas::internal::dim_ord_list_t{});
+		return search_dim(symphas::internal::dim_ord_list_t<AVAILABLE_DIMENSIONS>{});
 	}
 };
 

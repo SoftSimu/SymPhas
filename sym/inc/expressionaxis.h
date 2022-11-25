@@ -26,7 +26,7 @@
 
 #pragma once
 
-#include "expressionrules.h"
+#include "expressions.h"
 
 
 struct TimeValue
@@ -273,7 +273,7 @@ namespace expr
 	template<typename T, size_t D>
 	auto make_varx(Grid<T, D> const& data)
 	{
-		return OpLVariable(GridAxis<D, Axis::X>{ data });
+		return expr::make_term(GridAxis<D, Axis::X>{ data });
 	}
 
 	//! Helper in order to construct the y-axis variable.
@@ -289,7 +289,7 @@ namespace expr
 	template<typename T, size_t D>
 	auto make_vary(Grid<T, D> const& data)
 	{
-		return OpLVariable(GridAxis<D, Axis::Y>{ data });
+		return expr::make_term(GridAxis<D, Axis::Y>{ data });
 	}
 
 	//! Helper in order to construct the z-axis variable.
@@ -305,7 +305,7 @@ namespace expr
 	template<typename T, size_t D>
 	auto make_varz(Grid<T, D> const& data)
 	{
-		return OpLVariable(GridAxis<D, Axis::Z>{ data });
+		return expr::make_term(GridAxis<D, Axis::Z>{ data });
 	}
 
 
@@ -325,7 +325,7 @@ namespace expr
 	{
 		len_type lenarr0[]{ dims0 };
 		len_type lenarr[]{ dims };
-		return OpLVariable(GridAxis<1, Axis::X>{ lenarr0, lenarr, left, right });
+		return expr::make_term(GridAxis<1, Axis::X>{ lenarr0, lenarr, left, right });
 	}
 
 	//! Helper in order to construct the x-axis variable.
@@ -341,7 +341,7 @@ namespace expr
 	 */
 	inline auto make_varx(len_type const (&dims0)[2], len_type const (&dims)[2], double left, double right)
 	{
-		return OpLVariable(GridAxis<2, Axis::X>{ dims0, dims, left, right });
+		return expr::make_term(GridAxis<2, Axis::X>{ dims0, dims, left, right });
 	}
 
 	//! Helper in order to construct the x-axis variable.
@@ -357,7 +357,7 @@ namespace expr
 	 */
 	inline auto make_varx(len_type const (&dims0)[3], len_type const(&dims)[3], double left, double right)
 	{
-		return OpLVariable(GridAxis<3, Axis::X>{ dims0, dims, left, right });
+		return expr::make_term(GridAxis<3, Axis::X>{ dims0, dims, left, right });
 	}
 
 	//! Helper in order to construct the y-axis variable.
@@ -366,14 +366,14 @@ namespace expr
 	 * copied to the axis data object. Used to initialize the y axis variable
 	 * for grids with boundaries, in order to correctly generate the interior
 	 * axis values.
-	 * 
+	 *
 	 * \param dims0 The interior dimensions of the system.
 	 * \param dims The number of points on each axis.
 	 * \param left The left endpoint of the interval.
 	 */
 	inline auto make_vary(len_type const (&dims0)[2], len_type const (&dims)[2], double left, double right)
 	{
-		return OpLVariable(GridAxis<2, Axis::Y>{ dims0, dims, left, right });
+		return expr::make_term(GridAxis<2, Axis::Y>{ dims0, dims, left, right });
 	}
 
 	//! Helper in order to construct the y-axis variable.
@@ -382,14 +382,14 @@ namespace expr
 	 * copied to the axis data object. Used to initialize the y-axis variable
 	 * for grids with boundaries, in order to correctly generate the interior
 	 * axis values.
-	 * 
+	 *
 	 * \param dims0 The interior dimensions of the system.
 	 * \param dims The number of points on each axis.
 	 * \param left The left endpoint of the interval.
 	 */
 	inline auto make_vary(len_type const (&dims0)[3], len_type const (&dims)[3], double left, double right)
 	{
-		return OpLVariable(GridAxis<3, Axis::Y>{ dims0, dims, left, right });
+		return expr::make_term(GridAxis<3, Axis::Y>{ dims0, dims, left, right });
 	}
 
 	//! Helper in order to construct the z-axis variable.
@@ -405,7 +405,7 @@ namespace expr
 	 */
 	inline auto make_varz(len_type const (&dims0)[3], len_type const (&dims)[3], double left, double right)
 	{
-		return OpLVariable(GridAxis<3, Axis::Z>{ dims0, dims, left, right });
+		return expr::make_term(GridAxis<3, Axis::Z>{ dims0, dims, left, right });
 	}
 
 

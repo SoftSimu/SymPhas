@@ -40,7 +40,7 @@
 #define C2 c6
 
 MODEL(AC_MMS, (SCALAR),
-	MODEL_DEF_PREAMBLE(
+	EVOLUTION_PREAMBLE(
 		(
 			auto th = tanh(sqrt(2) * (A1 * t * sin(B1 * x) + A2 * sin(B2 * x + C2 * t) - y + 0.25) / (2 * sqrt(kappa)));
 			auto a0 = (A1 * B1 * t * cos(B1 * x) + A2 * B2 * cos(B2 * x + C2 * t));

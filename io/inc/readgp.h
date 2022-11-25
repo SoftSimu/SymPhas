@@ -52,14 +52,14 @@ namespace symphas::io::gp
 	 * \param ginfo The grid parameter specification.
 	 * \param f The pointer to the file that is accessed.
 	 */
-	template<typename T>
-	void read_block(T* grid, symphas::grid_info ginfo, FILE* f);
+	template<typename value_type>
+	void read_block(value_type values, symphas::grid_info ginfo, FILE* f);
 
 	//! Plain text implementation of reading data.
-	template<typename T>
-	int read_grid(T* grid, symphas::io::read_info const& rinfo)
+	template<typename value_type>
+	int read_grid(value_type values, symphas::io::read_info const& rinfo)
 	{
-		return read_grid_standardized(grid, rinfo, open_gpgridf, fclose, read_block<T>);
+		return read_grid_standardized(values, rinfo, symphas::io::gp::open_gpgridf, fclose, read_block<value_type>);
 	}
 
 	//! Read the header of the datafile.
@@ -80,24 +80,8 @@ namespace symphas::io::gp
 
 //! \cond
 
-//! Specialization of symphas::io::gp::read_block().
-template<>
-void symphas::io::gp::read_block<scalar_t>(scalar_t* grid, symphas::grid_info ginfo, FILE* f);
-//! Specialization of symphas::io::gp::read_block().
-template<>
-void symphas::io::gp::read_block<complex_t>(complex_t* grid, symphas::grid_info ginfo, FILE* f);
-//! Specialization of symphas::io::gp::read_block().
-template<>
-void symphas::io::gp::read_block<double[2]>(double(*grid)[2], symphas::grid_info ginfo, FILE* f);
-//! Specialization of symphas::io::gp::read_block().
-template<>
-void symphas::io::gp::read_block<vector_t<3>>(vector_t<3>* grid, symphas::grid_info ginfo, FILE* f);
-//! Specialization of symphas::io::gp::read_block().
-template<>
-void symphas::io::gp::read_block<vector_t<2>>(vector_t<2>* grid, symphas::grid_info ginfo, FILE* f);
-//! Specialization of symphas::io::gp::read_block().
-template<>
-void symphas::io::gp::read_block<vector_t<1>>(vector_t<1>* grid, symphas::grid_info ginfo, FILE* f);
+
+SPECIALIZE_READ_BLOCK(gp)
 
 //! \endcond
 

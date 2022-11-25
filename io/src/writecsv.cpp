@@ -28,8 +28,7 @@
 /*
  * functions to write data from the grid to a file
  */
-template<>
-void symphas::io::csv::save_grid_plotting<scalar_t>(const scalar_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::csv::save_grid_plotting(const scalar_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 
@@ -74,8 +73,7 @@ void symphas::io::csv::save_grid_plotting<scalar_t>(const scalar_t* grid, sympha
 	fclose(f);
 }
 
-template<>
-void symphas::io::csv::save_grid_plotting<complex_t>(const complex_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::csv::save_grid_plotting(const complex_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 
@@ -119,8 +117,7 @@ void symphas::io::csv::save_grid_plotting<complex_t>(const complex_t* grid, symp
 	fclose(f);
 }
 
-template<>
-void symphas::io::csv::save_grid_plotting<double[2]>(const double (*grid)[2], symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::csv::save_grid_plotting(const double_arr2 *grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 
@@ -164,8 +161,7 @@ void symphas::io::csv::save_grid_plotting<double[2]>(const double (*grid)[2], sy
 	fclose(f);
 }
 
-template<>
-void symphas::io::csv::save_grid_plotting<vector_t<3>>(const vector_t<3>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::csv::save_grid_plotting(const vector_t<3>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 
@@ -206,8 +202,7 @@ void symphas::io::csv::save_grid_plotting<vector_t<3>>(const vector_t<3>* grid, 
 	fclose(f);
 }
 
-template<>
-void symphas::io::csv::save_grid_plotting<vector_t<2>>(const vector_t<2>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::csv::save_grid_plotting(const vector_t<2>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 
@@ -246,8 +241,7 @@ void symphas::io::csv::save_grid_plotting<vector_t<2>>(const vector_t<2>* grid, 
 }
 
 
-template<>
-void symphas::io::csv::save_grid_plotting<vector_t<1>>(const vector_t<1>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::csv::save_grid_plotting(const vector_t<1>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 
@@ -280,6 +274,116 @@ void symphas::io::csv::save_grid_plotting<vector_t<1>>(const vector_t<1>* grid, 
 	fclose(f);
 }
 
+
+void symphas::io::csv::save_grid_plotting(const scalar_ptr_t(&grid)[3], symphas::io::write_info winfo, symphas::grid_info ginfo)
+{
+	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
+
+	len_type N = ginfo.at(Axis::Z).count();
+	len_type M = ginfo.at(Axis::Y).count();
+	len_type L = ginfo.at(Axis::X).count();
+
+	for (iter_type k = 0; k < N; k++)
+	{
+
+		for (iter_type j = 0; j < M; j++)
+		{
+			for (iter_type i = 0; i < L; i++)
+			{
+				iter_type ii = i + j * L + k * L * M;
+
+				double m = sqrt(grid[0][ii] * grid[0][ii] + grid[1][ii] * grid[1][ii] + grid[2][ii] * grid[2][ii]),
+					dx = grid[0][ii] / m,
+					dy = grid[1][ii] / m,
+					dz = grid[2][ii] / m;
+
+				fprintf(f,
+					"\"%." DATA_OUTPUT_ACCURACY_STR "f "
+					"%." DATA_OUTPUT_ACCURACY_STR "f "
+					"%." DATA_OUTPUT_ACCURACY_STR "f "
+					"%." DATA_OUTPUT_ACCURACY_STR "f\"",
+					dx, dy, dz, m);
+
+				if (i < L - 1)
+				{
+					fprintf(f, ",");
+				}
+			}
+			fprintf(f, "\n");
+		}
+	}
+	fclose(f);
+}
+
+void symphas::io::csv::save_grid_plotting(const scalar_ptr_t(&grid)[2], symphas::io::write_info winfo, symphas::grid_info ginfo)
+{
+	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
+
+	len_type N = ginfo.at(Axis::Z).count();
+	len_type M = ginfo.at(Axis::Y).count();
+	len_type L = ginfo.at(Axis::X).count();
+
+	for (iter_type k = 0; k < N; k++)
+	{
+		for (iter_type j = 0; j < M; j++)
+		{
+			for (iter_type i = 0; i < L; i++)
+			{
+				iter_type ii = i + j * L + k * L * M;
+
+				double m = sqrt(grid[0][ii] * grid[0][ii] + grid[1][ii] * grid[1][ii]),
+					dx = grid[0][ii] / m,
+					dy = grid[1][ii] / m;
+
+				fprintf(f,
+					"\"%." DATA_OUTPUT_ACCURACY_STR "f "
+					"%." DATA_OUTPUT_ACCURACY_STR "f "
+					"%." DATA_OUTPUT_ACCURACY_STR "f\"",
+					dx, dy, m);
+
+				if (i < L - 1)
+				{
+					fprintf(f, ",");
+				}
+			}
+			fprintf(f, "\n");
+		}
+	}
+	fclose(f);
+}
+
+
+void symphas::io::csv::save_grid_plotting(const scalar_ptr_t(&grid)[1], symphas::io::write_info winfo, symphas::grid_info ginfo)
+{
+	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
+
+	len_type N = ginfo.at(Axis::Z).count();
+	len_type M = ginfo.at(Axis::Y).count();
+	len_type L = ginfo.at(Axis::X).count();
+
+	for (iter_type k = 0; k < N; k++)
+	{
+		for (iter_type j = 0; j < M; j++)
+		{
+			for (iter_type i = 0; i < L; i++)
+			{
+				iter_type ii = i + j * L + k * L * M;
+
+
+				fprintf(f,
+					"\"%." DATA_OUTPUT_ACCURACY_STR "f\"",
+					grid[0][ii]);
+
+				if (i < L - 1)
+				{
+					fprintf(f, ",");
+				}
+			}
+			fprintf(f, "\n");
+		}
+	}
+	fclose(f);
+}
 
 
 

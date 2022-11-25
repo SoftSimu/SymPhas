@@ -27,11 +27,9 @@
 
 #pragma once
 
-#ifndef MODEL_INCLUDE_HEADER
-
 #include "modelmacros.h"
+#ifdef MODEL_INCLUDE_HEADER
 
-#else
 #include MODEL_INCLUDE_HEADER
 
 #ifdef USING_MODEL_SELECTION
@@ -74,6 +72,15 @@ namespace symphas::internal
 		using type = typename SelfSelectingStencil<D, O>::template Points<Ps...>;
 		return MODEL_APPLY_CALL<Model<D, Solver<type>>>(std::forward<Ts>(args)...);
 	}
+
+	template<
+		template<size_t, typename> typename Model, 
+		typename Solver, size_t D, typename... Ts
+	>
+	auto run_model_call(Ts&& ...args)
+	{
+		return MODEL_APPLY_CALL<Model<D, Solver>>(std::forward<Ts>(args)...);
+	}
 }
 
 struct model_select
@@ -91,6 +98,13 @@ struct model_select
 	{
 		constexpr int last_index = decltype(model_counter(model_count_index<255>{}))::value;
 		return model_call_wrapper<last_index - 1>::call<AppliedSolver>(dimension, stp, name, std::forward<Ts>(args)...);
+	}
+
+	template<typename AppliedSolver, typename... Ts>
+	auto call(const char* name, Ts&& ...args)
+	{
+		constexpr int last_index = decltype(model_counter(model_count_index<255>{}))::value;
+		return model_call_wrapper<last_index - 1>::call<AppliedSolver>(dimension, name, std::forward<Ts>(args)...);
 	}
 
 };
@@ -138,6 +152,21 @@ struct model_select
 #undef z
 #undef t
 
+// free energy parameters
+
+#undef SUM
+#undef SUM_INDEX
+
+#undef ii_
+#undef ii
+#undef jj_
+#undef jj
+
+#undef op_ii_
+#undef op_ii
+#undef op_jj_
+#undef op_jj
+
 // functions
 
 #undef modulus
@@ -152,6 +181,9 @@ struct model_select
 #undef VECTOR
 #undef SCALAR
 #undef COMPLEX
+
+#undef CONSERVED
+#undef NONCONSERVED
 
 #undef DYNAMIC
 #undef MODE

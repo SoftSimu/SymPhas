@@ -48,15 +48,17 @@ SYMPHAS_MSG_BAD_INDEX_READ "the closest index found was '%d'\n"
 #define BAD_INDEX -1
 
 #define SPECIALIZE_READ_BLOCK_FILE(NAMESPACE, F) \
-template<> void symphas::io::NAMESPACE::read_block<scalar_t>(scalar_t* grid, symphas::grid_info ginfo, F* f); \
-template<> void symphas::io::NAMESPACE::read_block<complex_t>(complex_t* grid, symphas::grid_info ginfo, F* f); \
-template<> void symphas::io::NAMESPACE::read_block<double[2]>(double(*grid)[2], symphas::grid_info ginfo, F* f); \
-template<> void symphas::io::NAMESPACE::read_block<vector_t<3>>(vector_t<3>* grid, symphas::grid_info ginfo, F* f); \
-template<> void symphas::io::NAMESPACE::read_block<vector_t<2>>(vector_t<2>* grid, symphas::grid_info ginfo, F* f); \
-template<> void symphas::io::NAMESPACE::read_block<vector_t<1>>(vector_t<1>* grid, symphas::grid_info ginfo, F* f);
+template<> void symphas::io::NAMESPACE::read_block(scalar_t* grid, symphas::grid_info ginfo, F* f); \
+template<> void symphas::io::NAMESPACE::read_block(complex_t* grid, symphas::grid_info ginfo, F* f); \
+template<> void symphas::io::NAMESPACE::read_block(double_arr2* grid, symphas::grid_info ginfo, F* f); \
+template<> void symphas::io::NAMESPACE::read_block(vector_t<3>* grid, symphas::grid_info ginfo, F* f); \
+template<> void symphas::io::NAMESPACE::read_block(vector_t<2>* grid, symphas::grid_info ginfo, F* f); \
+template<> void symphas::io::NAMESPACE::read_block(vector_t<1>* grid, symphas::grid_info ginfo, F* f); \
+template<> void symphas::io::NAMESPACE::read_block(scalar_ptr_t (&grid)[3], symphas::grid_info ginfo, F* f); \
+template<> void symphas::io::NAMESPACE::read_block(scalar_ptr_t (&grid)[2], symphas::grid_info ginfo, F* f); \
+template<> void symphas::io::NAMESPACE::read_block(scalar_ptr_t (&grid)[1], symphas::grid_info ginfo, F* f);
 
 #define SPECIALIZE_READ_BLOCK(NAMESPACE) SPECIALIZE_READ_BLOCK_FILE(NAMESPACE, FILE)
-
 
 
 // \endcond
@@ -207,6 +209,31 @@ namespace symphas::io
 	template<typename T, size_t N>
 	int read_grid(T(*values)[N], symphas::io::read_info const& rinfo);
 
+	//! A data source will be accessed and the given data array initialized.
+	/*!
+	 * The values from the data source given by the read information parameter
+	 * and accessed and copied into the array. Typically this is a data file.
+	 *
+	 * A data file will be opened to be parsed by the correct read utility,
+	 * and the values of the given array will be initialized based on the data.
+	 * The length of the array has to be correctly sized beforehand.
+	 *
+	 * Reads data from the grid to a file. It will ignore the header and other
+	 * file information until it reaches the index, and then it will read the
+	 * data corresponding to that index and return the index which was read
+	 * from.
+	 *
+	 * if the index is not found, because either data could not be read or the
+	 * index found does not end up matching the requested index, that index
+	 * will instead be returned.
+	 *
+	 * \param values The arrays into which the values are read into. The values
+	 * have the type vector of arrays.
+	 * \param rinfo Information about how to access the persistent information.
+	 */
+	template<typename T, size_t N>
+	int read_grid(T* (&values)[N], symphas::io::read_info const& rinfo);
+
 	//! Read the header from the given data source. 
 	/*!
 	 * The header will be read from the given data source, initializing
@@ -264,8 +291,8 @@ namespace symphas::io
 	 * \param read_block_f The function to read the block data, containing
 	 * the array data.
 	 */
-	template<typename T, typename Fo, typename Fc, typename Fb>
-	int read_grid_standardized(T* grid, symphas::io::read_info const& rinfo, Fo open_file_f, Fc close_file_f, Fb read_block_f)
+	template<typename value_type, typename Fo, typename Fc, typename Fb>
+	int read_grid_standardized(value_type grid, symphas::io::read_info const& rinfo, Fo open_file_f, Fc close_file_f, Fb read_block_f)
 	{
 		auto f = open_file_f(rinfo.name);
 

@@ -45,6 +45,8 @@ bool add_base_params(param_map_type& param_map)
 	param_map["init_outside"] = std::make_pair(&init_outside_val, new param_assign<double>);
 	param_map["init_rand_val"] = std::make_pair(&init_rand_val, new param_assign<double>);
 	param_map["init_rand"] = std::make_pair(&init_rand_val, new param_assign<double>);
+	param_map["input_data_file"] = std::make_pair(&input_data_file, new param_assign<char*>);
+	param_map["data"] = std::make_pair(&input_data_file, new param_assign<char*>);
 
 	return true;
 }
@@ -56,6 +58,7 @@ DLLLIB int params::viz_interval = 0;
 DLLLIB double params::init_inside_val = 1;
 DLLLIB double params::init_outside_val = -1;
 DLLLIB double params::init_rand_val = 1;
+DLLLIB char* params::input_data_file = nullptr;
 DLLLIB int params::start_index = INDEX_INIT;
 
 

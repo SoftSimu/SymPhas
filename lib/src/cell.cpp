@@ -21,20 +21,6 @@
 #include "cell.h"
 
 
-template struct VectorValue<double, 1>;
-template struct VectorValue<double, 2>;
-template struct VectorValue<double, 3>;
-template struct VectorValue<std::complex<double>, 1>;
-template struct VectorValue<std::complex<double>, 2>;
-template struct VectorValue<std::complex<double>, 3>;
-template struct VectorValue<float, 1>;
-template struct VectorValue<float, 2>;
-template struct VectorValue<float, 3>;
-template struct VectorValue<std::complex<float>, 1>;
-template struct VectorValue<std::complex<float>, 2>;
-template struct VectorValue<std::complex<float>, 3>;
-
-
 template<>
 inline double distance(VectorValue<double, 1> const& c1, VectorValue<double, 1> const& c2)
 {

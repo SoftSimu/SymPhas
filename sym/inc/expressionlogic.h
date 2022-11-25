@@ -27,10 +27,7 @@
 
 #pragma once
 
-#include "expressions.h"
-
-
-
+#include "expressionlib.h"
 
 
 /*! 
@@ -83,7 +80,7 @@
 template<SINGLE_ARG TEMPLATES> \
 struct expr::SymbolID<SINGLE_ARG TYPE> \
 { \
-	static auto get([[maybe_unused]] SINGLE_ARG TYPE const& data) \
+	static decltype(auto) get([[maybe_unused]] SINGLE_ARG TYPE const& data) \
 	{ \
 		__VA_ARGS__; \
 	} \
@@ -111,9 +108,9 @@ struct expr::SymbolID<SINGLE_ARG TYPE> \
  */
 #define DEFINE_SYMBOL_ID_CONDITION(TEMPLATES, TYPE, CONDITION, ...) \
 template<SINGLE_ARG TEMPLATES> \
-struct expr::SymbolID<SINGLE_ARG TYPE, typename std::enable_if<SINGLE_ARG CONDITION>::type> \
+struct expr::SymbolID<SINGLE_ARG TYPE, typename std::enable_if_t<SINGLE_ARG CONDITION>> \
 { \
-	static auto get([[maybe_unused]] SINGLE_ARG TYPE const& data) \
+	static decltype(auto) get([[maybe_unused]] SINGLE_ARG TYPE const& data) \
 	{ \
 		__VA_ARGS__; \
 	} \
@@ -152,9 +149,9 @@ struct expr::BaseData<SINGLE_ARG TYPE> \
  * 
  * \param TYPENAME_TEMPLATES The templates which are passed to the 
  * specialization of the base data object.
- * \param REDIRECT_TEMPLATE The template which is passed to the
- * redirected base object, meaning that \p TYPE should be implicitly
- * convertible to this type.
+ * \param REDIRECT_TEMPLATE The template which is passed to the static cast
+ * to cast the object to its base type. This also implies that \p TYPE should 
+ * be implicitly convertible to this type.
  * \param TYPE The type which is redirected to another base object
  * through the cast to \p REDIRECT_TEMPLATE.
  */
@@ -164,28 +161,49 @@ SYEX_IMPL_DEFINE_BASE_DATA((SINGLE_ARG TYPENAME_TEMPLATES), (SINGLE_ARG TYPE), d
 
 //! Define a new base data access method for an array.
 /*!
- * Use this on a new object which contains data and which should be used
- * by the symbolic algebra functionality. Provide the name (this can also be
- * a member function) of the object that will be returned. This is done by
- * specializing the expr::BaseData class. The underlying data is
- * assumed (and to use this macro, must be) to be an array type object.
+ * Use this for a new object which contains data and which should be used
+ * by the symbolic algebra functionality. By defining a expr::BaseData, a variable
+ * defined with this type can be evaluated and return a value.
  * 
- * \param TEMPLATES Template arguments used by the type specialization.
- * \param TYPE The types which specialize the expr::BaseData class.
- * \param DATA_NAME The variable name or member function which is used to 
- * get the data. This should return a reference to the underlying data
- * of the data object.
+ * When writing a parameter for the \p RETURN_ELEMENT or \p RETURN_DATA arguments,
+ * the instance of type \p TYPE is named `data`. As can example, one can write:
+```
+	DEFINE_BASE_DATA((typename T, size_t D), (Grid<T, D>), data[n], data)
+```
+ * which would define a new ::BaseData specialization for the Grid class (one already
+ * exists though), and get the element of the grid, and the grid itself.
+ *
+ * \param TEMPLATES Template arguments used by the type specialization. Wrapped
+ * in parentheses.
+ * \param TYPE The type that the expr::BaseData is specialized for.
+ * \param RETURN_ELEMENT A statement which will access an element 
+ * of the specialized type instance, and placed after a `return` keyword
+ * in order for it to be returned.
+ * \param RETURN_DATA A statement which will return a data object, which can be
+ * the instance itself, or the instance cast to a different type.
  */
-#define DEFINE_BASE_DATA(TEMPLATES, TYPE, DATA_NAME) \
-SYEX_IMPL_DEFINE_BASE_DATA((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPE), const auto&, auto&, (data.DATA_NAME[n]), (data.DATA_NAME))
+#define DEFINE_BASE_DATA(TEMPLATES, TYPE, RETURN_ELEMENT, RETURN_DATA) \
+SYEX_IMPL_DEFINE_BASE_DATA((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPE), decltype(auto), decltype(auto), (RETURN_ELEMENT), (RETURN_DATA))
 
-//! Define a new base data access method for a point.
+//! Define a new base data access method for an array type.
 /*!
  * See #DEFINE_BASE_DATA. Applies the access method for a data
  * which has only a point as the underlying data.
+ *
+ * The type must have its elements able to be accessed using `operator[]`.
+ */
+#define DEFINE_BASE_DATA_ARRAY(TEMPLATES, TYPE) \
+DEFINE_BASE_DATA((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPE), (data[n]), (data))
+
+//! Define a new base data access method for a point type.
+/*!
+ * See #DEFINE_BASE_DATA. Applies the access method for a data
+ * which has only a point as the underlying data.
+ * 
+ * The name of the value of the type instance is given by \p DATA_NAME.
  */
 #define DEFINE_BASE_DATA_POINT(TEMPLATES, TYPE, DATA_NAME) \
-((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPE), &, (data.DATA_NAME), (data.DATA_NAME))
+DEFINE_BASE_DATA((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPE), (data.DATA_NAME), (data))
 
 
 
@@ -193,7 +211,7 @@ SYEX_IMPL_DEFINE_BASE_DATA((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPE), const auto
 * define a new struct for use in expressions
 */
 
-//! Defines a new type of object to be used as data in expressions.
+//! Defines a new array-like type to be used as data in expressions.
 /*!
  * Creates expression specific definitions around an object of block- (array-) 
  * type, which will satisfy the prerequisites of using it in the symbolic 
@@ -201,10 +219,12 @@ SYEX_IMPL_DEFINE_BASE_DATA((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPE), const auto
  * brackets. The object type specification must also be surrounded in brackets. 
  * The last parameter is the name of the objects underlying data member.
  * 
+ * The type must have its elements able to be accessed using `operator[]`.
+ *
  * See #DEFINE_BASE_DATA and #DEFINE_SYMBOL_ID
  */
 #define ADD_EXPR_TYPE(TEMPLATES, TYPE, DATA_NAME) \
-DEFINE_BASE_DATA((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPE), DATA_NAME) \
+DEFINE_BASE_DATA((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPE), data[n], data.data_NAME) \
 DEFINE_SYMBOL_ID((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPE), return data.DATA_NAME)
 
  //! Defines a new type of object to be used as data in expressions.
@@ -214,11 +234,12 @@ DEFINE_SYMBOL_ID((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPE), return data.DATA_NAM
   * algebra. The given object has must have its template parameters specified in
   * brackets. The object type specification must also be surrounded in brackets.
   * The last parameter is the name of the objects underlying data member.
+  * 
+  * Additionally, the type must have its elements able to be accessed using `operator[]`. 
   */
 #define ADD_EXPR_TYPE_POINT(TEMPLATE, TYPE, DATA_NAME) \
 DEFINE_BASE_DATA_POINT(TEMPLATE, TYPE, DATA_NAME) \
 DEFINE_SYMBOL_ID(TEMPLATE, TYPE, return &data.DATA_NAME)
-
 
 
 // **************************************************************************************
@@ -244,15 +265,16 @@ struct expr::grid_can_combine<SINGLE_ARG TYPES> \
 	static const bool value = true; \
 };
 
-#define ALLOW_COMBINATION_CONDITION(TEMPLATES, TYPES, CONDITION) ALLOW_COMBINATION((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPES) COMMA typename std::enable_if<(CONDITION)>::type)
+#define ALLOW_COMBINATION_CONDITION(TEMPLATES, TYPES, CONDITION) \
+ALLOW_COMBINATION((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPES) COMMA typename std::enable_if_t<(CONDITION) COMMA int>)
 
 //! Restrict adding a type to nonlinear variables when multiplying.
 /*!
  * Application of #RESTRICT_MULTIPLICATION_CONDITION without condition.
  */
-#define RESTRICT_MULTIPLICATION(TEMPLATES, TYPES) \
+#define RESTRICT_COMMUTATIVITY(TEMPLATES, TYPES) \
 template<SINGLE_ARG TEMPLATES> \
-struct expr::grid_can_multiply<SINGLE_ARG TYPES> \
+struct expr::grid_can_commute<SINGLE_ARG TYPES> \
 { \
 	static const bool value = false; \
 };
@@ -273,75 +295,24 @@ struct expr::grid_can_multiply<SINGLE_ARG TYPES> \
  * \param TYPES The types which specialize the behaviour of expr::grid_can_multiply.
  * \param CONDITION The condition under which to apply the multiple restriction.
  */
-#define RESTRICT_MULTIPLICATION_CONDITION(TEMPLATES, TYPES, CONDITION) \
-RESTRICT_MULTIPLICATION((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPES COMMA typename std::enable_if<(CONDITION)>::type))
+#define RESTRICT_COMMUTATIVITY_CONDITION(TEMPLATES, TYPES, CONDITION) \
+RESTRICT_COMMUTATIVITY((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPES COMMA typename std::enable_if_t<(CONDITION) COMMA int>))
 
 
-
-
-
-//! Add a rule which is executed in a nonlinear variable.
-/*!
- * Creates a new rule which is used when the types are combined in
- * a nonlinear variable, OpNLVariable. The `STATEMENT` argument is
- * code which uses the list of types `datas` and computes a new object
- * which is the result of the rule being applied to the list. This 
- * specializes expr::nl_applied_rule.
- * 
- * A condition is provided to the specialization to evaluate
- * whether or not the rule should be applied.
- * 
- * \param CONDITION A condition for using the rule.
- * \param TEMPLATES the template defining the specialization of expr::nl_applied_rule,
- * and the templates that are used by `TYPES`.
- * \param TYPES A list of types in parentheses, which must directly specialize
- * expr::nl_applied_rule.
- * \param STATEMENT The code which computes the result of the rule.
- */
-#define ADD_RULE_NL_CONDITION(CONDITION, TEMPLATES, TYPES, STATEMENT) \
-template<SINGLE_ARG TEMPLATES> \
-struct expr::nl_applied_rule<SINGLE_ARG TYPES> \
-{ \
-	static const bool enable = CONDITION; \
-	template<typename... Gs> \
-	auto operator()(std::tuple<Gs...> const& datas) \
-	{ \
-		SINGLE_ARG STATEMENT; \
-	} \
-};
-
-//! Add a rule which is executed in a nonlinear variable.
-/*!
- * Creates a new rule which is used when the types are combined in
- * a nonlinear variable, OpNLVariable. The `STATEMENT` argument is
- * code which uses the list of types `datas` and computes a new object
- * which is the result of the rule being applied to the list. This
- * specializes expr::nl_applied_rule.
- *
- * \param TYPES A list of types in parentheses, which must directly specialize
- * expr::nl_applied_rule.
- * \param TEMPLATES The templates which specialize the rule.
- * \param STATEMENT The code which computes the result of the rule.
- */
-#define ADD_RULE_NL(TYPES, TEMPLATES, STATEMENT) \
-ADD_RULE_NL_CONDITION(true, (SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPES), (SINGLE_ARG STATEMENT))
-
-
-
-
+//! Define the base type that the new data object corresponds to.
 /*!
  * In the case of more complicated object inheritance heirarchies, a base type needs to be defined
  * in order for the expressions to detect the correct type in their evaluations, as the type
- * heirarchy will be descended into to determine relationships
+ * heirarchy will be descended into to determine relationships.
+ * 
  * (for instance, it may be useful to define
  * a child of an object if it has certain identites, that way it is parameterized as a special type to
  * be accepted by the appropriate function)
  *
- * \param TEMPLATE Template arguments to the to the defining objects
- * \param The base type itself
- * \param Parent of the base type
+ * \param TEMPLATE Template arguments to the to the defining objects.
+ * \param TYPE The base type itself.
+ * \param PARENT Parent of the base type that the given TYPE is translated to when using this object.
  */
-
 #define DEFINE_BASE_TYPE(TEMPLATE, TYPE, PARENT) \
 template<SINGLE_ARG TEMPLATE> \
 struct expr::base_data_type<SINGLE_ARG TYPE> \
@@ -350,8 +321,23 @@ struct expr::base_data_type<SINGLE_ARG TYPE> \
 };
 
 
-#define DEFINE_BASE_TYPE_CONDITION(TEMPLATE, TYPE, CONDITION, PARENT) \
-DEFINE_BASE_TYPE(TEMPLATE, TYPE COMMA typename std::enable_if<(CONDITION)>::type, PARENT)
+ //! Define the base type that the new data object corresponds to.
+  /*!
+  * In the case of more complicated object inheritance heirarchies, a base type needs to be defined
+  * in order for the expressions to detect the correct type in their evaluations, as the type
+  * heirarchy will be descended into to determine relationships.
+  * 
+  * (for instance, it may be useful to define
+  * a child of an object if it has certain identites, that way it is parameterized as a special type to
+  * be accepted by the appropriate function)
+  *
+  * \param TEMPLATE Template arguments to the to the defining objects.
+  * \param TYPE The base type itself.
+ * \param PARENT Parent of the base type that the given TYPE is translated to when using this object.
+  * \param CONDITION The compile-time condition under which the base type will be valid.
+  */
+#define DEFINE_BASE_TYPE_CONDITION(TEMPLATE, TYPE, PARENT, CONDITION) \
+DEFINE_BASE_TYPE(TEMPLATE, TYPE COMMA typename std::enable_if_t<(CONDITION) COMMA int>, PARENT)
 
 
 
@@ -362,15 +348,51 @@ DEFINE_BASE_TYPE(TEMPLATE, TYPE COMMA typename std::enable_if<(CONDITION)>::type
  * should be able to manually divide the grids even if their types don't match exactly
  */
 
-#define ALLOW_DIVISION(TEMPLATES, TYPES) \
+
+//! Allows division between objects of the specified type.
+/*!
+ * Defines a rule to allow division between variables which define this type. That is, the given
+ * type \p TYPES
+ */
+#define DEFINE_FACTOR_COUNT(TEMPLATES, TYPE1, TYPE2, COUNT) \
 template<SINGLE_ARG TEMPLATES> \
-struct expr::grid_divides<SINGLE_ARG TYPES> \
+struct expr::grid_divides_count<SINGLE_ARG TYPE1, SINGLE_ARG TYPE2> \
+{ \
+	static const size_t value = COUNT; \
+}; \
+template<SINGLE_ARG TEMPLATES> \
+struct expr::grid_has_identity<SINGLE_ARG TYPE1, SINGLE_ARG TYPE2> \
 { \
 	static const bool value = true; \
-}; 
+};
 
-#define ALLOW_DIVISION_CONDITION(TEMPLATES, TYPES, CONDITION) \
-ALLOW_DIVISION(TEMPLATES, TYPES COMMA typename std::enable_if<(CONDITION)>::type)
+#define DEFINE_FACTOR_COUNT_CONDITION(TEMPLATES, TYPE1, TYPE2, COUNT, CONDITION) \
+DEFINE_FACTOR_COUNT(TEMPLATES, TYPE1, TYPE2 COMMA typename std::enable_if_t<(CONDITION) COMMA int>, COUNT)
+
+
+//! Add a 'dataless' symbol to the symbolic algebra.
+/*! 
+ * Adds a dataless symbol to the symbolic algebra library. Dataless means that the
+ * symbol doesn't store or define any data, it is simply a symbol for algebra manipulations,
+ * and being distinguished from other symbols.
+ * 
+ * The name is defined by the provided parameter, \p TYPE, and a new class of that name is 
+ * added to the namespace expr::symbols. 
+ * 
+ * \param TYPE The name of the new symbol that is added. 
+ */
+#define ADD_EXPR_TYPE_SYMBOL(TYPE) \
+namespace expr::symbols { \
+struct TYPE ## _symbol : Symbol {}; \
+using TYPE = OpTerm<OpIdentity, TYPE ## _symbol>; } \
+DEFINE_SYMBOL_ID((), (expr::symbols::TYPE ## _symbol), return #TYPE) \
+DEFINE_BASE_TYPE((), (expr::symbols:: TYPE), expr::symbols::TYPE ## _symbol) \
+ALLOW_COMBINATION((), (expr::symbols::TYPE ## _symbol)) \
+
+
+ // **************************************************************************************
+
+
 
  //! @}
 
@@ -401,6 +423,12 @@ namespace expr
 			return &a;
 		}
 	};
+
+	template<typename A, typename Enable>
+	struct SymbolID<const A, Enable> : SymbolID<A, Enable> {};
+
+	template<typename A, typename Enable>
+	struct SymbolID<A&, Enable> : SymbolID<A, Enable> {};
 }
 
 
@@ -416,54 +444,95 @@ DEFINE_SYMBOL_ID((typename T, size_t D), (Grid<T, D>), return data.values)
 
 // **************************************************************************************
 
+
 namespace expr
 {
 
 	//! Helper for accessing data encapsulated by different types.
 	/*!
-	 * For the different types of objects that be data to an OpLVariable, a
+	 * For the different types of objects that be data to an OpTerm, a
 	 * method is implemented to correctly obtain the value (the data point) at a
 	 * given index. Additionally, the entire data itself can be obtained.
 	 */
 	template<typename A>
 	struct BaseData
 	{
-		static const auto& get(A const& data, iter_type)
+		template<typename T>
+		static const auto& get(Block<T> const& data, iter_type n)
+		{
+			return data[n];
+		}
+
+		template<typename T>
+		static const auto& get(Block<T> const& data)
 		{
 			return data;
 		}
-		static const auto& get(A const& data)
+
+		template<typename T>
+		static auto& get(Block<T>& data, iter_type n)
+		{
+			return data[n];
+		}
+
+		template<typename T>
+		static auto& get(Block<T>& data)
 		{
 			return data;
 		}
-		static auto& get(A& data, iter_type)
+
+		template<typename T>
+		static const auto& get(T const& data, iter_type n)
+		{
+			return *(&data + n);
+		}
+
+		template<typename T>
+		static const auto& get(T const& data)
 		{
 			return data;
 		}
-		static auto& get(A& data)
+
+		template<typename T>
+		static auto& get(T& data, iter_type n)
 		{
-			return data;
+			return *(&data + n);
 		}
+
 	};
 
 	//! Helper for accessing data encapsulated by different types.
 	/*!
-	 * For the different types of objects that be data to an OpLVariable, a
+	 * For the different types of objects that be data to an OpTerm, a
 	 * method is implemented to correctly obtain the value (the data point) at a
 	 * given index. Additionally, the entire data itself can be obtained.
 	 */
 	template<typename A>
 	struct BaseData<A const> : BaseData<A> {};
 
+	template<typename A>
+	struct BaseData<A const*> : BaseData<A*> {};
+
 	//! Specialization based on expr::BaseData.
 	template<typename A>
 	struct BaseData<A*>
 	{
-		static auto& get(A* data, iter_type n)
+		static A& get(A* data, iter_type n)
 		{
 			return data[n];
 		}
-		static auto get(A* data)
+
+		static A* get(A* data)
+		{
+			return data;
+		}
+
+		static A const& get(const A* data, iter_type n)
+		{
+			return data[n];
+		}
+
+		static const A* get(const A* data)
 		{
 			return data;
 		}
@@ -492,22 +561,22 @@ namespace expr
 	};
 
 	//! Specialization based on expr::BaseData.
-	template<template<typename, size_t> typename G, typename T, size_t D>
-	struct BaseData<G<T, D>>
+	template<size_t N, typename T>
+	struct BaseData<MultiBlock<N, T>>
 	{
-		static auto const& get(G<T, D> const& data, iter_type n)
+		static decltype(auto) get(MultiBlock<N, T> const& data, iter_type n)
 		{
 			return data[n];
 		}
-		static auto const& get(G<T, D> const& data)
+		static auto const& get(MultiBlock<N, T> const& data)
 		{
 			return data;
 		}
-		static auto& get(G<T, D>& data, iter_type n)
+		static decltype(auto) get(MultiBlock<N, T>& data, iter_type n)
 		{
 			return data[n];
 		}
-		static auto& get(G<T, D>& data)
+		static auto& get(MultiBlock<N, T>& data)
 		{
 			return data;
 		}
@@ -536,15 +605,170 @@ namespace expr
 	};
 
 	//! Specialization based on expr::BaseData.
+	template<Axis ax, typename T, size_t D>
+	struct BaseData<VectorComponentData<ax, T*, D>>
+	{
+		static auto const& get(VectorComponentData<ax, T*, D> const& data, iter_type n)
+		{
+			return data.values[n];
+		}
+		static auto get(VectorComponentData<ax, T*, D> const& data)
+		{
+			return data;
+		}
+		static auto& get(VectorComponentData<ax, T*, D>& data, iter_type n)
+		{
+			return data.values[n];
+		}
+		static auto get(VectorComponentData<ax, T*, D>& data)
+		{
+			return data;
+		}
+	};
+
+	//! Specialization based on expr::BaseData.
+	template<typename T, size_t D>
+	struct BaseData<GridData<T, D>>
+	{
+		static auto const& get(GridData<T, D> const& data, iter_type n)
+		{
+			return BaseData<T*>::get(data, n);
+		}
+		static auto get(GridData<T, D> const& data)
+		{
+			return BaseData<T*>::get(data);
+		}
+		static auto& get(GridData<T, D>& data, iter_type n)
+		{
+			return BaseData<T*>::get(data, n);
+		}
+		static auto get(GridData<T, D>& data)
+		{
+			return BaseData<T*>::get(data);
+		}
+	};
+
+	//! Specialization based on expr::BaseData.
+	template<typename T, size_t N>
+	struct BaseData<GridData<MultiBlock<N, T>, N>>
+	{
+		static decltype(auto) get(GridData<MultiBlock<N, T>, N> const& data, iter_type n)
+		{
+			return BaseData<MultiBlock<N, T>>::get(data, n);
+		}
+		static decltype(auto) get(GridData<MultiBlock<N, T>, N> const& data)
+		{
+			return BaseData<MultiBlock<N, T>>::get(data);
+		}
+		static decltype(auto) get(GridData<MultiBlock<N, T>, N>& data, iter_type n)
+		{
+			return BaseData<MultiBlock<N, T>>::get(data, n);
+		}
+		static decltype(auto) get(GridData<MultiBlock<N, T>, N>& data)
+		{
+			return BaseData<MultiBlock<N, T>>::get(data);
+		}
+	};
+
+	//! Specialization based on expr::BaseData.
+	template<Axis ax, typename T, size_t D>
+	struct BaseData<VectorComponentData<ax, T, D>>
+	{
+		static T const& get(VectorComponentData<ax, T, D> const& data, iter_type n)
+		{
+			return data.values;
+		}
+		static auto const& get(VectorComponentData<ax, T, D> const& data)
+		{
+			return data;
+		}
+		static T& get(VectorComponentData<ax, T, D>& data, iter_type n)
+		{
+			return data.values;
+		}
+		static auto& get(VectorComponentData<ax, T, D>& data)
+		{
+			return data;
+		}
+	};
+
+
+	//! Specialization based on expr::BaseData.
+	template<Axis ax, typename G>
+	struct BaseData<VectorComponent<ax, G>>
+	{
+		template<size_t N, typename T>
+		static VectorComponentData<ax, T*, N> resolve_axis_component(MultiBlock<N, T> const& data)
+		{
+			return { data.values[symphas::axis_to_index(ax)] };
+		}
+
+		template<size_t N, typename T>
+		static VectorComponentData<ax, T*, N> resolve_axis_component(MultiBlock<N, T>& data)
+		{
+			return { data.values[symphas::axis_to_index(ax)] };
+		}
+
+		template<typename T, size_t D>
+		static VectorComponentData<ax, T, D> resolve_axis_component(any_vector_t<T, D> const& data)
+		{
+			return { data[symphas::axis_to_index(ax)] };
+		}
+
+		template<typename T, size_t D>
+		static VectorComponentData<ax, T, D> resolve_axis_component(any_vector_t<T, D>& data)
+		{
+			return { data[symphas::axis_to_index(ax)] };
+		}
+
+		template<typename T>
+		static auto const& get_index(T const& data, iter_type n)
+		{
+			return BaseData<T>::get(data, n);
+		}
+
+		template<typename T>
+		static auto& get_index(T& data, iter_type n)
+		{
+			return BaseData<T>::get(data, n);
+		}
+
+		static auto const& get(VectorComponent<ax, G> const& data, iter_type n)
+		{
+			return get_index(resolve_axis_component(BaseData<G>::get(*static_cast<G const*>(&data))), n);
+		}
+		static auto get(VectorComponent<ax, G> const& data)
+		{
+			return resolve_axis_component(BaseData<G>::get(*static_cast<G const*>(&data)));
+		}
+		static auto& get(VectorComponent<ax, G>& data, iter_type n)
+		{
+			return get_index(resolve_axis_component(BaseData<G>::get(*static_cast<G*>(&data))), n);
+		}
+		static auto get(VectorComponent<ax, G>& data)
+		{
+			return resolve_axis_component(BaseData<G>::get(*static_cast<G*>(&data)));
+		}
+	};
+
+
+	//! Specialization based on expr::BaseData.
 	template<typename A>
 	struct BaseData<A&> : BaseData<A> {};
+	template<typename A>
+	struct BaseData<NamedData<A>> : BaseData<A> {};
+	template<typename A>
+	struct BaseData<OpLiteral<A>> : BaseData<A> {};
 }
+
+DEFINE_BASE_DATA((typename T, size_t D), (Grid<T, D>), (T)data[n], data)
+DEFINE_BASE_DATA((typename T, size_t D), (BoundaryGrid<T, D>), (T)data[n], data)
+//DEFINE_BASE_DATA((template<typename, size_t> typename F, typename T, size_t D), (F<T, D>), data.as_grid()[n], data.as_grid())
 
 // *****************************************************************************
 
 
 
-DEFINE_BASE_DATA_REDIRECT((typename G), (G), (NamedData<G>))
 DEFINE_SYMBOL_ID((typename G), (NamedData<G>), return data.name.c_str())
 
 
@@ -559,7 +783,7 @@ namespace expr
 	 * of an expression data.
 	 * 
 	 * By default, it returns the type of the object that it is given, but for
-	 * the data of OpLVariables, including data using types where there is the
+	 * the data of OpTerms, including data using types where there is the
 	 * underlying or inherited data object which should represent it as the base
 	 * type, it is returned instead.
 	 *
@@ -572,48 +796,62 @@ namespace expr
 		using type = A;
 	};
 
-	////! Specialization based on expr::base_data_type.
-	//template<typename T, typename G>
-	//struct base_data_type<OpLVariable<T, G>>
-	//{
-	//	using type = typename expr::base_data_type<G>::type;
-	//};
-
-	////! Specialization based on expr::base_data_type.
-	//template<typename E>
-	//struct base_data_type<OpExpression<E>>
-	//{
-	//	using type = typename expr::base_data_type<E>::type;
-	//};
+	template<typename A, typename Enable = void>
+	using base_data_t = typename base_data_type<A, Enable>::type;
 
 	// *************************************************************************
 
 
-	//! Indicates whether a data may be multiplied. 
+	//! Indicates whether a data can commute. 
 	/*!
-	 * Always assumed true for itself. Specialized for types which are the
-	 * exception to this behaviour. Specialize this for desired data (grid)
-	 * types. If this is false for any grids, they will only be able to combine
-	 * into each other and when multiplied by other variables, will result in
-	 * OpBinaryMul type.
+	 * Specialized for types which are the exception to this behaviour. 
+	 * 
+	 * Specialize this for desired data (grid)
+	 * types. This affects how terms are combined during multiplication of
+	 * OpTerms.
 	 */
-	template<typename E, typename Enable = void>
-	struct grid_can_multiply
+	template<typename A, typename B, typename Enable = int>
+	struct grid_can_commute
 	{
 		static const bool value = true;
 	};
+
+	template<template<typename, size_t> typename G, typename T, typename S, size_t D>
+	struct grid_can_commute<G<any_vector_t<T, D>, D>, G<any_vector_t<S, D>, D>, int>
+	{
+		static const bool value = false;
+	};
+
+	template<size_t N, typename T, typename S>
+	struct grid_can_commute<MultiBlock<N, T>, MultiBlock<N, S>, int>
+	{
+		static const bool value = false;
+	};
+
+	template<typename T, typename S, size_t D>
+	struct grid_can_commute<any_vector_t<T, D>*, any_vector_t<S, D>*, int>
+	{
+		static const bool value = false;
+	};
+
+
 
 	//! Indicates whether a data may be multiplied. 
 	/*!
 	 * Always assumed true for itself. Specialized for types that must act
 	 * as the exception to this behaviour
 	 */
-	template<typename E, typename Enable = void>
+	template<typename E, typename Enable = int>
 	struct grid_can_combine
 	{
 		static const bool value = false;
 	};
 
+	template<typename G1, typename G2, typename Enable = int>
+	struct grid_has_identity
+	{
+		static const bool value = false;
+	};
 
 	//! Provides the number of times that `C` can divide `G`. 
 	/*!
@@ -625,8 +863,8 @@ namespace expr
 	 * for other types that won't follow exponent laws, but can combine, 
 	 * the predicate is automatically satisfied.
 	 */
-	template<typename C, typename G, typename Enable = void>
-	struct grid_divides
+	template<typename C, typename G, typename Enable = int>
+	struct grid_divides_count
 	{
 		static const size_t value = (grid_can_combine<C>::value && std::is_same<C, G>::value) ? 1 : 0;
 	};
@@ -634,34 +872,15 @@ namespace expr
 
 	// *************************************************************************
 
-	//! Values representing the possible identity types.
-	enum class IdentityType { ADD, SUB, MUL, DIV };
-
-	//! A class to be specialized in order to implement identities.
-	/*!
-	 * The identity needs to be enabled for any specializations. The `apply`
-	 * function is implemented to return the result of the identity.
-	 * 
-	 * \tparam type The type of operation which applies this identity.
-	 * \tparam Es The types of expressions involved in the identity.
-	 */
-	template<IdentityType type, typename... Es>
-	struct identity_rule
-	{
-		static bool get_value() { return false; }
-		static const bool enable = false;
-
-		template<typename E1, typename E2>
-		static auto apply(E1 const& a, E2 const& b) {}
-	};
-
-
-	//! Type trait standardizing the type for an enumerated factor.
-	template<size_t Z>
-	using variable_data_factor = std::index_sequence<Z>;
-
 
 	//! Extends factor checking to enumerated types.
+	/*!
+	 * Returns the number of factors of `Variable<Y, G>` (where `G` is any type): it just acts 
+	 * as a wrapper so that the enumerated type `Y` can be processed by expr::factor_count.
+	 * 
+	 * \tparam Y The index of the variable that is searched as the factor.
+	 * \tparam G The expression type or grid to compare.
+	 */
 	template<size_t Y, typename G>
 	struct factor_count_index;
 
@@ -669,27 +888,27 @@ namespace expr
 	template<typename C, typename G>
 	struct factor_count
 	{
-		static const size_t value = expr::grid_divides<
+		static const size_t value = expr::grid_divides_count<
 			typename expr::base_data_type<C>::type, 
 			typename expr::base_data_type<G>::type>::value;
 	};
 
 	//! Gives the sum of factor_count applied with each `G`.
-	template<typename C, typename... Gs>
+	template<typename C, typename G0, typename... Gs>
 	struct factor_count_list;
 
 	//! Number of times an enumerated factor `A` appears in `E1` and `E2`.
-	template<typename E1, typename E2, typename A>
+	template<typename A, typename E1, typename E2>
 	struct factor_list_variables
 	{
-		using type = typename std::tuple<>;
+		using type = typename symphas::lib::types_list<>;
 	};
 
 	//! Number of times that factor `A` appears in `E1` and `E2`.
-	template<typename E1, typename E2, typename A>
+	template<typename A, typename E1, typename E2>
 	struct factor_list_data
 	{
-		using type = typename std::tuple<>;
+		using type = typename symphas::lib::types_list<>;
 	};
 
 	//! Provides all shared factors between `E1` and `E2`.
@@ -702,38 +921,198 @@ namespace expr
 	template<typename E1, typename E2>
 	struct factor_list_all;
 
+
+
+	namespace
+	{
+
+		template<typename E>
+		struct check_is_expression
+		{
+			template<typename EE>
+			static constexpr std::true_type _get_value(OpExpression<EE>)
+			{
+				return {};
+			}
+
+			static constexpr std::false_type _get_value(...)
+			{
+				return {};
+			}
+
+
+			static const bool value = decltype(_get_value(std::declval<E>()))::value;
+		};
+	}
+
+	template<typename E>
+	constexpr bool is_expression = check_is_expression<E>::value;
+
+	template<typename E>
+	constexpr bool is_expression<E&> = is_expression<E>;
+	template<typename E>
+	constexpr bool is_expression<E&&> = is_expression<E>;
+
+	//! Indicates whether a term can be collected into like terms.
+	/*!
+	 * Predicate indicating whether a data type can combine with another data type.
+	 * Combining means that two data are considered "equivalent" and can be put
+	 * together into like terms.
+	 *
+	 * Grid combination requires a level of indirection in order
+	 * to allow variables of all types to be combined. This means that some kind
+	 * of subtype needs to be compared, as the encapsulating types can vary.
+	 * By default, variables are allowed to be combined into like terms.
+	 *
+	 * \tparam E The type which is checked if it satisfies the predicate.
+	 */
+	template<typename E, typename Enable = int>
+	constexpr bool is_combinable = grid_can_combine<typename base_data_type<E>::type>::value;
+
+	//! Specialization based on expr::is_combinable.
+	template<size_t Z, typename G>
+	constexpr bool is_combinable<Variable<Z, G>> = true;
+
+
+	//! Indicates whether a term is commutable (in multiplication).
+	/*!
+	 * It may be desirable to ensure that some terms are not commutable if there
+	 * are special rules of algebra specific to those terms.
+	 *
+	 * \tparam E The type which is checked if it satisfies the predicate.
+	 */
+	template<typename G1, typename G2>
+	constexpr bool is_commutable = expr::grid_can_commute<
+		typename expr::base_data_type<G1>::type, 
+		typename expr::base_data_type<G2>::type, int>::value;
+
+	//! Indicates whether or not there is a multiplication rule between two grids.
+	template<typename G1, typename G2>
+	constexpr bool has_identity = grid_has_identity<
+		typename base_data_type<G1>::type, 
+		typename base_data_type<G2>::type, int>::value;
+
+
+
+	template<typename T>
+	auto eval(T const& value)
+	{
+		if constexpr (expr::is_expression<T>)
+		{
+			if constexpr (expr::is_identity<T> || expr::is_fraction<T>)
+			{
+				return value.eval();
+			}
+			else
+			{
+				return eval(value.eval());
+			}
+		}
+		else
+		{
+			return value;
+		}
+	}
+
 }
+
+// ******************************************************************************************
+// Specializations of SymbolID and BaseData.
+// ******************************************************************************************
 
 namespace expr
 {
+	//! Specialization based on SymbolID.
+	template<typename A>
+	struct SymbolID<symphas::ref<A>>
+	{
+		static decltype(auto) get(symphas::ref<A> const& data)
+		{
+			return SymbolID<A>::get(data);
+		}
+	};
 
-	//! Wrapper for multiplication identity checking.
-	/*!
-	 * An alias for an identity of the given list of types in the
-	 * context of multiplication.
-	 * 
-	 * \tparam The given types which form the identity.
-	 */
-	template<typename G0, typename... Gs>
-	using m_idy = expr::identity_rule<
-		expr::IdentityType::MUL,
-		typename expr::base_data_type<G0>::type,
-		typename expr::base_data_type<Gs>::type...>;
+	//! Specialization based on SymbolID.
+	template<size_t Z, typename G>
+	struct SymbolID<Variable<Z, G>>
+	{
+		static decltype(auto) get(Variable<Z, G> const& data)
+		{
+			return SymbolID<G>::get(data);
+		}
+	};
 
-	//! Wrapper for division identity checking.
-	/*!
-	 * An alias for an identity of the given list of types in the
-	 * context of division.
-	 *
-	 * \tparam The given types which form the identity.
-	 */
-	template<typename G0, typename... Gs>
-	using d_idy = expr::identity_rule<
-		expr::IdentityType::DIV,
-		typename expr::base_data_type<G0>::type,
-		typename expr::base_data_type<Gs>::type...>;
 
+	//! Specialization based on expr::BaseData.
+	template<typename T>
+	struct BaseData<symphas::ref<T>>
+	{
+		static decltype(auto) get(symphas::ref<T> data, iter_type n)
+		{
+			return BaseData<T>::get(data.get(), n);
+		}
+
+		static decltype(auto) get(symphas::ref<T> data)
+		{
+			return BaseData<T>::get(data.get());
+		}
+	};
+
+	//! Specialization based on BaseData.
+	template<size_t Z, typename T>
+	struct BaseData<Variable<Z, T>>
+	{
+		static decltype(auto) get(Variable<Z, T> const& data, iter_type n)
+		{
+			return BaseData<T>::get(data, n);
+		}
+		static decltype(auto) get(Variable<Z, T> const& data)
+		{
+			return BaseData<T>::get(data);
+		}
+		static decltype(auto) get(Variable<Z, T>& data, iter_type n)
+		{
+			return BaseData<T>::get(data, n);
+		}
+		static decltype(auto) get(Variable<Z, T>& data)
+		{
+			return BaseData<T>::get(data);
+		}
+	};
 }
+
+
+//! Specialization based on expr::base_data_type.
+template<typename A>
+struct expr::base_data_type<symphas::ref<A>>
+{
+	using type = typename expr::base_data_type<A>::type;
+};
+
+//! Specialization based on expr::base_data_type.
+template<size_t Z, typename T>
+struct expr::base_data_type<Variable<Z, T>>
+{
+	using type = typename expr::base_data_type<T>::type;
+};
+
+//! Specialization based on expr::base_data_type.
+template<typename A>
+struct expr::base_data_type<const A>
+{
+	using type = typename expr::base_data_type<A>::type;
+};
+
+//! Specialization based on expr::base_data_type.
+template<typename A>
+struct expr::base_data_type<A&>
+{
+	using type = typename expr::base_data_type<A>::type;
+};
+
+
+
+
 
 // ******************************************************************************************
 
@@ -741,9 +1120,16 @@ namespace expr
 
 
 /* returns the smallest number of variable data that matches the type C
- * this is the same as expr::property::derivative_index except its for counting grids
+ * this is the same as expr::derivative_index except its for counting grids
  */
 
+
+ //! Specialization based on expr::factor_count;
+template<typename C, typename G>
+struct expr::factor_count<OpTerm<OpIdentity, C>, G>
+{
+	static const size_t value = expr::factor_count<C, G>::value;
+};
 
 //! Specialization based on expr::factor_count;
 template<typename C, typename G>
@@ -767,31 +1153,26 @@ struct expr::factor_count<C, symphas::ref<G>>
 };
 
 //! Specialization based on expr::factor_count;
-template<typename C, typename T, typename G>
-struct expr::factor_count<C, OpLVariable<T, G>>
+template<typename C, typename G, expr::exp_key_t X>
+struct expr::factor_count<C, Term<G, X>>
 {
-	static const size_t value = expr::factor_count<C, G>::value;
+	static const size_t value = 
+		((expr::_Xk_t<X>::N - expr::_Xk_t<X>::N % expr::_Xk_t<X>::D) / expr::_Xk_t<X>::D) 
+		* expr::factor_count<C, G>::value;
 };
 
 //! Specialization based on expr::factor_count;
-template<typename C, typename T, typename... Gs>
-struct expr::factor_count<C, OpNLVariable<T, Gs...>>
+template<typename C, typename V, typename... Gs, expr::exp_key_t... Xs>
+struct expr::factor_count<C, OpTerms<V, Term<Gs, Xs>...>>
 {
-	static const size_t value = ((expr::factor_count<C, Gs>::value + ...));
+	static const size_t value = ((expr::factor_count<C, Term<Gs, Xs>>::value + ...));
 };
 
 //! Specialization based on expr::factor_count;
-template<typename C, typename E1, typename E2>
-struct expr::factor_count<C, OpBinaryAdd<E1, E2>>
+template<typename C, typename... Es>
+struct expr::factor_count<C, OpAdd<Es...>>
 {
-	static const size_t value = fixed_min<expr::factor_count<C, E1>::value, expr::factor_count<C, E2>::value>;
-};
-
-//! Specialization based on expr::factor_count;
-template<typename C, typename E1, typename E2>
-struct expr::factor_count<C, OpBinarySub<E1, E2>>
-{
-	static const size_t value = fixed_min<expr::factor_count<C, E1>::value, expr::factor_count<C, E2>::value>;
+	static const size_t value = fixed_min<expr::factor_count<C, Es>::value...>;
 };
 
 //! Specialization based on expr::factor_count;
@@ -809,6 +1190,13 @@ struct expr::factor_count<C, OpBinaryDiv<E1, E2>>
 };
 
 //! Specialization based on expr::factor_count;
+template<size_t Y, size_t Z>
+struct expr::factor_count<Variable<Y>, Variable<Z>>
+{
+	static const size_t value = (Y == Z) ? 1 : 0;
+};
+
+//! Specialization based on expr::factor_count;
 template<size_t Y, size_t Z, typename G>
 struct expr::factor_count<Variable<Y, G>, Variable<Z, G>>
 {
@@ -817,31 +1205,72 @@ struct expr::factor_count<Variable<Y, G>, Variable<Z, G>>
 
 //! Specialization based on expr::factor_count;
 template<size_t Y, size_t Z, typename G>
-struct expr::factor_count<expr::variable_data_factor<Y>, Variable<Z, G>>
+struct expr::factor_count<Variable<Y>, Variable<Z, G>>
 {
-	static const size_t value = expr::factor_count<Variable<Y, G>, Variable<Z, G>>::value;
+	static const size_t value = expr::factor_count<Variable<Y>, Variable<Z>>::value;
+};
+
+//! Specialization based on expr::factor_count;
+template<size_t Y, size_t Z, Axis ax0, Axis ax1, typename G, typename F>
+struct expr::factor_count<Variable<Y, VectorComponent<ax0, G>>, Variable<Z, VectorComponent<ax1, F>>>
+{
+	static const size_t value = (ax0 == ax1) ? expr::factor_count<Variable<Y, G>, Variable<Z, F>>::value : 0;
+};
+
+//! Specialization based on expr::factor_count;
+template<size_t Y, size_t Z, Axis ax0, Axis ax1, typename F>
+struct expr::factor_count<Variable<Y, VectorComponent<ax0>>, Variable<Z, VectorComponent<ax1, F>>>
+{
+	static const size_t value = (ax0 == ax1) ? expr::factor_count<Variable<Y>, Variable<Z, F>>::value : 0;
+};
+
+//! Specialization based on expr::factor_count;
+template<size_t Y, size_t Z, Axis ax1, typename G, typename F>
+struct expr::factor_count<Variable<Y, G>, Variable<Z, VectorComponent<ax1, F>>>
+{
+	static const size_t value = 0;
+};
+
+//! Specialization based on expr::factor_count;
+template<size_t Y, size_t Z, Axis ax1, typename F>
+struct expr::factor_count<Variable<Y>, Variable<Z, VectorComponent<ax1, F>>>
+{
+	static const size_t value = 0;
+};
+
+//! Specialization based on expr::factor_count;
+template<size_t Y, size_t Z, Axis ax0, typename G, typename F>
+struct expr::factor_count<Variable<Y, VectorComponent<ax0, G>>, Variable<Z, F>>
+{
+	static const size_t value = 0;
 };
 
 
 
-
-template<typename C, typename... Gs>
+template<typename C, typename G0, typename... Gs>
 struct expr::factor_count_list
 {
-	static const size_t value = ((expr::factor_count<C, Gs>::value + ...));
+	static const size_t value = (expr::factor_count<C, G0>::value + ... + expr::factor_count<C, Gs>::value);
 };
 
 //! Specialization based on expr::factor_count_list;
-template<typename C, typename... Gs>
-struct expr::factor_count_list<C, std::tuple<Gs...>>
+template<typename C, typename G0, typename... Gs>
+struct expr::factor_count_list<C, symphas::lib::types_list<G0, Gs...>>
 {
-	static const size_t value = expr::factor_count_list<C, Gs...>::value;
+	static const size_t value = expr::factor_count_list<C, G0, Gs...>::value;
+};
+
+//! Specialization based on expr::factor_count_list;
+template<typename C>
+struct expr::factor_count_list<C, symphas::lib::types_list<>>
+{
+	static const size_t value = 0;
 };
 
 template<size_t Y, typename G>
 struct expr::factor_count_index
 {
-	static const size_t value = expr::factor_count<expr::variable_data_factor<Y>, G>::value;
+	static const size_t value = expr::factor_count<Variable<Y>, G>::value;
 };
 
 
@@ -854,8 +1283,8 @@ struct expr::factor_count_index
 
 
  //! Specialization based on expr::factor_list_variables;
-template<typename E1, typename E2, size_t I0>
-struct expr::factor_list_variables<E1, E2, std::index_sequence<I0>>
+template<size_t I0, typename E1, typename E2>
+struct expr::factor_list_variables<std::index_sequence<I0>, E1, E2>
 {
 protected:
 
@@ -864,26 +1293,31 @@ protected:
 	static const size_t N = fixed_min<N1, N2>;
 
 public:
-	using type = typename std::conditional_t<(N > 0), std::tuple<std::pair<std::index_sequence<N>, std::index_sequence<I0>>>, std::tuple<>>;
+	using type = typename std::conditional_t<
+		(N > 0), 
+		symphas::lib::types_list<
+			std::pair<std::index_sequence<N>, 
+			std::index_sequence<I0>>>, 
+		symphas::lib::types_list<>>;
 };
 
 //! Specialization based on expr::factor_list_variables;
-template<typename E1, typename E2, size_t I0, size_t I1, size_t... Is>
-struct expr::factor_list_variables<E1, E2, std::index_sequence<I0, I1, Is...>>
+template<size_t I0, size_t I1, size_t... Is, typename E1, typename E2>
+struct expr::factor_list_variables<std::index_sequence<I0, I1, Is...>, E1, E2>
 {
 protected:
 
-	using types_1 = typename expr::factor_list_variables<E1, E2, std::index_sequence<I0>>::type;
-	using types_2 = typename expr::factor_list_variables<E1, E2, std::index_sequence<I1, Is...>>::type;
+	using types_1 = typename expr::factor_list_variables<std::index_sequence<I0>, E1, E2>::type;
+	using types_2 = typename expr::factor_list_variables<std::index_sequence<I1, Is...>, E1, E2>::type;
 
 public:
-	using type = typename symphas::lib::combine_types<types_1, types_2>::type;
+	using type = symphas::lib::expand_types_list<types_1, types_2>;
 };
 
 
 //! Specialization based on expr::factor_list_data;
 template<typename E1, typename E2, typename T0>
-struct expr::factor_list_data<E1, E2, std::tuple<T0>>
+struct expr::factor_list_data<symphas::lib::types_list<T0>, E1, E2>
 {
 protected:
 
@@ -892,20 +1326,23 @@ protected:
 	static const size_t N = fixed_min<N1, N2>;
 
 public:
-	using type = typename std::conditional_t<(N > 0), std::tuple<std::pair<std::index_sequence<N>, T0>>, std::tuple<>>;
+	using type = typename std::conditional_t<
+		(N > 0), 
+		symphas::lib::types_list<std::pair<std::index_sequence<N>, T0>>, 
+		symphas::lib::types_list<>>;
 };
 
 //! Specialization based on expr::factor_list_data;
 template<typename E1, typename E2, typename T0, typename T1, typename... Ts>
-struct expr::factor_list_data<E1, E2, std::tuple<T0, T1, Ts...>>
+struct expr::factor_list_data<symphas::lib::types_list<T0, T1, Ts...>, E1, E2>
 {
 protected:
 
-	using types_1 = typename expr::factor_list_data<E1, E2, std::tuple<T0>>::type;
-	using types_2 = typename expr::factor_list_data<E1, E2, std::tuple<T1, Ts...>>::type;
+	using types_1 = typename expr::factor_list_data<symphas::lib::types_list<T0>, E1, E2>::type;
+	using types_2 = typename expr::factor_list_data<symphas::lib::types_list<T1, Ts...>, E1, E2>::type;
 
 public:
-	using type = typename symphas::lib::combine_types<types_1, types_2>::type;
+	using type = symphas::lib::expand_types_list<types_1, types_2>;
 };
 
 
@@ -913,164 +1350,40 @@ template<typename E1, typename E2>
 struct expr::factor_list_all
 {
 protected:
-	using variable_ids = decltype(expr::property::vars<E1>::get_ids());
-	using grid_types = typename expr::grid_types<E1>::type;
+	using variable_ids = decltype(expr::vars<E1>::get_ids());
+	using term_types = typename expr::term_types<E1>::type;
 
 public:
 
-	using type = typename symphas::lib::combine_types<
-		typename expr::factor_list_variables<E1, E2, variable_ids>::type, 
-		typename expr::factor_list_data<E1, E2, grid_types>::type>::type;
+	using type = symphas::lib::expand_types_list<
+		typename expr::factor_list_variables<variable_ids, E1, E2>::type,
+		typename expr::factor_list_data<term_types, E1, E2>::type>;
 
 	//! The number of factors between the two expressions.
-	static const bool value = std::tuple_size<type>::value;
+	static const bool value = symphas::lib::types_list_size<type>::value;
 
 };
 
 
-
-
-
-
-
-
-
-// ******************************************************************************************
-
-namespace expr
-{
-
-	//! Introduces order between expression data. 
-	/*!
-	 * The variables in an OpNLVariable object can be sorted according to a
-	 * greater than inequality between types.
-	 *
-	 * If one type is greater than another, it is placed afterwards in the tuple.
-	 * The algorithm is used for new types by through specialization.
-	 *
-	 * In general, reordering of types means the types have to be commutative,
-	 * although order between matching types will remain unchanged.
-	 */
-	template<typename A, typename B>
-	struct nl_greater_than
-	{
-		static const bool value = false;
-	};
-
-	//! The order between equivalent types is always the same.
-	template<typename A>
-	struct nl_greater_than<A, A>
-	{
-		static const bool value = false;
-	};
-
-	//! Alias for applying order, applying the base types.
-	template<typename A, typename B>
-	using nl_gt = nl_greater_than<typename expr::base_data_type<A>::type, typename expr::base_data_type<B>::type>;
-
-
-
-
-	//! An identity applied to an OpNLVariable.
-	/*!
-	 * Specialized in order to apply specific identities, but default behaviour
-	 * is simply returning the OpNLVariable formed directly with the given 
-	 * list of data.
-	 */
-	template<typename... As>
-	struct nl_applied_rule
-	{
-		static const bool enable = false;
-		template<typename... Gs>
-		auto operator()(std::tuple<Gs...> const& datas)
-		{
-			return OpNLVariable(OpIdentity{}, datas);
-		}
-	};
-
-}
-
-
 namespace symphas::internal
 {
-
-	template<typename G0, typename G1, typename... Gs>
-	auto NL_sort(std::tuple<G0, G1, Gs...> const& datas);
-	template<typename G0>
-	auto NL_sort(std::tuple<G0> const& datas);
-
-
-	template<typename G0, typename G1, typename... Gs, typename std::enable_if_t<expr::nl_gt<G0, G1>::value, int> = 0>
-	auto NL_sort_terminate(std::tuple<G0, G1, Gs...> const& datas)
-	{
-		return symphas::internal::NL_sort(datas);
-	}
-
-	template<typename G0, typename G1, typename... Gs, typename std::enable_if_t<!expr::nl_gt<G0, G1>::value, int> = 0>
-	auto NL_sort_terminate(std::tuple<G0, G1, Gs...> const& datas)
-	{
-		return datas;
-	}
-
-	template<typename... Gs>
-	auto NL_rules(std::tuple<Gs...> const& datas)
-	{
-		return expr::nl_applied_rule<typename expr::base_data_type<Gs>::type...>{}(datas);
-	}
-
-	template<typename T, typename... Gs, typename std::enable_if<expr::nl_applied_rule<typename expr::base_data_type<Gs>::type...>::enable, int>::type = 0>
-	auto NL_rules(OpNLVariable<T, Gs...> const& e)
-	{
-		return expr::make_literal(e.value) * symphas::internal::NL_rules(e.datas);
-	}
-
-
-	template<typename T, typename... Gs, typename std::enable_if<!expr::nl_applied_rule<typename expr::base_data_type<Gs>::type...>::enable, int>::type = 0>
-	auto NL_rules(OpNLVariable<T, Gs...> const& e)
-	{
-		return e;
-	}
-
-
-	struct NL_sort_recurse
-	{
-		template<typename G0, typename G1, typename... Gs, typename std::enable_if_t<expr::nl_gt<G0, G1>::value, int> = 0>
-		auto operator()(std::tuple<G0, G1, Gs...> const& datas)
-		{
-			return symphas::internal::NL_sort_terminate(
-				std::tuple_cat(
-					std::tuple<G1>(std::get<1>(datas)),
-					symphas::internal::NL_sort(std::tuple_cat(std::tuple<G0>(std::get<0>(datas)), symphas::lib::get_tuple_ge<2>(datas)))
-				));
-		}
-
-		template<typename G0, typename G1, typename... Gs, typename std::enable_if_t<!expr::nl_gt<G0, G1>::value, int> = 0>
-		auto operator()(std::tuple<G0, G1, Gs...> const& datas)
-		{
-			return symphas::internal::NL_sort_terminate(
-				std::tuple_cat(
-					std::tuple<G0>(std::get<0>(datas)),
-					symphas::internal::NL_sort(symphas::lib::get_tuple_ge<1>(datas))
-				));
-		}
-
-	};
+	//! Helper in order to construct an OpTerms.
+	/*!
+	 * Allows the type to be delegated to the correct function, so that
+	 * the correct OpTerms object is generated.
+	 * In particular, it is important that if a reference is made, that
+	 * an additional reference is not nested.
+	 *
+	 * The usual template will assume that an rvalue is given, and
+	 * therefore the data can be moved into the OpTerms.
+	 *
+	 * \tparam A The type being given to create an OpTerms.
+	 */
+	template<typename A>
+	struct construct_term;
 
 }
 
-
-template<typename G0>
-auto symphas::internal::NL_sort(std::tuple<G0> const& datas)
-{
-	return datas;
-}
-
-
-template<typename G0, typename G1, typename... Gs>
-auto symphas::internal::NL_sort(std::tuple<G0, G1, Gs...> const& datas)
-{
-	return NL_sort_recurse{}(datas);
-}
 
 
 

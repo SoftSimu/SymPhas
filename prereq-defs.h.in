@@ -32,7 +32,6 @@
 #cmakedefine BASIC_STENCILS
 #cmakedefine MODEL_INCLUDE_HEADER_NAME
 #cmakedefine MODEL_CALL_FUNCTION
-#cmakedefine PRINTABLE_EQUATIONS
 
 #if defined(USE_IO) && !defined(USING_IO)
 #define USING_IO

@@ -167,6 +167,8 @@ using scalar_t = double;
  */
 using complex_t = std::complex<scalar_t>;
 
+template<typename T, size_t D>
+using any_vector_t = VECTOR_TYPE_NAME(T, D);
 
 //! Alias type representing a vector-valued quantity. 
 /*!
@@ -174,7 +176,26 @@ using complex_t = std::complex<scalar_t>;
  * has the underlying datatype ::scalar_t.
  */
 template<size_t D> 
-using vector_t = VECTOR_TYPE_NAME<scalar_t, D>;
+using vector_t = VECTOR_TYPE_NAME(scalar_t, D);
+
+//! Alias type representing a vector-valued quantity of complex type. 
+/*!
+ * Same as ::scalar_t, except for vector types for order parameters. The vector
+ * has the underlying datatype ::scalar_t.
+ */
+template<size_t D>
+using cvector_t = VECTOR_TYPE_NAME(complex_t, D);
+
+//! Get the element type of a vector using type traits.
+template<typename T>
+struct vector_element_type;
+
+//! Get the element type of a vector using type traits.
+template<typename T, size_t D>
+struct vector_element_type<any_vector_t<T, D>>
+{
+	using type = T;
+};
 
 //! The type of a coordinate in an axis.
 /*!
@@ -264,16 +285,37 @@ using div_result_t = decltype((std::declval<Ts>() / ...));
 template<typename... Ts>
 using add_result_t = decltype((std::declval<Ts>() + ...));
 
+//! Derive the result type of addition between the given types.
+template<typename... Ts>
+using sub_result_t = decltype((std::declval<Ts>() - ...));
+
 
 //! Compile time constant template variable to return maximum.
+template<auto A, auto... Rest>
+constexpr auto fixed_max = fixed_max<A, fixed_max<Rest...>>;
 template<auto A, auto B>
-constexpr auto fixed_max = (A > B) ? A : B;
+constexpr auto fixed_max<A, B> = (A > B) ? A : B;
+template<auto A>
+constexpr auto fixed_max<A> = A;
+
 
 //! Compile time constant template variable to return minimum.
+template<auto A, auto... Rest>
+constexpr auto fixed_min = fixed_min<A, fixed_min<Rest...>>;
 template<auto A, auto B>
-constexpr auto fixed_min = (A < B) ? A : B;
+constexpr auto fixed_min<A, B> = (A < B) ? A : B;
+template<auto A>
+constexpr auto fixed_min<A> = A;
 
 
+template<size_t N, size_t D, size_t... Rest>
+constexpr size_t GCD_of = GCD_of<GCD_of<N, D>, Rest...>;
+template<size_t N, size_t D>
+constexpr size_t GCD_of<N, D> = (N > D) ? GCD_of<D, N - (N / D) * D> : GCD_of<N, D - (D / N) * N>;
+template<size_t N>
+constexpr size_t GCD_of<N, 0> = N;
+template<size_t D>
+constexpr size_t GCD_of<0, D> = 1;
 
 
 //! Default names of order parameters that are used when unspecified.
@@ -340,6 +382,21 @@ enum class Geometry
 };
 
 
+
+//! Values for labeling the axes of a grid.
+/*!
+ * Global names that are used to refer to the axes of a grid, in use cases such
+ * as labeling the intervals of a given axis. They are also listed in the order
+ * that the coordinate point would be written.
+ *
+ * The axes listed in this enumeration apply for grids up to 3 dimensions.
+ */
+enum class Axis
+{
+	X, //!< The horizontal component of a grid.
+	Y, //!< The vertical component of a grid.
+	Z  //!< The depth component of a grid.
+};
 
 
 /* **************************************************************************

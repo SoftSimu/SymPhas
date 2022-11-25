@@ -45,22 +45,6 @@
 #define THICKNESS 3
 
 
-//! Values for labeling the axes of a grid.
-/*!
- * Global names that are used to refer to the axes of a grid, in use cases such 
- * as labeling the intervals of a given axis. They are also listed in the order
- * that the coordinate point would be written.
- * 
- * The axes listed in this enumeration apply for grids up to 3 dimensions.
- */
-enum class Axis
-{
-	X, //!< The horizontal component of a grid.
-	Y, //!< The vertical component of a grid.
-	Z  //!< The depth component of a grid.
-};
-
-
 //! Values for labeling the sides of a grid.
 /*!
  * Global names that are used to refer to the sides of a grid, in use cases such
@@ -285,15 +269,22 @@ protected:
 
 	interval_data_type make_intervals(const len_type* dims, size_t dimension)
 	{
-		interval_data_type v;
-		for (iter_type i = 0; i < dimension; ++i)
+		if (!dims)
 		{
-			symphas::interval_element_type interval;
-			interval.set_interval_count(1.0, dims[i]);
-			v[symphas::index_to_axis(i)] = interval;
+			return interval_data_type{};
 		}
+		else
+		{
+			interval_data_type v;
+			for (iter_type i = 0; i < dimension; ++i)
+			{
+				symphas::interval_element_type interval;
+				interval.set_interval_count(1.0, dims[i]);
+				v[symphas::index_to_axis(i)] = interval;
+			}
 
-		return v;
+			return v;
+		}
 	}
 
 public:

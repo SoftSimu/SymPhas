@@ -29,380 +29,410 @@
 #include <cassert>
 
 #include "expressionlogic.h"
+#include "expressionaggregates.h"
 
-namespace expr
+// ******************************************************************************************
+
+
+/*
+ *
+ * Multiplcation between basic values, particularly identities.
+ *
+ ******************************************************************************/
+
+
+
+//! Multiplication between integer and complex types.
+inline auto operator*(int const a, complex_t const& b)
 {
-	//! Specialization based on SymbolID.
-	template<typename A>
-	struct SymbolID<symphas::ref<A>>
+	return static_cast<scalar_t>(a) * b;
+}
+
+//! Multiplication between complex and integer types.
+inline auto operator*(complex_t const& a, int const b)
+{
+	return a * static_cast<scalar_t>(b);
+}
+
+//! Multiplication between vector and complex types.
+template<size_t D>
+auto operator*(vector_t<D> const &a, complex_t const& b)
+{
+	any_vector_t<mul_result_t<scalar_t, complex_t>, D> result;
+	for (iter_type i = 0; i < D; ++i)
 	{
-		static decltype(auto) get(symphas::ref<A> const& a)
-		{
-			return SymbolID<A>::get(a);
-		}
-	};
+		result[i] = a[i] * b;
+	}
+	return result;
+}
 
-	//! Specialization based on SymbolID.
-	template<size_t Z, typename G>
-	struct SymbolID<Variable<Z, G>>
+//! Multiplication between complex and vector types.
+template<size_t D>
+auto operator*(complex_t const& a, vector_t<D> const &b)
+{
+	any_vector_t<mul_result_t<scalar_t, complex_t>, D> result;
+	for (iter_type i = 0; i < D; ++i)
 	{
-		static decltype(auto) get(Variable<Z, G> const& a)
-		{
-			return SymbolID<G>::get(a);
-		}
-	};
-
-
-
-	//! Specialization based on BaseData.
-	template<typename A>
-	struct BaseData<symphas::ref<A>>
-	{
-		static decltype(auto) get(symphas::ref<A> const& data, iter_type n)
-		{
-			return BaseData<A>::get(data, n);
-		}
-		static decltype(auto) get(symphas::ref<A> const& data)
-		{
-			return BaseData<A>::get(data);
-		}
-		static decltype(auto) get(symphas::ref<A>& data, iter_type n)
-		{
-			return BaseData<A>::get(data, n);
-		}
-		static decltype(auto) get(symphas::ref<A>& data)
-		{
-			return BaseData<A>::get(data);
-		}
-	};
-
-	//! Specialization based on BaseData.
-	template<size_t Z, typename T>
-	struct BaseData<Variable<Z, T>>
-	{
-		static decltype(auto) get(Variable<Z, T> const& data, iter_type n)
-		{
-			return BaseData<T>::get(data, n);
-		}
-		static decltype(auto) get(Variable<Z, T> const& data)
-		{
-			return BaseData<T>::get(data);
-		}
-		static decltype(auto) get(Variable<Z, T>& data, iter_type n)
-		{
-			return BaseData<T>::get(data, n);
-		}
-		static decltype(auto) get(Variable<Z, T>& data)
-		{
-			return BaseData<T>::get(data);
-		}
-	};
+		result[i] = a * b[i];
+	}
+	return result;
 }
 
 
-//! Specialization based on expr::base_data_type.
-template<typename A>
-struct expr::base_data_type<symphas::ref<A>>
-{
-	using type = typename expr::base_data_type<A>::type;
-};
+//! Dividing with a vector in the denominator.
+template<typename E, typename T, size_t... Ns>
+auto operator/(E const& a, OpTensor<T, Ns...> const& b) = delete;
 
-//! Specialization based on expr::base_data_type.
-template<size_t Z, typename T>
-struct expr::base_data_type<Variable<Z, T>>
-{
-	using type = typename expr::base_data_type<T>::type;
-};
 
-//! Specialization based on expr::base_data_type.
-template<typename A>
-struct expr::base_data_type<const A>
-{
-	using type = typename expr::base_data_type<A>::type;
-};
+//
+////! Multiplication between the identity expression and an integer value.
+//template<typename E>
+//inline auto operator*(OpIdentity, E const& e)
+//{
+//	return e;
+//}
+//
+////! Multiplication between the identity expression and a vector.
+//template<typename E>
+//auto operator*(E const& e, OpIdentity)
+//{
+//	return e;
+//}
 
-//! Specialization based on expr::base_data_type.
-template<typename A>
-struct expr::base_data_type<A&>
+//! Multiplication between the identity expression and a vector.
+template<typename T, size_t D>
+auto operator*(OpIdentity, any_vector_t<T, D> const& b)
 {
-	using type = typename expr::base_data_type<A>::type;
-};
+	return b;
+}
+
+//! Multiplication between the identity expression and a scalar.
+inline auto operator*(OpIdentity, scalar_t const& b)
+{
+	return b;
+}
+
+//! Multiplication between the identity expression and a complex value.
+inline auto operator*(OpIdentity, complex_t const& b)
+{
+	return b;
+}
+
+//! Multiplication between the identity expression and an integer value.
+inline auto operator*(OpIdentity, int b)
+{
+	return b;
+}
+
+//! Multiplication between the identity expression and a vector.
+template<typename T, size_t D>
+auto operator*(any_vector_t<T, D> const& a, OpIdentity)
+{
+	return a;
+}
+
+//! Multiplication between the identity expression and a scalar.
+inline auto operator*(scalar_t const& a, OpIdentity)
+{
+	return a;
+}
+
+//! Multiplication between the identity expression and a complex value.
+inline auto operator*(complex_t const& a, OpIdentity)
+{
+	return a;
+}
+
+//! Multiplication between the identity expression and an integer value.
+inline auto operator*(int a, OpIdentity)
+{
+	return a;
+}
+
+//! Multiplication between the identity expression and a vector.
+template<typename T, size_t D>
+auto operator*(OpNegIdentity, any_vector_t<T, D> const& b)
+{
+	return -b;
+}
+
+//! Multiplication between the identity expression and a scalar.
+inline auto operator*(OpNegIdentity, scalar_t const& b)
+{
+	return -b;
+}
+
+//! Multiplication between the identity expression and a complex value.
+inline auto operator*(OpNegIdentity, complex_t const& b)
+{
+	return -b;
+}
+
+//! Multiplication between the identity expression and an integer value.
+inline auto operator*(OpNegIdentity, int b)
+{
+	return -b;
+}
+
+//! Multiplication between the identity expression and a vector.
+template<typename T, size_t D>
+auto operator*(any_vector_t<T, D> const& a, OpNegIdentity)
+{
+	return -a;
+}
+
+//! Multiplication between the identity expression and a scalar.
+inline auto operator*(scalar_t const& a, OpNegIdentity)
+{
+	return -a;
+}
+
+//! Multiplication between the identity expression and a complex value.
+inline auto operator*(complex_t const& a, OpNegIdentity)
+{
+	return -a;
+}
+
+//! Multiplication between the identity expression and an integer value.
+inline auto operator*(int a, OpNegIdentity)
+{
+	return -a;
+}
+
+//! Multiplication between the identity expression and a scalar.
+template<typename T, size_t D, typename S>
+auto operator*(any_vector_t<T, D> const& a, OpLiteral<S> const& b)
+{
+	return expr::make_literal(a * b.value);
+}
+
+//! Multiplication between the identity expression and a scalar.
+template<typename T>
+auto operator*(scalar_t a, OpLiteral<T> const& b)
+{
+	return expr::make_literal(a * b.value);
+}
+
+//! Multiplication between the identity expression and a complex value.
+template<typename T>
+auto operator*(complex_t a, OpLiteral<T> const& b)
+{
+	return expr::make_literal(a * b.value);
+}
+
+//! Multiplication between the identity expression and an integer value.
+template<typename T>
+auto operator*(int a, OpLiteral<T> const& b)
+{
+	return expr::make_literal(a * b.value);
+}
+
+
+//! Multiplication between the identity expression and a scalar.
+template<typename T, size_t D, typename S>
+auto operator*(OpLiteral<S> const& a, any_vector_t<T, D> const& b)
+{
+	return expr::make_literal(a.value * b);
+}
+
+//! Multiplication between the identity expression and a scalar.
+template<typename T>
+auto operator*(OpLiteral<T> const& a, scalar_t b)
+{
+	return expr::make_literal(a.value * b);
+}
+
+//! Multiplication between the identity expression and a complex value.
+template<typename T>
+auto operator*(OpLiteral<T> const& a, complex_t b)
+{
+	return expr::make_literal(a.value * b);
+}
+
+//! Multiplication between the identity expression and an integer value.
+template<typename T>
+auto operator*(OpLiteral<T> const& a, int b)
+{
+	return expr::make_literal(a.value * b);
+}
+
+
+
+//! Multiplication between the identity expression and anything.
+template<typename T>
+auto operator*(OpIdentity, OpLiteral<T> const& b)
+{
+	return b;
+}
+
+//! Multiplication between anything and the identity expression.
+template<typename T>
+auto operator*(OpLiteral<T> const& a, OpIdentity)
+{
+	return a;
+}
+
+//! Multiplication between the identity expression and anything.
+template<typename T>
+auto operator*(OpNegIdentity, OpLiteral<T> const& b)
+{
+	return -b;
+}
+
+//! Multiplication between anything and the identity expression.
+template<typename T>
+auto operator*(OpLiteral<T> const& a, OpNegIdentity)
+{
+	return -a;
+}
+
+
+
+//! Multiplication between the identity expression and anything.
+template<typename E>
+decltype(auto) operator*(OpIdentity, OpExpression<E> const& e)
+{
+	return (*static_cast<E const*>(&e));
+}
+
+//! Multiplication between anything and the identity expression.
+template<typename E>
+decltype(auto) operator*(OpExpression<E> const& e, OpIdentity)
+{
+	return (*static_cast<E const*>(&e));
+}
+
+//! Multiplication between the negative identity expression and anything.
+template<typename E>
+decltype(auto) operator*(OpNegIdentity, OpExpression<E> const& e)
+{
+	return -(*static_cast<E const*>(&e));
+}
+
+//! Multiplication between the negative identity expression and anything.
+template<typename E>
+decltype(auto) operator*(OpExpression<E> const& e, OpNegIdentity)
+{
+	return -(*static_cast<E const*>(&e));
+}
+
+//! Multiplication between two identity expressions.
+inline auto operator*(OpIdentity, OpIdentity)
+{
+	return OpIdentity{};
+}
+
+//! Multiplication between two negative identity expressions.
+inline auto operator*(OpNegIdentity, OpNegIdentity)
+{
+	return OpIdentity{};
+}
+
+//! Multiplication between the negative identity and identity expressions.
+inline auto operator*(OpNegIdentity, OpIdentity)
+{
+	return OpNegIdentity{};
+}
+
+//! Multiplication between the identity and negative identity expressions.
+inline auto operator*(OpIdentity, OpNegIdentity)
+{
+	return OpNegIdentity{};
+}
+
+//! Multiplication between anything and the 0 identity.
+template<typename E>
+auto operator*(E&&, OpVoid)
+{
+	return OpVoid{};
+}
+
+//! Multiplication between the 0 identity and anything.
+template<typename E>
+auto operator*(OpVoid, E&&)
+{
+	return OpVoid{};
+}
+
+//! Multiplication between the identity expression and 0 identity.
+inline auto operator*(OpIdentity, OpVoid)
+{
+	return OpVoid{};
+}
+
+//! Multiplication between the 0 identity and identity expression.
+inline auto operator*(OpVoid, OpIdentity)
+{
+	return OpVoid{};
+}
+
+//! Multiplication between the negative identity and 0 identity.
+inline auto operator*(OpNegIdentity, OpVoid)
+{
+	return OpVoid{};
+}
+
+//! Multiplication between the 0 identity and negative identity.
+inline auto operator*(OpVoid, OpNegIdentity)
+{
+	return OpVoid{};
+}
+
+//! Multiplication between two 0 identities.
+inline auto operator*(OpVoid, OpVoid)
+{
+	return OpVoid{};
+}
+
+
+
+inline scalar_t& operator*=(scalar_t& lhs, OpIdentity) 
+{
+	return lhs;
+}
+
+inline scalar_t& operator*=(scalar_t& lhs, OpNegIdentity)
+{
+	lhs = -lhs;
+	return lhs;
+}
+
+inline complex_t& operator*=(complex_t& lhs, OpIdentity)
+{
+	return lhs;
+}
+
+inline complex_t& operator*=(complex_t& lhs, OpNegIdentity)
+{
+	lhs = -lhs;
+	return lhs;
+}
+
+template<typename T>
+scalar_t& operator*=(scalar_t& lhs, OpLiteral<T> const& v)
+{
+	lhs = lhs * v;
+	return lhs;
+}
+
+template<typename T>
+complex_t& operator*=(complex_t& lhs, OpLiteral<T> const& v)
+{
+	lhs = lhs * v;
+	return lhs;
+}
 
 
 
 // ******************************************************************************************
 
 
-namespace expr
-{
-	//! Indicates whether a term can be collected into like terms.
-	/*!
-	 * Predicate indicating whether a data type can combine with another data type.
-	 * Combining means that two data are considered "equivalent" and can be put
-	 * together into like terms.
-	 *
-	 * Grid combination requires a level of indirection in order
-	 * to allow variables of all types to be combined. This means that some kind
-	 * of subtype needs to be compared, as the encapsulating types can vary.
-	 * By default, variables are allowed to be combined into like terms.
-	 *
-	 * \tparam E The type which is checked if it satisfies the predicate.
-	 */
-	template<typename E, typename Enable = void>
-	constexpr bool is_combinable = grid_can_combine<typename original_data_type<E>::type>::value;
-
-	//! Specialization based on expr::is_combinable.
-	template<size_t Z, typename G>
-	constexpr bool is_combinable<Variable<Z, G>> = true;
-
-
-	//! Indicates whether a term can be multiplied.
-	/*!
-	 * Predicate indicating whether a data type can combine with another data 
-	 * type through multiplication.
-	 * Combining means that two data are considered "equivalent" and can be put
-	 * together into a nonlinear variable.
-	 *
-	 * It may be desirable to ensure that some terms cannot be multiplied
-	 * into nonlinear variables, in which case, only a OpBinaryMul will be
-	 * used to combine them.
-	 *
-	 * \tparam E The type which is checked if it satisfies the predicate.
-	 */
-	template<typename E>
-	constexpr bool is_multiplies = expr::grid_can_multiply<typename expr::base_data_type<E>::type>::value;
-
-}
-
-namespace symphas::internal
-{
-
-	//! Recursively checks for the correct type to remove.
-	/*!
-	 * The specified template type `G0` is compared to the first type that appears
-	 * in the second list. If it matches, then a new list is returned as the
-	 * concatenation of the first and second without the matched type. If the type
-	 * does not match, then the first type is moved into the first list and the
-	 * check is performed recursively.
-	 *
-	 * \tparam G0 The first type that is removed.
-	 */
-	template<typename G0, typename Gn1, typename... Gcs, typename... Gns,
-		typename std::enable_if_t<!std::is_same<G0, Gn1>::value && (sizeof...(Gns) == 0), int> = 0>
-		constexpr auto subtract_common_type(std::tuple<Gcs*...>, std::tuple<Gn1*, Gns*...>)
-	{
-		return std::tuple<>{};
-	}
-
-	template<typename G0, typename Gn1, typename... Gcs, typename... Gns, 
-		typename std::enable_if_t<std::is_same<G0, Gn1>::value, int> = 0>
-	constexpr auto subtract_common_type(std::tuple<Gcs*...>, std::tuple<Gn1*, Gns*...>)
-	{
-		return std::tuple<Gcs*..., Gns*...>{};
-	}
-
-	template<typename G0, typename Gn1, typename... Gcs, typename... Gns, 
-		typename std::enable_if_t<!std::is_same<G0, Gn1>::value && (sizeof...(Gns) > 0), int> = 0>
-	constexpr auto subtract_common_type(std::tuple<Gcs*...>, std::tuple<Gn1*, Gns*...>)
-	{
-		return subtract_common_type<G0>(std::tuple_cat(std::tuple<Gcs*...>{}, std::tuple<Gn1*>{}), std::tuple<Gns*...>{});
-	}
-
-
-	//! Removes the specified type from the type list.
-	/*!
-	 * The given template parameter type is recursively searched for in the given
-	 * list and the list is returned with the type removed. If the type is not
-	 * found, the same list is returned.
-	 *
-	 * \param list The list of types from which the given template parameter type
-	 * is taken away from.
-	 *
-	 * \tparam G0 The type that is removed from the list.
-	 */
-	template<typename G0, typename Gn, typename... Gcs, typename std::enable_if_t<std::is_same<G0, Gn>::value, int> = 0>
-	constexpr auto subtract_common_type([[maybe_unused]] std::tuple<Gn*, Gcs*...> list)
-	{
-		return std::tuple<Gcs*...>{};
-	}
-
-	template<typename G0, typename Gn, typename... Gcs, typename std::enable_if_t<!std::is_same<G0, Gn>::value, int> = 0>
-	constexpr auto subtract_common_type([[maybe_unused]] std::tuple<Gn*, Gcs*...> list)
-	{
-		return subtract_common_type<G0>(std::tuple<Gn*>{}, std::tuple<Gcs*...>{});
-	}
-
-}
-
 
 namespace expr
 {
-	//! Compares whether two multi-variables can be combined as like terms.
-	/*!
-	 * Implements a compile time algorithm that compares the types of two lists.
-	 * Like types are eliminated by calling the function subtract_common_type
-	 * and checks whether they all satisfy grid_can_combine.
-	 *
-	 * If there is no common type, then subtract_common_type returns an empty
-	 * tuple and the result is that the two multi-variables cannot be combined.
-	 *
-	 * G0 is compared to all the types that are template parameters from the
-	 * nested struct, and the common type is eliminated from the list using
-	 * recursion. The result of one iteration is a new nl_can_combine, which
-	 * repeats the procedure.
-	 */
-	template<typename... Gs>
-	struct nl_can_combine;
-}
+	template<typename T, size_t... Ns>
+	auto inverse(OpTensor<T, Ns...> const& tensor) = delete;
 
-namespace symphas::internal
-{
-
-
-	template<typename... Gs, typename g0, typename... gns>
-	constexpr static bool next_type_check(std::tuple<Gs*...>, std::tuple<g0*, gns*...>)
-	{
-		static_assert(sizeof...(gns) + 1 == sizeof...(Gs));
-		return expr::nl_can_combine<Gs...>::template with<g0, gns...>::value;
-	}
-
-	template<typename... Gs>
-	constexpr static bool next_type_check(std::tuple<Gs*...>, std::tuple<>)
-	{
-		return false;
-	}
-
-	template<typename G0, typename... Gs, typename g0, typename g1, typename... gs, 
-		typename std::enable_if_t<(1 + sizeof...(Gs) == 2 + sizeof...(gs)), int> = 0>
-	constexpr bool nlv_combines_pred(std::tuple<G0*, Gs*...>, std::tuple<g0*, g1*, gs*...>)
-	{
-		return expr::is_combinable<G0>
-			&& next_type_check(std::tuple<Gs*...>{}, symphas::internal::subtract_common_type<G0>(std::tuple<g0*, g1*, gs*...>{}));
-	}
-
-	template<typename... Gs, typename... gs,
-		typename std::enable_if_t<(sizeof...(Gs) != sizeof...(gs)), int> = 0>
-	constexpr bool nlv_combines_pred(std::tuple<Gs*...>, std::tuple<gs*...>)
-	{
-		return false;
-	}
-
-	template<typename... Gs>
-	struct nlv_pred_outer
-	{
-		template<typename... gs>
-		struct nlv_pred_inner
-		{
-			static const bool value = nlv_combines_pred(
-				std::tuple<Gs*...>{},
-				std::tuple<gs*...>{});
-		};
-	};
-
-}
-
-namespace expr
-{
-
-	//! Specialization based on expr::nl_can_combine.
-	template<typename G0>
-	struct nl_can_combine<G0>
-	{
-		template<typename g>
-		struct with
-		{
-			static const bool value = expr::is_combinable<G0> && std::is_same<G0, g>::value;
-		};
-	};
-
-	//! Specialization based on expr::nl_can_combine.
-	template<typename G0, typename... Gs>
-	struct nl_can_combine<G0, Gs...>
-	{
-		template<typename g0, typename g1, typename... gs>
-		struct with
-		{
-			static const bool value = symphas::internal::nlv_pred_outer<G0, Gs...>::template nlv_pred_inner<g0, g1, gs...>::value;
-		};
-
-	};
-
-
-	//! Compares whether two multi-variables can be multiplied.
-	/*!
-	 * Compares the types of two lists to check if two multi-variables can be
-	 * multiplied together and combined into a single multi-variable.
-	 *
-	 * Like types are eliminated by calling the function subtract_common_type.
-	 * If there is no common type, then subtract_common_type returns an empty
-	 * tuple, and the result is that the two multi-variables cannot be
-	 * multiplied together.
-	 *
-	 * The first type is compared to all the types that are template parameters to the 
-	 * nested `with' type, and the common type is eliminated from the list.
-	 * Recursion is performed, creating a new expr::nl_can_multiply with the 
-	 * remaining types.
-	 * 
-	 * \param Gs... The list of types that are checked against another list, 
-	 * to see if is possible to come the lists as a new multivariable.
-	 */
-	template<typename... Gs>
-	struct nl_can_multiply
-	{
-		//! Specifies the list of variables to compare with the first.
-		/*!
-		 * Specifies the list of variables to compare with the first.
-		 * 
-		 * \tparam gs... Given list to compare with.
-		 */
-		template<typename... gs>
-		struct with;
-	};
-}
-
-
-
-/* an object can be multiplied into others if it satisfies one of two conditions
- * 1) all the objects in the test object support multiplication AND the subject supports multiplication
- * 2) the subject and the test objects are the same
- */
-
- //! Specialization based on expr::nl_can_multiply.
-template<typename... Gs>
-template<typename g>
-struct expr::nl_can_multiply<Gs...>::with<g>
-{
-	static const bool value =
-		((expr::is_multiplies<Gs> && ... && expr::is_multiplies<g>)) ||
-		((std::is_same<typename expr::base_data_type<Gs>::type, typename expr::base_data_type<g>::type>::value && ...));
-};
-
-//! Specialization based on expr::nl_can_multiply.
-template<typename... Gs>
-template<typename g0, typename g1, typename... gs>
-struct expr::nl_can_multiply<Gs...>::with<g0, g1, gs...>
-{
-protected:
-
-	constexpr static bool get_value()
-	{
-		return expr::nl_can_multiply<Gs...>::template with<g0>::value 
-			&& expr::nl_can_multiply<Gs...>::template with<g1, gs...>::value;
-	}
-
-public:
-
-	static const bool value = get_value();
-
-};
-
-
-// ******************************************************************************************
-
-
-
-namespace expr
-{
 
 	//! Apply an inverse to a scalar value.
 	inline auto inverse(scalar_t e)
@@ -419,14 +449,21 @@ namespace expr
 	//! Apply an inverse to a complex value.
 	inline auto inverse(complex_t const& e)
 	{
-		return symphas::lib::get_identity<complex_t>() / e;
+		return e / std::norm(e);
 	}
 
 	//! Apply an inverse to an expression.
 	template<typename E>
 	auto inverse(OpExpression<E> const& e)
 	{
-		return expr::make_div(OpIdentity{}, (*static_cast<const E*>(&e)));
+		return expr::make_div(OpIdentity{}, * static_cast<const E*>(&e));
+	}
+
+	//! Apply an inverse to an expression.
+	template<typename A, typename B>
+	auto inverse(OpBinaryDiv<A, B> const& e)
+	{
+		return e.b / e.a;
 	}
 
 	//! Apply an inverse to an expression literal.
@@ -436,307 +473,52 @@ namespace expr
 		return expr::make_literal(inverse(e.value));
 	}
 
+	//! Apply an inverse to an expression literal.
+	template<size_t N, size_t D>
+	constexpr auto inverse(OpFractionLiteral<N, D>)
+	{
+		return OpFractionLiteral<D, N>{};
+	}
+
+	//! Apply an inverse to an expression literal.
+	template<size_t N, size_t D>
+	constexpr auto inverse(OpNegFractionLiteral<N, D>)
+	{
+		return OpNegFractionLiteral<D, N>{};
+	}
+
+	//! Apply an inverse to an expression literal.
+	constexpr inline auto inverse(OpIdentity)
+	{
+		return OpIdentity{};
+	}
+
+	//! Apply an inverse to an expression literal.
+	constexpr inline auto inverse(OpNegIdentity)
+	{
+		return OpNegIdentity{};
+	}
+
+	//! Apply an inverse to an expression.
+	template<typename V, typename G0, expr::exp_key_t X0, typename... Gs, expr::exp_key_t... Xs>
+	auto inverse(OpTerms<Term<G0, X0>, Term<Gs, Xs>...> const& e)
+	{
+		return expr::make_div(OpIdentity{}, OpTerms(OpIdentity{}, e));
+	}
+
+	//! Apply an inverse to an expression.
+	template<typename V, typename... Gs, expr::exp_key_t... Xs>
+	auto inverse(OpTerms<V, Term<Gs, Xs>...> const& e)
+	{
+		return expr::make_div(expr::inverse(expr::coeff(e)), OpTerms(OpIdentity{}, expr::terms_after_first(e)));
+	}
+
+	//template<typename T, size_t... Ns>
+	//auto inverse(OpTensor<T, Ns...> const& tensor)
+	//{
+	//	return symphas::internal::tensor_cancel{};
+	//}
 }
-
-
-
-
-
-// ******************************************************************************************
-
-
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator*(OpBinarySub<A1, A2> const& a, OpBinarySub<B1, B2> const& b);
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator*(OpBinaryAdd<A1, A2> const& a, OpBinarySub<B1, B2> const& b);
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator*(OpBinarySub<A1, A2> const& a, OpBinaryAdd<B1, B2> const& b);
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator*(OpBinaryAdd<A1, A2> const& a, OpBinaryAdd<B1, B2> const& b);
-template<typename A1, typename B1, typename B2>
-auto operator*(OpExpression<A1> const& a, OpBinaryAdd<B1, B2> const& b);
-template<typename B2, typename A1, typename A2>
-auto operator*(OpBinaryAdd<A1, A2> const& a, OpExpression<B2> const& b);
-template<typename A1, typename B1, typename B2>
-auto operator*(OpExpression<A1> const& a, OpBinarySub<B1, B2> const& b);
-template<typename B2, typename A1, typename A2>
-auto operator*(OpBinarySub<A1, A2> const& a, OpExpression<B2> const& b);
-template<typename T, typename B1, typename B2>
-auto operator*(OpLiteral<T> const& a, OpBinaryMul<B1, B2> const& b);
-template<typename T, typename B1, typename B2>
-auto operator*(OpLiteral<T> const& a, OpBinaryDiv<B1, B2> const& b);
-
-
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator+(OpBinaryAdd<A1, A2> const& a, OpBinaryAdd<B1, B2> const& b);
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator+(OpBinaryAdd<A1, A2> const& a, OpBinarySub<B1, B2> const& b);
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator+(OpBinarySub<A1, A2> const& a, OpBinaryAdd<B1, B2> const& b);
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator+(OpBinarySub<A1, A2> const& a, OpBinarySub<B1, B2> const& b);
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator-(OpBinaryAdd<A1, A2> const& a, OpBinaryAdd<B1, B2> const& b);
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator-(OpBinaryAdd<A1, A2> const& a, OpBinarySub<B1, B2> const& b);
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator-(OpBinarySub<A1, A2> const& a, OpBinaryAdd<B1, B2> const& b);
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator-(OpBinarySub<A1, A2> const& a, OpBinarySub<B1, B2> const& b);
-
-template<typename A1, typename A2, typename E>
-auto operator+(OpExpression<E> const& a, OpBinaryAdd<A1, A2> const& b);
-template<typename A1, typename A2, typename E>
-auto operator+(OpBinaryAdd<A1, A2> const& a, OpExpression<E> const& b);
-template<typename A1, typename A2, typename E>
-auto operator+(OpExpression<E> const& a, OpBinarySub<A1, A2> const& b);
-template<typename A1, typename A2, typename E>
-auto operator+(OpBinarySub<A1, A2> const& a, OpExpression<E> const& b);
-template<typename A1, typename A2, typename E>
-auto operator-(OpExpression<E> const& a, OpBinaryAdd<A1, A2> const& b);
-template<typename A1, typename A2, typename E>
-auto operator-(OpBinaryAdd<A1, A2> const& a, OpExpression<E> const& b);
-template<typename A1, typename A2, typename E>
-auto operator-(OpExpression<E> const& a, OpBinarySub<A1, A2> const& b);
-template<typename A1, typename A2, typename E>
-auto operator-(OpBinarySub<A1, A2> const& a, OpExpression<E> const& b);
-
-
-
-
-template<typename A1, typename A2, typename T, typename G>
-auto operator*(OpBinaryMul<A1, A2> const& a, OpLVariable<T, G> const& b);
-template<typename T, typename G, typename B1, typename B2>
-auto operator*(OpLVariable<T, G> const& a, OpBinaryMul<B1, B2> const& b);
-template<typename A1, typename A2, typename T, typename... Gs>
-auto operator*(OpBinaryMul<A1, A2> const& a, OpNLVariable<T, Gs...> const& b);
-template<typename T, typename... Gs, typename B1, typename B2>
-auto operator*(OpNLVariable<T, Gs...> const& a, OpBinaryMul<B1, B2> const& b);
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator*(OpBinaryMul<A1, A2> const& a, OpBinaryMul<B1, B2> const& b);
-
-
-template<typename A1, typename A2, typename E>
-auto operator*(OpBinaryDiv<A1, A2> const& a, OpExpression<E> const& b);
-template<typename E, typename B1, typename B2>
-auto operator*(OpExpression<E> const& a, OpBinaryDiv<B1, B2> const& b);
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator*(OpBinaryDiv<A1, A2> const& a, OpBinaryDiv<B1, B2> const& b);
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator*(OpBinaryDiv<A1, A2> const& a, OpBinaryAdd<B1, B2> const& b);
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator*(OpBinaryDiv<A1, A2> const& a, OpBinarySub<B1, B2> const& b);
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator*(OpBinaryAdd<A1, A2> const& a, OpBinaryDiv<B1, B2> const& b);
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator*(OpBinarySub<A1, A2> const& a, OpBinaryDiv<B1, B2> const& b);
-
-
-
-
-
-/* Handling recursion at the point of an inverse.
- */
-
-template<typename A2, typename B1, typename B2>
-auto operator*(OpBinaryDiv<OpNegIdentity, A2> const& a, OpBinaryDiv<B1, B2> const& b);
-template<typename A2, typename B1, typename B2>
-auto operator*(OpBinaryDiv<OpIdentity, A2> const& a, OpBinaryDiv<B1, B2> const& b);
-template<typename T, typename A2, typename B1, typename B2>
-auto operator*(OpBinaryDiv<OpLiteral<T>, A2> const& a, OpBinaryDiv<B1, B2> const& b);
-template<typename A1, typename A2, typename B2>
-auto operator*(OpBinaryDiv<A1, A2> const& a, OpBinaryDiv<OpNegIdentity, B2> const& b);
-template<typename A1, typename A2, typename B2>
-auto operator*(OpBinaryDiv<A1, A2> const& a, OpBinaryDiv<OpIdentity, B2> const& b);
-template<typename A1, typename A2, typename T, typename B2>
-auto operator*(OpBinaryDiv<A1, A2> const& a, OpBinaryDiv<OpLiteral<T>, B2> const& b);
-
-template<typename V1, typename V2, typename Dd, typename E, typename Sp>
-auto operator/(OpFuncDerivative<Dd, V1, E, Sp> const& a, OpFuncDerivative<Dd, V2, E, Sp> const& b);
-
-
-
-
-
-
-
-
-
-
-/*
- *
- * Multiplcation between basic values, particularly identities.
- *
- ******************************************************************************/
-
- //! Ensure a value constant is always multiplied on the left by anything else.
-template<typename E, typename T>
-auto operator*(OpExpression<E> const& a, OpLiteral<T> const& b)
-{
-	return b * (*static_cast<const E*>(&a));
-}
-
-
-//! Multiplication between integer and complex types.
-inline auto operator*(int const a, complex_t const& b)
-{
-	return static_cast<double>(a) * b;
-}
-
-//! Multiplication between complex and integer types.
-inline auto operator*(complex_t const& a, int const b)
-{
-	return a * static_cast<double>(b);
-}
-
-//! Multiplication between the identity expression and a scalar.
-inline auto operator*(OpIdentity const, scalar_t const& b)
-{
-	return b;
-}
-
-//! Multiplication between the identity expression and a complex value.
-inline auto operator*(OpIdentity const, complex_t const& b)
-{
-	return b;
-}
-
-//! Multiplication between the identity expression and an integer value.
-inline auto operator*(OpIdentity const, int b)
-{
-	return b;
-}
-
-//! Multiplication between the identity expression and a scalar.
-inline auto operator*(scalar_t const& a, OpIdentity const)
-{
-	return a;
-}
-
-//! Multiplication between the identity expression and a complex value.
-inline auto operator*(complex_t const& a, OpIdentity const)
-{
-	return a;
-}
-
-//! Multiplication between the identity expression and an integer value.
-inline auto operator*(int a, OpIdentity const)
-{
-	return a;
-}
-
-//! Multiplication between the identity expression and anything.
-template<typename T>
-auto operator*(OpIdentity const, OpLiteral<T> const& b)
-{
-	return b;
-}
-
-//! Multiplication between anything and the identity expression.
-template<typename T>
-auto operator*(OpLiteral<T> const& a, OpIdentity)
-{
-	return a;
-}
-
-//! Multiplication between the identity expression and anything.
-template<typename E>
-decltype(auto) operator*(OpIdentity, E const& b)
-{
-	return b;
-}
-
-//! Multiplication between anything and the identity expression.
-template<typename E>
-decltype(auto) operator*(E const& a, OpIdentity)
-{
-	return OpIdentity{} * a;
-}
-
-//! Multiplication between the negative identity expression and anything.
-template<typename E>
-decltype(auto) operator*(OpNegIdentity const, E const& b)
-{
-	return -(OpIdentity{} * b);
-}
-
-//! Multiplication between the negative identity expression and anything.
-template<typename E>
-decltype(auto) operator*(E const& a, OpNegIdentity const)
-{
-	return (OpNegIdentity{} * a);
-}
-
-//! Multiplication between two identity expressions.
-inline auto operator*(OpIdentity const, OpIdentity const)
-{
-	return OpIdentity{};
-}
-
-//! Multiplication between two negative identity expressions.
-inline auto operator*(OpNegIdentity const, OpNegIdentity const)
-{
-	return OpIdentity{};
-}
-
-//! Multiplication between the negative identity and identity expressions.
-inline auto operator*(OpNegIdentity const, OpIdentity const)
-{
-	return OpNegIdentity{};
-}
-
-//! Multiplication between the identity and negative identity expressions.
-inline auto operator*(OpIdentity const, OpNegIdentity const)
-{
-	return OpNegIdentity{};
-}
-
-//! Multiplication between anything and the 0 identity.
-template<typename E>
-decltype(auto) operator*(E const&, OpVoid const)
-{
-	return OpVoid{};
-}
-
-//! Multiplication between the 0 identity and anything.
-template<typename E>
-decltype(auto) operator*(OpVoid const, E const&)
-{
-	return OpVoid{};
-}
-
-//! Multiplication between the identity expression and 0 identity.
-inline auto operator*(OpIdentity const, OpVoid const)
-{
-	return OpVoid{};
-}
-
-//! Multiplication between the 0 identity and identity expression.
-inline auto operator*(OpVoid const, OpIdentity const)
-{
-	return OpVoid{};
-}
-
-//! Multiplication between the negative identity and 0 identity.
-inline auto operator*(OpNegIdentity const, OpVoid const)
-{
-	return OpVoid{};
-}
-
-//! Multiplication between the 0 identity and negative identity.
-inline auto operator*(OpVoid const, OpNegIdentity const)
-{
-	return OpVoid{};
-}
-
-//! Multiplication between two 0 identities.
-inline auto operator*(OpVoid const, OpVoid const)
-{
-	return OpVoid{};
-}
-
-
-
 
 
 /*
@@ -747,53 +529,55 @@ inline auto operator*(OpVoid const, OpVoid const)
 
  //! Division between anything and the identity expression.
 template<typename E>
-decltype(auto) operator/(E const& a, OpIdentity const)
+decltype(auto) operator/(E&& a, OpIdentity)
 {
-	return a;
+	return std::forward<E>(a);
 }
 
 //! Division between the identity expression and anything.
 template<typename E>
-decltype(auto) operator/(OpIdentity const, E const& b)
+decltype(auto) operator/(OpIdentity, E&& b)
 {
-	return expr::inverse(b);
+	return expr::inverse(std::forward<E>(b));
 }
 
+//! Division between the identity expression and anything.
+inline decltype(auto) operator/(OpIdentity, OpVoid) = delete;
 
-//! Division between the and anything and the negative identity.
+//! Division between anything and the identity expression.
 template<typename E>
-decltype(auto) operator/(E const& a, OpNegIdentity const)
+decltype(auto) operator/(E&& a, OpNegIdentity)
 {
-	return -a;
+	return -std::forward<E>(a);
 }
 
 //! Division between the negative identity expression and anything.
 template<typename E>
-decltype(auto) operator/(OpNegIdentity const, E const& b)
+decltype(auto) operator/(OpNegIdentity, E&& b)
 {
-	return expr::inverse(-b);
+	return -expr::inverse(std::forward<E>(b));
 }
 
 //! Division between two identities.
-inline auto operator/(OpIdentity const, OpIdentity const)
+constexpr inline auto operator/(OpIdentity, OpIdentity)
 {
 	return OpIdentity{};
 }
 
 //! Division between two negative identities.
-inline auto operator/(OpNegIdentity const, OpNegIdentity const)
+constexpr inline auto operator/(OpNegIdentity, OpNegIdentity)
 {
 	return OpIdentity{};
 }
 
 //! Division between the identity and the negative identity.
-inline auto operator/(OpIdentity const, OpNegIdentity const)
+constexpr inline auto operator/(OpIdentity, OpNegIdentity)
 {
 	return OpNegIdentity{};
 }
 
 //! Division between the negative identity and the identity.
-inline auto operator/(OpNegIdentity const, OpIdentity const)
+constexpr inline auto operator/(OpNegIdentity, OpIdentity)
 {
 	return OpNegIdentity{};
 }
@@ -805,47 +589,49 @@ auto operator/(E&&, OpVoid const) = delete;
 //! Division between 0 and 0.
 inline auto operator/(OpVoid const, OpVoid const) = delete;
 
-
 //! Division between 0 identity and anything.
 template<typename E>
-decltype(auto) operator/(OpVoid const, E const&)
+constexpr decltype(auto) operator/(OpVoid const, E const&)
 {
 	return OpVoid{};
 }
 
 //! Division between 0 identity and identity expression.
-inline auto operator/(OpVoid const, OpIdentity const)
+constexpr inline auto operator/(OpVoid const, OpIdentity)
 {
 	return OpVoid{};
 }
 
 //! Division between 0 identity and negative identity expression.
-inline auto operator/(OpVoid const, OpNegIdentity const)
+constexpr inline auto operator/(OpVoid const, OpNegIdentity)
 {
 	return OpVoid{};
 }
 
 //! Division between a value constant and anything.
 template<typename T, typename E>
-decltype(auto) operator/(OpLiteral<T> const& a, E const& b)
+decltype(auto) operator/(OpLiteral<T> const& a, E&& b)
 {
-	return expr::make_div(a, b);
+	return expr::inverse(expr::inverse(a) * std::forward<E>(b));
 }
 
 //! Division between two value constants.
 template<typename T, typename S>
 auto operator/(OpLiteral<T> const& a, OpLiteral<S> const& b)
 {
-	return expr::make_literal(a.value / b.value);
+	return a * expr::inverse(b);
 }
 
 //! Division between anything and a value constant.
 template<typename T, typename E>
-decltype(auto) operator/(E const& a, OpLiteral<T> const& b)
+decltype(auto) operator/(E&& a, OpLiteral<T> const& b)
 {
-	return expr::inverse(b) * a;
+	return expr::inverse(b) * std::forward<E>(a);
 }
 
+//! Division between anything and a tensor is deleted.
+template<typename E, typename T, size_t... Ns>
+auto operator/(E&&, OpTensor<T, Ns...> const& tensor) = delete;
 
 
 
@@ -861,96 +647,147 @@ decltype(auto) operator/(E const& a, OpLiteral<T> const& b)
  //! Addition between integer and complex types.
 inline auto operator+(int const a, complex_t const& b)
 {
-	return static_cast<double>(a) + b;
+	return static_cast<scalar_t>(a) + b;
 }
 
 //! Addition between complex and integer types.
 inline auto operator+(complex_t const& a, int const b)
 {
-	return a + static_cast<double>(b);
+	return a + static_cast<scalar_t>(b);
 }
 
 
 
 //! Addition between anything and the 0 identity.
 template<typename E>
-decltype(auto) operator+(E const& a, OpVoid const)
+decltype(auto) operator+(E&& a, OpVoid)
 {
-	return a;
+	return std::forward<E>(a);
 }
 
 //! Addition between the 0 identity and anything.
 template<typename E>
-decltype(auto) operator+(OpVoid const, E const& b)
+decltype(auto) operator+(OpVoid, E&& b)
 {
-	return b;
+	return std::forward<E>(b);
 }
 
 //! Addition between two 0 identities.
-inline auto operator+(OpVoid const, OpVoid const)
+inline auto operator+(OpVoid, OpVoid)
 {
 	return OpVoid{};
 }
 
 //! Addition between two identities.
-inline auto operator+(OpIdentity const, OpIdentity const)
+inline auto operator+(OpIdentity, OpIdentity)
 {
-	return expr::make_literal(2 * OpIdentity{}.eval());
+	return expr::make_fraction<2, 1>();
 }
 
 //! Addition between two negative identities.
-inline auto operator+(OpNegIdentity const, OpNegIdentity const)
+inline auto operator+(OpNegIdentity, OpNegIdentity)
 {
-	return expr::make_literal(2 * OpNegIdentity{}.eval());
+	return -expr::make_fraction<2, 1>();
 }
 
 //! Addition between the identity expression and negative identity.
-inline OpVoid operator+(OpIdentity const, OpNegIdentity const)
+inline OpVoid operator+(OpIdentity, OpNegIdentity)
 {
 	return OpVoid{};
 }
 
 //! Addition between the negative identity expression and identity.
-inline OpVoid operator+(OpNegIdentity const, OpIdentity const)
+inline OpVoid operator+(OpNegIdentity, OpIdentity)
 {
 	return OpVoid{};
 }
+
+inline auto operator+(OpVoid, OpNegIdentity)
+{
+	return OpNegIdentity{};
+}
+
+inline auto operator+(OpVoid, OpIdentity)
+{
+	return OpIdentity{};
+}
+
+
+
+
+inline auto operator+(OpVoid, expr::symbols::Symbol)
+{
+	return expr::symbols::Symbol{};
+}
+
+inline auto operator+(expr::symbols::Symbol, OpVoid)
+{
+	return expr::symbols::Symbol{};
+}
+
+inline auto operator-(OpVoid, expr::symbols::Symbol)
+{
+	return expr::symbols::Symbol{};
+}
+
+inline auto operator-(expr::symbols::Symbol, OpVoid)
+{
+	return expr::symbols::Symbol{};
+}
+
+inline auto operator*(OpVoid, expr::symbols::Symbol)
+{
+	return OpVoid{};
+}
+
+inline auto operator*(expr::symbols::Symbol, OpVoid)
+{
+	return OpVoid{};
+}
+
+inline auto operator/(OpVoid, expr::symbols::Symbol)
+{
+	return OpVoid{};
+}
+
+inline auto operator/(expr::symbols::Symbol, OpVoid) = delete;
+
 
 
 
 
 //! Addition between a primitive value and the identity expression.
-inline auto operator+(scalar_t const a, OpIdentity const)
+inline auto operator+(scalar_t const a, OpIdentity)
 {
 	return a + OpIdentity{}.eval();
 }
 
 //! Addition between the identity expression and a primitive value.
-inline auto operator+(OpIdentity const, scalar_t const b)
+inline auto operator+(OpIdentity, scalar_t const b)
 {
 	return OpIdentity{}.eval() + b;
 }
 
 //! Addition between a primitive value and the identity expression.
-inline auto operator+(int const a, OpIdentity const)
+inline auto operator+(int const a, OpIdentity)
 {
 	return a + OpIdentity{}.eval();
 }
 
 //! Addition between the identity expression and a primitive value.
-inline auto operator+(OpIdentity const, int const b)
+inline auto operator+(OpIdentity, int const b)
 {
 	return OpIdentity{}.eval() + b;
 }
 
 //! Addition between a primitive complex type and the identity expression.
-inline auto operator+(complex_t const& a, OpIdentity const)
+inline auto operator+(complex_t const& a, OpIdentity)
 {
 	return a + static_cast<complex_t>(OpIdentity{}.eval());
 }
 
 //! Addition between the identity expression and a primitive complex type.
-inline auto operator+(OpIdentity const, complex_t const b)
+inline auto operator+(OpIdentity, complex_t const b)
 {
 	return static_cast<complex_t>(OpIdentity{}.eval()) + b;
 }
@@ -959,37 +796,37 @@ inline auto operator+(OpIdentity const, complex_t const b)
 
 
 //! Addition between a primitive value and the negative identity expression.
-inline auto operator+(scalar_t const a, OpNegIdentity const)
+inline auto operator+(scalar_t const a, OpNegIdentity)
 {
 	return a + OpNegIdentity{}.eval();
 }
 
 //! Addition between the negative identity expression and a primitive value.
-inline auto operator+(OpNegIdentity const, scalar_t const b)
+inline auto operator+(OpNegIdentity, scalar_t const b)
 {
 	return OpNegIdentity{}.eval() + b;
 }
 
 //! Addition between a primitive value and the negative identity expression.
-inline auto operator+(int const a, OpNegIdentity const)
+inline auto operator+(int const a, OpNegIdentity)
 {
 	return a + OpNegIdentity{}.eval();
 }
 
 //! Addition between the negative identity expression and a primitive value.
-inline auto operator+(OpNegIdentity const, int const b)
+inline auto operator+(OpNegIdentity, int const b)
 {
 	return OpNegIdentity{}.eval() + b;
 }
 
 //! Addition between a primitive complex type and the negative identity.
-inline auto operator+(complex_t const& a, OpNegIdentity const)
+inline auto operator+(complex_t const& a, OpNegIdentity)
 {
 	return a + static_cast<complex_t>(OpNegIdentity{}.eval());
 }
 
 //! Addition between the negative identity and a primitive complex type.
-inline auto operator+(OpNegIdentity const, complex_t const b)
+inline auto operator+(OpNegIdentity, complex_t const b)
 {
 	return static_cast<complex_t>(OpNegIdentity{}.eval()) + b;
 }
@@ -1005,13 +842,13 @@ inline auto operator+(OpNegIdentity const, complex_t const b)
  //! Subtraction between anything and the 0 identity.
 inline auto operator-(int const a, complex_t const& b)
 {
-	return static_cast<double>(a) - b;
+	return static_cast<scalar_t>(a) - b;
 }
 
 //! Subtraction between complex and integer types.
 inline auto operator-(complex_t const& a, int const b)
 {
-	return a - static_cast<double>(b);
+	return a - static_cast<scalar_t>(b);
 }
 
 
@@ -1019,16 +856,16 @@ inline auto operator-(complex_t const& a, int const b)
 
 //! Subtraction between anything and the 0 identity.
 template<typename E>
-decltype(auto) operator-(E const& a, OpVoid const)
+decltype(auto) operator-(E&& a, OpVoid const)
 {
-	return a;
+	return std::forward<E>(a);
 }
 
 //! Subtraction between the 0 identity and anything.
 template<typename E>
-decltype(auto) operator-(OpVoid const, E const& b)
+decltype(auto) operator-(OpVoid const, E&& b)
 {
-	return -b;
+	return -std::forward<E>(b);
 }
 
 //! Subtraction between two 0 identities.
@@ -1038,53 +875,71 @@ inline auto operator-(OpVoid const, OpVoid const)
 }
 
 //! Subtraction between two identities.
-inline auto operator-(OpIdentity const, OpIdentity const)
+inline auto operator-(OpIdentity, OpIdentity)
 {
 	return OpVoid{};
 }
 
 //! Subtraction between two negative identities.
-inline auto operator-(OpNegIdentity const, OpNegIdentity const)
+inline auto operator-(OpNegIdentity, OpNegIdentity)
 {
 	return OpVoid{};
 }
 
+//! Subtraction between two identities.
+inline auto operator-(OpIdentity, OpNegIdentity)
+{
+	return OpIdentity{} + OpIdentity{};
+}
 
+//! Subtraction between two negative identities.
+inline auto operator-(OpNegIdentity, OpIdentity)
+{
+	return OpNegIdentity{} + OpNegIdentity{};
+}
 
+inline auto operator-(OpVoid, OpNegIdentity)
+{
+	return OpNegIdentity{};
+}
 
+inline auto operator-(OpVoid, OpIdentity)
+{
+	return OpIdentity{};
+}
 
 //! Subtraction between a primitive value and the identity expression.
-inline auto operator-(scalar_t const a, OpIdentity const)
+inline auto operator-(scalar_t const a, OpIdentity)
 {
 	return a - OpIdentity{}.eval();
 }
 
 //! Subtraction between the identity expression and a primitive value.
-inline auto operator-(OpIdentity const, scalar_t const b)
+inline auto operator-(OpIdentity, scalar_t const b)
 {
 	return OpIdentity{}.eval() - b;
 }
 
 //! Subtraction between a primitive value and the identity expression.
-inline auto operator-(int const a, OpIdentity const)
+inline auto operator-(int const a, OpIdentity)
 {
 	return a - OpIdentity{}.eval();
 }
 
 //! Subtraction between the identity expression and a primitive value.
-inline auto operator-(OpIdentity const, int const b)
+inline auto operator-(OpIdentity, int const b)
 {
 	return OpIdentity{}.eval() - b;
 }
 
 //! Subtraction between a primitive complex type and the identity expression.
-inline auto operator-(complex_t const a, OpIdentity const)
+inline auto operator-(complex_t const a, OpIdentity)
 {
 	return a - static_cast<complex_t>(OpIdentity{}.eval());
 }
 
 //! Subtraction between the identity expression and a primitive complex type.
-inline auto operator-(OpIdentity const, complex_t const b)
+inline auto operator-(OpIdentity, complex_t const b)
 {
 	return static_cast<complex_t>(OpIdentity{}.eval()) - b;
 }
@@ -1094,61 +949,510 @@ inline auto operator-(OpIdentity const, complex_t const b)
 
 
 //! Subtraction between a primitive value and the negative identity expression.
-inline auto operator-(scalar_t const a, OpNegIdentity const)
+inline auto operator-(scalar_t const a, OpNegIdentity)
 {
 	return a - OpNegIdentity{}.eval();
 }
 
 //! Subtraction between the negative identity expression and a primitive value.
-inline auto operator-(OpNegIdentity const, scalar_t const b)
+inline auto operator-(OpNegIdentity, scalar_t const b)
 {
 	return OpNegIdentity{}.eval() - b;
 }
 
 //! Subtraction between a primitive value and the negative identity expression.
-inline auto operator-(int const a, OpNegIdentity const)
+inline auto operator-(int const a, OpNegIdentity)
 {
 	return a - OpNegIdentity{}.eval();
 }
 
 //! Subtraction between the negative identity expression and a primitive value.
-inline auto operator-(OpNegIdentity const, int const b)
+inline auto operator-(OpNegIdentity, int const b)
 {
 	return OpNegIdentity{}.eval() - b;
 }
 
 //! Subtraction between a primitive complex type and the negative identity.
-inline auto operator-(complex_t const& a, OpNegIdentity const)
+inline auto operator-(complex_t const& a, OpNegIdentity)
 {
 	return a - static_cast<complex_t>(OpNegIdentity{}.eval());
 }
 
 //! Subtraction between the negative identity and a primitive complex type.
-inline auto operator-(OpNegIdentity const, complex_t const& b)
+inline auto operator-(OpNegIdentity, complex_t const& b)
 {
 	return static_cast<complex_t>(OpNegIdentity{}.eval()) - b;
 }
 
+//template<typename E>
+//inline auto operator-(E&& e, OpNegIdentity)
+//{
+//	return std::forward<E>(e) + OpIdentity{};
+//}
+//
+//template<typename E>
+//inline auto operator+(E&& e, OpNegIdentity)
+//{
+//	return std::forward<E>(e) - OpIdentity{};
+//}
+//
+//template<typename E, size_t... Ns>
+//inline auto operator-(E&& e, OpTensor<OpNegIdentity, Ns...>)
+//{
+//	return std::forward<E>(e) + OpTensor<OpIdentity, Ns...>{};
+//}
+//
+//template<typename E, size_t... Ns>
+//inline auto operator+(E&& e, OpTensor<OpNegIdentity, Ns...>)
+//{
+//	return std::forward<E>(e) - OpTensor<OpIdentity, Ns...>{};
+//}
+//
+//template<size_t N0, size_t N1, size_t N>
+//inline auto operator+(OpTensor<OpNegIdentity, N0, N>, OpTensor<OpNegIdentity, N1, N>)
+//{
+//	return expr::make_add(OpTensor<OpNegIdentity, N0, N>{}, OpTensor<OpNegIdentity, N1, N>{});
+//}
+//
+//template<size_t N0, size_t N1, size_t N>
+//inline auto operator-(OpTensor<OpNegIdentity, N0, N>, OpTensor<OpNegIdentity, N1, N>)
+//{
+//	return expr::make_add(OpTensor<OpNegIdentity, N0, N>{}, OpTensor<OpIdentity, N1, N>{});
+//}
 
 
-template<typename E>
-inline auto operator-(OpExpression<E> const& e, OpNegIdentity const)
+
+//! Subtraction between a primitive value and the identity expression.
+template<typename T>
+auto operator-(OpLiteral<T> const a, OpIdentity)
 {
-	return e + OpIdentity{};
+	return expr::make_literal(a.value - OpIdentity{}.eval());
 }
 
-template<typename E>
-inline auto operator+(OpExpression<E> const& e, OpNegIdentity const)
+//! Subtraction between the identity expression and a primitive value.
+template<typename T>
+auto operator-(OpIdentity, OpLiteral<T> const b)
 {
-	return e - OpIdentity{};
+	return expr::make_literal(OpIdentity{}.eval() - b.value);
+}
+
+//! Subtraction between a primitive value and the identity expression.
+template<typename T>
+auto operator-(OpLiteral<T> const a, OpNegIdentity)
+{
+	return expr::make_literal(a.value - OpIdentity{}.eval());
+}
+
+//! Subtraction between the identity expression and a primitive value.
+template<typename T>
+auto operator-(OpNegIdentity, OpLiteral<T> const b)
+{
+	return expr::make_literal(OpIdentity{}.eval() - b.value);
+}
+	
+//! Addition between a primitive value and the identity expression.
+template<typename T>
+auto operator+(OpLiteral<T> const a, OpIdentity)
+{
+	return expr::make_literal(a.value + OpIdentity{}.eval());
+}
+
+//! Addition between the identity expression and a primitive value.
+template<typename T>
+auto operator+(OpIdentity, OpLiteral<T> const b)
+{
+	return expr::make_literal(OpIdentity{}.eval() + b.value);
+}
+
+//! Addition between a primitive value and the identity expression.
+template<typename T>
+auto operator+(OpLiteral<T> const a, OpNegIdentity)
+{
+	return expr::make_literal(a.value + OpIdentity{}.eval());
+}
+
+//! Addition between the identity expression and a primitive value.
+template<typename T>
+auto operator+(OpNegIdentity, OpLiteral<T> const b)
+{
+	return expr::make_literal(OpIdentity{}.eval() + b.value);
+}
+
+/*
+ *
+ * Operations between fraction terms.
+ *
+ ******************************************************************************/
+
+
+
+
+template<size_t N1, size_t D1, size_t N2, size_t D2>
+constexpr auto operator-(OpFractionLiteral<N1, D1>, OpFractionLiteral<N2, D2>)
+{
+	constexpr size_t Na = N1 * D2;
+	constexpr size_t Nb = N2 * D1;
+	constexpr size_t D = D1 * D2;
+
+	if constexpr (Na > Nb)
+	{
+		return expr::make_fraction<Na - Nb, D>();
+	}
+	else
+	{
+		return -expr::make_fraction<Nb - Na, D>();
+	}
+
+}
+
+template<size_t N1, size_t D1, size_t N2, size_t D2>
+constexpr auto operator+(OpFractionLiteral<N1, D1>, OpFractionLiteral<N2, D2>)
+{
+	constexpr size_t N = N1 * D2 + N2 * D1;
+	constexpr size_t D = D1 * D2;
+
+	return expr::make_fraction<N, D>();
+}
+
+template<size_t N1, size_t D1, size_t N2, size_t D2>
+constexpr auto operator-(OpFractionLiteral<N1, D1>, OpNegFractionLiteral<N2, D2>)
+{
+	return OpFractionLiteral<N1, D1>{} + OpFractionLiteral<N2, D2>{};
+}
+
+template<size_t N1, size_t D1, size_t N2, size_t D2>
+constexpr auto operator+(OpFractionLiteral<N1, D1>, OpNegFractionLiteral<N2, D2>)
+{
+	return OpFractionLiteral<N1, D1>{} - OpFractionLiteral<N2, D2>{};
+}
+
+template<size_t N1, size_t D1, size_t N2, size_t D2>
+constexpr auto operator-(OpNegFractionLiteral<N1, D1>, OpFractionLiteral<N2, D2>)
+{
+	return -(OpFractionLiteral<N1, D1>{} + OpFractionLiteral<N2, D2>{});
+}
+
+template<size_t N1, size_t D1, size_t N2, size_t D2>
+constexpr auto operator+(OpNegFractionLiteral<N1, D1>, OpFractionLiteral<N2, D2>)
+{
+	return OpFractionLiteral<N2, D2>{} - OpFractionLiteral<N1, D1>{};
+}
+
+template<size_t N1, size_t D1, size_t N2, size_t D2>
+constexpr auto operator-(OpNegFractionLiteral<N1, D1>, OpNegFractionLiteral<N2, D2>)
+{
+	return OpFractionLiteral<N2, D2>{} - OpFractionLiteral<N1, D1>{};
+}
+
+template<size_t N1, size_t D1, size_t N2, size_t D2>
+constexpr auto operator+(OpNegFractionLiteral<N1, D1>, OpNegFractionLiteral<N2, D2>)
+{
+	return -(OpFractionLiteral<N1, D1>{} + OpFractionLiteral<N2, D2>{});
+}
+
+
+// Add and subtract with identities
+
+template<size_t N1, size_t D1>
+constexpr auto operator-(OpNegFractionLiteral<N1, D1>, OpIdentity)
+{
+	return OpNegFractionLiteral<N1, D1>{} - OpFractionLiteral<1, 1>{};
+}
+
+template<size_t N1, size_t D1>
+constexpr auto operator+(OpNegFractionLiteral<N1, D1>, OpIdentity)
+{
+	return OpNegFractionLiteral<N1, D1>{} + OpFractionLiteral<1, 1>{};
+}
+
+template<size_t N1, size_t D1>
+constexpr auto operator-(OpFractionLiteral<N1, D1>, OpIdentity)
+{
+	return OpFractionLiteral<N1, D1>{} - OpFractionLiteral<1, 1>{};
+}
+
+template<size_t N1, size_t D1>
+constexpr auto operator+(OpFractionLiteral<N1, D1>, OpIdentity)
+{
+	return OpFractionLiteral<N1, D1>{} + OpFractionLiteral<1, 1>{};
+}
+
+template<size_t N1, size_t D1>
+constexpr auto operator-(OpNegFractionLiteral<N1, D1>, OpNegIdentity)
+{
+	return OpNegFractionLiteral<N1, D1>{} + OpFractionLiteral<1, 1>{};
+}
+
+template<size_t N1, size_t D1>
+constexpr auto operator+(OpNegFractionLiteral<N1, D1>, OpNegIdentity)
+{
+	return OpNegFractionLiteral<N1, D1>{} - OpFractionLiteral<1, 1>{};
+}
+
+template<size_t N1, size_t D1>
+constexpr auto operator-(OpFractionLiteral<N1, D1>, OpNegIdentity)
+{
+	return OpFractionLiteral<N1, D1>{} + OpFractionLiteral<1, 1>{};
+}
+
+template<size_t N1, size_t D1>
+constexpr auto operator+(OpFractionLiteral<N1, D1>, OpNegIdentity)
+{
+	return OpFractionLiteral<N1, D1>{} - OpFractionLiteral<1, 1>{};
+}
+
+template<size_t N1, size_t D1>
+constexpr auto operator-(OpIdentity, OpNegFractionLiteral<N1, D1>)
+{
+	return OpFractionLiteral<1, 1>{} + OpFractionLiteral<N1, D1>{};
+}
+
+template<size_t N1, size_t D1>
+constexpr auto operator+(OpIdentity, OpNegFractionLiteral<N1, D1>)
+{
+	return OpFractionLiteral<1, 1>{} + OpNegFractionLiteral<N1, D1>{};
+}
+
+template<size_t N1, size_t D1>
+constexpr auto operator-(OpIdentity, OpFractionLiteral<N1, D1>)
+{
+	return OpFractionLiteral<1, 1>{} + OpNegFractionLiteral<N1, D1>{};
+}
+
+template<size_t N1, size_t D1>
+constexpr auto operator+(OpIdentity, OpFractionLiteral<N1, D1>)
+{
+	return OpFractionLiteral<1, 1>{} + OpFractionLiteral<N1, D1>{};
+}
+
+template<size_t N1, size_t D1>
+constexpr auto operator-(OpNegIdentity, OpNegFractionLiteral<N1, D1>)
+{
+	return OpNegFractionLiteral<1, 1>{} + OpFractionLiteral<N1, D1>{};
+}
+
+template<size_t N1, size_t D1>
+constexpr auto operator+(OpNegIdentity, OpFractionLiteral<N1, D1>)
+{
+	return OpNegFractionLiteral<1, 1>{} + OpFractionLiteral<N1, D1>{};
+}
+
+template<size_t N1, size_t D1>
+constexpr auto operator+(OpNegIdentity, OpNegFractionLiteral<N1, D1>)
+{
+	return OpNegFractionLiteral<1, 1>{} - OpFractionLiteral<N1, D1>{};
+}
+
+template<size_t N1, size_t D1>
+constexpr auto operator-(OpNegIdentity, OpFractionLiteral<N1, D1>)
+{
+	return OpNegFractionLiteral<1, 1>{} - OpFractionLiteral<N1, D1>{};
 }
 
 
 
+template<size_t N1, size_t D1>
+constexpr auto operator*(OpIdentity, OpNegFractionLiteral<N1, D1>)
+{
+	return OpNegFractionLiteral<N1, D1>{};
+}
+
+template<size_t N1, size_t D1>
+constexpr auto operator*(OpIdentity, OpFractionLiteral<N1, D1>)
+{
+	return OpFractionLiteral<N1, D1>{};
+}
+
+template<size_t N1, size_t D1>
+constexpr auto operator*(OpNegIdentity, OpNegFractionLiteral<N1, D1>)
+{
+	return OpFractionLiteral<N1, D1>{};
+}
+
+template<size_t N1, size_t D1>
+constexpr auto operator*(OpNegIdentity, OpFractionLiteral<N1, D1>)
+{
+	return OpNegFractionLiteral<N1, D1>{};
+}
+
+
+
+// add and subtract with normal scalar values
+
+
+template<typename fraction_t, typename T, 
+	typename = std::enable_if_t<(expr::is_fraction<fraction_t>
+		&& (std::is_same<T, scalar_t>::value || std::is_same<T, int>::value || std::is_same<T, complex_t>::value)), int>>
+auto operator-(fraction_t, T value)
+{
+	return static_cast<scalar_t>(fraction_t{}) - value;
+}
+
+template<typename fraction_t, typename T,
+	typename = std::enable_if_t<(expr::is_fraction<fraction_t>
+		&& (std::is_same<T, scalar_t>::value || std::is_same<T, int>::value || std::is_same<T, complex_t>::value)), int>>
+auto operator+(fraction_t, T value)
+{
+	return static_cast<scalar_t>(fraction_t{}) + value;
+}
+
+// divide with normal scalar values
+
+template<typename fraction_t, typename T,
+	typename = std::enable_if_t<(expr::is_fraction<fraction_t>
+		&& (std::is_same<T, scalar_t>::value || std::is_same<T, int>::value || std::is_same<T, complex_t>::value)), int>>
+auto operator/(fraction_t, T value)
+{
+	return static_cast<scalar_t>(fraction_t{}) * expr::inverse(value);
+}
+
+template<typename fraction_t, typename T,
+	typename = std::enable_if_t<(expr::is_fraction<fraction_t>
+		&& (std::is_same<T, scalar_t>::value || std::is_same<T, int>::value || std::is_same<T, complex_t>::value)), int>>
+auto operator/(T value, fraction_t)
+{
+	return value * static_cast<scalar_t>(expr::inverse(fraction_t{}));
+}
+
+
+// multiplication and division with expressions
+
+template<typename E, size_t N, size_t D>
+auto operator*(OpExpression<E> const& e, OpFractionLiteral<N, D>)
+{
+	return OpFractionLiteral<N, D>{} * *static_cast<E const*>(&e);
+}
+
+template<typename E, size_t N, size_t D>
+auto operator*(OpExpression<E> const& e, OpNegFractionLiteral<N, D>)
+{
+	return OpNegFractionLiteral<N, D>{} * *static_cast<E const*>(&e);
+}
+
+template<typename E, size_t N, size_t D>
+auto operator/(OpExpression<E> const& e, OpFractionLiteral<N, D>)
+{
+	return OpFractionLiteral<D, N>{} * *static_cast<E const*>(&e);
+}
+
+template<typename E, size_t N, size_t D>
+auto operator/(OpExpression<E> const& e, OpNegFractionLiteral<N, D>)
+{
+	return OpNegFractionLiteral<D, N>{} * *static_cast<E const*>(&e);
+}
+
+template<typename E, size_t N, size_t D>
+auto operator/(OpFractionLiteral<N, D>, OpExpression<E> const& e)
+{
+	return OpFractionLiteral<N, D>{} * expr::inverse(*static_cast<E const*>(&e));
+}
+
+template<typename E, size_t N, size_t D>
+auto operator/(OpNegFractionLiteral<N, D>, OpExpression<E> const& e)
+{
+	return OpNegFractionLiteral<N, D>{} * expr::inverse(*static_cast<E const*>(&e));
+}
+
+
+// multiplication and division between fractions
+
+template<size_t N1, size_t D1, size_t N2, size_t D2>
+constexpr auto operator*(OpFractionLiteral<N1, D1>, OpFractionLiteral<N2, D2>)
+{
+	return expr::make_fraction<N1* N2, D1* D2>();
+}
+
+template<size_t N1, size_t D1, size_t N2, size_t D2>
+constexpr auto operator*(OpNegFractionLiteral<N1, D1>, OpFractionLiteral<N2, D2>)
+{
+	return -expr::make_fraction<N1* N2, D1* D2>();
+}
+
+template<size_t N1, size_t D1, size_t N2, size_t D2>
+constexpr auto operator*(OpFractionLiteral<N1, D1>, OpNegFractionLiteral<N2, D2>)
+{
+	return -expr::make_fraction<N1* N2, D1* D2>();
+}
+
+template<size_t N1, size_t D1, size_t N2, size_t D2>
+constexpr auto operator*(OpNegFractionLiteral<N1, D1>, OpNegFractionLiteral<N2, D2>)
+{
+	return expr::make_fraction<N1* N2, D1* D2>();
+}
+
+template<size_t N1, size_t D1, size_t N2, size_t D2>
+constexpr auto operator/(OpFractionLiteral<N1, D1>, OpFractionLiteral<N2, D2>)
+{
+	return expr::make_fraction<N1* D2, D1* N2>();
+}
+
+template<size_t N1, size_t D1, size_t N2, size_t D2>
+constexpr auto operator/(OpNegFractionLiteral<N1, D1>, OpFractionLiteral<N2, D2>)
+{
+	return -expr::make_fraction<N1* D2, D1* N2>();
+}
+
+template<size_t N1, size_t D1, size_t N2, size_t D2>
+constexpr auto operator/(OpFractionLiteral<N1, D1>, OpNegFractionLiteral<N2, D2>)
+{
+	return -expr::make_fraction<N1* D2, D1* N2>();
+}
+
+template<size_t N1, size_t D1, size_t N2, size_t D2>
+constexpr auto operator/(OpNegFractionLiteral<N1, D1>, OpNegFractionLiteral<N2, D2>)
+{
+	return expr::make_fraction<N1 * D2, D1 * N2>();
+}
+
+template<size_t N1, size_t D1>
+constexpr auto operator/(OpFractionLiteral<N1, D1>, OpIdentity)
+{
+	return OpFractionLiteral<N1, D1>{};
+}
+
+template<size_t N2, size_t D2>
+constexpr auto operator/(OpIdentity, OpFractionLiteral<N2, D2>)
+{
+	return OpFractionLiteral<D2, N2>{};
+}
+
+template<size_t N1, size_t D1>
+constexpr auto operator/(OpFractionLiteral<N1, D1>, OpNegIdentity)
+{
+	return OpNegFractionLiteral<N1, D1>{};
+}
+
+template<size_t N2, size_t D2>
+constexpr auto operator/(OpNegIdentity, OpFractionLiteral<N2, D2>)
+{
+	return OpNegFractionLiteral<D2, N2>{};
+}
+
+template<size_t N1, size_t D1>
+constexpr auto operator/(OpNegFractionLiteral<N1, D1>, OpIdentity)
+{
+	return OpNegFractionLiteral<N1, D1>{};
+}
+
+template<size_t N2, size_t D2>
+constexpr auto operator/(OpIdentity, OpNegFractionLiteral<N2, D2>)
+{
+	return OpNegFractionLiteral<D2, N2>{};
+}
+
+template<size_t N1, size_t D1>
+constexpr auto operator/(OpNegFractionLiteral<N1, D1>, OpNegIdentity)
+{
+	return OpFractionLiteral<N1, D1>{};
+}
+
+template<size_t N2, size_t D2>
+constexpr auto operator/(OpNegIdentity, OpNegFractionLiteral<N2, D2>)
+{
+	return OpFractionLiteral<D2, N2>{};
+}
 
 // ******************************************************************************************
-
-
 
 
 
@@ -1172,95 +1476,17 @@ namespace expr
 }
 
 //! Addition of two variables with data that can be combined.
-template<typename A, typename B, typename G, typename std::enable_if<expr::is_combinable<G>, int>::type = 0>
-auto operator+(OpLVariable<A, G> const& a, OpLVariable<B, G> const& b)
+template<typename A, typename B, typename Dd, typename G, typename Sp, typename std::enable_if<expr::is_combinable<G>, int>::type = 0>
+auto operator+(OpFuncDerivative<Dd, A, OpTerm<OpIdentity, G>, Sp> const& a, OpFuncDerivative<Dd, B, OpTerm<OpIdentity, G>, Sp> const& b)
 {
-	return OpLVariable(a.value + b.value, a.data);
+	return (expr::coeff(a) + expr::coeff(b)) * OpFuncDerivative<Dd, OpIdentity, OpTerm<OpIdentity, G>, Sp>(OpIdentity{}, expr::get_enclosed_expression(a), a.solver);
 }
 
 //! Subtraction of two variables with data that can be combined.
-template<typename A, typename B, typename G, typename std::enable_if<expr::is_combinable<G>, int>::type = 0>
-auto operator-(OpLVariable<A, G> const& a, OpLVariable<B, G> const& b)
+template<typename A, typename B, typename Dd, typename G, typename Sp, typename std::enable_if<expr::is_combinable<G>, int>::type = 0>
+auto operator-(OpFuncDerivative<Dd, A, OpTerm<OpIdentity, G>, Sp> const& a, OpFuncDerivative<Dd, B, OpTerm<OpIdentity, G>, Sp> const& b)
 {
-	return OpLVariable(a.value - b.value, a.data);
-}
-
-//! Addition of two multi variables with data that can be combined.
-template<typename A, typename B, typename... G1s, typename... G2s,
-	typename std::enable_if<expr::nl_can_combine<G1s...>::template with<G2s...>::value, int>::type = 0>
-	auto operator+(OpNLVariable<A, G1s...> const& a, OpNLVariable<B, G2s...> const& b)
-{
-	return OpNLVariable(a.value + b.value, a.datas);
-}
-
-//! Subtraction of two multi variables with data that can be combined.
-template<typename A, typename B, typename... G1s, typename... G2s,
-	typename std::enable_if<expr::nl_can_combine<G1s...>::template with<G2s...>::value, int>::type = 0>
-	auto operator-(OpNLVariable<A, G1s...> const& a, OpNLVariable<B, G2s...> const& b)
-{
-	return OpNLVariable(a.value - b.value, a.datas);
-}
-
-
-
-//! Subtraction of two variables with data that cancel.
-template<typename G, typename std::enable_if<expr::is_combinable<G>, int>::type = 0>
-auto operator-(OpLVariable<OpIdentity, G> const&, OpLVariable<OpIdentity, G> const&)
-{
-	return OpVoid{};
-}
-
-//! Subtraction of two variables with data that cancel.
-template<typename G, typename std::enable_if<expr::is_combinable<G>, int>::type = 0>
-auto operator-(OpLVariable<OpNegIdentity, G> const&, OpLVariable<OpNegIdentity, G> const&)
-{
-	return OpVoid{};
-}
-
-//! Addition of two variables with data that cancel.
-template<typename G, typename std::enable_if<expr::is_combinable<G>, int>::type = 0>
-auto operator+(OpLVariable<OpNegIdentity, G> const&, OpLVariable<OpIdentity, G> const&)
-{
-	return OpVoid{};
-}
-
-//! Addition of two variables with data that cancel.
-template<typename G, typename std::enable_if<expr::is_combinable<G>, int>::type = 0>
-auto operator+(OpLVariable<OpIdentity, G> const&, OpLVariable<OpNegIdentity, G> const&)
-{
-	return OpVoid{};
-}
-
-//! Subtraction of two multi variables with data that cancel.
-template<typename... G1s, typename... G2s,
-	typename std::enable_if<expr::nl_can_combine<G1s...>::template with<G2s...>::value, int>::type = 0>
-	auto operator-(OpNLVariable<OpIdentity, G1s...> const&, OpNLVariable<OpIdentity, G2s...> const&)
-{
-	return OpVoid{};
-}
-
-//! Subtraction of two multi variables with data that cancel.
-template<typename... G1s, typename... G2s,
-	typename std::enable_if<expr::nl_can_combine<G1s...>::template with<G2s...>::value, int>::type = 0>
-	auto operator-(OpNLVariable<OpNegIdentity, G1s...> const&, OpNLVariable<OpNegIdentity, G2s...> const&)
-{
-	return OpVoid{};
-}
-
-//! Addition of two multi variables with data that cancel.
-template<typename... G1s, typename... G2s,
-	typename std::enable_if<expr::nl_can_combine<G1s...>::template with<G2s...>::value, int>::type = 0>
-	auto operator+(OpNLVariable<OpNegIdentity, G1s...> const&, OpNLVariable<OpIdentity, G2s...> const&)
-{
-	return OpVoid{};
-}
-
-//! Addition of two multi variables with data that cancel.
-template<typename... G1s, typename... G2s,
-	typename std::enable_if<expr::nl_can_combine<G1s...>::template with<G2s...>::value, int>::type = 0>
-	auto operator+(OpNLVariable<OpIdentity, G1s...> const&, OpNLVariable<OpNegIdentity, G2s...> const&)
-{
-	return OpVoid{};
+	return (expr::coeff(a) + expr::coeff(b)) * OpFuncDerivative<Dd, OpIdentity, OpTerm<OpIdentity, G>, Sp>(OpIdentity{}, expr::get_enclosed_expression(a), a.solver);
 }
 
 
@@ -1273,36 +1499,22 @@ template<typename... G1s, typename... G2s,
  ******************************************************************************/
 
 
- //! Applies an identity to the division between two variables.
-template<typename T1, typename T2, typename G1, typename G2,
-	typename std::enable_if<expr::d_idy<G1, G2>::enable, int>::type = 0>
-	auto operator/(OpLVariable<T1, G1> const& a, OpLVariable<T2, G2> const& b)
-{
-	return expr::d_idy<G1, G2>::template apply(a, b);
-}
 
-//! Division between two variables that can be reduced.
-/*!
- * A fundamental rule for division, needs to be implemented for each new
- * expression term individually, such that the same type will reduce to a
- * literal formed by the division of their leading coefficients combinations
- * of terms (addition and subtraction) do not satisfy this rule.
+
+
+
+
+
+
+/* Division rules for some other objects but will certainly not be used in
+ * practice.
  */
-template<typename T1, typename T2, typename G,
-	typename std::enable_if<(expr::is_combinable<G> && !expr::d_idy<G, G>::enable), int>::type = 0>
-	auto operator/(OpLVariable<T1, G> const& a, OpLVariable<T2, G> const& b)
-{
-	return expr::make_literal(a.value * (OpIdentity{} / b.value));
-}
 
-//! Perform a usual division when two variables have no identity.
-template<typename T1, typename T2, typename G1, typename G2,
-	typename std::enable_if<(!expr::is_same_base<G1, G2> && !expr::d_idy<G1, G2>::enable), int>::type = 0>
-	auto operator/(OpLVariable<T1, G1> const& a, OpLVariable<T2, G2> const& b)
+template<typename V1, typename V2, typename Dd, typename E, typename Sp>
+auto operator/(OpFuncDerivative<Dd, V1, E, Sp> const& a, OpFuncDerivative<Dd, V2, E, Sp> const& b)
 {
-	return expr::make_div(a, b);
+	return expr::make_literal(a.value * expr::inverse(b.value));
 }
-
 
 
 
@@ -1313,84 +1525,286 @@ template<typename T1, typename T2, typename G1, typename G2,
  *
  ******************************************************************************/
 
- //! Distributing subtraction expression into a subtraction expression.
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator*(OpBinarySub<A1, A2> const& a, OpBinarySub<B1, B2> const& b)
+
+
+namespace expr
 {
-	auto v1 = (*static_cast<const A1*>(&a.a)) * (*static_cast<const B1*>(&b.a));
-	auto v2 = (*static_cast<const A2*>(&a.b)) * (*static_cast<const B1*>(&b.a));
-	auto v3 = (*static_cast<const A1*>(&a.a)) * (*static_cast<const B2*>(&b.b));
-	auto v4 = (*static_cast<const A2*>(&a.b)) * (*static_cast<const B2*>(&b.b));
-	return v1 - v2 - v3 + v4;
+	namespace
+	{
+		template<typename E0, typename... Es, size_t... Is>
+		auto pick_like_terms(OpAdd<Es...> const&, std::index_sequence<Is...>)
+		{
+			using mask_t = std::integer_sequence<bool, !std::is_same<OpAdd<E0, Es>, add_result_t<E0, Es>>::value...>;
+			return std::make_pair(
+				symphas::lib::seq_join_t<std::index_sequence<>, std::conditional_t<symphas::lib::seq_index_value<Is, mask_t>::value, std::index_sequence<Is>, std::index_sequence<>>...>{},
+				symphas::lib::seq_join_t<std::index_sequence<>, std::conditional_t<!symphas::lib::seq_index_value<Is, mask_t>::value, std::index_sequence<Is>, std::index_sequence<>>...>{}
+			);
+		}
+
+		template<typename E0, typename... Es, size_t... Is>
+		auto apply_add(E0 const& e0, OpAdd<Es...> const& e, std::index_sequence<Is...>)
+		{
+			return (e0 + ... + expr::get<Is>(e));
+		}
+
+		template<typename... Seqs>
+		auto filter_rest(Seqs...)
+		{
+			return symphas::lib::intersect_seq_t<Seqs...>{};
+		}
+
+	}
+
+	template<typename... Es, size_t... Is>
+	auto neg_terms(OpAdd<Es...> const& e, std::index_sequence<Is...>)
+	{
+		return expr::make_add(-expr::get<Is>(e)...);
+	}
+
+	inline auto compile_add(OpAdd<> const& add)
+	{
+		return OpVoid{};
+	}
+
+	template<typename E0>
+	auto compile_add(OpAdd<E0> const& add)
+	{
+		return add.data;
+	}
+
+	template<typename E0, typename E1, typename... Es>
+	auto compile_add(OpAdd<E0, E1, Es...> const& add)
+	{
+		return add;
+	}
+
+	template<typename... Es, typename... E0s>
+	auto compile_add(OpAdd<Es...> const& pick, OpVoid e0, E0s&&... es);
+
+	template<typename... Es, typename E0, typename... E0s>
+	auto compile_add(OpAdd<Es...> const& add, E0 const& e0, E0s&&... es);
+
+	template<typename... Es, size_t... Is, typename... E0s>
+	auto compile_add(OpAdd<Es...> const& pick, std::index_sequence<Is...>, E0s&&... es);
+
+
+	template<typename... Es, typename E0, typename... E0s>
+	auto compile_add(OpAdd<Es...> const& add, E0 const& e0, E0s&&... es)
+	{
+		return compile_add(OpAdd(e0, add), std::forward<E0s>(es)...);
+	}
+
+	template<typename... Es, typename... E0s>
+	auto compile_add(OpAdd<Es...> const& pick, OpVoid e0, E0s&&... es)
+	{
+		return compile_add(pick, std::forward<E0s>(es)...);
+	}
+
+	template<typename... Es, size_t... Is, typename... E0s>
+	auto compile_add(OpAdd<Es...> const& pick, std::index_sequence<Is...>, E0s&&... es)
+	{
+		return compile_add(OpAdd(expr::get<Is>(pick)...), std::forward<E0s>(es)...);
+	}
+
+
+	template<typename A, typename... Es>
+	auto add_one(A const& add, OpAdd<Es...> const& e)
+	{
+		auto [like_seq, rest_seq] = pick_like_terms<A>(e, std::make_index_sequence<sizeof...(Es)>{});
+		return compile_add(e, rest_seq, apply_add(add, e, like_seq));
+	}
+
+	template<typename B, typename... Es>
+	auto add_one(OpAdd<Es...> const& e, B const& add)
+	{
+		auto [like_seq, rest_seq] = pick_like_terms<B>(e, std::make_index_sequence<sizeof...(Es)>{});
+		return compile_add(e, rest_seq, apply_add(add, e, like_seq));
+	}
+
+
+	template<typename E0>
+	auto add_all(E0 const& e0)
+	{
+		return e0;
+	}
+
+	template<typename E0, typename E1>
+	auto add_all(E0 const& e0, E1 const& e1)
+	{
+		return e0 + e1;
+	}
+
+	template<typename E0, typename E1, typename E2, typename... Es>
+	auto add_all(E0 const& e0, E1 const& e1, E2 const& e2, Es const& ...es)
+	{
+		return ((e0 + e1 + e2) + ... + es);
+	}
+
+	template<typename E0, typename E1, typename... Es, size_t... Is>
+	auto add_all(OpAdd<E0> const& e, std::index_sequence<Is...>)
+	{
+		return expr::get<0>(e);
+	}
+
+	template<typename E0, typename E1, typename... Es, size_t... Is>
+	auto add_all(OpAdd<E0, E1, Es...> const& e, std::index_sequence<Is...>)
+	{
+		return (expr::get<Is>(e) + ...);
+	}
+
+	template<typename... As, typename... E0s, size_t... Is>
+	auto add_group(OpAdd<As...> const& add, std::index_sequence<Is...>, OpAdd<E0s...> const& e)
+	{
+		using namespace symphas::lib;
+
+		using like_seq_t = types_list<decltype(pick_like_terms<As>(e, std::make_index_sequence<sizeof...(E0s)>{}))...>;
+		return compile_add(e, 
+			filter_rest(type_at_index<Is, unroll_types_list<like_seq_t>>{}.second...), 
+			apply_add(expr::get<Is>(add), e, type_at_index<Is, unroll_types_list<like_seq_t>>{}.first)...);
+	}
+
+	template<typename... As, typename... E0s, typename T0, typename... Ts, size_t... Is>
+	auto add_group(OpAdd<As...> const& add, std::index_sequence<Is...>, OpAdd<E0s...> const& e0, T0&& e1, Ts&&... rest);
+
+	template<typename E>
+	auto add_group(E const& e)
+	{
+		return e;
+	}
+
+	inline auto add_group()
+	{
+		return OpVoid{};
+	}
+
+	template<typename... As, typename... E0s, typename... Ts>
+	auto add_group(OpAdd<As...> const& add, OpAdd<E0s...> const& e, Ts&&... rest);
+
+	template<typename E1, typename E2, typename... Ts>
+	auto add_group(OpExpression<E1> const& e1, OpExpression<E2> const& e2, Ts&&... rest);
+
+	template<typename E, typename... E0s, typename... Ts>
+	auto add_group(OpExpression<E> const& add, OpAdd<E0s...> const& e, Ts&&... rest);
+
+	template<typename E, typename... E0s, typename... Ts>
+	auto add_group(OpAdd<E0s...> const& e, OpExpression<E> const& add, Ts&&... rest);
+
+	template<typename... As, typename... E0s, typename T0, typename... Ts, size_t... Is>
+	auto add_group(OpAdd<As...> const& add, std::index_sequence<Is...>, OpAdd<E0s...> const& e0, T0&& e1, Ts&&... rest);
+
+	template<typename E, typename... E0s, typename... Ts>
+	auto add_group(OpExpression<E> const& add, OpAdd<E0s...> const& e, Ts&&... rest)
+	{
+		return add_group(add_one(*static_cast<E const*>(&add), e), std::forward<Ts>(rest)...);
+	}
+
+	template<typename E, typename... E0s, typename... Ts>
+	auto add_group(OpAdd<E0s...> const& e, OpExpression<E> const& add, Ts&&... rest)
+	{
+		return add_group(add_one(e, *static_cast<E const*>(&add)), std::forward<Ts>(rest)...);
+	}
+
+	template<typename... As, typename... E0s, typename... Ts>
+	auto add_group(OpAdd<As...> const& add, OpAdd<E0s...> const& e, Ts&&... rest)
+	{
+		return add_group(add, std::make_index_sequence<sizeof...(As)>{}, e, std::forward<Ts>(rest)...);
+	}
+
+	template<typename E1, typename E2, typename... Ts>
+	auto add_group(OpExpression<E1> const& e1, OpExpression<E2> const& e2, Ts&&... rest)
+	{
+		return add_group(*static_cast<E1 const*>(&e1) + *static_cast<E2 const*>(&e2), std::forward<Ts>(rest)...);
+	}
+
+	template<typename... As, typename... E0s, typename T0, typename... Ts, size_t... Is>
+	auto add_group(OpAdd<As...> const& add, std::index_sequence<Is...>, OpAdd<E0s...> const& e0, T0&& e1, Ts&&... rest)
+	{
+		auto group0 = add_group(add, std::index_sequence<Is...>{}, e0);
+		return add_group(group0, std::forward<T0>(e1), std::forward<Ts>(rest)...);
+	}
+
+
+	//! Distributing addition expression into a addition expression.
+	template<typename A0, typename... Bs, size_t... Js, 
+		typename std::enable_if_t<(std::is_same<mul_result_t<A0, Bs>, OpBinaryMul<A0, Bs>>::value && ...), int> = 0>
+	auto distribute_adds(A0 const& a, OpAdd<Bs...> const& b, std::index_sequence<Js...>)
+	{
+		return expr::make_add((a * expr::get<Js>(b))...);
+	}
+
+	//! Distributing addition expression into a addition expression.
+	template<typename A0, typename... Bs, size_t... Js,
+		typename std::enable_if_t<!(std::is_same<mul_result_t<A0, Bs>, OpBinaryMul<A0, Bs>>::value && ...), int> = 0>
+	auto distribute_adds(A0 const& a, OpAdd<Bs...> const& b, std::index_sequence<Js...>)
+	{
+		return ((a * expr::get<Js>(b)) + ...);
+	}
+
+	//! Distributing addition expression into a addition expression.
+	template<typename... As, typename B0, size_t... Is,
+		typename std::enable_if_t<(std::is_same<mul_result_t<As, B0>, OpBinaryMul<As, B0>>::value && ...), int> = 0>
+	auto distribute_adds(OpAdd<As...> const& a, B0 const& b, std::index_sequence<Is...>)
+	{
+		return expr::make_add((expr::get<Is>(a) * b)...);
+	}
+
+	//! Distributing addition expression into a addition expression.
+	template<typename... As, typename B0, size_t... Is,
+		typename std::enable_if_t<!(std::is_same<mul_result_t<As, B0>, OpBinaryMul<As, B0>>::value && ...), int> = 0>
+	auto distribute_adds(OpAdd<As...> const& a, B0 const& b, std::index_sequence<Is...>)
+	{
+		return ((expr::get<Is>(a) * b) + ...);
+	}
+
+	//! Distributing addition expression into a addition expression.
+	template<typename... As, typename... Bs, size_t... Is, size_t... Js>
+	auto distribute_adds(OpAdd<As...> const& a, OpAdd<Bs...> const& b, std::index_sequence<Is...>, std::index_sequence<Js...>)
+	{
+		return add_group(distribute_adds(expr::get<Is>(a), b, std::index_sequence<Js...>{})...);
+	}
 }
 
-//! Distributing addition expression into a subtraction expression.
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator*(OpBinaryAdd<A1, A2> const& a, OpBinarySub<B1, B2> const& b)
-{
-	auto v1 = (*static_cast<const A1*>(&a.a)) * (*static_cast<const B1*>(&b.a));
-	auto v2 = (*static_cast<const A2*>(&a.b)) * (*static_cast<const B1*>(&b.a));
-	auto v3 = (*static_cast<const A1*>(&a.a)) * (*static_cast<const B2*>(&b.b));
-	auto v4 = (*static_cast<const A2*>(&a.b)) * (*static_cast<const B2*>(&b.b));
-	return v1 + v2 - v3 - v4;
-}
-
-//! Distributing subtraction expression into a addition expression.
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator*(OpBinarySub<A1, A2> const& a, OpBinaryAdd<B1, B2> const& b)
-{
-	auto v1 = (*static_cast<const A1*>(&a.a)) * (*static_cast<const B1*>(&b.a));
-	auto v2 = (*static_cast<const A2*>(&a.b)) * (*static_cast<const B1*>(&b.a));
-	auto v3 = (*static_cast<const A1*>(&a.a)) * (*static_cast<const B2*>(&b.b));
-	auto v4 = (*static_cast<const A2*>(&a.b)) * (*static_cast<const B2*>(&b.b));
-	return v1 - v2 + v3 - v4;
-}
 
 //! Distributing addition expression into a addition expression.
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator*(OpBinaryAdd<A1, A2> const& a, OpBinaryAdd<B1, B2> const& b)
+template<typename... As, typename... Bs>
+auto operator*(OpAdd<As...> const& a, OpAdd<Bs...> const& b)
 {
-	auto v1 = (*static_cast<const A1*>(&a.a)) * (*static_cast<const B1*>(&b.a));
-	auto v2 = (*static_cast<const A2*>(&a.b)) * (*static_cast<const B1*>(&b.a));
-	auto v3 = (*static_cast<const A1*>(&a.a)) * (*static_cast<const B2*>(&b.b));
-	auto v4 = (*static_cast<const A2*>(&a.b)) * (*static_cast<const B2*>(&b.b));
-	return v1 + v2 + v3 + v4;
-}
-
-//! Distributing an LHS expression between operands in addition expression.
-template<typename A1, typename B1, typename B2>
-auto operator*(OpExpression<A1> const& a, OpBinaryAdd<B1, B2> const& b)
-{
-	auto v1 = (*static_cast<const A1*>(&a)) * (*static_cast<const B1*>(&b.a));
-	auto v2 = (*static_cast<const A1*>(&a)) * (*static_cast<const B2*>(&b.b));
-	return v1 + v2;
+	return expr::distribute_adds(a, b, std::make_index_sequence<sizeof...(As)>{}, std::make_index_sequence<sizeof...(Bs)>{});
 }
 
 //! Distributing an RHS expression between operands in addition expression.
-template<typename B2, typename A1, typename A2>
-auto operator*(OpBinaryAdd<A1, A2> const& a, OpExpression<B2> const& b)
+template<typename... As, typename B2, 
+	typename std::enable_if_t<(!expr::is_identity<B2> && !expr::is_fraction<B2> && !expr::is_coeff<OpAdd<As...>>), int> = 0>
+auto operator*(OpAdd<As...> const& a, OpExpression<B2> const& b)
 {
-	auto v1 = (*static_cast<const A1*>(&a.a)) * (*static_cast<const B2*>(&b));
-	auto v2 = (*static_cast<const A2*>(&a.b)) * (*static_cast<const B2*>(&b));
-	return v1 + v2;
+	return expr::distribute_adds(a, *static_cast<const B2*>(&b),
+		std::make_index_sequence<sizeof...(As)>{});
 }
 
-//! Distributing an LHS expression between operands in subtraction expression.
-template<typename A1, typename B1, typename B2>
-auto operator*(OpExpression<A1> const& a, OpBinarySub<B1, B2> const& b)
+//! Distributing an LHS expression between operands in addition expression.
+template<typename A1, typename... Bs,
+	typename std::enable_if_t<(!expr::is_identity<A1> && !expr::is_coeff<OpAdd<Bs...>>), int> = 0>
+auto operator*(OpExpression<A1> const& a, OpAdd<Bs...> const& b)
 {
-	auto v1 = (*static_cast<const A1*>(&a)) * (*static_cast<const B1*>(&b.a));
-	auto v2 = (*static_cast<const A1*>(&a)) * (*static_cast<const B2*>(&b.b));
-	return v1 - v2;
+	return expr::distribute_adds(*static_cast<const A1*>(&a), b,
+		std::make_index_sequence<sizeof...(Bs)>{});
 }
 
-//! Distributing an RHS expression between operands in subtraction expression.
-template<typename B2, typename A1, typename A2>
-auto operator*(OpBinarySub<A1, A2> const& a, OpExpression<B2> const& b)
+
+//! Distributing an LHS expression between operands in addition expression.
+template<typename A1, typename... Bs,
+	typename std::enable_if_t<(expr::is_coeff<OpAdd<Bs...>>), int> = 0>
+auto operator*(OpExpression<A1> const& a, OpAdd<Bs...> const& b)
 {
-	auto v1 = (*static_cast<const A1*>(&a.a)) * (*static_cast<const B2*>(&b));
-	auto v2 = (*static_cast<const A2*>(&a.b)) * (*static_cast<const B2*>(&b));
-	return v1 - v2;
+	return expr::distribute_adds(*static_cast<const A1*>(&a), b,
+		std::make_index_sequence<sizeof...(Bs)>{});
+}
+
+//! Distributing an LHS expression between operands in addition expression.
+template<typename... Bs, typename std::enable_if_t<(expr::is_coeff<OpAdd<Bs...>>), int> = 0>
+auto operator*(OpIdentity const& a, OpAdd<Bs...> const& b)
+{
+	return b;
 }
 
 
@@ -1398,203 +1812,61 @@ auto operator*(OpBinarySub<A1, A2> const& a, OpExpression<B2> const& b)
 template<typename T, typename B1, typename B2>
 auto operator*(OpLiteral<T> const& a, OpBinaryMul<B1, B2> const& b)
 {
-	return (a * b.a) * b.b;
+	return expr::make_mul(a * b.a, b.b);
 }
 
 //! Distributing a literal into the first operand in division expression.
 template<typename T, typename B1, typename B2>
 auto operator*(OpLiteral<T> const& a, OpBinaryDiv<B1, B2> const& b)
 {
-	return (a * b.a) / b.b;
+	return expr::make_div(a * b.a, b.b);
 }
 
+//! Distributing a literal into the first operand in multiplication expression.
+template<typename coeff_t, typename B1, typename B2, typename std::enable_if_t<(expr::is_fraction<coeff_t>), int> = 0>
+auto operator*(coeff_t, OpBinaryMul<B1, B2> const& b)
+{
+	return expr::make_mul(coeff_t{} * b.a, b.b);
+}
 
-
+//! Distributing a literal into the first operand in division expression.
+template<typename coeff_t, typename B1, typename B2, typename std::enable_if_t<(expr::is_fraction<coeff_t>), int> = 0>
+auto operator*(coeff_t, OpBinaryDiv<B1, B2> const& b)
+{
+	return expr::make_div(coeff_t{} * b.a, b.b);
+}
 
 namespace symphas::internal
 {
-	using expr::has_nmi_coeff;
 
-	/*
-	 *
-	 * Overloads to simplify expressions for addition and subtraction.
-	 *
-	 ******************************************************************************/
-
-	 //! End of the recursion for addition.
+	 //! Terminates the multiplication recursion of expressions.
 	 /*!
-	  * Terminate the addition recursion, which groups like terms and return the
-	  * final expression. Completes the addition by adding the *second* term of the
-	  * addition with the second parameter.
+	  * These multiplication rules take into account multiplication between variables
+	  * and existing multiplication objects, so that variables which don't multiply
+	  * with each other can be multiplied into a new variable which allows putting
+	  * them into a multi variable.
+	  *
+	  * Consequently this assumes all multiplication is associative.
+	  *
+	  * Another assumption is that multiplication between objects that don't
+	  * multiply with each other is commutative. i.e.:
+	  * consider objects \f$A\f$, \f$B\f$ and \f$C\f$. \f$A\f$ and \f$B\f$ can be
+	  * multiplied with each other to produce a multi variable variable, but \f$C\f$
+	  * can only be multiplied with itself to produce a multi variable. Then
+	  * \f$A \cdot B = AB\f$, but \f$A \cdot C = A \cdot C\f$ and
+	  * \f$B \cdot C = B \cdot C\f$ however, the last two expressions are assumed to
+	  * commute, e.g. \f$A \cdot C = C \cdot A\f$.
 	  */
-	template<typename E1, typename E2, typename std::enable_if_t<!has_nmi_coeff<E1>, int> = 0>
-	auto terminate_add_2(OpExpression<E1> const& a, OpExpression<E2> const& b)
-	{
-		return expr::make_add(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b));
-	}
-
-	template<typename E>
-	auto terminate_add_2(OpExpression<E> const& a, OpVoid const)
-	{
-		return *static_cast<E const*>(&a);
-	}
-
-	template<typename E>
-	auto terminate_add_2(OpVoid const, OpExpression<E> const& b)
-	{
-		return *static_cast<E const*>(&b);
-	}
-
-	//! End of the recursion for subtraction.
-	/*!
-	 * See terminate_add_2(OpExpression const&, OpExpression const& b).
-	 */
-	template<typename E1, typename E2, typename std::enable_if_t<!has_nmi_coeff<E1>, int> = 0>
-	auto terminate_sub_2(OpExpression<E1> const& a, OpExpression<E2> const& b)
-	{
-		return expr::make_sub(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b));
-	}
-
-	template<typename E>
-	auto terminate_sub_2(OpExpression<E> const& a, OpVoid const)
-	{
-		return *static_cast<E const*>(&a);
-	}
-
-	template<typename E>
-	auto terminate_sub_2(OpVoid const, OpExpression<E> const& b)
-	{
-		return -*static_cast<E const*>(&b);
-	}
-
-
-	//! Overloaded end of the recursion for subtraction, removing double minus.
-	/*
-	 * See terminate_add_2(OpExpression const&, OpExpression const& b).
-	 */
-	template<typename E, typename E1, typename E2, typename std::enable_if_t<has_nmi_coeff<E1>, int> = 0>
-	auto terminate_sub_2(OpExpression<E> const& a, OpBinaryAdd<E1, E2> const& b)
-	{
-		return expr::make_add(*static_cast<E const*>(&a), -b.a - b.b);
-	}
-	
-	template<typename E, typename E1, typename E2, typename std::enable_if_t<has_nmi_coeff<E1>, int> = 0>
-	auto terminate_sub_2(OpExpression<E> const& a, OpBinarySub<E1, E2> const& b)
-	{
-		return expr::make_add(*static_cast<E const*>(&a), -b.a + b.b);
-	}
-
-	template<typename E1, typename E2, typename std::enable_if_t<has_nmi_coeff<E1>, int> = 0>
-	auto terminate_sub_2(OpExpression<E1> const& a, OpExpression<E2> const& b)
-	{
-		return expr::make_add(*static_cast<E1 const*>(&a), -*static_cast<E2 const*>(&b));
-	}
-
-
-	//! Overloaded end of the recursion for addition, removing leading minus.
-	/*
-	 * See terminate_add_2(OpExpression const&, OpExpression const& b).
-	 */
-	template<typename E, typename E1, typename E2, typename std::enable_if_t<has_nmi_coeff<E1>, int> = 0>
-	auto terminate_add_2(OpExpression<E> const& a, OpBinaryAdd<E1, E2> const& b)
-	{
-		return expr::make_sub(*static_cast<E const*>(&a), -b.a - b.b);
-	}
-
-	template<typename E, typename E1, typename E2, typename std::enable_if_t<has_nmi_coeff<E1>, int> = 0>
-	auto terminate_add_2(OpExpression<E> const& a, OpBinarySub<E1, E2> const& b)
-	{
-		return expr::make_sub(*static_cast<E const*>(&a), -b.a + b.b);
-	}
-
-	template<typename E1, typename E2, typename std::enable_if_t<has_nmi_coeff<E1>, int> = 0>
-	auto terminate_add_2(OpExpression<E1> const& a, OpExpression<E2> const& b)
-	{
-		return expr::make_sub(*static_cast<E1 const*>(&a), -*static_cast<E2 const*>(&b));
-	}
-
-
-
-
-
-	//! Last step before end of recursion for addition.
-	/*!
-	 * Used in reorganizing the addition between two expressions before ending the
-	 * recursion. See terminate_add_2(OpExpression const&, OpExpression const& b).
-	 */
-	template<typename E1, typename E2>
-	auto terminate_add(OpExpression<E1> const& a, OpExpression<E2> const& b)
-	{
-		return terminate_add_2(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b));
-	}
-
-	template<typename A1, typename A2, typename E>
-	auto terminate_add(OpBinaryAdd<A1, A2> const& a, OpExpression<E> const& b)
-	{
-		return terminate_add_2(a.a, a.b + *static_cast<E const*>(&b));
-	}
-
-	template<typename A1, typename A2, typename E>
-	auto terminate_add(OpBinarySub<A1, A2> const& a, OpExpression<E> const& b)
-	{
-		return terminate_sub_2(a.a, a.b - *static_cast<E const*>(&b));
-	}
-
-
-	//! Last step before end of recursion for subtraction.
-	/*!
-	 * Used in reorganizing the addition between two expressions before ending the
-	 * recursion. See terminate_sub_2(OpExpression const&, OpExpression const& b).
-	 */
-	template<typename E1, typename E2>
-	auto terminate_sub(OpExpression<E1> const& a, OpExpression<E2> const& b)
-	{
-		return terminate_sub_2(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b));
-	}
-
-	template<typename A1, typename A2, typename E>
-	auto terminate_sub(OpBinaryAdd<A1, A2> const& a, OpExpression<E> const& b)
-	{
-		return terminate_add_2(a.a, a.b - *static_cast<E const*>(&b));
-	}
-
-	template<typename A1, typename A2, typename E>
-	auto terminate_sub(OpBinarySub<A1, A2> const& a, OpExpression<E> const& b)
-	{
-		return terminate_sub_2(a.a, a.b + *static_cast<E const*>(&b));
-	}
-
-
-
-
-	//! Terminates the multiplication recursion of expressions.
-	/*!
-	 * These multiplication rules take into account multiplication between variables
-	 * and existing multiplication objects, so that variables which don't multiply
-	 * with each other can be multiplied into a new variable which allows putting
-	 * them into a multi variable.
-	 *
-	 * Consequently this assumes all multiplication is associative.
-	 *
-	 * Another assumption is that multiplication between objects that don't
-	 * multiply with each other is commutative. i.e.:
-	 * consider objects \f$A\f$, \f$B\f$ and \f$C\f$. \f$A\f$ and \f$B\f$ can be
-	 * multiplied with each other to produce a multi variable variable, but \f$C\f$
-	 * can only be multiplied with itself to produce a multi variable. Then
-	 * \f$A \cdot B = AB\f$, but \f$A \cdot C = A \cdot C\f$ and
-	 * \f$B \cdot C = B \cdot C\f$ however, the last two expressions are assumed to
-	 * commute, e.g. \f$A \cdot C = C \cdot A\f$.
-	 */
 	template<typename E1, typename E2>
 	auto terminate_mul(OpExpression<E1> const& a, OpExpression<E2> const& b)
 	{
-		return expr::reevaluate(expr::make_mul(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b)));
+		return expr::make_mul(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b));
 	}
 
 	template<typename A1, typename A2, typename E>
 	auto terminate_mul(OpBinaryMul<A1, A2> const& a, OpExpression<E> const& b)
 	{
-		return expr::reevaluate(expr::make_mul(a.a * (*static_cast<E const*>(&b)), a.b));
+		return expr::make_mul(a.a, a.b * (*static_cast<E const*>(&b)));
 	}
 
 }
@@ -1611,101 +1883,40 @@ namespace symphas::internal
  *
  ******************************************************************************/
 
-template<typename A1, typename A2, typename E>
-auto operator+(OpExpression<E> const& a, OpBinaryAdd<A1, A2> const& b)
+template<typename... As, typename E>
+auto operator+(OpExpression<E> const& a, OpAdd<As...> const& b)
 {
-	return symphas::internal::terminate_add(b.a + *static_cast<E const*>(&a), b.b);
+	return expr::add_one(*static_cast<E const*>(&a), b);
 }
 
-template<typename A1, typename A2, typename E>
-auto operator+(OpBinaryAdd<A1, A2> const& a, OpExpression<E> const& b)
+template<typename... As, typename E>
+auto operator+(OpAdd<As...> const& a, OpExpression<E> const& b)
 {
-	return symphas::internal::terminate_add(a.a + *static_cast<E const*>(&b), a.b);
+	return expr::add_one(a, *static_cast<E const*>(&b));
 }
 
-template<typename A1, typename A2, typename E>
-auto operator+(OpExpression<E> const& a, OpBinarySub<A1, A2> const& b)
+template<typename... Bs, typename E>
+auto operator-(OpExpression<E> const& a, OpAdd<Bs...> const& b)
 {
-	return symphas::internal::terminate_sub(b.a + *static_cast<E const*>(&a), b.b);
+	return expr::add_one(*static_cast<E const*>(&a), expr::neg_terms(b, std::make_index_sequence<sizeof...(Bs)>{}));
 }
 
-template<typename A1, typename A2, typename E>
-auto operator+(OpBinarySub<A1, A2> const& a, OpExpression<E> const& b)
+template<typename... As, typename E>
+auto operator-(OpAdd<As...> const& a, OpExpression<E> const& b)
 {
-	return symphas::internal::terminate_sub(a.a + *static_cast<E const*>(&b), a.b);
+	return expr::add_one(a, -*static_cast<E const*>(&b));
 }
 
-template<typename A1, typename A2, typename E>
-auto operator-(OpExpression<E> const& a, OpBinaryAdd<A1, A2> const& b)
+template<typename... As, typename... Bs>
+auto operator+(OpAdd<As...> const& a, OpAdd<Bs...> const& b)
 {
-	return symphas::internal::terminate_sub(-b.a + *static_cast<E const*>(&a), b.b);
+	return expr::add_group(a, std::make_index_sequence<sizeof...(As)>{}, b);
 }
 
-template<typename A1, typename A2, typename E>
-auto operator-(OpBinaryAdd<A1, A2> const& a, OpExpression<E> const& b)
+template<typename... As, typename... Bs>
+auto operator-(OpAdd<As...> const& a, OpAdd<Bs...> const& b)
 {
-	return symphas::internal::terminate_add(a.a - *static_cast<E const*>(&b), a.b);
-}
-
-template<typename A1, typename A2, typename E>
-auto operator-(OpExpression<E> const& a, OpBinarySub<A1, A2> const& b)
-{
-	return symphas::internal::terminate_add(-b.a + *static_cast<E const*>(&a), b.b);
-}
-
-template<typename A1, typename A2, typename E>
-auto operator-(OpBinarySub<A1, A2> const& a, OpExpression<E> const& b)
-{
-	return symphas::internal::terminate_sub(a.a - *static_cast<E const*>(&b), a.b);
-}
-
-
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator+(OpBinaryAdd<A1, A2> const& a, OpBinaryAdd<B1, B2> const& b)
-{
-	return a.a + (a.b + b);
-}
-
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator+(OpBinaryAdd<A1, A2> const& a, OpBinarySub<B1, B2> const& b)
-{
-	return a.a + (a.b + b);
-}
-
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator+(OpBinarySub<A1, A2> const& a, OpBinaryAdd<B1, B2> const& b)
-{
-	return a.a - (a.b - b);
-}
-
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator+(OpBinarySub<A1, A2> const& a, OpBinarySub<B1, B2> const& b)
-{
-	return a.a - (a.b - b);
-}
-
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator-(OpBinaryAdd<A1, A2> const& a, OpBinaryAdd<B1, B2> const& b)
-{
-	return a.a + (a.b - b);
-}
-
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator-(OpBinaryAdd<A1, A2> const& a, OpBinarySub<B1, B2> const& b)
-{
-	return a.a + (a.b - b);
-}
-
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator-(OpBinarySub<A1, A2> const& a, OpBinaryAdd<B1, B2> const& b)
-{
-	return a.a - (a.b + b);
-}
-
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator-(OpBinarySub<A1, A2> const& a, OpBinarySub<B1, B2> const& b)
-{
-	return a.a - (a.b + b);
+	return expr::add_group(a, std::make_index_sequence<sizeof...(As)>{}, expr::neg_terms(b, std::make_index_sequence<sizeof...(Bs)>{}));
 }
 
 
@@ -1716,35 +1927,23 @@ auto operator-(OpBinarySub<A1, A2> const& a, OpBinarySub<B1, B2> const& b)
  ******************************************************************************/
 
 
-template<typename A1, typename A2, typename T, typename G>
-auto operator*(OpBinaryMul<A1, A2> const& a, OpLVariable<T, G> const& b)
-{
-	return a.a * (a.b * b);
-}
-
-template<typename T, typename G, typename B1, typename B2>
-auto operator*(OpLVariable<T, G> const& a, OpBinaryMul<B1, B2> const& b)
-{
-	return symphas::internal::terminate_mul(a * b.a, b.b);
-}
-
-template<typename A1, typename A2, typename T, typename... Gs>
-auto operator*(OpBinaryMul<A1, A2> const& a, OpNLVariable<T, Gs...> const& b)
-{
-	return a.a * (a.b * b);
-}
-
-template<typename T, typename... Gs, typename B1, typename B2>
-auto operator*(OpNLVariable<T, Gs...> const& a, OpBinaryMul<B1, B2> const& b)
-{
-	return symphas::internal::terminate_mul(a * b.a, b.b);
-}
-
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator*(OpBinaryMul<A1, A2> const& a, OpBinaryMul<B1, B2> const& b)
-{
-	return a.a * (a.b * b);
-}
+//template<typename A1, typename A2, typename V, typename... Gs, expr::exp_key_t... Xs>
+//auto operator*(OpBinaryMul<A1, A2> const& a, OpTerms<V, Term<Gs, Xs>...> const& b)
+//{
+//	return symphas::internal::terminate_mul(a.a, (a.b * expr::coeff(b)) * OpTerms(OpIdentity{}, expr::terms_after_first(b)));
+//}
+//
+//template<typename V, typename... Gs, expr::exp_key_t... Xs, typename B1, typename B2>
+//auto operator*(OpTerms<V, Term<Gs, Xs>...> const& a, OpBinaryMul<B1, B2> const& b)
+//{
+//	return symphas::internal::terminate_mul(a * b.a, b.b);
+//}
+//
+//template<typename A1, typename A2, typename B1, typename B2>
+//auto operator*(OpBinaryMul<A1, A2> const& a, OpBinaryMul<B1, B2> const& b)
+//{
+//	return a.a * (a.b * b);
+//}
 
 
 
@@ -1756,223 +1955,207 @@ namespace symphas::internal
 
 	//! Terminates the recursion of the division operation.
 	/*!
-	 * Endpoint of the recursion for applying the division rules, which multiplies
-	 * two reduced terms, with a key emphasis on reduced terms. there are several
+	 * Endpoint of the recursion for applying the division rules, which **multiplies**
+	 * two reduced terms, with a key emphasis on reduced terms. There are several
 	 * rules for handling various reduced forms. There is also the capability to
 	 * automatically reduce terms. Makes the assumption that a division is always
 	 * the first term given to the function.
 	 */
-	template<typename A2, typename E>
-	auto terminate_div(OpBinaryDiv<OpIdentity, A2> const& a, OpExpression<E> const& b)
-	{
-		return expr::make_div((*static_cast<const E*>(&b)), (*static_cast<const A2*>(&a.b)));
-	}
-
-	template<typename A2, typename E>
-	auto terminate_div(OpBinaryDiv<OpNegIdentity, A2> const& a, OpExpression<E> const& b)
-	{
-		return expr::make_div(-(*static_cast<const E*>(&b)), (*static_cast<const A2*>(&a.b)));
-	}
-
-	template<typename T, typename A2, typename E>
-	auto terminate_div(OpBinaryDiv<OpLiteral<T>, A2> const& a, OpExpression<E> const& b)
-	{
-		return expr::make_div(a.a * (*static_cast<const E*>(&b)), (*static_cast<const A2*>(&a.b)));
-	}
-
-	template<typename A1, typename A2, typename E>
+	template<typename A1, typename A2, typename E,
+		typename std::enable_if_t<(expr::factor_list_all<E, A2>::value == 0), int> = 0>
 	auto terminate_div(OpBinaryDiv<A1, A2> const& a, OpExpression<E> const& b)
 	{
-		return expr::make_mul(a, (*static_cast<const E*>(&b)));
+		return expr::make_div(a.a * (*static_cast<const E*>(&b)), a.b);
 	}
 
-	template<typename A1, typename A2, typename B1, typename B2>
+	template<typename A1, typename A2, typename E,
+		typename std::enable_if_t<(expr::factor_list_all<E, A2>::value > 0), int> = 0>
+	auto terminate_div(OpBinaryDiv<A1, A2> const& a, OpExpression<E> const& b)
+	{
+		return a.a * ((*static_cast<const E*>(&b)) / a.b);
+	}
+
+	template<typename B1, typename B2, typename E,
+		typename std::enable_if_t<(expr::factor_list_all<E, B2>::value == 0), int> = 0>
+	auto terminate_div(OpExpression<E> const& a, OpBinaryDiv<B1, B2> const& b)
+	{
+		return expr::make_div((*static_cast<const E*>(&a)) * b.a, b.b);
+	}
+
+	template<typename B1, typename B2, typename E,
+		typename std::enable_if_t<(expr::factor_list_all<E, B2>::value > 0), int> = 0>
+	auto terminate_div(OpExpression<E> const& a, OpBinaryDiv<B1, B2> const& b)
+	{
+		return ((*static_cast<const E*>(&a)) / b.b) * b.a;
+	}
+
+
+	template<typename A1, typename A2, typename B1, typename B2,
+		typename std::enable_if_t<(expr::factor_list_all<A1, B2>::value == 0 && expr::factor_list_all<A2, B1>::value == 0), int> = 0>
 	auto terminate_div(OpBinaryDiv<A1, A2> const& a, OpBinaryDiv<B1, B2> const& b)
 	{
 		return expr::make_div(
-			(*static_cast<const A1*>(&a.a)) * (*static_cast<const B1*>(&b.a)),
-			(*static_cast<const A2*>(&a.b)) * (*static_cast<const B2*>(&b.b)));
+			a.a * b.a,
+			a.b * b.b);
 	}
 
-
-	template<typename A1, typename A2, typename T>
-	auto terminate_div(OpBinaryDiv<A1, A2> const& a, OpLiteral<T> const& b)
+	template<typename A1, typename A2, typename B1, typename B2,
+		typename std::enable_if_t<(expr::factor_list_all<A1, B2>::value > 0 || expr::factor_list_all<A2, B1>::value > 0), int> = 0>
+	auto terminate_div(OpBinaryDiv<A1, A2> const& a, OpBinaryDiv<B1, B2> const& b)
 	{
-		return b * a;
+		return (a.a * b.a) / (a.b * b.b);
 	}
-
-	template<typename A1, typename A2>
-	auto terminate_div(OpBinaryDiv<A1, A2> const& a, OpIdentity const)
-	{
-		return a;
-	}
-
-	template<typename A1, typename A2>
-	auto terminate_div(OpBinaryDiv<A1, A2> const& a, OpNegIdentity const)
-	{
-		return -a;
-	}
-
 
 	template<typename E, typename T>
-	auto terminate_div(OpLiteral<T> const& a, OpExpression<E> const& b)
+	auto terminate_div(OpLiteral<T> const& a, OpExpression<E> const& e)
 	{
-		return (*static_cast<const E*>(&b)) * a;
+		return a * (*static_cast<const E*>(&e));
 	}
 
-	template<typename E>
-	auto terminate_div(OpIdentity const, OpExpression<E> const& b)
+	template<typename E, typename T>
+	auto terminate_div(OpExpression<E> const& e, OpLiteral<T> const& a)
 	{
-		return (*static_cast<const E*>(&b));
+		return a * (*static_cast<const E*>(&e));
 	}
 
-	template<typename E>
-	auto terminate_div(OpNegIdentity const, OpExpression<E> const& b)
+	template<typename coeff_t, typename A, typename B,
+		typename std::enable_if_t<(expr::is_identity<coeff_t> || expr::is_fraction<coeff_t>), int> = 0>
+	auto terminate_div(coeff_t, OpBinaryDiv<A, B> const& b)
 	{
-		return -(*static_cast<const E*>(&b));
+		return coeff_t{} * expr::make_div(b.a, b.b);
 	}
 
-	template<typename T, typename G, typename E>
-	auto terminate_div(OpLVariable<T, G> const& a, OpExpression<E> const& b)
+	template<typename coeff_t, typename A, typename B,
+		typename std::enable_if_t<(expr::is_identity<coeff_t> || expr::is_fraction<coeff_t>), int> = 0>
+	auto terminate_div(OpBinaryDiv<A, B> const& a, coeff_t)
 	{
-		return expr::make_mul(a, (*static_cast<const E*>(&b)));
+		return coeff_t{} * expr::make_div(a.a, a.b);
 	}
-
-	template<typename T, typename G, typename S>
-	auto terminate_div(OpLVariable<T, G> const& a, OpLiteral<S> const& b)
-	{
-		return b * a;
-	}
-
-	template<typename T, typename G>
-	auto terminate_div(OpLVariable<T, G> const& a, OpIdentity const)
-	{
-		return a;
-	}
-
-	template<typename T, typename G>
-	auto terminate_div(OpLVariable<T, G> const& a, OpNegIdentity const)
-	{
-		return -a;
-	}
-
 
 
 	template<typename A1, typename A2, typename E>
 	auto terminate_div(OpBinaryMul<A1, A2> const& a, OpExpression<E> const& b)
 	{
-		return expr::make_mul(a, (*static_cast<const E*>(&b)));
+		return a.a * (a.b * *static_cast<E const*>(&b));
 	}
 
-	template<typename A1, typename A2, typename T>
-	auto terminate_div(OpBinaryMul<A1, A2> const& a, OpLiteral<T> const& b)
+	template<typename B1, typename B2, typename E>
+	auto terminate_div(OpExpression<E> const& a, OpBinaryMul<B1, B2> const& b)
 	{
-		return b * a;
+		return ((*static_cast<E const*>(&a)) * b.a) * b.b;
 	}
 
-	template<typename A1, typename A2>
-	auto terminate_div(OpBinaryMul<A1, A2> const& a, OpIdentity const)
-	{
-		return a;
-	}
-
-	template<typename A1, typename A2>
-	auto terminate_div(OpBinaryMul<A1, A2> const& a, OpNegIdentity const)
-	{
-		return -a;
-	}
-
-	/* handles a special case; puts the 2nd parameter into the denominator of the
-	 * first
-	 */
 
 	template<typename E1, typename E2>
-	auto to_denom(OpExpression<E1> const& a, OpExpression<E2> const& b)
+	auto terminate_div(OpExpression<E1> const& a, OpExpression<E2> const& b)
 	{
-		return expr::make_div(*static_cast<const E1*>(&a), (*static_cast<const E2*>(&b)));
+		return (*static_cast<E1 const*>(&a)) * (*static_cast<E2 const*>(&b));
 	}
 
-	template<typename A1, typename A2, typename E>
-	auto to_denom(OpBinaryDiv<A1, A2> const& a, OpExpression<E> const& b)
+
+	template<typename E, typename B1, typename T, typename... Gs, expr::exp_key_t... Xs,
+		typename std::enable_if_t<((expr::factor_count<Gs, E>::value == 0) && ...), int> = 0>
+	auto terminate_div(OpExpression<E> const& a, OpBinaryDiv<B1, OpTerms<T, Term<Gs, Xs>...>> const& b)
 	{
-		return expr::make_div(*static_cast<const A1*>(&a.a), (*static_cast<const A2*>(&a.b) * (*static_cast<const E*>(&b))));
+		return expr::make_div(
+			expr::inverse(expr::coeff(b.b)) * (*static_cast<E const*>(&a)) * b.a,
+			OpTerms(OpIdentity{}, expr::terms_after_first(b.b)));
 	}
 
-	template<typename E>
-	auto to_denom(OpNegIdentity const, OpExpression<E> const& b)
+	template<typename E, typename A1, typename T, typename... Gs, expr::exp_key_t... Xs,
+		typename std::enable_if_t<((expr::factor_count<Gs, E>::value == 0) && ...), int> = 0>
+	auto terminate_div(OpBinaryDiv<A1, OpTerms<T, Term<Gs, Xs>...>> const& a, OpExpression<E> const& b)
 	{
-		return inverse(-*static_cast<E const*>(&b));
+		return expr::make_div(
+			expr::inverse(expr::coeff(a.b)) * a.a * (*static_cast<E const*>(&b)),
+			OpTerms(OpIdentity{}, expr::terms_after_first(a.b)));
 	}
 
-	template<typename E>
-	auto to_denom(OpIdentity const, OpExpression<E> const& b)
-	{
-		return inverse(*static_cast<E const*>(&b));
-	}
-
-	template<typename T, typename E>
-	auto to_denom(OpLiteral<T> const& a, OpExpression<E> const& b)
-	{
-		return a * inverse(*static_cast<E const*>(&b));
-	}
 }
-
 
 
 /*
  * Recursively handle division between multiplications and divisions.
  */
 
+
+
 template<typename A1, typename A2, typename E,
-	typename std::enable_if<expr::factor_list_all<OpBinaryMul<A1, A2>, E>::value == 0, int>::type = 0>
-	auto operator/(OpBinaryMul<A1, A2> const& a, OpExpression<E> const& b)
+	typename std::enable_if<(expr::factor_list_all<OpBinaryMul<A1, A2>, E>::value == 0 && !expr::is_fraction<E> && !expr::is_identity<E>), int>::type = 0>
+auto operator/(OpBinaryMul<A1, A2> const& a, OpExpression<E> const& b)
 {
-	return ((*static_cast<const A1*>(&a.a)) / (*static_cast<const E*>(&b)))
-		* (*static_cast<const A2*>(&a.b));
+	return a.a * (a.b / (*static_cast<const E*>(&b)));
 }
 
 template<typename B1, typename B2, typename E,
-	typename std::enable_if<expr::factor_list_all<E, OpBinaryMul<B1, B2>>::value == 0, int>::type = 0>
-	auto operator/(OpExpression<E> const& a, OpBinaryMul<B1, B2> const& b)
+	typename std::enable_if<(expr::factor_list_all<E, OpBinaryMul<B1, B2>>::value == 0 && !expr::is_fraction<E> && !expr::is_identity<E>), int>::type = 0>
+auto operator/(OpExpression<E> const& a, OpBinaryMul<B1, B2> const& b)
 {
-	return ((*static_cast<const E*>(&a)) / (*static_cast<const B1*>(&b.a)))
-		* expr::inverse(*static_cast<const B2*>(&b.b));
-}
-
-template<typename A1, typename A2, typename B1, typename B2,
-	typename std::enable_if<expr::factor_list_all<OpBinaryMul<A1, A2>, OpBinaryMul<B1, B2>>::value == 0, int>::type = 0>
-	auto operator/(OpBinaryMul<A1, A2> const& a, OpBinaryMul<B1, B2> const& b)
-{
-	return ((*static_cast<const A1*>(&a.a)) / (*static_cast<const B1*>(&b.a)))
-		* (*static_cast<const A2*>(&a.b) / *static_cast<const B2*>(&b.b));
+	return ((*static_cast<const E*>(&a)) / b.a) * b.b;
 }
 
 template<typename A1, typename A2, typename E,
-	typename std::enable_if<expr::factor_list_all<OpBinaryDiv<A1, A2>, E>::value == 0, int>::type = 0>
-	auto operator/(OpBinaryDiv<A1, A2> const& a, OpExpression<E> const& b)
+	typename std::enable_if<(expr::factor_list_all<A1, E>::value == 0 && !expr::is_fraction<E> && !expr::is_identity<E>), int>::type = 0>
+auto operator/(OpBinaryDiv<A1, A2> const& a, OpExpression<E> const& b)
 {
-	return symphas::internal::to_denom(
-		(*static_cast<const A1*>(&a.a)) / (*static_cast<const E*>(&b)),
-		*static_cast<const A2*>(&a.b));
+	return a.a / (a.b * (*static_cast<const E*>(&b)));
 }
 
-template<typename B1, typename B2, typename E,
-	typename std::enable_if<expr::factor_list_all<E, OpBinaryDiv<B1, B2>>::value == 0, int>::type = 0>
-	auto operator/(OpExpression<E> const& a, OpBinaryDiv<B1, B2> const& b)
+template<typename A1, typename A2, typename B1, typename B2>
+auto operator/(OpBinaryDiv<A1, A2> const& a, OpBinaryMul<B1, B2> const& b)
 {
-	return (*static_cast<const E*>(&a))
-		* ((*static_cast<const B2*>(&b.b)) / (*static_cast<const B1*>(&b.a)));
+	return a.a / (a.b * b);
 }
 
-template<typename A1, typename A2, typename B1, typename B2,
-	typename std::enable_if<expr::factor_list_all<OpBinaryDiv<A1, A2>, OpBinaryDiv<B1, B2>>::value == 0, int>::type = 0>
-	auto operator/(OpBinaryDiv<A1, A2> const& a, OpBinaryDiv<B1, B2> const& b)
+template<typename A1, typename A2, typename B1, typename B2>
+auto operator/(OpBinaryMul<A1, A2> const& a, OpBinaryDiv<B1, B2> const& b)
 {
-	return ((*static_cast<const A1*>(&a.a)) / (*static_cast<const B1*>(&b.a)))
-		* ((*static_cast<const B2*>(&b.b)) / (*static_cast<const A2*>(&a.b)));
+	return (a * b.b) / b.a;
+}
+
+template<typename B1, typename B2, typename E>
+auto operator/(OpExpression<E> const& a, OpBinaryDiv<B1, B2> const& b)
+{
+	return ((*static_cast<const E*>(&a)) * b.b) / b.a;
+}
+
+template<typename A1, typename A2, typename B1, typename B2>
+auto operator/(OpBinaryDiv<A1, A2> const& a, OpBinaryDiv<B1, B2> const& b)
+{
+	return (a.a * b.b) / (a.b * b.a);
+}
+
+template<typename... As, typename B1, typename B2>
+auto operator/(OpAdd<As...> const& a, OpBinaryDiv<B1, B2> const& b)
+{
+	return (a * b.b) / b.a;
+}
+
+template<typename A1, typename A2, typename... Bs>
+auto operator/(OpBinaryDiv<A1, A2> const& a, OpAdd<Bs...> const& b)
+{
+	return a.a / (a.b * b);
 }
 
 
+
+template<typename E, typename B1, typename V, typename... Gs, expr::exp_key_t... Xs,
+	typename std::enable_if_t<(((expr::factor_count<Gs, E>::value == 0) && ...) && !expr::is_identity<E>), int> = 0>
+auto operator/(OpExpression<E> const& a, OpTerms<V, Term<Gs, Xs>...> const& b)
+{
+	return expr::make_div(
+		expr::inverse(expr::coeff(b)) * (*static_cast<E const*>(&a)),
+		OpTerms(OpIdentity{}, expr::terms_after_first(b)));
+}
+
+template<typename E, typename B1, typename V, typename... Gs, expr::exp_key_t... Xs,
+	typename std::enable_if_t<(((expr::factor_count<Gs, E>::value == 0) && ...) && !expr::is_identity<E>), int> = 0>
+auto operator*(OpExpression<E> const& a, OpBinaryDiv<B1, OpTerms<V, Term<Gs, Xs>...>> const& b)
+{
+	return expr::make_div(
+		expr::inverse(expr::coeff(b.b)) * (*static_cast<E const*>(&a)) * b.a,
+		OpTerms(OpIdentity{}, expr::terms_after_first(b.b)));
+}
 
 /*
  *
@@ -1983,203 +2166,387 @@ template<typename A1, typename A2, typename B1, typename B2,
  *
  ******************************************************************************/
 
-template<typename A1, typename A2, typename E>
+template<typename A1, typename A2, typename E, typename std::enable_if_t<!(expr::is_identity<E> || expr::is_fraction<E>), int> = 0>
 auto operator*(OpBinaryDiv<A1, A2> const& a, OpExpression<E> const& b)
 {
-	return symphas::internal::terminate_div(
-		(*static_cast<const E*>(&b)) / (*static_cast<const A2*>(&a.b)), 
-		*static_cast<const A1*>(&a.a));
+	return (a.a * (*static_cast<const E*>(&b))) / a.b;
 }
 
-template<typename E, typename B1, typename B2>
+template<typename E, typename B1, typename B2, typename std::enable_if_t<!expr::is_identity<E>, int> = 0>
 auto operator*(OpExpression<E> const& a, OpBinaryDiv<B1, B2> const& b)
 {
-	return b * (*static_cast<const E*>(&a));
+	return ((*static_cast<const E*>(&a)) * b.a) / b.b;
 }
 
 template<typename A1, typename A2, typename B1, typename B2>
 auto operator*(OpBinaryDiv<A1, A2> const& a, OpBinaryDiv<B1, B2> const& b)
 {
-	return symphas::internal::terminate_div(
-		(*static_cast<const A1*>(&a.a)) / (*static_cast<const B2*>(&b.b)), 
-		(*static_cast<const B1*>(&b.a)) / (*static_cast<const A2*>(&a.b)));
+	return (a.a * b.a) / (a.b * b.b);
 }
 
-
-
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator*(OpBinaryDiv<A1, A2> const& a, OpBinaryAdd<B1, B2> const& b)
+template<typename A1, typename A2, typename... Bs>
+auto operator*(OpBinaryDiv<A1, A2> const& a, OpAdd<Bs...> const& b)
 {
-	return (*static_cast<const A1*>(&a.a)) 
-		* ((*static_cast<const B1*>(&b.a)) / (*static_cast<const A2*>(&a.b)) 
-		+ (*static_cast<const B2*>(&b.b)) / (*static_cast<const A2*>(&a.b)));
+	return expr::distribute_adds(a.a, b, std::make_index_sequence<sizeof...(Bs)>{}) / a.b;
 }
 
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator*(OpBinaryDiv<A1, A2> const& a, OpBinarySub<B1, B2> const& b)
+template<typename... As, typename A2, typename... Bs>
+auto operator*(OpBinaryDiv<OpAdd<As...>, A2> const& a, OpAdd<Bs...> const& b)
 {
-	return (*static_cast<const A1*>(&a.a))
-		* ((*static_cast<const B1*>(&b.a)) / (*static_cast<const A2*>(&a.b)) 
-		- (*static_cast<const B2*>(&b.b)) / (*static_cast<const A2*>(&a.b)));
+	return expr::distribute_adds(a.a, b, std::make_index_sequence<sizeof...(As)>{}, std::make_index_sequence<sizeof...(Bs)>{}) / a.b;
 }
 
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator*(OpBinaryAdd<A1, A2> const& a, OpBinaryDiv<B1, B2> const& b)
+template<typename... As, typename B1, typename B2>
+auto operator*(OpAdd<As...> const& a, OpBinaryDiv<B1, B2> const& b)
 {
-	return b * a;
+	return expr::distribute_adds(a, b.a, std::make_index_sequence<sizeof...(As)>{}) / b.b;
 }
 
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator*(OpBinarySub<A1, A2> const& a, OpBinaryDiv<B1, B2> const& b)
+template<typename... As, typename... Bs, typename B2>
+auto operator*(OpAdd<As...> const& a, OpBinaryDiv<OpAdd<Bs...>, B2> const& b)
 {
-	return b * a;
+	return expr::distribute_adds(a, b.a, std::make_index_sequence<sizeof...(As)>{}, std::make_index_sequence<sizeof...(Bs)>{}) / b.b;
 }
 
-/* Handling recursion at the point of an inverse.
- */
 
-template<typename A2, typename B1, typename B2>
-auto operator*(OpBinaryDiv<OpNegIdentity, A2> const& a, OpBinaryDiv<B1, B2> const& b)
+// ******************************************************************************************
+//
+//template<typename A1, typename T, typename G, typename B1, typename B2, 
+//	typename std::enable_if_t<(expr::factor_count<G, B2>::value > 0), int> = 0>
+//auto operator+(OpBinaryDiv<A1, OpTerm<T, G>> const& a, OpBinaryDiv<B1, B2> const& b)
+//{
+//	auto div = b.b / a.b;
+//	return (a.a * div + b.a) / b.b;
+//}
+//
+//template<typename A1, typename T, typename... Gs, typename B1, typename B2, 
+//	typename std::enable_if_t<((expr::factor_count<Gs, B2>::value > 0) && ...), int> = 0>
+//auto operator+(OpBinaryDiv<A1, OpNLVariable<T, Gs...>> const& a, OpBinaryDiv<B1, B2> const& b)
+//{
+//	auto div = b.b / a.b;
+//	return (a.a * div + b.a) / b.b;
+//}
+//
+//template<typename A1, typename T, typename G, typename B1, typename B2, 
+//typename std::enable_if_t<(expr::factor_count<G, B2>::value > 0), int> = 0>
+//auto operator-(OpBinaryDiv<A1, OpTerm<T, G>> const& a, OpBinaryDiv<B1, B2> const& b)
+//{
+//	auto div = b.b / a.b;
+//	return (a.a * div - b.a) / b.b;
+//}
+//
+//template<typename A1, typename T, typename... Gs, typename B1, typename B2, 
+//typename std::enable_if_t<((expr::factor_count<Gs, B2>::value > 0) && ...), int> = 0>
+//auto operator-(OpBinaryDiv<A1, OpNLVariable<T, Gs...>> const& a, OpBinaryDiv<B1, B2> const& b)
+//{
+//	auto div = b.b / a.b;
+//	return (a.a * div - b.a) / b.b;
+//}
+//
+//template<typename A1, typename A2, typename B1, typename T, typename G, 
+//typename std::enable_if_t<(expr::factor_count<G, A2>::value > 0), int> = 0>
+//auto operator+(OpBinaryDiv<A1, A2> const& a, OpBinaryDiv<B1, OpTerm<T, G>> const& b)
+//{
+//	auto div = a.b / b.b;
+//	return (a.a + b.a * div) / a.b;
+//}
+//
+//template<typename A1, typename A2, typename B1, typename T, typename... Gs, 
+//typename std::enable_if_t<((expr::factor_count<Gs, A2>::value > 0) && ...), int> = 0>
+//auto operator+(OpBinaryDiv<A1, A2> const& a, OpBinaryDiv<B1, OpNLVariable<T, Gs...>> const& b)
+//{
+//	auto div = a.b / b.b;
+//	return (a.a + b.a * div) / a.b;
+//}
+//
+//template<typename A1, typename A2, typename B1, typename T, typename G, 
+//typename std::enable_if_t<(expr::factor_count<G, A2>::value > 0), int> = 0>
+//auto operator-(OpBinaryDiv<A1, A2> const& a, OpBinaryDiv<B1, OpTerm<T, G>> const& b)
+//{
+//	auto div = a.b / b.b;
+//	return (a.a - b.a * div) / a.b;
+//}
+//
+//template<typename A1, typename A2, typename B1, typename T, typename... Gs, 
+//	typename std::enable_if_t<((expr::factor_count<Gs, A2>::value > 0) && ...), int> = 0>
+//auto operator-(OpBinaryDiv<A1, A2> const& a, OpBinaryDiv<B1, OpNLVariable<T, Gs...>> const& b)
+//{
+//	auto div = a.b / b.b;
+//	return (a.a - b.a * div) / a.b;
+//}
+//
+//
+//
+//template<typename A1, typename T1, typename G1, typename B1, typename T2, typename G2, 
+//	typename std::enable_if_t<(expr::factor_count<G1, G2>::value > 0), int> = 0>
+//auto operator+(OpBinaryDiv<A1, OpTerm<T1, G1>> const& a, OpBinaryDiv<B1, OpTerm<T2, G2>> const& b)
+//{
+//	auto div = b.b / a.b;
+//	return symphas::internal::terminate_div((a.a * div + b.a), expr::inverse(b.b));
+//}
+//
+//template<typename A1, typename T1, typename... G1s, typename B1, typename T2, typename G2, 
+//	typename std::enable_if_t<(expr::factor_count_list<G2, G1s...>::value > 0), int> = 0>
+//auto operator+(OpBinaryDiv<A1, OpNLVariable<T1, G1s...>> const& a, OpBinaryDiv<B1, OpTerm<T2, G2>> const& b)
+//{
+//	auto div = a.b / b.b;
+//	return symphas::internal::terminate_div((a.a + b.a * div), expr::inverse(a.b));
+//}
+//
+//template<typename A1, typename T1, typename G1, typename B1, typename T2, typename... G2s, 
+//	typename std::enable_if_t<(expr::factor_count_list<G1, G2s...>::value > 0), int> = 0>
+//auto operator+(OpBinaryDiv<A1, OpTerm<T1, G1>> const& a, OpBinaryDiv<B1, OpNLVariable<T2, G2s...>> const& b)
+//{
+//	auto div = b.b / a.b;
+//	return symphas::internal::terminate_div((a.a * div + b.a), expr::inverse(b.b));
+//}
+//
+//template<typename A1, typename T1, typename... G1s, typename B1, typename T2, typename... G2s, 
+//	typename std::enable_if_t<(
+//		((expr::factor_count_list<G1s, G2s...>::value >= expr::factor_count_list<G1s, G1s...>::value) && ...) &&
+//		!((expr::factor_count_list<G1s, G2s...>::value == expr::factor_count_list<G1s, G1s...>::value) && ...)
+//		), int> = 0>
+//auto operator+(OpBinaryDiv<A1, OpNLVariable<T1, G1s...>> const& a, OpBinaryDiv<B1, OpNLVariable<T2, G2s...>> const& b)
+//{
+//	auto div = b.b / a.b;
+//	return symphas::internal::terminate_div((a.a * div + b.a), expr::inverse(b.b));
+//}
+//
+//template<typename A1, typename T1, typename... G1s, typename B1, typename T2, typename... G2s, 
+//	typename std::enable_if_t<(
+//		((expr::factor_count_list<G2s, G1s...>::value >= expr::factor_count_list<G2s, G2s...>::value) && ...) &&
+//		!((expr::factor_count_list<G2s, G1s...>::value == expr::factor_count_list<G2s, G2s...>::value) && ...)
+//		), int> = 0>
+//auto operator+(OpBinaryDiv<A1, OpNLVariable<T1, G1s...>> const& a, OpBinaryDiv<B1, OpNLVariable<T2, G2s...>> const& b)
+//{
+//	auto div = a.b / b.b;
+//	return symphas::internal::terminate_div((a.a + b.a * div), expr::inverse(a.b));
+//}
+//
+//template<typename A1, typename T1, typename... G1s, typename B1, typename T2, typename... G2s,
+//	typename std::enable_if_t<((expr::factor_count_list<G1s, G2s...>::value == expr::factor_count_list<G1s, G1s...>::value) && ...), int> = 0>
+//auto operator+(OpBinaryDiv<A1, OpNLVariable<T1, G1s...>> const& a, OpBinaryDiv<B1, OpNLVariable<T2, G2s...>> const& b)
+//{
+//	auto div = a.b / b.b;
+//	return symphas::internal::terminate_div((a.a + b.a * div), expr::inverse(a.b));
+//}
+//
+//
+//template<typename A1, typename T1, typename G1, typename B1, typename T2, typename G2, 
+//	typename std::enable_if_t<(expr::factor_count<G1, G2>::value > 0), int> = 0>
+//auto operator-(OpBinaryDiv<A1, OpTerm<T1, G1>> const& a, OpBinaryDiv<B1, OpTerm<T2, G2>> const& b)
+//{
+//	auto div = b.b / a.b;
+//	return symphas::internal::terminate_div((a.a * div - b.a), expr::inverse(b.b));
+//}
+//
+//template<typename A1, typename T1, typename... G1s, typename B1, typename T2, typename G2, 
+//	typename std::enable_if_t<(expr::factor_count_list<G2, G1s...>::value > 0), int> = 0>
+//auto operator-(OpBinaryDiv<A1, OpNLVariable<T1, G1s...>> const& a, OpBinaryDiv<B1, OpTerm<T2, G2>> const& b)
+//{
+//	auto div = a.b / b.b;
+//	return symphas::internal::terminate_div((a.a - b.a * div), expr::inverse(a.b));
+//}
+//
+//template<typename A1, typename T1, typename G1, typename B1, typename T2, typename... G2s, 
+//	typename std::enable_if_t<(expr::factor_count_list<G1, G2s...>::value > 0), int> = 0>
+//auto operator-(OpBinaryDiv<A1, OpTerm<T1, G1>> const& a, OpBinaryDiv<B1, OpNLVariable<T2, G2s...>> const& b)
+//{
+//	auto div = b.b / a.b;
+//	return symphas::internal::terminate_div((a.a * div - b.a), expr::inverse(b.b));
+//}
+//
+//template<typename A1, typename T1, typename... G1s, typename B1, typename T2, typename... G2s,
+//	typename std::enable_if_t<(
+//		((expr::factor_count_list<G1s, G2s...>::value >= expr::factor_count_list<G1s, G1s...>::value) && ...) &&
+//		!((expr::factor_count_list<G1s, G2s...>::value == expr::factor_count_list<G1s, G1s...>::value) && ...)
+//		), int> = 0>
+//auto operator-(OpBinaryDiv<A1, OpNLVariable<T1, G1s...>> const& a, OpBinaryDiv<B1, OpNLVariable<T2, G2s...>> const& b)
+//{
+//	auto div = b.b / a.b;
+//	return symphas::internal::terminate_div((a.a * div - b.a), expr::inverse(b.b));
+//}
+//
+//template<typename A1, typename T1, typename... G1s, typename B1, typename T2, typename... G2s,
+//	typename std::enable_if_t<(
+//		((expr::factor_count_list<G2s, G1s...>::value >= expr::factor_count_list<G2s, G2s...>::value) && ...) &&
+//		!((expr::factor_count_list<G2s, G1s...>::value == expr::factor_count_list<G2s, G2s...>::value) && ...)
+//		), int> = 0>
+//auto operator-(OpBinaryDiv<A1, OpNLVariable<T1, G1s...>> const& a, OpBinaryDiv<B1, OpNLVariable<T2, G2s...>> const& b)
+//{
+//	auto div = a.b / b.b;
+//	return symphas::internal::terminate_div((a.a - b.a * div), expr::inverse(a.b));
+//}
+//
+//template<typename A1, typename T1, typename... G1s, typename B1, typename T2, typename... G2s,
+//	typename std::enable_if_t<((expr::factor_count_list<G1s, G2s...>::value == expr::factor_count_list<G1s, G1s...>::value) && ...), int> = 0>
+//auto operator-(OpBinaryDiv<A1, OpNLVariable<T1, G1s...>> const& a, OpBinaryDiv<B1, OpNLVariable<T2, G2s...>> const& b)
+//{
+//	auto div = a.b / b.b;
+//	return symphas::internal::terminate_div((a.a - b.a * div), expr::inverse(a.b));
+//}
+
+// ******************************************************************************************
+//Rules for simplification of term expressions.
+// ******************************************************************************************
+
+
+namespace expr
 {
-	return b * a;
+	template<typename...>
+	struct can_combine;
+
+	template<typename... G1s, expr::exp_key_t... X1s>
+	struct can_combine<Term<G1s, X1s>...>
+	{
+		template<typename...>
+		struct with_check;
+
+		template<typename... G2s, expr::exp_key_t... X2s>
+		struct with_check<Term<G2s, X2s>...>
+		{
+			static const bool value =
+				((expr::is_combinable<G2s> &&
+					symphas::lib::index_of_type<Term<G2s, X2s>, Term<G1s, X1s>...> >= 0) && ...) &&
+				(sizeof...(G1s) == sizeof...(G2s));
+		};
+
+		template<typename... Ts>
+		static constexpr bool with = with_check<Ts...>::value;
+	};
 }
 
-template<typename A2, typename B1, typename B2>
-auto operator*(OpBinaryDiv<OpIdentity, A2> const& a, OpBinaryDiv<B1, B2> const& b)
+
+//! Addition of two multi variables with data that can be combined.
+template<typename V1, typename... G1s, expr::exp_key_t... X1s, typename V2, typename... G2s, expr::exp_key_t... X2s,
+	typename std::enable_if<expr::can_combine<Term<G1s, X1s>...>::template with<Term<G2s, X2s>...>, int>::type = 0>
+auto operator+(OpTerms<V1, Term<G1s, X1s>...> const& a, OpTerms<V2, Term<G2s, X2s>...> const& b)
 {
-	return b * a;
+	return (a.term + b.term) * OpTerms(OpIdentity{}, *static_cast<OpTerms<Term<G1s, X1s>...> const*>(&a));
 }
 
-template<typename T, typename A2, typename B1, typename B2>
-auto operator*(OpBinaryDiv<OpLiteral<T>, A2> const& a, OpBinaryDiv<B1, B2> const& b)
+//! Addition of two multi variables with data that can be combined.
+template<typename V1, typename... G1s, expr::exp_key_t... X1s, typename V2, typename... G2s, expr::exp_key_t... X2s,
+	typename std::enable_if<expr::can_combine<Term<G1s, X1s>...>::template with<Term<G2s, X2s>...>, int>::type = 0>
+auto operator-(OpTerms<V1, Term<G1s, X1s>...> const& a, OpTerms<V2, Term<G2s, X2s>...> const& b)
 {
-	return b * a;
+	return (a.term - b.term) * OpTerms(OpIdentity{}, *static_cast<OpTerms<Term<G1s, X1s>...> const*>(&a));
 }
-
-template<typename A1, typename A2, typename B2>
-auto operator*(OpBinaryDiv<A1, A2> const& a, OpBinaryDiv<OpNegIdentity, B2> const& b)
-{
-	return symphas::internal::terminate_div(
-		(*static_cast<const A1*>(&a.a)) / (*static_cast<const B2*>(&b.b)), 
-		expr::inverse(*static_cast<const A2*>(&a.b)));
-}
-
-template<typename A1, typename A2, typename B2>
-auto operator*(OpBinaryDiv<A1, A2> const& a, OpBinaryDiv<OpIdentity, B2> const& b)
-{
-	return symphas::internal::terminate_div(
-		(*static_cast<const A1*>(&a.a)) / (*static_cast<const B2*>(&b.b)), 
-		expr::inverse(*static_cast<const A2*>(&a.b)));
-}
-
-template<typename A1, typename A2, typename T, typename B2>
-auto operator*(OpBinaryDiv<A1, A2> const& a, OpBinaryDiv<OpLiteral<T>, B2> const& b)
-{
-	return b.a * symphas::internal::terminate_div(
-		(*static_cast<const A1*>(&a.a)) / (*static_cast<const B2*>(&b.b)), 
-		expr::inverse(*static_cast<const A2*>(&a.b)));
-}
-
-
-
-
-/* Division rules for some other objects but will certainly not be used in 
- * practice.
- */
-
-template<typename V1, typename V2, typename Dd, typename E, typename Sp>
-auto operator/(OpFuncDerivative<Dd, V1, E, Sp> const& a, OpFuncDerivative<Dd, V2, E, Sp> const& b)
-{
-	return expr::make_literal(a.value * (OpIdentity{} / b.value));
-}
-
-
 
 // ******************************************************************************************
 
 
-template<typename E1, typename E2>
-auto OpBinaryAdd<E1, E2>::operator-() const
+
+template<typename A1, typename A2, typename E>
+auto operator+(OpBinaryDiv<A1, A2> const& a, OpExpression<E> const& b)
 {
-	return -a - b;
+	return (a.a + (*static_cast<E const*>(&b)) * a.b) / a.b;
 }
 
-template<typename E1, typename E2>
-auto OpBinarySub<E1, E2>::operator-() const
+template<typename A1, typename A2, typename E>
+auto operator-(OpBinaryDiv<A1, A2> const& a, OpExpression<E> const& b)
 {
-	return -a + b;
+	return (a.a - (*static_cast<E const*>(&b)) * a.b) / a.b;
 }
+
+template<typename E, typename B1, typename B2>
+auto operator+(OpExpression<E> const& a, OpBinaryDiv<B1, B2> const& b)
+{
+	return ((*static_cast<E const*>(&a)) * b.b + b.a) / b.b;
+}
+
+template<typename A1, typename A2, typename A3, typename... Bs>
+auto operator-(OpBinaryDiv<OpBinaryDiv<A1, A2>, A3> const& a, OpAdd<Bs...> const& b)
+{
+	return expr::terms_after_first(a);
+}
+
+template<typename A1, typename A2, typename... Bs>
+auto operator+(OpBinaryDiv<A1, A2> const& a, OpAdd<Bs...> const& b)
+{
+	return (a.a + b * a.b) / a.b;
+}
+
+
+template<typename A1, typename A2, typename... Bs>
+auto operator-(OpBinaryDiv<A1, A2> const& a, OpAdd<Bs...> const& b)
+{
+	return (a.a - b * a.b) / a.b;
+}
+
+template<typename... As, typename B1, typename B2>
+auto operator+(OpAdd<As...> const& a, OpBinaryDiv<B1, B2> const& b)
+{
+	return (a * b.b + b.a) / b.b;
+}
+
+
+template<typename... As, typename B1, typename B2>
+auto operator-(OpAdd<As...> const& a, OpBinaryDiv<B1, B2> const& b)
+{
+	return (a * b.b - b.a) / b.b;
+}
+
+
+template<typename A1, typename A2, typename B1, typename B2>
+auto operator-(OpBinaryDiv<A1, A2> const& a, OpBinaryDiv<B1, B2> const& b)
+{
+	return (a.a * b.b - b.a * a.b) / (a.b * b.b);
+}
+
+template<typename A1, typename A2, typename B1, typename B2>
+auto operator+(OpBinaryDiv<A1, A2> const& a, OpBinaryDiv<B1, B2> const& b)
+{
+	return (a.a * b.b + b.a * a.b) / (a.b * b.b);
+}
+
+
+// two more rules are in expressiontransforms.h, when there are unbalanced factors between each denominator.
+
+// ******************************************************************************************
+
+
+template<typename E0, typename... Es>
+auto OpAdd<E0, Es...>::operator-() const
+{
+	return expr::neg_terms(*this, std::make_index_sequence<sizeof...(Es) + 1>{});
+}
+
 
 template<typename E1, typename E2>
 auto OpBinaryMul<E1, E2>::operator-() const
 {
-	return -a * b;
+	return expr::make_mul(-a, b);
 }
 
 template<typename E1, typename E2>
 auto OpBinaryDiv<E1, E2>::operator-() const
 {
-	return -a / b;
-}
-
-
-
-template<typename E1>
-auto operator+(OpExpression<E1> const& a, double b)
-{
-	return *static_cast<const E1*>(&a) + expr::make_literal(b);
+	return expr::make_div(-a, b);
 }
 
 template<typename E2>
-auto operator+(double a, OpExpression<E2> const& b)
+auto operator+(scalar_t a, OpExpression<E2> const& b)
 {
 	return expr::make_literal(a) + *static_cast<const E2*>(&b);
 }
 
-
 template<typename E1>
-auto operator-(OpExpression<E1> const& a, double b)
+auto operator+(OpExpression<E1> const& a, scalar_t b)
 {
-	return *static_cast<const E1*>(&a) - expr::make_literal(b);
+	return *static_cast<const E1*>(&a) + expr::make_literal(b);
 }
 
 template<typename E2>
-auto operator-(double a, OpExpression<E2> const& b)
+auto operator-(scalar_t a, OpExpression<E2> const& b)
 {
 	return expr::make_literal(a) - *static_cast<const E2*>(&b);
 }
 
-
 template<typename E1>
-auto operator*(OpExpression<E1> const& a, double b)
+auto operator-(OpExpression<E1> const& a, scalar_t b)
 {
-	return *static_cast<const E1*>(&a) * expr::make_literal(b);
-}
-
-template<typename E2>
-auto operator*(double a, OpExpression<E2> const& b)
-{
-	return expr::make_literal(a) * *static_cast<const E2*>(&b);
-}
-
-template<typename E1>
-auto operator/(OpExpression<E1> const& a, double b)
-{
-	return *static_cast<const E1*>(&a) / expr::make_literal(b);
-}
-
-template<typename E2>
-auto operator/(double a, OpExpression<E2> const& b)
-{
-	return expr::make_literal(a) / *static_cast<const E2*>(&b);
-}
-
-
-
-template<typename E1>
-auto operator+(OpExpression<E1> const& a, int b)
-{
-	return *static_cast<const E1*>(&a) + expr::make_literal(b);
+	return *static_cast<const E1*>(&a) - expr::make_literal(b);
 }
 
 template<typename E2>
@@ -2188,12 +2555,12 @@ auto operator+(int a, OpExpression<E2> const& b)
 	return expr::make_literal(a) + *static_cast<const E2*>(&b);
 }
 
-
 template<typename E1>
-auto operator-(OpExpression<E1> const& a, int b)
+auto operator+(OpExpression<E1> const& a, int b)
 {
-	return *static_cast<const E1*>(&a) - expr::make_literal(b);
+	return *static_cast<const E1*>(&a) + expr::make_literal(b);
 }
+
 
 template<typename E2>
 auto operator-(int a, OpExpression<E2> const& b)
@@ -2203,10 +2570,64 @@ auto operator-(int a, OpExpression<E2> const& b)
 
 
 template<typename E1>
-auto operator*(OpExpression<E1> const& a, int b)
+auto operator-(OpExpression<E1> const& a, int b)
 {
-	return *static_cast<const E1*>(&a) * expr::make_literal(b);
+	return *static_cast<const E1*>(&a) - expr::make_literal(b);
 }
+
+
+template<typename T, size_t D, typename E2>
+auto operator+(any_vector_t<T, D> const& a, OpExpression<E2> const& b)
+{
+	return expr::make_literal(a) + *static_cast<const E2*>(&b);
+}
+
+template<typename T, size_t D, typename E1>
+auto operator+(OpExpression<E1> const& a, any_vector_t<T, D> const& b)
+{
+	return *static_cast<const E1*>(&a) + expr::make_literal(b);
+}
+
+
+template<typename T, size_t D, typename E2>
+auto operator-(any_vector_t<T, D> const& a, OpExpression<E2> const& b)
+{
+	return expr::make_literal(a) - *static_cast<const E2*>(&b);
+}
+
+
+template<typename T, size_t D, typename E1>
+auto operator-(OpExpression<E1> const& a, any_vector_t<T, D> const& b)
+{
+	return *static_cast<const E1*>(&a) - expr::make_literal(b);
+}
+
+
+
+template<typename E2>
+auto operator*(scalar_t a, OpExpression<E2> const& b)
+{
+	return expr::make_literal(a) * *static_cast<const E2*>(&b);
+}
+
+template<typename E1, typename = std::enable_if_t<!(expr::is_identity<E1> || expr::is_fraction<E1>), int>>
+auto operator*(OpExpression<E1> const& a, scalar_t b)
+{
+	return b * *static_cast<const E1*>(&a);
+}
+
+template<typename E1>
+auto operator/(OpExpression<E1> const& a, scalar_t b)
+{
+	return *static_cast<const E1*>(&a) / expr::make_literal(b);
+}
+
+template<typename E2>
+auto operator/(scalar_t a, OpExpression<E2> const& b)
+{
+	return expr::make_literal(a) / *static_cast<const E2*>(&b);
+}
+
 
 template<typename E2>
 auto operator*(int a, OpExpression<E2> const& b)
@@ -2214,10 +2635,10 @@ auto operator*(int a, OpExpression<E2> const& b)
 	return expr::make_literal(a) * *static_cast<const E2*>(&b);
 }
 
-template<typename E1>
-auto operator/(OpExpression<E1> const& a, int b)
+template<typename E1, typename = std::enable_if_t<!(expr::is_identity<E1> || expr::is_fraction<E1>), int>>
+auto operator*(OpExpression<E1> const& a, int b)
 {
-	return *static_cast<const E1*>(&a) / expr::make_literal(b);
+	return b * *static_cast<const E1*>(&a);
 }
 
 template<typename E2>
@@ -2226,7 +2647,175 @@ auto operator/(int a, OpExpression<E2> const& b)
 	return expr::make_literal(a) / *static_cast<const E2*>(&b);
 }
 
+template<typename E1>
+auto operator/(OpExpression<E1> const& a, int b)
+{
+	return static_cast<const E1*>(&a) / expr::make_literal(b);
+}
+
+template<typename T, size_t D, typename E2>
+auto operator*(any_vector_t<T, D> const& a, OpExpression<E2> const& b)
+{
+	return expr::make_literal(a) * *static_cast<const E2*>(&b);
+}
+
+template<typename T, size_t D, typename E1, typename = std::enable_if_t<!(expr::is_identity<E1> || expr::is_fraction<E1>), int>>
+auto operator*(OpExpression<E1> const& a, any_vector_t<T, D> const& b)
+{
+	return *static_cast<const E1*>(&a) * expr::make_literal(b);
+}
 
 
+
+
+
+
+/*
+ *
+ * Tensor rules.
+ *
+ ******************************************************************************/
+
+
+
+ //! Ensure a value constant is always multiplied on the left by anything else.
+template<typename coeff_t, typename T, size_t... Ns, 
+	typename std::enable_if_t<(expr::is_coeff<coeff_t> && !expr::is_tensor<coeff_t>), int> = 0>
+auto operator*(coeff_t const& a, OpTensor<T, Ns...> const& tensor)
+{
+	return expr::make_tensor<Ns...>(a * symphas::internal::tensor_cast::cast(tensor));
+}
+
+//! Ensure a value constant is always multiplied on the left by anything else.
+template<typename coeff_t, typename T, size_t... Ns,
+	typename std::enable_if_t<(expr::is_coeff<coeff_t> && !expr::is_tensor<coeff_t>), int> = 0>
+auto operator*(OpTensor<T, Ns...> const& tensor, coeff_t const& a)
+{
+	return a * tensor;
+}
+
+ //! Ensure a value constant is always multiplied on the left by anything else.
+template<typename E, typename T>
+auto operator*(E&& a, OpLiteral<T> const& b)
+{
+	return b * std::forward<E>(a);
+}
+
+//! Ensure a value constant is always multiplied on the left by anything else.
+template<typename E, typename T, size_t... Ns, typename std::enable_if_t<expr::has_coeff<E>, int> = 0>
+auto operator*(OpExpression<E> const& e, OpTensor<T, Ns...> const& tensor)
+{
+	if constexpr (expr::eval_type<decltype(expr::coeff(std::declval<E>()))>::rank > 0)
+	{
+		return (expr::coeff(*static_cast<E const*>(&e)) * tensor) * (symphas::internal::tensor_cancel{} * (*static_cast<E const*>(&e)));
+	}
+	else
+	{
+		return tensor * (*static_cast<E const*>(&e));
+	}
+}
+
+//! Ensure a value constant is always multiplied on the left by anything else.
+template<typename A, typename B, typename T, size_t... Ns>
+auto operator*(OpBinaryMul<A, B> const& e, OpTensor<T, Ns...> const& tensor)
+{
+	return e.a * (e.b * tensor);
+}
+
+
+//! Ensure a value constant is always multiplied on the left by anything else.
+template<typename A, typename B, typename T, size_t... Ns>
+auto operator*(OpTensor<T, Ns...> const& tensor, OpBinaryMul<A, B> const& e)
+{
+	return (tensor * e.a) * e.b;
+}
+
+
+template<typename T, size_t N0, size_t N1, size_t... Ns, typename S, size_t M0, size_t M1, size_t... Ms>
+auto operator+(OpTensor<T, N0, N1, Ns...> const& a, OpTensor<S, M0, M1, Ms...> const& b)
+{
+	return expr::make_add(a, b);
+}
+
+template<typename T, size_t... Ns, typename coeff_t,
+	typename std::enable_if_t<expr::is_tensor<coeff_t>, int> = 0>
+auto operator+(OpTensor<T, Ns...> const& a, coeff_t const& b)
+{
+	return expr::make_add(a, b);
+}
+
+template<typename T, size_t... Ns, typename coeff_t,
+	typename std::enable_if_t<expr::is_tensor<coeff_t>, int> = 0>
+auto operator+(coeff_t const& a, OpTensor<T, Ns...> const& b)
+{
+	return expr::make_add(a, b);
+}
+
+template<typename T, size_t... Ns, typename coeff_t,
+	typename std::enable_if_t<expr::is_tensor<coeff_t>, int> = 0>
+auto operator-(OpTensor<T, Ns...> const& a, coeff_t const& b)
+{
+	return a + (-b);
+}
+
+template<typename T, size_t... Ns, typename coeff_t,
+	typename std::enable_if_t<expr::is_tensor<coeff_t>, int> = 0>
+auto operator-(coeff_t const& a, OpTensor<T, Ns...> const& b)
+{
+	return a + (-b);
+}
+
+
+
+
+
+template<typename T, typename coeff_t, typename = std::enable_if_t<(expr::is_coeff<coeff_t> && !expr::is_tensor<coeff_t>), int>>
+auto operator+(OpTensor<T, 0, 1> const& a, coeff_t const& b)
+{
+	return symphas::internal::tensor_cast::cast(a) + b;
+}
+
+template<typename T, typename coeff_t, typename = std::enable_if_t<(expr::is_coeff<coeff_t> && !expr::is_tensor<coeff_t>), int>>
+auto operator+(OpTensor<T, 0, 0, 1, 1> const& a, coeff_t const& b)
+{
+	return symphas::internal::tensor_cast::cast(a) + b;
+}
+
+template<typename T, typename coeff_t, typename = std::enable_if_t<(expr::is_coeff<coeff_t> && !expr::is_tensor<coeff_t>), int>>
+auto operator-(OpTensor<T, 0, 1> const& a, coeff_t const& b)
+{
+	return symphas::internal::tensor_cast::cast(a) - b;
+}
+
+template<typename T, typename coeff_t, typename = std::enable_if_t<(expr::is_coeff<coeff_t> && !expr::is_tensor<coeff_t>), int>>
+auto operator-(OpTensor<T, 0, 0, 1, 1> const& a, coeff_t const& b)
+{
+	return symphas::internal::tensor_cast::cast(a) - b;
+}
+
+
+template<typename T, typename coeff_t, typename = std::enable_if_t<(expr::is_coeff<coeff_t> && !expr::is_tensor<coeff_t>), int>>
+auto operator+(coeff_t const& a, OpTensor<T, 0, 1> const& b)
+{
+	return a + symphas::internal::tensor_cast::cast(b);
+}
+
+template<typename T, typename coeff_t, typename = std::enable_if_t<(expr::is_coeff<coeff_t> && !expr::is_tensor<coeff_t>), int>>
+auto operator+(coeff_t const& a, OpTensor<T, 0, 0, 1, 1> const& b)
+{
+	return a + symphas::internal::tensor_cast::cast(b);
+}
+
+template<typename T, typename coeff_t, typename = std::enable_if_t<(expr::is_coeff<coeff_t> && !expr::is_tensor<coeff_t>), int>>
+auto operator-(coeff_t const& a, OpTensor<T, 0, 1> const& b)
+{
+	return a - symphas::internal::tensor_cast::cast(b);
+}
+
+template<typename T, typename coeff_t, typename = std::enable_if_t<(expr::is_coeff<coeff_t> && !expr::is_tensor<coeff_t>), int>>
+auto operator-(coeff_t const& a, OpTensor<T, 0, 0, 1, 1> const& b)
+{
+	return a - symphas::internal::tensor_cast::cast(b);
+}
 
 

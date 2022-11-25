@@ -226,10 +226,10 @@ unset output
 	 * \param winfo Information about the file that is written.
 	 * \param ginfo Information about the grid.
 	 */
-	template<typename T>
-	void save_grid_plotting(const T* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+	template<typename value_type>
+	void save_grid_plotting(value_type&& grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 	{
-		symphas::io::gp::save_grid_plotting(grid, winfo, ginfo);
+		symphas::io::gp::save_grid_plotting(std::forward<value_type>(grid), winfo, ginfo);
 	}
 
 
@@ -242,10 +242,10 @@ unset output
 	 * \param winfo Information about the file that is written.
 	 * \param ginfo Information about the grid.
 	 */
-	template<typename T>
-	void save_grid(const T* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+	template<typename value_type>
+	void save_grid(value_type &&grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 	{
-		symphas::io::gp::save_grid(grid, winfo, ginfo);
+		symphas::io::gp::save_grid(std::forward<value_type>(grid), winfo, ginfo);
 	}
 
 

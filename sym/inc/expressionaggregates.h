@@ -25,11 +25,10 @@
 
 #pragma once
 
-#include <tuple>
-#include <functional>
 #include <vector>
 
-#include "expressionrules.h"
+#include "expressions.h"
+#include "expressionlogic.h"
 #include "expressionsprint.h"
 
 //! \cond
@@ -40,27 +39,31 @@
 #endif
 //! \endcond
 
-
-//! Associates an identifier with a piece of data.
-/*!
- * Associates a template constant number with a given
- * object; primarily used for parsing functions. Used in particular when 
- * parsing or pruning equations. Acts as a data identifier.
- */
-template<size_t Z, typename G>
-struct Variable : G
+namespace symphas::internal
 {
-	using G::G;
+	template<typename G>
+	struct make_data
+	{
+		G operator()()
+		{
+			return { 0 };
+		}
+	};
 
-	Variable(G const& data) : G(data) {}
-	Variable(G&& data) noexcept : G(std::forward<G>(data)) {}
-};
-
+	template<typename G>
+	struct make_data<symphas::ref<G>>
+	{
+		symphas::ref<G> operator()()
+		{
+			G data;
+			return std::ref(data);
+		}
+	};
+}
 
 //! Gives a name to data, to be used in expressions.
 /*!
- * By inheriting from an object that acts like data for an OpLVariable, this
- * construct will add a name that can be interpreted by the get_op_name()
+ * Adds a name that can be interpreted by the get_op_name()
  * function. When used in conjunction with Variable, Variable will take this as
  * the template parameter, not the other way around.
  * 
@@ -71,7 +74,10 @@ struct Variable : G
 template<typename G>
 struct NamedData : G
 {
+
 #ifdef PRINTABLE_EQUATIONS
+
+	NamedData() : G(symphas::internal::make_data<G>{}() ), name{ "" } {}
 
 	//! Constructs the named instance using the given data.
 	/*!
@@ -97,8 +103,8 @@ struct NamedData : G
 	template<typename E>
 	NamedData(G data, OpExpression<E> const& e) : G(data), name{ "" }
 	{
-		char* str = new char[e.print_length() + 1];
-		e.print(str);
+		char* str = new char[(*static_cast<E const*>(&e)).print_length() + 1];
+		(*static_cast<E const*>(&e)).print(str);
 		name = std::string(str);
 		delete[] str;
 	}
@@ -106,6 +112,8 @@ struct NamedData : G
 	std::string name;	//!< Name given to the data.
 
 #else
+
+	NamedData() : G(data) {}
 
 	template<typename T>
 	NamedData(G data, T&&) : G(data) {}
@@ -133,6 +141,8 @@ struct NamedData<G*>
 	G* data;			//!< Pointer to the data.
 
 #ifdef PRINTABLE_EQUATIONS
+
+	NamedData() : data{}, name{ "" } {}
 
 	//! Constructs the named instance using the given data.
 	/*!
@@ -166,6 +176,8 @@ struct NamedData<G*>
 	std::string name;	//!< Name given to the data.
 
 #else
+
+	NamedData() : data{} {}
 
 	template<typename T>
 	NamedData(G* data, T&&) : data{ data } {}
@@ -201,6 +213,8 @@ struct NamedData<scalar_t>
 
 #ifdef PRINTABLE_EQUATIONS
 
+	NamedData() : data{}, name{ "" } {}
+
 	//! Constructs the named instance using the given data.
 	/*!
 	 * Constructs the named instance using the given data, which is passed
@@ -233,6 +247,8 @@ struct NamedData<scalar_t>
 	std::string name;	//!< Name given to the data.
 
 #else
+
+	NamedData() : data{} {}
 
 	template<typename T>
 	NamedData(scalar_t data, T&&) : data{ data } {}
@@ -273,6 +289,24 @@ NamedData(G*, T&&)->NamedData<G*>;
 #endif
 
 
+
+//! Associates an identifier with a piece of data.
+/*!
+ * Associates a template constant number with a given
+ * object; primarily used for parsing functions. Used in particular when
+ * parsing or pruning equations. Acts as a data identifier.
+ */
+template<size_t Z, typename G>
+struct Variable : G
+{
+	using G::G;
+
+	Variable() : G() {}
+	Variable(G const& data) : G(data) {}
+	Variable(G&& data) noexcept : G(std::move(data)) {}
+};
+
+
 namespace expr
 {
 	//! The given parameter is created as a Variable.
@@ -301,6 +335,49 @@ namespace expr
 	{
 		return Variable<Z, symphas::ref<G>>(g);
 	}
+
+	//! The given parameter is created as a Variable.
+	/*!
+	 * The given parameter is created and returned as a Variable.
+	 *
+	 * \param g The object which is created as a Variable.
+	 */
+	template<Axis ax, typename G>
+	auto as_component(G&& g)
+	{
+		return VectorComponent<ax, G>(std::forward<G>(g));
+	}
+
+	//! The given parameter is associated to a Variable.
+	/*!
+	 * The given parameter is passed by reference, so its contents are assumed
+	 * to be associated outside of the scope of a Variable. In that case, the
+	 * given parameter is associated by a reference wrapper to a new Variable
+	 * instance which is returned as the result.
+	 *
+	 * \param g The object which is associated to a Variable.
+	 */
+	template<Axis ax, typename G>
+	auto as_component(G& g)
+	{
+		return VectorComponent<ax, symphas::ref<G>>(g);
+	}
+
+	//! The given parameter is associated to a Variable.
+	/*!
+	 * The given parameter is passed by reference, so its contents are assumed
+	 * to be associated outside of the scope of a Variable. In that case, the
+	 * given parameter is associated by a reference wrapper to a new Variable
+	 * instance which is returned as the result.
+	 *
+	 * \param g The object which is associated to a Variable.
+	 */
+	template<Axis ax, size_t Z, typename G>
+	auto as_component(Variable<Z, G> g)
+	{
+		return Variable<Z, VectorComponent<ax, G>>(*static_cast<G*>(&g));
+	}
+
 
 #ifdef PRINTABLE_EQUATIONS
 
@@ -332,7 +409,6 @@ namespace expr
 		return a;
 	}
 
-
 	//! Gets the string name associated with the data.
 	template<typename A>
 	const char* get_op_name(A const& a)
@@ -346,6 +422,34 @@ namespace expr
 	{
 		return get_op_name(expr::SymbolID<A>::get(a));
 	}
+
+	//! Specialization based on SymbolID.
+	template<Axis ax, typename G>
+	const char* get_op_name(VectorComponent<ax, G> const& a)
+	{
+		static std::map<std::string, char *> map;
+		const char* name = get_op_name(SymbolID<G>::get(*static_cast<G const*>(&a)));
+		
+		auto with_component = map.find(name);
+		if (with_component == map.end())
+		{
+			map[name] = new char[std::strlen(name) + 3];
+
+			std::strcpy(map[name], name);
+			map[name][std::strlen(name)] = '_';
+			map[name][std::strlen(name) + 1] = (ax == Axis::X) ? 'x' : (ax == Axis::Y) ? 'y' : (ax == Axis::Z) ? 'z' : '?';
+			map[name][std::strlen(name) + 2] = '\0';
+		}
+
+		return map[name];
+	};
+
+	//! Specialization based on SymbolID.
+	template<size_t Z, Axis ax, typename G>
+	const char* get_op_name(Variable<Z, VectorComponent<ax, G>> const& a)
+	{
+		return get_op_name(*static_cast<VectorComponent<ax, G> const*>(&a));
+	};
 
 	//! Gets the string name associated with the data.
 	template<size_t N>
@@ -420,286 +524,29 @@ namespace expr
 		}
 	}
 
+
+
+	template<typename T>
+	auto get_fourier_name(T const& t)
+	{
+		char* name = expr::get_op_name(std::forward<T>(t));
+		return std::string(SYEX_FT_OF_OP_FMT_A) + std::string(name) + std::string(SYEX_FT_OF_OP_FMT_B);
+	}
+
 #endif
-}
-
-
-// **************************************************************************************
-
-namespace symphas::internal
-{
-
-	//! Helper in order to construct an OpLVariable.
-	/*!
-	 * Allows the type to be delegated to the correct function, so that
-	 * the correct OpLVariable object is generated.
-	 * In particular, it is important that if a reference is made, that
-	 * an additional reference is not nested.
-	 * 
-	 * The usual template will assume that an rvalue is given, and 
-	 * therefore the data can be moved into the OpLVariable.
-	 * 
-	 * \tparam A The type being given to create an OpLVariable.
-	 */
-	template<typename A>
-	struct make_oplvariable
-	{
-		template<typename S>
-		static auto get(S value, A data)
-		{
-			return OpLVariable(value, data);
-		}
-
-		static auto get(A data)
-		{
-			return OpLVariable(data);
-		}
-
-		template<size_t Z, typename S>
-		static auto get(S value, A data)
-		{
-			return OpLVariable(value, Variable<Z, A>(data));
-		}
-
-		template<size_t Z>
-		static auto get(A data)
-		{
-			return OpLVariable(Variable<Z, A>(data));
-		}
-	};
-
-
-	//! Helper in order to construct an OpLVariable.
-	/*!
-	 * Specialization for an lvalue; this means that a reference should be 
-	 * created.
-	 */
-	template<typename A>
-	struct make_oplvariable<A&>
-	{
-		template<typename S>
-		static auto get(S value, A& data)
-		{
-			return OpLVariable(value, symphas::ref<A>(data));
-		}
-
-		static auto get(A& data)
-		{
-			return OpLVariable(symphas::ref<A>(data));
-		}
-
-		template<size_t Z, typename S>
-		static auto get(S value, A& data)
-		{
-			return OpLVariable(value, Variable<Z, symphas::ref<A>>(data));
-		}
-
-		template<size_t Z>
-		static auto get(A& data)
-		{
-			return OpLVariable(Variable<Z, symphas::ref<A>>(data));
-		}
-	};
-
-	//! Helper in order to construct an OpLVariable.
-	/*!
-	 * Specialization for a pointer; this means the pointer should be copied to
-	 * the variable.
-	 */
-	template<typename A>
-	struct make_oplvariable<A*>
-	{
-		template<typename S>
-		static auto get(S value, A* data)
-		{
-			return OpLVariable(value, data);
-		}
-
-		static auto get(A* data)
-		{
-			return OpLVariable(data);
-		}
-
-		template<size_t Z, typename S>
-		static auto get(S value, A* data)
-		{
-			return get(value, data);
-		}
-
-		template<size_t Z>
-		static auto get(A* data)
-		{
-			return get(data);
-		}
-	};
-
-	//! Helper in order to construct an OpLVariable.
-	/*!
-	 * The data is passed as a reference, rather than copied.
-	 */
-	template<size_t Z, typename A>
-	struct make_oplvariable<Variable<Z, A>>
-	{
-		template<typename S>
-		static auto get(S value, Variable<Z, A>& data)
-		{
-			return make_oplvariable<A>::template get<Z>(value, data);
-		}
-
-		static auto get(Variable<Z, A>& data)
-		{
-			return make_oplvariable<A>::template get<Z>(data);
-		}
-
-		template<size_t Y, typename S>
-		static auto get(S value, Variable<Z, A>& data)
-		{
-			return make_oplvariable<A>::template get<Y>(value, data);
-		}
-
-		template<size_t Y>
-		static auto get(Variable<Z, A>& data)
-		{
-			return make_oplvariable<A>::template get<Y>(data);
-		}
-	};
-
-	//! Helper in order to construct an OpLVariable.
-	/*!
-	 * The data is passed as a reference, rather than copied.
-	 */
-	template<typename A>
-	struct make_oplvariable<symphas::ref<A>>
-	{
-		template<typename S>
-		static auto get(S value, symphas::ref<A> data)
-		{
-			return make_oplvariable<A>::template get(value, data.get());
-		}
-
-		static auto get(symphas::ref<A> data)
-		{
-			return make_oplvariable<A>::get(data.get());
-		}
-
-		template<size_t Z, typename S>
-		static auto get(S value, symphas::ref<A> data)
-		{
-			return make_oplvariable<A>::template get<Z>(value, data.get());
-		}
-
-		template<size_t Z>
-		static auto get(symphas::ref<A> data)
-		{
-			return make_oplvariable<A>::template get<Z>(data.get());
-		}
-	};
-
-
-	//! Helper in order to construct an OpLVariable.
-	/*!
-	 * When these types are given by lvalue, then the original functions need to
-	 * be applied, not the functions corresponding to the simple lvalue
-	 * specialization.
-	 */
-	template<typename A>
-	struct make_oplvariable<A*&> : make_oplvariable<A*> {};
-
-	template<typename A>
-	struct make_oplvariable<symphas::ref<A>&> : make_oplvariable<symphas::ref<A>> {};
-
-	template<size_t Z, typename A>
-	struct make_oplvariable<Variable<Z, A>&> : make_oplvariable<Variable<Z, A>> {};
-	template<typename A>
-	struct make_oplvariable<NamedData<A>&> : make_oplvariable<NamedData<A>> {};
-}
-
-
-namespace expr
-{
-
-	//! Delegate to create an OpLVariable with the correct template. 
-	/*!
-	 * Delegate to create an OpLVariable with the correct template. For
-	 * more information on specific implementation, see symphas::internal::make_oplvariable.
-	 *
-	 * \param data The data from which to create an OpLVariable.
-	 *
-	 * \tparam A The type of the data to make an OpLVariable.
-	 */
-	template<typename A>
-	auto make_op(A&& data)
-	{
-		return symphas::internal::make_oplvariable<A>::get(std::forward<A>(data));
-	}
-
-	//! Delegate to create an OpLVariable with the correct template. 
-	/*!
-	 * Delegate to create an OpLVariable with the correct template. For
-	 * more information on specific implementation, see symphas::internal::make_oplvariable.
-	 * This overload will use the given index to create an OpLVariable of a
-	 * Variable.
-	 *
-	 * \param data The data from which to create an OpLVariable.
-	 *
-	 * \tparam Z The index of the Variable to create.
-	 * \tparam A The type of the data to make an OpLVariable.
-	 */
-	template<size_t Z, typename A>
-	auto make_op(A&& data)
-	{
-		return symphas::internal::make_oplvariable<A>::template get<Z>(std::forward<A>(data));
-	}
-
-	//! Delegate to create an OpLVariable with the correct template. 
-	/*!
-	 * Delegate to create an OpLVariable with the correct template. For
-	 * more information on specific implementation, see symphas::internal::make_oplvariable.
-	 *
-	 * \param value The coefficient of the OpLVariable.
-	 * \param data The data from which to create an OpLVariable.
-	 *
-	 * \param A The type of the data to make an OpLVariable.
-	 */
-	template<typename S, typename A>
-	auto make_op(S&& value, A&& data)
-	{
-		return symphas::internal::make_oplvariable<A>::template get(std::forward<S>(value), std::forward<A>(data));
-	}
-
-	//! Delegate to create an OpLVariable with the correct template. 
-	/*!
-	 * Delegate to create an OpLVariable with the correct template. For
-	 * more information on specific implementation, see symphas::internal::make_oplvariable.
-	 * This overload will use the given index to create an OpLVariable of a
-	 * Variable.
-	 *
-	 * \param value The coefficient of the OpLVariable.
-	 * \param data The data from which to create an OpLVariable.
-	 *
-	 * \tparam Z The index of the Variable to create.
-	 * \tparam A The type of the data to make an OpLVariable.
-	 */
-	template<size_t Z, typename S, typename A>
-	auto make_op(S&& value, A&& data)
-	{
-		return symphas::internal::make_oplvariable<A>::template get<Z>(std::forward<S>(value), std::forward<A>(data));
-	}
-
-
 }
 
 // *************************************************************************************
 
 //! An expression for the left hand side of an equation.
 /*!
- * In the context of the program implementation, the left hand side of an   
- * equation can only be a single data. There are no other expressions 
- * on the left hand side of an 
- * equals sign and no coefficients either, therefore the LHS object simply 
+ * In the context of the program implementation, the left hand side of an
+ * equation can only be a single data. There are no other expressions
+ * on the left hand side of an
+ * equals sign and no coefficients either, therefore the LHS object simply
  * inherits from the data that it represents and implements the assignment
  * functions so that it can be combined with an expression.
- * 
+ *
  * \tparam G The type of the left hand side of the equation.
  */
 template<typename G>
@@ -710,7 +557,7 @@ struct OpLHS : G
 	//! Construct the left hand side expression.
 	/*!
 	 * Construct an expression for the left hand side of an equals sign.
-	 * 
+	 *
 	 * \param data The data that is stored on the left hand side.
 	 */
 	OpLHS(G const& data) : G(data) {}
@@ -732,628 +579,1178 @@ struct OpLHS : G
 };
 
 
-
-
 // *************************************************************************************
 
 
-//! A expression term that manages data, representing a variable.
-/*!
- * Manages data to be used in an expression, representing a variable because
- * the underlying data can change.
- * The correct data type has
- * to be provided, requiring this object to be created with expr::make_op().
- * 
- * \tparam T The coefficient type of this term.
- * \tparam G The type of the data managed by this term.
- */
-template<typename T, typename G>
-struct OpLVariable : OpExpression<OpLVariable<T, G>>
+template<typename G, expr::exp_key_t X>
+struct Term : G
 {
-	//! Generates a new variable term.
-	/*!
-	 * Generates a new variable term.
-	 * 
-	 * \param value The coefficient value.
-	 * \param data The data managed by the variable.
-	 */
-	OpLVariable(T value, G data) : value{ value }, data{ data } {}
+	using G::G;
+
+	Term() : G() {}
+	Term(G const& data) : G(data) {}
+	Term(G&& data) noexcept : G(std::forward<G>(data)) {}
 
 	inline auto eval(iter_type n) const
 	{
-		return value * expr::BaseData<G>::get(data, n);
-	}
+		if constexpr (expr::is_symbol<G>)
+		{
+			return G{};
+		}
+		else if constexpr (expr::_Xk<X> == 1)
+		{
+			return expr::BaseData<G>::get(data(), n);
+		}
+		else
+		{
+			using expr::pow;
+			using symphas::math::pow;
 
-	template<size_t N>
-	auto pow() const;
-
-	auto operator-() const
-	{
-		auto v = -value;
-		return OpLVariable<decltype(v), G>(-value, data);
+			if constexpr (expr::_Xk_t<X>::D == 1)
+			{
+				auto result = pow<expr::_Xk_t<X>::N>(expr::BaseData<G>::get(data(), n));
+				if constexpr (expr::_Xk_t<X>::sign)
+				{
+					return 1.0 / result;
+				}
+				else
+				{
+					return result;
+				}
+			}
+			else
+			{
+				return pow(expr::BaseData<G>::get(data(), n), expr::_Xk<X>);
+			}
+		}
 	}
 
 #ifdef PRINTABLE_EQUATIONS
 
 	size_t print(FILE* out) const
 	{
-		return expr::print_with_coeff(out, expr::get_op_name(data), value);
+		if constexpr (expr::_Xk<X> == 1)
+		{
+			return fprintf(out, "%s", expr::get_op_name(data()));
+		}
+		else if constexpr (expr::_Xk_t<X>::D == 1)
+		{
+			return fprintf(out, "%s" SYEX_POW_SEP_A "%u" SYEX_POW_SEP_B, expr::get_op_name(data()), expr::_Xk_t<X>::N);
+		}
+		else
+		{
+			return fprintf(out, "%s" SYEX_POW_SEP_A "%u/%u" SYEX_POW_SEP_B, expr::get_op_name(data()), expr::_Xk_t<X>::N, expr::_Xk_t<X>::D);
+		}
 	}
 
 	size_t print(char* out) const
 	{
-		return expr::print_with_coeff(out, expr::get_op_name(data), value);
+		if constexpr (expr::_Xk<X> == 1)
+		{
+			return sprintf(out, "%s", expr::get_op_name(*static_cast<G const*>(this)));
+		}
+		else if constexpr (expr::_Xk_t<X>::D == 1)
+		{
+			return sprintf(out, "%s" SYEX_POW_SEP_A "%u" SYEX_POW_SEP_B, expr::get_op_name(data()), expr::_Xk_t<X>::N);
+		}
+		else
+		{
+			return sprintf(out, "%s" SYEX_POW_SEP_A "%u/%u" SYEX_POW_SEP_B, expr::get_op_name(data()), expr::_Xk_t<X>::N, expr::_Xk_t<X>::D);
+		}
 	}
 
 	size_t print_length() const
 	{
-		return expr::coeff_print_length(value) + std::strlen(expr::get_op_name(data));
+		// + std::strlen(expr::get_op_name(data))
+		size_t n = 0;
+		if constexpr (expr::_Xk_t<X>::N > 1)
+		{
+			n += STR_ARR_LEN(SYEX_POW_SEP_A SYEX_POW_SEP_B)
+				+ symphas::lib::num_digits<expr::_Xk_t<X>::N>();
+			
+			if constexpr (expr::_Xk_t<X>::D > 1)
+			{
+				n += symphas::lib::num_digits<expr::_Xk_t<X>::D>()
+					+ 1;
+			}
+		}
+		n += std::strlen(expr::get_op_name(data()));
+		return n;
 	}
 
 #endif
 
-	T value;			//!< Coefficient of the variable term.
-	G data;				//!< The data which this variable represents.
+	//! Return a new term with the opposite sign of the exponent.
+	auto operator~() const;
+
+	//! Apply the exponent, resulting in a new term.
+	template<size_t N0>
+	auto pow() const;
+
+	//! Take the root of the given order, resulting in a new term.
+	template<size_t N0>
+	auto root() const;
+
+	auto& data()
+	{
+		return *static_cast<G*>(this);
+	}
+
+	const auto& data() const
+	{
+		return *static_cast<G const*>(this);
+	}
 };
 
-//! A expression term that manages data, representing a variable.
-/*!
- * Specialization based on having a coefficient equal to the multiplicative
- * identity.
- * 
- * \tparam G The type of the data managed by this term.
- */
-template<typename G>
-struct OpLVariable<OpIdentity, G> : OpExpression<OpLVariable<OpIdentity, G>>
+template<typename T, expr::exp_key_t X>
+struct Term<T*, X> : Term<symphas::ref<T>, X>
 {
-	//! Generates a new variable term.
-	/*!
-	 * Generates a new variable term.
-	 *
-	 * \param data The data managed by the variable.
-	 */
-	OpLVariable(OpIdentity, G data) : data{ data } {}
-	OpLVariable(G data) : data{ data } {}
+	using parent_type = Term<symphas::ref<T>, X>;
+	using parent_type::parent_type;
+
+	Term(T* data) : parent_type(symphas::ref<T>(*data)) {}
+};
+
+namespace symphas::internal
+{
+	
+	template<size_t N, typename E>
+	struct Nth_type_of_terms;
+
+	template<size_t N, typename T0, typename... Ts>
+	struct Nth_type_of_terms<N, OpTerms<T0, Ts...>>
+	{
+		using type = typename Nth_type_of_terms<N - 1, OpTerms<Ts...>>::type;
+	};
+
+	template<size_t N>
+	struct Nth_type_of_terms<N, OpTerms<>>
+	{
+		using type = OpIdentity;
+	};
+
+	template<typename T0, typename... Ts>
+	struct Nth_type_of_terms<0, OpTerms<T0, Ts...>>
+	{
+		using type = OpTerms<T0, Ts...>;
+	};
+
+
+	template<typename estream, typename E>
+	size_t print_one_term(estream* out, E const& e)
+	{
+		return expr::print_with_coeff(out, "", e);
+	}
+
+	template<typename estream, typename E>
+	size_t print_one_term(estream* out, OpExpression<E> const& e)
+	{
+		return (*static_cast<E const*>(&e)).print(out);
+	}
+
+	template<typename estream, typename G, expr::exp_key_t X>
+	size_t print_one_term(estream* out, Term<G, X> const& term)
+	{
+		return term.print(out);
+	}
+
+	template<typename E>
+	size_t print_length_one_term(OpExpression<E> const& e)
+	{
+		return expr::coeff_print_length(*static_cast<E const*>(&e));
+	}
+
+	template<typename G, expr::exp_key_t X>
+	size_t print_length_one_term(Term<G, X> const& term)
+	{
+		return term.print_length();
+	}
+}
+
+
+template<typename G>
+Term(G)->Term<G, expr::Xk<1>>;
+template<typename G>
+Term(G*)->Term<symphas::ref<G*>, expr::Xk<1>>;
+
+namespace expr
+{
+
+	template<size_t N, typename V, typename... Gs, exp_key_t... Xs>
+	const auto& get(OpTerms<V, Term<Gs, Xs>...> const& e)
+	{
+		using Nth_type = typename symphas::internal::Nth_type_of_terms<N, OpTerms<V, Term<Gs, Xs>...>>::type;
+		return static_cast<Nth_type const*>(&e)->term;
+	}
+
+	template<size_t N, typename V, typename... Gs, exp_key_t... Xs>
+	auto& get(OpTerms<V, Term<Gs, Xs>...>& e)
+	{
+		using Nth_type = typename symphas::internal::Nth_type_of_terms<N, OpTerms<V, Term<Gs, Xs>...>>::type;
+		return static_cast<Nth_type*>(&e)->term;
+	}
+
+	template<typename V, typename... Gs, exp_key_t... Xs>
+	const auto& terms_after_first(OpTerms<V, Term<Gs, Xs>...> const& e)
+	{
+		return *static_cast<OpTerms<Term<Gs, Xs>...> const*>(&e);
+	}
+
+	template<typename V, typename... Gs, exp_key_t... Xs>
+	auto& terms_after_first(OpTerms<V, Term<Gs, Xs>...>& e)
+	{
+		return *static_cast<OpTerms<Term<Gs, Xs>...>*>(&e);
+	}
+
+	template<typename V, typename G, exp_key_t X>
+	const auto& data(OpTerms<V, Term<G, X>> const& e)
+	{
+		return static_cast<OpTerms<Term<G, X>> const*>(&e)->term.data();
+	}
+
+	template<typename V, typename G, exp_key_t X>
+	auto& data(OpTerms<V, Term<G, X>>& e)
+	{
+		return static_cast<OpTerms<Term<G, X>>*>(&e)->term.data();
+	}
+
+	template<typename E>
+	constexpr bool is_term = false;
+
+	template<typename G, exp_key_t X>
+	constexpr bool is_term<Term<G, X>> = true;
+}
+
+
+template<typename G, expr::exp_key_t X1, expr::exp_key_t X2, typename std::enable_if_t<!expr::has_identity<G, G>, int> = 0>
+auto operator*(Term<G, X1> const& a, Term<G, X2> const& b)
+{
+	return Term<G, expr::XXk_t<X1, X2>::value>(*static_cast<G const*>(&a));
+}
+
+
+template<typename G, expr::exp_key_t X>
+auto Term<G, X>::operator~() const
+{
+	constexpr expr::exp_key_t X2 = X ^ symphas::internal::xsm;
+	return Term<G, X2>(*static_cast<G const*>(this));
+}
+
+template<typename G, expr::exp_key_t X>
+template<size_t N0>
+auto Term<G, X>::pow() const
+{
+	if constexpr (N0 == 0)
+	{
+		return (*this) * ~(*this);
+	}
+	else if constexpr (N0 == 1)
+	{
+		return *this;
+	}
+	else if constexpr (N0 == 2)
+	{
+		return (*this) * (*this);
+	}
+	else
+	{
+		constexpr size_t N1 = N0 / 2;
+		if constexpr (N0 % 2 == 1)
+		{
+			return pow<N1>() * pow<N1>() * (*this);
+		}
+		else
+		{
+			return pow<N1>() * pow<N1>();
+		}
+	}
+}
+
+template<typename G, expr::exp_key_t X>
+template<size_t N0>
+auto Term<G, X>::root() const
+{
+	if constexpr (N0 == 0)
+	{
+		return (*this) * ~(*this);
+	}
+	else if constexpr (N0 == 1)
+	{
+		return *this;
+	}
+	else if constexpr (N0 == 2)
+	{
+		return (*this) * (*this);
+	}
+	else
+	{
+		constexpr size_t N1 = N0 / 2;
+		if constexpr (N0 % 2 == 1)
+		{
+			return pow<N1>() * pow<N1>() * (*this);
+		}
+		else
+		{
+			return pow<N1>() * pow<N1>();
+		}
+	}
+}
+
+template<>
+struct OpTerms<> : OpExpression<OpTerms<>>
+{
+#ifdef PRINTABLE_EQUATIONS
+
+	auto eval(iter_type n) const
+	{
+		return OpIdentity{};
+	}
+
+	size_t print(FILE* out) const
+	{
+		return 0;
+	}
+
+	size_t print(char* out) const
+	{
+		return 0;
+	}
+
+	size_t print_length() const
+	{
+		return 0;
+	}
+
+#endif
+};
+
+template<typename V, typename... Gs, expr::exp_key_t... Xs>
+struct OpExpression<OpTerms<V, Term<Gs, Xs>...>> : OpTerms<Term<Gs, Xs>...>
+{
+	using parent_type = OpTerms<Term<Gs, Xs>...>;
+	using parent_type::parent_type;
+	using E = OpTerms<V, Term<Gs, Xs>...>;
+
+	OpExpression(OpTerms<Term<Gs, Xs>...> const& terms) : parent_type(terms) {}
+
+	auto operator()(iter_type n) const
+	{
+		return cast().eval(n);
+	}
+
+	template<typename E0>
+	auto operator()(OpExpression<E0> const& e) const
+	{
+		return cast() * (*static_cast<E0 const*>(&e));
+	}
+
+	auto& cast() const
+	{
+		return *static_cast<E const*>(this);
+	}
+
+	symphas::internal::expression_iterator<E> begin() const
+	{
+		return symphas::internal::expression_iterator<E>(cast());
+	}
+
+	symphas::internal::expression_iterator<E> end(len_type len) const
+	{
+		return symphas::internal::expression_iterator<E>(cast(), len);
+	}
+};
+
+
+//! A expression term equivalent to the product of two or more OpTerm.
+/*!
+ * Represents the product of two or more variables. Also known as a
+ * multivariable.
+ * Used as a standard way
+ * to evaluate the product of multiple terms. Also used in the symbolic
+ * algebra rules because it is preferred over
+ *
+ * \tparam T The coefficient of the nonlinear variable.
+ * \tparam Gs... The data types that the variable represents.
+ */
+template<typename V, typename... Gs, expr::exp_key_t... Xs>
+struct OpTerms<V, Term<Gs, Xs>...> : OpExpression<OpTerms<V, Term<Gs, Xs>...>>
+{
+	using parent_type = OpExpression<OpTerms<V, Term<Gs, Xs>...>>;
+
+	OpTerms() : parent_type(), term{ V{} } {}
+
+	OpTerms(V const& term0, Term<Gs, Xs> const&... terms) 
+		: parent_type(terms...), term{ term0 } {}
+	
+	OpTerms(V const& term0, OpTerms<Term<Gs, Xs>...> const& terms) 
+		: parent_type(terms), term{ term0 } {}
+	
+	OpTerms(OpTerms<V, Term<Gs, Xs>...> const& terms) 
+		: parent_type(expr::terms_after_first(terms)), term{ terms.term } {}
+
+	template<typename data_type = V, typename nested_type = OpTerms<Term<Gs, Xs>...>,
+		typename std::enable_if_t<(
+			std::is_default_constructible<data_type>::value &&
+			std::is_default_constructible<nested_type>::value), int> = 0>
+	OpTerms() : parent_type(), term{} {}
+
+	template<typename E = V, typename std::enable_if_t<expr::is_term<E>, int> = 0>
+	auto _eval(iter_type n) const
+	{
+		return term.eval(n) * parent_type::eval(n);
+	}
+
+	template<typename E = V, typename std::enable_if_t<!expr::is_term<E>, int> = 0>
+	auto _eval(iter_type n) const
+	{
+		return expr::eval(term) * parent_type::eval(n);
+	}
 
 	inline auto eval(iter_type n) const
 	{
-		return expr::BaseData<G>::get(data, n);
+		return _eval(n);
 	}
 
-	template<size_t N>
-	auto pow() const;
-
-	auto operator-() const
+	template<typename E, size_t N = sizeof...(Gs), typename std::enable_if_t<(N == 1), int> = 0>
+	void operator=(OpExpression<E> const& e)
 	{
-		return OpLVariable<OpNegIdentity, G>(OpNegIdentity{}, data);
+		expr::result(
+			*static_cast<E const*>(&e),
+			static_cast<OpTerms<Term<Gs, Xs>...>*>(this)->term);
 	}
+	
+	auto operator-() const;
 
 #ifdef PRINTABLE_EQUATIONS
 
 	size_t print(FILE* out) const
 	{
-		return expr::print_with_coeff(out, expr::get_op_name(data), OpIdentity{});
+		size_t n = symphas::internal::print_one_term(out, term);
+		return n + parent_type::print(out);
 	}
 
 	size_t print(char* out) const
 	{
-		return expr::print_with_coeff(out, expr::get_op_name(data), OpIdentity{});
+		size_t n = symphas::internal::print_one_term(out, term);
+		return n + parent_type::print(out + n);
 	}
 
 	size_t print_length() const
 	{
-		return expr::coeff_print_length(value) + std::strlen(expr::get_op_name(data));
+		size_t n = 0;
+		if constexpr (expr::is_term<V>)
+		{
+			n += symphas::internal::print_length_one_term(term);
+		}
+		else
+		{
+			n += symphas::internal::print_length_one_term(expr::make_literal(term));
+		}
+		return n + parent_type::print_length();
 	}
 
 #endif
 
-	/* when the opvariable is the special type that it has an identity as its constant, we
-	 * can use it as an LHS
-	 */
-
-	template<typename E>
-	auto operator=(OpExpression<E>&& expr) const
-	{
-		return (OpLHS(data) = expr);
-	}
-
-	template<typename E>
-	auto operator=(OpExpression<E> const& expr) const
-	{
-		return (OpLHS(data) = expr);
-	}
-
-	OpIdentity value;	//!< Member is added to standardize member access across all OpLVariable specializations.
-	G data;				//!< The data which this variable represents.
-};
-
-//! A expression term that manages data, equivalent to a variable.
-/*!
- * Specialization based on the coefficient equal to -1.
- */
-template<typename G>
-struct OpLVariable<OpNegIdentity, G> : OpExpression<OpLVariable<OpNegIdentity, G>>
-{
-	//! Generates a new variable term.
-	/*!
-	 * Generates a new variable term.
-	 *
-	 * \param data The data managed by the variable.
-	 */
-	OpLVariable(OpNegIdentity, G data) : data{ data } {}
-	OpLVariable(G data) : data{ data } {}
-
-	inline auto eval(iter_type n) const
-	{
-		return -expr::BaseData<G>::get(data, n);
-	}
-
-	template<size_t N>
-	auto pow() const;
-
-	auto operator-() const
-	{
-		return OpLVariable<OpIdentity, G>(OpIdentity{}, data);
-	}
-
-#ifdef PRINTABLE_EQUATIONS
-
-	size_t print(FILE* out) const
-	{
-		return expr::print_with_coeff(out, expr::get_op_name(data), OpNegIdentity{});
-	}
-
-	size_t print(char* out) const
-	{
-		return expr::print_with_coeff(out, expr::get_op_name(data), OpNegIdentity{});
-	}
-
-	size_t print_length() const
-	{
-		return expr::coeff_print_length(value) + std::strlen(expr::get_op_name(data));
-	}
-
-#endif
-
-	/* when the opvariable is the special type that it has an identity as its constant, we
-	 * can use it as an LHS
-	 */
-
-	template<typename E>
-	auto operator=(OpExpression<E>&& expr) const
-	{
-		return (OpLHS(data) = expr);
-	}
-
-	template<typename E>
-	auto operator=(OpExpression<E> const& expr) const
-	{
-		return (OpLHS(data) = expr);
-	}
-
-	OpNegIdentity value;	//!< Member is added to standardize member access across all OpLVariable specializations.
-	G data;					//!< The data which this variable represents.
+	V term;
 };
 
 
-template<typename G>
-OpLVariable(G)->OpLVariable<OpIdentity, G>;
+
+template<typename V, typename... Gs, expr::exp_key_t... Xs>
+OpTerms(V, Term<Gs, Xs>...)->OpTerms<V, Term<Gs, Xs>...>;
+
+template<typename V, typename... Gs, expr::exp_key_t... Xs>
+OpTerms(OpLiteral<V>, Term<Gs, Xs>...)->OpTerms<V, Term<Gs, Xs>...>;
+
+template<typename V, typename... Gs, expr::exp_key_t... Xs>
+OpTerms(V, OpTerms<Term<Gs, Xs>...>)->OpTerms<V, Term<Gs, Xs>...>;
+
+template<typename V, typename... Gs, expr::exp_key_t... Xs>
+OpTerms(OpLiteral<V>, OpTerms<Term<Gs, Xs>...>)->OpTerms<V, Term<Gs, Xs>...>;
+
+template<typename V, typename... Gs, expr::exp_key_t... Xs, typename G0, expr::exp_key_t X0>
+OpTerms(OpTerms<V, Term<Gs, Xs>...>, Term<G0, X0>)->OpTerms<V, Term<G0, X0>, Term<Gs, Xs>...>;
 
 
-//! Alias for variable type with identity coefficient.
-template<typename G>
-using OpILVariable = OpLVariable<OpIdentity, G>;
 
-template<typename G2, typename T1, typename T2>
-auto operator*(OpLiteral<T1> const& a, OpLVariable<T2, G2> const& b)
+template<typename V, typename... Gs, expr::exp_key_t... Xs>
+auto OpTerms<V, Term<Gs, Xs>...>::operator-() const
 {
-	return OpLVariable<mul_result_t<T1, T2>, G2>(a.value * b.value, b.data);
+	return ::OpTerms(-term, *static_cast<OpTerms<Term<Gs, Xs>...> const*>(this));
+}
+
+
+
+namespace symphas::internal
+{
+	template<expr::exp_key_t X, typename G>
+	auto to_term_element(G const& data)
+	{
+		return Term<G, X>(data);
+	}
+
+	template<typename G>
+	auto to_term_element(G const& data)
+	{
+		return to_term_element<expr::Xk<1>>(data);
+	}
+
+	template<size_t Z, typename G>
+	auto to_variable_element(G const& data)
+	{
+		return Variable<Z, G>(data);
+	}
+
+
+	template<Axis ax, typename G>
+	auto to_vector_component(G const& data)
+	{
+		return VectorComponent<ax, G>(*static_cast<G const*>(&data));
+	}
+
+	template<Axis ax, size_t Z, typename G>
+	auto to_vector_component(Variable<Z, G> const& data)
+	{
+		return expr::as_variable<Z>(to_vector_component<ax>(*static_cast<G const*>(&data)));;
+	}
+
+	template<Axis ax, typename G, expr::exp_key_t X>
+	auto to_vector_component(Term<G, X> const& term)
+	{
+		return to_term_element<X>(to_vector_component<ax>(*static_cast<G const*>(&term)));
+	}
+
+	template<Axis ax, typename... Gs, expr::exp_key_t... Xs, size_t... Ns, size_t M0, size_t... Ms>
+	auto terms_make_component(OpTerms<Term<Gs, Xs>...> const& b, std::index_sequence<Ns...>, std::index_sequence<M0, Ms...>)
+	{
+		return OpTerms(OpIdentity{}, expr::get<Ns>(b)..., to_vector_component<ax>(expr::get<M0>(b)), expr::get<Ms>(b)...);
+	}
+
+	template<Axis ax, typename... Gs, expr::exp_key_t... Xs, size_t... Is>
+	auto terms_make_component(OpTerms<Term<Gs, Xs>...> const& b, std::index_sequence<Is...>)
+	{
+		using mask_t = symphas::lib::seq_join_t<
+			std::index_sequence<>,
+			std::conditional_t<
+				(expr::eval_type<Term<Gs, Xs>>::rank == 0),
+				std::index_sequence<>,
+				std::index_sequence<Is>>
+			...>;
+		constexpr size_t M0 = symphas::lib::seq_index_value<mask_t::size() - 1, mask_t>::value;
+
+		return terms_make_component<ax>(b, 
+			std::make_index_sequence<M0>{}, 
+			symphas::lib::seq_add_t<
+				symphas::lib::seq_repeating_value_t<sizeof...(Gs) - M0, size_t, M0>, 
+				std::make_index_sequence<sizeof...(Gs) - M0>
+			>{});
+	}
+}
+
+template<typename coeff_t, typename V, typename... Gs, expr::exp_key_t... Xs, 
+	typename std::enable_if_t<(expr::is_coeff<coeff_t> && !expr::is_tensor<V>), int> = 0>
+auto operator*(coeff_t const& value, OpTerms<V, Term<Gs, Xs>...> const& b)
+{
+	return OpTerms(value * expr::coeff(b), *static_cast<OpTerms<Term<Gs, Xs>...> const*>(&b));
+}
+
+template<typename coeff_t, typename tensor_t, typename... Gs, expr::exp_key_t... Xs,
+	typename std::enable_if_t<(expr::is_coeff<coeff_t> && expr::is_tensor<tensor_t>), int> = 0>
+auto operator*(coeff_t const& value, OpTerms<tensor_t, Term<Gs, Xs>...> const& b)
+{
+	return (value * expr::coeff(b)) * OpTerms(OpIdentity{}, *static_cast<OpTerms<Term<Gs, Xs>...> const*>(&b));
+}
+
+
+template<typename T, typename V, typename... Gs, expr::exp_key_t... Xs,
+	size_t N0, size_t N1, size_t N,
+	size_t D = expr::eval_type<OpTerms<Term<Gs, Xs>...>>::rank,
+	typename std::enable_if_t<(!expr::is_tensor<V> && expr::eval_type<OpTerms<Term<Gs, Xs>...>>::rank > 0), int> = 0>
+auto operator*(OpTensor<T, N0, N1, N, D> const& tensor, OpTerms<V, Term<Gs, Xs>...> const& b)
+{
+	constexpr Axis ax = (N1 == 0) ? Axis::X : (N1 == 1) ? Axis::Y : Axis::Z;
+	if constexpr (N == 1)
+	{
+		auto coeff = symphas::internal::tensor_cast::cast(tensor) * expr::coeff(b);
+		return coeff * symphas::internal::terms_make_component<ax>(
+			*static_cast<OpTerms<Term<Gs, Xs>...> const*>(&b), std::make_index_sequence<sizeof...(Gs)>{});
+	}
+	else
+	{
+		auto coeff = expr::make_tensor<N0, N>(symphas::internal::tensor_cast::cast(tensor)) * expr::coeff(b);
+		return coeff * symphas::internal::terms_make_component<ax>(
+			*static_cast<OpTerms<Term<Gs, Xs>...> const*>(&b), std::make_index_sequence<sizeof...(Gs)>{});
+	}
+
+}
+
+
+template<typename T, typename V, typename... Gs, expr::exp_key_t... Xs,
+	size_t N0, size_t N1, size_t N, size_t M,
+	size_t D = expr::eval_type<OpTerms<Term<Gs, Xs>...>>::dimension,
+	typename = std::enable_if_t<(D > 1 && M != D), int>>
+auto operator*(OpTensor<T, N0, N1, N, M> const& tensor, OpTerms<V, Term<Gs, Xs>...> const& b) = delete;
+
+
+
+
+template<typename E, typename G0, expr::exp_key_t X0, typename... Gs, expr::exp_key_t... Xs>
+auto operator*(OpExpression<E> const& a, OpTerms<Term<G0, X0>, Term<Gs, Xs>...> const& b)
+{
+	return (*static_cast<E const*>(&a)) * OpTerms(OpIdentity{}, b);
+}
+
+template<typename E, typename G0, expr::exp_key_t X0, typename... Gs, expr::exp_key_t... Xs>
+auto operator*(OpTerms<Term<G0, X0>, Term<Gs, Xs>...> const& a, OpExpression<E> const& b)
+{
+	return OpTerms(OpIdentity{}, a) * (*static_cast<E const*>(&b));
 }
 
 
 namespace symphas::internal
 {
 
-	template<size_t I>
-	struct data_to_mul;
-
-	template<>
-	struct data_to_mul<0>
+	template<typename V, typename... Gs, expr::exp_key_t... Xs, size_t... Is>
+	auto invert_terms(OpTerms<V, Term<Gs, Xs>...> const& b, std::index_sequence<Is...>)
 	{
-		template<typename T, typename... Gs>
-		auto operator()(T value, std::tuple<Gs...> const& datas)
-		{
-			return OpLVariable(value, std::get<0>(datas));
-		}
-	};
+		return OpTerms(~expr::get<Is>(b)...);
+	}
 
-	template<size_t I>
-	struct data_to_mul
+	inline auto combine_terms(std::index_sequence<>, OpTerms<> const& terms_num, OpTerms<> const& terms_den)
 	{
-		template<typename T, typename... Gs>
-		auto operator()(T value, std::tuple<Gs...> const& datas)
-		{
-			return expr::make_mul(data_to_mul<I - 1>(value, datas), OpLVariable(std::get<I>(datas)));
-		}
-	};
+		return OpIdentity{};
+	}
 
-
-#ifdef PRINTABLE_EQUATIONS
-
-	template<typename type, typename count, typename... Gs>
-	struct print_op;
-
-	template<typename... Gs>
-	struct print_op<std::tuple<>, std::index_sequence<>, Gs...>
+	template<typename... Gs, expr::exp_key_t... Xs, typename G, expr::exp_key_t X, size_t... P0s, size_t... P1s>
+	auto place_at(OpTerms<Term<Gs, Xs>...> const& terms, Term<G, X> const& term0, std::index_sequence<P0s...>, std::index_sequence<P1s...>)
 	{
-		template<typename parent_type, typename os_type, size_t... Is>
-		size_t operator()(parent_type* p, os_type* out, std::index_sequence<Is...>)
-		{
-			return 0;
-		}
-	};
+		return OpTerms(expr::get<P0s>(terms)..., term0, expr::get<P1s + sizeof...(P0s)>(terms)...);
+	}
 
-	template<typename uniq0, typename... uniqs, size_t pow0, size_t... pows, typename... Gs>
-	struct print_op<std::tuple<uniq0, uniqs...>, std::index_sequence<pow0, pows...>, Gs...>
+	template<size_t P, typename... Gs, expr::exp_key_t... Xs, typename G, expr::exp_key_t X, size_t... Is>
+	auto place_at(OpTerms<Term<Gs, Xs>...> const& terms, Term<G, X> const& term0)
 	{
-		template<typename parent_type, typename os_type>
-		size_t operator()(parent_type* p, os_type* out, std::index_sequence<>)
+		return place_at(terms, term0, std::make_index_sequence<P>{}, std::make_index_sequence<sizeof...(Gs) - P>{});
+	}
+
+	template<typename G02, expr::exp_key_t X02, typename... G2s, expr::exp_key_t... X2s>
+	auto combine_terms(std::index_sequence<>, OpTerms<> const& terms_num, OpTerms<Term<G02, X02>, Term<G2s, X2s>...> const& terms_den)
+	{
+		return expr::make_div(OpIdentity{}, OpTerms(OpIdentity{}, terms_den));
+	}
+
+	template<typename G01, expr::exp_key_t X01, typename... G1s, expr::exp_key_t... X1s>
+	auto combine_terms(std::index_sequence<>, OpTerms<Term<G01, X01>, Term<G1s, X1s>...> const& terms_num, OpTerms<> const& terms_den)
+	{
+		return OpTerms(OpIdentity{}, terms_num);
+	}
+
+	template<typename G01, expr::exp_key_t X01, typename... G1s, expr::exp_key_t... X1s, typename G02, expr::exp_key_t X02, typename... G2s, expr::exp_key_t... X2s>
+	auto combine_terms(std::index_sequence<>, OpTerms<Term<G01, X01>, Term<G1s, X1s>...> const& terms_num, OpTerms<Term<G02, X02>, Term<G2s, X2s>...> const& terms_den)
+	{
+		return OpBinaryDiv(OpTerms(OpIdentity{}, terms_num), OpTerms(OpIdentity{}, terms_den));
+	}
+
+	template<size_t P0, size_t... Ps, typename... G1s, expr::exp_key_t... X1s, typename... G2s, expr::exp_key_t... X2s, typename G2, typename... Ts>
+	auto combine_terms(std::index_sequence<P0, Ps...>, OpTerms<Term<G1s, X1s>...> const& terms_num, OpTerms<Term<G2s, X2s>...> const& terms_den, Term<G2, 0> const& term0, Ts&&... rest)
+	{
+		return combine_terms(std::index_sequence<Ps...>{}, terms_num, terms_den, std::forward<Ts>(rest)...);
+	}
+
+	template<size_t P0, size_t... Ps, typename... G1s, expr::exp_key_t... X1s, typename... G2s, expr::exp_key_t... X2s, typename G2, expr::exp_key_t X2, typename... Ts>
+	auto combine_terms(std::index_sequence<P0, Ps...>, OpTerms<Term<G1s, X1s>...> const& terms_num, OpTerms<Term<G2s, X2s>...> const& terms_den, Term<G2, X2> const& term0, Ts&&... rest)
+	{
+		if constexpr (expr::_Xk_t<X2>::sign)
 		{
-			return 0;
+			return combine_terms(std::index_sequence<Ps...>{}, terms_num, OpTerms(~term0, terms_den), std::forward<Ts>(rest)...);
 		}
-
-		template<typename parent_type, typename os_type, size_t I0, size_t... Is>
-		size_t operator()(parent_type* p, os_type* out, std::index_sequence<I0, Is...>)
+		else
 		{
-			using G0 = typename symphas::lib::type_of_index<I0, Gs...>::type;
-			constexpr bool last_print = (sizeof...(uniqs) == 0 || sizeof...(Is) == 0);
+			return combine_terms(std::index_sequence<Ps...>{}, place_at<P0>(terms_num, term0), terms_den, std::forward<Ts>(rest)...);
+		}
+	}
 
-			if constexpr (std::is_same<G0, uniq0>::value && expr::is_combinable<G0>)
+	template<typename... G1s, expr::exp_key_t... X1s, typename... G2s, expr::exp_key_t... X2s, size_t... Is, size_t... Js, size_t... Ms, size_t... Ns>
+	auto combine_terms(OpTerms<Term<G1s, X1s>...> const& a, OpTerms<Term<G2s, X2s>...> const& b, 
+		std::index_sequence<Is...>, std::index_sequence<Js...>, 
+		std::index_sequence<Ms...>, std::index_sequence<Ns...>)
+	{
+		if constexpr ((expr::_Xk_t<X2s>::sign && ...))
+		{
+			return combine_terms(std::index_sequence<Ms...>{}, OpTerms(expr::get<Is>(a)...), OpTerms(~expr::get<Js>(b)...), (expr::get<Ms>(a) * expr::get<Ns>(b))...);
+		}
+		else
+		{
+			return combine_terms(std::index_sequence<Ms...>{}, OpTerms(expr::get<Is>(a)..., expr::get<Js>(b)...), OpTerms<>{}, (expr::get<Ms>(a) * expr::get<Ns>(b))...);
+		}
+	}
+
+	template<typename G, typename T1>
+	constexpr bool commutes_through = false;
+
+	template<typename G, typename... Gs>
+	constexpr bool commutes_through<G, symphas::lib::types_list<Gs...>> = (expr::is_commutable<G, Gs> && ...);
+
+	template<typename G0, typename G1, typename T>
+	constexpr bool commutes_to = false;
+
+	//! Indicates whether G0 can reach a G1 in Gs list through commuting.
+	/*!
+	 * Returns true if the `G0` type can reach the `G1` type by commuting through
+	 * the `Gs` list. Two conditions must effectively be met:
+	 * 1. `G1` must exist in `Gs`; if not then this will evaluate to false;
+	 * 2. `G0` must commute with everything in `Gs`, up to the occurence of a `G1`. 
+	 * If both conditions are met, then this statement will evaluate true.
+	 */
+	template<typename G0, typename G1, typename... Gs>
+	constexpr bool commutes_to<G0, G1, types_list<Gs...>> = 
+		(index_of_type<G1, Gs...> >= 0) 
+		? commutes_through<G0, types_before_index<fixed_max<0, index_of_type<G1, Gs...>>, Gs...>>
+		: false;
+
+	template<typename G1, typename T1, typename T2>
+	constexpr bool satisfies_combination = false;
+
+	template<typename G1, typename... Gs, typename... G2s>
+	constexpr bool satisfies_combination<G1, types_list<Gs...>, types_list<G2s...>> = (
+		(expr::is_combinable<G1> && commutes_to<G1, G1, types_list<Gs..., G2s...>>)	// will combine with another G1 in G2s list
+		|| ((expr::has_identity<G1, G2s> && commutes_to<G1, G2s, types_list<Gs..., G2s...>>) && ...)); // will combine with a G2 if there is an identity
+
+
+	template<typename... G1s, expr::exp_key_t... X1s, typename... G2s, expr::exp_key_t... X2s, size_t... Is, size_t... Js>
+	auto combine_terms(OpTerms<Term<G1s, X1s>...> const& a, OpTerms<Term<G2s, X2s>...> const& b, std::index_sequence<Is...>, std::index_sequence<Js...>)
+	{
+		using seq_a_mask = std::integer_sequence<bool, (
+			satisfies_combination<G1s, 
+				types_after_at_index<Is + 1, G1s...>, 
+				types_list<G2s...>>
+			)...>;
+		using seq_b_mask = std::integer_sequence<bool, (
+			satisfies_combination<G2s,
+				reverse_types_list<types_before_index<Js, G2s...>>,
+				reverse_types_list<types_list<G1s...>>>
+			)...>;
+
+		using seq_a_pick = symphas::lib::seq_join_t<std::index_sequence<>, std::conditional_t<symphas::lib::seq_index_value<Is, seq_a_mask>::value, std::index_sequence<Is>, std::index_sequence<>>...>;
+		using seq_a_pick_ = symphas::lib::seq_join_t<std::index_sequence<>, std::conditional_t<!symphas::lib::seq_index_value<Is, seq_a_mask>::value, std::index_sequence<Is>, std::index_sequence<>>...>;
+
+		using seq_b_pick = symphas::lib::seq_join_t<std::index_sequence<>, std::conditional_t<symphas::lib::seq_index_value<Js, seq_b_mask>::value, std::index_sequence<Js>, std::index_sequence<>>...>;
+		using seq_b_pick_ = symphas::lib::seq_join_t<std::index_sequence<>, std::conditional_t<!symphas::lib::seq_index_value<Js, seq_b_mask>::value, std::index_sequence<Js>, std::index_sequence<>>...>;
+
+		return combine_terms(a, b, seq_a_pick_{}, seq_b_pick_{}, seq_a_pick{}, seq_b_pick{});
+	}
+
+
+}
+
+
+//! Addition of two multi variables with data that can be combined.
+template<typename V1, typename... G1s, expr::exp_key_t... X1s, typename V2, typename... G2s, expr::exp_key_t... X2s>
+auto operator*(OpTerms<V1, Term<G1s, X1s>...> const& a, OpTerms<V2, Term<G2s, X2s>...> const& b)
+{
+	return expr::coeff(a) * expr::coeff(b) *
+		symphas::internal::combine_terms(
+			expr::terms_after_first(a), 
+			expr::terms_after_first(b), 
+			std::make_index_sequence<sizeof...(G1s)>{}, 
+			std::make_index_sequence<sizeof...(G2s)>{});
+}
+
+
+//! Addition of two multi variables with data that can be combined.
+template<typename V1, typename... G1s, expr::exp_key_t... X1s, typename V2, typename... G2s, expr::exp_key_t... X2s>
+auto operator/(OpTerms<V1, Term<G1s, X1s>...> const& a, OpTerms<V2, Term<G2s, X2s>...> const& b)
+{
+	return expr::coeff(a) * (OpIdentity{} / expr::coeff(b)) *
+		symphas::internal::combine_terms(
+			expr::terms_after_first(a), 
+			symphas::internal::invert_terms(expr::terms_after_first(b), std::make_index_sequence<sizeof...(G2s)>{}),
+			std::make_index_sequence<sizeof...(G1s)>{},
+			std::make_index_sequence<sizeof...(G2s)>{});
+}
+
+
+namespace symphas::internal
+{
+
+	using expr::Xk;
+
+	template<typename A>
+	struct construct_term
+	{
+		template<typename S>
+		static auto get(S value, A data)
+		{
+			if constexpr (expr::is_coeff<A>)
 			{
-				auto [n, offset] = p->template print_op_apply<I0, pow0>(out);
-				if constexpr (!last_print)
-				{
-					auto [n0, offset0] = p->print_sep_apply(out + offset);
-					n += n0;
-					offset += offset0;
-				}
-				return print_op<std::tuple<uniqs...>, std::index_sequence<pows...>, Gs...>{}(p, out + offset, std::index_sequence<Is...>{}) + n;
-			}
-			else if constexpr (std::is_same<G0, uniq0>::value)
-			{
-				auto [n, offset] = p->template print_op_apply<I0, 1>(out);
-				if constexpr (!last_print)
-				{
-					auto [n0, offset0] = p->print_sep_apply(out + offset);
-					n += n0;
-					offset += offset0;
-				}
-				return print_op<std::tuple<uniq0, uniqs...>, std::index_sequence<pow0, pows...>, Gs...>{}(p, out + offset, std::index_sequence<Is...>{}) + n;
-			}
-			else if constexpr (expr::is_combinable<G0> && !((false || ... || std::is_same<G0, uniqs>::value)))
-			{
-				return print_op<std::tuple<uniq0, uniqs...>, std::index_sequence<pow0, pows...>, Gs...>{}(p, out, std::index_sequence<Is...>{});
+				return value * data;
 			}
 			else
 			{
-				return print_op<std::tuple<uniqs..., uniq0>, std::index_sequence<pows..., pow0>, Gs...>{}(p, out, std::index_sequence<I0, Is...>{});
+				return OpTerms(value, Term<A, Xk<1>>(data));
+			}
+		}
+
+		static auto get(A data)
+		{
+			if constexpr (expr::is_coeff<A>)
+			{
+				return data;
+			}
+			else
+			{
+				return OpTerms(OpIdentity{}, Term<A, Xk<1>>(data));
+			}
+		}
+
+		template<size_t Z, typename S>
+		static auto get(S value, A data)
+		{
+			if constexpr (expr::is_coeff<A>)
+			{
+				return value * data;
+			}
+			else
+			{
+				return OpTerms(value, Term<Variable<Z, A>, Xk<1>>(data));
+			}
+		}
+
+		template<size_t Z>
+		static auto get(A data)
+		{
+			if constexpr (expr::is_coeff<A>)
+			{
+				return data;
+			}
+			else
+			{
+				return OpTerms(OpIdentity{}, Term<Variable<Z, A>, Xk<1>>(data));
 			}
 		}
 	};
 
-#endif
+	template<>
+	struct construct_term<scalar_t>
+	{
+		template<typename S>
+		static auto get(S value, scalar_t data)
+		{
+			return OpTerms(value, Term<OpLiteral<scalar_t>, Xk<1>>(data));
+		}
 
+		static auto get(scalar_t data)
+		{
+			return OpTerms(OpIdentity{}, Term<OpLiteral<scalar_t>, Xk<1>>(data));
+		}
+
+		template<size_t Z, typename S>
+		static auto get(S value, scalar_t data)
+		{
+			return OpTerms(value, Term<Variable<Z, OpLiteral<scalar_t>>, Xk<1>>(data));
+		}
+
+		template<size_t Z>
+		static auto get(scalar_t data)
+		{
+			return OpTerms(OpIdentity{}, Term<Variable<Z, OpLiteral<scalar_t>>, Xk<1>>(data));
+		}
+	};
+
+	template<>
+	struct construct_term<complex_t>
+	{
+		template<typename S>
+		static auto get(S value, complex_t data)
+		{
+			return OpTerms(value, Term<OpLiteral<complex_t>, Xk<1>>(data));
+		}
+
+		static auto get(complex_t data)
+		{
+			return OpTerms(OpIdentity{}, Term<OpLiteral<complex_t>, Xk<1>>(data));
+		}
+
+		template<size_t Z, typename S>
+		static auto get(S value, complex_t data)
+		{
+			return OpTerms(value, Term<Variable<Z, OpLiteral<complex_t>>, Xk<1>>(data));
+		}
+
+		template<size_t Z>
+		static auto get(complex_t data)
+		{
+			return OpTerms(OpIdentity{}, Term<Variable<Z, OpLiteral<complex_t>>, Xk<1>>(data));
+		}
+	};
+
+	template<typename T, size_t D>
+	struct construct_term<any_vector_t<T, D>>
+	{
+		template<typename S>
+		static auto get(S value, any_vector_t<T, D> data)
+		{
+			return OpTerms(value, Term<OpLiteral<any_vector_t<T, D>>, Xk<1>>(data));
+		}
+
+		static auto get(any_vector_t<T, D> data)
+		{
+			return OpTerms(OpIdentity{}, Term<OpLiteral<any_vector_t<T, D>>, Xk<1>>(data));
+		}
+
+		template<size_t Z, typename S>
+		static auto get(S value, any_vector_t<T, D> data)
+		{
+			return OpTerms(value, Term<Variable<Z, OpLiteral<any_vector_t<T, D>>>, Xk<1>>(data));
+		}
+
+		template<size_t Z>
+		static auto get(any_vector_t<T, D> data)
+		{
+			return OpTerms(OpIdentity{}, Term<Variable<Z, OpLiteral<any_vector_t<T, D>>>, Xk<1>>(data));
+		}
+	};
+
+
+	//! Helper in order to construct an OpTerms.
+	/*!
+	 * Specialization for an lvalue; this means that a reference should be
+	 * created.
+	 */
+	template<typename A>
+	struct construct_term<A&>
+	{
+		template<typename S>
+		static auto get(S value, A& data)
+		{
+			return construct_term<symphas::ref<A>>::get(value, data);
+		}
+
+		static auto get(A& data)
+		{
+			return construct_term<symphas::ref<A>>::get(data);
+		}
+
+		template<size_t Z, typename S>
+		static auto get(S value, A& data)
+		{
+			return construct_term<symphas::ref<A>>::template get<Z>(value, data);
+		}
+
+		template<size_t Z>
+		static auto get(A& data)
+		{
+			return construct_term<symphas::ref<A>>::template get<Z>(data);
+		}
+	};
+
+	//! Helper in order to construct an OpTerms.
+	/*!
+	 * Specialization for a pointer; this means the pointer should be copied to
+	 * the variable.
+	 */
+	template<typename A>
+	struct construct_term<A*>
+	{
+		template<typename S>
+		static auto get(S value, A* data)
+		{
+			return OpTerms(value, Term<A*, Xk<1>>(data));
+		}
+
+		static auto get(A* data)
+		{
+			return OpTerms(OpIdentity{}, Term<A*, Xk<1>>(data));
+		}
+
+		template<size_t Z, typename S>
+		static auto get(S value, A* data)
+		{
+			return OpTerms(value, Term<Variable<Z, A*>, Xk<1>>(data));
+		}
+
+		template<size_t Z>
+		static auto get(A* data)
+		{
+			return OpTerms(OpIdentity{}, Term<Variable<Z, A*>, Xk<1>>(data));
+		}
+	};
+
+	//! Helper in order to construct an OpTerms.
+	/*!
+	 * The data is passed as a reference, rather than copied.
+	 */
+	template<size_t Z, typename A>
+	struct construct_term<Variable<Z, A>>
+	{
+		template<typename S>
+		static auto get(S value, Variable<Z, A>& data)
+		{
+			return construct_term<A>::template get<Z>(value, data);
+		}
+
+		static auto get(Variable<Z, A>& data)
+		{
+			return construct_term<A>::template get<Z>(data);
+		}
+
+		template<size_t Y, typename S>
+		static auto get(S value, Variable<Z, A>& data)
+		{
+			return construct_term<A>::template get<Y>(value, data);
+		}
+
+		template<size_t Y>
+		static auto get(Variable<Z, A>& data)
+		{
+			return construct_term<A>::template get<Y>(data);
+		}
+	};
+
+	//! Helper in order to construct an OpTerms.
+	/*!
+	 * The data is passed as a reference, rather than copied.
+	 */
+	template<typename A>
+	struct construct_term<symphas::ref<A>>
+	{
+		template<typename S>
+		static auto get(S value, symphas::ref<A> data)
+		{
+			return OpTerms(value, Term<symphas::ref<A>, Xk<1>>(data));
+		}
+
+		static auto get(symphas::ref<A> data)
+		{
+			return OpTerms(OpIdentity{}, Term<symphas::ref<A>, Xk<1>>(data));
+		}
+
+		template<size_t Z, typename S>
+		static auto get(S value, symphas::ref<A> data)
+		{
+			return OpTerms(value, Term<Variable<Z, symphas::ref<A>>, Xk<1>>(data));
+		}
+
+		template<size_t Z>
+		static auto get(symphas::ref<A> data)
+		{
+			return OpTerms(OpIdentity{}, Term<Variable<Z, symphas::ref<A>>, Xk<1>>(data));
+		}
+	};
+
+
+	//! Helper in order to construct an OpTerms.
+	/*!
+	 * When these types are given by lvalue, then the original functions need to
+	 * be applied, not the functions corresponding to the simple lvalue
+	 * specialization.
+	 */
+	template<typename A>
+	struct construct_term<A*&> : construct_term<A*> {};
+	template<typename A>
+	struct construct_term<symphas::ref<A>&> : construct_term<symphas::ref<A>> {};
+	template<size_t Z, typename A>
+	struct construct_term<Variable<Z, A>&> : construct_term<Variable<Z, A>> {};
+	template<typename A>
+	struct construct_term<NamedData<A>&> : construct_term<NamedData<A>> {};
+
+	template<>
+	struct construct_term<NamedData<OpIdentity>> : construct_term<OpIdentity> {};
+	template<>
+	struct construct_term<NamedData<OpNegIdentity>> : construct_term<OpNegIdentity> {};
+	template<size_t N, size_t D>
+	struct construct_term<NamedData<OpFractionLiteral<N, D>>> : construct_term<OpFractionLiteral<N, D>> {};
+	template<size_t N, size_t D>
+	struct construct_term<NamedData<OpNegFractionLiteral<N, D>>> : construct_term<OpNegFractionLiteral<N, D>> {};
+	template<>
+	struct construct_term<NamedData<OpVoid>> : construct_term<OpVoid> {};
 }
 
 
-
-// *************************************************************************************
-
-//! A expression term equivalent to the product of two or more OpLVariable.
-/*!
- * Represents the product of two or more variables. Also known as a
- * multivariable.
- * Used as a standard way
- * to evaluate the product of multiple terms. Also used in the symbolic
- * algebra rules because it is preferred over 
- * 
- * \tparam T The coefficient of the nonlinear variable.
- * \tparam Gs... The data types that the variable represents.
- */
-template<typename T, typename... Gs>
-struct OpNLVariable : OpExpression<OpNLVariable<T, Gs...>>
+namespace expr
 {
-	//! Create a multivariable from the given coefficient and data.
-	/*!
-	 * The multivariable will be created with the given coefficient value
-	 * and manage the given list of data, and will represent the product
-	 * of variables that represent that data.
-	 * 
-	 * \param value The coefficient.
-	 * \param datas... The list of data that is put together as a product.
-	 */
-	OpNLVariable(T value, Gs... datas) : datas{ datas... }, value{ value } {}
 
-	//! Create a multivariable from the given coefficient and data.
+	//! Delegate to create an OpTerm with the correct template. 
 	/*!
-	 * The multivariable will be created with the given coefficient value
-	 * and manage the given list of data, and will represent the product
-	 * of variables that represent that data.
+	 * Delegate to create an OpTerm with the correct template. For
+	 * more information on specific implementation, see symphas::internal::make_termlvariable.
 	 *
-	 * \param value The coefficient.
-	 * \param datas The list of data that is put together as a product.
-	 */
-	OpNLVariable(T value, std::tuple<Gs...> const& datas) : datas{ datas }, value{ value } {}
-
-	//! Create a multivariable from the given coefficient and data.
-	/*!
-	 * The multivariable will be created without a coefficient
-	 * and manage the given list of data, and will represent the product
-	 * of variables that represent that data.
+	 * \param data The data from which to create an OpTerm.
 	 *
-	 * \param datas... The list of data that is put together as a product.
+	 * \tparam A The type of the data to make an OpTerm.
 	 */
-	OpNLVariable(Gs... datas) : datas{ datas... }, value{ OpIdentity{} } {}
+	template<typename A>
+	auto make_term(A&& data)
+	{
+		return symphas::internal::construct_term<A>::get(std::forward<A>(data));
+	}
 
-	//! Create a multivariable from the given coefficient and data.
+	//! Delegate to create an OpTerm with the correct template. 
 	/*!
-	 * The multivariable will be created without a coefficient
-	 * and manage the given list of data, and will represent the product
-	 * of variables that represent that data.
+	 * Delegate to create an OpTerm with the correct template. For
+	 * more information on specific implementation, see symphas::internal::make_termlvariable.
+	 * This overload will use the given index to create an OpTerm of a
+	 * Variable.
 	 *
-	 * \param datas The list of data that is put together as a product.
+	 * \param data The data from which to create an OpTerm.
+	 *
+	 * \tparam Z The index of the Variable to create.
+	 * \tparam A The type of the data to make an OpTerm.
 	 */
-	OpNLVariable(std::tuple<Gs...> const& datas) : datas{ datas }, value{ OpIdentity{} } {}
-
-	inline auto eval(iter_type n) const
+	template<size_t Z, typename A>
+	auto make_term(A&& data)
 	{
-		return _eval(n, std::make_index_sequence<sizeof...(Gs)>{});
-	}
-	auto operator-() const
-	{
-		auto v = -value;
-		return OpNLVariable<decltype(v), Gs...>(-value, datas);
+		return symphas::internal::construct_term<A>::template get<Z>(std::forward<A>(data));
 	}
 
-#ifdef PRINTABLE_EQUATIONS
-
-	size_t print(FILE* out) const
+	//! Delegate to create an OpTerm with the correct template. 
+	/*!
+	 * Delegate to create an OpTerm with the correct template. For
+	 * more information on specific implementation, see symphas::internal::make_termlvariable.
+	 *
+	 * \param value The coefficient of the OpTerm.
+	 * \param data The data from which to create an OpTerm.
+	 *
+	 * \param A The type of the data to make an OpTerm.
+	 */
+	template<typename V, typename A>
+	auto make_term(V&& value, A&& data)
 	{
-		return _print(out, std::make_index_sequence<sizeof...(Gs)>{});
+		return symphas::internal::construct_term<A>::template get(expr::make_literal(std::forward<V>(value)), std::forward<A>(data));
 	}
 
-	size_t print(char* out) const
+	//! Delegate to create an OpTerm with the correct template. 
+	/*!
+	 * Delegate to create an OpTerm with the correct template. For
+	 * more information on specific implementation, see symphas::internal::make_termlvariable.
+	 * This overload will use the given index to create an OpTerm of a
+	 * Variable.
+	 *
+	 * \param value The coefficient of the OpTerm.
+	 * \param data The data from which to create an OpTerm.
+	 *
+	 * \tparam Z The index of the Variable to create.
+	 * \tparam A The type of the data to make an OpTerm.
+	 */
+	template<size_t Z, typename V, typename A>
+	auto make_term(V&& value, A&& data)
 	{
-		return _print(out, std::make_index_sequence<sizeof...(Gs)>{});
+		return symphas::internal::construct_term<A>::template get<Z>(expr::make_literal(std::forward<V>(value)), std::forward<A>(data));
 	}
 
-	size_t print_length() const
+	//! Creates a symbolic variable with no data. 
+	/*!
+	 * For symbolic algebra manipulation, create a variable with no data, simply a symbolic type,
+	 * in order to represent a symbol.
+	 *
+	 * \tparam Z The index of the Variable to create.
+	 */
+	template<size_t Z>
+	auto make_term()
 	{
-		return _print_length(std::make_index_sequence<sizeof...(Gs)>{});
+		return OpTerms(OpIdentity{}, Term<Variable<Z>, Xk<1>>{});
 	}
 
-#endif
-
-	auto as_mul() const
-	{
-		return _as_mul();
-	}
-
-	std::tuple<Gs...> datas;
-	T value;
-
-protected:
-
-	template<size_t I = 0>
-	auto _as_mul() const
-	{
-		symphas::internal::data_to_mul<sizeof...(Gs) - 1>(value, datas);
-	}
-
-	template<size_t... Is>
-	inline auto _eval(iter_type n, std::index_sequence<Is...>) const
-	{
-		return ((value * ... * expr::BaseData<Gs>::get(std::get<Is>(datas), n)));
-	}
-
-#ifdef PRINTABLE_EQUATIONS
-
-	template<typename type, typename count, typename... G0s>
-	friend struct symphas::internal::print_op;
-
-	template<size_t I, size_t pow>
-	std::pair<size_t, size_t> print_op_apply(FILE* out) const
-	{
-		if constexpr (pow == 1)
-		{
-			return { fprintf(out, "%s", expr::get_op_name(std::get<I>(datas))), 0 };
-		}
-		else
-		{
-			return { fprintf(out, "%s" SYEX_POW_SEP_A "%zd" SYEX_POW_SEP_B, expr::get_op_name(std::get<I>(datas)), pow), 0 };
-		}
-	}
-
-	template<size_t I, size_t pow>
-	std::pair<size_t, size_t> print_op_apply(char* out) const
-	{
-		if constexpr (pow == 1)
-		{
-			size_t n = sprintf(out, "%s", expr::get_op_name(std::get<I>(datas)));
-			return { n, n };
-		}
-		else
-		{
-			size_t n = sprintf(out, "%s" SYEX_POW_SEP_A "%zd" SYEX_POW_SEP_B, expr::get_op_name(std::get<I>(datas)), pow);
-			return { n, n };
-		}
-	}
-
-	template<size_t I, size_t pow>
-	std::pair<size_t, size_t> print_op_apply(int* out) const
-	{
-		if constexpr (I == 1)
-		{
-			return { std::strlen(expr::get_op_name(std::get<I>(datas))), 0 };
-		}
-		else
-		{
-			return { std::strlen(expr::get_op_name(std::get<I>(datas)))
-				+ symphas::lib::num_digits<pow>()
-				+ STR_ARR_LEN(SYEX_POW_SEP_A SYEX_POW_SEP_B) - 1,
-				0 };
-		}
-	}
-
-
-	inline std::pair<size_t, size_t> print_sep_apply(char* out) const
-	{
-		size_t n = sprintf(out, SYEX_NLV_SEP_OP);
-		return { n, n };
-	}
-
-	inline std::pair<size_t, size_t> print_sep_apply(FILE* out) const
-	{
-		return { fprintf(out, SYEX_NLV_SEP_OP), 0 };
-	}
-
-	inline std::pair<size_t, size_t> print_sep_apply(int* out) const
-	{
-		return { STR_ARR_LEN(SYEX_NLV_SEP_OP) - 1, 0 };
-	}
-
-
-
-	using cc = symphas::lib::cc_like_types<Gs...>;
-	using pr = symphas::internal::print_op<typename cc::type, typename cc::count, Gs...>;
-
-	template<size_t... Is>
-	size_t _print(FILE* out, std::index_sequence<Is...>) const
-	{
-		size_t n = 0;
-		n += expr::print_with_coeff(out, value);
-		n += pr{}(this, out, std::make_index_sequence<sizeof...(Gs)>{});
-		return n;
-	}
-
-	template<size_t... Is>
-	size_t _print(char* out, std::index_sequence<Is...>) const
-	{
-		size_t n = 0;
-		n += expr::print_with_coeff(out, value);
-		n += pr{}(this, out + n, std::make_index_sequence<sizeof...(Gs)>{});
-		return n;
-	}
-
-	template<size_t... Is>
-	size_t _print_length(std::index_sequence<Is...>) const
-	{
-		return expr::coeff_print_length(value)
-			+ pr{}(this, (int*)(0), std::make_index_sequence<sizeof...(Gs)>{});
-	}
-
-#endif
-
-};
-
-template<typename... Gs>
-OpNLVariable(Gs...)->OpNLVariable<OpIdentity, Gs...>;
-template<typename... Gs>
-OpNLVariable(std::tuple<Gs...>)->OpNLVariable<OpIdentity, Gs...>;
-
-
-template<typename T1, typename T2, typename... E>
-auto operator*(OpLiteral<T1> const& a, OpNLVariable<T2, E...> const& b)
-{
-	return OpNLVariable(a.value * b.value, b.datas);
 }
-
-
-
-template<typename T1, typename T2, typename... G1s, typename... G2s, 
-	typename std::enable_if<expr::nl_can_multiply<G1s...>::template with<G2s...>::value, int>::type = 0>
-auto operator*(OpNLVariable<T1, G1s...> const& a, OpNLVariable<T2, G2s...> const& b)
-{
-	return symphas::internal::NL_rules(
-		OpNLVariable(
-			a.value * b.value,
-			symphas::internal::NL_sort(std::tuple_cat(a.datas, b.datas))
-		));
-}
-
-
-template<typename T1, typename T2, typename G2, typename... Gs, 
-	typename std::enable_if<expr::nl_can_multiply<Gs...>::template with<G2>::value, int>::type = 0>
-auto operator*(OpNLVariable<T1, Gs...> const& a, OpLVariable<T2, G2> const& b)
-{
-	return symphas::internal::NL_rules(
-		OpNLVariable(
-			a.value * b.value, 
-			symphas::internal::NL_sort(std::tuple_cat(a.datas, std::tuple<G2>(b.data)))
-		));
-}
-
-template<typename T1, typename G1, typename T2, typename... Gs, 
-	typename std::enable_if<expr::nl_can_multiply<G1>::template with<Gs...>::value, int>::type = 0>
-auto operator*(OpLVariable<T1, G1> const& a, OpNLVariable<T2, Gs...> const& b)
-{
-	return symphas::internal::NL_rules(
-		OpNLVariable(
-			b.value * a.value, 
-			symphas::internal::NL_sort(std::tuple_cat(std::tuple<G1>(a.data), b.datas))
-		));
-}
-
-
-
-/*
- * self multiplication operator for linear variable transforming to nonlinear variable
- */
-
-
-template<typename T1, typename G1, typename T2, typename G2, 
-	typename std::enable_if<expr::m_idy<G1, G2>::enable, int>::type = 0>
-auto operator*(OpLVariable<T1, G1> const& a, OpLVariable<T2, G2> const& b)
-{
-	return expr::m_idy<G1, G2>::template apply(a, b);
-}
-
-template<typename T1, typename G1, typename T2, typename G2, 
-	typename std::enable_if<!expr::m_idy<G1, G2>::enable && expr::nl_can_multiply<G1>::template with<G2>::value, int>::type = 0>
-auto operator*(OpLVariable<T1, G1> const& a, OpLVariable<T2, G2> const& b)
-{
-	return symphas::internal::NL_rules(
-		OpNLVariable(
-			a.value * b.value, 
-			symphas::internal::NL_sort(symphas::lib::make_tuple(a.data, b.data))
-		));
-}
-
-
-
-template<typename T, typename G>
-template<size_t N>
-auto OpLVariable<T, G>::pow() const
-{
-	return expr::pow<N>(*this);
-}
-
-template<typename G>
-template<size_t N>
-auto OpLVariable<OpIdentity, G>::pow() const
-{
-	return expr::pow<N>(*this);
-}
-
-template<typename G>
-template<size_t N>
-auto OpLVariable<OpNegIdentity, G>::pow() const
-{
-	return expr::pow<N>(*this);
-}
-
-
-
-
 
 

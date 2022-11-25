@@ -40,48 +40,9 @@
  * for the numerical results unless finite difference approximations are
  * applied extensively to the provisional variables. This is not recommended.
  */
-NEW_SOLVER(SolverFT)
+NEW_SOLVER_WITH_STENCIL(SolverFT)
 
 
-public:
-
-	SolverFT(len_type* dims, double h) : St(dims, h) {}
-
-
-	template<size_t O, typename T>
-	auto applied_generalized_derivative(Block<T> const& e, iter_type n) const
-	{
-		auto& v = e.values[n];
-		return (*static_cast<St const*>(this)).template apply<O>(&v);
-	}
-
-	template<typename T>
-	auto applied_laplacian(Block<T> const& e, iter_type n) const
-	{
-		auto& v = e.values[n];
-		return (*static_cast<St const*>(this)).laplacian(&v);
-	}
-
-	template<typename T>
-	auto applied_bilaplacian(Block<T> const& e, iter_type n) const
-	{
-		auto& v = e.values[n];
-		return (*static_cast<St const*>(this)).bilaplacian(&v);
-	}
-
-	template<typename T>
-	auto applied_gradlaplacian(Block<T> const& e, iter_type n) const
-	{
-		auto& v = e.values[n];
-		return (*static_cast<St const*>(this)).gradlaplacian(&v);
-	}
-
-	template<typename T>
-	auto applied_gradient(Block<T> const& e, iter_type n) const
-	{
-		auto& v = e.values[n];
-		return (*static_cast<St const*>(this)).gradient(&v);
-	}
 
 
 
@@ -93,7 +54,7 @@ public:
 	template<typename S>
 	void step(S &sys, double dt) const
 	{
-		expr::result_interior(expr::make_op(sys) + expr::make_op(dt, sys.dframe), sys);
+		expr::result_interior(expr::make_term(sys.as_grid()) + expr::make_term(dt, sys.dframe), sys);
 	}
 
 
@@ -118,10 +79,10 @@ public:
 	 */
 
 	template<size_t En, typename SS, typename S, typename E>
-	auto form_expr_one(SS&&, std::pair<S, E>&& e) const
+	auto form_expr_one(SS&&, std::pair<S, E> const& e) const
 	{
 		auto [sys, equation] = e;
-		auto eq_ft = expr::distribute_operators(equation);
+		auto eq_ft = expr::apply_operators(equation);
 		
 		return std::make_pair(sys, eq_ft);
 	}
@@ -162,7 +123,7 @@ public:
 			dims[i] = parameters.get_interval_data()[0].at(side).count() + 2 * THICKNESS;
 		}
 
-		auto s = SolverFT<St>{ dims, h };
+		auto s = this_type{ dims, h };
 		delete[] dims;
 		return s;
 	}

@@ -719,12 +719,21 @@ namespace symphas::internal
  *
  * this will put each individual option in an std::string
  */
-std::vector<std::string> symphas::conf::parse_options(const char* options, bool spaces_are_delimiters)
+std::vector<std::string> symphas::conf::parse_options(
+	const char* options, bool spaces_are_delimiters, const char* extra_delimiters)
 {
 	std::vector<std::string> out;
 	char* option_buffer = new char[std::strlen(options) + 1];
 	std::strcpy(option_buffer, options);
 	symphas::lib::str_trim(option_buffer);
+
+
+	std::vector<char> delimiters{ symphas::internal::OPTION_DELIMITERS };
+	char add_delimiter;
+	while ((add_delimiter = *extra_delimiters++))
+	{
+		delimiters.push_back(add_delimiter);
+	}
 
 	auto open_list = symphas::internal::bracket_lists().first;
 	auto close_list = symphas::internal::bracket_lists().second;
@@ -737,7 +746,8 @@ std::vector<std::string> symphas::conf::parse_options(const char* options, bool 
 
 		char buffer[BUFFER_LENGTH];
 		bool add_option = false;
-		for (char chk : symphas::internal::OPTION_DELIMITERS)
+
+		for (char chk : delimiters)
 		{
 			if (*c == chk)
 			{
@@ -824,8 +834,8 @@ std::vector<std::string> symphas::conf::parse_options(const char* options, bool 
 				{
 					auto a0 = open_list.begin();
 					auto a1 = open_list.end();
-					auto b0 = symphas::internal::OPTION_DELIMITERS.begin();
-					auto b1 = symphas::internal::OPTION_DELIMITERS.end();
+					auto b0 = delimiters.begin();
+					auto b1 = delimiters.end();
 
 					while (*c &&
 						(std::find(a0, a1, *c) == a1) &&
@@ -844,10 +854,6 @@ std::vector<std::string> symphas::conf::parse_options(const char* options, bool 
 				for (; *c == ' '; ++c); // skip all the next spaces
 			}
 		}
-		else
-		{
-			++c;
-		}
 
 		/* copy the buffer into an option string if an option
 		 * was copied
@@ -855,6 +861,10 @@ std::vector<std::string> symphas::conf::parse_options(const char* options, bool 
 		if (add_option)
 		{
 			out.emplace_back(buffer);
+		}
+		else
+		{
+			++c;
 		}
 	}
 
@@ -966,7 +976,7 @@ SystemConf::SystemConf(symphas::problem_parameters_type const& parameters, const
 
 
 	g = Geometry::CARTESIAN;
-	dt = parameters.dt;
+	dt = parameters.get_time_step();
 	dimension = parameters.get_dimension();
 
 	tdata_len = parameters.length();
@@ -1394,44 +1404,44 @@ void SystemConf::parse_initial_condition(const char* value, size_t n)
 	std::strncpy(input, value, sizeof(input) / sizeof(char) - 1);
 	symphas::lib::str_trim(input);
 
-	if (*input == CONFIG_OPTION_PREFIX_C)
+	if (*input == CONFIG_TITLE_PREFIX_C)
 	{
-		char* tok = std::strtok(input, STR(CONFIG_OPTION_PREFIX));
-		char* file_name = new char[std::strlen(tok) + 1]{ 0 };
-		int index = 0;
-
-		if (sscanf(tok, "%s %d", file_name, &index) < 2)
+		if (params::input_data_file)
 		{
-			if (sscanf(tok, "%s", file_name) < 1)
-			{
-				fprintf(SYMPHAS_WARN, "unable to read the filename given to the initial conditions, '%s'\n", value);
-			}
-		}
+			auto inits = symphas::conf::parse_options(params::input_data_file, ",");
 
-		if (file_name)
-		{
-			tdata[n].file = { file_name, index };
+			tdata[n].file = { inits[n % inits.size()].c_str(), 0};
 			tdata[n].in = Inside::FILE;
-		}
-
-		delete[] file_name;
-
-		if ((tok = std::strtok(NULL, " ")) != 0)
-		{
-			iter_type index = 0;
-			if (sscanf(tok, "%d", &index) < 1)
-			{
-				fprintf(SYMPHAS_WARN, "unable to read the index given to the filename, '%s'\n", tok);
-				tdata[n].file.set_index(0);
-			}
-			else
-			{
-				tdata[n].file.set_index(index);
-			}
 		}
 		else
 		{
-			tdata[n].file.set_index(0);
+			tdata[n] = Inside::CONSTANT;
+		}
+	}
+	else if (*input == CONFIG_OPTION_PREFIX_C)
+	{
+		char* tok = std::strtok(input, STR(CONFIG_OPTION_PREFIX));
+		if (tok)
+		{
+			char* file_name = new char[std::strlen(tok) + 1] { 0 };
+			int index = 0;
+
+			if (sscanf(tok, "%s %d", file_name, &index) < 2)
+			{
+				fprintf(SYMPHAS_WARN, "using index %d from intial conditions input file\n", index);
+				if (sscanf(tok, "%s", file_name) < 1)
+				{
+					fprintf(SYMPHAS_WARN, "unable to read the filename given to the initial conditions, '%s'\n", value);
+				}
+			}
+
+			if (file_name)
+			{
+				tdata[n].file = { file_name, index };
+				tdata[n].in = Inside::FILE;
+			}
+
+			delete[] file_name;
 		}
 	}
 	else
@@ -1908,7 +1918,7 @@ void SystemConf::select_stencil(size_t order, const char* str)
 	}
 	else
 	{
-		unsigned short value = std::strtoul(str, NULL, 10);
+		unsigned short value = static_cast<unsigned short>(std::strtoul(str, NULL, 10));
 		if (value > 0 && errno != ERANGE)
 		{
 			switch (order)

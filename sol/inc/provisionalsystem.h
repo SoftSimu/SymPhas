@@ -192,42 +192,42 @@ using symphas::dft::new_fftw_plan;
 template<>
 inline ProvisionalSystemSpectral<scalar_t, 1>::ProvisionalSystemSpectral(symphas::interval_data_type const& vdata, symphas::b_data_type const& bdata) :
 	Grid<scalar_t, 1>(grid::construct<::Grid, scalar_t, 1>(vdata)),
-	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::len<scalar_t, 1>(dims)) },
+	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::length<scalar_t, 1>(dims)) },
 	p_src_out{ new_fftw_plan<1, scalar_t, complex_t>{}(values, frame_t, dims) }
 {}
 
 template<>
 inline ProvisionalSystemSpectral<scalar_t, 2>::ProvisionalSystemSpectral(symphas::interval_data_type const& vdata, symphas::b_data_type const& bdata) :
 	Grid<scalar_t, 2>(grid::construct<::Grid, scalar_t, 2>(vdata)),
-	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::len<scalar_t, 2>(dims)) },
+	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::length<scalar_t, 2>(dims)) },
 	p_src_out{ new_fftw_plan<2, scalar_t, complex_t>{}(values, frame_t, dims) }
 {}
 
 template<>
 inline ProvisionalSystemSpectral<scalar_t, 3>::ProvisionalSystemSpectral(symphas::interval_data_type const& vdata, symphas::b_data_type const& bdata) :
 	Grid<scalar_t, 3>(grid::construct<::Grid, scalar_t, 3>(vdata)),
-	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::len<scalar_t, 3>(dims)) },
+	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::length<scalar_t, 3>(dims)) },
 	p_src_out{ new_fftw_plan<3, scalar_t, complex_t>{}(values, frame_t, dims) }
 {}
 
 template<>
 inline ProvisionalSystemSpectral<complex_t, 1>::ProvisionalSystemSpectral(symphas::interval_data_type const& vdata, symphas::b_data_type const& bdata) :
 	Grid<complex_t, 1>(grid::construct<::Grid, complex_t, 1>(vdata)),
-	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::len<complex_t, 1>(dims)) },
+	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::length<complex_t, 1>(dims)) },
 	p_src_out{ new_fftw_plan<1, complex_t, complex_t>{}(values, frame_t, dims) }
 {}
 
 template<>
 inline ProvisionalSystemSpectral<complex_t, 2>::ProvisionalSystemSpectral(symphas::interval_data_type const& vdata, symphas::b_data_type const& bdata) :
 	Grid<complex_t, 2>(grid::construct<::Grid, complex_t, 2>(vdata)),
-	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::len<complex_t, 2>(dims)) },
+	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::length<complex_t, 2>(dims)) },
 	p_src_out{ new_fftw_plan<2, complex_t, complex_t>{}(values, frame_t, dims) }
 {}
 
 template<>
 inline ProvisionalSystemSpectral<complex_t, 3>::ProvisionalSystemSpectral(symphas::interval_data_type const& vdata, symphas::b_data_type const& bdata) :
 	Grid<complex_t, 3>(grid::construct<::Grid, complex_t, 3>(vdata)),
-	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::len<complex_t, 3>(dims)) },
+	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::length<complex_t, 3>(dims)) },
 	p_src_out{ new_fftw_plan<3, complex_t, complex_t>{}(values, frame_t, dims) }
 {}
 
@@ -238,42 +238,42 @@ inline ProvisionalSystemSpectral<complex_t, 3>::ProvisionalSystemSpectral(sympha
 template<>
 inline ProvisionalSystemSpectral<scalar_t, 1>::ProvisionalSystemSpectral(ProvisionalSystemSpectral<scalar_t, 1> const& other) :
 	Grid<scalar_t, 1>(other),
-	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::len<scalar_t, 1>(dims)) },
+	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::length<scalar_t, 1>(dims)) },
 	p_src_out{ new_fftw_plan<1, scalar_t, complex_t>{}(values, frame_t, dims) }
 {}
 
 template<>
 inline ProvisionalSystemSpectral<scalar_t, 2>::ProvisionalSystemSpectral(ProvisionalSystemSpectral<scalar_t, 2> const& other) :
 	Grid<scalar_t, 2>(other),
-	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::len<scalar_t, 2>(dims)) },
+	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::length<scalar_t, 2>(dims)) },
 	p_src_out{ new_fftw_plan<2, scalar_t, complex_t>{}(values, frame_t, dims) }
 {}
 
 template<>
 inline ProvisionalSystemSpectral<scalar_t, 3>::ProvisionalSystemSpectral(ProvisionalSystemSpectral<scalar_t, 3> const& other) :
 	Grid<scalar_t, 3>(other),
-	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::len<scalar_t, 3>(dims)) },
+	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::length<scalar_t, 3>(dims)) },
 	p_src_out{ new_fftw_plan<3, scalar_t, complex_t>{}(values, frame_t, dims) }
 {}
 
 template<>
 inline ProvisionalSystemSpectral<complex_t, 1>::ProvisionalSystemSpectral(ProvisionalSystemSpectral<complex_t, 1> const& other) :
 	Grid<complex_t, 1>(other),
-	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::len<complex_t, 1>(dims)) },
+	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::length<complex_t, 1>(dims)) },
 	p_src_out{ new_fftw_plan<1, complex_t, complex_t>{}(values, frame_t, dims) }
 {}
 
 template<>
 inline ProvisionalSystemSpectral<complex_t, 2>::ProvisionalSystemSpectral(ProvisionalSystemSpectral<complex_t, 2> const& other) :
 	Grid<complex_t, 2>(other),
-	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::len<complex_t, 2>(dims)) },
+	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::length<complex_t, 2>(dims)) },
 	p_src_out{ new_fftw_plan<2, complex_t, complex_t>{}(values, frame_t, dims) }
 {}
 
 template<>
 inline ProvisionalSystemSpectral<complex_t, 3>::ProvisionalSystemSpectral(ProvisionalSystemSpectral<complex_t, 3> const& other) :
 	Grid<complex_t, 3>(other),
-	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::len<complex_t, 3>(dims)) },
+	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::length<complex_t, 3>(dims)) },
 	p_src_out{ new_fftw_plan<3, complex_t, complex_t>{}(values, frame_t, dims) }
 {}
 

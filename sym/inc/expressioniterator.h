@@ -26,7 +26,7 @@
 
 #pragma once
 
-#include "expressionlib.h"
+#include "expressionprototypes.h"
 
 
 namespace symphas::internal
@@ -46,7 +46,7 @@ namespace symphas::internal
 	public:
 
 		using iterator_category = std::random_access_iterator_tag;
-		using value_type = typename expr::eval_type<E>::type;
+		using value_type = std::invoke_result_t<decltype(&E::eval), E, iter_type>;
 		using difference_type = int;
 		using pointer = value_type*;
 		using reference = int;

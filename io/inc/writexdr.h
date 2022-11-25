@@ -41,32 +41,9 @@ namespace symphas::io::xdr
 {
 
 
-	//! Writes a data array to a file for plotting.
-	/*!
-	 * The given data is written to a file set by \p winfo. The information
-	 * about the grid and the grid type is used to select a writing method. The
-	 * output format and amount of data written is chosen to allow the resulting
-	 * file to be ingested by a plotting program.
-	 *
-	 * \param grid The data which is written to the file.
-	 * \param winfo Information about the file that is written.
-	 * \param ginfo Information about the grid.
-	 */
-	template<typename T>
-	void save_grid_plotting(const T* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);
-
-
-	//! Writes a data array to a file.
-	/*!
-	 * The given data is written to a file set by \p winfo. The information
-	 * about the grid and the grid type is used to select a writing method.
-	 *
-	 * \param grid The data which is written to the file.
-	 * \param winfo Information about the file that is written.
-	 * \param ginfo Information about the grid.
-	 */
-	template<typename T>
-	void save_grid(const T* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);
+	//! \cond
+	DECLARE_SAVE_GRID_ALL_FUNCTIONS
+	//! \endcond
 
 	/*
 	 * prints the plotting data file
@@ -78,46 +55,4 @@ namespace symphas::io::xdr
 	void write_plot_config(M const&, const char*, const char* const*, SaveParams const&) {}
 
 }
-
-
-//! \cond
-
-//! Specialization of symphas::io::xdr::save_grid_plotting().
-template<>
-void symphas::io::xdr::save_grid_plotting<scalar_t>(const scalar_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);
-//! Specialization of symphas::io::xdr::save_grid_plotting().
-template<>
-void symphas::io::xdr::save_grid_plotting<complex_t>(const complex_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);
-//! Specialization of symphas::io::xdr::save_grid_plotting().
-template<>
-void symphas::io::xdr::save_grid_plotting<double[2]>(const double(*grid)[2], symphas::io::write_info winfo, symphas::grid_info ginfo);
-template<>
-void symphas::io::xdr::save_grid_plotting<vector_t<3>>(const vector_t<3>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);
-//! Specialization of symphas::io::xdr::save_grid_plotting().
-template<>
-void symphas::io::xdr::save_grid_plotting<vector_t<2>>(const vector_t<2>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);
-//! Specialization of symphas::io::xdr::save_grid_plotting().
-template<>
-void symphas::io::xdr::save_grid_plotting<vector_t<1>>(const vector_t<1>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);
-
-//! Specialization of symphas::io::xdr::save_grid().
-template<>
-void symphas::io::xdr::save_grid<scalar_t>(const scalar_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);
-//! Specialization of symphas::io::xdr::save_grid().
-template<>
-void symphas::io::xdr::save_grid<complex_t>(const complex_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);
-//! Specialization of symphas::io::xdr::save_grid().
-template<>
-void symphas::io::xdr::save_grid<double[2]>(const double(*grid)[2], symphas::io::write_info winfo, symphas::grid_info ginfo);
-//! Specialization of symphas::io::xdr::save_grid().
-template<>
-void symphas::io::xdr::save_grid<vector_t<3>>(const vector_t<3>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);
-//! Specialization of symphas::io::xdr::save_grid().
-template<>
-void symphas::io::xdr::save_grid<vector_t<2>>(const vector_t<2>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);
-//! Specialization of symphas::io::xdr::save_grid().
-template<>
-void symphas::io::xdr::save_grid<vector_t<1>>(const vector_t<1>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);
-
-//! \endcond
 

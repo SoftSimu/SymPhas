@@ -75,6 +75,33 @@ struct Model;
   */
 #define OUTPUT_LATEX_FILE_FMT "%s_%s" POSTFIX_ID_FMT "_%d.tex"
 
+//! \cond
+#define DECLARE_SAVE_GRID_FUNCTIONS \
+	void save_grid(const scalar_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);							 \
+	void save_grid(const complex_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);							 \
+	void save_grid(const double_arr2* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);						 \
+	void save_grid(const vector_t<3>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);						 \
+	void save_grid(const vector_t<2>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);						 \
+	void save_grid(const vector_t<1>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);						 \
+	void save_grid(const scalar_ptr_t(&grid)[3], symphas::io::write_info winfo, symphas::grid_info ginfo);					 \
+	void save_grid(const scalar_ptr_t(&grid)[2], symphas::io::write_info winfo, symphas::grid_info ginfo);					 \
+	void save_grid(const scalar_ptr_t(&grid)[1], symphas::io::write_info winfo, symphas::grid_info ginfo);
+
+#define DECLARE_SAVE_GRID_PLOTTING_FUNCTIONS \
+	void save_grid_plotting(const scalar_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);					 \
+	void save_grid_plotting(const complex_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);				 \
+	void save_grid_plotting(const double_arr2* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);				 \
+	void save_grid_plotting(const vector_t<3>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);				 \
+	void save_grid_plotting(const vector_t<2>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);				 \
+	void save_grid_plotting(const vector_t<1>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo);				 \
+	void save_grid_plotting(const scalar_ptr_t(&grid)[3], symphas::io::write_info winfo, symphas::grid_info ginfo);			 \
+	void save_grid_plotting(const scalar_ptr_t(&grid)[2], symphas::io::write_info winfo, symphas::grid_info ginfo);			 \
+	void save_grid_plotting(const scalar_ptr_t(&grid)[1], symphas::io::write_info winfo, symphas::grid_info ginfo);			 \
+
+#define DECLARE_SAVE_GRID_ALL_FUNCTIONS DECLARE_SAVE_GRID_FUNCTIONS DECLARE_SAVE_GRID_PLOTTING_FUNCTIONS
+
+//! \endcond
+
 
 namespace symphas::io
 {
@@ -203,15 +230,24 @@ namespace symphas::io
 	 * \param winfo Information about the file to write.
 	 * \param ginfo Information about the grid that is saved.
 	 */
-	template<typename T>
+	template<typename T, typename = std::enable_if_t<!std::is_pointer<T>::value, int>>
 	void save_grid_plotting(const T* values, symphas::io::write_info winfo, symphas::grid_info ginfo);
+
 
 	//! Write all grid data to a file, typically used for backups.
 	/*!
 	 * See save_grid_plotting(T*, symphas::io::write_info, symphas::grid_info).
 	 */
 	template<typename T, size_t N>
-	void save_grid_plotting(T(*values)[N], symphas::io::write_info winfo, symphas::grid_info ginfo);
+	void save_grid_plotting(const T(*values)[N], symphas::io::write_info winfo, symphas::grid_info ginfo);
+
+	//! Write all grid data to a file, typically used for backups.
+	/*!
+	 * See save_grid_plotting(T*, symphas::io::write_info, symphas::grid_info).
+	 */
+	template<typename T, size_t N>
+	void save_grid_plotting(T* const(&values)[N], symphas::io::write_info winfo, symphas::grid_info ginfo);
+
 
 	//! Write all grid data to a file, typically used for backups.
 	/*!
@@ -224,14 +260,29 @@ namespace symphas::io
 	 * \param winfo Information about the file to write.
 	 * \param ginfo Information about the grid that is saved.
 	 */
-	template<typename T>
+	template<typename T, typename = std::enable_if_t<!std::is_pointer<T>::value, int>>
 	void save_grid(const T* values, symphas::io::write_info winfo, symphas::grid_info ginfo);
 
 	//! Write all grid data to a file, typically used for backups.
 	/*!
 	 * See save_grid(T*, symphas::io::write_info, symphas::grid_info).
 	 */
-	template<typename T>
+	template<typename T, size_t N>
+	void save_grid(const T(*values)[N], symphas::io::write_info winfo, symphas::grid_info ginfo);
+
+	//! Write all grid data to a file, typically used for backups.
+	/*!
+	 * See save_grid(T*, symphas::io::write_info, symphas::grid_info).
+	 */
+	template<typename T, size_t N>
+	void save_grid(T* const(&values)[N], symphas::io::write_info winfo, symphas::grid_info ginfo);
+
+
+	//! Write all grid data to a file, typically used for backups.
+	/*!
+	 * See save_grid(T*, symphas::io::write_info, symphas::grid_info).
+	 */
+	template<typename T, typename = std::enable_if_t<!std::is_pointer<T>::value, int>>
 	void save_grid(const T* values, symphas::grid_info ginfo);
 
 	//! Write all grid data to a file, typically used for backups.
@@ -239,20 +290,21 @@ namespace symphas::io
 	 * See save_grid(T*, symphas::io::write_info, symphas::grid_info).
 	 */
 	template<typename T, size_t N>
-	void save_grid(T(*values)[N], symphas::io::write_info winfo, symphas::grid_info ginfo);
+	void save_grid(const T(*values)[N], symphas::grid_info ginfo);
 
 	//! Write all grid data to a file, typically used for backups.
 	/*!
 	 * See save_grid(T*, symphas::io::write_info, symphas::grid_info).
 	 */
 	template<typename T, size_t N>
-	void save_grid(T(*values)[N], symphas::grid_info ginfo);
+	void save_grid(T* const(&values)[N], symphas::grid_info ginfo);
+
 
 	//! Write all grid data to a file, typically used for backups.
 	/*!
 	 * See save_grid(T*, symphas::io::write_info, symphas::grid_info).
 	 */
-	template<typename T>
+	template<typename T, typename = std::enable_if_t<!std::is_pointer<T>::value, int>>
 	void save_grid(const T* values, symphas::io::write_info winfo, const len_type* dims, size_t dimension);
 
 	//! Write all grid data to a file, typically used for backups.
@@ -260,13 +312,21 @@ namespace symphas::io
 	 * See save_grid(T*, symphas::io::write_info, symphas::grid_info).
 	 */
 	template<typename T, size_t N>
-	void save_grid(T(*values)[N], symphas::io::write_info winfo, const len_type* dims, size_t dimension);
+	void save_grid(const T(*values)[N], symphas::io::write_info winfo, const len_type* dims, size_t dimension);
 
 	//! Write all grid data to a file, typically used for backups.
 	/*!
 	 * See save_grid(T*, symphas::io::write_info, symphas::grid_info).
 	 */
-	template<typename T>
+	template<typename T, size_t N>
+	void save_grid(T* const(&values)[N], symphas::io::write_info winfo, const len_type* dims, size_t dimension);
+
+
+	//! Write all grid data to a file, typically used for backups.
+	/*!
+	 * See save_grid(T*, symphas::io::write_info, symphas::grid_info).
+	 */
+	template<typename T, typename = std::enable_if_t<!std::is_pointer<T>::value, int>>
 	void save_grid(const T* values, const len_type* dims, size_t dimension);
 
 	//! Write all grid data to a file, typically used for backups.
@@ -274,7 +334,17 @@ namespace symphas::io
 	 * See save_grid(T*, symphas::io::write_info, symphas::grid_info).
 	 */
 	template<typename T, size_t N>
-	void save_grid(T(*values)[N], const len_type* dims, size_t dimension);
+	void save_grid(const T(*values)[N], const len_type* dims, size_t dimension);
+
+	//! Write all grid data to a file, typically used for backups.
+	/*!
+	 * See save_grid(T*, symphas::io::write_info, symphas::grid_info).
+	 */
+	template<typename T, size_t N>
+	void save_grid(T* const(&values)[N], const len_type* dims, size_t dimension);
+
+
+
 
 
 	//! Writes a plotting configuration file for the given model.

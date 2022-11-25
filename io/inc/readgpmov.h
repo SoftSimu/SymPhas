@@ -31,10 +31,10 @@
 namespace symphas::io::gp::mov
 {
 	//! Plain text implementation of reading data.
-	template<typename T>
-	int read_grid(T* grid, symphas::io::read_info const& rinfo)
+	template<typename value_type>
+	int read_grid(value_type values, symphas::io::read_info const& rinfo)
 	{
-		return symphas::io::gp::read_grid(grid, rinfo);
+		return symphas::io::gp::read_grid(values, rinfo);
 	}
 	
 	DECLARE_GP_HEADER_FUNCTIONS

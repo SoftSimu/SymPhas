@@ -125,7 +125,11 @@ namespace symphas::internal
 namespace symphas::conf
 {
 
-	std::vector<std::string> parse_options(const char* options, bool spaces_are_delimiters = false);
+	std::vector<std::string> parse_options(const char* options, bool spaces_are_delimiters = false, const char* extra_delimiters = "");
+	inline std::vector<std::string> parse_options(const char* options, const char* extra_delimiters)
+	{
+		return parse_options(options, false, extra_delimiters);
+	}
 
 
 
@@ -464,7 +468,9 @@ public:
 	/*!
 	 * The provided string configuration is parsed according to a standard
 	 * format, and the initial condition for the phase field system at given
-	 * index is initialized.
+	 * index is initialized. Also an input file can be passed.
+	 * 
+	 * # Passing an initial condition type
 	 * 
 	 * > Configuration key = `INSIDE`.
 	 * 
@@ -504,6 +510,16 @@ public:
 	 * - `A` InsideTag::VARA
 	 * - `VARB` InsideTag::VARB
 	 * - `B` InsideTag::VARB
+	 * 
+	 * # Passing a file with initial conditions
+	 * 
+	 * When the entry starts with the special character `@`, then it is assumed
+	 * a file of initial conditions is being provided. The name of the file is provided
+	 * immediately after `@` with no spaces in between. If there are multiple files, then
+	 * each file needs to be preceded by `@`. If the file has spaces, then quotes or brackets
+	 * must surround the whole entry, including the @. If `!` character is provided  
+	 * first instead, then the parameter variable #input_data_file will be read
+	 * in order to get the file for the initial conditions.
 	 *
 	 * \param str The string detailing the initial condition specification.
 	 * \param n The index in the interval list which is initialized.
@@ -977,7 +993,7 @@ public:
 		pp.set_boundary_data(bdata, bdata_len);
 		pp.set_initial_data(tdata, tdata_len);
 		pp.set_interval_data(intervals, intervals_len);
-		pp.set_problem_time_step(dt);
+		pp.set_time_step(dt);
 
 
 		return pp;

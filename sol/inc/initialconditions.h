@@ -193,6 +193,7 @@ namespace symphas::internal
 
 		complex_t operator()(scalar_t value) const
 		{
+			using std::abs;
 			scalar_t
 				a = th(gen),
 				r = abs(value);
@@ -232,6 +233,7 @@ namespace symphas::internal
 
 		vector_t<3> operator()(scalar_t value) const
 		{
+			using std::abs;
 			scalar_t
 				a = th(gen),
 				b = th(gen),
@@ -499,7 +501,7 @@ namespace symphas::internal
 	template<Inside in>
 	struct tags_for_init_value
 	{
-		using type = std::tuple<>;
+		using type = symphas::lib::types_list<>;
 	};
 
 	template<size_t D, Inside in>
@@ -554,7 +556,7 @@ namespace symphas::internal
 			symphas::init_data_type const& tdata,
 			symphas::interval_data_type const& vdata,
 			len_type const* dims,
-			std::tuple<tag_tuple_types...>)
+			symphas::lib::types_list<tag_tuple_types...>)
 		{
 			return check_tags(tdata, vdata, dims, tag_tuple_types{}...);
 		}
@@ -702,7 +704,7 @@ struct InitialConditionsAlg<1, Inside::SQUARE, InsideTag::VARA, InsideTag::RANDO
 template<>
 struct symphas::internal::tags_for_init_value<Inside::SQUARE>
 {
-	using type = std::tuple<
+	using type = symphas::lib::types_list<
 		init_tag_values_list<InsideTag::VARA>,
 		init_tag_values_list<InsideTag::RANDOM>,
 		init_tag_values_list<InsideTag::VARA, InsideTag::RANDOM>>;
@@ -855,7 +857,7 @@ struct InitialConditionsAlg<1, Inside::CIRCLE, InsideTag::VARA, InsideTag::RANDO
 template<>
 struct symphas::internal::tags_for_init_value<Inside::CIRCLE>
 {
-	using type = std::tuple<
+	using type = symphas::lib::types_list<
 		init_tag_values_list<InsideTag::VARA>,
 		init_tag_values_list<InsideTag::RANDOM>,
 		init_tag_values_list<InsideTag::VARA, InsideTag::RANDOM>>;
@@ -994,7 +996,7 @@ struct InitialConditionsAlg<D, Inside::CUBIC, InsideTag::VARA> :
 template<>
 struct symphas::internal::tags_for_init_value<Inside::CUBIC>
 {
-	using type = std::tuple<
+	using type = symphas::lib::types_list<
 		init_tag_values_list<InsideTag::VARA>,
 		init_tag_values_list<InsideTag::RANDOM>>;
 };
@@ -1118,7 +1120,7 @@ struct InitialConditionsAlg<1, Inside::HEXAGONAL, InsideTag::RANDOM> :
 template<>
 struct symphas::internal::tags_for_init_value<Inside::HEXAGONAL>
 {
-	using type = std::tuple<
+	using type = symphas::lib::types_list<
 		init_tag_values_list<InsideTag::RANDOM>>;
 };
 
@@ -1571,7 +1573,7 @@ struct InitialConditionsAlg<D, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::
 template<>
 struct symphas::internal::tags_for_init_value<Inside::SEEDSSQUARE>
 {
-	using type = std::tuple<
+	using type = symphas::lib::types_list<
 		init_tag_values_list<InsideTag::RANDOM>,
 		init_tag_values_list<InsideTag::VARA>,
 		init_tag_values_list<InsideTag::VARA, InsideTag::RANDOM>,
@@ -1941,7 +1943,7 @@ struct InitialConditionsAlg<D, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::
 template<>
 struct symphas::internal::tags_for_init_value<Inside::SEEDSCIRCLE>
 {
-	using type = std::tuple<
+	using type = symphas::lib::types_list<
 		init_tag_values_list<InsideTag::RANDOM>,
 		init_tag_values_list<InsideTag::VARA>,
 		init_tag_values_list<InsideTag::VARA, InsideTag::RANDOM>,
@@ -2036,7 +2038,7 @@ struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::VARA> :
 template<>
 struct symphas::internal::tags_for_init_value<Inside::VORONOI>
 {
-	using type = std::tuple<
+	using type = symphas::lib::types_list<
 		init_tag_values_list<InsideTag::VARA>>;
 };
 

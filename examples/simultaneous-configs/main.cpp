@@ -10,7 +10,7 @@
 #define dpsi dop(1)
 #define psi op(1)
 MODEL(EX, (SCALAR),
-	MODEL_DEF(
+	EVOLUTION(
 		dpsi = lap(psi) + (c1 - lit(4.) * c2 * psi * psi) * psi)
 )
 //LINK_WITH_NAME(MA, MODELA)
@@ -26,10 +26,8 @@ MODEL(EX, (SCALAR),
 #endif
 
 
-
 int main(int argc, char* argv[])
 {
-	//MPI_Init(&argc, &argv);
 
 #ifdef UNIT_TEST
 
@@ -65,10 +63,10 @@ int main(int argc, char* argv[])
 	pp.set_boundary_data(&bdata);
 	pp.set_initial_data(&tdata);
 	pp.set_interval_data(&vdata);
-	pp.set_problem_time_step(dt);
+	pp.set_time_step(dt);
 
 #		ifdef SOLVER_INCLUDE_HEADER
-	model_EX_t<2, SOLVER_TYPE<Stencil2d2h<5, 9, 6>>> model{ pp };
+	model_EX_t<2, SolverFT<Stencil2d2h<5, 9, 6>>> model{ pp };
 	symphas::find_solution(model, dt, 50);
 #		else
 	model_EX_t<2, Solver<void>> model{ pp };
@@ -82,6 +80,7 @@ int main(int argc, char* argv[])
 
 #	else
 
+
 	Time t("entire simulation");
 
 	if (argc == 1)
@@ -89,8 +88,8 @@ int main(int argc, char* argv[])
 		fprintf(SYMPHAS_ERR, "the first argument specifying the configuration must be provided\n");
 		exit(102);
 	}
-	
 	symphas::init(argv[1], argv + 2, argc - 2);
+
 
 #	ifdef USING_CONF
 	simulate::initiate(symphas::conf::config().get_model_name(), symphas::conf::config().get_coeff_list(), symphas::conf::config().coeff_count());

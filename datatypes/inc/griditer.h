@@ -26,6 +26,8 @@
 
 #pragma once
 
+#include "macros.h"
+
 
 /*
  * the following defines dictate how to iterate over the one dimensional array owned
@@ -504,37 +506,59 @@ for (int iter_i = 0, INDEX = __L - THICKNESS - THICKNESS, ENTRY = 0; iter_i < TH
  * supports passing arguments to the function
  */
 
+#define PARALLEL_ITER_GRID _Pragma("omp parallel for")
+
 
 //! Iterates over the interior values of a 3d grid.
-#define ITER_GRID3(OP, __L, __M, __N) \
-for (int iter_k = THICKNESS, INDEX = THICKNESS + __L * THICKNESS + __L * __M * THICKNESS, ENTRY = 0, __SZ1 = (THICKNESS + THICKNESS) * __L; iter_k < __N - THICKNESS; ++iter_k, INDEX += __SZ1) \
-for (int iter_j = THICKNESS; iter_j < __M - THICKNESS; ++iter_j, INDEX += THICKNESS + THICKNESS) \
-for (int iter_i = THICKNESS; iter_i < __L - THICKNESS; ++iter_i, ++INDEX, ++ENTRY) { OP; }
+#define ITER_GRID3(OP, __L, __M, __N) { \
+PARALLEL_ITER_GRID \
+for (int iter_k = THICKNESS; iter_k < __N - THICKNESS; ++iter_k) { \
+for (int iter_j = THICKNESS; iter_j < __M - THICKNESS; ++iter_j) { \
+for (int iter_i = THICKNESS; iter_i < __L - THICKNESS; ++iter_i) { \
+int INDEX = iter_i + iter_j * __L + iter_k * __L * __M; \
+int ENTRY = (iter_i - THICKNESS) + (iter_j - THICKNESS) * (__L - THICKNESS * 2) + (iter_k - THICKNESS) * (__L - THICKNESS * 2) * (__M - THICKNESS * 2); \
+{ OP; } } } } }
 
 //! Iterates over the interior values of a 2d grid.
-#define ITER_GRID2(OP, __L, __M) \
-for (int iter_j = THICKNESS, INDEX = THICKNESS + __L * THICKNESS, ENTRY = 0; iter_j < __M - THICKNESS; ++iter_j, INDEX += THICKNESS + THICKNESS) \
-for (int iter_i = THICKNESS; iter_i < __L - THICKNESS; ++iter_i, ++INDEX, ++ENTRY) { OP; }
+#define ITER_GRID2(OP, __L, __M) { \
+PARALLEL_ITER_GRID \
+for (int iter_j = THICKNESS; iter_j < __M - THICKNESS; ++iter_j) { \
+for (int iter_i = THICKNESS; iter_i < __L - THICKNESS; ++iter_i) { \
+int INDEX = iter_i + iter_j * __L; \
+int ENTRY = (iter_i - THICKNESS) + (iter_j - THICKNESS) * (__L - THICKNESS * 2); \
+{ OP; } } } }
 
 //! Iterates over the interior values of a 1d grid.
-#define ITER_GRID1(OP, __L) \
-for (int iter_i = THICKNESS, INDEX = THICKNESS, ENTRY = 0; iter_i < __L - THICKNESS; ++iter_i, ++INDEX, ++ENTRY) { OP; }
+#define ITER_GRID1(OP, __L) { \
+PARALLEL_ITER_GRID \
+for (int iter_i = THICKNESS; iter_i < __L - THICKNESS; ++iter_i) { \
+int INDEX = iter_i; int ENTRY = (iter_i - THICKNESS); \
+{ OP; } } }
 
 
 //! Iterates over all the values of a 3d grid.
-#define ITER_GRID3_ENTIRE(OP, __L, __M, __N) \
-for (int iter_k = 0, INDEX = 0; iter_k < __N; ++iter_k) \
+#define ITER_GRID3_ENTIRE(OP, __L, __M, __N) { \
+PARALLEL_ITER_GRID \
+for (int iter_k = 0; iter_k < __N; ++iter_k) \
 for (int iter_j = 0; iter_j < __M; ++iter_j) \
-for (int iter_i = 0; iter_i < __L; ++iter_i, ++INDEX) { OP; }
+for (int iter_i = 0; iter_i < __L; ++iter_i) { \
+int INDEX = iter_i + iter_j * __L + iter_k * __L * __M; \
+{ OP; } } }
 
 //! Iterates over all the values of a 2d grid.
-#define ITER_GRID2_ENTIRE(OP, __L, __M) \
-for (int iter_j = 0, INDEX = 0; iter_j < __M; ++iter_j) \
-for (int iter_i = 0; iter_i < __L; ++iter_i, ++INDEX) { OP; }
+#define ITER_GRID2_ENTIRE(OP, __L, __M) { \
+PARALLEL_ITER_GRID \
+for (int iter_j = 0; iter_j < __M; ++iter_j) \
+for (int iter_i = 0; iter_i < __L; ++iter_i)  { \
+int INDEX = iter_i + iter_j * __L; \
+{ OP; } } }
 
 //! Iterates over all the values of a 1d grid.
-#define ITER_GRID1_ENTIRE(OP, __L) \
-for (int iter_i = 0, INDEX = 0; iter_i < __L; ++iter_i, ++INDEX) { OP; }
+#define ITER_GRID1_ENTIRE(OP, __L) { \
+PARALLEL_ITER_GRID \
+for (int iter_i = 0; iter_i < __L; ++iter_i) { \
+int INDEX = iter_i; \
+ { OP; } } }
 
 
 

@@ -25,9 +25,311 @@
 
 #pragma once
 
+#include <tuple>
+
 #include "expressionsprint.h"
-#include "expressionaggregates.h"
-#include "expressiontransforms.h"
+
+
+namespace expr
+{
+	namespace
+	{
+		template<size_t... Ns>
+		constexpr auto multiply_fold_seq(std::index_sequence<Ns...>)
+		{
+			return (Ns * ... * 1);
+		}
+	}
+
+	/*!
+	 * Compute the factorial.
+	 */
+	template<size_t N, size_t M = 1>
+	constexpr auto factorial()
+	{
+		return expr::make_integer < multiply_fold_seq(
+			symphas::lib::seq_add_t<
+			symphas::lib::seq_repeating_value_t<N - M, size_t, M + 1>,
+			std::make_index_sequence<N - M>>{})
+			> ();
+	}
+
+	template<size_t N, size_t K>
+	constexpr auto choose()
+	{
+		if constexpr (K == N || K == 0)
+		{
+			return OpIdentity{};
+		}
+		else
+		{
+			using num =
+				symphas::lib::seq_add_t<
+				symphas::lib::seq_repeating_value_t<K, size_t, N - K + 1>,
+				std::make_index_sequence<K>>;
+
+			using den =
+				symphas::lib::seq_add_t<
+				symphas::lib::seq_repeating_value_t<K, size_t, 1>,
+				std::make_index_sequence<K>>;
+
+			return expr::make_fraction < multiply_fold_seq(num{}), multiply_fold_seq(den{}) > ();
+		}
+	}
+
+
+
+	//! Computes the expression multiplied `N` times with itself.
+	/*!
+	 * Computes the expression multiplied `N` times with itself.
+	 *
+	 * \param e The expression to multiply with itself.
+	 */
+	template<size_t N, typename E, typename = std::enable_if_t<(N < MAX_EXPONENT), int>>
+	auto pow(OpExpression<E> const& e);
+
+	//! Computes the expression multiplied `N` times with itself.
+	/*!
+	 * Computes the expression multiplied `N` times with itself.
+	 *
+	 * \param e The expression to multiply with itself.
+	 */
+	template<size_t N, typename E0, typename... Es, typename = std::enable_if_t<(N > 1 && N < MAX_EXPONENT), int>>
+	auto pow(OpAdd<E0, Es...> const& e);
+
+	//! Computes the expression multiplied `N` times with itself.
+	/*!
+	 * Computes the expression multiplied `N` times with itself.
+	 *
+	 * \param e The expression to multiply with itself.
+	 */
+	template<size_t N, typename A, typename B, typename = std::enable_if_t<(N > 1 && N < MAX_EXPONENT), int>>
+	auto pow(OpBinaryDiv<A, B> const& e);
+
+	//! Computes the expression multiplied `N` times with itself.
+	/*!
+	 * Computes the expression multiplied `N` times with itself.
+	 *
+	 * \param e The expression to multiply with itself.
+	 */
+	template<size_t N, typename V, typename... Gs, expr::exp_key_t... Xs, typename = std::enable_if_t<(N > 1 && N < MAX_EXPONENT), int>>
+	auto pow(OpTerms<V, Term<Gs, Xs>...> const& e);
+
+	//! Computes the expression multiplied `N` times with itself.
+	/*!
+	 * Computes the expression multiplied `N` times with itself.
+	 *
+	 * \param e The expression to multiply with itself.
+	 */
+	template<size_t N, typename T, typename = std::enable_if_t<(N > 1 && N < MAX_EXPONENT), int>>
+	auto pow(OpLiteral<T> const& e);
+
+	//! Computes the expression multiplied `N` times with itself.
+	/*!
+	 * Computes the expression multiplied `N` times with itself.
+	 *
+	 * \param e The expression to multiply with itself.
+	 */
+	template<size_t N, size_t NN, size_t DD, typename = std::enable_if_t<(N > 1 && N < MAX_EXPONENT), int>>
+	auto pow(OpFractionLiteral<NN, DD>);
+
+	//! Computes the expression multiplied `N` times with itself.
+	/*!
+	 * Computes the expression multiplied `N` times with itself.
+	 *
+	 * \param e The expression to multiply with itself.
+	 */
+	template<size_t N, size_t NN, size_t DD, typename = std::enable_if_t<(N > 1 && N < MAX_EXPONENT), int>>
+	auto pow(OpNegFractionLiteral<NN, DD>);
+
+	//! Computes the expression multiplied `N` times with itself.
+	/*!
+	 * Computes the expression multiplied `N` times with itself.
+	 *
+	 * \param e The expression to multiply with itself.
+	 */
+	template<size_t N>
+	auto pow(OpIdentity);
+
+	//! Computes the expression multiplied `N` times with itself.
+	/*!
+	 * Computes the expression multiplied `N` times with itself.
+	 *
+	 * \param e The expression to multiply with itself.
+	 */
+	template<size_t N>
+	auto pow(OpNegIdentity);
+
+
+	namespace
+	{
+
+		template<typename G>
+		decltype(auto) pow_get(G&& g, size_t)
+		{
+			return std::forward<G>(g);
+		}
+
+		template<size_t N, typename... Gs, expr::exp_key_t... Xs, size_t... Is>
+		auto pow_terms(OpTerms<Term<Gs, Xs>...> const& e, std::index_sequence<Is...>)
+		{
+			return OpTerms(OpIdentity{}, expr::get<Is>(e).template pow<N>()...);
+		}
+
+		template<typename E0, typename E1, size_t... Ns>
+		auto pow_add(E0 const& a, OpVoid, std::index_sequence<Ns...>)
+		{
+			constexpr size_t N0 = sizeof...(Ns) - 1;
+			return expr::pow<N0>(a);
+		}
+
+		template<typename E0, typename E1, typename E2, typename... Es, size_t... Ns>
+		auto pow_add(E0 const& a, OpAdd<E1, E2, Es...> const& b, std::index_sequence<Ns...>)
+		{
+			constexpr size_t N0 = sizeof...(Ns) - 1;
+			return ((expr::choose<N0, Ns>() * expr::pow<N0 - Ns>(a) * expr::pow<Ns>(b)) + ...);
+		}
+
+		template<typename E0, typename E1, size_t... Ns>
+		auto pow_add(E0 const& a, E1 const& b, std::index_sequence<Ns...>)
+		{
+			constexpr size_t N0 = sizeof...(Ns) - 1;
+			return expr::make_add((expr::choose<N0, Ns>() * expr::pow<N0 - Ns>(a) * expr::pow<Ns>(b))...);
+		}
+
+	}
+
+	template<size_t N, typename E, typename>
+	auto pow(OpExpression<E> const& e)
+	{
+		if constexpr (N == 0)
+		{
+			return OpIdentity{};
+		}
+		else if constexpr (N == 1)
+		{
+			return *static_cast<E const*>(&e);
+		}
+		else if constexpr (N == 2)
+		{
+			return (*static_cast<E const*>(&e)) * (*static_cast<E const*>(&e));
+		}
+		else
+		{
+			constexpr size_t N2 = N / 2;
+			constexpr size_t N0 = N - N2 * 2;
+
+			auto p = pow<N2>(*static_cast<E const*>(&e));
+			if constexpr (N0 == 0)
+			{
+				return p * p;
+			}
+			else
+			{
+				return p * p * *static_cast<E const*>(&e);
+			}
+		}
+	}
+
+	template<size_t N, typename E0, typename... Es, typename>
+	auto pow(OpAdd<E0, Es...> const& e)
+	{
+		return pow_add(expr::get<0>(e), expr::terms_after_first(e), std::make_index_sequence<N + 1>{});
+	}
+
+	template<size_t N, typename A, typename B, typename>
+	auto pow(OpBinaryDiv<A, B> const& e)
+	{
+		return expr::pow<N>(e.a) / expr::pow<N>(e.b);
+	}
+
+	template<size_t N, typename T, typename G, typename>
+	auto pow(OpTerm<T, G> const& e)
+	{
+		return expr::pow<N>(e.value) * OpNLVariable(pow_lv(e.data, std::make_index_sequence<N>{}));
+	}
+
+	template<size_t N, typename V, typename... Gs, expr::exp_key_t... Xs, typename>
+	auto pow(OpTerms<V, Term<Gs, Xs>...> const& e)
+	{
+		return expr::pow<N>(e.term) * pow_terms<N>(expr::terms_after_first(e), std::make_index_sequence<sizeof...(Gs)>{});
+	}
+
+	template<size_t N, typename T, typename>
+	auto pow(OpLiteral<T> const& e)
+	{
+		using namespace symphas::math;
+		return expr::make_literal(pow<N>(e.value));
+	}
+
+	template<size_t N, size_t NN, size_t DD, typename>
+	auto pow(OpFractionLiteral<NN, DD>)
+	{
+		if constexpr (N == 2)
+		{
+			return expr::make_fraction<NN* NN, DD* DD>();
+		}
+		else
+		{
+			constexpr size_t N2 = N / 2;
+			constexpr size_t N0 = N - N2 * 2;
+
+			auto p = pow<N2>(OpFractionLiteral<NN, DD>{});
+			if constexpr (N0 == 0)
+			{
+				return p * p;
+			}
+			else
+			{
+				return p * p * OpFractionLiteral<NN, DD>{};
+			}
+		}
+	}
+
+	template<size_t N, size_t NN, size_t DD, typename>
+	auto pow(OpNegFractionLiteral<NN, DD>)
+	{
+		if constexpr (N % 2 == 1)
+		{
+			return -pow<N>(OpFractionLiteral<NN, DD>{});
+		}
+		else
+		{
+			return pow<N>(OpFractionLiteral<NN, DD>{});
+		}
+	}
+
+	template<size_t N>
+	auto pow(OpIdentity)
+	{
+		return OpIdentity{};
+	}
+
+	template<size_t N>
+	auto pow(OpNegIdentity)
+	{
+		if constexpr (N % 2 == 1)
+		{
+			return OpNegIdentity{};
+		}
+		else
+		{
+			return OpIdentity{};
+		}
+	}
+}
+
+
+
+template<typename>
+struct NoFunctionDerivative
+{
+	template<typename E>
+	auto operator()(OpExpression<E> const&)
+	{
+		return OpVoid{};
+	}
+};
 
 namespace symphas::internal
 {
@@ -46,23 +348,26 @@ namespace symphas::internal
 		template<typename V, typename E>
 		static auto get(V v, OpExpression<E> const& e);
 
-		template<typename V, typename T, typename G>
-		static auto get(V v, OpLVariable<T, G> const& e);
-
-		template<typename V, typename T>
-		static auto get(V v, OpLiteral<T> const& e);
-
-		template<typename V>
-		static auto get(V v, OpIdentity);
-
-		template<typename V>
-		static auto get(V v, OpNegIdentity);
-
-		template<typename V>
-		static auto get(V v, OpVoid);
+		template<typename V, typename coeff_t, typename = std::enable_if_t<expr::is_coeff<coeff_t>, int>>
+		static auto get(V v, coeff_t);
 
 		template<typename V, typename G>
 		static auto get_g(V v, G g);
+
+
+		// If passed an OpLiteral, uses its value rather than the object.
+		template<typename V, typename E1>
+		static auto get(OpLiteral<V> const& value, E1&& e1)
+		{
+			return get(value.value, std::forward<E1>(e1));
+		}
+
+		// If passed an OpLiteral, uses its value rather than the object.
+		template<typename V, typename E1>
+		static auto get_g(OpLiteral<V> const& value, E1&& e1)
+		{
+			return get(value.value, std::forward<E1>(e1));
+		}
 
 	};
 }
@@ -97,6 +402,7 @@ namespace expr
 	{
 		return symphas::internal::make_function<f>::template get(std::forward<V>(v), std::forward<A>(a));
 	}
+
 }
 
 
@@ -104,24 +410,26 @@ namespace expr
 
 // **********************************************************************************
 
-
 //! Applies a particular function to an expression.
 /*!
- * The result of an expression is evaluated and then a chosen function is 
+ * The result of an expression is evaluated and then a chosen function is
  * applied.
- * 
+ *
  * \tparam f The function applied to the result of the expression.
+ * \tparam D The object which constructs the derivative of the function.
  * \tparam V The coefficient type of this expression object.
  * \tparam E The type of the expression the function applies to.
  */
 template<auto f, typename V, typename E>
 struct OpFuncApply : OpExpression<OpFuncApply<f, V, E>>
 {
+	OpFuncApply() : value{ V{} }, e{} {}
+
 	//! Create a new function expression, applied to an expression.
 	/*!
 	 * Creates a new function expression with the given coefficient,
 	 * applied to the given expression.
-	 * 
+	 *
 	 * \param value The coefficient of the function expression.
 	 * \param e The expression on which the function is applied.
 	 */
@@ -129,16 +437,16 @@ struct OpFuncApply : OpExpression<OpFuncApply<f, V, E>>
 
 	//! Create a new function expression, applied to an expression.
 	/*!
-	 * Creates a new function expression 
+	 * Creates a new function expression
 	 * applied to the given expression.
 	 *
 	 * \param e The expression on which the function is applied.
 	 */
-	OpFuncApply(E const& e) : value{ value }, e { e } {}
+	OpFuncApply(E const& e) : value{ OpIdentity{} }, e{ e } {}
 
 	inline auto eval(iter_type n) const
 	{
-		return value * f(e.eval(n));
+		return expr::eval(value) * f(e.eval(n));
 	}
 
 
@@ -181,16 +489,28 @@ struct OpFuncApply : OpExpression<OpFuncApply<f, V, E>>
 
 #endif
 
-	E e;			//!< The expression to which the function is applied.
 	V value;		//!< Coefficient of the function expression term.
+	E e;			//!< The expression to which the function is applied.
 };
 
 
-template<typename S1, auto f2, typename V2, typename E2>
-auto operator*(OpLiteral<S1> const& a, OpFuncApply<f2, V2, E2> const& b)
+
+
+template<typename coeff_t, auto f2, typename V2, typename E2,
+	typename std::enable_if_t<(expr::is_coeff<coeff_t> && !expr::is_tensor<V2>), int> = 0>
+auto operator*(coeff_t const& value, OpFuncApply<f2, V2, E2> const& b)
 {
-	return symphas::internal::make_function<f2>::template get(a.value * b.value, b.e);
+	return symphas::internal::make_function<f2>::template get(value * b.value, b.e);
 }
+
+template<typename coeff_t, typename tensor_t, auto f2, typename E2,
+	typename std::enable_if_t<(expr::is_coeff<coeff_t> && expr::is_tensor<tensor_t>), int> = 0>
+auto operator*(coeff_t const& value, OpFuncApply<f2, tensor_t, E2> const& b)
+{
+	return (value * b.value) * symphas::internal::make_function<f2>::template get(OpIdentity{}, b.e);
+}
+
+
 
 
 
@@ -212,45 +532,10 @@ namespace symphas::internal
 	}
 
 	template<auto f>
-	template<typename V, typename T, typename G>
-	inline auto make_function<f>::get(V v, OpLVariable<T, G> const& e)
+	template<typename V, typename coeff_t, typename>
+	inline auto make_function<f>::get(V v, coeff_t)
 	{
-		return OpFuncApply<f, V, OpLVariable<T, G>>(v, e);
-	}
-
-	template<auto f>
-	template<typename V, typename T>
-	inline auto make_function<f>::get(V v, OpLiteral<T> const& e)
-	{
-		return expr::make_literal(OpFuncApply<f, V, OpLiteral<T>>(v, e).eval(0));
-	}
-
-	template<auto f>
-	template<typename V>
-	inline auto make_function<f>::get(V v, OpIdentity)
-	{
-		return expr::make_literal(OpFuncApply<f, V, OpIdentity>(v, OpIdentity{}).eval(0));
-	}
-
-	template<auto f>
-	template<typename V>
-	inline auto make_function<f>::get(V v, OpNegIdentity)
-	{
-		return expr::make_literal(OpFuncApply<f, V, OpNegIdentity>(v, OpNegIdentity{}).eval(0));
-	}
-
-	template<auto f>
-	template<typename V>
-	inline auto make_function<f>::get(V v, OpVoid)
-	{
-		return expr::make_literal(OpFuncApply<f, V, OpVoid>(v, OpVoid{}).eval(0));
-	}
-
-	template<auto f>
-	template<typename V, typename G>
-	inline auto make_function<f>::get_g(V v, G g)
-	{
-		return OpFuncApply<f, V, OpLVariable<OpIdentity, G>>(v, g);
+		return expr::make_literal(OpFuncApply<f, V, coeff_t>(v, coeff_t{}).eval(0));
 	}
 
 }
@@ -259,185 +544,211 @@ namespace symphas::internal
 
 
 
-//! Alias to construct a conjugate function to compute the conjugate.
-template<typename E>
-auto constexpr func_Conjugate = &symphas::math::conj<typename expr::eval_type<E>::type>;
-
-
-//! Alias to construct a modulus function to compute the modulus.
-template<typename E>
-auto constexpr func_Modulus = &symphas::math::modulus<typename expr::eval_type<E>::type>;
-
-//! Alias to construct the function to return real part.
-template<typename E>
-auto constexpr func_RealPart = &symphas::math::real<typename expr::eval_type<E>::type>;
-
-//! Alias to construct the function to return imaginary part.
-template<typename E>
-auto constexpr func_ImagPart = &symphas::math::imag<typename expr::eval_type<E>::type>;
-
-
-//! Alias to construct the function to compute the cosine function.
-template<typename E>
-auto constexpr func_Cos = &symphas::math::cos<typename expr::eval_type<E>::type>;
-
-//! Alias to construct the function to compute the sine function.
-template<typename E>
-auto constexpr func_Sin = &symphas::math::sin<typename expr::eval_type<E>::type>;
-
-//! Alias to construct the function to compute the sine function.
-template<typename E>
-auto constexpr func_Tan = &symphas::math::tan<typename expr::eval_type<E>::type>;
-
-//! Alias to construct the function to compute the cosine function.
-template<typename E>
-auto constexpr func_Cosh = &symphas::math::cosh<typename expr::eval_type<E>::type>;
-
-//! Alias to construct the function to compute the sine function.
-template<typename E>
-auto constexpr func_Sinh = &symphas::math::sinh<typename expr::eval_type<E>::type>;
-
-//! Alias to construct the function to compute the sine function.
-template<typename E>
-auto constexpr func_Tanh = &symphas::math::tanh<typename expr::eval_type<E>::type>;
-
-//! Alias to construct the function to compute the cosine function.
-template<typename E>
-auto constexpr func_Acos = &symphas::math::acos<typename expr::eval_type<E>::type>;
-
-//! Alias to construct the function to compute the sine function.
-template<typename E>
-auto constexpr func_Asin = &symphas::math::asin<typename expr::eval_type<E>::type>;
-
-//! Alias to construct the function to compute the sine function.
-template<typename E>
-auto constexpr func_Atan = &symphas::math::atan<typename expr::eval_type<E>::type>;
-
-//! Alias to construct the function to compute the cosine function.
-template<typename E>
-auto constexpr func_Acosh = &symphas::math::acosh<typename expr::eval_type<E>::type>;
-
-//! Alias to construct the function to compute the sine function.
-template<typename E>
-auto constexpr func_Asinh = &symphas::math::asinh<typename expr::eval_type<E>::type>;
-
-//! Alias to construct the function to compute the sine function.
-template<typename E>
-auto constexpr func_Atanh = &symphas::math::atanh<typename expr::eval_type<E>::type>;
-
-
-//! Alias to construct the function to compute the sine function.
-template<typename E>
-auto constexpr func_Sqrt = &symphas::math::sqrt<typename expr::eval_type<E>::type>;
-
-
-
-
 
 
 namespace expr
 {
+
+	namespace
+	{
+		//! Alias to construct a conjugate function to compute the conjugate.
+		template<typename E>
+		auto constexpr func_conjugate = &symphas::math::conj<typename expr::eval_type<E>::type>;
+
+		//! Alias to construct a modulus function to compute the modulus.
+		template<typename E>
+		auto constexpr func_modulus = &symphas::math::modulus<typename expr::eval_type<E>::type>;
+
+		//! Alias to construct the function to return real part.
+		template<typename E>
+		auto constexpr func_realpart = &symphas::math::real<typename expr::eval_type<E>::type>;
+
+		//! Alias to construct the function to return imaginary part.
+		template<typename E>
+		auto constexpr func_imagpart = &symphas::math::imag<typename expr::eval_type<E>::type>;
+
+		//! Alias to construct the function to compute the natural logarithm function.
+		template<typename E>
+		auto constexpr func_log = &symphas::math::log<typename expr::eval_type<E>::type>;
+
+		//! Alias to construct the function to compute the cosine function.
+		template<typename E>
+		auto constexpr func_cos = &symphas::math::cos<typename expr::eval_type<E>::type>;
+
+		//! Alias to construct the function to compute the sine function.
+		template<typename E>
+		auto constexpr func_sin = &symphas::math::sin<typename expr::eval_type<E>::type>;
+
+		//! Alias to construct the function to compute the sine function.
+		template<typename E>
+		auto constexpr func_tan = &symphas::math::tan<typename expr::eval_type<E>::type>;
+
+		//! Alias to construct the function to compute the sine function.
+		template<typename E>
+		auto constexpr func_csc = &symphas::math::csc<typename expr::eval_type<E>::type>;
+
+		//! Alias to construct the function to compute the sine function.
+		template<typename E>
+		auto constexpr func_sec = &symphas::math::sec<typename expr::eval_type<E>::type>;
+
+		//! Alias to construct the function to compute the sine function.
+		template<typename E>
+		auto constexpr func_cot = &symphas::math::cot<typename expr::eval_type<E>::type>;
+
+		//! Alias to construct the function to compute the cosine function.
+		template<typename E>
+		auto constexpr func_cosh = &symphas::math::cosh<typename expr::eval_type<E>::type>;
+
+		//! Alias to construct the function to compute the sine function.
+		template<typename E>
+		auto constexpr func_sinh = &symphas::math::sinh<typename expr::eval_type<E>::type>;
+
+		//! Alias to construct the function to compute the sine function.
+		template<typename E>
+		auto constexpr func_tanh = &symphas::math::tanh<typename expr::eval_type<E>::type>;
+
+		//! Alias to construct the function to compute the cosine function.
+		template<typename E>
+		auto constexpr func_acos = &symphas::math::acos<typename expr::eval_type<E>::type>;
+
+		//! Alias to construct the function to compute the sine function.
+		template<typename E>
+		auto constexpr func_asin = &symphas::math::asin<typename expr::eval_type<E>::type>;
+
+		//! Alias to construct the function to compute the sine function.
+		template<typename E>
+		auto constexpr func_atan = &symphas::math::atan<typename expr::eval_type<E>::type>;
+
+		//! Alias to construct the function to compute the cosine function.
+		template<typename E>
+		auto constexpr func_acosh = &symphas::math::acosh<typename expr::eval_type<E>::type>;
+
+		//! Alias to construct the function to compute the sine function.
+		template<typename E>
+		auto constexpr func_asinh = &symphas::math::asinh<typename expr::eval_type<E>::type>;
+
+		//! Alias to construct the function to compute the sine function.
+		template<typename E>
+		auto constexpr func_atanh = &symphas::math::atanh<typename expr::eval_type<E>::type>;
+
+		//! Alias to construct the function to compute the sine function.
+		template<typename E>
+		auto constexpr func_sqrt = &symphas::math::sqrt<typename expr::eval_type<E>::type>;
+
+	}
+
+	
+
+
+
+
 	template<typename E>
 	auto conj(OpExpression<E> const& e)
 	{
-		return symphas::internal::make_function<func_Conjugate<E>>::get(*static_cast<E const*>(&e));
+		return symphas::internal::make_function<func_conjugate<E>>::get(*static_cast<E const*>(&e));
 	}
 
 	template<typename E>
 	auto modulus(OpExpression<E> const& e)
 	{
-		return symphas::internal::make_function<func_Modulus<E>>::get(*static_cast<E const*>(&e));
+		return symphas::internal::make_function<func_modulus<E>>::get(*static_cast<E const*>(&e));
 	}
 
 	template<typename E>
 	auto real(OpExpression<E> const& e)
 	{
-		return symphas::internal::make_function<func_RealPart<E>>::get(*static_cast<E const*>(&e));
+		return symphas::internal::make_function<func_realpart<E>>::get(*static_cast<E const*>(&e));
 	}
 
 	template<typename E>
 	auto imag(OpExpression<E> const& e)
 	{
-		return symphas::internal::make_function<func_ImagPart<E>>::get(*static_cast<E const*>(&e));
+		return symphas::internal::make_function<func_imagpart<E>>::get(*static_cast<E const*>(&e));
+	}
+
+	template<typename E>
+	auto log(OpExpression<E> const& e)
+	{
+		return symphas::internal::make_function<func_log<E>>::get(*static_cast<E const*>(&e));
 	}
 
 	template<typename E>
 	auto cos(OpExpression<E> const& e)
 	{
-		return symphas::internal::make_function<func_Cos<E>>::get(*static_cast<E const*>(&e));
+		return symphas::internal::make_function<func_cos<E>>::get(*static_cast<E const*>(&e));
 	}
 
 	template<typename E>
 	auto sin(OpExpression<E> const& e)
 	{
-		return symphas::internal::make_function<func_Sin<E>>::get(*static_cast<E const*>(&e));
+		return symphas::internal::make_function<func_sin<E>>::get(*static_cast<E const*>(&e));
 	}
 
 	template<typename E>
 	auto tan(OpExpression<E> const& e)
 	{
-		return symphas::internal::make_function<func_Tan<E>>::get(*static_cast<E const*>(&e));
+		return symphas::internal::make_function<func_tan<E>>::get(*static_cast<E const*>(&e));
 	}
 
 	template<typename E>
 	auto cosh(OpExpression<E> const& e)
 	{
-		return symphas::internal::make_function<func_Cosh<E>>::get(*static_cast<E const*>(&e));
+		return symphas::internal::make_function<func_cosh<E>>::get(*static_cast<E const*>(&e));
 	}
 
 	template<typename E>
 	auto sinh(OpExpression<E> const& e)
 	{
-		return symphas::internal::make_function<func_Sinh<E>>::get(*static_cast<E const*>(&e));
+		return symphas::internal::make_function<func_sinh<E>>::get(*static_cast<E const*>(&e));
 	}
 
 	template<typename E>
 	auto tanh(OpExpression<E> const& e)
 	{
-		return symphas::internal::make_function<func_Tanh<E>>::get(*static_cast<E const*>(&e));
+		return symphas::internal::make_function<func_tanh<E>>::get(*static_cast<E const*>(&e));
 	}
 
 	template<typename E>
 	auto acos(OpExpression<E> const& e)
 	{
-		return symphas::internal::make_function<func_Acos<E>>::get(*static_cast<E const*>(&e));
+		return symphas::internal::make_function<func_acos<E>>::get(*static_cast<E const*>(&e));
 	}
 
 	template<typename E>
 	auto asin(OpExpression<E> const& e)
 	{
-		return symphas::internal::make_function<func_Asin<E>>::get(*static_cast<E const*>(&e));
+		return symphas::internal::make_function<func_asin<E>>::get(*static_cast<E const*>(&e));
 	}
 
 	template<typename E>
 	auto atan(OpExpression<E> const& e)
 	{
-		return symphas::internal::make_function<func_Atan<E>>::get(*static_cast<E const*>(&e));
+		return symphas::internal::make_function<func_atan<E>>::get(*static_cast<E const*>(&e));
 	}
 
 	template<typename E>
 	auto acosh(OpExpression<E> const& e)
 	{
-		return symphas::internal::make_function<func_Acosh<E>>::get(*static_cast<E const*>(&e));
+		return symphas::internal::make_function<func_acosh<E>>::get(*static_cast<E const*>(&e));
 	}
 
 	template<typename E>
 	auto asinh(OpExpression<E> const& e)
 	{
-		return symphas::internal::make_function<func_Asinh<E>>::get(*static_cast<E const*>(&e));
+		return symphas::internal::make_function<func_asinh<E>>::get(*static_cast<E const*>(&e));
 	}
 
 	template<typename E>
 	auto atanh(OpExpression<E> const& e)
 	{
-		return symphas::internal::make_function<func_Atanh<E>>::get(*static_cast<E const*>(&e));
+		return symphas::internal::make_function<func_atanh<E>>::get(*static_cast<E const*>(&e));
 	}
 
 
 	template<typename E>
 	auto sqrt(OpExpression<E> const& e)
 	{
-		return symphas::internal::make_function<func_Sqrt<E>>::get(*static_cast<E const*>(&e));
+		return symphas::internal::make_function<func_sqrt<E>>::get(*static_cast<E const*>(&e));
 	}
 }
 
@@ -463,6 +774,8 @@ namespace expr
 template<typename V, typename E, typename F, typename Arg0, typename... Args>
 struct OpFunc : OpExpression<OpFunc<V, E, F, Arg0, Args...>>
 {
+	OpFunc() : name{ "" }, value{ V{} }, e{}, f{}, tt{} {}
+
 	//! Create a function of an expression.
 	/*!
 	 * Creates a function expression of the given expression, by applying
@@ -525,7 +838,7 @@ struct OpFunc : OpExpression<OpFunc<V, E, F, Arg0, Args...>>
 
 	inline auto eval(iter_type n) const
 	{
-		return value * std::apply(f, std::tuple_cat(std::make_tuple(e, n), tt));
+		return expr::eval(value) * std::apply(f, std::tuple_cat(std::make_tuple(e, n), tt));
 	}
 
 	auto operator-() const
@@ -557,8 +870,10 @@ struct OpFunc : OpExpression<OpFunc<V, E, F, Arg0, Args...>>
 			+ name.length() + SYEX_LAMBDA_FUNC_FMT_LEN;
 	}
 
-
-	friend struct expr::compound_get;
+	friend auto const& expr::get_enclosed_expression(OpFunc<V, E, F, Arg0, Args...> const&);
+	friend auto& expr::get_enclosed_expression(OpFunc<V, E, F, Arg0, Args...>&);
+	friend auto const& expr::get_result_data(OpFunc<V, E, F, Arg0, Args...> const&);
+	friend auto& expr::get_result_data(OpFunc<V, E, F, Arg0, Args...>&);
 
 	V value;
 
@@ -586,6 +901,9 @@ protected:
 template<typename V, typename E, typename F>
 struct OpFunc<V, E, F, void> : OpExpression<OpFunc<V, E, F, void>>
 {
+
+	OpFunc() : name{ "" }, value{ V{} }, e{}, f{} {}
+
 	//! Create a function of an expression.
 	/*!
 	 * Creates a function expression of the given expression, by applying
@@ -614,7 +932,7 @@ struct OpFunc<V, E, F, void> : OpExpression<OpFunc<V, E, F, void>>
 
 	inline auto eval(iter_type n) const
 	{
-		return value * f(e, n);
+		return expr::eval(value) * f(e, n);
 	}
 
 	auto operator-() const
@@ -650,7 +968,10 @@ struct OpFunc<V, E, F, void> : OpExpression<OpFunc<V, E, F, void>>
 
 #endif
 
-	friend struct expr::compound_get;
+	friend auto const& expr::get_enclosed_expression(OpFunc<V, E, F, void> const&);
+	friend auto& expr::get_enclosed_expression(OpFunc<V, E, F, void>&);
+	friend auto const& expr::get_result_data(OpFunc<V, E, F, void> const&);
+	friend auto& expr::get_result_data(OpFunc<V, E, F, void>&);
 
 	V value;
 
@@ -666,315 +987,57 @@ template<typename V, typename E, typename F>
 OpFunc(std::string, V, E, F)->OpFunc<V, E, F, void>;
 template<typename V, typename E, typename F>
 OpFunc(V, E, F)->OpFunc<V, E, F, void>;
+template<typename V, typename E, typename F>
+OpFunc(std::string, OpLiteral<V>, E, F)->OpFunc<V, E, F, void>;
+template<typename V, typename E, typename F>
+OpFunc(OpLiteral<V>, E, F)->OpFunc<V, E, F, void>;
+template<typename V, typename E, typename F, typename... Args>
+OpFunc(std::string, OpLiteral<V>, E, F, std::tuple<Args...>)->OpFunc<V, E, F, Args...>;
+template<typename V, typename E, typename F, typename... Args>
+OpFunc(OpLiteral<V>, E, F, std::tuple<Args...>)->OpFunc<V, E, F, Args...>;
 
 
 
-template<typename S1, typename V2, typename E2, typename F2, typename Arg, typename... Args>
-auto operator*(OpLiteral<S1> const& a, OpFunc<V2, E2, F2, Arg, Args...> const& b)
+template<typename coeff_t, typename V2, typename E2, typename F2, typename Arg, typename... Args,
+	typename std::enable_if_t<(expr::is_coeff<coeff_t> && !expr::is_tensor<V2>), int> = 0>
+auto operator*(coeff_t const& value, OpFunc<V2, E2, F2, Arg, Args...> const& b)
 {
-	return OpFunc(b.name, a.value * b.value, b.e, b.f, b.tt);
+	return OpFunc(b.name, value * b.value, b.e, b.f, b.tt);
 }
 
-template<typename S1, typename V2, typename E2, typename F2>
-auto operator*(OpLiteral<S1> const& a, OpFunc<V2, E2, F2, void> const& b)
+template<typename coeff_t, typename tensor_t, typename E2, typename F2, typename Arg, typename... Args,
+	typename std::enable_if_t<(expr::is_coeff<coeff_t> && expr::is_tensor<tensor_t>), int> = 0>
+auto operator*(coeff_t const& value, OpFunc<tensor_t, E2, F2, Arg, Args...> const& b)
 {
-	return OpFunc(a.name, a.value * b.value, b.e, b.f);
+	return (value * b.value) * OpFunc(b.name, OpIdentity{}, b.e, b.f, b.tt);
+}
+
+template<typename coeff_t, typename V2, typename E2, typename F2,
+	typename std::enable_if_t<(expr::is_coeff<coeff_t> && !expr::is_tensor<V2>), int> = 0>
+auto operator*(coeff_t const& value, OpFunc<V2, E2, F2, void> const& b)
+{
+	return OpFunc(b.name, value * b.value, b.e, b.f);
+}
+
+template<typename coeff_t, typename tensor_t, typename E2, typename F2,
+	typename std::enable_if_t<(expr::is_coeff<coeff_t> && expr::is_tensor<tensor_t>), int> = 0>
+auto operator*(coeff_t const& value, OpFunc<tensor_t, E2, F2, void> const& b)
+{
+	return (value * b.value) * OpFunc(b.name, OpIdentity{}, b.e, b.f);
 }
 
 
-// *************************************************************************************************
 
-
-
-
-namespace expr
+template<typename V1, typename E1, typename F1, typename V2>
+auto operator*(OpFunc<V2, E1, F1, void> const& a, OpFunc<V2, E1, F1, void> const& b)
 {
-	template<size_t N>
-	using subvar = OpLVariable<OpIdentity, Variable<N>>;
-
-	template<size_t N>
-	subvar<N> _v = subvar<N>{ OpVoid{} };
-
-	inline subvar<0> _x = _v<0>;
-	inline subvar<1> _y = _v<1>;
-	inline subvar<2> _z = _v<2>;
+	return (a.value + b.value) * OpFunc(b.name, OpIdentity{}, a.e, a.f);
 }
 
-
-//! A function into which other expressions can be substituted when called.
-/*!
- * A function into which other expressions can be substituted when called.
- * The function is created with a given number parameters, which may be zero.
- * 
- * \tparam E The type of the expression function.
- * \tparam ArgsNs... The indices of the independent variables, subvar<N>.
- */
-template<typename E, size_t... ArgNs>
-struct OpFuncSubstitutable
+template<typename V1, typename E1, typename F1, typename Arg, typename... Args, typename V2>
+auto operator*(OpFunc<V1, E1, F1, Arg, Args...> const& a, OpFunc<V2, E1, F1, Arg, Args...> const& b)
 {
-	OpFuncSubstitutable(E const& e) : e{ e } {}
-
-protected:
-
-	template<size_t... Ss>
-	inline auto swap_x()
-	{
-		return e;
-	}
-
-	template<size_t S, size_t... Ss, typename X, typename... Xs>
-	auto swap_x(X const& x, Xs const& ...xs)
-	{
-		return expr::transform::swap_grid<Variable<S>>(swap_x<Ss...>(xs...), x);
-	}
-
-public:
-
-	E operator()() const
-	{
-		return e;
-	}
-
-	template<typename... Xs, std::enable_if_t<(sizeof...(Xs) == sizeof...(ArgNs)), int> = 0>
-	auto operator()(OpExpression<Xs> const& ...xs)
-	{
-		return swap_x<ArgNs...>(*static_cast<const Xs*>(&xs)...);
-	}
-
-#ifdef PRINTABLE_EQUATIONS
-
-	size_t print(FILE* out) const
-	{
-		return e.print(out);
-	}
-
-	size_t print(char* out) const
-	{
-	    return e.print(out);
-	}
-
-	size_t print_length() const
-	{
-		return e.print_length();
-	}
-
-#endif
-
-	E e;				//!< The substitutable function.
-};
-
-
-namespace expr
-{
-
-	namespace
-	{
-
-		template<typename G>
-		struct tuple_list_to_ptrs
-		{
-			using type = G;
-		};
-
-		template<typename... Gs>
-		struct tuple_list_to_ptrs<std::tuple<Gs...>>
-		{
-			using type = std::tuple<Gs*...>;
-		};
-
-
-		template<size_t N>
-		constexpr std::true_type _is_subvar(Variable<N>)
-		{
-			return {};
-		}
-
-		constexpr std::false_type _is_subvar(...)
-		{
-			return {};
-		}
-
-		template<typename T>
-		constexpr auto is_subvar(T t)
-		{
-			return _is_subvar(t);
-		}
-
-		template<size_t N>
-		constexpr std::index_sequence<N> subvar_id(Variable<N>*)
-		{
-			return {};
-		}
-
-
-		constexpr auto get_subvar_list(std::tuple<>)
-		{
-			return std::index_sequence<>{};
-		}
-
-		template<typename G0, typename... Gs>
-		constexpr auto get_subvar_list(std::tuple<G0*, Gs*...>)
-		{
-			if constexpr (std::invoke_result_t<decltype(is_subvar<G0>), G0>::value)
-			{
-				return symphas::lib::fold_unique_ids(symphas::lib::seq_join(subvar_id((G0*)nullptr), get_subvar_list(std::tuple<Gs*...>{})));
-			}
-			else
-			{
-				return get_subvar_list(std::tuple<Gs*...>{});
-			}
-		}
-	}
-
-	template<typename E>
-	auto get_independent_variables(OpExpression<E> const& e)
-	{
-		get_subvar_list(typename tuple_list_to_ptrs<typename expr::op_types<E>::type>::type{});
-	}
-
-	template<typename E, size_t... ArgNs>
-	auto get_independent_variables(OpFuncSubstitutable<E, ArgNs...> const& e)
-	{
-		return std::index_sequence<ArgNs...>{};
-	}
-
-	namespace
-	{
-
-
-		template<typename E, size_t... ArgNs>
-		OpFuncSubstitutable<E, ArgNs...> make_new_function(OpExpression<E> const& e, std::index_sequence<ArgNs...>)
-		{
-			return { *static_cast<const E*>(&e) };
-		}
-
-
-		//! Create a substitutable function.
-		template<typename E>
-		auto make_substitutable_function(OpExpression<E> const& e)
-		{
-			auto all_ids = get_subvar_list(typename tuple_list_to_ptrs<typename expr::op_types<E>::type>::type{});
-			return make_new_function(*static_cast<const E*>(&e), all_ids);
-		}
-
-		//! Create a substitutable function.
-		template<typename E, size_t... Ns>
-		OpFuncSubstitutable<E, Ns...> make_substitutable_function(OpExpression<E> const& e, std::index_sequence<Ns...> ns)
-		{
-			return make_new_function(*static_cast<const E*>(&e), ns);
-		}
-
-
-		template<size_t... Ns>
-		struct OpSymbolicFunction;
-
-		template<size_t N0, size_t... Ns>
-		struct OpSymbolicFunction<N0, Ns...>
-		{
-
-		protected:
-
-			template<typename S>
-			struct convert_vars;
-
-			template<int... Ms>
-			struct convert_vars<std::integer_sequence<int, Ms...>>
-			{
-				using type = std::index_sequence<size_t(Ms)...>;
-			};
-
-			template<typename S>
-			struct has_enough_vars;
-
-			template<size_t... Ms>
-			struct has_enough_vars<std::index_sequence<Ms...>>
-			{
-				using check_seq = symphas::lib::seq_sub_t<
-					decltype(symphas::lib::sort_ids(std::declval<std::index_sequence<Ms...>>())),
-					decltype(symphas::lib::sort_ids(std::declval<std::index_sequence<N0, Ns...>>()))>;
-
-				static const bool value = std::is_same<
-					std::index_sequence<0>,
-					decltype(symphas::lib::fold_unique_ids(std::declval<typename convert_vars<check_seq>::type>()))>::value;
-			};
-
-		public:
-
-			template<typename E, 
-				std::enable_if_t<has_enough_vars<decltype(
-					get_subvar_list(std::declval<typename tuple_list_to_ptrs<typename expr::op_types<E>::type>::type>())
-					)>::value, int> = 0>
-			auto operator=(OpExpression<E> const& e)
-			{
-				auto all_ids = get_subvar_list(typename tuple_list_to_ptrs<typename expr::op_types<E>::type>::type{});
-				return make_substitutable_function(*static_cast<const E*>(&e));
-			}
-
-			OpSymbolicFunction(OpSymbolicFunction<N0, Ns...> const&) = delete;
-			OpSymbolicFunction(OpSymbolicFunction<N0, Ns...>&&) = delete;
-		};
-
-		template<>
-		struct OpSymbolicFunction<>
-		{
-			template<typename E>
-			auto operator=(OpExpression<E> const& e)
-			{
-				return make_substitutable_function(*static_cast<const E*>(&e));
-			}
-
-			OpSymbolicFunction(OpSymbolicFunction<> const&) = delete;
-			OpSymbolicFunction(OpSymbolicFunction<>&&) = delete;
-		};
-
-
-		template<typename... Ts>
-		struct OpSymbolicFunctionSwap;
-
-		template<typename... Ts, size_t... Ns, typename... Gs>
-		struct OpSymbolicFunctionSwap<OpLVariable<Ts, Variable<Ns, Gs>>...>
-		{
-
-		protected:
-
-			template<size_t N, typename E>
-			inline auto swap_all_grids(OpExpression<E> const& e)
-			{
-				return *static_cast<E const*>(&e);
-			}
-
-			template<size_t N, typename E, typename X, typename... Xs>
-			auto swap_all_grids(OpExpression<E> const& e)
-			{
-				return expr::transform::swap_grid<X>(swap_all_grids<N, E, Xs...>(*static_cast<E const*>(&e)), _v<N - sizeof...(Xs) - 1>);
-			}
-
-		public:
-
-			template<typename E>
-			auto operator=(OpExpression<E> const& e)
-			{
-				return make_substitutable_function(
-					swap_all_grids<sizeof...(Ts), E, OpLVariable<Ts, Variable<Ns, Gs>>...>(*static_cast<const E*>(&e)));
-			}
-
-			OpSymbolicFunctionSwap(OpSymbolicFunctionSwap<OpLVariable<Ts, Variable<Ns, Gs>>...> const&) = delete;
-			OpSymbolicFunctionSwap(OpSymbolicFunctionSwap<OpLVariable<Ts, Variable<Ns, Gs>>...>&&) = delete;
-		};
-
-	}
-
-	template<size_t... Ns>
-	OpSymbolicFunction<Ns...> fn(subvar<Ns>...) { return {}; }
-
-	OpSymbolicFunction<> fn() { return {}; }
-
-	template<typename... Ts, size_t... Ns, typename... Gs>
-	OpSymbolicFunctionSwap<OpLVariable<Ts, Variable<Ns, Gs>>...> fn(OpLVariable<Ts, Variable<Ns, Gs>>...) { return {}; }
-
-	
-
-
+	return (a.value + b.value) * OpFunc(b.name, OpIdentity{}, b.e, b.f, b.tt);
 }
 
 

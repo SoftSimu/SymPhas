@@ -128,7 +128,7 @@ struct ModelPFCEquation : Model<D, Sp, S...>,
 	{
 		std::ostringstream ss;
 		ss << "n_" << N;
-		return expr::make_op<N>(NamedData(parent_type::template grid<N>(), ss.str()));
+		return expr::make_term<N>(NamedData(parent_type::template grid<N>(), ss.str()));
 	}
 
 	// build the bulk phase equation
@@ -159,7 +159,7 @@ struct ModelPFCEquation : Model<D, Sp, S...>,
 		return coupled_pfc_dynamic_N<N>(std::make_index_sequence<SN - 1>{});
 	}
 
-	// the coupled dynamics construct a convolution term using the existing convolution term
+	// the coupled EVOLUTION construct a convolution term using the existing convolution term
 	// eta, and hijack that grid to save time and space
 	template<size_t N, size_t M>
 	auto coupled_pfc_dynamic_NM()

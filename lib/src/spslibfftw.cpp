@@ -115,7 +115,10 @@ void symphas::dft::fftw_execute(fftw_plan p)
 
 void symphas::dft::fftw_destroy_plan(fftw_plan p)
 {
-	::fftw_destroy_plan(p);
+	if (p != NULL)
+	{
+		::fftw_destroy_plan(p);
+	}
 }
 
 fftw_complex* symphas::dft::fftw_alloc_complex(size_t n)

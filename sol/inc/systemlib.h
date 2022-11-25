@@ -61,7 +61,7 @@ struct WriteParallel
 	{
 		finish_last_write();
 		done = false;
-		thr = new std::thread{ &symphas::io::save_grid_plotting<T>, snapshot.values, w, g };
+		thr = new std::thread{ &WriteParallel<T>::write_delegate, snapshot.values, w, g };
 	}
 
 	auto& get_snapshot() const
@@ -88,6 +88,12 @@ protected:
 			done = true;
 		}
 	}
+
+	static void write_delegate(const T* values, symphas::io::write_info w, symphas::grid_info g)
+	{
+		symphas::io::save_grid_plotting(values, w, g);
+	}
+
 
 	Block<T> snapshot;
 
@@ -159,7 +165,6 @@ struct SystemData<Grid<T, D>> : Grid<T, D>, SystemInfo
 	using SystemInfo::id;
 	using SystemInfo::info;
 
-	using Grid<T, D>::values;
 	using Grid<T, D>::dims;
 	using Grid<T, D>::len;
 	using Grid<T, D>::as_grid;
@@ -219,11 +224,7 @@ struct SystemData<Grid<T, D>> : Grid<T, D>, SystemInfo
 	 */
 	void persist(T* out) const
 	{
-		std::copy(
-#ifdef EXECUTION_HEADER_AVAILABLE
-			std::execution::par_unseq,
-#endif
-			values, values + len, out);
+		grid::copy(*this, out);
 	}
 
 	//! Copies the input data into the system values.
@@ -233,11 +234,7 @@ struct SystemData<Grid<T, D>> : Grid<T, D>, SystemInfo
 	 */
 	void fill(const T* in) const
 	{
-		std::copy(
-#ifdef EXECUTION_HEADER_AVAILABLE
-			std::execution::par_unseq,
-#endif
-			in, in + len, values);
+		grid::fill(in, *this);
 	}
 
 protected:
@@ -259,7 +256,6 @@ struct SystemData<BoundaryGrid<T, D>> : BoundaryGrid<T, D>, SystemInfo
 	using SystemInfo::id;
 	using SystemInfo::info;
 
-	using Grid<T, D>::values;
 	using Grid<T, D>::dims;
 	using Grid<T, D>::len;
 	using BoundaryGrid<T, D>::as_grid;
@@ -334,7 +330,7 @@ struct SystemData<BoundaryGrid<T, D>> : BoundaryGrid<T, D>, SystemInfo
 	 */
 	void fill(const T* in) const
 	{
-		grid::fill_interior(in, values, dims);
+		grid::fill_interior(in, *this, dims);
 	}
 
 protected:
@@ -586,11 +582,16 @@ namespace symphas
 		 */
 		size_t len;
 
-		problem_parameters_type() : tdata{ nullptr }, vdata{ nullptr }, bdata{ nullptr }, len{ 0 }, dt{ 1.0 } {}
+		double dt;								//!< The time discretization.
+
+		problem_parameters_type() : 
+			tdata{ nullptr }, vdata{ nullptr }, bdata{ nullptr }, 
+			len{ 0 }, dt{ 1.0 }, time{ TIME_INIT }, index{ params::start_index } {}
 
 	public:
 
-		double dt;						//!< The time discretization.
+		double time;					//!< The current time.
+		iter_type index;				//!< The current index;
 
 
 		//! Initialize the problem parameters corresponding to \p len systems.
@@ -601,7 +602,7 @@ namespace symphas
 		 */
 		problem_parameters_type(const size_t len) : 
 			tdata{ new symphas::init_data_type[len] }, vdata{ new symphas::interval_data_type[len] }, bdata{ new symphas::b_data_type[len] },
-			len{ len }, dt{ 1.0 } {}
+			len{ len }, dt{ 1.0 }, time{ TIME_INIT }, index{ params::start_index } {}
 
 		problem_parameters_type(problem_parameters_type const& other);
 
@@ -630,8 +631,8 @@ namespace symphas
 		 * field problem.
 		 * \param n The length of the list.
 		 */
-		void set_initial_data(symphas::init_data_type* tdata_set, size_t n);
-		inline void set_initial_data(symphas::init_data_type* tdata_set)
+		void set_initial_data(const symphas::init_data_type* tdata_set, size_t n);
+		inline void set_initial_data(const symphas::init_data_type* tdata_set)
 		{
 			set_initial_data(tdata_set, len - 1);
 		}
@@ -661,8 +662,8 @@ namespace symphas
 		 * field problem.
 		 * \param n The length of the list.
 		 */
-		void set_interval_data(symphas::interval_data_type* vdata_set, size_t n);
-		inline void set_interval_data(symphas::interval_data_type* vdata_set)
+		void set_interval_data(const symphas::interval_data_type* vdata_set, size_t n);
+		inline void set_interval_data(const symphas::interval_data_type* vdata_set)
 		{
 			set_interval_data(vdata_set, len - 1);
 		}
@@ -693,8 +694,8 @@ namespace symphas
 		 * field problem.
 		 * \param n The length of the list.
 		 */
-		void set_boundary_data(symphas::b_data_type* bdata_set, size_t n);
-		inline void set_boundary_data(symphas::b_data_type* bdata_set)
+		void set_boundary_data(const symphas::b_data_type* bdata_set, size_t n);
+		inline void set_boundary_data(const symphas::b_data_type* bdata_set)
 		{
 			set_boundary_data(bdata_set, len - 1);
 		}
@@ -712,11 +713,10 @@ namespace symphas
 
 
 		//! Provide the time step used in the solution of the problem.
-		inline void set_problem_time_step(double dt_set)
+		inline void set_time_step(double dt)
 		{
-			dt = dt_set;
+			this->dt = dt;
 		}
-
 
 		//! Get the list of initial data.
 		inline const symphas::init_data_type* get_initial_data() const
@@ -740,6 +740,12 @@ namespace symphas
 		inline const size_t length() const
 		{
 			return len;
+		}
+
+		//! Provide the time step used in the solution of the problem.
+		inline double get_time_step() const
+		{
+			return dt;
 		}
 
 		//! Get the dimension represented by the parameters.
@@ -781,6 +787,21 @@ namespace symphas
 
 		friend void swap(problem_parameters_type& first, problem_parameters_type& second);
 
+		void extend(size_t new_len)
+		{
+			if (new_len > len)
+			{
+				problem_parameters_type pp{ new_len };
+				pp.set_boundary_data(get_boundary_data(), len);
+				pp.set_initial_data(get_initial_data(), len);
+				pp.set_interval_data(get_interval_data(), len);
+				pp.set_time_step(dt);
+				pp.time = time;
+				pp.index = index;
+				swap(pp, *this);
+			}
+		}
+
 		~problem_parameters_type();
 
 	};
@@ -797,7 +818,6 @@ void swap(symphas::problem_parameters_type& first, symphas::problem_parameters_t
 namespace symphas::internal
 {
 
-
 	template<typename T, size_t D>
 	void populate_tdata(symphas::init_data_type const& tdata, 
 		Grid<T, D>& data, [[maybe_unused]] symphas::grid_info* info, [[maybe_unused]] size_t id)
@@ -806,6 +826,28 @@ namespace symphas::internal
 		if (!InitialConditions<T, D>{ tdata, info->intervals, data.dims }.initialize(data.values, id))
 		{
 			fprintf(SYMPHAS_ERR, "the given initial condition algorithm is not valid\n");
+		}
+	}
+
+	template<typename T, size_t D>
+	void populate_tdata(symphas::init_data_type const& tdata,
+		Grid<any_vector_t<T, D>, D>& data, [[maybe_unused]] symphas::grid_info* info, [[maybe_unused]] size_t id)
+	{
+		any_vector_t<T, D>* values = new any_vector_t<T, D>[data.len];
+
+
+		if (!InitialConditions<any_vector_t<T, D>, D>{ tdata, info->intervals, data.dims }.initialize(values, id))
+		{
+			fprintf(SYMPHAS_ERR, "the given initial condition algorithm is not valid\n");
+		}
+
+		for (iter_type n = 0; n < D; ++n)
+		{
+#			pragma omp parallel for
+			for (iter_type i = 0; i < data.len; ++i)
+			{
+				data.axis(symphas::index_to_axis(n))[i] = values[i][n];
+			}
 		}
 	}
 

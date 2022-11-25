@@ -43,7 +43,7 @@
 #include <algorithm>
 
 #include "spslib.h"
-#include "gridinfo.h"
+#include "grid.h"
 
 //! \cond
 
@@ -82,9 +82,9 @@ enum class BoundaryType
 	OPEN,				//!< Boundary representing an open or free space on the other side.
 	NONE,				//!< Not a boundary type, for a "no-op" boundary or for error checking.
 	PERIODIC,			//!< Periodic boundaries, which tile the system.
-	PERIODIC0,			//!< Periodic boundaries, for sides that are only opposite.
-	PERIODIC3A,			//!< Periodic boundaries in 3D, for sides which have left adjacent
-	PERIODIC3AA			//!< Periodic boundaries in 3D, for sides which have top adjacent.
+	PERIODIC0,			//!< Same as PERIODIC when used as a boundary parameter. In generating boundaries, represents sides that are only opposite.
+	PERIODIC3A,			//!< Same as PERIODIC when used as a boundary parameter. In generating boundaries, represents sides which have left adjacent
+	PERIODIC3AA			//!< Same as PERIODIC when used as a boundary parameter. In generating boundaries, represents sides which have top adjacent.
 };
 
 
@@ -287,6 +287,14 @@ namespace grid
 	{
 		//! Generate a copy of the specialized boundary instance.
 		virtual Boundary<T, D>* new_copy() const = 0;
+
+		//! Get the parameters used to construct this boundary.
+		/*!
+		 * Returns a new parameters object that can be used to construct a new boundary
+		 * object with identical properties.
+		 */
+		virtual symphas::b_element_type get_parameters() const = 0;
+
 		virtual ~Boundary() {}
 	};
 
@@ -317,6 +325,16 @@ namespace grid
 			return new BoundaryApplied<T, D, BoundaryType::PERIODIC>(*this);
 		}
 
+		//! Get the parameters used to construct this boundary.
+		/*!
+		 * Returns a new parameters object that can be used to construct a new boundary
+		 * object with identical properties.
+		 */
+		symphas::b_element_type get_parameters() const
+		{
+			return symphas::b_element_type(BoundaryType::PERIODIC);
+		}
+
 	};
 
 
@@ -331,16 +349,12 @@ namespace grid
 	template<typename T>
 	struct BoundaryApplied<T, 0, BoundaryType::DEFAULT> : Boundary<T, 0>
 	{
-	protected:
-
 		double
 			_A, //!< First parameter.
 			_B, //!< Second parameter.
 			_C, //!< Third parameter.
 			_D, //!< Fourth parameter.
 			_E; //!< Fifth parameter.
-
-	public:
 
 		double v;	//!< The position of the boundary.
 
@@ -365,6 +379,15 @@ namespace grid
 		//! Initialize the interval data of the boundary.
 		void init(double);
 
+		void fill_constants(double* constants)
+		{
+			constants[0] = _A;
+			constants[1] = _B;
+			constants[2] = _C;
+			constants[3] = _D;
+			constants[4] = _E;
+		}
+
 		//! Update the given value which is at a position on the boundary.
 		/*!
 		 * Given the position of the point, an update algorithm is chosen based
@@ -375,6 +398,15 @@ namespace grid
 		 * \param time The solution time at which the boundary is updated.
 		 */
 		virtual void update(T& val, axis_coord_t, axis_coord_t, double time) const = 0;
+
+		template<typename vector_type = T, typename T0 = typename vector_element_type<vector_type>::type>
+		void update(multi_value<1, T0> val, axis_coord_t, axis_coord_t, double time) const
+		{
+			any_vector_t<T0, 1> vector = val;
+			this->update(vector, 0, 0, time);
+			val = vector;
+		}
+
 		virtual ~BoundaryApplied() {}
 
 	};
@@ -383,16 +415,12 @@ namespace grid
 	template<typename T>
 	struct BoundaryApplied<T, 1, BoundaryType::DEFAULT> : Boundary<T, 1>
 	{
-	protected:
-
 		double
 			_A, //!< First parameter.
 			_B, //!< Second parameter.
 			_C, //!< Third parameter.
 			_D, //!< Fourth parameter.
 			_E; //!< Fifth parameter.
-
-	public:
 
 		double v[2];	//!< The interval of the boundary.
 		double h;		//!< The spatial separation along the boundary.
@@ -419,6 +447,15 @@ namespace grid
 		//! Initialize the interval data of the boundary.
 		void init(double*, double);
 
+		void fill_constants(double* constants)
+		{
+			constants[0] = _A;
+			constants[1] = _B;
+			constants[2] = _C;
+			constants[3] = _D;
+			constants[4] = _E;
+		}
+
 		//! Update the given value which is at a position on the boundary.
 		/*!
 		 * Given the position of the point, an update algorithm is chosen based
@@ -430,6 +467,15 @@ namespace grid
 		 * \param time The solution time at which the boundary is updated.
 		 */
 		virtual void update(T& val, axis_coord_t x, axis_coord_t, double time) const = 0;
+
+		template<typename vector_type = T, typename T0 = typename vector_element_type<vector_type>::type>
+		void update(multi_value<2, T0> val, axis_coord_t x, axis_coord_t, double time) const
+		{
+			any_vector_t<T0, 2> vector = val;
+			this->update(vector, x, 0, time);
+			val = vector;
+		}
+
 		virtual ~BoundaryApplied() {}
 
 	};
@@ -438,17 +484,12 @@ namespace grid
 	template<typename T>
 	struct BoundaryApplied<T, 2, BoundaryType::DEFAULT> : Boundary<T, 2>
 	{
-	protected:
-
 		double
 			_A, //!< First parameter.
 			_B, //!< Second parameter.
 			_C, //!< Third parameter.
 			_D, //!< Fourth parameter.
 			_E; //!< Fifth parameter.
-
-
-	public:
 
 		double v[4];	//!< The interval of the boundary.
 		double h[2];	//!< The axial spacings of the boundary.
@@ -487,10 +528,47 @@ namespace grid
 		 * \param time The solution time at which the boundary is updated.
 		 */
 		virtual void update(T& val, axis_coord_t x, axis_coord_t y, double time) const = 0;
+
+		template<typename vector_type = T, typename T0 = typename vector_element_type<vector_type>::type>
+		void update(multi_value<3, T0> val, axis_coord_t x, axis_coord_t y, double time) const
+		{
+			any_vector_t<T0, 3> vector = val;
+			this->update(vector, x, y, time);
+			val = vector;
+		}
+
 		virtual ~BoundaryApplied() {}
 
 	};
 
+
+	//! A default boundary which has tags applied to it.
+	/*!
+	 * A default boundary which has tags applied to it. Specializations
+	 * define the algorithm used.
+	 */
+	template<typename T, size_t D, BoundaryTag...>
+	struct BoundaryDefaultTagged;
+
+	namespace internal
+	{
+		template<typename T, size_t D, BoundaryTag... tags>
+		symphas::b_element_type get_parameters(BoundaryDefaultTagged<T, D, tags...> const* boundary)
+		{
+			double* params = new double[NUM_BOUNDARY_CONSTANTS] {0};
+			params[0] = boundary->_A;
+			params[1] = boundary->_B;
+			params[2] = boundary->_C;
+			params[3] = boundary->_D;
+			params[4] = boundary->_E;
+
+			symphas::b_element_type bdata(BoundaryType::DEFAULT, { tags... }, params, NUM_BOUNDARY_CONSTANTS);
+
+			delete[] params;
+
+			return bdata;
+		}
+	}
 
 	//! Functional object aiding in the implementation of specialized boundary.
 	template<template<typename, size_t> typename B, typename T, size_t D>
@@ -503,23 +581,26 @@ namespace grid
 		 */
 		Boundary<T, D>* new_copy() const
 		{
-			return new B<T, D>(static_cast<B<T, D> const&>(*this));
+			return new B<T, D>(*cast());
 		}
 
 		void set_defaults()
 		{
 			(*static_cast<B<T, D>*>(this)).set_defaults();
 		}
+
+		symphas::b_element_type get_parameters() const
+		{
+			return grid::internal::get_parameters(cast());
+		}
+
+		const B<T, D>* cast() const
+		{
+			return static_cast<B<T, D> const*>(this);
+		}
 	};
 
 
-	//! A default boundary which has tags applied to it.
-	/*!
-	 * A default boundary which has tags applied to it. Specializations
-	 * define the algorithm used.
-	 */
-	template<typename T, size_t D, BoundaryTag...>
-	struct BoundaryDefaultTagged;
 	
 	template<typename T, size_t D>
 	struct BoundaryDefaultTagged<T, D, BoundaryTag::RANDOM>;
@@ -601,6 +682,11 @@ namespace grid
 		{
 			return support_type::new_copy();
 		}
+
+		symphas::b_element_type get_parameters() const
+		{
+			return support_type::get_parameters();
+		}
 	};
 
 	//! A specialization of the default boundary applying trigonmetric functions.
@@ -645,6 +731,11 @@ namespace grid
 		{
 			return support_type::new_copy();
 		}
+
+		symphas::b_element_type get_parameters() const
+		{
+			return support_type::get_parameters();
+		}
 	};
 
 
@@ -682,6 +773,11 @@ namespace grid
 		Boundary<T, 0>* new_copy() const
 		{
 			return support_type::new_copy();
+		}
+
+		symphas::b_element_type get_parameters() const
+		{
+			return support_type::get_parameters();
 		}
 	};
 
@@ -725,6 +821,11 @@ namespace grid
 		Boundary<T, 1>* new_copy() const
 		{
 			return support_type::new_copy();
+		}
+
+		symphas::b_element_type get_parameters() const
+		{
+			return support_type::get_parameters();
 		}
 	};
 
@@ -772,6 +873,11 @@ namespace grid
 		{
 			return support_type::new_copy();
 		}
+
+		symphas::b_element_type get_parameters() const
+		{
+			return support_type::get_parameters();
+		}
 	};
 
 	//! A specialization of the default boundary applying a constant.
@@ -807,6 +913,11 @@ namespace grid
 		Boundary<T, D>* new_copy() const
 		{
 			return support_type::new_copy();
+		}
+
+		symphas::b_element_type get_parameters() const
+		{
+			return support_type::get_parameters();
 		}
 	};
 
@@ -845,6 +956,11 @@ namespace grid
 		{
 			return support_type::new_copy();
 		}
+
+		symphas::b_element_type get_parameters() const
+		{
+			return support_type::get_parameters();
+		}
 	};
 
 	//! Specialization based on BoundaryLinear.
@@ -870,7 +986,7 @@ namespace grid
 		 */
 		void update(T& val, axis_coord_t x, axis_coord_t, double) const
 		{
-			val = (_A * x + _B * symphas::lib::get_identity<T>());
+			val = (_A * x + _B) * symphas::lib::get_identity<T>();
 		}
 
 		void set_defaults()
@@ -882,6 +998,11 @@ namespace grid
 		Boundary<T, 1>* new_copy() const
 		{
 			return support_type::new_copy();
+		}
+
+		symphas::b_element_type get_parameters() const
+		{
+			return support_type::get_parameters();
 		}
 	};
 
@@ -908,7 +1029,7 @@ namespace grid
 		 */
 		void update(T& val, axis_coord_t x, axis_coord_t y, double) const
 		{
-			val = (_A * x + _B * y + _C * symphas::lib::get_identity<T>());
+			val = (_A * x + _B * y + _C) * symphas::lib::get_identity<T>();
 		}
 
 		void set_defaults()
@@ -921,6 +1042,11 @@ namespace grid
 		Boundary<T, 2>* new_copy() const
 		{
 			return support_type::new_copy();
+		}
+
+		symphas::b_element_type get_parameters() const
+		{
+			return support_type::get_parameters();
 		}
 	};
 
@@ -960,6 +1086,11 @@ namespace grid
 		{
 			return support_type::new_copy();
 		}
+
+		symphas::b_element_type get_parameters() const
+		{
+			return support_type::get_parameters();
+		}
 	};
 
 
@@ -986,7 +1117,7 @@ namespace grid
 		 */
 		void update(T& val, axis_coord_t x, axis_coord_t, double time) const
 		{
-			val = _C * time * (_A * x + _B * symphas::lib::get_identity<T>());
+			val = _C * time * (_A * x + _B) * symphas::lib::get_identity<T>();
 		}
 
 		void set_defaults()
@@ -999,6 +1130,11 @@ namespace grid
 		Boundary<T, 1>* new_copy() const
 		{
 			return support_type::new_copy();
+		}
+
+		symphas::b_element_type get_parameters() const
+		{
+			return support_type::get_parameters();
 		}
 	};
 
@@ -1027,7 +1163,7 @@ namespace grid
 		 */
 		void update(T& val, axis_coord_t x, axis_coord_t y, double time) const
 		{
-			val = _D * time * (_A * x + _B * y + _C * symphas::lib::get_identity<T>());
+			val = _D * time * (_A * x + _B * y + _C) * symphas::lib::get_identity<T>();
 		}
 
 		void set_defaults()
@@ -1041,6 +1177,11 @@ namespace grid
 		Boundary<T, 2>* new_copy() const
 		{
 			return support_type::new_copy();
+		}
+
+		symphas::b_element_type get_parameters() const
+		{
+			return support_type::get_parameters();
 		}
 	};
 
@@ -1079,6 +1220,11 @@ namespace grid
 		Boundary<T, D>* new_copy() const
 		{
 			return support_type::new_copy();
+		}
+
+		symphas::b_element_type get_parameters() const
+		{
+			return support_type::get_parameters();
 		}
 
 	protected:
@@ -1145,6 +1291,11 @@ namespace grid
 		Boundary<T, D>* new_copy() const
 		{
 			return support_type::new_copy();
+		}
+
+		symphas::b_element_type get_parameters() const
+		{
+			return support_type::get_parameters();
 		}
 
 	};
@@ -1246,6 +1397,7 @@ namespace symphas::internal
 				{
 				case BoundaryTag::GAUSSIAN:
 				{
+					b = new grid::BoundaryGaussian<T, D>(data.params, data.argc);
 					break;
 				}
 				case BoundaryTag::TRIG:

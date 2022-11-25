@@ -505,7 +505,7 @@ namespace symphas
 		len_type dims[D]{ 0 };
 		if constexpr (D == 1)
 		{
-			auto [L] = symphas::lib::get_dimensions<1>(x, len);
+			auto L = symphas::lib::get_dimensions<1>(x, len);
 			dims[0] = L;
 		}
 		else if constexpr (D == 2)
@@ -2113,7 +2113,7 @@ namespace symphas::lib
 	template<typename Y>
 	auto radial_avg(FieldAxis<1, Y> const& data)
 	{
-		auto [L] = symphas::lib::get_sorted_dimensions(data.x, data.length());
+		auto L = symphas::lib::get_sorted_dimensions(data.x, data.length());
 
 		double const
 			dx = ((*(data.x + 1)) - (*data.x));

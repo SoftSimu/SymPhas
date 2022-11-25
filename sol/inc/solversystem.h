@@ -121,16 +121,16 @@ struct SolverSystemSpectral<scalar_t, D> : System<scalar_t, D>
 	 */
 	SolverSystemSpectral(symphas::init_data_type const& tdata, symphas::interval_data_type const& vdata, symphas::b_data_type const& bdata, size_t id);
 	SolverSystemSpectral(SolverSystemSpectral<scalar_t, D> const& other);
-	SolverSystemSpectral(SolverSystemSpectral<complex_t, D>&& other) noexcept : SolverSystemSpectral()
+	SolverSystemSpectral(SolverSystemSpectral<scalar_t, D>&& other) noexcept : SolverSystemSpectral()
 	{
 		swap(*this, other);
 	}
-	SolverSystemSpectral<complex_t, D>& operator=(SolverSystemSpectral<complex_t, D> other)
+
+	SolverSystemSpectral<scalar_t, D>& operator=(SolverSystemSpectral<scalar_t, D> other)
 	{
 		swap(*this, other);
 		return *this;
 	}
-
 
 	//! Compute the Fourier transform and update the system.
 	/*!
@@ -278,12 +278,126 @@ protected:
 
 };
 
+//! The phase field system used by the spectral solver. 
+/*!
+ * Implementation of the phase field system used for the spectral solver
+ * based on a vector-valued order parameter. It defines the Fourier
+ * transform of the order parameter with dimensions that do not include
+ * the duplicated half.
+ *
+ * See SolverSystemSpectral<T, D>.
+ *
+ * \tparam D The provisional system dimension.
+ */
+template<size_t D>
+struct SolverSystemSpectral<vector_t<D>, D> : System<vector_t<D>, D>
+{
+	using base_type = vector_t<D>;
+
+	using System<base_type, D>::System;
+	using Grid<base_type, D>::dims;
+	using Grid<base_type, D>::axis;
+
+	len_type transformed_len;				//!< Length of the transformed array.
+	MultiBlock<D, complex_t> frame_t;		//!< The values of the transformed grid.
+	MultiBlock<D, complex_t> dframe;		//!< Accumulates the values of the solver computation.
+
+	fftw_plan p[D];							//!< Fourier transform plan of the order parameter.
+
+
+	//! Create the order parameter data used by the spectral solver. 
+	/*!
+	 * Create the order parameter data used by the spectral solver. The
+	 * boundaries are provided but not used in the implementation, as they are
+	 * imposed by the solver instead.
+	 *
+	 * \param tdata The initial conditions data of the system.
+	 * \param vdata The interval data of the system.
+	 * \param id The ID value of the system.
+	 */
+	SolverSystemSpectral(symphas::init_data_type const& tdata, symphas::interval_data_type const& vdata, symphas::b_data_type const& bdata, size_t id);
+	SolverSystemSpectral(SolverSystemSpectral<base_type, D> const& other);
+	SolverSystemSpectral(SolverSystemSpectral<base_type, D>&& other) noexcept : SolverSystemSpectral()
+	{
+		swap(*this, other);
+	}
+	SolverSystemSpectral<base_type, D>& operator=(SolverSystemSpectral<base_type, D> other)
+	{
+		swap(*this, other);
+		return *this;
+	}
+
+
+	//! Compute the Fourier transform and update the system.
+	/*!
+	 * Compute the Fourier transform and update the system. On some iterations,
+	 * the complex transform is recomputed in order to eliminate numerical
+	 * error from accumulating. The values computed
+	 * by the solver are copied to the Fourier transformed data, and then
+	 * the Fourier transform is inverted to recover the real phase field values.
+	 *
+	 * \param index The index of the solution.
+	 */
+	void update(iter_type index, double)
+	{
+		if (index % 100 == 0)
+		{
+			for (iter_type i = 0; i < D; ++i)
+			{
+				Axis ax = symphas::index_to_axis(i);
+				symphas::dft::arrange_fftw_stip<D>(axis(ax), reinterpret_cast<scalar_t*>(dframe(ax)), dims);
+				symphas::dft::fftw_execute(p_to_t[i]);
+			}
+		}
+		for (iter_type i = 0; i < D; ++i)
+		{
+			Axis ax = symphas::index_to_axis(i);
+
+			std::copy(
+#ifdef EXECUTION_HEADER_AVAILABLE
+				std::execution::par,
+#endif
+				dframe(ax), dframe(ax) + transformed_len, frame_t(ax));
+
+			symphas::dft::fftw_execute(p[i]);
+			symphas::dft::arrange_fftw_ipts<D>(reinterpret_cast<scalar_t*>(dframe(ax)), axis(ax), dims);
+		}
+		symphas::dft::scale(System<base_type, D>::as_grid());
+	}
+
+	friend void swap(SolverSystemSpectral<base_type, D>& first, SolverSystemSpectral<base_type, D>& second)
+	{
+		using std::swap;
+
+		swap(static_cast<System<base_type, D>&>(first), static_cast<System<base_type, D>&>(second));
+		swap(first.transformed_len, second.transformed_len);
+		swap(first.frame_t, second.frame_t);
+		swap(first.dframe, second.dframe);
+		swap(first.p, second.p);
+		swap(first.p_to_t, second.p_to_t);
+	}
+
+
+	~SolverSystemSpectral();
+
+protected:
+
+	SolverSystemSpectral() : System<base_type, D>(), transformed_len{ 0 }, frame_t{ 0 }, dframe{ 0 }, p{ 0 }, p_to_t{ 0 } {}
+	fftw_plan p_to_t[D];
+
+
+};
+
+
+
+
+
 using symphas::dft::new_fftw_plan;
 
 template<>
 inline SolverSystemSpectral<scalar_t, 1>::SolverSystemSpectral(symphas::init_data_type const& tdata, symphas::interval_data_type const& vdata, symphas::b_data_type const&, size_t id) :
 	System<scalar_t, 1>(tdata, vdata, id),
-	transformed_len{ symphas::dft::len<scalar_t, 1>(dims) },
+	transformed_len{ symphas::dft::length<scalar_t, 1>(dims) },
 	frame_t{ reinterpret_cast<complex_t*>(symphas::dft::fftw_alloc_complex(transformed_len)) },
 	dframe{ reinterpret_cast<complex_t*>(symphas::dft::fftw_alloc_complex(transformed_len)) },
 	p{ new_fftw_plan<1, complex_t, scalar_t>{}(dframe, dframe, dims) },
@@ -296,7 +410,7 @@ inline SolverSystemSpectral<scalar_t, 1>::SolverSystemSpectral(symphas::init_dat
 template<>
 inline SolverSystemSpectral<scalar_t, 2>::SolverSystemSpectral(symphas::init_data_type const& tdata, symphas::interval_data_type const& vdata, symphas::b_data_type const&, size_t id) :
 	System<scalar_t, 2>(tdata, vdata, id),
-	transformed_len{ symphas::dft::len<scalar_t, 2>(dims) },
+	transformed_len{ symphas::dft::length<scalar_t, 2>(dims) },
 	frame_t{ reinterpret_cast<complex_t*>(symphas::dft::fftw_alloc_complex(transformed_len)) },
 	dframe{ reinterpret_cast<complex_t*>(symphas::dft::fftw_alloc_complex(transformed_len)) },
 	p{ new_fftw_plan<2, complex_t, scalar_t>{}(dframe, dframe, dims) },
@@ -309,7 +423,7 @@ inline SolverSystemSpectral<scalar_t, 2>::SolverSystemSpectral(symphas::init_dat
 template<>
 inline SolverSystemSpectral<scalar_t, 3>::SolverSystemSpectral(symphas::init_data_type const& tdata, symphas::interval_data_type const& vdata, symphas::b_data_type const&, size_t id) :
 	System<scalar_t, 3>(tdata, vdata, id),
-	transformed_len{ symphas::dft::len<scalar_t, 3>(dims) },
+	transformed_len{ symphas::dft::length<scalar_t, 3>(dims) },
 	frame_t{ reinterpret_cast<complex_t*>(symphas::dft::fftw_alloc_complex(transformed_len)) },
 	dframe{ reinterpret_cast<complex_t*>(symphas::dft::fftw_alloc_complex(transformed_len)) },
 	p{ new_fftw_plan<3, complex_t, scalar_t>{}(dframe, dframe, dims) },
@@ -322,7 +436,7 @@ inline SolverSystemSpectral<scalar_t, 3>::SolverSystemSpectral(symphas::init_dat
 template<>
 inline SolverSystemSpectral<complex_t, 1>::SolverSystemSpectral(symphas::init_data_type const& tdata, symphas::interval_data_type const& vdata, symphas::b_data_type const&, size_t id) :
 	System<complex_t, 1>(tdata, vdata, id),
-	transformed_len{ symphas::dft::len<complex_t, 1>(dims) },
+	transformed_len{ symphas::dft::length<complex_t, 1>(dims) },
 	frame_t{ reinterpret_cast<complex_t*>(symphas::dft::fftw_alloc_complex(transformed_len)) },
 	dframe{ reinterpret_cast<complex_t*>(symphas::dft::fftw_alloc_complex(transformed_len)) },
 	p{ new_fftw_plan<1, complex_t, complex_t>{}(dframe, dframe, dims, false, true) },
@@ -335,7 +449,7 @@ inline SolverSystemSpectral<complex_t, 1>::SolverSystemSpectral(symphas::init_da
 template<>
 inline SolverSystemSpectral<complex_t, 2>::SolverSystemSpectral(symphas::init_data_type const& tdata, symphas::interval_data_type const& vdata, symphas::b_data_type const&, size_t id) :
 	System<complex_t, 2>(tdata, vdata, id),
-	transformed_len{ symphas::dft::len<complex_t, 2>(dims) },
+	transformed_len{ symphas::dft::length<complex_t, 2>(dims) },
 	frame_t{ reinterpret_cast<complex_t*>(symphas::dft::fftw_alloc_complex(transformed_len)) },
 	dframe{ reinterpret_cast<complex_t*>(symphas::dft::fftw_alloc_complex(transformed_len)) },
 	p{ new_fftw_plan<2, complex_t, complex_t>{}(dframe, dframe, dims, false, true) },
@@ -348,7 +462,7 @@ inline SolverSystemSpectral<complex_t, 2>::SolverSystemSpectral(symphas::init_da
 template<>
 inline SolverSystemSpectral<complex_t, 3>::SolverSystemSpectral(symphas::init_data_type const& tdata, symphas::interval_data_type const& vdata, symphas::b_data_type const&, size_t id) :
 	System<complex_t, 3>(tdata, vdata, id),
-	transformed_len{ symphas::dft::len<complex_t, 3>(dims) },
+	transformed_len{ symphas::dft::length<complex_t, 3>(dims) },
 	frame_t{ reinterpret_cast<complex_t*>(symphas::dft::fftw_alloc_complex(transformed_len)) },
 	dframe{ reinterpret_cast<complex_t*>(symphas::dft::fftw_alloc_complex(transformed_len)) },
 	p{ new_fftw_plan<3, complex_t, complex_t>{}(dframe, dframe, dims, false, true) },
@@ -356,6 +470,51 @@ inline SolverSystemSpectral<complex_t, 3>::SolverSystemSpectral(symphas::init_da
 {
 	std::copy(Grid<complex_t, 3>::values, Grid<complex_t, 3>::values + Grid<complex_t, 3>::len, dframe);
 	symphas::dft::fftw_execute(p_to_t);
+}
+
+template<>
+inline SolverSystemSpectral<any_vector_t<scalar_t, 1>, 1>::SolverSystemSpectral(symphas::init_data_type const& tdata, symphas::interval_data_type const& vdata, symphas::b_data_type const&, size_t id) :
+	System<any_vector_t<scalar_t, 1>, 1>(tdata, vdata, id),
+	transformed_len{ symphas::dft::length<scalar_t, 1>(dims) },
+	frame_t{ transformed_len },
+	dframe{ transformed_len },
+	p{ new_fftw_plan<1, complex_t, scalar_t>{}(dframe(Axis::X), dframe(Axis::X), dims) },
+	p_to_t{ new_fftw_plan<1, scalar_t, complex_t>{}(dframe(Axis::X), dframe(Axis::X), dims) }
+{
+	symphas::dft::arrange_fftw_stip<1>(axis(Axis::X), reinterpret_cast<scalar_t*>(dframe(Axis::X)), dims);
+	symphas::dft::fftw_execute(p_to_t[0]);
+}
+
+template<>
+inline SolverSystemSpectral<any_vector_t<scalar_t, 2>, 2>::SolverSystemSpectral(symphas::init_data_type const& tdata, symphas::interval_data_type const& vdata, symphas::b_data_type const&, size_t id) :
+	System<any_vector_t<scalar_t, 2>, 2>(tdata, vdata, id),
+	transformed_len{ symphas::dft::length<scalar_t, 2>(dims) },
+	frame_t{ transformed_len },
+	dframe{ transformed_len },
+	p{ new_fftw_plan<2, complex_t, scalar_t>{}(dframe(Axis::X), dframe(Axis::X), dims), new_fftw_plan<2, complex_t, scalar_t>{}(dframe(Axis::Y), dframe(Axis::Y), dims) },
+	p_to_t{ new_fftw_plan<2, scalar_t, complex_t>{}(dframe(Axis::X), dframe(Axis::X), dims), new_fftw_plan<2, scalar_t, complex_t>{}(dframe(Axis::Y), dframe(Axis::Y), dims) }
+{
+	symphas::dft::arrange_fftw_stip<2>(axis(Axis::X), reinterpret_cast<scalar_t*>(dframe(Axis::X)), dims);
+	symphas::dft::arrange_fftw_stip<2>(axis(Axis::Y), reinterpret_cast<scalar_t*>(dframe(Axis::Y)), dims);
+	symphas::dft::fftw_execute(p_to_t[0]);
+	symphas::dft::fftw_execute(p_to_t[1]);
+}
+
+template<>
+inline SolverSystemSpectral<any_vector_t<scalar_t, 3>, 3>::SolverSystemSpectral(symphas::init_data_type const& tdata, symphas::interval_data_type const& vdata, symphas::b_data_type const&, size_t id) :
+	System<any_vector_t<scalar_t, 3>, 3>(tdata, vdata, id),
+	transformed_len{ symphas::dft::length<scalar_t, 3>(dims) },
+	frame_t{ transformed_len },
+	dframe{ transformed_len },
+	p{ new_fftw_plan<3, complex_t, scalar_t>{}(dframe(Axis::X), dframe(Axis::X), dims), new_fftw_plan<3, complex_t, scalar_t>{}(dframe(Axis::Y), dframe(Axis::Y), dims), new_fftw_plan<3, complex_t, scalar_t>{}(dframe(Axis::Z), dframe(Axis::Z), dims) },
+	p_to_t{ new_fftw_plan<3, scalar_t, complex_t>{}(dframe(Axis::X), dframe(Axis::X), dims), new_fftw_plan<3, scalar_t, complex_t>{}(dframe(Axis::Y), dframe(Axis::Y), dims), new_fftw_plan<3, scalar_t, complex_t>{}(dframe(Axis::Z), dframe(Axis::Z), dims) }
+{
+	symphas::dft::arrange_fftw_stip<3>(axis(Axis::X), reinterpret_cast<scalar_t*>(dframe(Axis::X)), dims);
+	symphas::dft::arrange_fftw_stip<3>(axis(Axis::Y), reinterpret_cast<scalar_t*>(dframe(Axis::Y)), dims);
+	symphas::dft::arrange_fftw_stip<3>(axis(Axis::Z), reinterpret_cast<scalar_t*>(dframe(Axis::Z)), dims);
+	symphas::dft::fftw_execute(p_to_t[0]);
+	symphas::dft::fftw_execute(p_to_t[1]);
+	symphas::dft::fftw_execute(p_to_t[2]);
 }
 
 
@@ -441,6 +600,51 @@ inline SolverSystemSpectral<complex_t, 3>::SolverSystemSpectral(SolverSystemSpec
 }
 
 
+template<>
+inline SolverSystemSpectral<any_vector_t<scalar_t, 1>, 1>::SolverSystemSpectral(SolverSystemSpectral<any_vector_t<scalar_t, 1>, 1> const& other) :
+	System<any_vector_t<scalar_t, 1>, 1>(other),
+	transformed_len{ other.transformed_len },
+	frame_t{ transformed_len },
+	dframe{ transformed_len },
+	p{ new_fftw_plan<1, complex_t, scalar_t>{}(dframe(Axis::X), dframe(Axis::X), dims) },
+	p_to_t{ new_fftw_plan<1, scalar_t, complex_t>{}(dframe(Axis::X), dframe(Axis::X), dims)}
+{
+	symphas::dft::arrange_fftw_stip<1>(axis(Axis::X), reinterpret_cast<scalar_t*>(dframe(Axis::X)), dims);
+	symphas::dft::fftw_execute(p_to_t[0]);
+}
+
+template<>
+inline SolverSystemSpectral<any_vector_t<scalar_t, 2>, 2>::SolverSystemSpectral(SolverSystemSpectral<any_vector_t<scalar_t, 2>, 2> const& other) :
+	System<any_vector_t<scalar_t, 2>, 2>(other),
+	transformed_len{ other.transformed_len },
+	frame_t{ transformed_len },
+	dframe{ transformed_len },
+	p{ new_fftw_plan<2, complex_t, scalar_t>{}(dframe(Axis::X), dframe(Axis::X), dims), new_fftw_plan<2, complex_t, scalar_t>{}(dframe(Axis::Y), dframe(Axis::Y), dims) },
+	p_to_t{ new_fftw_plan<2, scalar_t, complex_t>{}(dframe(Axis::X), dframe(Axis::X), dims), new_fftw_plan<2, scalar_t, complex_t>{}(dframe(Axis::Y), dframe(Axis::Y), dims) }
+{
+	symphas::dft::arrange_fftw_stip<2>(axis(Axis::X), reinterpret_cast<scalar_t*>(dframe(Axis::X)), dims);
+	symphas::dft::arrange_fftw_stip<2>(axis(Axis::Y), reinterpret_cast<scalar_t*>(dframe(Axis::Y)), dims);
+	symphas::dft::fftw_execute(p_to_t[0]);
+	symphas::dft::fftw_execute(p_to_t[1]);
+}
+
+template<>
+inline SolverSystemSpectral<any_vector_t<scalar_t, 3>, 3>::SolverSystemSpectral(SolverSystemSpectral<any_vector_t<scalar_t, 3>, 3> const& other) :
+	System<any_vector_t<scalar_t, 3>, 3>(other),
+	transformed_len{ other.transformed_len },
+	frame_t{ transformed_len },
+	dframe{ transformed_len },
+	p{ new_fftw_plan<3, complex_t, scalar_t>{}(dframe(Axis::X), dframe(Axis::X), dims), new_fftw_plan<3, complex_t, scalar_t>{}(dframe(Axis::Y), dframe(Axis::Y), dims), new_fftw_plan<3, complex_t, scalar_t>{}(dframe(Axis::Z), dframe(Axis::Z), dims) },
+	p_to_t{ new_fftw_plan<3, scalar_t, complex_t>{}(dframe(Axis::X), dframe(Axis::X), dims), new_fftw_plan<3, scalar_t, complex_t>{}(dframe(Axis::Y), dframe(Axis::Y), dims), new_fftw_plan<3, scalar_t, complex_t>{}(dframe(Axis::Z), dframe(Axis::Z), dims) }
+{
+	symphas::dft::arrange_fftw_stip<3>(axis(Axis::X), reinterpret_cast<scalar_t*>(dframe(Axis::X)), dims);
+	symphas::dft::arrange_fftw_stip<3>(axis(Axis::Y), reinterpret_cast<scalar_t*>(dframe(Axis::Y)), dims);
+	symphas::dft::arrange_fftw_stip<3>(axis(Axis::Z), reinterpret_cast<scalar_t*>(dframe(Axis::Z)), dims);
+	symphas::dft::fftw_execute(p_to_t[0]);
+	symphas::dft::fftw_execute(p_to_t[1]);
+	symphas::dft::fftw_execute(p_to_t[2]);
+}
+
 
 
 
@@ -463,6 +667,15 @@ inline SolverSystemSpectral<complex_t, D>::~SolverSystemSpectral()
 	symphas::dft::fftw_free(reinterpret_cast<fftw_complex*&>(frame_t));
 }
 
+template<size_t D>
+inline SolverSystemSpectral<vector_t<D>, D>::~SolverSystemSpectral()
+{
+	for (iter_type i = 0; i < D; ++i)
+	{
+		symphas::dft::fftw_destroy_plan(p[i]);
+		symphas::dft::fftw_destroy_plan(p_to_t[i]);
+	}
+}
 
 
 

@@ -718,7 +718,7 @@ namespace symphas::internal
 {
 	inline void save_vec_default_print(std::vector<std::pair<axis_nd_t<1>, scalar_t>> const& data, FILE* f)
 	{
-		auto [L] = symphas::lib::get_dimensions<1>(data);
+		auto L = symphas::lib::get_dimensions<1>(data);
 		auto it = data.begin();
 		fprintf(f, "% 10." AXIS_OUTPUT_ACCURACY_STR "f ", data[0].first);
 		for (iter_type i = 0; i < L; i++)
@@ -785,7 +785,7 @@ namespace symphas::internal
 
 	inline void save_vec_default_print(std::vector<std::pair<axis_nd_t<1>, complex_t>> const& data, FILE* f)
 	{
-		auto [L] = symphas::lib::get_dimensions<1>(data);
+		auto L = symphas::lib::get_dimensions<1>(data);
 		auto it = data.begin();
 		fprintf(f, "% 10." AXIS_OUTPUT_ACCURACY_STR "f ", data[0].first);
 		for (iter_type i = 0; i < L; i++)

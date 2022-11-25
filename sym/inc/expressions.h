@@ -26,11 +26,9 @@
 
 #pragma once
 
-#include <tuple>
 #include <iostream>
 
-
-#include "expressioniterator.h"
+#include "expressionlib.h"
 
 
 
@@ -48,14 +46,16 @@
 
 #ifdef LATEX_PLOT
 
-#define SYEX_MUL_SEP_OP "\\cdot "
+#define SYEX_MUL_SEP_OP " "
 #define SYEX_DIV_SEP_OP "}{"
 #define SYEX_NLV_SEP_OP " "
 
-#define SYEX_MUL_FMT_AA "\\left["
+//#define SYEX_MUL_FMT_AA "\\left["
+#define SYEX_MUL_FMT_AA ""
 #define SYEX_MUL_FMT_AB "\\left("
 #define SYEX_MUL_FMT_BA "\\right)"
-#define SYEX_MUL_FMT_BB "\\right]"
+//#define SYEX_MUL_FMT_BB "\\right]"
+#define SYEX_MUL_FMT_BB ""
 
 #define SYEX_DIV_SEP SYEX_DIV_SEP_OP
 #define SYEX_DIV_FMT_A "\\frac{"
@@ -67,15 +67,18 @@
 #define SYEX_DIV_SEP_OP "/"
 #define SYEX_NLV_SEP_OP "*"
 
-#define SYEX_MUL_FMT_AA "["
+//#define SYEX_MUL_FMT_AA "["
+#define SYEX_MUL_FMT_AA ""
 #define SYEX_MUL_FMT_AB "("
 #define SYEX_MUL_FMT_BA ")"
-#define SYEX_MUL_FMT_BB "]"
-
+//#define SYEX_MUL_FMT_BB "]"
+#define SYEX_MUL_FMT_BB ""
 
 #define SYEX_DIV_SEP  ") " SYEX_DIV_SEP_OP " ("
-#define SYEX_DIV_FMT_A SYEX_MUL_FMT_A
-#define SYEX_DIV_FMT_B SYEX_MUL_FMT_B 
+#define SYEX_DIV_FMT_A SYEX_MUL_FMT_AB
+#define SYEX_DIV_FMT_B SYEX_MUL_FMT_BA
+
+
 
 #endif
 
@@ -87,13 +90,19 @@
 #define SYEX_MUL_FMT_A SYEX_MUL_FMT_AA SYEX_MUL_FMT_AB
 #define SYEX_MUL_FMT_B SYEX_MUL_FMT_BA SYEX_MUL_FMT_BB
 
-
 #define SYEX_MUL_FMT SYEX_MUL_FMT_A "%s" SYEX_MUL_SEP "%s" SYEX_MUL_FMT_B
 #define SYEX_MUL_FMT_LEN (STR_ARR_LEN(SYEX_MUL_FMT_A SYEX_MUL_SEP SYEX_MUL_FMT_B) - 1)
 
 #define SYEX_DIV_FMT SYEX_DIV_FMT_A "%s" SYEX_DIV_SEP "%s" SYEX_DIV_FMT_B
 #define SYEX_DIV_FMT_LEN (STR_ARR_LEN(SYEX_DIV_FMT_A SYEX_DIV_SEP SYEX_DIV_FMT_B) - 1)
 
+
+#define SYEX_FRA_SEP SYEX_DIV_SEP_OP
+#define SYEX_FRA_FMT_A SYEX_DIV_FMT_A
+#define SYEX_FRA_FMT_B SYEX_MUL_FMT_B 
+
+#define SYEX_FRA_FMT SYEX_DIV_FMT_A "%zd" SYEX_DIV_SEP_OP "%zd" SYEX_DIV_FMT_B
+#define SYEX_FRA_FMT_LEN (STR_ARR_LEN(SYEX_DIV_FMT_A SYEX_DIV_SEP_OP SYEX_DIV_FMT_B) - 1)
 
 #define SYEX_LAMBDA_FUNC_FMT_A "%s("
 #define SYEX_LAMBDA_FUNC_FMT_B ")"
@@ -108,7 +117,13 @@
 #define SYEX_POW_SEP_B
 #endif
 
+
+
 //! \endcond
+
+
+//! The maximum supported power that an expression can be evaluated at.
+#define MAX_EXPONENT 20
 
 
 //! The display precision of values which appear in expressions.
@@ -118,136 +133,349 @@
  */
 #define EXPR_VALUE_DISPLAY_PRECISION 3
 
-
-//! Base expression object which is inherited from with the CRTP technique.
-/*
- * applying Expression Templates to create the expression tree for the
- * evaluation of the equations of motion
- */
-template<typename E>
-struct OpExpression
+namespace symphas::internal
 {
-	//! Return the value of this expression at the given index.
-	/*!
-	 * Evaluate the expression, which typically refers to a list of data points
-	 * that are indexed sequentially.
-	 * 
-	 * \param n The index at which to evaluate the data.
-	 */
-	inline auto eval(iter_type n) const
+	struct tensor_cast
 	{
-		return cast().eval(n);
+		template<typename T, size_t... Ns>
+		static auto const& cast(OpTensor<T, Ns...> const& tensor)
+		{
+			return tensor.value;
+		}
+
+		template<typename T, size_t... Ns>
+		static auto& cast(OpTensor<T, Ns...>& tensor)
+		{
+			return tensor.value;
+		}
+	};
+
+	template<typename T, size_t N0, size_t N1, size_t NA, size_t NB, size_t... Ns, 
+		typename S, size_t M0, size_t M1, size_t MA, size_t MB, size_t... Ms>
+	auto tensor_multiply(OpTensor<T, N0, N1, NA, NB, Ns...>, OpTensor<S, M0, M1, MA, MB, Ms...>) = delete;
+
+	// Matrix multiplication
+	template<typename T, typename S, size_t N0, size_t N1, size_t N2, size_t N3, size_t NA, size_t NB, size_t NC>
+	auto tensor_multiply(OpTensor<T, N0, N1, NA, NB> const& a, OpTensor<S, N2, N3, NB, NC> const& b)
+	{
+		if constexpr (N1 == N2)
+		{
+			T at = tensor_cast::cast(a);
+			S bt = tensor_cast::cast(b);
+			return expr::make_tensor<N0, N3, NA, NC>(at * bt);
+		}
+		else
+		{
+			return OpVoid{};
+		}
 	}
 
-	//! Return the value of this expression at the given index.
-	/*!
-	 * Evaluate the expression, which typically refers to a list of data points
-	 * that are indexed sequentially.
-	 *
-	 * \param n The index at which to evaluate the data.
-	 */
-	auto operator()(iter_type n) const
+	// Matrix multiplication
+	template<typename T, typename S, size_t N0, size_t N1, size_t NA, size_t NB, 
+		typename std::enable_if_t<(NA > 0), int> = 0>
+	auto tensor_multiply(OpTensor<T, N0, NA> const& a, OpTensor<S, 0, N1, 1, NB> const& b)
 	{
-		return cast().eval(n);
+		T at = tensor_cast::cast(a);
+		S bt = tensor_cast::cast(b);
+		return expr::make_tensor<N0, N1, NA, NB>(at * bt);
 	}
+
+	// Matrix multiplication
+	template<typename T, typename S, size_t N0, size_t N1, size_t N2, size_t NA, size_t NB>
+	auto tensor_multiply(OpTensor<T, N0, N1, NA, NB> const& a, OpTensor<S, N2, NB> const& b)
+	{
+		if constexpr (N1 == N2)
+		{
+			T at = tensor_cast::cast(a);
+			S bt = tensor_cast::cast(b);
+			
+			if constexpr (NA == 1)
+			{
+				return expr::make_literal(at * bt);
+			}
+			else
+			{
+				return expr::make_tensor<N0, 0, NA, 1>(at * bt);
+			}
+		}
+		else
+		{
+			return OpVoid{};
+		}
+	}
+
+	template<typename T, size_t... Ms>
+	auto tensor_multiply(OpTensor<OpIdentity, 0, 0> const& a, OpTensor<T, Ms...> const& b)
+	{
+		return OpIdentity{};
+	}
+
+	template<typename T, size_t... Ms>
+	auto tensor_multiply(OpTensor<T, Ms...> const& a, OpTensor<OpIdentity, 0, 0> const& b)
+	{
+		return OpIdentity{};
+	}
+
+	template<typename T, typename S, size_t... Ms>
+	auto tensor_multiply(OpTensor<T, Ms...> const& a, OpTensor<S, 0, 1> const& b)
+	{
+		auto v = symphas::internal::tensor_cast::cast(a) * symphas::internal::tensor_cast::cast(b);
+		return expr::make_tensor<Ms...>(v);
+	}
+
+	template<typename T, typename S, size_t... Ms>
+	auto tensor_multiply(OpTensor<T, 0, 0, 1, 1> const& a, OpTensor<S, Ms...> const& b)
+	{
+		auto v = symphas::internal::tensor_cast::cast(a) * symphas::internal::tensor_cast::cast(b);
+		return expr::make_tensor<Ms...>(v);
+	}
+
+
+	template<typename T, typename S>
+	auto tensor_multiply(OpTensor<T, 0, 1> const& a, OpTensor<S, 0, 1> const& b)
+	{
+		return symphas::internal::tensor_cast::cast(a) * symphas::internal::tensor_cast::cast(b);
+	}
+
+	template<typename T, typename S>
+	auto tensor_multiply(OpTensor<T, 0, 0, 1, 1> const& a, OpTensor<S, 0, 1> const& b)
+	{
+		return symphas::internal::tensor_cast::cast(a) * symphas::internal::tensor_cast::cast(b);
+	}
+
+	template<typename T, typename S>
+	auto tensor_multiply(OpTensor<S, 0, 1> const& a, OpTensor<T, 0, 0, 1, 1> const& b)
+	{
+		return symphas::internal::tensor_cast::cast(a) * symphas::internal::tensor_cast::cast(b);
+	}
+
+	template<size_t N0, size_t N1, size_t NA, size_t NB, typename T>
+	auto get_tensor(T const& value)
+	{
+		using elem_type = std::invoke_result_t<decltype(&T::eval), T, iter_type>;
+		any_matrix_t<elem_type, NA, NB> matrix;
+		matrix[N0][N1] = value.eval();
+		return matrix;
+	}
+
+	template<size_t N0, size_t NA, typename T>
+	auto get_tensor(T const& value)
+	{
+		using elem_type = std::invoke_result_t<decltype(&T::eval), T, iter_type>;
+		any_vector_t<elem_type, NA> vector;
+		vector[N0] = value.eval();
+		return vector;
+	}
+
+	template<typename>
+	struct tensor_to_vector;
+
+	template<typename T, size_t N1, size_t NA>
+	struct tensor_to_vector<OpTensor<T, N1, NA>>
+	{
+		using type = any_vector_t<std::invoke_result_t<decltype(&T::eval), T, iter_type>, NA>;
+	};
+
+	template<typename T, size_t N1, size_t N2, size_t NA, size_t NB>
+	struct tensor_to_vector<OpTensor<T, N1, N2, NA, NB>>
+	{
+		using type = any_vector_t<any_vector_t<std::invoke_result_t<decltype(&T::eval), T, iter_type>, NB>, NA>;
+	};
+
+
+	template<typename T>
+	using tensor_to_vector_t = typename tensor_to_vector<T>::type;
+
+	template<size_t N1, size_t NA, typename T, typename S>
+	void set_vector(any_vector_t<T, NA>& vector, S const& value)
+	{
+		vector[N1] = value;
+	}
+
+	template<size_t N1, size_t N2, size_t NA, size_t NB, typename T, typename S>
+	void set_vector(any_vector_t<any_vector_t<T, NB>, NA>& vector, S const& value)
+	{
+		vector[N1][N2] = value;
+	}
+}
+
+
+//! A value of a tensor, acts as a coefficient.
+/*! 
+ * A tensor turns the expression for which it is a coefficient into an entry of a
+ * tensor. 
+ * 
+ * A tensor of rank 1 is a column vector, and of rank 2 is a matrix. A row vector is a
+ * tensor of rank 2 and has only 1 row. Multiplication only for rank 1 and 2 vectors is
+ * supported, and there are no tensor products.
+ */
+template<typename T, size_t... Ns>
+struct OpTensor : OpExpression<OpTensor<T, Ns...>>
+{
+
+	explicit OpTensor(T const& entry) : value{ entry } {}
+	explicit OpTensor(T&& entry) noexcept : value{ std::move(entry) } {}
+	constexpr OpTensor() : value{ T{} } {}
+
+	auto eval(iter_type n = 0) const
+	{
+		return symphas::internal::get_tensor<Ns...>(cast());
+	}
+
+	template<typename S, size_t... Ms>
+	auto operator*(OpTensor<S, Ms...> const& a) const
+	{
+		return symphas::internal::tensor_multiply(*this, a);
+	}
+
+	template<typename S>
+	auto operator-(OpTensor<S, Ns...> const& a) const
+	{
+		return expr::make_tensor<Ns...>(cast() - symphas::internal::tensor_cast::cast(a));
+	}
+
+	template<typename S>
+	auto operator+(OpTensor<S, Ns...> const& a) const
+	{
+		return expr::make_tensor<Ns...>(cast() + symphas::internal::tensor_cast::cast(a));
+	}
+
+	auto operator-() const
+	{
+		return expr::make_tensor<Ns...>(-cast());
+	}
+
+	operator symphas::internal::tensor_to_vector_t<OpTensor<T, Ns...>>() const
+	{
+		symphas::internal::tensor_to_vector_t<OpTensor<T, Ns...>> vector;
+		symphas::internal::set_vector<Ns...>(vector, symphas::internal::tensor_cast::cast(*this));
+		return vector;
+	}
+
+	operator T const& () const = delete;
+	operator T& () = delete;
 
 
 #ifdef PRINTABLE_EQUATIONS
 
-	//! Print the string representation of this expression to the file.
-	/*!
-	 * The string representation of this expression is printed to the given
-	 * file. The string is assumed to already have enough memory allocated.
-	 *
-	 * \param out The file to which the expression is printed.
-	 */
-	size_t print(FILE *out) const 
+	size_t print(FILE* out) const
 	{
-		return cast().print(out);
+		return expr::print_with_coeff(out, "", *this);
 	}
 
-	//! Print the string representation of this expression to the string.
-	/*!
-	 * The string representation of this expression is printed to the given
-	 * string. The string is assumed to already have enough memory allocated.
-	 * 
-	 * \param out The string array into which to write.
-	 */
-	size_t print(char *out) const
+	size_t print(char* out) const
 	{
-		return cast().print(out);
+		return expr::print_with_coeff(out, "", *this);
 	}
 
-	//! Returns the number of characters in the string representation.
-	/*!
-	 * Returns the number of characters in the string that represents this
-	 * expression. This value does not include a terminating character.
-	 */
 	size_t print_length() const
 	{
-		return cast().print_length();
-	}
-
-#else
-
-	size_t print(...) const
-	{
-		return 0;
+		return expr::coeff_print_length(*this);
 	}
 
 #endif
 
-	auto& cast() const
+	friend struct symphas::internal::tensor_cast;
+
+protected:
+
+	const T& cast() const
 	{
-		return *static_cast<E const*>(this);
+		return symphas::internal::tensor_cast::cast(*this);
 	}
 
-	//! Return an iterator the beginning of the data.
-	/*!
-	 * For the data related to the expression, return an iterator
-	 * representing the beginning of the data, used when evaluating
-	 * the expression.
-	 */
-	symphas::internal::expression_iterator<E> begin() const 
-	{ 
-		return symphas::internal::expression_iterator<E>(cast());
-	}
-
-
-	//! Return an iterator the end of the data.
-	/*!
-	 * For the data related to the expression, return an iterator
-	 * representing the end of the data, used when evaluating
-	 * the expression. The end point has to be provided, as the length
-	 * of the data is not known directly by the expression.
-	 * 
-	 * \param len The end point of the data, for the end iterator to
-	 * point to.
-	 */
-	symphas::internal::expression_iterator<E> end(len_type len) const 
-	{ 
-		return symphas::internal::expression_iterator<E>(cast(), len);
-	}
+	T value;
 };
 
-//! Contains all elements constituting the symbolic algebra functionality.
-/*!
- * Defines elements which support the symbolic algebra functionality, such
- * as creating new expression terms, manipulating and transforming expressions,
- * and printing expressions.
- */
 namespace expr
 {
-
-	//! Constructs a constant of the given value.
-	/*!
-	 * Constructs a constant of the given value.
-	 * 
-	 * \param v The value to give to the literal.
-	 */
-	template<typename T>
-	auto make_literal(T v);
+	template<typename T, size_t... Ns>
+	auto coeff(OpTensor<T, Ns...> const& tensor)
+	{
+		return symphas::internal::tensor_cast::cast(tensor);
+	}
 }
+
+namespace symphas::internal
+{
+	using tensor_cancel = OpTensor<OpIdentity, 0, 0>;
+}
+
+
+template<typename coeff_t, typename T, size_t... Ns,
+	typename std::enable_if_t<(expr::is_identity<coeff_t> && expr::is_fraction<coeff_t>), int> = 0>
+auto operator*(coeff_t const& value, OpTensor<T, Ns...> const& tensor)
+{
+	return expr::make_tensor<Ns...>(value * symphas::internal::tensor_cast::cast(tensor));
+}
+
+template<typename T1, typename T2, size_t... Ns>
+auto operator*(OpLiteral<T1> const& value, OpTensor<T2, Ns...> const& tensor)
+{
+	return expr::make_tensor<Ns...>(value * symphas::internal::tensor_cast::cast(tensor));
+}
+
+template<typename T1, typename T2, size_t... Ns>
+auto operator*(OpTensor<T1, Ns...> const& tensor, OpLiteral<T2> const& value)
+{
+	return expr::make_tensor<Ns...>(symphas::internal::tensor_cast::cast(tensor) * value);
+}
+
+
+template<typename T1, typename T2, size_t N0, size_t N1, size_t NB>
+auto operator*(any_vector_t<T1, 1> const& value, OpTensor<T2, 0, N1, 1, NB> const& tensor)
+{
+	return expr::make_tensor<0, N1, 1, NB>(value[0] * symphas::internal::tensor_cast::cast(tensor));
+}
+
+template<typename T1, typename T2, size_t N0, size_t N1, size_t NB>
+auto operator*(any_vector_t<T1, 2> const& value, OpTensor<T2, 0, N1, 1, NB> const& tensor)
+{
+	auto v = (*static_cast<T2 const*>(&tensor));
+	return expr::make_tensor<0, N1, 2, NB>(value[0] * v)
+		+ expr::make_tensor<1, N1, 2, NB>(value[1] * v);
+}
+
+template<typename T1, typename T2, size_t N0, size_t N1, size_t NB>
+auto operator*(any_vector_t<T1, 3> const& value, OpTensor<T2, 0, N1, 1, NB> const& tensor)
+{
+	auto v = (*static_cast<T2 const*>(&tensor));
+	return expr::make_tensor<0, N1, 3, NB>(value[0] * v)
+		+ expr::make_tensor<1, N1, 3, NB>(value[1] * v)
+		+ expr::make_tensor<2, N1, 3, NB>(value[2] * v);
+}
+
+
+template<typename T1, typename T2, size_t N0, size_t NA>
+auto operator*(OpTensor<T1, N0, NA> const& tensor, any_vector_t<T2, 1> const& value)
+{
+	return expr::make_tensor<N0, NA>(value[0] * (*static_cast<T1 const*>(&tensor)));
+}
+
+template<typename T1, typename T2, size_t N0, size_t N1, size_t NA>
+auto operator*(OpTensor<T1, N0, N1, NA, 2> const& tensor, any_vector_t<T2, 2> const& value)
+{
+	return expr::make_tensor<N0, NA>(value[N1] * (*static_cast<T1 const*>(&tensor)));
+}
+
+template<typename T1, typename T2, size_t N0, size_t N1, size_t NA>
+auto operator*(OpTensor<T1, N0, N1, NA, 3> const& tensor, any_vector_t<T2, 3> const& value)
+{
+	return expr::make_tensor<N0, NA>(value[N1] * (*static_cast<T1 const*>(&tensor)));
+}
+
+template<typename T, size_t D>
+auto operator*(OpTensor<OpIdentity, 0, 0> const&, OpLiteral<any_vector_t<T, D>> const&)
+{
+	return OpIdentity{};
+}
+
+template<typename T, size_t D>
+auto operator*(OpTensor<OpIdentity, 0, 0> const&, any_vector_t<T, D> const&)
+{
+	return OpIdentity{};
+}
+
 
 //! Representation of a constant.
 /*!
@@ -261,9 +489,10 @@ struct OpLiteral : OpExpression<OpLiteral<T>>
 	T value;
 
 	OpLiteral(T value) : value{ value } {}
-	OpLiteral(OpIdentity);
-	OpLiteral(OpNegIdentity);
-	OpLiteral(OpVoid);
+	constexpr OpLiteral(OpIdentity);
+	constexpr OpLiteral(OpNegIdentity);
+	constexpr OpLiteral(OpVoid);
+	constexpr OpLiteral() : value{ T{} } {}
 
 	inline T eval(iter_type = 0) const
 	{
@@ -287,18 +516,13 @@ struct OpLiteral : OpExpression<OpLiteral<T>>
 	}
 
 	template<typename S>
-	auto operator*(OpLiteral<S> const other) const
-	{
-		return expr::make_literal(value * other.value);
-	}
-
-	auto operator*(OpLiteral<T> const other) const
+	auto operator*(OpLiteral<S> const& other) const
 	{
 		return expr::make_literal(value * other.value);
 	}
 
 	template<typename S>
-	auto operator-(OpLiteral<S> const a) const
+	auto operator-(OpLiteral<S> const& a) const
 	{
 		auto v = expr::make_literal(value - a.value);
 		return v;
@@ -309,7 +533,7 @@ struct OpLiteral : OpExpression<OpLiteral<T>>
 	}
 
 	template<typename S>
-	auto operator+(OpLiteral<S> const a) const
+	auto operator+(OpLiteral<S> const& a) const
 	{
 		auto v = expr::make_literal(value + a.value);
 		return v;
@@ -468,347 +692,381 @@ inline size_t OpLiteral<complex_t>::print_length() const
 
 #endif
 
-// ******************************************************************************************
 
-//! Initialize an expression for a constant.
-/*!
- * Create a literal expression using the given value.
- */
-template<typename T>
-inline auto expr::make_literal(T v)
+template<size_t N, size_t D>
+struct OpNegFractionLiteral;
+template<size_t N, size_t D>
+struct OpFractionLiteral;
+
+template<size_t N, size_t D>
+struct OpFractionLiteral : OpExpression<OpFractionLiteral<N, D>>
 {
-	return OpLiteral{ v };
-}
-
-// ******************************************************************************************
-
-//! Additive identity.
-/*!
- * Expression representing the additive identity, a special type of operator 
- * used primarily in the simplification of expressions.
- */
-struct OpVoid : OpExpression<OpVoid>
-{
-	constexpr int eval(iter_type = 0) const
+	constexpr inline scalar_t eval(iter_type = 0) const
 	{
-		return 0;
+		return static_cast<scalar_t>(N) / D;
 	}
 
-	size_t print(FILE* out) const
+	constexpr operator const scalar_t() const
 	{
-		return fprintf(out, "0");
+		return eval();
 	}
 
-	size_t print(char* out) const
+	constexpr auto operator-() const
 	{
-		return sprintf(out, "0");
+		return OpNegFractionLiteral<N, D>{};
 	}
 
-	auto operator-() const
-	{
-		return OpVoid{};
-	}
 
-	size_t print_length() const
-	{
-		return 1;
-	}
-};
-
-// ******************************************************************************************
-
-
-//! Multiplicative identity.
-/*!
- * Expression representing the multiplicative identity, a special type of 
- * expression used primarily in the simplification of expressions. It is also
- * used as the coefficient to other expressions and can be substituted directly
- * as a value.
- */
-struct OpIdentity : OpExpression<OpIdentity>
-{
-	constexpr auto eval(iter_type = 0) const
-	{
-		return symphas::lib::get_identity<scalar_t>();
-	}
 
 #ifdef PRINTABLE_EQUATIONS
 
 	size_t print(FILE* out) const
 	{
-		return fprintf(out, "1");
-	}
-
-	size_t print(char *out) const
-	{
-		return sprintf(out, "1");
-	}
-
-	size_t print_length() const
-	{
-		return 1;
-	}
-
-#endif
-
-	auto operator-() const;
-
-};
-
-//! Negative of the multiplicative identity.
-/*!
- * Expression representing the negative of the multiplicative identity, a special type of 
- * expression used primarily in the simplification of expressions. It is also
- * used as the coefficient to other expressions and can be substituted directly
- * as a value.
- */
-struct OpNegIdentity : OpExpression<OpNegIdentity>
-{
-	constexpr auto eval(iter_type = 0) const
-	{
-		return -OpIdentity{}.eval();
-	}
-
-	size_t print(FILE* out) const
-	{
-		return fprintf(out, "-1");
+		return fprintf(out, SYEX_FRA_FMT, N, D);
 	}
 
 	size_t print(char* out) const
 	{
-		return sprintf(out, "-1");
+		return sprintf(out, SYEX_FRA_FMT, N, D);
 	}
-
 
 	size_t print_length() const
 	{
-		return 2;
+		size_t len1 = symphas::lib::num_digits<N>();
+		size_t len2 = symphas::lib::num_digits<N>();
+		return len1 + len2 + SYEX_FRA_FMT_LEN;
 	}
 
-	auto operator-() const;
+#endif
 
 };
 
-inline auto OpIdentity::operator-() const
+template<size_t N>
+struct OpFractionLiteral<N, 1> : OpExpression<OpFractionLiteral<N, 1>>
 {
-	return OpNegIdentity{};
+	constexpr inline scalar_t eval(iter_type = 0) const
+	{
+		return static_cast<scalar_t>(N);
+	}
+
+	constexpr operator const scalar_t() const
+	{
+		return eval();
+	}
+
+	constexpr auto operator-() const
+	{
+		return OpNegFractionLiteral<N, 1>{};
+	}
+
+
+
+#ifdef PRINTABLE_EQUATIONS
+
+	size_t print(FILE* out) const
+	{
+		return fprintf(out, "%zd", N);
+	}
+
+	size_t print(char* out) const
+	{
+		return sprintf(out, "%zd", N);
+	}
+
+	size_t print_length() const
+	{
+		return symphas::lib::num_digits<N>();
+	}
+
+#endif
+
+};
+
+
+template<size_t N, size_t D>
+struct OpNegFractionLiteral : OpExpression<OpNegFractionLiteral<N, D>>
+{
+	constexpr inline scalar_t eval(iter_type = 0) const
+	{
+		return -static_cast<scalar_t>(N) / D;
+	}
+
+	constexpr operator const scalar_t() const
+	{
+		return eval();
+	}
+
+	constexpr auto operator-() const
+	{
+		return OpFractionLiteral<N, D>{};
+	}
+
+
+
+#ifdef PRINTABLE_EQUATIONS
+
+	size_t print(FILE* out) const
+	{
+		size_t n = 0;
+		n += fprintf(out, "-");
+		n += OpFractionLiteral<N, D>{}.print(out);
+		return n;
+	}
+
+	size_t print(char* out) const
+	{
+		size_t n = 0;
+		n += sprintf(out, "-");
+		n += OpFractionLiteral<N, D>{}.print(out + n);
+		return n;
+	}
+
+	size_t print_length() const
+	{
+		return OpFractionLiteral<N, D>{}.print_length() + 1;
+	}
+
+#endif
+
+};
+
+
+template<typename T, size_t N, size_t D>
+auto operator*(OpLiteral<T> const& a, OpFractionLiteral<N, D>)
+{
+	return expr::make_literal(a.value * OpFractionLiteral<N, D>{}.eval());
 }
 
-inline auto OpNegIdentity::operator-() const
+template<typename T, size_t N, size_t D>
+auto operator*(OpLiteral<T> const& a, OpNegFractionLiteral<N, D>)
 {
-	return OpIdentity{};
+	return expr::make_literal(a.value * OpNegFractionLiteral<N, D>{}.eval());
 }
+
+// ******************************************************************************************
 
 
 //! Specialized version which returns multiplicative identity.
 template<>
-inline auto expr::make_literal<OpIdentity>(OpIdentity)
+inline auto expr::make_literal<OpIdentity>(OpIdentity const&)
 {
 	return OpIdentity{};
 }
 
 //! Specialized version which returns negative multiplicative identity.
 template<>
-inline auto expr::make_literal<OpNegIdentity>(OpNegIdentity)
+inline auto expr::make_literal<OpNegIdentity>(OpNegIdentity const&)
 {
 	return OpNegIdentity{};
 }
 
 //! Specialized version which returns additive identity.
 template<>
-inline auto expr::make_literal<OpVoid>(OpVoid)
+inline auto expr::make_literal<OpVoid>(OpVoid const&)
 {
 	return OpVoid{};
 }
 
 
 template<typename T>
-OpLiteral<T>::OpLiteral(OpIdentity) : value{ symphas::lib::get_identity<T>() } {}
+constexpr OpLiteral<T>::OpLiteral(OpIdentity) : value{ symphas::lib::get_identity<T>() } {}
 template<typename T>
-OpLiteral<T>::OpLiteral(OpNegIdentity) : value{ -symphas::lib::get_identity<T>() } {}
+constexpr OpLiteral<T>::OpLiteral(OpNegIdentity) : value{ -symphas::lib::get_identity<T>() } {}
 template<typename T>
-OpLiteral<T>::OpLiteral(OpVoid) : value{ 0 } {}
+constexpr OpLiteral<T>::OpLiteral(OpVoid) : value{ 0 } {}
 
-
-
-
-//! Return type of evaluating an expression identity.
-/*!
- * Returns the type of the multiplicative identity. The same
- * type would be returned for the negative of the multiplicative identity.
- */
-using identity_eval_t = decltype(std::declval<OpIdentity>().eval());
-
-
-
-namespace symphas::internal
-{
-	/* testing to check if the type has the "value" attribute, which
-	* is the coefficient to an expression.
-	 */
-
-	template <typename E> static char test_coeff_attribute(decltype(&E::value));
-	template <typename E> static long test_coeff_attribute(...);
-
-	template <typename E> static auto test_coeff_neg(decltype(E::value))
-		->std::conditional_t<std::is_same<decltype(E::value), OpNegIdentity>::value, char, long>;
-	template <typename E> static long test_coeff_neg(...);
-
-	template <typename E> static auto test_coeff_pos(decltype(E::value))
-		->std::conditional_t<std::is_same<decltype(E::value), OpIdentity>::value, char, long>;
-	template <typename E> static long test_coeff_pos(...);
-}
 
 namespace expr
 {
-	//! True if the given type is expression identity.
-	/*!
-	 * This value is true if the given type is any of OpIdentity, 
-	 * OpNegIdentity or OpVoid, meaning all the expression identities.
-	 * 
-	 * \tparam E The given type that is checked.
-	 */
-	template<typename E>
-	constexpr bool is_identity =
-		(std::is_same<E, OpIdentity>::value ||
-			std::is_same<E, OpNegIdentity>::value ||
-			std::is_same<E, OpVoid>::value);
-
-
-	//! True when the types are compatible with identity types.
-	/*!
-	 * This is true only when one of the given types is an identity and
-	 * the other is a type which is convertible to the evaluate type of
-	 * an identity.
-	 * 
-	 * \tparam The first given type, either an identity or a value type.
-	 * \tparam The second given type, either an identity or a value type.
-	 */
-	template<typename E1, typename E2>
-	constexpr bool identity_comparator_enabled =
-		((std::is_same<E1, OpIdentity>::value && std::is_convertible<E2, identity_eval_t>::value) ||
-			(std::is_same<E2, OpIdentity>::value && std::is_convertible<E1, identity_eval_t>::value) ||
-			(std::is_same<E1, OpNegIdentity>::value && std::is_convertible<E2, identity_eval_t>::value) ||
-			(std::is_same<E2, OpNegIdentity>::value && std::is_convertible<E1, identity_eval_t>::value));
-
-
-	using symphas::internal::test_coeff_attribute;
-	using symphas::internal::test_coeff_neg;
-	using symphas::internal::test_coeff_pos;
-
-	//! Tests whether the given expression has a coefficient. 
-	/*!
-	 * Tests whether the given expression has a member called `value`. This
-	 * member is always the coefficient of the expression. For example,
-	 * during printing, a different format may be used depending on the
-	 * sign of the coefficient.
-	 * 
-	 * \tparam E The expression type to check the coefficient.
-	 */
-	template<typename E>
-	constexpr bool has_coeff = sizeof(test_coeff_attribute<E>(0)) == sizeof(char);
-
-	//! Tests if the coefficient of the expression is minus of the ::OpIdentity.
-	/*!
-	 * Tests whether the given expression has a member called `value`. This
-	 * member is always the coefficient of the expression. If there is the
-	 * `value` member, returns true when `value` is an ::OpNegIdentity.
-	 * (nmi means negative multiplicative identity).
-	 *
-	 * See expr::has_coeff.
-	 * 
-	 * \tparam E The expression type to check the coefficient.
-	 */
-	template<typename E>
-	constexpr bool has_nmi_coeff = sizeof(test_coeff_neg<E>(0)) == sizeof(char);
-
-	//! Tests if the coefficient of the expression is ::OpIdentity.
-	/*!
-	 * Tests whether the given expression has a member called `value`. This
-	 * member is always the coefficient of the expression. If there is the
-	 * `value` member, returns true when `value` is an ::OpIdentity.
-	 * (pmi means positive multiplicative identity).
-	 *
-	 * See expr::has_coeff.
-	 *
-	 * \tparam E The expression type to check the coefficient.
-	 */
-	template<typename E>
-	constexpr bool has_pmi_coeff = sizeof(test_coeff_pos<E>(0)) == sizeof(char);
-
-
-	//! Tests if the coefficient of the expression is not an identity.
-	/*!
-	 * Tests whether the given expression has a member called `value`. This
-	 * member is always the coefficient of the expression. If there is the
-	 * `value` member, returns true when `value` is not ::OpIdentity and
-	 * is not ::OpNegIdentity. This means that the coefficient
-	 * has a particular value.
-	 *
-	 * See expr::has_coeff.
-	 *
-	 * \tparam E The expression type to check the coefficient.
-	 */
-	template<typename E>
-	constexpr bool has_val_coeff = has_coeff<E> && !(has_nmi_coeff<E> || has_pmi_coeff<E>);
+	namespace symbols
+	{
+		//! Common fractions.
+		constexpr OpFractionLiteral<1, 2> _2{};
+		constexpr OpFractionLiteral<1, 2> _4{};
+	}
 }
 
-template<typename E1, typename E2,
-	typename std::enable_if_t<(expr::is_identity<E1> && expr::is_identity<E2>), int> = 0>
-constexpr bool operator==(E1 const& a, E2 const& b)
+// ******************************************************************************************
+
+namespace symphas::internal
 {
-	return a.eval() == b.eval();
+	using namespace symphas::lib;
+
+
+	template<int... Is>
+	constexpr static bool all_positive(std::integer_sequence<int, Is...>)
+	{
+		return ((Is > 0) && ...) || (sizeof...(Is) == 1 && ((Is == 0) && ...));
+	}
+
+	template<size_t... Ns>
+	struct construct_tensor
+	{
+
+		static constexpr size_t N = sizeof...(Ns);
+		using pos_t = seq_join_t<types_before_index<N / 2, std::index_sequence<Ns>...>>;
+		using dim_t = seq_join_t<types_after_at_index<N / 2, std::index_sequence<Ns>...>>;
+
+		template<typename T>
+		auto operator()(T const& v)
+		{
+			static_assert(symphas::internal::all_positive(seq_sub_t<dim_t, pos_t>{}),
+				"incorrect tensor arguments");
+
+			return OpTensor<T, Ns...>{ v };
+		}
+	};
+
+	template<size_t N0, size_t NA>
+	struct construct_tensor<N0, 0, NA, 1> : construct_tensor<N0, NA> {};
 }
 
-template<typename A, typename B,
-	typename std::enable_if_t<(expr::is_identity<A> && expr::is_identity<B>), int> = 0>
-constexpr bool operator<(A const& a, B const& b)
+
+template<size_t N0, size_t N1, size_t... Ns, typename T>
+constexpr auto expr::make_tensor(T const& v)
 {
-	return a.eval() < b.eval();
+	return symphas::internal::construct_tensor<N0, N1, Ns...>{}(expr::make_literal(v));
 }
 
-template<typename E1, typename E2, 
-	typename std::enable_if_t<expr::identity_comparator_enabled<E1, E2>, int> = 0>
-inline bool operator==(E1 const& a, E2 const& b)
+template<size_t N0, size_t N1, size_t... Ns>
+constexpr auto expr::make_tensor()
 {
-	return OpLiteral<identity_eval_t>(a).eval() == OpLiteral<identity_eval_t>(b).eval();
+	return expr::make_tensor<N0, N1, Ns...>(OpIdentity{});
 }
 
-template<typename E1, typename E2,
-	typename std::enable_if_t<expr::identity_comparator_enabled<E1, E2>, int> = 0>
-inline bool operator<(E1 const& a, E2 const& b)
+template<size_t I, size_t N, typename T>
+constexpr auto expr::make_column_vector(T&& v)
 {
-	return OpLiteral<identity_eval_t>(a).eval() < OpLiteral<identity_eval_t>(b).eval();
+	return make_tensor<I, N>(std::forward<T>(v));
 }
 
-
-template<typename E1, typename E2,
-	typename std::enable_if_t<(expr::identity_comparator_enabled<E1, E2> || (expr::is_identity<E1> && expr::is_identity<E2>)), int> = 0>
-inline bool operator!=(E1 const& a, E2 const& b)
+template<size_t I, size_t N>
+constexpr auto expr::make_column_vector()
 {
-	return !(a == b);
+	return make_column_vector<I, N>(OpIdentity{});
 }
 
-template<typename E1, typename E2,
-	typename std::enable_if_t<(expr::identity_comparator_enabled<E1, E2> || (expr::is_identity<E1> && expr::is_identity<E2>)), int> = 0>
-inline bool operator<=(E1 const& a, E2 const& b)
+template<size_t I, size_t N, typename T>
+constexpr auto expr::make_row_vector(T&& v)
 {
-	return (a < b || a == b);
+	return make_tensor<0, I, 1, N>(std::forward<T>(v));
 }
 
-template<typename E1, typename E2,
-	typename std::enable_if_t<(expr::identity_comparator_enabled<E1, E2> || (expr::is_identity<E1> && expr::is_identity<E2>)), int> = 0>
-inline bool operator>(E1 const& a, E2 const& b)
+template<size_t I, size_t N>
+constexpr auto expr::make_row_vector()
 {
-	return !(a < b || a == b);
+	return make_row_vector<I, N>(OpIdentity{});
 }
 
-template<typename E1, typename E2,
-	typename std::enable_if_t<(expr::identity_comparator_enabled<E1, E2> || (expr::is_identity<E1> && expr::is_identity<E2>)), int> = 0>
-inline bool operator>=(E1 const& a, E2 const& b)
+template<typename T>
+constexpr auto expr::make_literal(T const& v)
 {
-	return !(a < b);
+	if constexpr (expr::is_fraction<T>)
+	{
+		return T{};
+	}
+	else if constexpr (expr::is_tensor<T>)
+	{
+		return v;
+	}
+	else
+	{
+		return OpLiteral{ v };
+	}
 }
+
+template<size_t N, size_t D>
+constexpr auto expr::make_fraction()
+{
+	static_assert(D != 0, "dividing by zero");
+	if constexpr (N == 0)
+	{
+		return OpVoid{};
+	}
+	else if constexpr (N == D)
+	{
+		return OpIdentity{};
+	}
+	else
+	{
+		constexpr size_t GCD = GCD_of<N, D>;
+		return OpFractionLiteral<N / GCD, D / GCD>{};
+	}
+}
+
+template<int I>
+constexpr auto expr::make_integer()
+{
+	if constexpr (I < 0)
+	{
+		return -expr::make_fraction<static_cast<size_t>(-I), 1>();
+	}
+	else
+	{
+		return expr::make_fraction<static_cast<size_t>(I), 1>();
+	}
+}
+
+// ******************************************************************************************
+
+
+//
+//template<typename E1, typename E2,
+//	typename std::enable_if_t<(expr::is_identity<E1> && expr::is_identity<E2>), int> = 0>
+//constexpr bool operator==(E1 const& a, E2 const& b)
+//{
+//	return a.eval() == b.eval();
+//}
+//
+//template<typename A, typename B,
+//	typename std::enable_if_t<(expr::is_identity<A> && expr::is_identity<B>), int> = 0>
+//constexpr bool operator<(A const& a, B const& b)
+//{
+//	return a.eval() < b.eval();
+//}
+//
+//template<typename E1, typename E2, 
+//	typename std::enable_if_t<expr::identity_comparator_enabled<E1, E2>, int> = 0>
+//inline bool operator==(E1 const& a, E2 const& b)
+//{
+//	return OpLiteral<identity_eval_t>(a).eval() == OpLiteral<identity_eval_t>(b).eval();
+//}
+//
+//template<typename E1, typename E2,
+//	typename std::enable_if_t<expr::identity_comparator_enabled<E1, E2>, int> = 0>
+//inline bool operator<(E1 const& a, E2 const& b)
+//{
+//	return OpLiteral<identity_eval_t>(a).eval() < OpLiteral<identity_eval_t>(b).eval();
+//}
+//
+//
+//template<typename E1, typename E2,
+//	typename std::enable_if_t<(expr::identity_comparator_enabled<E1, E2> || (expr::is_identity<E1> && expr::is_identity<E2>)), int> = 0>
+//inline bool operator!=(E1 const& a, E2 const& b)
+//{
+//	return !(a == b);
+//}
+//
+//template<typename E1, typename E2,
+//	typename std::enable_if_t<(expr::identity_comparator_enabled<E1, E2> || (expr::is_identity<E1> && expr::is_identity<E2>)), int> = 0>
+//inline bool operator<=(E1 const& a, E2 const& b)
+//{
+//	return (a < b || a == b);
+//}
+//
+//template<typename E1, typename E2,
+//	typename std::enable_if_t<(expr::identity_comparator_enabled<E1, E2> || (expr::is_identity<E1> && expr::is_identity<E2>)), int> = 0>
+//inline bool operator>(E1 const& a, E2 const& b)
+//{
+//	return !(a < b || a == b);
+//}
+//
+//template<typename E1, typename E2,
+//	typename std::enable_if_t<(expr::identity_comparator_enabled<E1, E2> || (expr::is_identity<E1> && expr::is_identity<E2>)), int> = 0>
+//inline bool operator>=(E1 const& a, E2 const& b)
+//{
+//	return !(a < b);
+//}
 
 namespace expr
 {
@@ -816,24 +1074,41 @@ namespace expr
 	/*!
 	 * Directly constructs the binary addition expression between two
 	 * expressions without applying any rules.
-	 * 
-	 * \param a The left hand side expression.
-	 * \param b The right hand side expression.
-	 */
-	template<typename E1, typename E2>
-	auto make_add(OpExpression<E1> const& a, OpExpression<E2> const& b);
-
-	//! Constructs the binary subtraction expression.
-	/*!
-	 * Directly constructs the binary subtraction expression between two
-	 * expressions without applying any rules.
 	 *
-	 * \param a The left hand side expression.
-	 * \param b The right hand side expression.
+	 * \param a The first term in the addition.
+	 * \param b The second term in the addition.
+	 * \param es The rest of the terms in the addition.
 	 */
-	template<typename E1, typename E2>
-	auto make_sub(OpExpression<E1> const& a, OpExpression<E2> const& b);
+	template<typename E1>
+	auto make_add(E1 const& a);
+
+	//! Constructs the binary addition expression.
+	/*!
+	 * Directly constructs the binary addition expression between two
+	 * expressions without applying any rules.
+	 * 
+	 * \param a The first term in the addition.
+	 * \param b The second term in the addition.
+	 * \param es The rest of the terms in the addition.
+	 */
+	template<typename E1, typename E2, typename... Es>
+	auto make_add(E1 const& a, E2 const& b, Es const& ...es);
+
 }
+
+
+template<typename T, size_t D, typename S>
+bool operator>(any_vector_t<T, D> const& value, S&&)
+{
+	return true;
+}
+
+template<typename T, size_t D, typename S>
+bool operator<(any_vector_t<T, D> const& value, S&&)
+{
+	return false;
+}
+
 
 namespace symphas::internal
 {
@@ -841,174 +1116,202 @@ namespace symphas::internal
 
 #ifdef PRINTABLE_EQUATIONS
 
-	inline std::tuple<size_t, size_t> print_sep(char* out, const char* sep)
+
+	inline size_t print_sep(char* out, const char* sep)
 	{
-		size_t n = sprintf(out, "%s", sep);
-		return { n, n };
+		return sprintf(out, "%s", sep);
 	}
 
-	inline std::tuple<size_t, size_t> print_sep(FILE* out, const char* sep)
+	inline size_t print_sep(FILE* out, const char* sep)
 	{
-		return { fprintf(out, "%s", sep), 0 };
+		return fprintf(out, "%s", sep);
 	}
 
-	//! Pretty print for compound expressions where a double sign may appear.
-	/*!
-	 * In order for a subtraction to be printed correctly if an OpBinaryAdd
-	 * or OpBinarySub is itself subtracted from another expression, the minus
-	 * sign has to be distributed inside.
-	 */
-	template<typename E1, typename E2, typename os_type, typename std::enable_if_t<!has_coeff<E2>, int> = 0>
-	size_t binary_print(OpBinarySub<E1, E2> const& b, os_type* out)
+	template<typename E>
+	void print_one(E const& e, FILE* out, size_t& n)
 	{
-		auto&& [n, offset] = print_sep(out, SYEX_SUB_SEP);
-		n += b.b.print(out + offset);
+		if (expr::eval(expr::coeff(e)) > 0)
+		{
+			n += print_sep(out, SYEX_ADD_SEP);
+			n += e.print(out);
+		}
+		else
+		{
+			n += print_sep(out, SYEX_SUB_SEP);
+			n += (-e).print(out);
+		}
+	}
+
+	template<typename E>
+	void print_one(E const& e, char* out, size_t& n)
+	{
+		if (expr::eval(expr::coeff(e)) > 0)
+		{
+			n += print_sep(out + n, SYEX_ADD_SEP);
+			n += e.print(out + n);
+		}
+		else
+		{
+			n += print_sep(out + n, SYEX_SUB_SEP);
+			n += (-e).print(out + n);
+		}
+	}
+
+	//! Specialization based on symphas::internal::binary_print().
+	template<typename... Es, typename os_type, size_t... Is>
+	size_t binary_print(OpAdd<Es...> const& e, os_type* out, std::index_sequence<Is...>)
+	{
+		size_t n = 0;
+		(print_one(expr::get<Is + 1>(e), out, n), ...);
 		return n;
 	}
 
-	//! Specialization based on symphas::internal::binary_print().
-	template<typename E1, typename E2, typename os_type, typename std::enable_if_t<!has_coeff<E2>, int> = 0>
-	size_t binary_print(OpBinaryAdd<E1, E2> const& b, os_type* out)
-	{
-		auto&& [n, offset] = print_sep(out, SYEX_ADD_SEP);
-		n += b.b.print(out + offset);
-		return n;
-	}
-
-	//! Specialization based on symphas::internal::binary_print().
-	template<typename E1, typename E2, typename E3, typename os_type, typename std::enable_if_t<has_coeff<E2>, int> = 0>
-	size_t binary_print(OpBinaryAdd<E1, OpBinarySub<E2, E3>> const& b, os_type* out)
-	{
-		if (b.b.a.value < 0)
-		{
-			auto&& [n, offset] = print_sep(out, SYEX_SUB_SEP);
-			n += expr::make_sub(-b.b.a, b.b.b).print(out + offset);
-			return n;
-		}
-		else
-		{
-			auto&& [n, offset] = print_sep(out, SYEX_ADD_SEP);
-			n += expr::make_sub(b.b.a, b.b.b).print(out + offset);
-			return n;
-		}
-	}
-
-	//! Specialization based on symphas::internal::binary_print().
-	template<typename E1, typename E2, typename E3, typename os_type, typename std::enable_if_t<has_coeff<E2>, int> = 0>
-	size_t binary_print(OpBinaryAdd<E1, OpBinaryAdd<E2, E3>> const& b, os_type* out)
-	{
-		if (b.b.a.value < 0)
-		{
-			auto&& [n, offset] = print_sep(out, SYEX_SUB_SEP);
-			n += expr::make_add(-b.b.a, b.b.b).print(out + offset);
-			return n;
-		}
-		else
-		{
-			auto&& [n, offset] = print_sep(out, SYEX_ADD_SEP);
-			n += expr::make_add(b.b.a, b.b.b).print(out + offset);
-			return n;
-		}
-	}
-
-
-	//! Specialization based on symphas::internal::binary_print().
-	template<typename E1, typename E2, typename E3, typename os_type, typename std::enable_if_t<has_coeff<E2>, int> = 0>
-	size_t binary_print(OpBinarySub<E1, OpBinarySub<E2, E3>> const& b, os_type* out)
-	{
-		if (b.b.a.value < 0)
-		{
-			auto&& [n, offset] = print_sep(out, SYEX_ADD_SEP);
-			n += expr::make_add(-b.b.a, b.b.b).print(out + offset);
-			return n;
-		}
-		else
-		{
-			auto&& [n, offset] = print_sep(out, SYEX_SUB_SEP);
-			n += expr::make_add(b.b.a, b.b.b).print(out + offset);
-			return n;
-		}
-	}
-
-	//! Specialization based on symphas::internal::binary_print().
-	template<typename E1, typename E2, typename E3, typename os_type, typename std::enable_if_t<!has_coeff<E2>, int> = 0>
-	size_t binary_print(OpBinarySub<E1, OpBinarySub<E2, E3>> const& b, os_type* out)
-	{
-		auto&& [n, offset] = print_sep(out, SYEX_SUB_SEP);
-		n += expr::make_add(b.b.a, b.b.b).print(out + offset);
-		return n;
-	}
-
-	//! Specialization based on symphas::internal::binary_print().
-	template<typename E1, typename E2, typename E3, typename os_type, typename std::enable_if_t<has_coeff<E2>, int> = 0>
-	size_t binary_print(OpBinarySub<E1, OpBinaryAdd<E2, E3>> const& b, os_type* out)
-	{
-		if (b.b.a.value < 0)
-		{
-			auto&& [n, offset] = print_sep(out, SYEX_ADD_SEP);
-			n += expr::make_sub(-b.b.a, b.b.b).print(out + offset);
-			return n;
-		}
-		else
-		{
-			auto&& [n, offset] = print_sep(out, SYEX_SUB_SEP);
-			n += expr::make_sub(b.b.a, b.b.b).print(out + offset);
-			return n;
-		}
-	}
-
-	//! Specialization based on symphas::internal::binary_print().
-	template<typename E1, typename E2, typename E3, typename os_type, typename std::enable_if_t<!has_coeff<E2>, int> = 0>
-	size_t binary_print(OpBinarySub<E1, OpBinaryAdd<E2, E3>> const& b, os_type* out)
-	{
-		auto&& [n, offset] = print_sep(out, SYEX_SUB_SEP);
-		n += expr::make_sub(b.b.a, b.b.b).print(out + offset);
-		return n;
-	}
-
-	
-
-	//! Specialization based on symphas::internal::binary_print().
-	template<typename E1, typename E2, typename os_type, typename std::enable_if_t<has_coeff<E2>, int> = 0>
-	size_t binary_print(OpBinarySub<E1, E2> const& b, os_type* out)
-	{
-		if (b.b.value < 0)
-		{
-			auto&& [n, offset] = print_sep(out, SYEX_ADD_SEP);
-			n += (-b.b).print(out + offset);
-			return n;
-		}
-		else
-		{
-			auto&& [n, offset] = print_sep(out, SYEX_SUB_SEP);
-			n += b.b.print(out + offset);
-			return n;
-		}
-	}
-
-
-	//! Specialization based on symphas::internal::binary_print().
-	template<typename E1, typename E2, typename os_type, typename std::enable_if_t<has_coeff<E2>, int> = 0>
-	size_t binary_print(OpBinaryAdd<E1, E2> const& b, os_type* out)
-	{
-		if (b.b.value < 0)
-		{
-			auto&& [n, offset] = print_sep(out, SYEX_SUB_SEP);
-			n += (-b.b).print(out + offset);
-			return n;
-		}
-		else
-		{
-			auto&& [n, offset] = print_sep(out, SYEX_ADD_SEP);
-			n += b.b.print(out + offset);
-			return n;
-		}
-	}
 
 #endif
+
+	template<size_t N, typename E>
+	struct Nth_type_of_add;
+
+	template<size_t N, typename E0, typename... Es>
+	struct Nth_type_of_add<N, OpAdd<E0, Es...>>
+	{
+		using type = typename Nth_type_of_add<N - 1, OpAdd<Es...>>::type;
+	};
+
+	template<size_t N>
+	struct Nth_type_of_add<N, OpAdd<>>
+	{
+		using type = OpAdd<>;
+	};
+
+	template<typename E0, typename... Es>
+	struct Nth_type_of_add<0, OpAdd<E0, Es...>>
+	{
+		using type = OpAdd<E0, Es...>;
+	};
+
+	template<typename cast_type>
+	struct cast_add
+	{
+		template<typename... Es>
+		static cast_type const& cast(OpAdd<Es...> const& adds)
+		{
+			return *static_cast<cast_type const*>(&adds);
+		}
+
+		template<typename... Es>
+		static cast_type& cast(OpAdd<Es...>& adds)
+		{
+			return *static_cast<cast_type*>(&adds);
+		}
+	};
 }
 
 
+namespace expr
+{
+
+	template<size_t N, typename... Es>
+	const auto& get(OpAdd<Es...> const& e)
+	{
+		using Nth_type = typename symphas::internal::Nth_type_of_add<N, OpAdd<Es...>>::type;
+		return symphas::internal::cast_add<Nth_type>::cast(e).data;
+	}
+
+	template<size_t N, typename... Es>
+	auto& get(OpAdd<Es...>& e)
+	{
+		using Nth_type = typename symphas::internal::Nth_type_of_add<N, OpAdd<Es...>>::type;
+		return symphas::internal::cast_add<Nth_type>::cast(e).data;
+	}
+
+	template<typename E0, typename E1, typename E2, typename... Es>
+	const auto& terms_after_first(OpAdd<E0, E1, E2, Es...> const& e)
+	{
+		return symphas::internal::cast_add<OpAdd<E1, E2, Es...>>::cast(e).data;
+	}
+
+	template<typename E0, typename E1>
+	const auto& terms_after_first(OpAdd<E0, E1> const& e)
+	{
+		return symphas::internal::cast_add<OpAdd<E1>>::cast(e).data;
+	}
+
+	template<typename E0, typename E1, typename E2, typename... Es>
+	auto& terms_after_first(OpAdd<E0, E1, E2, Es...>& e)
+	{
+		return symphas::internal::cast_add<OpAdd<E1, E2, Es...>>::cast(e).data;
+	}
+
+	template<typename E0, typename E1>
+	auto& terms_after_first(OpAdd<E0, E1>& e)
+	{
+		return symphas::internal::cast_add<OpAdd<E1>>::cast(e).data;
+	}
+}
+
+template<>
+struct OpAdd<> : OpExpression<OpAdd<>>
+{
+	inline auto eval(iter_type) const
+	{
+		return OpVoid{};
+	}
+
+#ifdef PRINTABLE_EQUATIONS
+
+	inline int print_length() const
+	{
+		return -int(SYEX_BINARY_FMT_LEN);
+	}
+
+	bool coeff_sign() const
+	{
+		return false;
+	}
+
+#endif
+	
+
+};
+
+template<typename E0, typename... Es>
+struct OpExpression<OpAdd<E0, Es...>> : OpAdd<Es...>
+{
+	using parent_type = OpAdd<Es...>;
+	using parent_type::parent_type;
+	using E = OpAdd<E0, Es...>;
+
+	explicit OpExpression(OpAdd<Es...> const& rest) : parent_type(rest) {}
+	explicit OpExpression(OpAdd<Es...>&& rest) noexcept : parent_type(std::move(rest)) {}
+
+	auto operator()(iter_type n) const
+	{
+		return cast().eval(n);
+	}
+
+	template<typename EE>
+	auto operator()(OpExpression<EE> const& e) const
+	{
+		return cast() * (*static_cast<EE const*>(&e));
+	}
+
+	symphas::internal::expression_iterator<E> begin() const
+	{
+		return symphas::internal::expression_iterator<E>(cast());
+	}
+
+	symphas::internal::expression_iterator<E> end(len_type len) const
+	{
+		return symphas::internal::expression_iterator<E>(cast(), len);
+	}
+
+	auto& cast() const
+	{
+		return *static_cast<E const*>(this);
+	}
+
+};
 
 // ******************************************************************************************
 
@@ -1019,9 +1322,14 @@ namespace symphas::internal
  * \tparam E1 The type of the left hand side expression.
  * \tparam E2 The type of the right hand side expression.
  */
-template<typename E1, typename E2>
-struct OpBinaryAdd : OpExpression<OpBinaryAdd<E1, E2>>
+template<typename E0, typename... Es>
+struct OpAdd<E0, Es...> : OpExpression<OpAdd<E0, Es...>>
 {
+protected:
+	using parent_type = OpExpression<OpAdd<E0, Es...>>;
+
+public:
+
 	//! Create the binary addition expression between two expressions.
 	/*!
 	 * Create the binary addition expression between two expressions.
@@ -1029,70 +1337,18 @@ struct OpBinaryAdd : OpExpression<OpBinaryAdd<E1, E2>>
 	 * \param a The expression on the left hand side of the addition operator.
 	 * \param b The expression on the right hand side of the addition operator.
 	 */
-	OpBinaryAdd(E1 const& a, E2 const& b) : a{ a }, b{ b } {}
+	OpAdd(E0 const& e, Es const&... es) : parent_type(es...), data{ e } {}
+	OpAdd(E0 const& e, OpAdd<Es...> const& rest) : parent_type(rest), data{ e } {}
 
-	inline auto eval(iter_type n) const
+	template<typename data_type = E0, typename nested_type = OpAdd<Es...>,
+		typename = std::enable_if_t<(
+			std::is_default_constructible<data_type>::value &&
+			std::is_default_constructible<nested_type>::value), int>>
+	OpAdd() : parent_type(), data{} {}
+
+	inline auto eval(iter_type n = 0) const
 	{
-		return a.eval(n) + b.eval(n);
-	}
-
-	auto operator-() const;
-
-#ifdef PRINTABLE_EQUATIONS
-
-	size_t print(FILE* out) const
-	{
-		size_t n = a.print(out);
-		n += symphas::internal::binary_print(*this, out);
-		return n;
-	}
-
-	size_t print(char* out) const
-	{
-		size_t n = a.print(out);
-		n += symphas::internal::binary_print(*this, out + n);
-		return n;
-	}
-
-	size_t print_length() const
-	{
-		return a.print_length() + b.print_length() + SYEX_BINARY_FMT_LEN;
-	}
-
-#endif
-
-	E1 a;		//!< Left hand side of the binary operator.
-	E2 b;		//!< Right hand side of the binary operator.
-};
-
-template<typename E1, typename E2>
-auto expr::make_add(OpExpression<E1> const& a, OpExpression<E2> const& b)
-{
-	return OpBinaryAdd<E1, E2>(*static_cast<const E1*>(&a), *static_cast<const E2*>(&b));
-}
-
-//! Binary expression, the subtraction of two terms.
-/*!
- * Binary subtraction between two expressions.
- *
- * \tparam E1 The type of the left hand side expression.
- * \tparam E2 The type of the right hand side expression.
- */
-template<typename E1, typename E2>
-struct OpBinarySub : OpExpression<OpBinarySub<E1, E2>>
-{
-	//! Create the binary subtraction expression between two expressions.
-	/*!
-	 * Create the binary subtraction expression between two expressions.
-	 *
-	 * \param a The expression on the left hand side of the addition operator.
-	 * \param b The expression on the right hand side of the addition operator.
-	 */
-	OpBinarySub(E1 const& a, E2 const& b) : a{ a }, b{ b } {}
-
-	inline auto eval(iter_type n) const
-	{
-		return a.eval(n) - b.eval(n);
+		return (data.eval(n) + parent_type::eval(n));
 	}
 
 	auto operator-() const;
@@ -1102,47 +1358,79 @@ struct OpBinarySub : OpExpression<OpBinarySub<E1, E2>>
 
 	size_t print(FILE* out) const
 	{
-		size_t n = a.print(out);
-		n += symphas::internal::binary_print(*this, out);
-		return n;
+		size_t n = data.print(out);
+		return n + symphas::internal::binary_print(*this, out, std::make_index_sequence<sizeof...(Es)>{});
 	}
 
 	size_t print(char* out) const
 	{
-		size_t n = a.print(out);
-		n += symphas::internal::binary_print(*this, out + n);
-		return n;
+		size_t n = data.print(out);
+		return n + symphas::internal::binary_print(*this, out + n, std::make_index_sequence<sizeof...(Es)>{});
 	}
 
 	size_t print_length() const
 	{
-		return a.print_length() + b.print_length() + SYEX_BINARY_FMT_LEN;
+		size_t n = data.print_length() + SYEX_BINARY_FMT_LEN;
+		if (parent_type::coeff_sign())
+		{
+			n -= 1;
+		}
+		return n + parent_type::print_length();
 	}
+
+protected:
+
+	bool coeff_sign() const
+	{
+		return (expr::coeff(data).eval() < 0);
+	}
+
+public:
 
 #endif
 
-	E1 a;		//!< Left hand side of the binary operator.
-	E2 b;		//!< Right hand side of the binary operator.
+	E0 data;
+
+	template<typename S = symphas::lib::type_at_index<sizeof...(Es), E0, Es...>, 
+		typename T = add_result_t<expr::eval_type_t<E0>, expr::eval_type_t<Es>...>,
+		typename std::enable_if_t<(expr::is_coeff<S> && expr::is_coeff<E0> && (expr::is_coeff<Es> && ...)), int> = 0>
+	explicit operator decltype(T{})() const
+	{
+		return eval(0);
+	}
+
+	template<typename cast_type>
+	friend struct symphas::internal::cast_add;
+
 };
 
-template<typename E1, typename E2>
-auto expr::make_sub(OpExpression<E1> const& a, OpExpression<E2> const& b)
+template<typename E0, typename... Es>
+OpAdd(E0, OpAdd<Es...>)->OpAdd<E0, Es...>;
+template<typename E0, typename... Es>
+OpAdd(E0, Es...)->OpAdd<E0, Es...>;
+
+template<typename E1>
+auto expr::make_add(E1 const& a)
 {
-	return OpBinarySub<E1, E2>(*static_cast<const E1*>(&a), *static_cast<const E2*>(&b));
+	return a;
 }
 
-
-
-template<typename E1, typename E2>
-auto operator-(OpExpression<E1> const& a, OpExpression<E2> const& b)
+template<typename E1, typename E2, typename... Es>
+auto expr::make_add(E1 const& a, E2 const& b, Es const& ...es)
 {
-	return expr::make_sub(a, b);
+	return OpAdd<E1, E2, Es...>(a, b, es...);
 }
 
 template<typename E1, typename E2>
 auto operator+(OpExpression<E1> const& a, OpExpression<E2> const& b)
 {
-	return expr::make_add(a, b);
+	return expr::make_add(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b));
+}
+
+template<typename E1, typename E2>
+auto operator-(OpExpression<E1> const& a, OpExpression<E2> const& b)
+{
+	return expr::make_add(*static_cast<E1 const*>(&a), -*static_cast<E2 const*>(&b));
 }
 
 
@@ -1150,29 +1438,30 @@ namespace symphas::internal
 {
 	using expr::has_coeff;
 	using expr::has_pmi_coeff;
+	using expr::has_nmi_coeff;
 
 #ifdef PRINTABLE_EQUATIONS
 
-	template<typename E1, typename E2, std::enable_if_t<(!has_coeff<E1> && !has_pmi_coeff<E2>), int> = 0>
+	template<typename E1, typename E2, std::enable_if_t<(!has_coeff<E1> && has_nmi_coeff<E2>), int> = 0>
 	size_t mul_print(FILE* out, OpExpression<E1> const& a, OpExpression<E2> const& b)
 	{
 		size_t n = 0;
-		n += fprintf(out, SYEX_MUL_FMT_A);
-		n += a.print(out);
-		n += fprintf(out, SYEX_MUL_SEP);
-		n += b.print(out);
+		n += fprintf(out, SYEX_MUL_FMT_AA);
+		n += static_cast<E1 const*>(&a)->print(out);
+		n += fprintf(out, SYEX_MUL_SEP_B);
+		n += static_cast<E2 const*>(&b)->print(out);
 		n += fprintf(out, SYEX_MUL_FMT_B);
 		return n;
 	}
 
-	template<typename E1, typename E2, std::enable_if_t<(!has_coeff<E1> && !has_pmi_coeff<E2>), int> = 0>
+	template<typename E1, typename E2, std::enable_if_t<(!has_coeff<E1> && has_nmi_coeff<E2>), int> = 0>
 	size_t mul_print(char* out, OpExpression<E1> const& a, OpExpression<E2> const& b)
 	{
 		size_t n = 0;
-		n += sprintf(out + n, SYEX_MUL_FMT_A);
-		n += a.print(out + n);
-		n += sprintf(out + n, SYEX_MUL_SEP);
-		n += b.print(out + n);
+		n += sprintf(out + n, SYEX_MUL_FMT_AA);
+		n += static_cast<E1 const*>(&a)->print(out + n);
+		n += sprintf(out + n, SYEX_MUL_SEP_B);
+		n += static_cast<E2 const*>(&b)->print(out + n);
 		n += sprintf(out + n, SYEX_MUL_FMT_B);
 		return n;
 	}
@@ -1181,10 +1470,10 @@ namespace symphas::internal
 	size_t mul_print(FILE* out, OpExpression<E1> const& a, OpExpression<E2> const& b)
 	{
 		size_t n = 0;
-		n += fprintf(out, SYEX_MUL_FMT_A);
-		n += a.print(out);
-		n += fprintf(out, SYEX_MUL_SEP_A);
-		n += b.print(out);
+		n += fprintf(out, SYEX_MUL_FMT_AA);
+		n += static_cast<E1 const*>(&a)->print(out);
+		n += fprintf(out, SYEX_MUL_SEP_AB);
+		n += static_cast<E2 const*>(&b)->print(out);
 		n += fprintf(out, SYEX_MUL_FMT_BB);
 		return n;
 	}
@@ -1193,47 +1482,70 @@ namespace symphas::internal
 	size_t mul_print(char* out, OpExpression<E1> const& a, OpExpression<E2> const& b)
 	{
 		size_t n = 0;
-		n += sprintf(out + n, SYEX_MUL_FMT_A);
-		n += a.print(out + n);
-		n += sprintf(out + n, SYEX_MUL_SEP_A);
-		n += b.print(out + n);
+		n += sprintf(out + n, SYEX_MUL_FMT_AA);
+		n += static_cast<E1 const*>(&a)->print(out + n);
+		n += sprintf(out + n, SYEX_MUL_SEP_AB);
+		n += static_cast<E2 const*>(&b)->print(out + n);
 		n += sprintf(out + n, SYEX_MUL_FMT_BB);
 		return n;
 	}
 
-	template<typename E1, typename E2, std::enable_if_t<(has_coeff<E1> && !has_pmi_coeff<E2>), int> = 0>
+	template<typename E1, typename E2, std::enable_if_t<(has_pmi_coeff<E1> && has_nmi_coeff<E2>), int> = 0>
 	size_t mul_print(FILE* out, OpExpression<E1> const& a, OpExpression<E2> const& b)
 	{
 		size_t n = 0;
 		n += fprintf(out, SYEX_MUL_FMT_AA);
-		n += a.print(out);
+		n += static_cast<E1 const*>(&a)->print(out);
 		n += fprintf(out, SYEX_MUL_SEP_B);
-		n += b.print(out);
+		n += static_cast<E2 const*>(&b)->print(out);
 		n += fprintf(out, SYEX_MUL_FMT_B);
 		return n;
 	}
 
-	template<typename E1, typename E2, std::enable_if_t<(has_coeff<E1> && !has_pmi_coeff<E2>), int> = 0>
+	template<typename E1, typename E2, std::enable_if_t<(has_pmi_coeff<E1> && has_nmi_coeff<E2>), int> = 0>
 	size_t mul_print(char* out, OpExpression<E1> const& a, OpExpression<E2> const& b)
 	{
 		size_t n = 0;
 		n += sprintf(out + n, SYEX_MUL_FMT_AA);
-		n += a.print(out + n);
+		n += static_cast<E1 const*>(&a)->print(out + n);
 		n += sprintf(out + n, SYEX_MUL_SEP_B);
-		n += b.print(out + n);
+		n += static_cast<E2 const*>(&b)->print(out + n);
 		n += sprintf(out + n, SYEX_MUL_FMT_B);
 		return n;
 	}
 
+	template<typename E1, typename E2, std::enable_if_t<(has_nmi_coeff<E1> && has_nmi_coeff<E2>), int> = 0>
+	size_t mul_print(FILE* out, OpExpression<E1> const& a, OpExpression<E2> const& b)
+	{
+		size_t n = 0;
+		n += fprintf(out, SYEX_MUL_FMT_A);
+		n += static_cast<E1 const*>(&a)->print(out);
+		n += fprintf(out, SYEX_MUL_SEP);
+		n += static_cast<E2 const*>(&b)->print(out);
+		n += fprintf(out, SYEX_MUL_FMT_B);
+		return n;
+	}
+
+	template<typename E1, typename E2, std::enable_if_t<(has_nmi_coeff<E1> && has_nmi_coeff<E2>), int> = 0>
+	size_t mul_print(char* out, OpExpression<E1> const& a, OpExpression<E2> const& b)
+	{
+		size_t n = 0;
+		n += sprintf(out + n, SYEX_MUL_FMT_A);
+		n += static_cast<E1 const*>(&a)->print(out + n);
+		n += sprintf(out + n, SYEX_MUL_SEP);
+		n += static_cast<E2 const*>(&b)->print(out + n);
+		n += sprintf(out + n, SYEX_MUL_FMT_B);
+		return n;
+	}
 
 	template<typename E1, typename E2, std::enable_if_t<(has_coeff<E1> && has_pmi_coeff<E2>), int> = 0>
 	size_t mul_print(FILE* out, OpExpression<E1> const& a, OpExpression<E2> const& b)
 	{
 		size_t n = 0;
 		n += fprintf(out, SYEX_MUL_FMT_AA);
-		n += a.print(out);
+		n += static_cast<E1 const*>(&a)->print(out);
 		n += fprintf(out, SYEX_MUL_SEP_OP);
-		n += b.print(out);
+		n += static_cast<E2 const*>(&b)->print(out);
 		n += fprintf(out, SYEX_MUL_FMT_BB);
 		return n;
 	}
@@ -1243,9 +1555,9 @@ namespace symphas::internal
 	{
 		size_t n = 0;
 		n += sprintf(out + n, SYEX_MUL_FMT_AA);
-		n += a.print(out + n);
+		n += static_cast<E1 const*>(&a)->print(out + n);
 		n += sprintf(out + n, SYEX_MUL_SEP_OP);
-		n += b.print(out + n);
+		n += static_cast<E2 const*>(&b)->print(out + n);
 		n += sprintf(out + n, SYEX_MUL_FMT_BB);
 		return n;
 	}
@@ -1259,6 +1571,10 @@ template<typename E1, typename E2>
 struct OpBinaryMul : OpExpression<OpBinaryMul<E1, E2>>
 {
 	OpBinaryMul(E1 const& a, E2 const& b) : a{ a }, b{ b } {}
+
+	template<typename AA = E1, typename BB = E2, 
+		typename = std::enable_if_t<(std::is_default_constructible<AA>::value && std::is_default_constructible<BB>::value), int>>
+	OpBinaryMul() : a{ E1{} }, b{ E2{} } {}
 
 	inline auto eval(iter_type n) const
 	{
@@ -1302,24 +1618,28 @@ namespace expr
 	 * \param b The right hand side expression.
 	 */
 	template<typename E1, typename E2>
-	auto make_mul(OpExpression<E1> const& a, OpExpression<E2> const& b)
+	auto make_mul(E1 const& a, E2 const& b)
 	{
-		return OpBinaryMul<E1, E2>(*static_cast<const E1*>(&a), *static_cast<const E2*>(&b));
+		return OpBinaryMul<E1, E2>(a, b);
 	}
 }
 
-template<typename E1, typename E2>
+template<typename E1, typename E2, 
+	typename std::enable_if_t<(expr::eval_type<E1>::rank == 0 || expr::eval_type<E2>::rank == 0), int> = 0>
 auto operator*(OpExpression<E1> const& a, OpExpression<E2> const& b)
 {
 	return expr::make_mul(*static_cast<const E1*>(&a), *static_cast<const E2*>(&b));
 }
 
 
- //! Binary expression, the division of two terms.
+//! Binary expression, the division of two terms.
 template<typename E1, typename E2>
 struct OpBinaryDiv : OpExpression<OpBinaryDiv<E1, E2>>
 {
 	OpBinaryDiv(E1 const& a, E2 const& b) : a{ a }, b{ b } {}
+
+	template<typename AA = E1, typename BB = E2, typename = std::enable_if_t<(std::is_default_constructible<AA>::value&& std::is_default_constructible<BB>::value), int>>
+	OpBinaryDiv() : a{ E1{} }, b{ E2{} } {}
 
 	inline auto eval(iter_type n) const
 	{
@@ -1364,8 +1684,97 @@ struct OpBinaryDiv : OpExpression<OpBinaryDiv<E1, E2>>
 	E2 b;		//!< Right hand side of the binary operator.
 };
 
+namespace symphas::internal
+{
+
+	template<typename>
+	struct coeff_factor_numerator
+	{
+		static const size_t value = 1;
+	};
+
+	template<size_t N, size_t D>
+	struct coeff_factor_numerator<OpFractionLiteral<N, D>>
+	{
+		static const size_t value = N;
+	};
+
+	template<typename>
+	struct coeff_factor_denominator
+	{
+		static const size_t value = 1;
+	};
+
+	template<size_t N, size_t D>
+	struct coeff_factor_denominator<OpFractionLiteral<N, D>>
+	{
+		static const size_t value = D;
+	};
+
+	template<typename E>
+	struct coeff_factor_impl
+	{
+		using type = typename coeff_factor_impl<expr::coeff_t<E>>::type;
+	};
+
+	template<typename T, size_t... Ns>
+	struct coeff_factor_impl<OpTensor<T, Ns...>>
+	{
+		using type = typename coeff_factor_impl<T>::type;
+	};
+
+	template<typename T>
+	struct coeff_factor_impl<OpLiteral<T>>
+	{
+		using type = OpIdentity;
+	};
+
+	template<>
+	struct coeff_factor_impl<OpNegIdentity>
+	{
+		using type = OpIdentity;
+	};
+
+	template<>
+	struct coeff_factor_impl<OpIdentity>
+	{
+		using type = OpIdentity;
+	};
+
+	template<size_t N, size_t D>
+	struct coeff_factor_impl<OpNegFractionLiteral<N, D>>
+	{
+		using type = OpFractionLiteral<N, D>;
+	};
+
+	template<size_t N, size_t D>
+	struct coeff_factor_impl<OpFractionLiteral<N, D>>
+	{
+		using type = OpFractionLiteral<N, D>;
+	};
+
+	template<typename... As>
+	struct coeff_factor_impl<OpAdd<As...>>
+	{
+		using type = decltype(expr::make_fraction<
+			GCD_of<coeff_factor_numerator<typename coeff_factor_impl<As>::type>::value...>,
+			GCD_of<coeff_factor_denominator<typename coeff_factor_impl<As>::type>::value...>>());
+	};
+
+	template<>
+	struct coeff_factor_impl<OpVoid>
+	{
+		using type = OpVoid;
+	};
+
+
+	template<typename E>
+	using coeff_factor = typename coeff_factor_impl<E>::type;
+}
+
 namespace expr
 {
+
 	//! Constructs the binary division expression.
 	/*!
 	 * Directly constructs the binary division expression between two
@@ -1374,37 +1783,332 @@ namespace expr
 	 * \param a The left hand side expression.
 	 * \param b The right hand side expression.
 	 */
-	template<typename E1, typename E2>
+	template<typename E1, typename E2, size_t R1 = expr::eval_type<E1>::rank, size_t R2 = expr::eval_type<E2>::rank,
+		typename std::enable_if_t<(R1 == 0 && R2 == 0), int> = 0>
 	auto make_div(OpExpression<E1> const& a, OpExpression<E2> const& b)
 	{
-		return OpBinaryDiv<E1, E2>(*static_cast<const E1*>(&a), *static_cast<const E2*>(&b));
+		auto fr1 = symphas::internal::coeff_factor<E1>{};
+		auto fr2 = symphas::internal::coeff_factor<E2>{};
+
+		auto fr = (fr1 / fr2);
+		constexpr int N = symphas::internal::coeff_factor_numerator<decltype(fr)>::value;
+		constexpr int D = symphas::internal::coeff_factor_denominator<decltype(fr)>::value;
+
+		auto _fr1 = expr::make_integer<N>() / fr1;
+		auto _fr2 = expr::make_integer<D>() / fr2;
+
+
+		return OpBinaryDiv(_fr1 * (*static_cast<const E1*>(&a)), _fr2 * (*static_cast<const E2*>(&b)));
 	}
+
+	template<typename E1, typename E2, size_t R1 = expr::eval_type<E1>::rank, size_t R2 = expr::eval_type<E2>::rank,
+		typename std::enable_if_t<(R1 > 0 || R2 > 0), int> = 0>
+	auto make_div(OpExpression<E1> const& a, OpExpression<E2> const& b)
+	{
+		return OpBinaryDiv((*static_cast<const E1*>(&a)), (*static_cast<const E2*>(&b)));
+	}
+
 }
 
 
 namespace expr
 {
-	//! Computes the expression multiplied `N` times with itself.
-	/*!
-	 * Computes the expression multiplied `N` times with itself.
-	 * 
-	 * \param e The expression to multiply with itself.
-	 */
-	template<size_t N, typename E>
-	auto pow(OpExpression<E> const& e)
+	//! Get the expression that the OpMap applies to.
+	template<typename G, typename V, typename E>
+	auto const& get_enclosed_expression(OpMap<G, V, E> const& e)
 	{
-		if constexpr (N == 1)
-		{
-			return *static_cast<E const*>(&e);
-		}
-		else
-		{
-			return *static_cast<E const*>(&e)
-				* pow<N - 1>(*static_cast<E const*>(&e));
-		}
+		return e.e;
 	}
-}
 
+	//! Get the expression that the OpMap applies to.
+	template<typename E>
+	auto const& get_enclosed_expression(OpMap<symphas::internal::HCTS, OpIdentity, E> const& e)
+	{
+		return e.e;
+	}
+	//! Get the expression that the OpMap applies to.
+	template<typename E>
+	auto const& get_enclosed_expression(OpMap<symphas::internal::STHC, OpIdentity, E> const& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpMap applies to.
+	template<typename V, typename E>
+	auto const& get_enclosed_expression(OpMap<void, V, E> const& e)
+	{
+		return *static_cast<E const*>(&e);
+	}
+
+	//! Get the expression that the OpFuncDerivative applies to.
+	template<typename Dd, typename V, typename G, typename Sp>
+	decltype(auto) get_enclosed_expression(OpFuncDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> const& e)
+	{
+		return OpTerm<OpIdentity, G>(OpIdentity{}, e.data);
+	}
+
+	//! Get the expression that the OpFuncDerivative applies to.
+	template<size_t O, typename V, typename G, typename G0>
+	auto const& get_enclosed_expression(OpFuncDerivative<std::index_sequence<O>, V, OpTerm<OpIdentity, G>, SymbolicDerivative<G0>> const& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpFuncDerivative applies to.
+	template<size_t O, typename V, typename E, typename G0>
+	auto const& get_enclosed_expression(OpFuncDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G0>> const& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpFuncDerivative applies to.
+	template<typename Dd, typename V, typename E, typename Sp>
+	auto const& get_enclosed_expression(OpFuncDerivative<Dd, V, E, Sp> const& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpChain applies to.
+	template<typename A1, typename A2, typename E>
+	auto const& get_enclosed_expression(OpChain<A1, A2, E> const& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpCombination applies to.
+	template<typename A1, typename A2, typename E>
+	auto const& get_enclosed_expression(OpCombination<A1, A2, E> const& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpFunc applies to.
+	template<typename V, typename E, typename F, typename... Args>
+	auto const& get_enclosed_expression(OpFunc<V, E, F, Args...> const& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpFuncConvolution applies to.
+	template<auto f, typename V, typename E>
+	auto const& get_enclosed_expression(OpFuncApply<f, V, E> const& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpFuncConvolution applies to.
+	template<typename V, size_t D, typename G>
+	decltype(auto) get_enclosed_expression(OpFuncConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>> const& e)
+	{
+		return OpTerm<OpIdentity, G>(OpIdentity{}, e.data);
+	}
+
+	//! Get the expression that the OpFuncConvolution applies to.
+	template<typename V, size_t D, typename E>
+	auto const& get_enclosed_expression(OpFuncConvolution<V, GaussianSmoothing<D>, E> const& e)
+	{
+		return e.e;
+	}
+
+
+	//! Get the expression that the OpExponential applies to.
+	template<typename V, typename E>
+	auto const& get_enclosed_expression(OpExponential<V, E> const& e)
+	{
+		return e.e;
+	}
+
+
+	//! Get the expression that the OpMap applies to.
+	template<typename G, typename V, typename E>
+	auto& get_enclosed_expression(OpMap<G, V, E>& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpMap applies to.
+	template<typename E>
+	auto& get_enclosed_expression(OpMap<symphas::internal::HCTS, OpIdentity, E>& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpMap applies to.
+	template<typename E>
+	auto& get_enclosed_expression(OpMap<symphas::internal::STHC, OpIdentity, E>& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpMap applies to.
+	template<typename V, typename E>
+	auto& get_enclosed_expression(OpMap<void, V, E>& e)
+	{
+		return *static_cast<E*>(&e);
+	}
+
+	//! Get the expression that the OpFuncDerivative applies to.
+	template<typename Dd, typename V, typename G, typename Sp>
+	decltype(auto) get_enclosed_expression(OpFuncDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp>& e)
+	{
+		return OpTerm<OpIdentity, G>(OpIdentity{}, e.data);
+	}
+
+	//! Get the expression that the OpFuncDerivative applies to.
+	template<size_t O, typename V, typename G, typename G0>
+	auto& get_enclosed_expression(OpFuncDerivative<std::index_sequence<O>, V, OpTerm<OpIdentity, G>, SymbolicDerivative<G0>>& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpFuncDerivative applies to.
+	template<typename Dd, typename V, typename E, typename Sp>
+	auto& get_enclosed_expression(OpFuncDerivative<Dd, V, E, Sp>& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpFuncDerivative applies to.
+	template<size_t O, typename V, typename E, typename G0>
+	auto& get_enclosed_expression(OpFuncDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G0>>& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpChain applies to.
+	template<typename A1, typename A2, typename E>
+	auto& get_enclosed_expression(OpChain<A1, A2, E>& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpCombination applies to.
+	template<typename A1, typename A2, typename E>
+	auto& get_enclosed_expression(OpCombination<A1, A2, E>& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpFuncConvolution applies to.
+	template<typename V, typename E, typename F, typename... Args>
+	auto& get_enclosed_expression(OpFunc<V, E, F, Args...>& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpFuncConvolution applies to.
+	template<auto f, typename V, typename E>
+	auto& get_enclosed_expression(OpFuncApply<f, V, E>& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpFuncConvolution applies to.
+	template<typename V, size_t D, typename G>
+	decltype(auto) get_enclosed_expression(OpFuncConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>& e)
+	{
+		return OpTerm<OpIdentity, G>(OpIdentity{}, e.data);
+	}
+
+	//! Get the expression that the OpFuncConvolution applies to.
+	template<typename V, size_t D, typename E>
+	auto& get_enclosed_expression(OpFuncConvolution<V, GaussianSmoothing<D>, E>& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpExponential applies to.
+	template<typename V, typename E>
+	auto& get_enclosed_expression(OpExponential<V, E>& e)
+	{
+		return e.e;
+	}
+
+
+	template<typename E>
+	auto& get_result_data(OpExpression<E>& e) = delete;
+
+	//! Get the grid storing the underlying data of the OpFuncDerivative.
+	template<typename Dd, typename V, typename G, typename Sp>
+	auto& get_result_data(OpFuncDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp>& e) = delete;
+
+	//! Get the grid storing the underlying data of the OpFuncDerivative.
+	template<typename Dd, typename V, typename E, typename Sp>
+	auto& get_result_data(OpFuncDerivative<Dd, V, E, Sp>& e)
+	{
+		return e.grid;
+	}
+
+	//! Get the grid storing the underlying data of the OpFuncDerivative.
+	template<size_t O, typename V, typename E, typename G0>
+	auto& get_result_data(OpFuncDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G0>>&) = delete;
+
+
+	//! Get the grid storing the underlying data of the OpFuncConvolution.
+	template<typename V, typename E1, typename E2>
+	auto& get_result_data(OpFuncConvolution<V, E1, E2>& e)
+	{
+		return e.g0;
+	}
+
+	//! Get the grid storing the underlying data of the OpFuncConvolution.
+	template<typename V, size_t D, typename G>
+	auto& get_result_data(OpFuncConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>& e)
+	{
+		return e.g0;
+	}
+
+	//! Get the grid storing the underlying data of the OpFuncConvolution.
+	template<typename V, size_t D, typename E>
+	auto& get_result_data(OpFuncConvolution<V, GaussianSmoothing<D>, E>& e)
+	{
+		return e.g0;
+	}
+
+	//! Get the grid storing the underlying data of the OpFuncDerivative.
+	template<typename Dd, typename V, typename E, typename Sp>
+	auto const& get_result_data(OpFuncDerivative<Dd, V, E, Sp> const& e)
+	{
+		return e.grid;
+	}
+
+	//! Get the grid storing the underlying data of the OpFuncDerivative.
+	template<typename Dd, typename V, typename G, typename Sp>
+	auto& get_result_data(OpFuncDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> const& e) = delete;
+
+	//! Get the grid storing the underlying data of the OpFuncDerivative.
+	template<size_t O, typename V, typename E, typename G0>
+	auto const& get_result_data(OpFuncDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G0>> const&) = delete;
+
+	//! Get the grid storing the underlying data of the OpExponential.
+	template<typename V, typename E>
+	auto const& get_result_data(OpExponential<V, E> const& e)
+	{
+		return e.data;
+	}
+
+	//! Get the grid storing the underlying data of the OpFuncConvolution.
+	template<typename V, typename E1, typename E2>
+	auto const& get_result_data(OpFuncConvolution<V, E1, E2> const& e)
+	{
+		return e.g0;
+	}
+
+	//! Get the grid storing the underlying data of the OpFuncConvolution.
+	template<typename V, size_t D, typename G>
+	auto const& get_result_data(OpFuncConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>> const& e)
+	{
+		return e.g0;
+	}
+
+	//! Get the grid storing the underlying data of the OpFuncConvolution.
+	template<typename V, size_t D, typename E>
+	auto const& get_result_data(OpFuncConvolution<V, GaussianSmoothing<D>, E> const& e)
+	{
+		return e.g0;
+	}
+
+}
 
 
 #undef SYEX_BINARY_FMT

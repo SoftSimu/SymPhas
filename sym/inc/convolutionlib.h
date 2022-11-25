@@ -44,6 +44,8 @@
 template<size_t D>
 struct GaussianSmoothing : OpExpression<GaussianSmoothing<D>>
 {
+	GaussianSmoothing() : dims{ 0 }, h{ 0 }, data{ 0 } {}
+
 	GaussianSmoothing(symphas::interval_data_type const& intervals, double sigma = 1.0, double mean = 1.0) :
 		GaussianSmoothing()
 	{
@@ -137,8 +139,6 @@ struct GaussianSmoothing : OpExpression<GaussianSmoothing<D>>
 
 protected:
 
-	GaussianSmoothing() : data{ 0 } {}
-
 	void scale(scalar_t value)
 	{
 		for (iter_type i = 0; i < data.len; ++i)
@@ -173,6 +173,18 @@ auto operator*(OpLiteral<T> const& a, GaussianSmoothing<D> const& b)
 	return scaled;
 }
 
+template<size_t N, size_t D, size_t U1>
+auto operator*(OpFractionLiteral<N, D>, GaussianSmoothing<D> const& b)
+{
+	return expr::make_literal(OpFractionLiteral<N, D>{}.eval()) * b;
+}
+
+template<size_t N, size_t D, size_t U1>
+auto operator*(OpNegFractionLiteral<N, D>, GaussianSmoothing<D> const& b)
+{
+	return expr::make_literal(OpNegFractionLiteral<N, D>{}.eval()) * b;
+}
+
 
 // ******************************************************************************************************************
 
@@ -189,6 +201,8 @@ namespace expr
 	template<size_t D>
 	struct ConvolutionData
 	{
+		ConvolutionData() : out_0{ 0 }, in_1{ 0 }, p_in_out{ 0 }, p_out_in{ 0 } {}
+
 		template<typename T, typename S>
 		ConvolutionData(T* in_0, S* out_1, len_type* dims, len_type len);
 		template<typename T, typename S>
@@ -198,13 +212,26 @@ namespace expr
 		template<typename T, typename S>
 		ConvolutionData(Grid<T, D> const& in_0, Grid<S, D>& out_1) : ConvolutionData(in_0.values, out_1.values, out_1.dims, out_1.len) {}
 
-		ConvolutionData(ConvolutionData const& other) = delete;
+		ConvolutionData(ConvolutionData<D> const& other) = delete;
+		ConvolutionData(ConvolutionData<D>&& other)
+		{
+			swap(*this, other);
+		}
 		ConvolutionData<D>& operator=(ConvolutionData<D> const&) = delete;
+
+		friend void swap(ConvolutionData<D> &first, ConvolutionData<D> &second)
+		{
+			using std::swap;
+			swap(first.out_0, second.out_0);
+			swap(first.in_1, second.in_1);
+			swap(first.p_in_out, second.p_in_out);
+			swap(first.p_out_in, second.p_out_in);
+		}
 
 		fftw_complex* out_0;		//!< Fourier transform of the given data.
 		fftw_complex* in_1;			//!< Input of Fourier data.
-		const fftw_plan p_in_out;	//!< Transforms the given input data.
-		const fftw_plan p_out_in;	//!< Transforms member Fourier data into given output data.
+		fftw_plan p_in_out;			//!< Transforms the given input data.
+		fftw_plan p_out_in;			//!< Transforms member Fourier data into given output data.
 
 		~ConvolutionData()
 		{
@@ -221,24 +248,24 @@ namespace expr
 	template<>
 	template<>
 	inline ConvolutionData<1>::ConvolutionData(scalar_t* in_0, scalar_t* out_1, len_type* dims, len_type len) :
-		out_0{ symphas::dft::fftw_alloc_complex(symphas::dft::len<scalar_t, 1>(dims)) },
-		in_1{ symphas::dft::fftw_alloc_complex(symphas::dft::len<scalar_t, 1>(dims)) },
+		out_0{ symphas::dft::fftw_alloc_complex(symphas::dft::length<scalar_t, 1>(dims)) },
+		in_1{ symphas::dft::fftw_alloc_complex(symphas::dft::length<scalar_t, 1>(dims)) },
 		p_in_out{ new_fftw_plan<1, scalar_t, complex_t>{}(in_0, out_0, dims, true) },
 		p_out_in{ new_fftw_plan<1, complex_t, scalar_t>{}(in_1, out_1, dims) } {}
 
 	template<>
 	template<>
 	inline ConvolutionData<2>::ConvolutionData(scalar_t* in_0, scalar_t* out_1, len_type* dims, len_type len) :
-		out_0{ symphas::dft::fftw_alloc_complex(symphas::dft::len<scalar_t, 2>(dims)) },
-		in_1{ symphas::dft::fftw_alloc_complex(symphas::dft::len<scalar_t, 2>(dims)) },
+		out_0{ symphas::dft::fftw_alloc_complex(symphas::dft::length<scalar_t, 2>(dims)) },
+		in_1{ symphas::dft::fftw_alloc_complex(symphas::dft::length<scalar_t, 2>(dims)) },
 		p_in_out{ new_fftw_plan<2, scalar_t, complex_t>{}(in_0, out_0, dims, true) },
 		p_out_in{ new_fftw_plan<2, complex_t, scalar_t>{}(in_1, out_1, dims) } {}
 
 	template<>
 	template<>
 	inline ConvolutionData<3>::ConvolutionData(scalar_t* in_0, scalar_t* out_1, len_type* dims, len_type len) :
-		out_0{ symphas::dft::fftw_alloc_complex(symphas::dft::len<scalar_t, 3>(dims)) },
-		in_1{ symphas::dft::fftw_alloc_complex(symphas::dft::len<scalar_t, 3>(dims)) },
+		out_0{ symphas::dft::fftw_alloc_complex(symphas::dft::length<scalar_t, 3>(dims)) },
+		in_1{ symphas::dft::fftw_alloc_complex(symphas::dft::length<scalar_t, 3>(dims)) },
 		p_in_out{ new_fftw_plan<3, scalar_t, complex_t>{}(in_0, out_0, dims, true) },
 		p_out_in{ new_fftw_plan<3, complex_t, scalar_t>{}(in_1, out_1, dims) } {}
 
@@ -330,6 +357,7 @@ namespace expr
 	template<size_t D>
 	struct ConvolutionDataPair
 	{
+		ConvolutionDataPair() : out_0{ 0 }, out_1{ 0 }, in_2{ 0 }, p_in_out_0{ 0 }, p_in_out_1{ 0 }, p_out_in{ 0 } {}
 
 		template<typename T_0, typename T_1, typename R>
 		ConvolutionDataPair(T_0* in_0, T_1* in_1, R* out_2, len_type* dims, len_type len);
@@ -338,8 +366,23 @@ namespace expr
 		template<typename T_0, typename T_1, typename R>
 		ConvolutionDataPair(T_0* in_0, T_1* in_1, Grid<R, D>& out_2) : ConvolutionDataPair(in_0, in_1, out_2.values, out_2.dims, out_2.len) {}
 
-		ConvolutionDataPair(ConvolutionDataPair const&) = delete;
+		ConvolutionDataPair(ConvolutionDataPair<D> const&) = delete;
+		ConvolutionDataPair(ConvolutionDataPair<D> &&other) : ConvolutionDataPair()
+		{
+			swap(*this, other);
+		}
 		ConvolutionDataPair<D>& operator=(ConvolutionDataPair<D> const&) = delete;
+
+		friend void swap(ConvolutionDataPair<D> &first, ConvolutionDataPair<D> &second)
+		{
+			using std::swap;
+			swap(first.out_0, second.out_0);
+			swap(first.out_1, second.out_1);
+			swap(first.in_2, second.in_2);
+			swap(first.p_in_out_0, second.p_in_out_0);
+			swap(first.p_in_out_1, second.p_in_out_1);
+			swap(first.p_out_in, second.p_out_in);
+		}
 
 		~ConvolutionDataPair()
 		{
@@ -357,17 +400,17 @@ namespace expr
 		fftw_complex* out_0;			//!< Fourier transform of the first given data.
 		fftw_complex* out_1;			//!< Fourier transform of the second given data.
 		fftw_complex* in_2;				//!< Input of Fourier data.
-		const fftw_plan p_in_out_0;		//!< Transforms the first of the given input data.
-		const fftw_plan p_in_out_1;		//!< Transforms the second of the given input data.
-		const fftw_plan p_out_in;		//!< Transforms member Fourier data into given output data.
+		fftw_plan p_in_out_0;			//!< Transforms the first of the given input data.
+		fftw_plan p_in_out_1;			//!< Transforms the second of the given input data.
+		fftw_plan p_out_in;				//!< Transforms member Fourier data into given output data.
 	};
 
 	template<>
 	template<>
 	inline ConvolutionDataPair<1>::ConvolutionDataPair(scalar_t* in_0, scalar_t* in_1, scalar_t* out_2, len_type* dims, len_type len) :
-		out_0{ symphas::dft::fftw_alloc_complex(symphas::dft::len<scalar_t, 1>(dims)) },
-		out_1{ symphas::dft::fftw_alloc_complex(symphas::dft::len<scalar_t, 1>(dims)) },
-		in_2{ symphas::dft::fftw_alloc_complex(symphas::dft::len<scalar_t, 1>(dims)) },
+		out_0{ symphas::dft::fftw_alloc_complex(symphas::dft::length<scalar_t, 1>(dims)) },
+		out_1{ symphas::dft::fftw_alloc_complex(symphas::dft::length<scalar_t, 1>(dims)) },
+		in_2{ symphas::dft::fftw_alloc_complex(symphas::dft::length<scalar_t, 1>(dims)) },
 		p_in_out_0{ new_fftw_plan<1, scalar_t, complex_t>{}(in_0, out_0, dims, true) },
 		p_in_out_1{ new_fftw_plan<1, scalar_t, complex_t>{}(in_1, out_1, dims, true) },
 		p_out_in{ new_fftw_plan<1, complex_t, scalar_t>{}(in_2, out_2, dims, false) } {}
@@ -375,9 +418,9 @@ namespace expr
 	template<>
 	template<>
 	inline ConvolutionDataPair<2>::ConvolutionDataPair(scalar_t* in_0, scalar_t* in_1, scalar_t* out_2, len_type* dims, len_type len) :
-		out_0{ symphas::dft::fftw_alloc_complex(symphas::dft::len<scalar_t, 2>(dims)) },
-		out_1{ symphas::dft::fftw_alloc_complex(symphas::dft::len<scalar_t, 2>(dims)) },
-		in_2{ symphas::dft::fftw_alloc_complex(symphas::dft::len<scalar_t, 2>(dims)) },
+		out_0{ symphas::dft::fftw_alloc_complex(symphas::dft::length<scalar_t, 2>(dims)) },
+		out_1{ symphas::dft::fftw_alloc_complex(symphas::dft::length<scalar_t, 2>(dims)) },
+		in_2{ symphas::dft::fftw_alloc_complex(symphas::dft::length<scalar_t, 2>(dims)) },
 		p_in_out_0{ new_fftw_plan<2, scalar_t, complex_t>{}(in_0, out_0, dims, true) },
 		p_in_out_1{ new_fftw_plan<2, scalar_t, complex_t>{}(in_1, out_1, dims, true) },
 		p_out_in{ new_fftw_plan<2, complex_t, scalar_t>{}(in_2, out_2, dims, false) } {}
@@ -385,9 +428,9 @@ namespace expr
 	template<>
 	template<>
 	inline ConvolutionDataPair<3>::ConvolutionDataPair(scalar_t* in_0, scalar_t* in_1, scalar_t* out_2, len_type* dims, len_type len) :
-		out_0{ symphas::dft::fftw_alloc_complex(symphas::dft::len<scalar_t, 3>(dims)) },
-		out_1{ symphas::dft::fftw_alloc_complex(symphas::dft::len<scalar_t, 3>(dims)) },
-		in_2{ symphas::dft::fftw_alloc_complex(symphas::dft::len<scalar_t, 3>(dims)) },
+		out_0{ symphas::dft::fftw_alloc_complex(symphas::dft::length<scalar_t, 3>(dims)) },
+		out_1{ symphas::dft::fftw_alloc_complex(symphas::dft::length<scalar_t, 3>(dims)) },
+		in_2{ symphas::dft::fftw_alloc_complex(symphas::dft::length<scalar_t, 3>(dims)) },
 		p_in_out_0{ new_fftw_plan<3, scalar_t, complex_t>{}(in_0, out_0, dims, true) },
 		p_in_out_1{ new_fftw_plan<3, scalar_t, complex_t>{}(in_1, out_1, dims, true) },
 		p_out_in{ new_fftw_plan<3, complex_t, scalar_t>{}(in_2, out_2, dims, false) } {}

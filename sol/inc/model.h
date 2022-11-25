@@ -126,7 +126,7 @@ protected:
 
 	Model()
 		: _s{ construct_systems({}, {}, {}, 0) }, solver{ Sp::make_solver() }, coeff{ nullptr }, num_coeff{ 0 }, 
-		lastindex{ params::start_index }, time{ 0 }
+		index{ params::start_index }, time{ 0 }
 #ifdef VTK_ON
 		, viz_update{ nullptr }
 #endif 
@@ -158,7 +158,7 @@ public:
 	Model(double const* coeff, size_t num_coeff, symphas::problem_parameters_type const& parameters) :
 		_s{ construct_systems(parameters.get_initial_data(), parameters.get_interval_data(), parameters.get_boundary_data(), parameters.length()) },
 		solver{ Sp::make_solver(get_updated_parameters(parameters)) }, coeff{ (num_coeff > 0) ? new double[num_coeff] : nullptr },
-		num_coeff{ num_coeff }, lastindex{ params::start_index }, time{ 0 }
+		num_coeff{ num_coeff }, index{ parameters.index }, time{ parameters.time }
 #ifdef VTK_ON
 		, viz_update{ nullptr }
 #endif
@@ -179,7 +179,7 @@ public:
 
 	Model(Model<D, Sp, S...> const& other) : 
 		_s{ other._s }, solver{ other.solver }, coeff{ (other.num_coeff > 0) ? new double[other.num_coeff] : nullptr }, 
-		num_coeff{ other.num_coeff }, lastindex{ other.lastindex }, time{ other.time }
+		num_coeff{ other.num_coeff }, index{ other.index }, time{ other.time }
 #ifdef VTK_ON
 		, viz_update{ nullptr }
 #endif
@@ -199,31 +199,31 @@ public:
 		return *this;
 	}
 
-	template<typename Sp0, typename = std::enable_if_t<!std::is_same<Sp, Sp0>::value, int>>
-	Model(Model<D, Sp0, S...> const& other) :
-		_s{ construct_systems(other.systems_tuple()) }, solver{ Sp::make_solver(generate_parameters()) }, coeff{ (other.get_num_coeff() > 0) ? new double[other.get_num_coeff()] : nullptr },
-		num_coeff{ other.get_num_coeff() }, lastindex{ other.index() }, time{ other.get_time()}
-#ifdef VTK_ON
-		, viz_update{ nullptr }
-#endif
-	{
-		std::copy(other.get_coeff(), other.get_coeff() + other.get_num_coeff(), coeff);
-		update_systems(time);
-		visualize();
-	}
-
-	template<typename Sp0, typename = std::enable_if_t<!std::is_same<Sp, Sp0>::value, int>>
-	Model(Model<D, Sp0, S...>&& other) noexcept : Model()
-	{
-		swap(*this, other);
-	}
-
-	template<typename Sp0, typename = std::enable_if_t<!std::is_same<Sp, Sp0>::value, int>>
-	Model<D, Sp0, S...>& operator=(Model<D, Sp0, S...> other)
-	{
-		swap(*this, other);
-		return *this;
-	}
+//	template<typename Sp0, typename = std::enable_if_t<!std::is_same<Sp, Sp0>::value, int>>
+//	Model(Model<D, Sp0, S...> const& other) :
+//		_s{ construct_systems(other.systems_tuple()) }, solver{ Sp::make_solver(generate_parameters()) }, coeff{ (other.get_num_coeff() > 0) ? new double[other.get_num_coeff()] : nullptr },
+//		num_coeff{ other.get_num_coeff() }, index{ other.index() }, time{ other.get_time()}
+//#ifdef VTK_ON
+//		, viz_update{ nullptr }
+//#endif
+//	{
+//		std::copy(other.get_coeff(), other.get_coeff() + other.get_num_coeff(), coeff);
+//		update_systems(time);
+//		visualize();
+//	}
+//
+//	template<typename Sp0, typename = std::enable_if_t<!std::is_same<Sp, Sp0>::value, int>>
+//	Model(Model<D, Sp0, S...>&& other) noexcept : Model()
+//	{
+//		swap(*this, other);
+//	}
+//
+//	template<typename Sp0, typename = std::enable_if_t<!std::is_same<Sp, Sp0>::value, int>>
+//	Model<D, Sp0, S...>& operator=(Model<D, Sp0, S...> other)
+//	{
+//		swap(*this, other);
+//		return *this;
+//	}
 
 	~Model()
 	{
@@ -240,7 +240,7 @@ public:
 		swap(first._s, second._s);
 		swap(first.coeff, second.coeff);
 		swap(first.num_coeff, second.num_coeff);
-		swap(first.lastindex, second.lastindex);
+		swap(first.index, second.index);
 		swap(first.time, second.time);
 
 #ifdef VTK_ON
@@ -257,7 +257,7 @@ public:
 		swap(first._s, second._s);
 		swap(first.coeff, second.coeff);
 		swap(first.num_coeff, second.num_coeff);
-		swap(first.lastindex, second.lastindex);
+		swap(first.index, second.index);
 		swap(first.time, second.time);
 
 #ifdef VTK_ON
@@ -281,9 +281,9 @@ public:
 	 * track the total number of solver iterations performed. Returns this
 	 * value.
 	 */
-	iter_type index() const
+	iter_type get_index() const
 	{
-		return lastindex;
+		return index;
 	}
 
 	//! Return the number of coefficients saved by the model.
@@ -305,6 +305,16 @@ public:
 		return time;
 	}
 
+	void set_index(iter_type index)
+	{
+		this->index = index;
+	}
+
+	void set_time(double time)
+	{
+		this->time = time;
+	}
+
 	//! Returns a symbolic variable for the time value of the model.
 	/*!
 	 * Returns a symbolic variable for the time value of the model. The
@@ -313,7 +323,7 @@ public:
 	 */
 	auto get_time_var()
 	{
-		return expr::make_op(TimeValue{ &time });
+		return expr::make_term(TimeValue{ &time });
 	}
 
 	//! Get the number of fields of the given types.
@@ -355,10 +365,7 @@ public:
 	 * \tparam I Chose the `I`-th appearance of the chosen type.
 	 */
 	template<typename Type, size_t I = 0>
-	static constexpr int index_of_type()
-	{
-		return symphas::lib::index_of_type<Type, I, SN, S...>();
-	}
+	static constexpr int index_of_type = symphas::lib::nth_index_of_type<Type, I, S...>;
 
 	//! Execute a function for all fields of the given type.
 	/*!
@@ -425,7 +432,7 @@ public:
 	template<typename Type, size_t I, typename std::enable_if_t<(num_fields<Type>() > I), int> = 0>
 	void copy_field_type_values([[maybe_unused]] Type* into) const
 	{
-		copy_field_values<index_of_type<Type, I>()>(into);
+		copy_field_values<index_of_type<Type, I>>(into);
 	}
 
 	//! Copy the values of the `I`-th field of the given type.
@@ -497,19 +504,19 @@ public:
 	//! Advances to the next solution iteration.
 	/*!
 	 * Calls the `step` function of the solver, stepping forward the solution
-	 * iteration. This also increments Moodel::lastindex.
+	 * iteration. This also increments Moodel::index.
 	 * 
 	 * \param dt The time increment.
 	 */
 	void step(double dt)
 	{
-		++lastindex;
+		++index;
 		step(std::make_index_sequence<SN>{}, dt);
 
 #ifdef VTK_ON
 		if (viz_update 
 			&& params::viz_interval 
-			&& lastindex % params::viz_interval == 0)
+			&& index % params::viz_interval == 0)
 		{
 			viz_update->update();
 		}
@@ -597,6 +604,17 @@ public:
 		fprintf(out, OUTPUT_BANNER);
 	}
 
+	auto generate_parameters() const
+	{
+		symphas::problem_parameters_type parameters(SN);
+		populate_parameters(parameters, std::make_index_sequence<SN>{});
+
+		parameters.time = get_time();;
+		parameters.index = index;
+
+		return parameters;
+	}
+
 protected:
 	std::tuple<SolverSystemApplied<S>...> _s;	//! Container managing pointers to phase field data.
 	Sp solver;									//! Solver for determining the phase field solution.
@@ -621,7 +639,7 @@ protected:
 	 * incremented for every call to Model::step(), and can be accessed
 	 * (but not modified) through the function Model::index().
 	 */
-	iter_type lastindex;
+	iter_type index;
 
 	//! The current simulation time.
 	double time;
@@ -636,12 +654,15 @@ protected:
 	{
 		if constexpr (num_fields<scalar_t>() > 0)
 		{
-			auto& frame = grid<index_of_type<scalar_t>()>();
-			viz_thread = std::thread([&]()
+			if (params::viz_interval > 0)
+			{
+				auto& frame = grid<index_of_type<scalar_t>>();
+				viz_thread = std::thread([&] ()
 				{
 					ColourPlot2d viz{};
-					viz.init(frame.values, frame.dims, lastindex, viz_update);
+					viz.init(frame.values, frame.dims, index, viz_update);
 				});
+			}
 		}
 	}
 
@@ -649,7 +670,10 @@ protected:
 	{
 		if constexpr (num_fields<scalar_t>() > 0)
 		{
-			viz_thread.join();
+			if (params::viz_interval > 0)
+			{
+				viz_thread.join();
+			}
 		}
 	}
 
@@ -660,41 +684,95 @@ protected:
 #endif
 
 	template<size_t... Is>
-	void construct_interval_data(symphas::interval_data_type (&intervals)[SN], std::index_sequence<Is...>)
+	void construct_interval_data(symphas::interval_data_type (&intervals)[SN], std::index_sequence<Is...>) const
 	{
 		(((intervals[Is] = system<Is>().get_info().intervals), ...));
 	}
 
-	auto get_updated_parameters(symphas::problem_parameters_type parameters)
+	auto get_updated_parameters(symphas::problem_parameters_type parameters) const
 	{
+		parameters.extend(SN);
 		symphas::interval_data_type intervals[SN];
 		construct_interval_data(intervals, std::make_index_sequence<SN>{});
+
 		parameters.set_interval_data(intervals, SN);
 		return parameters;
 	}
 
-	auto generate_parameters()
+	template<size_t... Is>
+	auto populate_parameters(symphas::problem_parameters_type &parameters, std::index_sequence<Is...>) const
 	{
-		symphas::problem_parameters_type parameters(SN);
-		populate_parameters(parameters, std::make_index_sequence<SN>{});
-		return parameters;
+		((fill_interval_data<Is>(system<Is>(), parameters),
+			fill_boundary_data<Is>(system<Is>(), parameters),
+			fill_initial_data<Is>(system<Is>(), parameters)), ...);
+	}
+
+	template<size_t I, typename T0>
+	void fill_interval_data(PhaseFieldSystem<BoundaryGrid, T0, D> const& system, symphas::problem_parameters_type& parameters) const
+	{
+		auto intervals = system.get_info().intervals;
+		for (iter_type i = 0; i < D; ++i)
+		{
+			Axis ax = symphas::index_to_axis(i);
+			auto& interval = intervals.at(ax);
+
+			interval.set_interval_count(
+				interval.left(),
+				interval.right(),
+				system.dims[i]);
+		}
+
+		parameters.set_interval_data(intervals, I);
+	}
+
+	template<size_t I, template<typename, size_t> typename G, typename T0>
+	void fill_interval_data(PhaseFieldSystem<G, T0, D> const& system, symphas::problem_parameters_type& parameters) const
+	{
+		parameters.set_interval_data(system.get_info().intervals, I);
+	}
+
+	template<size_t I, template<typename, size_t> typename G, typename T0>
+	void fill_boundary_data(PhaseFieldSystem<G, T0, D> const& system, symphas::problem_parameters_type& parameters) const
+	{
+		symphas::b_data_type bdata;
+
+		for (iter_type i = 0; i < D * 2; ++i)
+		{
+			Side side = symphas::index_to_side(i);
+			bdata[side] = symphas::b_element_type(BoundaryType::PERIODIC);
+		}
+
+		parameters.set_boundary_data(bdata, I);
+	}
+
+	template<size_t I, typename T0>
+	void fill_boundary_data(PhaseFieldSystem<BoundaryGrid, T0, D> const& system, symphas::problem_parameters_type& parameters) const
+	{
+		symphas::b_data_type bdata;
+
+		for (iter_type i = 0; i < D * 2; ++i)
+		{
+			Side side = symphas::index_to_side(i);
+			BoundaryType type = system.types[i];
+			bdata[side] = system.boundaries[i]->get_parameters();
+		}
+
+		parameters.set_boundary_data(bdata, I);
+	}
+
+	template<size_t I, template<typename, size_t> typename G, typename T0>
+	void fill_initial_data(PhaseFieldSystem<G, T0, D> const& system, symphas::problem_parameters_type& parameters) const
+	{
+		parameters.set_initial_data(init_data_functor(system.as_grid()), I);
 	}
 
 	template<size_t... Is>
-	auto populate_parameters(symphas::problem_parameters_type &parameters, std::index_sequence<Is...>)
-	{
-		double dt = 1.0;
-		parameters.set_problem_time_step(dt);
-		((parameters.set_interval_data(system<Is>().get_info().intervals, Is), ...));
-	}
-
-	template<size_t... Is>
-	auto construct_systems(const symphas::init_data_type* tdata, const symphas::interval_data_type *vdata, const symphas::b_data_type *bdata, std::index_sequence<Is...>)
+	auto construct_systems(const symphas::init_data_type* tdata, const symphas::interval_data_type *vdata, const symphas::b_data_type *bdata, std::index_sequence<Is...>) const
 	{
 		return std::make_tuple(SolverSystemApplied<S>(tdata[Is], vdata[Is], bdata[Is], Is)...);
 	}
 
-	auto construct_systems(const symphas::init_data_type* tdata, const symphas::interval_data_type* vdata, const symphas::b_data_type* bdata, size_t data_len)
+	auto construct_systems(const symphas::init_data_type* tdata, const symphas::interval_data_type* vdata, const symphas::b_data_type* bdata, size_t data_len) const
 	{
 		if (data_len < SN)
 		{
@@ -773,13 +851,13 @@ protected:
 	template<size_t... Is>
 	void update_systems(double time, std::index_sequence<Is...>)
 	{
-		((..., system<Is>().update(lastindex, time)));
+		((..., system<Is>().update(index, time)));
 	}
 
 	template<size_t... Is>
 	void save_systems(const char* dir, std::index_sequence<Is...>) const
 	{
-		((..., std::get<Is>(_s).save(dir, lastindex)));
+		((..., std::get<Is>(_s).save(dir, index)));
 	}
 
 	template<size_t... Is>
@@ -792,7 +870,7 @@ protected:
 			snprintf(names[i], BUFFER_LENGTH, "%d%s", i, name);
 		}
 
-		((..., std::get<Is>(_s).save(dir, names[Is], lastindex)));
+		((..., std::get<Is>(_s).save(dir, names[Is], index)));
 
 		for (iter_type i = 0; i < SN; ++i)
 		{
@@ -821,7 +899,7 @@ protected:
 	template<typename Type, size_t I, typename F, typename... Args, typename std::enable_if_t<(I == 0), int> = 0>
 	void do_for_field_type(F &&f, Args&& ... args) const
 	{
-		do_for_field<index_of_type<Type, I>()>(f, std::forward<Args>(args)...);
+		do_for_field<index_of_type<Type, I>>(f, std::forward<Args>(args)...);
 	}
 
 	template<size_t I>
@@ -968,23 +1046,56 @@ protected:
 	};
 
 	template<size_t D, typename Sp, typename... S>
-	static constexpr solver_wrap<Sp> _get_type(Model<D, Sp, S...>*)
+	static solver_wrap<Sp> _get_type(Model<D, Sp, S...>)
 	{
 		return {};
 	}
 
-	static constexpr auto get_type(M* m)
+	static auto get_type(M m)
 	{
 		return _get_type(m);
 	}
 
 public:
 
-	using type = typename std::invoke_result_t<decltype(&model_solver<M>::get_type), M*>::type;
+	using type = typename std::invoke_result_t<decltype(&model_solver<M>::get_type), M>::type;
 };
 
 template<typename M>
 using model_solver_t = typename model_solver<M>::type;
+
+//! Obtain the solver type used by the given model.
+/*!
+ * Uses type traits to obtain the solver type used by the given model. The
+ * type provided is assumed to have parent type Model.
+ *
+ * \tparam M The model type.
+ */
+template<typename M>
+struct model_base
+{
+
+protected:
+
+	template<size_t D, typename Sp, typename... S>
+	static Model<D, Sp, S...> _get_type(Model<D, Sp, S...> m)
+	{
+		return m;
+	}
+
+	static auto get_type(M m)
+	{
+		return _get_type(m);
+	}
+
+public:
+
+	using type = typename std::invoke_result_t<decltype(&model_base<M>::get_type), M>;
+};
+
+template<typename M>
+using model_base_t = typename model_base<M>::type;
+
 
 
 //! Obtain the phase-field value type corresponding to the given index. 

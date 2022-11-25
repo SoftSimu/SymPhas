@@ -83,51 +83,51 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC, Side::FRONT, 2>:
 	iter_type offset;
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS);
 	ITER_GRID3_FRONT({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1]);
 
 	// edges
 
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) + grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS);
 	ITER_GRID3_FRONT_TOP({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1]);
 
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) - grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS);
 	ITER_GRID3_FRONT_BOTTOM({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1]);
 
 	//offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) + (grid.dims[0] - THICKNESS - THICKNESS);
 	//ITER_GRID3_FRONT_LEFT({
-	//	grid.values[INDEX] = grid.values[INDEX + offset];
+	//	grid[INDEX] = grid[INDEX + offset];
 	//	}, grid.dims[0], grid.dims[1]);
 
 	//offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) - (grid.dims[0] - THICKNESS - THICKNESS);
 	//ITER_GRID3_FRONT_RIGHT({
-	//	grid.values[INDEX] = grid.values[INDEX + offset];
+	//	grid[INDEX] = grid[INDEX + offset];
 	//	}, grid.dims[0], grid.dims[1]);
 
 	//// corners
 
 	//offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) + grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) - (grid.dims[0] - THICKNESS - THICKNESS);
 	//ITER_GRID3_FRONT_TOP_RIGHT({
-	//	grid.values[INDEX] = grid.values[INDEX + offset];
+	//	grid[INDEX] = grid[INDEX + offset];
 	//	}, grid.dims[0], grid.dims[1]);
 
 	//offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) - grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) - (grid.dims[0] - THICKNESS - THICKNESS);
 	//ITER_GRID3_FRONT_BOTTOM_RIGHT({
-	//	grid.values[INDEX] = grid.values[INDEX + offset];
+	//	grid[INDEX] = grid[INDEX + offset];
 	//	}, grid.dims[0], grid.dims[1]);
 
 	//offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) + grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) + (grid.dims[0] - THICKNESS - THICKNESS);
 	//ITER_GRID3_LEFT_TOP_FRONT({
-	//	grid.values[INDEX] = grid.values[INDEX + offset];
+	//	grid[INDEX] = grid[INDEX + offset];
 	//	}, grid.dims[0], grid.dims[1]);
 
 	//offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) - grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) + (grid.dims[0] - THICKNESS - THICKNESS);
 	//ITER_GRID3_LEFT_BOTTOM_FRONT({
-	//	grid.values[INDEX] = grid.values[INDEX + offset];
+	//	grid[INDEX] = grid[INDEX + offset];
 	//	}, grid.dims[0], grid.dims[1]);
 }
 
@@ -139,51 +139,51 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC, Side::BACK, 2>::
 	iter_type offset;
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS);
 	ITER_GRID3_BACK({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	// edges
 
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) - grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS);
 	ITER_GRID3_BACK_TOP({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) + grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS);
 	ITER_GRID3_BACK_BOTTOM({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	//offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) - (grid.dims[0] - THICKNESS - THICKNESS);
 	//ITER_GRID3_BACK_LEFT({
-	//	grid.values[INDEX] = grid.values[INDEX - offset];
+	//	grid[INDEX] = grid[INDEX - offset];
 	//	}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	//offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) + (grid.dims[0] - THICKNESS - THICKNESS);
 	//ITER_GRID3_BACK_RIGHT({
-	//	grid.values[INDEX] = grid.values[INDEX - offset];
+	//	grid[INDEX] = grid[INDEX - offset];
 	//	}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	//// corners
 
 	//offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) - grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) + (grid.dims[0] - THICKNESS - THICKNESS);
 	//ITER_GRID3_RIGHT_TOP_BACK({
-	//	grid.values[INDEX] = grid.values[INDEX - offset];
+	//	grid[INDEX] = grid[INDEX - offset];
 	//	}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	//offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) + grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) + (grid.dims[0] - THICKNESS - THICKNESS);
 	//ITER_GRID3_RIGHT_BOTTOM_BACK({
-	//	grid.values[INDEX] = grid.values[INDEX - offset];
+	//	grid[INDEX] = grid[INDEX - offset];
 	//	}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	//offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) - grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) - (grid.dims[0] - THICKNESS - THICKNESS);
 	//ITER_GRID3_BACK_TOP_LEFT({
-	//	grid.values[INDEX] = grid.values[INDEX - offset];
+	//	grid[INDEX] = grid[INDEX - offset];
 	//	}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	//offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) + grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) - (grid.dims[0] - THICKNESS - THICKNESS);
 	//ITER_GRID3_BACK_BOTTOM_LEFT({
-	//	grid.values[INDEX] = grid.values[INDEX - offset];
+	//	grid[INDEX] = grid[INDEX - offset];
 	//	}, grid.dims[0], grid.dims[1], grid.dims[2]);
 }
 
@@ -194,51 +194,51 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC, Side::LEFT, 2>::
 	iter_type offset;
 	offset = grid.dims[0] - THICKNESS - THICKNESS;
 	ITER_GRID3_LEFT({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	// edges
 
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) - (grid.dims[0] - THICKNESS - THICKNESS);
 	ITER_GRID3_BACK_LEFT({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) + (grid.dims[0] - THICKNESS - THICKNESS);
 	ITER_GRID3_FRONT_LEFT({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1]);
 
 	offset = grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) + (grid.dims[0] - THICKNESS - THICKNESS);
 	ITER_GRID3_LEFT_TOP({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	offset = -grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) + (grid.dims[0] - THICKNESS - THICKNESS);
 	ITER_GRID3_LEFT_BOTTOM({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	// corners
 
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) + grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) + (grid.dims[0] - THICKNESS - THICKNESS);
 	ITER_GRID3_LEFT_TOP_FRONT({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1]);
 
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) - grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) + (grid.dims[0] - THICKNESS - THICKNESS);
 	ITER_GRID3_LEFT_BOTTOM_FRONT({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1]);
 
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) - grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) - (grid.dims[0] - THICKNESS - THICKNESS);
 	ITER_GRID3_BACK_TOP_LEFT({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) + grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) - (grid.dims[0] - THICKNESS - THICKNESS);
 	ITER_GRID3_BACK_BOTTOM_LEFT({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 }
 
@@ -249,29 +249,29 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC, Side::RIGHT, 2>:
 	iter_type offset;
 	offset = grid.dims[0] - THICKNESS - THICKNESS;
 	ITER_GRID3_RIGHT({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	// edges
 
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) - (grid.dims[0] - THICKNESS - THICKNESS);
 	ITER_GRID3_FRONT_RIGHT({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1]);
 
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) + (grid.dims[0] - THICKNESS - THICKNESS);
 	ITER_GRID3_BACK_RIGHT({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	offset = grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) - (grid.dims[0] - THICKNESS - THICKNESS);
 	ITER_GRID3_RIGHT_TOP({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	offset = -grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) - (grid.dims[0] - THICKNESS - THICKNESS);
 	ITER_GRID3_RIGHT_BOTTOM({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 
@@ -279,22 +279,22 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC, Side::RIGHT, 2>:
 
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) + grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) - (grid.dims[0] - THICKNESS - THICKNESS);
 	ITER_GRID3_FRONT_TOP_RIGHT({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1]);
 
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) - grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) - (grid.dims[0] - THICKNESS - THICKNESS);
 	ITER_GRID3_FRONT_BOTTOM_RIGHT({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1]);
 
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) - grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) + (grid.dims[0] - THICKNESS - THICKNESS);
 	ITER_GRID3_RIGHT_TOP_BACK({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) + grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) + (grid.dims[0] - THICKNESS - THICKNESS);
 	ITER_GRID3_RIGHT_BOTTOM_BACK({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 }
@@ -306,51 +306,51 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC, Side::TOP, 2>::o
 	iter_type offset;
 	offset = grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS);
 	ITER_GRID3_TOP({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	//// edges
 
 	//offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) + grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS);
 	//ITER_GRID3_FRONT_TOP({
-	//	grid.values[INDEX] = grid.values[INDEX + offset];
+	//	grid[INDEX] = grid[INDEX + offset];
 	//	}, grid.dims[0], grid.dims[1]);
 
 	//offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) - grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS);
 	//ITER_GRID3_BACK_TOP({
-	//	grid.values[INDEX] = grid.values[INDEX - offset];
+	//	grid[INDEX] = grid[INDEX - offset];
 	//	}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	//offset = grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) + (grid.dims[0] - THICKNESS - THICKNESS);
 	//ITER_GRID3_LEFT_TOP({
-	//	grid.values[INDEX] = grid.values[INDEX + offset];
+	//	grid[INDEX] = grid[INDEX + offset];
 	//	}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	//offset = grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) - (grid.dims[0] - THICKNESS - THICKNESS);
 	//ITER_GRID3_RIGHT_TOP({
-	//	grid.values[INDEX] = grid.values[INDEX + offset];
+	//	grid[INDEX] = grid[INDEX + offset];
 	//	}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	//// corners
 
 	//offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) + grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) - (grid.dims[0] - THICKNESS - THICKNESS);
 	//ITER_GRID3_FRONT_TOP_RIGHT({
-	//	grid.values[INDEX] = grid.values[INDEX + offset];
+	//	grid[INDEX] = grid[INDEX + offset];
 	//	}, grid.dims[0], grid.dims[1]);
 
 	//offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) + grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) + (grid.dims[0] - THICKNESS - THICKNESS);
 	//ITER_GRID3_LEFT_TOP_FRONT({
-	//	grid.values[INDEX] = grid.values[INDEX + offset];
+	//	grid[INDEX] = grid[INDEX + offset];
 	//	}, grid.dims[0], grid.dims[1]);
 
 	//offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) - grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) + (grid.dims[0] - THICKNESS - THICKNESS);
 	//ITER_GRID3_RIGHT_TOP_BACK({
-	//	grid.values[INDEX] = grid.values[INDEX - offset];
+	//	grid[INDEX] = grid[INDEX - offset];
 	//	}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	//offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) - grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) - (grid.dims[0] - THICKNESS - THICKNESS);
 	//ITER_GRID3_BACK_TOP_LEFT({
-	//	grid.values[INDEX] = grid.values[INDEX - offset];
+	//	grid[INDEX] = grid[INDEX - offset];
 	//	}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 
@@ -363,51 +363,51 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC, Side::BOTTOM, 2>
 	iter_type offset;
 	offset = grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS);
 	ITER_GRID3_BOTTOM({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	//// edges
 
 	//offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) - grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS);
 	//ITER_GRID3_FRONT_BOTTOM({
-	//	grid.values[INDEX] = grid.values[INDEX + offset];
+	//	grid[INDEX] = grid[INDEX + offset];
 	//	}, grid.dims[0], grid.dims[1]);
 
 	//offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) + grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS);
 	//ITER_GRID3_BACK_BOTTOM({
-	//	grid.values[INDEX] = grid.values[INDEX - offset];
+	//	grid[INDEX] = grid[INDEX - offset];
 	//	}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	//offset = -grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) + (grid.dims[0] - THICKNESS - THICKNESS);
 	//ITER_GRID3_LEFT_BOTTOM({
-	//	grid.values[INDEX] = grid.values[INDEX + offset];
+	//	grid[INDEX] = grid[INDEX + offset];
 	//	}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	//offset = -grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) - (grid.dims[0] - THICKNESS - THICKNESS);
 	//ITER_GRID3_RIGHT_BOTTOM({
-	//	grid.values[INDEX] = grid.values[INDEX + offset];
+	//	grid[INDEX] = grid[INDEX + offset];
 	//	}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	//// corners
 
 	//offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) - grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) - (grid.dims[0] - THICKNESS - THICKNESS);
 	//ITER_GRID3_FRONT_BOTTOM_RIGHT({
-	//	grid.values[INDEX] = grid.values[INDEX + offset];
+	//	grid[INDEX] = grid[INDEX + offset];
 	//	}, grid.dims[0], grid.dims[1]);
 
 	//offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) - grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) + (grid.dims[0] - THICKNESS - THICKNESS);
 	//ITER_GRID3_LEFT_BOTTOM_FRONT({
-	//	grid.values[INDEX] = grid.values[INDEX + offset];
+	//	grid[INDEX] = grid[INDEX + offset];
 	//	}, grid.dims[0], grid.dims[1]);
 
 	//offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) + grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) + (grid.dims[0] - THICKNESS - THICKNESS);
 	//ITER_GRID3_RIGHT_BOTTOM_BACK({
-	//	grid.values[INDEX] = grid.values[INDEX - offset];
+	//	grid[INDEX] = grid[INDEX - offset];
 	//	}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	//offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) + grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) - (grid.dims[0] - THICKNESS - THICKNESS);
 	//ITER_GRID3_BACK_BOTTOM_LEFT({
-	//	grid.values[INDEX] = grid.values[INDEX - offset];
+	//	grid[INDEX] = grid[INDEX - offset];
 	//	}, grid.dims[0], grid.dims[1], grid.dims[2]);
 }
 
@@ -421,7 +421,7 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC0, Side::FRONT, 2>
 	iter_type offset;
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS);
 	ITER_GRID3_FRONT_ALL({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1]);
 }
 
@@ -433,7 +433,7 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC0, Side::BACK, 2>:
 	iter_type offset;
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS);
 	ITER_GRID3_BACK_ALL({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 }
 
@@ -444,7 +444,7 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC0, Side::LEFT, 2>:
 	iter_type offset;
 	offset = grid.dims[0] - THICKNESS - THICKNESS;
 	ITER_GRID3_LEFT_ALL({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 }
@@ -456,7 +456,7 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC0, Side::RIGHT, 2>
 	iter_type offset;
 	offset = grid.dims[0] - THICKNESS - THICKNESS;
 	ITER_GRID3_RIGHT_ALL({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 }
 
@@ -467,7 +467,7 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC0, Side::TOP, 2>::
 	iter_type offset;
 	offset = grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS);
 	ITER_GRID3_TOP_ALL({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 }
 
@@ -478,7 +478,7 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC0, Side::BOTTOM, 2
 	iter_type offset;
 	offset = grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS);
 	ITER_GRID3_BOTTOM_ALL({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 }
@@ -494,17 +494,17 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC3A, Side::FRONT, 2
     iter_type offset;
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS);
 	ITER_GRID3_FRONT_3A({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1]);
 
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) + (grid.dims[0] - THICKNESS - THICKNESS);
 	ITER_GRID3_FRONT_LEFT_ALL({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1]);
 
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) - (grid.dims[0] - THICKNESS - THICKNESS);
 	ITER_GRID3_FRONT_RIGHT_ALL({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1]);
 }
 
@@ -516,17 +516,17 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC3A, Side::BACK, 2>
 	iter_type offset;
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS);
 	ITER_GRID3_BACK_3A({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) + (grid.dims[0] - THICKNESS - THICKNESS);
 	ITER_GRID3_BACK_RIGHT_ALL({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) - (grid.dims[0] - THICKNESS - THICKNESS);
 	ITER_GRID3_BACK_LEFT_ALL({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 }
@@ -538,7 +538,7 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC3A, Side::LEFT, 2>
 	iter_type offset;
 	offset = grid.dims[0] - THICKNESS - THICKNESS;
 	ITER_GRID3_LEFT_3A({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 }
@@ -550,7 +550,7 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC3A, Side::RIGHT, 2
 	iter_type offset;
 	offset = grid.dims[0] - THICKNESS - THICKNESS;
 	ITER_GRID3_RIGHT_3A({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 }
 
@@ -561,17 +561,17 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC3A, Side::TOP, 2>:
 	iter_type offset;
 	offset = grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS);
 	ITER_GRID3_TOP_3A({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	offset = grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) + (grid.dims[0] - THICKNESS - THICKNESS);
 	ITER_GRID3_LEFT_TOP_ALL({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	offset = grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) - (grid.dims[0] - THICKNESS - THICKNESS);
 	ITER_GRID3_RIGHT_TOP_ALL({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 }
@@ -583,17 +583,17 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC3A, Side::BOTTOM, 
 	iter_type offset;
 	offset = grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS);
 	ITER_GRID3_BOTTOM_3A({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	offset = -grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) + (grid.dims[0] - THICKNESS - THICKNESS);
 	ITER_GRID3_LEFT_BOTTOM_ALL({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	offset = -grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS) - (grid.dims[0] - THICKNESS - THICKNESS);
 	ITER_GRID3_RIGHT_BOTTOM_ALL({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 }
@@ -610,17 +610,17 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC3AA, Side::FRONT, 
     iter_type offset;
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS);
 	ITER_GRID3_FRONT_3AA({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1]);
 
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) + grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS);
 	ITER_GRID3_FRONT_TOP_ALL({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1]);
 
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) - grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS);
 	ITER_GRID3_FRONT_BOTTOM_ALL({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1]);
 }
 
@@ -632,17 +632,17 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC3AA, Side::BACK, 2
 	iter_type offset;
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS);
 	ITER_GRID3_BACK_3AA({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) - grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS);
 	ITER_GRID3_BACK_TOP_ALL({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 	offset = grid.dims[0] * grid.dims[1] * (grid.dims[2] - THICKNESS - THICKNESS) + grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS);
 	ITER_GRID3_BACK_BOTTOM_ALL({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 }
 
@@ -653,7 +653,7 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC3AA, Side::LEFT, 2
 	iter_type offset;
 	offset = grid.dims[0] - THICKNESS - THICKNESS;
 	ITER_GRID3_LEFT_3AA({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 }
@@ -665,7 +665,7 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC3AA, Side::RIGHT, 
 	iter_type offset;
 	offset = grid.dims[0] - THICKNESS - THICKNESS;
 	ITER_GRID3_RIGHT_3AA({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 }
 
@@ -676,7 +676,7 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC3AA, Side::TOP, 2>
 	iter_type offset;
 	offset = grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS);
 	ITER_GRID3_TOP_3AA({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 
@@ -689,7 +689,7 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC3AA, Side::BOTTOM,
 	iter_type offset;
 	offset = grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS);
 	ITER_GRID3_BOTTOM_3AA({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0], grid.dims[1], grid.dims[2]);
 
 }
@@ -707,18 +707,19 @@ template<typename T>
 void symphas::internal::update_boundary<BoundaryType::PERIODIC, Side::LEFT, 1>::operator()(const grid::Boundary<T, 1>*, Grid<T, 2>& grid)
 {
 	iter_type offset = grid.dims[0] - THICKNESS - THICKNESS;
+
 	ITER_GRID2_LEFT({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1]);
 
 	offset = (grid.dims[1] - THICKNESS - THICKNESS) * grid.dims[0] + (grid.dims[0] - THICKNESS - THICKNESS);
 	ITER_GRID2_LEFT_TOP({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0]);
 
 	offset = -(grid.dims[1] - THICKNESS - THICKNESS) * grid.dims[0] + (grid.dims[0] - THICKNESS - THICKNESS);
 	ITER_GRID2_BOTTOM_LEFT({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1]);
 }
 
@@ -728,17 +729,17 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC, Side::RIGHT, 1>:
 {
 	iter_type offset = grid.dims[0] - THICKNESS - THICKNESS;
 	ITER_GRID2_RIGHT({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0], grid.dims[1]);
 
 	offset = -(grid.dims[1] - THICKNESS - THICKNESS) * grid.dims[0] - (grid.dims[0] - THICKNESS - THICKNESS);
 	ITER_GRID2_RIGHT_BOTTOM({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1]);
 
 	offset = (grid.dims[1] - THICKNESS - THICKNESS) * grid.dims[0] - (grid.dims[0] - THICKNESS - THICKNESS);
 	ITER_GRID2_TOP_RIGHT({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0]);
 }
 
@@ -749,7 +750,7 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC, Side::TOP, 1>::o
 {
 	iter_type offset = grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS);
 	ITER_GRID2_TOP({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0]);
 
 }
@@ -760,7 +761,7 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC, Side::BOTTOM, 1>
 {
 	iter_type offset = grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS);
 	ITER_GRID2_BOTTOM({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0], grid.dims[1]);
 }
 
@@ -774,7 +775,7 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC0, Side::LEFT, 1>:
 {
 	iter_type offset = grid.dims[0] - THICKNESS - THICKNESS;
 	ITER_GRID2_LEFT_ALL({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0], grid.dims[1]);
 }
 
@@ -784,7 +785,7 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC0, Side::RIGHT, 1>
 {
 	iter_type offset = grid.dims[0] - THICKNESS - THICKNESS;
 	ITER_GRID2_RIGHT_ALL({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0], grid.dims[1]);
 }
 
@@ -795,7 +796,7 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC0, Side::TOP, 1>::
 {
 	iter_type offset = grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS);
 	ITER_GRID2_TOP_ALL({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		}, grid.dims[0]);
 }
 
@@ -805,7 +806,7 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC0, Side::BOTTOM, 1
 {
 	iter_type offset = grid.dims[0] * (grid.dims[1] - THICKNESS - THICKNESS);
 	ITER_GRID2_BOTTOM_ALL({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0], grid.dims[1]);
 }
 
@@ -819,7 +820,7 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC, Side::LEFT, 0>::
 {
 	iter_type offset = grid.dims[0] - THICKNESS - THICKNESS;
 	ITER_GRID1_LEFT({
-		grid.values[INDEX] = grid.values[INDEX + offset];
+		grid[INDEX] = grid[INDEX + offset];
 		});
 }
 
@@ -829,7 +830,7 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC, Side::RIGHT, 0>:
 {
 	iter_type offset = grid.dims[0] - THICKNESS - THICKNESS;
 	ITER_GRID1_RIGHT({
-		grid.values[INDEX] = grid.values[INDEX - offset];
+		grid[INDEX] = grid[INDEX - offset];
 		}, grid.dims[0]);
 }
 
@@ -868,43 +869,43 @@ void symphas::internal::update_boundary<BoundaryType::DEFAULT, Side::FRONT, 2>::
 	// iter_j == (ENTRY % li)
 	// iter_k = ((ENTRY / li) % mi)
 	ITER_GRID3_FRONT({
-		bd->update(grid.values[INDEX], x[0] + iter_i * h[0], y[0] + iter_j * h[1], time);
+		bd->update(grid[INDEX], x[0] + iter_i * h[0], y[0] + iter_j * h[1], time);
 		}, L, M);
 
 	// edges
 
 	ITER_GRID3_FRONT_TOP({
-		bd->update(grid.values[INDEX], x[0] + iter_i * h[0], y[0], time);
+		bd->update(grid[INDEX], x[0] + iter_i * h[0], y[0], time);
 		}, L, M);
 
 	ITER_GRID3_FRONT_BOTTOM({
-		bd->update(grid.values[INDEX], x[0] + iter_i * h[0], y[1], time);
+		bd->update(grid[INDEX], x[0] + iter_i * h[0], y[1], time);
 		}, L, M);
 
 	ITER_GRID3_FRONT_LEFT({
-		bd->update(grid.values[INDEX], x[0], y[0] + iter_j * h[1], time);
+		bd->update(grid[INDEX], x[0], y[0] + iter_j * h[1], time);
 		}, L, M);
 
 	ITER_GRID3_FRONT_RIGHT({
-		bd->update(grid.values[INDEX], x[1], y[0] + iter_j * h[1], time);
+		bd->update(grid[INDEX], x[1], y[0] + iter_j * h[1], time);
 		}, L, M);
 
 	// corners
 
 	ITER_GRID3_LEFT_TOP_FRONT({
-		bd->update(grid.values[INDEX], x[0], y[0], time);
+		bd->update(grid[INDEX], x[0], y[0], time);
 		}, L, M);
 
 	ITER_GRID3_FRONT_TOP_RIGHT({
-		bd->update(grid.values[INDEX], x[1], y[0], time);
+		bd->update(grid[INDEX], x[1], y[0], time);
 		}, L, M);
 
 	ITER_GRID3_LEFT_BOTTOM_FRONT({
-		bd->update(grid.values[INDEX], x[0], y[1], time);
+		bd->update(grid[INDEX], x[0], y[1], time);
 		}, L, M);
 
 	ITER_GRID3_FRONT_BOTTOM_RIGHT({
-		bd->update(grid.values[INDEX], x[1], y[1], time);
+		bd->update(grid[INDEX], x[1], y[1], time);
 		}, L, M);
 
 
@@ -933,43 +934,43 @@ void symphas::internal::update_boundary<BoundaryType::DEFAULT, Side::BACK, 2>::o
 	// iter_j == (ENTRY % li)
 	// iter_k = ((ENTRY / li) % mi)
 	ITER_GRID3_BACK({
-		bd->update(grid.values[INDEX], x[0] + iter_i * h[0], y[0] + iter_j * h[1], time);
+		bd->update(grid[INDEX], x[0] + iter_i * h[0], y[0] + iter_j * h[1], time);
 		}, L, M, N);
 
 	// edges
 
 	ITER_GRID3_BACK_TOP({
-		bd->update(grid.values[INDEX], x[0] + iter_i * h[0], y[0], time);
+		bd->update(grid[INDEX], x[0] + iter_i * h[0], y[0], time);
 		}, L, M, N);
 
 	ITER_GRID3_BACK_BOTTOM({
-		bd->update(grid.values[INDEX], x[0] + iter_i * h[0], y[1], time);
+		bd->update(grid[INDEX], x[0] + iter_i * h[0], y[1], time);
 		}, L, M, N);
 
 	ITER_GRID3_BACK_LEFT({
-		bd->update(grid.values[INDEX], x[0], y[0] + iter_j * h[1], time);
+		bd->update(grid[INDEX], x[0], y[0] + iter_j * h[1], time);
 		}, L, M, N);
 
 	ITER_GRID3_BACK_RIGHT({
-		bd->update(grid.values[INDEX], x[1], y[0] + iter_j * h[1], time);
+		bd->update(grid[INDEX], x[1], y[0] + iter_j * h[1], time);
 		}, L, M, N);
 
 	// corners
 
 	ITER_GRID3_BACK_TOP_LEFT({
-		bd->update(grid.values[INDEX], x[0], y[0], time);
+		bd->update(grid[INDEX], x[0], y[0], time);
 		}, L, M, N);
 
 	ITER_GRID3_RIGHT_TOP_BACK({
-		bd->update(grid.values[INDEX], x[1], y[0], time);
+		bd->update(grid[INDEX], x[1], y[0], time);
 		}, L, M, N);
 
 	ITER_GRID3_BACK_BOTTOM_LEFT({
-		bd->update(grid.values[INDEX], x[0], y[1], time);
+		bd->update(grid[INDEX], x[0], y[1], time);
 		}, L, M, N);
 
 	ITER_GRID3_RIGHT_BOTTOM_BACK({
-		bd->update(grid.values[INDEX], x[1], y[1], time);
+		bd->update(grid[INDEX], x[1], y[1], time);
 		}, L, M, N);
 }
 
@@ -996,43 +997,43 @@ void symphas::internal::update_boundary<BoundaryType::DEFAULT, Side::LEFT, 2>::o
 	// iter_i == (ENTRY % ni)
 	// iter_j == ((ENTRY / ni) % mi)
 	ITER_GRID3_LEFT({
-		bd->update(grid.values[INDEX], x[0] + iter_i * h[0], y[0] + iter_j * h[1], time);
+		bd->update(grid[INDEX], x[0] + iter_i * h[0], y[0] + iter_j * h[1], time);
 		}, L, M, N);
 
 	// edges
 
 	ITER_GRID3_LEFT_TOP({
-		bd->update(grid.values[INDEX], x[0] + iter_i * h[0], y[0], time);
+		bd->update(grid[INDEX], x[0] + iter_i * h[0], y[0], time);
 		}, L, M, N);
 
 	ITER_GRID3_LEFT_BOTTOM({
-		bd->update(grid.values[INDEX], x[0] + iter_i * h[0], y[1], time);
+		bd->update(grid[INDEX], x[0] + iter_i * h[0], y[1], time);
 		}, L, M, N);
 
 	ITER_GRID3_FRONT_LEFT({
-		bd->update(grid.values[INDEX], x[0], y[0] + iter_j * h[1], time);
+		bd->update(grid[INDEX], x[0], y[0] + iter_j * h[1], time);
 		}, L, M);
 
 	ITER_GRID3_BACK_LEFT({
-		bd->update(grid.values[INDEX], x[1], y[0] + iter_j * h[1], time);
+		bd->update(grid[INDEX], x[1], y[0] + iter_j * h[1], time);
 		}, L, M, N);
 
 	// corners
 
 	ITER_GRID3_LEFT_TOP_FRONT({
-		bd->update(grid.values[INDEX], x[0], y[0], time);
+		bd->update(grid[INDEX], x[0], y[0], time);
 		}, L, M);
 
 	ITER_GRID3_BACK_TOP_LEFT({
-		bd->update(grid.values[INDEX], x[1], y[0], time);
+		bd->update(grid[INDEX], x[1], y[0], time);
 		}, L, M, N);
 
 	ITER_GRID3_LEFT_BOTTOM_FRONT({
-		bd->update(grid.values[INDEX], x[0], y[1], time);
+		bd->update(grid[INDEX], x[0], y[1], time);
 		}, L, M);
 
 	ITER_GRID3_BACK_BOTTOM_LEFT({
-		bd->update(grid.values[INDEX], x[1], y[1], time);
+		bd->update(grid[INDEX], x[1], y[1], time);
 		}, L, M, N);
 }
 
@@ -1059,45 +1060,45 @@ void symphas::internal::update_boundary<BoundaryType::DEFAULT, Side::RIGHT, 2>::
 	// iter_i == (ENTRY % ni)
 	// iter_j == ((ENTRY / ni) % mi)
 	ITER_GRID3_RIGHT({
-		bd->update(grid.values[INDEX], x[0] + iter_i * h[0], y[0] + iter_j * h[1], time);
+		bd->update(grid[INDEX], x[0] + iter_i * h[0], y[0] + iter_j * h[1], time);
 		}, L, M, N);
 
 
 	// edges
 
 	ITER_GRID3_RIGHT_TOP({
-		bd->update(grid.values[INDEX], x[0] + iter_i * h[0], y[0], time);
+		bd->update(grid[INDEX], x[0] + iter_i * h[0], y[0], time);
 		}, L, M, N);
 
 	ITER_GRID3_RIGHT_BOTTOM({
-		bd->update(grid.values[INDEX], x[0] + iter_i * h[0], y[1], time);
+		bd->update(grid[INDEX], x[0] + iter_i * h[0], y[1], time);
 		}, L, M, N);
 
 	ITER_GRID3_FRONT_RIGHT({
-		bd->update(grid.values[INDEX], x[0], y[0] + iter_j * h[1], time);
+		bd->update(grid[INDEX], x[0], y[0] + iter_j * h[1], time);
 		}, L, M);
 
 	ITER_GRID3_BACK_RIGHT({
-		bd->update(grid.values[INDEX], x[1], y[0] + iter_j * h[1], time);
+		bd->update(grid[INDEX], x[1], y[0] + iter_j * h[1], time);
 		}, L, M, N);
 
 
 	// corners
 
 	ITER_GRID3_FRONT_TOP_RIGHT({
-		bd->update(grid.values[INDEX], x[0], y[0], time);
+		bd->update(grid[INDEX], x[0], y[0], time);
 		}, L, M);
 
 	ITER_GRID3_RIGHT_TOP_BACK({
-		bd->update(grid.values[INDEX], x[1], y[0], time);
+		bd->update(grid[INDEX], x[1], y[0], time);
 		}, L, M, N);
 
 	ITER_GRID3_FRONT_BOTTOM_RIGHT({
-		bd->update(grid.values[INDEX], x[0], y[1], time);
+		bd->update(grid[INDEX], x[0], y[1], time);
 		}, L, M);
 
 	ITER_GRID3_RIGHT_BOTTOM_BACK({
-		bd->update(grid.values[INDEX], x[1], y[1], time);
+		bd->update(grid[INDEX], x[1], y[1], time);
 		}, L, M, N);
 
 }
@@ -1125,44 +1126,44 @@ void symphas::internal::update_boundary<BoundaryType::DEFAULT, Side::TOP, 2>::op
 	// iter_k == (ENTRY % ni)
 	// iter_i == ((ENTRY / li) % ni)
 	ITER_GRID3_TOP({
-		bd->update(grid.values[INDEX], x[0] + iter_i * h[0], y[0] + iter_j * h[1], time);
+		bd->update(grid[INDEX], x[0] + iter_i * h[0], y[0] + iter_j * h[1], time);
 		}, L, M, N);
 
 
 	// edges
 
 	ITER_GRID3_FRONT_TOP({
-		bd->update(grid.values[INDEX], x[0] + iter_i * h[0], y[0], time);
+		bd->update(grid[INDEX], x[0] + iter_i * h[0], y[0], time);
 		}, L, M);
 
 	ITER_GRID3_BACK_TOP({
-		bd->update(grid.values[INDEX], x[0] + iter_i * h[0], y[1], time);
+		bd->update(grid[INDEX], x[0] + iter_i * h[0], y[1], time);
 		}, L, M, N);
 
 	ITER_GRID3_LEFT_TOP({
-		bd->update(grid.values[INDEX], x[0], y[0] + iter_j * h[1], time);
+		bd->update(grid[INDEX], x[0], y[0] + iter_j * h[1], time);
 		}, L, M, N);
 
 	ITER_GRID3_RIGHT_TOP({
-		bd->update(grid.values[INDEX], x[1], y[0] + iter_j * h[1], time);
+		bd->update(grid[INDEX], x[1], y[0] + iter_j * h[1], time);
 		}, L, M, N);
 
 	// corners
 
 	ITER_GRID3_LEFT_TOP_FRONT({
-		bd->update(grid.values[INDEX], x[0], y[0], time);
+		bd->update(grid[INDEX], x[0], y[0], time);
 		}, L, M);
 
 	ITER_GRID3_FRONT_TOP_RIGHT({
-		bd->update(grid.values[INDEX], x[1], y[0], time);
+		bd->update(grid[INDEX], x[1], y[0], time);
 		}, L, M);
 
 	ITER_GRID3_BACK_TOP_LEFT({
-		bd->update(grid.values[INDEX], x[0], y[1], time);
+		bd->update(grid[INDEX], x[0], y[1], time);
 		}, L, M, N);
 
 	ITER_GRID3_RIGHT_TOP_BACK({
-		bd->update(grid.values[INDEX], x[1], y[1], time);
+		bd->update(grid[INDEX], x[1], y[1], time);
 		}, L, M, N);
 
 }
@@ -1190,43 +1191,43 @@ void symphas::internal::update_boundary<BoundaryType::DEFAULT, Side::BOTTOM, 2>:
 	// iter_k == (ENTRY % ni)
 	// iter_i == ((ENTRY / li) % ni)
 	ITER_GRID3_BOTTOM({
-		bd->update(grid.values[INDEX], x[0] + iter_i * h[0], y[0] + iter_j * h[1], time);
+		bd->update(grid[INDEX], x[0] + iter_i * h[0], y[0] + iter_j * h[1], time);
 		}, L, M, N);
 
 	// edges
 
 	ITER_GRID3_FRONT_BOTTOM({
-		bd->update(grid.values[INDEX], x[0] + iter_i * h[0], y[0], time);
+		bd->update(grid[INDEX], x[0] + iter_i * h[0], y[0], time);
 		}, L, M);
 
 	ITER_GRID3_BACK_BOTTOM({
-		bd->update(grid.values[INDEX], x[0] + iter_i * h[0], y[1], time);
+		bd->update(grid[INDEX], x[0] + iter_i * h[0], y[1], time);
 		}, L, M, N);
 
 	ITER_GRID3_LEFT_BOTTOM({
-		bd->update(grid.values[INDEX], x[0], y[0] + iter_j * h[1], time);
+		bd->update(grid[INDEX], x[0], y[0] + iter_j * h[1], time);
 		}, L, M, N);
 
 	ITER_GRID3_RIGHT_BOTTOM({
-		bd->update(grid.values[INDEX], x[1], y[0] + iter_j * h[1], time);
+		bd->update(grid[INDEX], x[1], y[0] + iter_j * h[1], time);
 		}, L, M, N);
 
 	// corners
 
 	ITER_GRID3_LEFT_BOTTOM_FRONT({
-		bd->update(grid.values[INDEX], x[0], y[0], time);
+		bd->update(grid[INDEX], x[0], y[0], time);
 		}, L, M);
 
 	ITER_GRID3_FRONT_BOTTOM_RIGHT({
-		bd->update(grid.values[INDEX], x[1], y[0], time);
+		bd->update(grid[INDEX], x[1], y[0], time);
 		}, L, M);
 
 	ITER_GRID3_BACK_BOTTOM_LEFT({
-		bd->update(grid.values[INDEX], x[0], y[1], time);
+		bd->update(grid[INDEX], x[0], y[1], time);
 		}, L, M, N);
 
 	ITER_GRID3_RIGHT_BOTTOM_BACK({
-		bd->update(grid.values[INDEX], x[1], y[1], time);
+		bd->update(grid[INDEX], x[1], y[1], time);
 		}, L, M, N);
 }
 
@@ -1250,16 +1251,16 @@ void symphas::internal::update_boundary<BoundaryType::DEFAULT, Side::LEFT, 1>::o
 	iter_type M = grid.dims[1];
 
 	ITER_GRID2_LEFT({
-		bd->update(grid.values[INDEX], v0 + iter_i * h, 0, time);
+		bd->update(grid[INDEX], v0 + iter_i * h, 0, time);
 		}, L, M);
 
 	// corners
 
 	ITER_GRID2_LEFT_TOP({
-		bd->update(grid.values[INDEX], 0, v0, time);
+		bd->update(grid[INDEX], 0, v0, time);
 		}, L);
 	ITER_GRID2_BOTTOM_LEFT({
-		bd->update(grid.values[INDEX], 0, v1, time);
+		bd->update(grid[INDEX], 0, v1, time);
 		}, L, M);
 }
 
@@ -1281,16 +1282,16 @@ void symphas::internal::update_boundary<BoundaryType::DEFAULT, Side::RIGHT, 1>::
 	iter_type M = grid.dims[1];
 
 	ITER_GRID2_RIGHT({
-		bd->update(grid.values[INDEX], v0 + iter_i * h, 0, time);
+		bd->update(grid[INDEX], v0 + iter_i * h, 0, time);
 		}, L, M);
 
 	// corners
 
 	ITER_GRID2_TOP_RIGHT({
-		bd->update(grid.values[INDEX], 0, v0, time);
+		bd->update(grid[INDEX], 0, v0, time);
 		}, L);
 	ITER_GRID2_RIGHT_BOTTOM({
-		bd->update(grid.values[INDEX], 0, v1, time);
+		bd->update(grid[INDEX], 0, v1, time);
 		}, L, M);
 }
 
@@ -1311,16 +1312,16 @@ void symphas::internal::update_boundary<BoundaryType::DEFAULT, Side::TOP, 1>::op
 	iter_type L = grid.dims[0];
 
 	ITER_GRID2_TOP({
-		bd->update(grid.values[INDEX], v0 + iter_i * h, 0, time);
+		bd->update(grid[INDEX], v0 + iter_i * h, 0, time);
 		}, L);
 
 	// corners
 
 	ITER_GRID2_LEFT_TOP({
-		bd->update(grid.values[INDEX], v0, 0, time);
+		bd->update(grid[INDEX], v0, 0, time);
 		}, L);
 	ITER_GRID2_TOP_RIGHT({
-		bd->update(grid.values[INDEX], v1, 0, time);
+		bd->update(grid[INDEX], v1, 0, time);
 		}, L);
 }
 
@@ -1342,16 +1343,16 @@ void symphas::internal::update_boundary<BoundaryType::DEFAULT, Side::BOTTOM, 1>:
 	iter_type M = grid.dims[1];
 
 	ITER_GRID2_BOTTOM({
-		bd->update(grid.values[INDEX], v0 + iter_i * h, 0, time);
+		bd->update(grid[INDEX], v0 + iter_i * h, 0, time);
 		}, L, M);
 
 	// corners
 
 	ITER_GRID2_BOTTOM_LEFT({
-		bd->update(grid.values[INDEX], v0, 0, time);
+		bd->update(grid[INDEX], v0, 0, time);
 		}, L, M);
 	ITER_GRID2_RIGHT_BOTTOM({
-		bd->update(grid.values[INDEX], v1, 0, time);
+		bd->update(grid[INDEX], v1, 0, time);
 		}, L, M);
 }
 
@@ -1365,7 +1366,7 @@ void symphas::internal::update_boundary<BoundaryType::DEFAULT, Side::LEFT, 0>::o
 	const double v = bd->v;
 
 	ITER_GRID1_LEFT({
-		bd->update(grid.values[INDEX], v, 0, time);
+		bd->update(grid[INDEX], v, 0, time);
 		});
 }
 
@@ -1378,7 +1379,7 @@ void symphas::internal::update_boundary<BoundaryType::DEFAULT, Side::RIGHT, 0>::
 	iter_type L = grid.dims[0];
 
 	ITER_GRID1_RIGHT({
-		bd->update(grid.values[INDEX], v, 0, time);
+		bd->update(grid[INDEX], v, 0, time);
 		}, L);
 }
 

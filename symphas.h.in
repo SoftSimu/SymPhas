@@ -36,10 +36,11 @@
 #include "modules-none.h"
 #endif
 
+#ifdef USING_PROC
+#include "proc.h"
+#endif
 
 #include "modules-models.h"
-
-
 
 
 #undef BUFFER_LENGTH_R4

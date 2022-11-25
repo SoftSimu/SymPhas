@@ -32,13 +32,21 @@
 template<typename T>
 int symphas::io::read_grid(T* values, symphas::io::read_info const& rinfo)
 {
-	SWITCH_IO_READ(read_grid<T>(values, rinfo), BAD_INDEX)
+	SWITCH_IO_READ(read_grid(values, rinfo), BAD_INDEX)
 }
+
 template<typename T, size_t N>
 int symphas::io::read_grid(T(*values)[N], symphas::io::read_info const& rinfo)
 {
 	using data_unit = T[N];
-	SWITCH_IO_READ(read_grid<data_unit>(values, rinfo), BAD_INDEX)
+	SWITCH_IO_READ(read_grid(values, rinfo), BAD_INDEX)
+}
+
+template<typename T, size_t N>
+int symphas::io::read_grid(T* (&values)[N], symphas::io::read_info const& rinfo)
+{
+	using data_unit = T*[N];
+	SWITCH_IO_READ(read_grid(values, rinfo), BAD_INDEX)
 }
 
 inline symphas::grid_info symphas::io::read_header(symphas::io::read_info const& rinfo, iter_type* index)

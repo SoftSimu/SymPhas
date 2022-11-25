@@ -108,7 +108,7 @@ symphas::grid_info symphas::io::gp::read_header(FILE* f, int* index)
 
 
 template<>
-void symphas::io::gp::read_block<scalar_t>(scalar_t* grid, symphas::grid_info ginfo, FILE* f)
+void symphas::io::gp::read_block(scalar_t* grid, symphas::grid_info ginfo, FILE* f)
 {
 	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
 	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
@@ -128,7 +128,7 @@ void symphas::io::gp::read_block<scalar_t>(scalar_t* grid, symphas::grid_info gi
 }
 
 template<>
-void symphas::io::gp::read_block<complex_t>(complex_t* grid, symphas::grid_info ginfo, FILE* f)
+void symphas::io::gp::read_block(complex_t* grid, symphas::grid_info ginfo, FILE* f)
 {
 	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
 	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
@@ -150,7 +150,7 @@ void symphas::io::gp::read_block<complex_t>(complex_t* grid, symphas::grid_info 
 }
 
 template<>
-void symphas::io::gp::read_block<double[2]>(double(*grid)[2], symphas::grid_info ginfo, FILE* f)
+void symphas::io::gp::read_block(double_arr2*grid, symphas::grid_info ginfo, FILE* f)
 {
 	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
 	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
@@ -171,7 +171,7 @@ void symphas::io::gp::read_block<double[2]>(double(*grid)[2], symphas::grid_info
 }
 
 template<>
-void symphas::io::gp::read_block<vector_t<3>>(vector_t<3>* grid, symphas::grid_info ginfo, FILE* f)
+void symphas::io::gp::read_block(vector_t<3>* grid, symphas::grid_info ginfo, FILE* f)
 {
 	len_type N = ginfo.at(Axis::Z).count();
 	len_type M = ginfo.at(Axis::Y).count();
@@ -198,7 +198,7 @@ void symphas::io::gp::read_block<vector_t<3>>(vector_t<3>* grid, symphas::grid_i
 }
 
 template<>
-void symphas::io::gp::read_block<vector_t<2>>(vector_t<2>* grid, symphas::grid_info ginfo, FILE* f)
+void symphas::io::gp::read_block(vector_t<2>* grid, symphas::grid_info ginfo, FILE* f)
 {
 	for (iter_type j = 0; j < ginfo.at(Axis::Y).count(); j++)
 	{
@@ -219,7 +219,7 @@ void symphas::io::gp::read_block<vector_t<2>>(vector_t<2>* grid, symphas::grid_i
 
 
 template<>
-void symphas::io::gp::read_block<vector_t<1>>(vector_t<1>* grid, symphas::grid_info ginfo, FILE* f)
+void symphas::io::gp::read_block(vector_t<1>* grid, symphas::grid_info ginfo, FILE* f)
 {
 	for (iter_type i = 0; i < ginfo.at(Axis::X).count(); i++)
 	{
@@ -230,6 +230,68 @@ void symphas::io::gp::read_block<vector_t<1>>(vector_t<1>* grid, symphas::grid_i
 
 }
 
+template<>
+void symphas::io::gp::read_block(scalar_ptr_t(&grid)[3], symphas::grid_info ginfo, FILE* f)
+{
+	len_type N = ginfo.at(Axis::Z).count();
+	len_type M = ginfo.at(Axis::Y).count();
+	len_type L = ginfo.at(Axis::X).count();
+
+	for (iter_type k = 0; k < N; k++)
+	{
+		for (iter_type j = 0; j < M; j++)
+		{
+			for (iter_type i = 0; i < L; i++)
+			{
+				iter_type ii = i + (j * L) + (k * L * M);
+				double m, dx, dy, dz;
+
+				fscanf(f,
+					"%lf %lf %lf %lf",
+					&dx, &dy, &dz, &m);
+
+				grid[0][ii] = dx * m;
+				grid[1][ii] = dy * m;
+				grid[2][ii] = dz * m;
+			}
+		}
+	}
+
+}
+
+template<>
+void symphas::io::gp::read_block(scalar_ptr_t(&grid)[2], symphas::grid_info ginfo, FILE* f)
+{
+	for (iter_type j = 0; j < ginfo.at(Axis::Y).count(); j++)
+	{
+		for (iter_type i = 0; i < ginfo.at(Axis::X).count(); i++)
+		{
+			iter_type ii = i + j * ginfo.at(Axis::X).count();
+			double m, dx, dy;
+
+			fscanf(f,
+				"%lf %lf %lf",
+				&dx, &dy, &m);
+
+			grid[0][ii] = dx * m;
+			grid[1][ii] = dy * m;
+		}
+	}
+
+}
+
+
+template<>
+void symphas::io::gp::read_block(scalar_ptr_t(&grid)[1], symphas::grid_info ginfo, FILE* f)
+{
+	for (iter_type i = 0; i < ginfo.at(Axis::X).count(); i++)
+	{
+		double m;
+		fscanf(f, "%lf", &m);
+		grid[0][i] = m;
+	}
+
+}
 
 
 

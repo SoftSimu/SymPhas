@@ -37,7 +37,8 @@
 
 #pragma once
 
-#include "spslib.h"
+#include "gridinfo.h"
+#include "expressionstencils.h"
 
 #define DEFAULT_STENCIL_ACCURACY 2
 
@@ -47,6 +48,56 @@
  * \defgroup stencil Finite Difference Stencils
  * @{
  */
+
+
+namespace symphas
+{
+
+	template<Axis ax>
+	void set_stride(len_type(&stride)[1], len_type const* dims)
+	{
+		stride[0] = 1;
+	}
+
+	template<Axis ax>
+	void set_stride(len_type(&stride)[2], len_type const* dims)
+	{
+		if constexpr (ax == Axis::X)
+		{
+			stride[0] = 1;
+			stride[1] = dims[0];
+		}
+		else
+		{
+			stride[0] = -dims[0];
+			stride[1] = 1;
+		}
+	}
+
+	template<Axis ax>
+	void set_stride(len_type(&stride)[3], len_type const* dims)
+	{
+		if constexpr (ax == Axis::X)
+		{
+			stride[0] = 1;
+			stride[1] = dims[0];
+			stride[2] = dims[0] * dims[1];
+		}
+		else if constexpr (ax == Axis::Y)
+		{
+			stride[0] = -dims[0];
+			stride[1] = 1;
+			stride[2] = dims[0] * dims[1];
+		}
+		else
+		{
+			stride[0] = -dims[0] * dims[1];
+			stride[1] = dims[0];
+			stride[2] = 1;
+		}
+	}
+}
+
 
 
 // ******************************************************************************************
@@ -60,28 +111,244 @@
 template<typename Sp>
 struct Stencil
 {
-	template <typename T>
-	auto laplacian(T * const v) const
+
+	template <typename T, size_t D>
+	auto laplacian(T* const v, const len_type(&stride)[D]) const
 	{
-		return (*static_cast<const Sp*>(this)).laplacian(v);
+		return cast().laplacian(v, stride);
 	}
-	template <typename T>
-	auto bilaplacian(T * const v) const
+	template <typename T, size_t D>
+	auto bilaplacian(T* const v, const len_type(&stride)[D]) const
 	{
-		return (*static_cast<const Sp*>(this)).bilaplacian(v);
+		return cast().bilaplacian(v, stride);
 	}
-	template <typename T>
-	auto gradlaplacian(T * const v) const
+	template <typename T, size_t D>
+	auto gradlaplacian(T* const v, const len_type(&stride)[D]) const
 	{
-		return (*static_cast<const Sp*>(this)).gradlaplacian(v);
+		return cast().gradlaplacian(v, stride);
 	}
 
-	template<typename T>
-	auto gradient(T * const v) const
+	template<typename T, size_t D>
+	auto gradient(T* const v, const len_type (&stride)[D]) const
 	{
-		return (*static_cast<const Sp*>(this)).gradient(v);
+		return cast().gradient(v, stride);
+	}
+
+	template<Axis ax, size_t O, template<typename, size_t> typename G, typename T, size_t D, 
+		typename = std::enable_if_t<std::is_convertible<G<T, D>, Block<T>>::value, int>>
+	auto applied_generalized_directional_derivative(G<T, D> const& grid, iter_type n) const
+	{
+		return cast().template apply_directional<ax, O>(grid.values + n);
+	}
+
+	template<size_t... Os, template<typename, size_t> typename G, typename T, size_t D,
+		typename = std::enable_if_t<std::is_convertible<G<T, D>, Block<T>>::value, int>>
+	auto applied_generalized_mixed_derivative(G<T, D> const& grid, iter_type n) const
+	{
+		return cast().template apply_mixed<Os...>(grid.values + n);
+	}
+
+	template<Axis ax, size_t O, template<typename, size_t> typename G, typename T, size_t D,
+		typename = std::enable_if_t<std::is_convertible<G<T, D>, Block<T>>::value, int>>
+	auto applied_generalized_derivative(G<T, D> const& grid, iter_type n) const
+	{
+		len_type stride[D];
+		symphas::set_stride<ax>(stride, cast().dims);
+		return cast().template apply<O>(grid.values + n, stride);
+	}
+
+	template<template<typename, size_t> typename G, typename T, size_t D,
+		typename = std::enable_if_t<std::is_convertible<G<T, D>, Block<T>>::value, int>>
+	auto applied_laplacian(G<T, D> const& grid, iter_type n) const
+	{
+		len_type stride[D];
+		symphas::set_stride<Axis::X>(stride, cast().dims);
+		return laplacian(grid.values + n, stride);
+	}
+
+	template<template<typename, size_t> typename G, typename T, size_t D,
+		typename = std::enable_if_t<std::is_convertible<G<T, D>, Block<T>>::value, int>>
+	auto applied_bilaplacian(G<T, D> const& grid, iter_type n) const
+	{
+		len_type stride[D];
+		symphas::set_stride<Axis::X>(stride, cast().dims);
+		return bilaplacian(grid.values + n, stride);
+	}
+
+	template<Axis ax, template<typename, size_t> typename G, typename T, size_t D,
+		typename = std::enable_if_t<std::is_convertible<G<T, D>, Block<T>>::value, int>>
+	auto applied_gradlaplacian(G<T, D> const& grid, iter_type n) const
+	{
+		len_type stride[D];
+		symphas::set_stride<ax>(stride, cast().dims);
+		return gradlaplacian(grid.values + n, stride);
+	}
+
+	template<Axis ax, template<typename, size_t> typename G, typename T, size_t D,
+		typename = std::enable_if_t<std::is_convertible<G<T, D>, Block<T>>::value, int>>
+	auto applied_gradient(G<T, D> const& grid, iter_type n) const
+	{
+		len_type stride[D];
+		symphas::set_stride<ax>(stride, cast().dims);
+		return gradient(grid.values + n, stride);
+	}
+
+
+	template<Axis ax, size_t O, typename T, size_t D>
+	auto applied_generalized_directional_derivative(VectorComponentData<ax, T*, D> const& data, iter_type n) const
+	{
+		return cast().template apply_directional<ax, O>(data.values + n);
+	}
+
+	template<size_t... Os, Axis ax, typename T, size_t D>
+	auto applied_generalized_mixed_derivative(VectorComponentData<ax, T*, D> const& grid, iter_type n) const
+	{
+		return cast().template apply_mixed<Os...>(grid.values + n);
+	}
+
+	template<Axis ax, size_t O, typename T, size_t D>
+	auto applied_generalized_derivative(VectorComponentData<ax, T*, D> const& data, iter_type n) const
+	{
+		len_type stride[D];
+		symphas::set_stride<ax>(stride, cast().dims);
+		return cast().template apply<O>(data.values + n, stride);
+	}
+
+	template<Axis ax, typename T, size_t D>
+	auto applied_laplacian(VectorComponentData<ax, T*, D> const& data, iter_type n) const
+	{
+		len_type stride[D];
+		symphas::set_stride<Axis::X>(stride, cast().dims);
+		return laplacian(data.values + n, stride);
+	}
+
+	template<Axis ax, typename T, size_t D>
+	auto applied_bilaplacian(VectorComponentData<ax, T*, D> const& data, iter_type n) const
+	{
+		len_type stride[D];
+		symphas::set_stride<Axis::X>(stride, cast().dims);
+		return bilaplacian(data.values + n, stride);
+	}
+
+	template<Axis ax, typename T, size_t D>
+	auto applied_gradlaplacian(VectorComponentData<ax, T*, D> const& data, iter_type n) const
+	{
+		len_type stride[D];
+		symphas::set_stride<ax>(stride, cast().dims);
+		return gradlaplacian(data.values + n, stride);
+	}
+
+	template<Axis ax, typename T, size_t D>
+	auto applied_gradient(VectorComponentData<ax, T*, D> const& data, iter_type n) const
+	{
+		len_type stride[D];
+		symphas::set_stride<ax>(stride, cast().dims);
+		return gradient(data.values + n, stride);
+	}
+
+
+	template<Axis ax, size_t O>
+	auto applied_generalized_directional_derivative(...) const
+	{
+		return symphas::lib::get_identity<scalar_t>();
+	}
+
+	template<size_t... Os>
+	auto applied_generalized_mixed_derivative(...) const
+	{
+		return symphas::lib::get_identity<scalar_t>();
+	}
+
+	template<Axis ax, size_t O>
+	auto applied_generalized_derivative(...) const
+	{
+		return symphas::lib::get_identity<scalar_t>();
+	}
+
+	auto applied_laplacian(...) const
+	{
+		return symphas::lib::get_identity<scalar_t>();
+	}
+
+	auto applied_bilaplacian(...) const
+	{
+		return symphas::lib::get_identity<scalar_t>();
+	}
+
+	template<Axis ax>
+	auto applied_gradlaplacian(...) const
+	{
+		return symphas::lib::get_identity<scalar_t>();
+	}
+
+	template<Axis ax>
+	auto applied_gradient(...) const
+	{
+		return symphas::lib::get_identity<scalar_t>();
+	}
+
+	const Sp& cast() const
+	{
+		return (*static_cast<const Sp*>(this));
+	}
+
+	Sp& cast()
+	{
+		return (*static_cast<Sp*>(this));
 	}
 };
+
+namespace symphas::internal
+{
+
+#ifdef GENERATE_UNDEFINED_STENCILS_ON
+
+	template<Axis ax, size_t OD, size_t OA, typename T, typename Stt = std::invoke_result_t<decltype(&expr::get_central_space_stencil<OD, OA, 1>)>>
+	auto apply_generalized_derivative(T* const v, double divh, const len_type (&stride)[1])
+	{
+		return symphas::internal::GeneratedStencilApply<Stt>{ 1, divh }(v);
+	}
+
+
+	template<size_t OD, size_t OA, typename T, typename Stt = std::invoke_result_t<decltype(&expr::get_central_space_stencil<OD, OA, 2>)>>
+	auto apply_generalized_derivative(T* const v, double divh, const len_type(&stride)[2])
+	{
+		return symphas::internal::GeneratedStencilApply<Stt>{ stride, divh }(v);
+	}
+
+	template<size_t OD, size_t OA, typename T, typename Stt = std::invoke_result_t<decltype(&expr::get_central_space_stencil<OD, OA, 3>)>>
+	auto apply_generalized_derivative(T* const v, double divh, const len_type(&stride)[3])
+	{
+		return symphas::internal::GeneratedStencilApply<Stt>{ stride, divh }(v);
+	}
+	
+#else
+
+	template<size_t OD, size_t OA, typename T>
+	auto apply_generalized_derivative(T* const v, double divh, const len_type(&dims)[1])
+	{
+		return *v;
+	}
+
+	template<size_t OD, size_t OA, typename T>
+	auto apply_generalized_derivative(T* const v, double divh, const len_type(&dims)[2])
+	{
+		return *v;
+	}
+
+	template<size_t OD, size_t OA, typename T>
+	auto apply_generalized_derivative(T* const v, double divh, const len_type(&dims)[3])
+	{
+		return *v;
+	}
+
+#endif
+}
+
+
+namespace symphas::internal
+{
+}
 
 //! A generalized derivative stencil.
 /*!
@@ -110,19 +377,80 @@ struct GeneralizedStencil
 	 * \tparam OD Order of the derivative.
 	 */
 	template<size_t OD, typename T>
-	auto apply(T* const v) const
+	auto apply(T* const v, const len_type(&stride)[DD]) const
 	{
-		/* future implementation of a generalized stencil
-		 * this function would use precomputed constants to approximate the derivative, given
-		 * the dimension of the system and order of accuracy which the containing object is
-		 * parameterized on
-		 *
-		 * currently this function returns the same value which is passed to it
-		 */
-
-		return *v;
+		return symphas::internal::apply_generalized_derivative<OD, OA>(v, divh, stride);
 	}
 
+	//! Determine the finite difference approximation to the directional derivative.
+	/*!
+	 * Determine the finite difference approximation to the directional derivative of
+	 * the given order.
+	 *
+	 * \tparam OD Order of the derivative.
+	 * \tparam ax Axis of the directional derivative.
+	 */
+	template<Axis ax, size_t OD, typename T, typename Stt = std::invoke_result_t<decltype(&expr::get_central_space_stencil<OD, OA, 1>)>,
+		typename = std::enable_if_t<((ax == Axis::Z) ? (DD == 3) : (ax == Axis::Y) ? (DD >= 2) : (ax == Axis::X) ? (DD >= 1) : false), int>>
+	auto apply_directional(T* const v) const
+	{
+		len_type stride = (ax == Axis::Z) ? (dims[0] * dims[1]) : (ax == Axis::Y) ? dims[1] : 1;
+		return symphas::internal::GeneratedStencilApply<Stt>{ stride, divh }(v);
+	}
+
+	//! Determine the finite difference approximation to the mixed derivative.
+	/*!
+	 * Determine the finite difference approximation to the mixed derivative of
+	 * the given order.
+	 *
+	 * \tparam OD Order of the derivative.
+	 * \tparam ax Axis of the directional derivative.
+	 */
+	template<size_t OD1, size_t OD2, size_t OD3, typename T,
+		typename d_type = std::invoke_result_t<decltype(&expr::get_mixed_derivative<OD1, OD2, OD3>)>,
+		typename Stt = std::invoke_result_t<decltype(&expr::get_central_space_stencil<OA, DD, d_type>)>>
+	auto apply_mixed(T* const v) const
+	{
+		len_type stride[DD];
+		symphas::set_stride<Axis::X>(stride, cast().dims);
+		return symphas::internal::GeneratedStencilApply<Stt>{ stride, divh }(v);
+	}
+
+	//! Determine the finite difference approximation to the mixed derivative.
+	/*!
+	 * Determine the finite difference approximation to the mixed derivative of
+	 * the given order.
+	 *
+	 * \tparam OD Order of the derivative.
+	 * \tparam ax Axis of the directional derivative.
+	 */
+	template<size_t OD1, size_t OD2, typename T,
+		typename d_type = std::invoke_result_t<decltype(&expr::get_mixed_derivative<OD1, OD2>)>,
+		typename Stt = std::invoke_result_t<decltype(&expr::get_central_space_stencil<OA, DD, d_type>)>>
+	auto apply_mixed(T* const v) const
+	{
+		len_type stride[DD];
+		symphas::set_stride<Axis::X>(stride, cast().dims);
+		return symphas::internal::GeneratedStencilApply<Stt>{ stride, divh }(v);
+	}
+
+	//! Determine the finite difference approximation to the mixed derivative.
+	/*!
+	 * Determine the finite difference approximation to the mixed derivative of
+	 * the given order.
+	 *
+	 * \tparam OD Order of the derivative.
+	 * \tparam ax Axis of the directional derivative.
+	 */
+	template<size_t OD1, typename T,
+		typename d_type = std::invoke_result_t<decltype(&expr::get_mixed_derivative<OD1>)>,
+		typename Stt = std::invoke_result_t<decltype(&expr::get_central_space_stencil<OA, DD, d_type>)>>
+	auto apply_mixed(T* const v) const
+	{
+		len_type stride[DD];
+		symphas::set_stride<Axis::X>(stride, cast().dims);
+		return symphas::internal::GeneratedStencilApply<Stt>{ stride, divh }(v);
+	}
 };
 
 //! A specialization of the generalized derivative which returns the original value.
@@ -166,17 +494,17 @@ struct GeneralizedStencil<0, DEFAULT_STENCIL_ACCURACY>
 /* translations
  */
 
-#define __DZ lenX * lenY
-#define __DY lenX
-#define __DX 1
+#define __DZ stride[2]
+#define __DY stride[1]
+#define __DX stride[0]
 
-#define __2DZ (2 * lenX * lenY)
-#define __2DY (lenX + lenX)
-#define __2DX 2
+#define __2DZ (2 * __DZ)
+#define __2DY (2 * __DY)
+#define __2DX (2 * __DX)
 
-#define __3DZ (3 * lenX * lenY)
-#define __3DY (lenX + lenX + lenX)
-#define __3DX 3
+#define __3DZ (3 * __DZ)
+#define __3DY (3 * __DY)
+#define __3DX (3 * __DX)
 
 
 // primary index

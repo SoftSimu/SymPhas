@@ -25,14 +25,13 @@
 
 #pragma once
 
-
-#include "expressionaggregates.h"
+#include "expressionlib.h"
 
 //! \cond
 
 #ifdef LATEX_PLOT
-#define SYEX_EXP_FMT_A "\\exp\\left\\{"
-#define SYEX_EXP_FMT_B "\\right\\}"
+#define SYEX_EXP_FMT_A "e^{"
+#define SYEX_EXP_FMT_B "}"
 #else
 #define SYEX_EXP_FMT_A "e^{"
 #define SYEX_EXP_FMT_B "}"
@@ -59,59 +58,32 @@ namespace symphas::internal
 		static auto get(A&&);
 
 		template<typename V, typename E>
-		static auto get(V, OpExpression<E> const&);
-
-		template<typename V, typename S, typename G>
-		static auto get(V, OpLVariable<S, G> const&);
+		static auto get(V const&, OpExpression<E> const&);
 
 		template<typename V, typename S>
-		static auto get(V v, OpLiteral<S> const& e);
-		template<typename V>
-		static auto get(V v, OpVoid const e);
-		template<typename V>
-		static auto get(V v, OpIdentity const e);
-		template<typename V>
-		static auto get(V v, OpNegIdentity const e);
+		static auto get(V const& v, OpLiteral<S> const& e);
 
-		//! Constructs the exponential using a grid instead of an expression.
-		/*!
-		 * Used for the exponential specialization for the OpLVariable.
-		 */
-		template<typename V, typename G>
-		static auto get_g(V v, G g);
+		template<typename V>
+		static auto get(V const& v, OpVoid const e);
+
+		template<typename V>
+		static auto get(V const& v, OpIdentity const e);
+
+		template<typename V>
+		static auto get(V const& v, OpNegIdentity const e);
+
+		template<typename V, size_t N, size_t D>
+		static auto get(V const& v, OpFractionLiteral<N, D> const e);
+
+		template<typename V, size_t N, size_t D>
+		static auto get(V const& v, OpNegFractionLiteral<N, D> const e);
+
+		template<typename V, typename E>
+		static auto get(OpLiteral<V> const& v, E&& e)
+		{
+			return get(v.value, std::forward<E>(e));
+		}
 	};
-}
-
-
-
-namespace expr
-{
-	//! Create an exponential expression term.
-	/*!
-	 * Create an exponential expression term with the given expression,
-	 * which will be put in the exponent.
-	 * 
-	 * \param a The term that is exponentiated.
-	 */
-	template<typename A>
-	auto make_exponential(A&& a)
-	{
-		return symphas::internal::make_exponential::template get(std::forward<A>(a));
-	}
-
-	//! Create an exponential expression term.
-	/*!
-	 * Create an exponential expression term with the given expression,
-	 * which will be put in the exponent.
-	 *
-	 * \param v The coefficient of the exponential.
-	 * \param a The term that is exponentiated.
-	 */
-	template<typename V, typename A>
-	auto make_exponential(V&& v, A&& a)
-	{
-		return symphas::internal::make_exponential::template get(std::forward<V>(v), std::forward<A>(a));
-	}
 }
 
 
@@ -126,9 +98,7 @@ namespace expr
 template<typename V, typename E>
 struct OpExponential : OpExpression<OpExponential<V, E>>
 {
-	using G_T = typename expr::eval_type<E>::type;
-	static const int G_U = expr::grid_dim<E>::dimension;
-	using G = typename expr::grid_type<E>::type;
+	OpExponential() : value{ V{} }, e{} {}
 
 	//! Generate an exponential term with the given expression.
 	/*!
@@ -137,21 +107,13 @@ struct OpExponential : OpExpression<OpExponential<V, E>>
 	 * \param value The coefficient of the exponential.
 	 * \param e The expression that is exponentiated.
 	 */
-	OpExponential(V value, E const& e) : value{ value }, e{ e }, data{ expr::property::data_len(e) }
-	{
-		update();
-	}
+	OpExponential(V value, E const& e) : value{ value }, e{ e } {}
 
 	inline auto eval(iter_type n) const
 	{
 		using namespace std;
 		using namespace symphas::math;
-		return value * exp(data[n]);
-	}
-
-	void update()
-	{
-		expr::result(e, data);
+		return expr::eval(value) * exp(e.eval(n));
 	}
 
 	auto operator-() const
@@ -190,98 +152,10 @@ struct OpExponential : OpExpression<OpExponential<V, E>>
 	V value;						//!< Value multiplying the result of this convolution.
 	E e;							//!< The expression which is exponentiated.
 
-	friend struct expr::compound_get;
-
-
-protected:
-
-	Block<G_T> data;				//!< Grid storing the result of the first expression.
-
+	friend auto const& expr::get_enclosed_expression(OpExponential<V, E> const&);
+	friend auto& expr::get_enclosed_expression(OpExponential<V, E>&);
 
 };
-
-
-
-//! Exponential function of an expression.
-/*!
- * The expression is natural number \f$e\f$ to the power of the given
- * expression. Specialization where a variable is exponentiated.
- *
- * \tparam V The type of the coefficient.
- * \tparam E The type of the expression which is exponentiated.
- */
-template<typename V, typename S, typename G>
-struct OpExponential<V, OpLVariable<S, G>> : OpExpression<OpExponential<V, OpLVariable<S, G>>>
-{
-
-	using E = OpLVariable<S, G>;
-
-	//! Create the exponential expression.
-	/*!
-	 * Create the expression for the exponential of the given expression.
-	 * 
-	 * \param value The coefficient of the exponential.
-	 * \param e The expression which is exponentiated.
-	 */
-	OpExponential(V value, E const& e) : value{ value }, pow{ e.value }, data{ e.data } {}
-
-	//! Create the exponential expression.
-	/*!
-	 * Create the expression for the exponential of the given expression.
-	 *
-	 * \param value The coefficient of the exponential.
-	 * \param g The data that is exponentiated.
-	 */
-	OpExponential(V value, G data) : value{ value }, pow{ OpIdentity{} }, data{ data } {}
-
-	inline auto eval(iter_type n) const
-	{
-		using std::exp;
-		using namespace symphas::math;
-		return value * exp(pow * expr::BaseData<G>::get(data, n));
-	}
-
-	auto operator-() const
-	{
-		return symphas::internal::make_exponential::get_g(-value, data);
-	}
-
-
-#ifdef PRINTABLE_EQUATIONS
-
-	size_t print(FILE* out) const
-	{
-		size_t n = expr::print_with_coeff(out, value);
-		n += fprintf(out, SYEX_EXP_FMT_A);
-		n += expr::print_with_coeff(out, pow);
-		n += fprintf(out, "%s", expr::get_op_name(data));
-		n += fprintf(out, SYEX_EXP_FMT_B);
-		return n;
-	}
-
-	size_t print(char* out) const
-	{
-		size_t n = expr::print_with_coeff(out, value);
-		n += sprintf(out + n, SYEX_EXP_FMT_A);
-		n += expr::print_with_coeff(out + n, pow);
-		n += sprintf(out + n, "%s", expr::get_op_name(data));
-		n += sprintf(out + n, SYEX_EXP_FMT_B);
-		return n;
-	}
-
-	size_t print_length() const
-	{
-		return expr::coeff_print_length(value) + expr::coeff_print_length(pow) 
-			+ SYEX_EXP_FMT_LEN + std::strlen(expr::get_op_name(data));
-	}
-
-#endif
-
-	V value;			//!< Value multiplying the result of this convolution.
-	S pow;				//!< The coefficient of the original variable.
-	G data;				//!< Grid storing the result of the first expression.
-};
-
 
 
 namespace symphas::internal
@@ -294,43 +168,46 @@ namespace symphas::internal
 	}
 
 	template<typename V, typename E>
-	inline auto make_exponential::get(V v, OpExpression<E> const& a)
+	inline auto make_exponential::get(V const& v, OpExpression<E> const& a)
 	{
+		static_assert(!std::is_same<V, OpLiteral<double>>::value);
 		return OpExponential<V, E>(v, *static_cast<const E*>(&a));
 	}
 
-	template<typename V, typename S, typename G>
-	inline auto make_exponential::get(V v, OpLVariable<S, G> const& a)
-	{
-		return OpExponential<V, OpLVariable<S, G>>(v, a);
-	}
-
-	template<typename V, typename G>
-	inline auto make_exponential::get_g(V v, G g)
-	{
-		return OpExponential<V, OpLVariable<OpIdentity, G>>(v, g);
-	}
-
-
 	template<typename V, typename S>
-	inline auto make_exponential::get(V v, OpLiteral<S> const& e)
+	inline auto make_exponential::get(V const& v, OpLiteral<S> const& e)
 	{
 		using namespace std;
 		using namespace symphas::math;
 		return expr::make_literal(v * exp(e.value));
 	}
+
 	template<typename V>
-	inline auto make_exponential::get(V v, OpVoid const)
+	inline auto make_exponential::get(V const& v, OpVoid const)
 	{
 		return v;
 	}
+
 	template<typename V>
-	inline auto make_exponential::get(V v, OpIdentity const e)
+	inline auto make_exponential::get(V const& v, OpIdentity const e)
 	{
 		return get(v, expr::make_literal(e.eval()));
 	}
+
 	template<typename V>
-	inline auto make_exponential::get(V v, OpNegIdentity const e)
+	inline auto make_exponential::get(V const& v, OpNegIdentity const e)
+	{
+		return get(v, expr::make_literal(e.eval()));
+	}
+
+	template<typename V, size_t N, size_t D>
+	inline auto make_exponential::get(V const& v, OpFractionLiteral<N, D> const e)
+	{
+		return get(v, expr::make_literal(e.eval()));
+	}
+
+	template<typename V, size_t N, size_t D>
+	inline auto make_exponential::get(V const& v, OpNegFractionLiteral<N, D> const e)
 	{
 		return get(v, expr::make_literal(e.eval()));
 	}
@@ -347,11 +224,20 @@ auto operator*(OpExponential<V1, E1> const& a, OpExponential<V2, E2> const& b)
 	return symphas::internal::make_exponential::template get(a.value * b.value, a.e + b.e);
 }
 
-template<typename T, typename V, typename E>
-auto operator*(OpLiteral<T> const a, OpExponential<V, E> const& b)
+template<typename coeff_t, typename V, typename E,
+	typename std::enable_if_t<(expr::is_coeff<coeff_t> && !expr::is_tensor<V>), int> = 0>
+auto operator*(coeff_t const& value, OpExponential<V, E> const& b)
 {
-	return symphas::internal::make_exponential::template get(a.value * b.value, expr::compound_get::template expr(b));
+	return symphas::internal::make_exponential::template get(value * b.value, expr::get_enclosed_expression(b));
 }
+
+template<typename coeff_t, typename tensor_t, typename E,
+	typename std::enable_if_t<(expr::is_coeff<coeff_t> && expr::is_tensor<tensor_t>), int> = 0>
+auto operator*(coeff_t const& value, OpExponential<tensor_t, E> const& b)
+{
+	return (value * b.value) * symphas::internal::make_exponential::template get(OpIdentity{}, expr::get_enclosed_expression(b));
+}
+
 
 
 namespace expr

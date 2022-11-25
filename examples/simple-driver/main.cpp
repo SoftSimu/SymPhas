@@ -6,7 +6,7 @@
 #define B c2
 
 MODEL(EX, (SCALAR),
-	MODEL_DEF(dpsi = lap(psi) + (A - lit (4.) * B * psi * psi) * psi)
+	EVOLUTION(dpsi = lap(psi) + (A - lit (4.) * B * psi * psi) * psi)
 )
 
 
@@ -35,10 +35,10 @@ int  main(int argc , char* argv [])
 	pp.set_boundary_data(&bdata);
 	pp.set_initial_data(&tdata);
 	pp.set_interval_data(&vdata);
-	pp.set_problem_time_step(dt);
+	pp.set_time_step(dt);
 
 
-	model_EX_t<2, SolverSP<Stencil2d2h<5, 9, 6>>> model{ pp };
+	model_EX_t<2, SolverSP> model{ pp };
 	symphas::find_solution(model, dt, 50);
 	auto pfdata = model.grid<0>();
 }

@@ -34,10 +34,76 @@
  *
  */
 
-#include "modelspecialized.h"
 #include "modelpfc.h"
 #include "stencilincludes.h"
 #include "expressionfunctions.h"
+
+
+//! Copy construct the model with a new solver.
+/*!
+ * A new model is constructed with using instead the given solver. The phase-field
+ * data from the given model is copied over as well.
+ *
+ * \tparam M The model type that from which is counted the phase fields
+ */
+template<typename Sp>
+struct model_swap_solver
+{
+
+protected:
+
+	template<template<size_t, typename> typename M, size_t D, typename Sp0>
+	static constexpr auto with_new_solver(M<D, Sp0> model)
+	{
+		auto parameters = model.generate_parameters();
+		return M<D, Sp>(model.get_coeff(), model.get_num_coeff(), parameters);
+	}
+
+	template<
+		template<template<typename> typename, typename> typename SpecializedModel,
+		template<typename> typename Eq,
+		size_t D, typename Sp0, typename... S>
+	static constexpr auto with_new_solver(SpecializedModel<Eq, Eq<symphas::internal::MakeEquation<Model<D, Sp0, S...>>>> const& model)
+	{
+		using model_Sp = typename ModelApplied<D, Sp>::template OpTypes<S...>::template Specialized<Eq>;
+		auto parameters = model.generate_parameters();
+		return model_Sp(model.get_coeff(), model.get_num_coeff(), parameters);
+	}
+
+	template<
+		template<template<typename> typename, typename> typename SpecializedModel,
+		template<size_t, typename> typename PFC,
+		size_t D, typename Sp0, typename... S>
+	static constexpr auto with_new_solver(SpecializedModel<symphas::internal::MakeEquation, ModelPFCEquation<PFC, D, Sp0, S...>> const& model)
+	{
+		using model_Sp = typename ModelApplied<D, Sp>::template OpTypes<S...>::template Specialized<symphas::internal::MakeEquation, ModelPFCEquation<PFC, D, Sp, S...>>;
+		auto parameters = model.generate_parameters();
+		return model_Sp(model.get_coeff(), model.get_num_coeff(), parameters);
+	}
+
+	template<
+		template<template<typename> typename, template<typename, typename...> typename, typename, typename> typename Specialized,
+		template<typename> typename Eq,
+		template<typename, typename...> typename Pr,
+		size_t D, typename Sp0, typename... S, typename... P>
+	static constexpr auto with_new_solver(
+		Specialized<Eq, Pr, Pr<Model<D, Sp0, S...>, P...>, Eq<symphas::internal::MakeEquationProvisional<Pr<Model<D, Sp0, S...>, P...>>>> const& model)
+	{
+		using model_Sp = typename ModelApplied<D, Sp>::template OpTypes<S...>::template ProvTypes<P...>::template Specialized<Eq, Pr>;
+		auto parameters = model.generate_parameters();
+		return model_Sp(model.get_coeff(), model.get_num_coeff(), parameters);
+	}
+
+
+public:
+
+	template<typename M>
+	auto operator()(M const& model)
+	{
+		return with_new_solver(model);
+	}
+};
+
 
 
 
@@ -131,19 +197,61 @@ struct model_call_wrapper
 	{
 		return INVALID_MODEL;
 	}
+
+	template<typename AppliedSolver, typename... Ts>
+	static int call(size_t, const char*, Ts&& ...)
+	{
+		return INVALID_MODEL;
+	}
 };
 
 
-//! Implements the association between a model and a name.
-#define MODEL_WRAPPER_FUNC(NAME, IMPL) \
+
+// Calls a desired function with the model.
+/*!
+ * Sets up being able to call models with the ::model_select class. See this
+ * class for more details.
+ *
+ * Select the model type using the solver and the model type, and the type name of the 
+ * specialized model along with the string name are passed to a function defined in the
+ * build process, so that the model can be run. If the solver uses FD stencils, parameters
+ * are also passed so that the stencil coefficients are chosen. In this way
+ * however, a model is instantiated for each combination of stencils.
+ *
+ * This requires that one definition is specified: #MODEL_APPLY_CALL.
+ *
+ * The definition #MODEL_APPLY_CALL, which is a function that needs to be
+ * a template function of at least one type, the model type, which the selection
+ * tree will then call if the name corresponds to the given model name by
+ * checking all names until the corresponding model name is found, moreover, the given
+ * function may only return an integer value which should not equal #INVALID_MODEL.
+ *
+ * The parameters to the #MODEL_APPLY_CALL method are given after the selection
+ * parameters.
+ *
+ * At the individual function level, the macro definition assembles a
+ * ternary tree in order to run the model on the correct solver type based on the
+ * stencil and dimension.
+ *
+ * The given function #MODEL_APPLY_CALL may have multiple template parameters, but
+ * the first must always be the model type, meaning that specifying the first parameter
+ * may not necessarily fully qualify the method MODEL_APPLY_CALL.
+ */
+#define MODEL_WRAPPER_FUNC(NAME, GIVEN_NAME, MODEL, SOLVER) \
 template<> \
 struct model_call_wrapper<MODEL_INDEX_NAME(NAME)> \
 { \
 	template<template<typename> typename AppliedSolver, typename... Ts> \
 	static int call(size_t dimension, StencilParams stp, const char* name, Ts&& ...args) \
 	{ \
-		IMPL \
+		if (std::strcmp(name, #GIVEN_NAME) == 0) { return ModelSelectStencil<MODEL, SOLVER>{ dimension, stp }(std::forward<Ts>(args)...); } \
 		return model_call_wrapper<MODEL_INDEX_NAME(NAME) - 1>::call<AppliedSolver>(dimension, stp, name, std::forward<Ts>(args)...); \
+	} \
+	template<typename AppliedSolver, typename... Ts> \
+	static int call(size_t dimension, const char* name, Ts&& ...args) \
+	{ \
+		if (std::strcmp(name, #GIVEN_NAME) == 0) { return ModelSelect<MODEL, SOLVER>{ dimension }(std::forward<Ts>(args)...); } \
+		return model_call_wrapper<MODEL_INDEX_NAME(NAME) - 1>::call<AppliedSolver>(dimension, name, std::forward<Ts>(args)...); \
 	} \
 };
 //! \endcond
@@ -163,6 +271,12 @@ namespace symphas::internal
 	>
 	auto run_model_call(std::index_sequence<D, O, Ps...>, Ts&& ...args);
 
+	template<
+		template<size_t, typename> typename Model, typename Solver, size_t D,
+		typename... Ts
+	>
+	auto run_model_call(Ts&& ...args);
+
 	template<template<size_t, typename> typename M, size_t D>
 	struct allowed_model_dimensions { static const bool value = true; };
 
@@ -171,7 +285,7 @@ namespace symphas::internal
 template<
 	template<size_t, typename> typename Model, 
 	template<typename> typename Solver>
-struct ModelSelect
+struct ModelSelectStencil
 {
 
 protected:
@@ -224,14 +338,14 @@ protected:
 	}
 
 	template<typename... Ts>
-	auto search_dim(std::tuple<>, Ts&& ...) const
+	auto search_dim(symphas::lib::types_list<>, Ts&& ...) const
 	{
 		fprintf(SYMPHAS_WARN, "the provided dimension value '%zd' is invalid for constructing the model\n", parameters[0]);
 		return INVALID_MODEL;
 	}
 
 	template<size_t D, size_t... Ns, typename... Seqs, typename... Ts>
-	auto search_dim(std::tuple<std::tuple<std::index_sequence<D>, std::index_sequence<Ns...>>, Seqs...>, Ts&& ...args) const
+	auto search_dim(symphas::lib::types_list<symphas::lib::types_list<std::index_sequence<D>, std::index_sequence<Ns...>>, Seqs...>, Ts&& ...args) const
 	{
 		if constexpr (symphas::internal::allowed_model_dimensions<Model, D>::value)
 		{
@@ -240,57 +354,59 @@ protected:
 				return search_ord<D>(std::index_sequence<Ns...>{}, std::forward<Ts>(args)...);
 			}
 		}
-		return search_dim(std::tuple<Seqs...>{}, std::forward<Ts>(args)...);
+		return search_dim(symphas::lib::types_list<Seqs...>{}, std::forward<Ts>(args)...);
 	}
 
 
 public:
 
-	ModelSelect(size_t dimension, StencilParams stp)
+	ModelSelectStencil(size_t dimension, StencilParams stp)
 		: parameters{ dimension, stp.ord, stp.ptl, stp.ptg, stp.ptb } {}
 
 	template<typename... Ts>
 	auto operator()(Ts&& ...args) const
 	{
-		return search_dim(symphas::internal::dim_ord_list_t{}, std::forward<Ts>(args)...);
+		return search_dim(symphas::internal::dim_ord_list_t<AVAILABLE_DIMENSIONS>{}, std::forward<Ts>(args)...);
 	}
 };
 
+template<template<size_t, typename> typename Model, typename Solver>
+struct ModelSelect
+{
+protected:
 
-// Calls a desired function with the model.
-/*!
- * Sets up being able to call models with the ::model_select class. See this
- * class for more details.
- *
- * Select the model type using the first three provided parameters,
- * and the remaining generic parameters are passed to a function defined in the
- * build process, so that executing the model. The parameters apply to the
- * finite different stencils; the stencil sizes are chosen. In this way
- * however, a model is instantiated for each combination of stencils.
- *
- * This requires that one definition is specified: #MODEL_APPLY_CALL.
- *
- * The definition #MODEL_APPLY_CALL, which is a function that needs to be
- * a template function of at least one type, the model type, which the selection
- * tree will then call if the name corresponds to the given model name by
- * checking all names until the corresponding model name is found, moreover, the given
- * function may only return an integer value which should not equal #INVALID_MODEL.
- *
- * The parameters to the #MODEL_APPLY_CALL method are given after the selection
- * parameters.
- *
- * At the individual function level, the macro definition assembles a
- * ternary tree in order to run the model on the correct solver type based on the
- * stencil and dimension.
- *
- * The given function #MODEL_APPLY_CALL may have multiple template parameters, but
- * the first must always be the model type, meaning that specifying the first parameter
- * may not necessarily fully qualify the method MODEL_APPLY_CALL.
- */
+	template<typename... Ts>
+	auto search_dim(symphas::lib::types_list<>, Ts&& ...) const
+	{
+		fprintf(SYMPHAS_WARN, "the provided dimension value '%zd' is invalid for constructing the model\n", dimension);
+		return INVALID_MODEL;
+	}
 
-#define RUNMODEL(MODEL, SOLVER, MODEL_NAMESPACE) \
-return ModelSelect<MODEL, SOLVER>( dimension, stp )(std::forward<Ts>(args)...);
+	template<size_t D, size_t... Ns, typename... Seqs, typename... Ts>
+	auto search_dim(symphas::lib::types_list<symphas::lib::types_list<std::index_sequence<D>, std::index_sequence<Ns...>>, Seqs...>, Ts&& ...args) const
+	{
+		if constexpr (symphas::internal::allowed_model_dimensions<Model, D>::value)
+		{
+			if (dimension == D)
+			{
+				return symphas::internal::run_model_call<Model, Solver, D>(std::forward<Ts>(args)...);
+			}
+		}
+		return search_dim(symphas::lib::types_list<Seqs...>{}, std::forward<Ts>(args)...);
+	}
 
+	size_t dimension;
+
+public:
+
+	ModelSelect(size_t dimension) : dimension{ dimension } {}
+
+	template<typename... Ts>
+	auto operator()(Ts&& ...args) const
+	{
+		return search_dim(symphas::internal::dim_ord_list_t<AVAILABLE_DIMENSIONS>{}, std::forward<Ts>(args)...);
+	}
+};
 
 #else
 
@@ -337,7 +453,7 @@ return ModelSelect<MODEL, SOLVER>( dimension, stp )(std::forward<Ts>(args)...);
  * Immediately following these definitions, the equations of motion are provided using
  * the definition:
  * 
- * - #MODEL_DEF(...)
+ * - #EVOLUTION(...)
  * 
  * \param NAME The name of the model.
  * \param TYPES The order parameter types of the phase field, given in a bracketed list.
@@ -349,7 +465,7 @@ namespace model_ ## NAME { \
 template<typename T, size_t D> struct allowed_model_dimensions { static const bool value = true; }; \
 EQUATION_TRAIT_FORWARD_DECL \
 template<size_t Dm, typename Sp> \
-using OpTypes = typename ModelApplied<Dm, Sp>::template OpTypes<SINGLE_ARG TYPES>; \
+using OpTypes = typename symphas::internal::expand_types_to_model<Dm, Sp, SINGLE_ARG TYPES>::type; \
 template<typename> struct using_provisional { template<size_t Dm, typename Sp> using type = typename OpTypes<Dm, Sp>::template Specialized<TraitEquationModel>; }; \
 	__VA_ARGS__ } \
 template<size_t Dm, typename Sp> \
@@ -359,6 +475,21 @@ struct symphas::internal::allowed_model_dimensions<model_ ## NAME ## _t, D> \
 { static const bool value = model_ ## NAME::allowed_model_dimensions<void, D>::value; };
 
 
+
+namespace symphas::internal
+{
+	template<size_t Dm, typename Sp, typename... Ts>
+	struct expand_types_to_model
+	{
+		using type = typename ModelApplied<Dm, Sp>::template OpTypes<Ts...>;
+	};
+
+	template<size_t Dm, typename Sp, typename... Ts>
+	struct expand_types_to_model<Dm, Sp, symphas::lib::types_list<Ts...>>
+	{
+		using type = typename ModelApplied<Dm, Sp>::template OpTypes<Ts...>;
+	};
+}
 
 //! Definition for defining the intermediate variables.
 /*!
@@ -370,7 +501,7 @@ struct symphas::internal::allowed_model_dimensions<model_ ## NAME ## _t, D> \
  * Provisional variables are also grids, and have their dimensions inherited 
  * from the phase field systems. Provisional variables are useful to precompute
  * complicated expressions before it is evaluated in an equation of motion.
- * Since they do not directly participate in the dynamics of the
+ * Since they do not directly participate in the EVOLUTION of the
  * system, they can also be used as virtual variables. Provisional
  * variables are always evaluated before the dynamical equations are evaluated.
  * 
@@ -500,29 +631,28 @@ PROVISIONAL_TRAIT_DEFINITION(__VA_ARGS__)
  * of motion.
  * 
  * If no preamble is required and only the equations of motion need to be
- * specified, #MODEL_DEF should be used. 
+ * specified, #EVOLUTION should be used. 
  * 
  * \param PREAMBLE Setup work in order to write the equations of motion. If
- * this part is not required, use the macro #MODEL_DEF.
+ * this part is not required, use the macro #EVOLUTION.
  * \param ... The list of the equations of motion.
  */
-#define MODEL_PREAMBLE_DEF(PREAMBLE, ...) \
+#define EVOLUTION_PREAMBLE(PREAMBLE, ...) \
 template<size_t Dm, typename Sp> \
 using SpecializedModel = typename using_provisional<void>::template type<Dm, Sp>; \
 EQUATION_TRAIT_PREAMBLE(SINGLE_ARG PREAMBLE) \
 EQUATION_TRAIT_DEFINITION(__VA_ARGS__)
 
-//! Same as #MODEL_PREAMBLE_DEF.
-#define MODEL_DEF_PREAMBLE(PREAMBLE, ...) MODEL_PREAMBLE_DEF((SINGLE_ARG PREAMBLE), __VA_ARGS__)
-
-//! See #MODEL_PREAMBLE_DEF.
+//! See #EVOLUTION_PREAMBLE.
 /*!
- * Shortcut macro for when no preamble is needed. Refer to #MODEL_PREAMBLE_DEF
+ * Shortcut macro for when no preamble is needed. Refer to #EVOLUTION_PREAMBLE
  * for full information on defining the equations of motion of a model.
  */
-#define MODEL_DEF(...) \
-MODEL_PREAMBLE_DEF((), __VA_ARGS__)
+#define EVOLUTION(...) \
+EVOLUTION_PREAMBLE((), __VA_ARGS__)
 
+#define FREE_ENERGY(SELECTED_DYNAMICS, ...) \
+EVOLUTION(parent_type::template generate_equations<SINGLE_ARG SELECTED_DYNAMICS>(__VA_ARGS__))
 
 
 #ifdef USING_MODEL_SELECTION
@@ -543,8 +673,7 @@ MODEL_PREAMBLE_DEF((), __VA_ARGS__)
  */
 #define LINK_WITH_NAME(NAME, GIVEN_NAME) \
 NEXT_MODEL_INDEX(NAME) \
-MODEL_WRAPPER_FUNC(NAME, \
-if (std::strcmp(name, #GIVEN_NAME) == 0) { RUNMODEL(model_ ## NAME::SpecializedModel, AppliedSolver, model_ ## NAME); })
+MODEL_WRAPPER_FUNC(NAME, GIVEN_NAME, model_ ## NAME::SpecializedModel, AppliedSolver)
 
 #else
 
@@ -588,14 +717,15 @@ if (std::strcmp(name, #GIVEN_NAME) == 0) { RUNMODEL(model_ ## NAME::SpecializedM
  * followed then by specialized behaviour of particular order parameters. Specifically,
  * this entails by first providing:
  *
- * - #DEFAULT_DYNAMIC(...) or #DEFAULT_MODE(...); or
+ * - #DYNAMICS(...) or #DEFAULT_MODE(...); or
  * - #NO_DEFAULTS (if no default is changed)
  *
  * Immediately following these definitions, the types of the order parameters
  * are provided in a bracketd list. Finally, the behaviour of individual phase
  * fields may be modified using:
  *
- * - #SPECIALIZED_DEF(...)
+ * - #MODE_OF(...); or
+ * - #DYNAMICS_OF(...)
  *
  * \param NAME The name of the model.
  * \param DEFAULTS Specifies a different set of default behaviours to modify the phase 
@@ -609,7 +739,7 @@ namespace modelpfc_ ## NAME { \
 struct PFCParameters : PFCParametersDefault<modelpfc_ ## NAME::PFCParameters> \
 { \
 	using parent_type = PFCParametersDefault<modelpfc_ ## NAME::PFCParameters>; \
-	template<size_t N> static constexpr DynamicType dynamic_val_apply() { return parent_type::template dynamic_val_apply<N>(); } \
+	template<size_t N> static constexpr symphas::internal::DynamicType dynamic_val_apply() { return parent_type::template dynamic_val_apply<N>(); } \
 	template<size_t N> static constexpr size_t mode_val_apply() { return parent_type::template mode_val_apply<N>(); } \
 	DEFAULTS \
 }; \
@@ -636,16 +766,16 @@ using modelpfc_ ## NAME ## _t = modelpfc_ ## NAME ::ModelPFCSpecialized<Dm, Sp>;
 
 //! Sets a given dynamic type to be the default.
 /*!
- * Changes the dynamics of all the fields, unless the field is
- * explicitly changed in the definition in #SPECIALIZED_DEF.
+ * Changes the EVOLUTION of all the fields, unless the field is
+ * explicitly changed in the definition in #DYNAMICS_OF.
  * 
  * Used with the #DEFAULTS definition.
  * 
  * \param TYPE The dynamic type which dictates the default behaviour of
  * the phase field crystal problem.
  */
-#define DEFAULT_DYNAMIC(TYPE) \
-const static DynamicType DEFAULT_DYNAMIC = TYPE;
+#define DYNAMICS(TYPE) \
+const static symphas::internal::DynamicType DEFAULT_DYNAMIC = TYPE;
 
 //! Sets the default mode of the phase field crystal problem.
 /*!
@@ -653,44 +783,34 @@ const static DynamicType DEFAULT_DYNAMIC = TYPE;
  * the mode is only of order 2, resulting in a tetrahedral pattern.
  * 
  * Changes the order of the mode for all fields, unless explicitly changed
- * in #SPECIALIZED_DEF. The mode should always be greater than or equal to 2.
+ * in #MODE_OF. The mode should always be greater than or equal to 2.
  * 
  * Used with the #DEFAULTS definition.
  * 
  * \param N The numeric value of the phase field crystal mode.
  */
-#define DEFAULT_MODE(N) \
+#define MODE(N) \
 const static size_t DEFAULT_MODE_N = N;
 
-//! Indicates that a given field follows conserved dynamics.
-#define PFC_CONSERVED DynamicType::CONSERVED
+//! Indicates that a given field follows conserved EVOLUTION.
+#define CONSERVED symphas::internal::DynamicType::CONSERVED
 
-//! Indicates that a given field follows non-conserved dynamics.
-#define PFC_NONCONSERVED DynamicType::NONCONSERVED
+//! Indicates that a given field follows non-conserved EVOLUTION.
+#define NONCONSERVED symphas::internal::DynamicType::NONCONSERVED
 
 
 
-//! Modifies individual phase fields in the phase field crystal problem.
-/*! 
- * The commands #DYNAMIC and #MODE are provided as a list of arguments
- * to this definition, one item for each of the phase field and characteristic
- * combinations which should be modified.
- * 
- * \param ... The list of modifications to the default behaviour of specific
- * fields.
- */
-#define SPECIALIZED_DEF(...) __VA_ARGS__
 
-//! Modify the dynamics of the given field.
+//! Modify the EVOLUTION of the given field.
 /*!
  * Specializes a particular field with the given non-default behaviour 
  * (although a default characteristic can still be provided with undesired 
  * no side effects).
  * 
  * \param FIELD_N The field index which is specialized.
- * \param TYPE The dynamic type which dictates the new dynamics of the field.
+ * \param TYPE The dynamic type which dictates the new EVOLUTION of the field.
  */
-#define DYNAMIC(FIELD_N, TYPE) template<> constexpr DynamicType PFCParameters::dynamic_val_apply<FIELD_N - 1>() { return TYPE; }
+#define DYNAMICS_OF(FIELD_N, TYPE) template<> constexpr symphas::internal::DynamicType PFCParameters::dynamic_val_apply<FIELD_N - 1>() { return TYPE; }
 
 //! Modify the mode of a field.
 /*!
@@ -703,7 +823,7 @@ const static size_t DEFAULT_MODE_N = N;
  * \param FIELD_N The field index which is specialized.
  * \param N The new mode value of the field.
  */
-#define MODE(FIELD_N, N) template<> constexpr size_t PFCParameters::mode_val_apply<FIELD_N - 1>() { return N; }
+#define MODE_OF(FIELD_N, N) template<> constexpr size_t PFCParameters::mode_val_apply<FIELD_N - 1>() { return N; }
 
 
 #ifdef USING_MODEL_SELECTION
@@ -714,8 +834,7 @@ const static size_t DEFAULT_MODE_N = N;
  */
 #define LINK_PFC_WITH_NAME(NAME, GIVEN_NAME) \
 NEXT_MODEL_INDEX(NAME) \
-MODEL_WRAPPER_FUNC(NAME, \
-if (std::strcmp(name, #GIVEN_NAME) == 0) { RUNMODEL(modelpfc_ ## NAME::ModelPFCSpecialized, AppliedSolver, modelpfc_ ## NAME); } )
+MODEL_WRAPPER_FUNC(NAME, GIVEN_NAME, modelpfc_ ## NAME::ModelPFCSpecialized, AppliedSolver)
 
 #else
 
@@ -733,7 +852,7 @@ if (std::strcmp(name, #GIVEN_NAME) == 0) { RUNMODEL(modelpfc_ ## NAME::ModelPFCS
 #define RESTRICT_DIMENSIONS(...) \
 template<size_t D> \
 struct allowed_model_dimensions<void, D> \
-{ static const bool value = symphas::lib::value_in_seq<D, std::index_sequence<__VA_ARGS__>>::value; };
+{ static const bool value = symphas::lib::is_value_in_seq<D, std::index_sequence<__VA_ARGS__>>::value; };
 
 // **************************************************************************************
 
@@ -754,6 +873,29 @@ struct allowed_model_dimensions<void, D> \
  */
 #define VECTOR vector_t<Dm>
 
+ //! Multiple real valued order parameter.
+ /*!
+  * `N` order parameters will be of type ::scalar_t. Using this definition
+  * will repeat the #SCALAR type `N` times, thereby creating `N` order parameters
+  * of this type.
+  */
+#define SCALARS(N) symphas::internal::list_repeating_type_t<N, SCALAR>
+
+ //! Multiple real valued order parameter.
+ /*!
+  * `N` order parameters will be of type ::complex_t. Using this definition
+  * will repeat the #COMPLEX type `N` times, thereby creating `N` order parameters
+  * of this type.
+  */
+#define COMPLEXS(N) symphas::internal::list_repeating_type_t<N, COMPLEX>
+
+ //! Multiple real valued order parameter.
+ /*!
+  * `N` order parameters will be of type ::vector_t. Using this definition
+  * will repeat the #VECTOR type `N` times, thereby creating `N` order parameters
+  * of this type.
+  */
+#define VECTORS(N) symphas::internal::list_repeating_type_t<N, VECTOR>
 
  // **************************************************************************************
 
@@ -763,7 +905,7 @@ struct allowed_model_dimensions<void, D> \
  * in an equation of motion. It is indexed from 1, meaning that `op(1)` is the
  * first order parameter.
  */
-#define op(i) parent_type::template op<i - 1>()
+#define op(N) parent_type::template op<N - 1>()
 
 //! The time derivative of the `i`-th order parameter.
 /*!
@@ -772,14 +914,14 @@ struct allowed_model_dimensions<void, D> \
  * It is indexed from 1, meaning that `dop(1)` is the derivative of the
  * first order parameter.
  */
-#define dop(i) parent_type::template dop<i - 1>()
+#define dop(N) parent_type::template dop<N - 1>()
 
 //! The `i`-th provisional variable.
 /*!
  * The `i`-th provisional variable. It is indexed from 1, 
  * meaning that `var(1)` is the first provisional variable.
  */
-#define var(i) parent_type::template var<i - 1>()
+#define var(N) parent_type::template var<N - 1>()
 
 //! The differential operator of order `O`.
 /*!
@@ -819,7 +961,7 @@ struct allowed_model_dimensions<void, D> \
  * 
  * \param EXPR The expression which is differentiated.
  */
-#define lap(EXPR) expr::laplacian(EXPR, solver)
+#define lap Diff(2)
 
 //! The laplacian of an expression.
 /*!
@@ -828,7 +970,16 @@ struct allowed_model_dimensions<void, D> \
  *
  * \param EXPR The expression which is differentiated.
  */
-#define bilap(EXPR) expr::bilaplacian(EXPR, solver)
+#define bilap Diff(4)
+
+ //! The gradient of an expression.
+ /*!
+  * The gradient applies the first derivative to all spatial components of the
+  * given expression.
+  *
+  * \param EXPR The expression which is differentiated.
+  */
+#define grad Diff(1)
 
 //! The laplacian of an expression.
 /*!
@@ -837,16 +988,7 @@ struct allowed_model_dimensions<void, D> \
  *
  * \param EXPR The expression which is differentiated.
  */
-#define gradlap(EXPR) expr::gradlaplacian(EXPR, solver)
-
-//! The gradient of an expression.
-/*!
- * The gradient applies the first derivative to all spatial components of the
- * given expression.
- *
- * \param EXPR The expression which is differentiated.
- */
-#define grad(EXPR) expr::gradient(EXPR, solver)
+#define gradlap Diff(3)
 
 //! The `N`-th coefficient of the model.
 /*!
@@ -919,6 +1061,7 @@ struct allowed_model_dimensions<void, D> \
  * \param V The value of the number.
  */
 #define lit(V) expr::make_literal(V)
+#define integer(N) expr::make_integer<N>()
 
 //! The number 1 for an expression.
 /*!
@@ -957,6 +1100,25 @@ struct allowed_model_dimensions<void, D> \
 #define c14 param(14)	 //!< Coefficient at index 14 in the list of coefficients.
 #define c15 param(15)	 //!< Coefficient at index 15 in the list of coefficients.
 #define c16 param(16)	 //!< Coefficient at index 16 in the list of coefficients.
+
+
+// free energy parameters
+
+#define LANDAU_FE(U) landau_fe(U, solver)
+#define DOUBLE_WELL_FE(U) double_well_fe(U, solver)
+
+#define SUM(...) expr::sum<__VA_ARGS__>
+#define SUM_INDEX(I, N) i_<I, N>
+
+#define ii_(N) SUM_INDEX(0, N)
+#define ii ii_(0)
+#define jj_(N) SUM_INDEX(1, N)
+#define jj jj_(0)
+
+#define op_ii_(N) v_<ii_(N)>{}
+#define op_ii op_ii_(0)
+#define op_jj_(N) v_<jj_(N)>{}
+#define op_jj op_jj_(0)
 
 
  // **************************************************************************************

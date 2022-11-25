@@ -100,7 +100,7 @@ namespace symphas
 		}
 
 		symphas::grid_info g{ intervals };
-		symphas::io::save_grid<T>(sys.values, w, g);
+		symphas::io::save_grid(sys.values, w, g);
 	}
 
 	template<typename... Ts, size_t... Is>
@@ -138,10 +138,10 @@ namespace symphas
 	template<typename M>
 	void save_if_checkpoint(M const& model, SaveParams const& model_save, const char* dir)
 	{
-		if (symphas::io::at_checkpoint(model.index(), model_save))
+		if (symphas::io::at_checkpoint(model.get_index(), model_save))
 		{
-			checkpoint_systems(model.systems_tuple(), dir, model.index());
-			record_index(dir, model_save, model.index());
+			checkpoint_systems(model.systems_tuple(), dir, model.get_index());
+			record_index(dir, model_save, model.get_index());
 		}
 	}
 
@@ -161,9 +161,9 @@ namespace symphas
 	template<typename M>
 	bool run_model(M& model, SaveParams const& save, double dt, double starttime = 0)
 	{
-		iter_type n = save.next_save(model.index()) - model.index();
+		iter_type n = save.next_save(model.get_index()) - model.get_index();
 		bool done = run_model(model, n, dt, starttime);
-		return (done && !save.is_last_save(model.index()));
+		return (done && !save.is_last_save(model.get_index()));
 	}
 
 	template<size_t D, typename... S>
@@ -221,9 +221,9 @@ namespace symphas
 		double iteration_display_time = 0;
 		auto print_progress = [&]()
 		{
-			double progress = model.index() / (0.01 * save.get_stop());
+			double progress = model.get_index() / (0.01 * save.get_stop());
 			fprintf(SYMPHAS_LOG, "[%5.1lf%%]", progress);
-			fprintf(SYMPHAS_LOG, "%11d", model.index());
+			fprintf(SYMPHAS_LOG, "%11d", model.get_index());
 			fprintf(SYMPHAS_LOG, "%8s+%10.3lf", "", iteration_display_time);
 			fprintf(SYMPHAS_LOG, "\n");
 
@@ -241,7 +241,7 @@ namespace symphas
 
 			if (plotting_output)
 			{
-				if (save.current_save(model.index()))
+				if (save.current_save(model.get_index()))
 				{
 					fprintf(SYMPHAS_LOG, "%25s", "phase field output...");
 					model.save_systems(dir);
@@ -249,8 +249,8 @@ namespace symphas
 				}
 
 #ifdef USING_PROC
-				if (model.index() > params::start_index
-					|| (model.index() == params::start_index && save.get_init_flag()))
+				if (model.get_index() > params::start_index
+					|| (model.get_index() == params::start_index && save.get_init_flag()))
 				{
 					symphas::Time t;
 					fprintf(SYMPHAS_LOG, "%25s", "postprocessing...");
@@ -279,7 +279,7 @@ namespace symphas
 
 		};
 
-		if (!symphas::io::is_last_save(model.index(), save_points))
+		if (!symphas::io::is_last_save(model.get_index(), save_points))
 		{
 			data_persistence();
 			print_progress();
@@ -298,15 +298,15 @@ namespace symphas
 				{
 					symphas::Time t;
 
-					int next_model_save = save.next_save(model.index());
-					int next_list_save = symphas::io::next_save_from_list(model.index(), save_points);
-					int n = std::min(next_model_save, next_list_save) - model.index();
+					int next_model_save = save.next_save(model.get_index());
+					int next_list_save = symphas::io::next_save_from_list(model.get_index(), save_points);
+					int n = std::min(next_model_save, next_list_save) - model.get_index();
 
 					for (iter_type i = 0; i < num_models; ++i)
 					{
 						running = run_model(models[i], n, dt, models[i].get_time() + dt) && running;
 					}
-					running = !save.is_last_save(model.index()) && running;
+					running = !save.is_last_save(model.get_index()) && running;
 
 					run_time += t.current_duration();
 					iteration_display_time = t.current_duration();
@@ -322,7 +322,7 @@ namespace symphas
 			data_persistence();
 		}
 
-		fprintf(SYMPHAS_LOG, "Completed %d iterations in %.2lf seconds.\n", model.index(), run_time);
+		fprintf(SYMPHAS_LOG, "Completed %d iterations in %.2lf seconds.\n", model.get_index(), run_time);
 		fprintf(SYMPHAS_LOG, OUTPUT_BANNER);
 	}
 

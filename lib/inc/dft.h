@@ -174,6 +174,17 @@ namespace symphas::dft
 	}
 
 	template<typename T>
+	void scale(T(*data_y)[2], len_type len, double r)
+	{
+#		pragma omp parallel for
+		for (iter_type i = 0; i < len; ++i)
+		{
+			data_y[i][0] *= r;
+			data_y[i][1] *= r;
+		}
+	}
+
+	template<typename T>
 	void scale(T* data_y, len_type len)
 	{
 		scale(data_y, len, 1.0 / len);
@@ -190,6 +201,19 @@ namespace symphas::dft
 	void scale(T* data_y, len_type L, len_type M, len_type N)
 	{
 		scale(data_y, L * M * N);
+	}
+
+
+	template<size_t D, typename T>
+	void scale(T* data_y, const len_type* dims)
+	{
+		len_type len = 1;
+		for (iter_type i = 0; i < D; ++i)
+		{
+			len *= dims[i];
+		}
+
+		scale(data_y, len);
 	}
 
 }

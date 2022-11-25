@@ -20,9 +20,11 @@
 file(GLOB_RECURSE SOURCES_SOL "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 list(REMOVE_ITEM SOURCES_SOL "${CMAKE_CURRENT_SOURCE_DIR}/src/colormap.cpp")
 
+
 option(USE_VTK "Use the VTK graphics library to display phase field" OFF)
 set(CUSTOM_SYS_IMPLEMENTATION_HEADER "" CACHE STRING "the header for additional implementations of solver and provisional systems")
 set(MODEL_CALL_FUNCTION "" CACHE STRING "a function templated on the specialized model type")
+set(GENERATE_UNDEFINED_STENCILS OFF CACHE BOOL "generates stencil coefficients during compile time (may dramatically increase compile time and resources)")
 
 
 if(USE_VTK)
@@ -46,6 +48,7 @@ if(USE_VTK)
 		kwiml
 		RenderingGL2PSOpenGL2
 		RenderingOpenGL2
+		IOImage
 		QUIET
 	)
 	
@@ -86,6 +89,10 @@ else()
 endif()
 
 message(STATUS "definitions added to module 'sol' are ${ADD_DEFINITIONS}")
+
+if(${GENERATE_UNDEFINED_STENCILS})
+	list(APPEND ADD_DEFINITIONS GENERATE_UNDEFINED_STENCILS_ON)
+endif()
 
 add_library(symphas_sol_o OBJECT ${SOURCES_SOL})
 target_include_directories(symphas_sol_o PUBLIC 

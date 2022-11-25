@@ -144,7 +144,7 @@ namespace expr
 	template<typename T, size_t D, typename E>
 	void result_interior(OpExpression<E> const& e, BoundaryGrid<T, D>& grid)
 	{
-		expr::result_interior(*static_cast<const E*>(&e), grid.values, grid.inners, grid.len_inner);
+		expr::result_interior(*static_cast<const E*>(&e), grid, grid.inners, grid.len_inner);
 	}
 
 
@@ -154,7 +154,7 @@ namespace expr
 	template<typename T, size_t D, typename E>
 	void result_interior(OpExpression<E> const& e, BoundaryGrid<T, D>& grid)
 	{
-		expr::result_interior(*static_cast<const E*>(&e), grid.values, grid.dims);
+		expr::result_interior(*static_cast<const E*>(&e), gri, grid.dims);
 	}
 
 #endif

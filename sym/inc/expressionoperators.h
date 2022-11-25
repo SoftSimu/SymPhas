@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include "expressionprototypes.h"
+#include "expressionsprint.h"
 #include "gridpair.h"
 
 //! \cond
@@ -34,7 +34,7 @@
 #define SYEX_COMBINATION_FMT_A "\\left("
 #define SYEX_COMBINATION_FMT_B "\\right)"
 #define SYEX_COMBINATION_FMT_SEP " + "
-#define SYEX_CHAIN_FMT_SEP " \\cdot "
+#define SYEX_CHAIN_FMT_SEP " "
 
 #define SYEX_OP_MAP_FMT_A "\text{map}\\left("
 #define SYEX_OP_MAP_FMT_B "\\right)"
@@ -61,27 +61,9 @@
 #define SYEX_CHAIN_FMT_LEN (STR_ARR_LEN(SYEX_CHAIN_FMT_A SYEX_CHAIN_FMT_SEP SYEX_CHAIN_FMT_B) - 1)
 #define SYEX_CHAIN_APPLY_FMT_LEN (STR_ARR_LEN(SYEX_COMBINATION_FMT_A SYEX_COMBINATION_FMT_B) - 1)
 
-#define SYEX_MAP_FMT SYEX_OP_MAP_FMT_A "%s" SYEX_OP_MAP_FMT_B
-#define SYEX_MAP_FMT_LEN (STR_ARR_LEN(SYEX_OP_MAP_FMT_A SYEX_OP_MAP_FMT_B) - 1)
+#define SYEX_OP_MAP_FMT SYEX_OP_MAP_FMT_A "%s" SYEX_OP_MAP_FMT_B
+#define SYEX_OP_MAP_FMT_LEN (STR_ARR_LEN(SYEX_OP_MAP_FMT_A SYEX_OP_MAP_FMT_B) - 1)
 
-
-#ifdef LATEX_PLOT
-#define SYEX_FT_OF_EXPR_FMT_A "\\hat{\\mathcal{F}}\\left\\{"
-#define SYEX_FT_OF_EXPR_FMT_B "\\right\\}"
-
-#define SYEX_FT_OF_OP_FMT_A "\\hat{"
-#define SYEX_FT_OF_OP_FMT_B "}"
-#else
-#define SYEX_FT_OF_EXPR_FMT_A "F^{"
-#define SYEX_FT_OF_EXPR_FMT_B "}"
-#define SYEX_FT_OF_OP_FMT_A SYEX_FT_OF_EXPR_FMT_A
-#define SYEX_FT_OF_OP_FMT_B SYEX_FT_OF_EXPR_FMT_B
-#endif
-
-#define SYEX_FT_OF_EXPR_FMT SYEX_FT_OF_EXPR_FMT_A "%s" SYEX_FT_OF_EXPR_FMT_B
-#define SYEX_FT_OF_EXPR_FMT_LEN (STR_ARR_LEN(SYEX_FT_OF_EXPR_FMT_A SYEX_FT_OF_EXPR_FMT_B) - 1)
-#define SYEX_FT_OF_OP_FMT SYEX_FT_OF_OP_FMT_A "%s" SYEX_FT_OF_OP_FMT_B
-#define SYEX_FT_OF_OP_FMT_LEN (STR_ARR_LEN(SYEX_FT_OF_OP_FMT_A SYEX_FT_OF_OP_FMT_B) - 1)
 
 //! \endcond
 
@@ -106,7 +88,7 @@
  * 2. It typically needs to be pruned in order to evaluate the system, before it is executed,
  * so that the base data is updated.
  * 3. **Most importantly** The operators that it applies need to have a specialized implementation
- * for only ::OpLVariable, not just to avoid wasting time memory, but because
+ * for only ::OpTerm, not just to avoid wasting time memory, but because
  * the combination implementation will apply operators to variables and
  * will NOT update each applied operator before evaluating the combination result. Therefore,
  * each operator needs to have an implementation where it computes the results
@@ -116,156 +98,193 @@
  * \tparam E The specialized operator, used for the CRTP strategy.
  */
 template<typename E>
-struct OpOperator : OpExpression<E> {};
-
-
-
-//! Specialized behaviour applying an operator to a combination operator.
-template<typename E, typename B1, typename B2>
-auto operator*(OpOperator<E> const& a, OpOperatorCombination<B1, B2> const& b)
+struct OpOperator : OpExpression<E> 
 {
-	return OpOperatorChain(*static_cast<E const*>(&a), b);
+	inline auto eval(iter_type) const
+	{
+		return expr::symbols::Symbol{};
+	}
+
+	template<typename E0>
+	auto operator()(OpExpression<E0> const& e) const
+	{
+		return cast().apply(*static_cast<E0 const*>(&e));
+	}
+
+	template<typename E0>
+	auto operator*(OpExpression<E0> const& e) const
+	{
+		return cast().apply(*static_cast<E0 const*>(&e));
+	}
+
+	template<typename E0>
+	auto operator*(OpOperator<E0> const& e) const
+	{
+		return apply(*static_cast<E0 const*>(&e));
+	}
+
+	template<typename E0, typename std::enable_if_t<expr::is_symbol<expr::eval_type_t<E0>>, int> = 0>
+	auto apply(OpExpression<E0> const& e) const
+	{
+		return OpChain(OpOperatorChain(OpIdentity{}, cast()), *static_cast<E0 const*>(&e));
+	}
+
+	template<typename E0, typename std::enable_if_t<!expr::is_symbol<expr::eval_type_t<E0>>, int> = 0>
+	auto apply(OpExpression<E0> const& e) const
+	{
+		return cast().apply(*static_cast<E0 const*>(&e));
+	}
+
+	template<typename E0>
+	auto apply(OpOperator<E0> const& e) const
+	{
+		return OpOperatorChain(cast(), *static_cast<E0 const*>(&e));
+	}
+
+
+	//! The addition of two operators creates a combination.
+	template<typename F>
+	auto operator+(OpOperator<F> const& b) const
+	{
+		return OpOperatorCombination(cast(), *static_cast<F const*>(&b));
+	}
+
+	//! Specialized behaviour adding an operator to a combination operator.
+	template<typename B1, typename B2>
+	auto operator+(OpOperatorCombination<B1, B2> const& b) const
+	{
+		return OpOperatorCombination(b, cast());
+	}
+
+	//! Specialized behaviour adding an operator to a chain operator.
+	template<typename B1, typename B2>
+	auto operator+(OpOperatorChain<B1, B2> const& b) const
+	{
+		return OpOperatorCombination(b, cast());
+	}
+
+
+	//! The subtraction of two operators creates a combination.
+	template<typename F>
+	auto operator-(OpOperator<F> const& b) const
+	{
+		return OpOperatorCombination(cast(), -*static_cast<F const*>(&b));
+	}
+
+	//! Specialized behaviour subtracting operator to a combination operator.
+	template<typename B1, typename B2>
+	auto operator-(OpOperatorCombination<B1, B2> const& b) const
+	{
+		return OpOperatorCombination(-b, cast());
+	}
+
+	//! Specialized behaviour subtracting operator to a chain operator.
+	template<typename B1, typename B2>
+	auto operator-(OpOperatorChain<B1, B2> const& b) const
+	{
+		return OpOperatorCombination(-b, cast());
+	}
+
+
+	//! An operator applied to a combination creates a chain operator.
+	template<typename B1, typename B2>
+	auto operator*(OpOperatorCombination<B1, B2> const& b) const
+	{
+		return cast() * b.f + cast() * b.g;
+	}
+
+	 //! An operator applied to a combination creates a chain operator.
+	template<typename B1, typename B2, typename F>
+	auto operator*(OpCombination<B1, B2, F> const& b) const
+	{
+		return (cast() * b.combination)(expr::get_enclosed_expression(b));
+	}
+
+	//! An operator applied to a chain builds the chain operator.
+	template<typename B1, typename B2, typename F>
+	auto operator*(OpChain<B1, B2, F> const& b) const
+	{
+		return OpOperatorChain(cast(), b.combination)(expr::get_enclosed_expression(b));
+	}
+
+	E const& cast() const
+	{
+		return (*static_cast<E const*>(this));
+	}
+
+	E& cast()
+	{
+		return (*static_cast<E*>(this));
+	}
+};
+
+template<typename E, typename coeff_t, typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator*(OpOperator<E> const& e, coeff_t const& v)
+{
+	return (*static_cast<E const*>(&e))(v);
 }
 
-//! Specialized behaviour adding an operator to a combination operator.
-template<typename E, typename B1, typename B2>
-auto operator+(OpOperator<E> const& a, OpOperatorCombination<B1, B2> const& b)
+
+
+
+template<typename E1, typename E2>
+auto operator+(OpOperator<E1> const& a, OpOperator<E2> const& b)
 {
-	return OpOperatorCombination(*static_cast<E const*>(&a), b);
+	return (*static_cast<E1 const*>(&a)).operator+(*static_cast<E2 const*>(&b));
 }
 
-//! Specialized behaviour subtracting operator to a combination operator.
-template<typename E, typename B1, typename B2>
-auto operator-(OpOperator<E> const& a, OpOperatorCombination<B1, B2> const& b)
+template<typename E1, typename E2>
+auto operator-(OpOperator<E1> const& a, OpOperator<E2> const& b)
 {
-	return OpOperatorCombination(*static_cast<E const*>(&a), -b);
+	return (*static_cast<E1 const*>(&a)).operator-(*static_cast<E2 const*>(&b));
 }
 
-//! Specialized behaviour applying an operator to a chain operator.
-template<typename E, typename B1, typename B2>
-auto operator*(OpOperator<E> const& a, OpOperatorChain<B1, B2> const& b)
+template<typename E1, typename E2>
+auto operator/(OpOperator<E1> const& a, OpOperator<E2> const& b)
 {
-	return OpOperatorChain(*static_cast<E const*>(&a), b);
+	return (*static_cast<E1 const*>(&a)).operator/(*static_cast<E2 const*>(&b));
 }
-
-//! Specialized behaviour adding an operator to a chain operator.
-template<typename E, typename B1, typename B2>
-auto operator+(OpOperator<E> const& a, OpOperatorChain<B1, B2> const& b)
-{
-	return OpOperatorCombination(*static_cast<E const*>(&a), b);
-}
-
-//! Specialized behaviour subtracting operator to a chain operator.
-template<typename E, typename B1, typename B2>
-auto operator-(OpOperator<E> const& a, OpOperatorChain<B1, B2> const& b)
-{
-	return OpOperatorCombination(*static_cast<E const*>(&a), -b);
-}
-
-/*
- * applied to another combination or chain object
- */
-
-//! An operator applied to a combination creates a chain operator.
-template<typename E, typename B1, typename B2, typename F>
-auto operator*(OpOperator<E> const& a, OpCombination<B1, B2, F> const& b)
-{
-	return OpOperatorChain(*static_cast<E const*>(&a), b.combination)* expr::compound_get::template expr(b);
-}
-
-//! An operator applied to a chain builds the chain operator.
-template<typename E, typename B1, typename B2, typename F>
-auto operator*(OpOperator<E> const& a, OpChain<B1, B2, F> const& b)
-{
-	return OpOperatorChain(*static_cast<E const*>(&a), b.combination)* expr::compound_get::template expr(b);
-}
-
-
-//! An operator applied to another one creates a chain operator.
-template<typename E, typename F>
-auto operator*(OpOperator<E> const& a, OpOperator<F> const& b)
-{
-	return OpOperatorChain(*static_cast<E const*>(&a), *static_cast<F const*>(&b));
-}
-
-//! The addition of two operators creates a combination.
-template<typename E, typename F>
-auto operator+(OpOperator<E> const& a, OpOperator<F> const& b)
-{
-	return OpOperatorCombination(*static_cast<E const*>(&a), *static_cast<F const*>(&b));
-}
-
-//! The subtraction of two operators creates a combination.
-template<typename E, typename F>
-auto operator-(OpOperator<E> const& a, OpOperator<F> const& b)
-{
-	return OpOperatorCombination(*static_cast<E const*>(&a), -*static_cast<F const*>(&b));
-}
-
 
 /* rules when used with expressions
  */
 
 
  //! Adding an operator to a constant creates a combination.
-template<typename A>
-auto operator+(OpOperator<A> const& a, OpIdentity const)
+template<typename A, typename coeff_t,
+	typename = std::enable_if_t<(expr::is_fraction<coeff_t> || expr::is_identity<coeff_t>), int>>
+auto operator+(OpOperator<A> const& a, coeff_t)
 {
-	return OpOperatorCombination(*static_cast<A const*>(&a), OpIdentity{});
+	return OpOperatorCombination(*static_cast<A const*>(&a), coeff_t{});
 }
 
-//! Subtracting an operator from a constant creates a combination.
-template<typename A>
-auto operator-(OpOperator<A> const& a, OpIdentity const)
+//! Subtracting a constant from an operator creates a combination.
+template<typename A, typename coeff_t,
+	typename = std::enable_if_t<(expr::is_fraction<coeff_t> || expr::is_identity<coeff_t>), int>>
+auto operator-(OpOperator<A> const& a, coeff_t)
 {
-	return OpOperatorCombination(*static_cast<A const*>(&a), OpIdentity{});
+	return OpOperatorCombination(*static_cast<A const*>(&a), -coeff_t{});
 }
+
 
 //! Adding an operator to a constant creates a combination.
-template<typename A>
-auto operator+(OpOperator<A> const& a, OpNegIdentity const)
+template<typename A, typename coeff_t,
+	typename = std::enable_if_t<(expr::is_fraction<coeff_t> || expr::is_identity<coeff_t>), int>>
+auto operator+(coeff_t, OpOperator<A> const& b)
 {
-	return OpOperatorCombination(*static_cast<A const*>(&a), OpNegIdentity{});
+	return OpOperatorCombination(coeff_t{}, *static_cast<A const*>(&b));
 }
 
 //! Subtracting an operator from a constant creates a combination.
-template<typename A>
-auto operator-(OpOperator<A> const& a, OpNegIdentity const)
+template<typename A, typename coeff_t,
+	typename = std::enable_if_t<(expr::is_fraction<coeff_t> || expr::is_identity<coeff_t>), int>>
+auto operator-(coeff_t, OpOperator<A> const& b)
 {
-	return OpOperatorCombination(*static_cast<A const*>(&a), OpNegIdentity{});
+	return OpOperatorCombination(coeff_t{}, -*static_cast<A const*>(&b));
 }
 
 
-//! Adding a constant to an operator creates a combination.
-template<typename A>
-auto operator+(OpIdentity const, OpOperator<A> const& b)
-{
-	return OpOperatorCombination(OpIdentity{}, *static_cast<A const*>(&b));
-}
-
-//! Subtracting a constant from an operator creates a combination.
-template<typename A>
-auto operator-(OpIdentity const, OpOperator<A> const& b)
-{
-	return OpOperatorCombination(OpIdentity{}, *static_cast<A const*>(&b));
-}
-
-//! Adding a constant to an operator creates a combination.
-template<typename A>
-auto operator+(OpNegIdentity const, OpOperator<A> const& b)
-{
-	return OpOperatorCombination(OpNegIdentity{}, *static_cast<A const*>(&b));
-}
-
-//! Subtracting a constant from an operator creates a combination.
-template<typename A>
-auto operator-(OpNegIdentity const, OpOperator<A> const& b)
-{
-	return OpOperatorCombination(OpNegIdentity{}, *static_cast<A const*>(&b));
-}
 
 
-//! Adding a constant to an operator creates a combination.
 template<typename A, typename T>
 auto operator+(OpOperator<A> const& a, OpLiteral<T> const& b)
 {
@@ -276,7 +295,7 @@ auto operator+(OpOperator<A> const& a, OpLiteral<T> const& b)
 template<typename A, typename T>
 auto operator-(OpOperator<A> const& a, OpLiteral<T> const& b)
 {
-	return OpOperatorCombination(*static_cast<A const*>(&a), b);
+	return OpOperatorCombination(*static_cast<A const*>(&a), -b);
 }
 
 
@@ -304,79 +323,155 @@ auto operator*(OpBinaryMul<A1, OpOperator<E>> const& a, OpExpression<A2> const& 
 
 
 // ******************************************************************************************
-
-
-//! An operator is applied to an expression through multiplication.
-template<typename E, typename F>
-auto operator*(OpOperator<E> const& a, OpExpression<F> const& b)
-{
-	return (*static_cast<E const*>(&a)).apply(*static_cast<F const*>(&b));
-}
-
-//! An operator is applied to an expression through multiplication.
-template<typename E>
-auto operator*(OpOperator<E> const& a, OpIdentity const)
-{
-	return (*static_cast<E const*>(&a)).apply(OpIdentity{});
-}
-
-//! An operator is applied to an expression through multiplication.
-template<typename E>
-auto operator*(OpOperator<E> const& a, OpNegIdentity const)
-{
-	return -((*static_cast<E const*>(&a)) * OpIdentity{});
-}
-
-//! An operator is applied to an expression through multiplication.
-template<typename E, typename T>
-auto operator*(OpOperator<E> const& a, OpLiteral<T> const& v)
-{
-	return v * ((*static_cast<E const*>(&a)) * OpIdentity{});
-}
-
+//
+//
+////! An operator is applied to an expression through multiplication.
+//template<typename E, typename F>
+//auto operator*(OpOperator<E> const& a, OpExpression<F> const& b)
+//{
+//	return (*static_cast<E const*>(&a)).apply(*static_cast<F const*>(&b));
+//}
+//
+////! An operator is applied to an expression through multiplication.
+//template<typename E, typename... Es>
+//auto operator*(OpOperator<E> const& a, OpAdd<Es...> const& b)
+//{
+//	return (*static_cast<E const*>(&a)).apply(b);
+//}
+//
+////! An operator is applied to an expression through multiplication.
+//template<typename E, typename A, typename B>
+//auto operator*(OpOperator<E> const& a, OpBinaryDiv<A, B> const& b)
+//{
+//	return (*static_cast<E const*>(&a)).apply(b);
+//}
+//
+////! An operator is applied to an expression through multiplication.
+//template<typename E>
+//auto operator*(OpOperator<E> const& a, OpIdentity)
+//{
+//	return (*static_cast<E const*>(&a)).apply(OpIdentity{});
+//}
+//
+////! An operator is applied to an expression through multiplication.
+//template<typename E>
+//auto operator*(OpOperator<E> const& a, OpNegIdentity)
+//{
+//	return (*static_cast<E const*>(&a)).apply(OpNegIdentity{});
+//}
+//
+////! An operator is applied to an expression through multiplication.
+//template<typename E, typename T>
+//auto operator*(OpOperator<E> const& a, OpLiteral<T> const& v)
+//{
+//	return (*static_cast<E const*>(&a)).apply(v);
+//}
+//
+////! An operator is applied to an expression through multiplication.
+//template<typename E, size_t N, size_t D>
+//auto operator*(OpOperator<E> const& a, OpFractionLiteral<N, D>)
+//{
+//	return (*static_cast<E const*>(&a)).apply(OpFractionLiteral<N, D>{});
+//}
+//
+////! An operator is applied to an expression through multiplication.
+//template<typename E, size_t N, size_t D>
+//auto operator*(OpOperator<E> const& a, OpNegFractionLiteral<N, D>)
+//{
+//	return (*static_cast<E const*>(&a)).apply(OpNegFractionLiteral<N, D>{});
+//}
 
 // ******************************************************************************************
 
 namespace expr
 {
 
-	//! The combination operator is applied to terms in a binary addition.
-	template<typename A1, typename A2, typename E1, typename E2>
-	auto distribute_operator(OpOperatorCombination<A1, A2> const& a, OpBinaryAdd<E1, E2> const& b)
-	{
-		return expr::distribute_operator(a, b.a) + expr::distribute_operator(a, b.b);
-	}
 
-	//! The combination operator is applied to terms in a binary subtraction.
-	template<typename A1, typename A2, typename E1, typename E2>
-	auto distribute_operator(OpOperatorCombination<A1, A2> const& a, OpBinarySub<E1, E2> const& b)
-	{
-		return expr::distribute_operator(a, b.a) - expr::distribute_operator(a, b.b);
-	}
+	//! The combination operator is applied to terms in a binary addition.
+	/*!
+	 * Distributing an operator will split apart the expression by add/subtraction to apply the
+	 * operator to each term of the expression. The operator itself is not expanded.
+	 */
+	template<typename A1, typename A2, typename... Es>
+	auto distribute_operator(OpOperatorCombination<A1, A2> const& a, OpAdd<Es...> const& b);
 
 	//! The expression is applied to the combination operator.
+	/*!
+	 * Distributing an operator will split apart the expression by add/subtraction to apply the
+	 * operator to each term of the expression. The operator itself is not expanded.
+	 */
+	template<typename A1, typename A2, typename E>
+	auto distribute_operator(OpOperatorCombination<A1, A2> const& a, OpExpression<E> const& b);
+
+	//! The chain operator is applied to terms in a binary addition.
+	/*!
+	 * Distributing an operator will split apart the expression by add/subtraction to apply the
+	 * operator to each term of the expression. The operator itself is not expanded.
+	 */
+	template<typename A1, typename A2, typename... Es>
+	auto distribute_operator(OpOperatorChain<A1, A2> const& a, OpAdd<Es...> const& b);
+
+	//! The expression is applied to the chain operator.
+	/*!
+	 * Distributing an operator will split apart the expression by add/subtraction to apply the
+	 * operator to each term of the expression. The operator itself is not expanded.
+	 */
+	template<typename A1, typename A2, typename E>
+	auto distribute_operator(OpOperatorChain<A1, A2> const& a, OpExpression<E> const& b);
+
+
+	//! The expression is distributed among all terms in the expression.
+	/*!
+	 * Distributing an operator will split apart the expression by add/subtraction to apply the
+	 * operator to each term of the expression. The operator itself is not expanded.
+	 */
+	template<typename E1, typename E2>
+	auto distribute_operator(OpExpression<E1> const& a, OpExpression<E2> const& b)
+	{
+		return (*static_cast<E1 const*>(&a)) * (*static_cast<E2 const*>(&b));
+	}
+
+	//! The expression is distributed among all terms in the expression.
+	/*!
+	 * Distributing an operator will split apart the expression by add/subtraction to apply the
+	 * operator to each term of the expression. The operator itself is not expanded.
+	 */
+	template<typename E1, typename E2>
+	auto distribute_operator(OpOperator<E1> const& a, OpExpression<E2> const& b)
+	{
+		return (*static_cast<E1 const*>(&a))(*static_cast<E2 const*>(&b));
+	}
+
+	template<typename A1, typename A2, typename... Es, size_t... Is>
+	auto distribute_operator(OpOperatorCombination<A1, A2> const& a, OpAdd<Es...> const& b, std::index_sequence<Is...>)
+	{
+		return (expr::distribute_operator(a, expr::get<Is>(b)) + ...);
+	}
+
+	template<typename A1, typename A2, typename... Es>
+	auto distribute_operator(OpOperatorCombination<A1, A2> const& a, OpAdd<Es...> const& b)
+	{
+		return expr::distribute_operator(a, b, std::make_index_sequence<sizeof...(Es)>{});
+	}
+
 	template<typename A1, typename A2, typename E>
 	auto distribute_operator(OpOperatorCombination<A1, A2> const& a, OpExpression<E> const& b)
 	{
 		return a * (*static_cast<E const*>(&b));
 	}
 
-
-	//! The chain operator is applied to terms in a binary addition.
-	template<typename A1, typename A2, typename E1, typename E2>
-	auto distribute_operator(OpOperatorChain<A1, A2> const& a, OpBinaryAdd<E1, E2> const& b)
+	template<typename A1, typename A2, typename... Es, size_t... Is>
+	auto distribute_operator(OpOperatorChain<A1, A2> const& a, OpAdd<Es...> const& b, std::index_sequence<Is...>)
 	{
-		return expr::distribute_operator(a, b.a) + expr::distribute_operator(a, b.b);
+		return (expr::distribute_operator(a, expr::get<Is>(b)) + ...);
 	}
 
-	//! The chain operator is applied to terms in a binary subtraction.
-	template<typename A1, typename A2, typename E1, typename E2>
-	auto distribute_operator(OpOperatorChain<A1, A2> const& a, OpBinarySub<E1, E2> const& b)
+	template<typename A1, typename A2, typename... Es>
+	auto distribute_operator(OpOperatorChain<A1, A2> const& a, OpAdd<Es...> const& b)
 	{
-		return expr::distribute_operator(a, b.a) - expr::distribute_operator(a, b.b);
+		return expr::distribute_operator(a, b, std::make_index_sequence<sizeof...(Es)>{});
 	}
 
-	//! The expression is applied to the chain operator.
 	template<typename A1, typename A2, typename E>
 	auto distribute_operator(OpOperatorChain<A1, A2> const& a, OpExpression<E> const& b)
 	{
@@ -395,6 +490,12 @@ namespace expr
 	/*!
 	 * Attempting to expand two expressions which are not operators
 	 * will multiply the expressions together.
+	 * 
+	 * Expanding an operator will attempt to distribute each term of an operator
+	 * to an expression. The expression is not changed (i.e. it is not split by add/subtraction).
+	 * This is opposed to distributing an operator, which will attempt to
+	 * apply each individual operator term of a chain or combination to an expression without
+	 * breaking apart the expression.
 	 *
 	 * \param a The expression on the left hand side of the multiplication
 	 * operator.
@@ -407,10 +508,39 @@ namespace expr
 		return (*static_cast<E1 const*>(&a)) * (*static_cast<E2 const*>(&b));
 	}
 
+	//! Expanding an operator into an expression means applying the operator.
+	/*!
+	 * Attempting to expand two expressions which are not operators
+	 * will multiply the expressions together.
+	 *
+	 * Expanding an operator will attempt to distribute each term of an operator
+	 * to an expression. The expression is not changed (i.e. it is not split by add/subtraction).
+	 * This is opposed to distributing an operator, which will attempt to
+	 * apply each individual operator term of a chain or combination to an expression without
+	 * breaking apart the expression.
+	 *
+	 * \param a The expression on the left hand side of the multiplication
+	 * operator.
+	 * \param b The expression on the right hand side of the multiplication
+	 * operator.
+	 */
+	template<typename E1, typename E2>
+	auto expand_operator(OpOperator<E1> const& a, OpExpression<E2> const& b)
+	{
+		return (*static_cast<E1 const*>(&a))(*static_cast<E2 const*>(&b));
+	}
+
+
 	//! Expanding a combination into an expression.
 	/*!
 	 * Applies each of the constituent operators to the given expression.
 	 * In this way, this distributes the operators to the expression.
+	 * 
+	 * Expanding an operator will attempt to distribute each term of an operator
+	 * to an expression. The expression is not changed (i.e. it is not split by add/subtraction).
+	 * This is opposed to distributing an operator, which will attempt to
+	 * apply each individual operator term of a chain or combination to an expression without
+	 * breaking apart the expression.
 	 * 
 	 * \param a The operator combination which is distributed.
 	 * \param b The expression which forms the concrete operators once applied.
@@ -426,6 +556,12 @@ namespace expr
 	 * Applies the chain operator to an expression, which will apply
 	 * the expression into the nested operator and then apply the outer operator
 	 * to that result.
+	 *
+	 * Expanding an operator will attempt to distribute each term of an operator
+	 * to an expression. The expression is not changed (i.e. it is not split by add/subtraction).
+	 * This is opposed to distributing an operator, which will attempt to
+	 * apply each individual operator term of a chain or combination to an expression without
+	 * breaking apart the expression.
 	 * 
 	 * \param a The chain operator which is applied to an expression.
 	 * \param b The expression applied by the chain operator.
@@ -433,7 +569,7 @@ namespace expr
 	template<typename A1, typename A2, typename E>
 	auto expand_operator(OpOperatorChain<A1, A2> const& a, OpExpression<E> const& b)
 	{
-		return expand_operator(a.g, expand_operator(a.f, *static_cast<E const*>(&b)));
+		return expand_operator(a.f, expand_operator(a.g, *static_cast<E const*>(&b)));
 	}
 
 }
@@ -470,11 +606,9 @@ struct OpOperatorCombination : OpOperator<OpOperatorCombination<A1, A2>>
 	 */
 	OpOperatorCombination(A1 const& f, A2 const& g) : f{ f }, g{ g } {}
 
-	inline auto eval(iter_type) const {}
-
 	auto operator-() const
 	{
-		return ::OpOperatorCombination(-f, -g);
+		return -f + (-g);
 	}
 
 #ifdef PRINTABLE_EQUATIONS
@@ -516,9 +650,27 @@ struct OpOperatorCombination : OpOperator<OpOperatorCombination<A1, A2>>
 	 * \param a The expression to which this operator is applied.
 	 */
 	template<typename E>
-	auto apply(OpExpression<E> const& a) const
+	auto apply(OpExpression<E> const& e) const
 	{
-		return OpCombination(*this, *static_cast<E const*>(&a));
+		return OpCombination(*this, *static_cast<E const*>(&e));
+	}
+
+	//! Apply the chain operation to an expression.
+	template<typename E, typename AA1 = A1, typename AA2 = A2, typename std::enable_if_t<
+		!(std::is_same<mul_result_t<AA1, E>, std::invoke_result_t<decltype(&AA1::template apply<E>), AA1, E>>::value
+		&& std::is_same<mul_result_t<AA2, E>, std::invoke_result_t<decltype(&AA2::template apply<E>), AA2, E>>::value), int> = 0>
+	auto operator*(OpExpression<E> const& e) const
+	{
+		return f * (*static_cast<E const*>(&e)) + g * (*static_cast<E const*>(&e));
+	}
+
+	//! Apply the chain operation to an expression.
+	template<typename E, typename AA1 = A1, typename AA2 = A2, typename std::enable_if_t<
+		(std::is_same<mul_result_t<AA1, E>, std::invoke_result_t<decltype(&AA1::template apply<E>), AA1, E>>::value
+			&& std::is_same<mul_result_t<AA2, E>, std::invoke_result_t<decltype(&AA2::template apply<E>), AA2, E>>::value), int> = 0>
+	auto operator*(OpExpression<E> const& e) const
+	{
+			return apply(*static_cast<E const*>(&e));
 	}
 
 	A1 f; //!< Operator on the left of the plus sign.
@@ -526,12 +678,13 @@ struct OpOperatorCombination : OpOperator<OpOperatorCombination<A1, A2>>
 };
 
 
-
-template<typename T, typename A1, typename A2>
-auto operator*(OpLiteral<T> const& a, OpOperatorCombination<A1, A2> const& b)
+template<typename coeff_t, typename A1, typename A2, typename = std::enable_if_t<expr::is_coeff<coeff_t>, int>>
+auto operator*(coeff_t const& a, OpOperatorCombination<A1, A2> const& b)
 {
 	return OpOperatorCombination(a * b.f, a * b.g);
 }
+
+
 
 
 
@@ -547,22 +700,39 @@ auto operator*(OpLiteral<T> const& a, OpOperatorCombination<A1, A2> const& b)
 template<typename A1, typename A2, typename E>
 struct OpCombination : OpExpression<OpCombination<A1, A2, E>>
 {
-	using G = typename expr::grid_type<E>::type;
-
 	OpOperatorCombination<A1, A2> combination;	//!< The combination operator.
-	G data;										//!< Data which stores the result of the expression.
 
 protected:
 
-
-	auto make_eval_expr()
+	template<typename A>
+	static auto _make_eval_expr(OpOperator<A> const& a, OpExpression<E> const& e)
 	{
-		return combination.f * expr::make_op(data) + combination.g * expr::make_op(data);
+		return (*static_cast<A const*>(&a))(*static_cast<E const*>(&e));
 	}
 
-	using eval_expr_type = std::invoke_result_t<decltype(&OpCombination<A1, A2, E>::make_eval_expr), OpCombination<A1, A2, E>>;
+	template<typename A>
+	static auto _make_eval_expr(OpExpression<A> const& a, OpExpression<E> const& e)
+	{
+		return (*static_cast<A const*>(&a)) * (*static_cast<E const*>(&e));
+	}
+
+	template<typename A>
+	static auto make_eval_expr(A const& a, E const& e)
+	{
+		return _make_eval_expr(a, e);
+	}
+
+
+	using expr_type_f = std::invoke_result_t<decltype(&OpCombination<A1, A2, E>::make_eval_expr<A1>), A1, E>;
+	using expr_type_g = std::invoke_result_t<decltype(&OpCombination<A1, A2, E>::make_eval_expr<A2>), A2, E>;
+
+	expr_type_f eval_expr_f;
+	expr_type_g eval_expr_g;
+
 
 public:
+
+	OpCombination() : combination{}, eval_expr_f{}, eval_expr_g{}, e{} {}
 
 	//! Create the combination of two operators applied to an expression.
 	/*!
@@ -572,22 +742,23 @@ public:
 	 * \param e The expression the operator is applied to.
 	 */
 	OpCombination(OpOperatorCombination<A1, A2> const& combination, E const& e) :
-		combination{ combination }, data{ expr::property::data_dimensions(e) }, e{ e }, eval_expr{ make_eval_expr() } { update(); }
+		combination{ combination },
+		eval_expr_f{ make_eval_expr(combination.f, e) }, eval_expr_g{ make_eval_expr(combination.g, e) }, e{ e } {}
+
+	inline auto update()
+	{
+		expr::prune::update(eval_expr_f);
+		expr::prune::update(eval_expr_g);
+	}
 
 	inline auto eval(iter_type n) const
 	{
-		return eval_expr.eval(n);
-	}
-
-	//! Save the result of the expression in memory to be evaluated.
-	void update()
-	{
-		expr::result(e, data.values, data.len);
+		return eval_expr_f.eval(n) + eval_expr_g.eval(n);
 	}
 
 	auto operator-() const
 	{
-		return combination * -e;
+		return (-combination) * e;
 	}
 
 
@@ -619,93 +790,13 @@ public:
 
 #endif
 
-	friend struct expr::compound_get;
-
+	friend auto const& expr::get_enclosed_expression(OpCombination<A1, A2, E> const&);
+	friend auto& expr::get_enclosed_expression(OpCombination<A1, A2, E>&);
 
 
 protected:
 
 	E e;							//!< Expression to which this operator applies.
-	eval_expr_type eval_expr;		//!< The variable to apply the system.
-};
-
-
-//! See OpCombination.
-template<typename A1, typename A2, typename T, typename G>
-struct OpCombination<A1, A2, OpLVariable<T, G>> : OpExpression<OpCombination<A1, A2, OpLVariable<T, G>>>
-{
-	using E = OpLVariable<T, G>;
-
-	OpOperatorCombination<A1, A2> combination;	//!< The combination operator.
-	OpLVariable<T, G> e;						//!< Variable to which this operator applies.
-
-protected:
-
-
-	auto make_eval_expr()
-	{
-		return combination.f * e + combination.g * e;
-	}
-
-	using eval_expr_type = std::invoke_result_t<decltype(&OpCombination<A1, A2, E>::make_eval_expr), OpCombination<A1, A2, E>>;
-
-public:
-
-	//! Create the combination of two operators applied to a variable.
-	/*!
-	 * Create the combination of two operators applied to a variable.
-	 *
-	 * \param combination The operator being applied.
-	 * \param e The variable the operator is applied to.
-	 */
-	OpCombination(OpOperatorCombination<A1, A2> const& combination, E const& e) : combination{ combination }, e{ e }, eval_expr{ make_eval_expr() } {}
-
-	inline auto eval(iter_type n) const
-	{
-		return eval_expr.eval(n);
-	}
-
-	void update() {}
-
-	auto operator-() const
-	{
-		return combination * -e;
-	}
-
-#ifdef PRINTABLE_EQUATIONS
-
-	size_t print(FILE* out) const
-	{
-		size_t n = combination.print(out);
-		n += fprintf(out, SYEX_COMBINATION_FMT_A);
-		n += e.print(out);
-		n += fprintf(out, SYEX_COMBINATION_FMT_B);
-		return n;
-	}
-
-	size_t print(char* out) const
-	{
-		size_t n = combination.print(out);
-		n += sprintf(out + n, SYEX_COMBINATION_FMT_A);
-		n += e.print(out + n);
-		n += sprintf(out + n, SYEX_COMBINATION_FMT_B);
-		return n;
-	}
-
-	size_t print_length() const
-	{
-		return combination.print_length() + e.print_length()
-			+ SYEX_COMBINATION_APPLY_FMT_LEN;
-	}
-
-#endif
-
-	friend struct expr::compound_get;
-
-
-	eval_expr_type eval_expr;					//!< The variable to apply the system.
-
-
 };
 
 
@@ -737,8 +828,6 @@ struct OpOperatorChain : OpOperator<OpOperatorChain<A1, A2>>
 	 */
 	OpOperatorChain(A1 const& f, A2 const& g) : f{ f }, g{ g } {}
 
-	inline auto eval(iter_type) const {}
-
 	auto operator-() const
 	{
 		return OpOperatorChain(-f, g);
@@ -751,6 +840,7 @@ struct OpOperatorChain : OpOperator<OpOperatorChain<A1, A2>>
 	{
 		return OpChain(*this, *static_cast<E const*>(&a));
 	}
+
 
 #ifdef PRINTABLE_EQUATIONS
 
@@ -784,19 +874,58 @@ struct OpOperatorChain : OpOperator<OpOperatorChain<A1, A2>>
 #endif
 
 
+
 	A1 f; //!< Operator which is applied to the result of operator `g` on an expression.
 	A2 g; //!< Operator which is applied first.
 };
 
 
+//! Apply the chain operation to an expression.
+template<typename A1, typename A2, typename E>
+auto operator*(OpOperatorChain<A1, A2> const& chain, OpExpression<E> const& e)
+{
+	return chain.f(chain.g * (*static_cast<E const*>(&e)));
+}
+
+//! Apply the chain operation to an expression.
+template<typename A1, typename A2, typename coeff_t, 
+	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator*(OpOperatorChain<A1, A2> const& chain, coeff_t const& e)
+{
+	return chain.f(chain.g * e);
+}
+
+//! Apply the chain operation to an expression.
+template<typename A1, typename A2, typename B>
+auto operator*(OpOperatorChain<A1, A2> const& a, OpOperator<B> const& b)
+{
+	return a.f(a.g * (*static_cast<B const*>(&b)));
+}
+
+//! Apply the chain operation to an expression.
+template<typename A, typename B1, typename B2>
+auto operator*(OpOperator<A> const& a, OpOperatorChain<B1, B2> const& b)
+{
+	return ((*static_cast<A const*>(&a)) * b.f)(b.g);
+}
+
+//! Apply the chain operation to an expression.
+template<typename A1, typename A2, typename B1, typename B2>
+auto operator*(OpOperatorChain<A1, A2> const& a, OpOperatorChain<B1, B2> const& b)
+{
+	return expr::make_mul(a, b);
+}
+
 /* when multiplied by a literal
  */
 
-template<typename T, typename A1, typename A2>
-auto operator*(OpLiteral<T> const& a, OpOperatorChain<A1, A2> const& b)
+template<typename coeff_t, typename A1, typename A2, 
+	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator*(coeff_t const& a, OpOperatorChain<A1, A2> const& b)
 {
 	return OpOperatorChain(a * b.f, b.g);
 }
+
 
 
 //! A concrete operator chain of two general operators.
@@ -813,22 +942,18 @@ struct OpChain : OpExpression<OpChain<A1, A2, E>>
 {
 
 protected:
-	using inner_type = mul_result_t<A2, E>;
 
-public:
-	inner_type inner; //!< The result of applying the inner operator to the expression.
-
-	auto inner_grid()
+	auto get_eval_expr(OpOperatorChain<A1, A2> const& combination, E e)
 	{
-		return expr::make_op(expr::compound_get::template grid(inner));
+		return combination.f(combination.g(e));
 	}
 
-	using inner_var = typename std::invoke_result_t<decltype(&OpChain<A1, A2, E>::inner_grid), OpChain<A1, A2, E>>;
-	using outer_type = mul_result_t<A1, inner_var>;
+	using expr_type = std::invoke_result_t<decltype(&OpChain<A1, A2, E>::get_eval_expr), OpChain<A1, A2, E>, OpOperatorChain<A1, A2>, E>;
+	expr_type eval_expr;		//!< The result of applying the outer operator to the inner.
 
 public:
 
-	outer_type outer; //!< The result of applying the outer operator to the inner.
+	OpChain() : combination{}, eval_expr{}, e{} {}
 
 	//! Create the combination of two operators applied to an expression.
 	/*!
@@ -838,11 +963,18 @@ public:
 	 * \param e The expression the operator is applied to.
 	 */
 	OpChain(OpOperatorChain<A1, A2> const& combination, E const& e) : 
-		combination{ combination }, e{ e }, inner{ combination.g * e }, outer{ combination.f * expr::make_op(expr::compound_get::template grid(inner)) } {}
+		eval_expr{ get_eval_expr(combination, e) },
+		combination{ combination }, e{ e } {}
+
+	inline auto update()
+	{
+		expr::prune::update(expr::get_enclosed_expression(eval_expr));
+		expr::prune::update(eval_expr);
+	}
 
 	inline auto eval(iter_type n) const
 	{
-		return outer.eval(n);
+		return eval_expr.eval(n);
 	}
 
 	auto operator-() const
@@ -877,11 +1009,11 @@ public:
 			+ SYEX_CHAIN_APPLY_FMT_LEN;
 	}
 
+
+	friend auto const& expr::get_enclosed_expression(OpChain<A1, A2, E> const&);
+	friend auto& expr::get_enclosed_expression(OpChain<A1, A2, E>&);
+
 #endif
-
-
-	friend struct expr::compound_get;
-
 
 	OpOperatorChain<A1, A2> combination;	//!< The chain operator.
 	E e;									//!< Expression to which this operator applies.
@@ -889,98 +1021,12 @@ public:
 };
 
 
-//! A concrete operator chain of two general operators.
-/*!
- * See OpChain. Specializes applying a chain operator when the chain operator
- * is applied to a variable.
- *
- * \tparam A1 Type of the first operator.
- * \tparam A2 Type of the second operator.
- * \tparam T The type of the variable .
- */
-template<typename A1, typename A2, typename T, typename G>
-struct OpChain<A1, A2, OpLVariable<T, G>> : OpExpression<OpChain<A1, A2, OpLVariable<T, G>>>
-{
-	using E = OpLVariable<T, G>;
-
-protected:
-	using inner_type = mul_result_t<A2, E>;
-
-public:
-	inner_type inner; //!< The result of applying the inner operator to the variable.
-
-protected:
-	auto inner_grid()
-	{
-		return expr::make_op(expr::compound_get::template grid(inner));
-	}
-
-	using inner_var = typename std::invoke_result_t<decltype(&OpChain<A1, A2, OpLVariable<T, G>>::inner_grid), OpChain<A1, A2, OpLVariable<T, G>>>;
-	using outer_type = mul_result_t<A1, inner_var>;
-
-public:
-
-	outer_type outer; //!< The result of applying the outer operator to the result of the inner.
-
-
-	//! Create the combination of two operators applied to an expression.
-	/*!
-	 * Create the chain of two operators applied to an expression.
-	 *
-	 * \param combination The operator being applied.
-	 * \param e The expression the operator is applied to.
-	 */
-	OpChain(OpOperatorChain<A1, A2> const& combination, E const& e) : combination{ combination }, e{ e }, inner{ combination.g * e }, outer{ combination.f * inner_grid() } {}
-	inline auto eval(iter_type n) const
-	{
-		return outer.eval(n);
-	}
-
-	auto operator-() const
-	{
-		return combination * -e;
-	}
-
-#ifdef PRINTABLE_EQUATIONS
-
-	size_t print(FILE* out) const
-	{
-		size_t n = combination.print(out);
-		n += fprintf(out, SYEX_CHAIN_FMT_A);
-		n += e.print(out);
-		n += fprintf(out, SYEX_CHAIN_FMT_B);
-		return n;
-	}
-
-	size_t print(char* out) const
-	{
-		size_t n = combination.print(out);
-		n += sprintf(out + n, SYEX_CHAIN_FMT_A);
-		n += e.print(out + n);
-		n += sprintf(out + n, SYEX_CHAIN_FMT_B);
-		return n;
-}
-
-	size_t print_length() const
-	{
-		return combination.print_length() + e.print_length()
-			+ SYEX_CHAIN_APPLY_FMT_LEN;
-	}
-
-#endif
-
-	friend struct expr::compound_get;
-
-
-
-	OpOperatorChain<A1, A2> combination;	//!< The chain operator.
-	OpLVariable<T, G> e;					//!< Variable to which this operator applies.
-
-
-};
-
 
 // *********************************************************************************************************************************
+
+
+
+
 
 namespace symphas::internal
 {
@@ -991,20 +1037,169 @@ namespace symphas::internal
 	 * construct map expressions. Wraps the template deduction necessary
 	 * to initialize a map expression.
 	 */
+	template<typename G>
 	struct make_map
 	{
 		//! Constructs the map with the identity coefficient.
-		template<typename G, typename A>
+		template<typename A>
 		static auto get(A&& a);
 
 		//! Constructs the map applied to an expression.
-		template<typename G, typename V, typename E>
+		template<typename V, typename E>
 		static auto get(V v, OpExpression<E> const& e);
 	};
 
+
+
+	template<typename G, typename V, typename E>
+	size_t print_map(OpMap<G, V, E> const& map, FILE* out)
+	{
+		size_t n = expr::print_with_coeff(out, map.value);
+		n += fprintf(out, SYEX_OP_MAP_FMT_A);
+		n += map.e.print(out);
+		n += fprintf(out, SYEX_OP_MAP_FMT_B);
+		return n;
+	}
+
+	template<typename G, typename V, typename E>
+	size_t print_map(OpMap<G, V, E> const& map, char* out)
+	{
+		size_t n = expr::print_with_coeff(out, map.value);
+		n += sprintf(out + n, SYEX_OP_MAP_FMT_A);
+		n += map.e.print(out + n);
+		n += sprintf(out + n, SYEX_OP_MAP_FMT_B);
+		return n;
+	}
+
+	template<typename G, typename V, typename E>
+	size_t print_map_length(OpMap<G, V, E> const& map)
+	{
+		return expr::coeff_print_length(map.value) + map.e.print_length() + SYEX_OP_MAP_FMT_LEN;
+	}
+
+
+	template<typename S, typename T, size_t D, typename V, typename E>
+	size_t print_map(OpMap<MapGridInverseFourier<S, T, D>, V, E> const& map, FILE* out)
+	{
+		size_t n = expr::print_with_coeff(out, map.value);
+		n += fprintf(out, SYEX_IFT_OF_EXPR_FMT_A);
+		n += map.e.print(out);
+		n += fprintf(out, SYEX_IFT_OF_EXPR_FMT_B);
+		return n;
+	}
+
+	template<typename S, typename T, size_t D, typename V0, typename V1, typename G>
+	size_t print_map(OpMap<MapGridInverseFourier<S, T, D>, V0, OpTerm<V1, G>> const& map, FILE* out)
+	{
+		size_t n = expr::print_with_coeff(out, map.value);
+		n += fprintf(out, SYEX_IFT_OF_OP_FMT_A);
+		n += map.e.print(out);
+		n += fprintf(out, SYEX_IFT_OF_OP_FMT_B);
+		return n;
+	}
+
+	template<typename S, typename T, size_t D, typename V, typename E>
+	size_t print_map(OpMap<MapGridFourier<S, T, D>, V, E> const& map, FILE* out)
+	{
+		size_t n = expr::print_with_coeff(out, map.value);
+		n += fprintf(out, SYEX_FT_OF_EXPR_FMT_A);
+		n += map.e.print(out);
+		n += fprintf(out, SYEX_FT_OF_EXPR_FMT_B);
+		return n;
+	}
+
+	template<typename S, typename T, size_t D, typename V0, typename V1, typename G>
+	size_t print_map(OpMap<MapGridFourier<S, T, D>, V0, OpTerm<V1, G>> const& map, FILE* out)
+	{
+		size_t n = expr::print_with_coeff(out, map.value);
+		n += fprintf(out, SYEX_FT_OF_OP_FMT_A);
+		n += map.e.print(out);
+		n += fprintf(out, SYEX_FT_OF_OP_FMT_B);
+		return n;
+	}
+
+	template<typename S, typename T, size_t D, typename V, typename E>
+	size_t print_map(OpMap<MapGridInverseFourier<S, T, D>, V, E> const& map, char* out)
+	{
+		size_t n = expr::print_with_coeff(out, map.value);
+		n += sprintf(out + n, SYEX_IFT_OF_EXPR_FMT_A);
+		n += map.e.print(out + n);
+		n += sprintf(out + n, SYEX_IFT_OF_EXPR_FMT_B);
+		return n;
+	}
+
+	template<typename S, typename T, size_t D, typename V0, typename V1, typename G>
+	size_t print_map(OpMap<MapGridInverseFourier<S, T, D>, V0, OpTerm<V1, G>> const& map, char* out)
+	{
+		size_t n = expr::print_with_coeff(out, map.value);
+		n += sprintf(out + n, SYEX_IFT_OF_OP_FMT_A);
+		n += map.e.print(out + n);
+		n += sprintf(out + n, SYEX_IFT_OF_OP_FMT_B);
+		return n;
+	}
+
+	template<typename S, typename T, size_t D, typename V, typename E>
+	size_t print_map(OpMap<MapGridFourier<S, T, D>, V, E> const& map, char* out)
+	{
+		size_t n = expr::print_with_coeff(out, map.value);
+		n += sprintf(out + n, SYEX_FT_OF_EXPR_FMT_A);
+		n += map.e.print(out + n);
+		n += sprintf(out + n, SYEX_FT_OF_EXPR_FMT_B);
+		return n;
+	}
+
+	template<typename S, typename T, size_t D, typename V0, typename V1, typename G>
+	size_t print_map(OpMap<MapGridFourier<S, T, D>, V0, OpTerm<V1, G>> const& map, char* out)
+	{
+		size_t n = expr::print_with_coeff(out, map.value);
+		n += sprintf(out + n, SYEX_FT_OF_OP_FMT_A);
+		n += map.e.print(out + n);
+		n += sprintf(out + n, SYEX_FT_OF_OP_FMT_B);
+		return n;
+	}
+
+
+	template<typename S, typename T, size_t D, typename V, typename E>
+	size_t print_map_length(OpMap<MapGridInverseFourier<S, T, D>, V, E> const& map)
+	{
+		return expr::coeff_print_length(map.value) + map.e.print_length() + SYEX_IFT_OF_EXPR_FMT_LEN;
+	}
+
+	template<typename S, typename T, size_t D, typename V0, typename V1, typename G>
+	size_t print_map_length(OpMap<MapGridInverseFourier<S, T, D>, V0, OpTerm<V1, G>> const& map)
+	{
+		return expr::coeff_print_length(map.value) + map.e.print_length() + SYEX_IFT_OF_OP_FMT_LEN;
+	}
+
+	template<typename S, typename T, size_t D, typename V, typename E>
+	size_t print_map_length(OpMap<MapGridFourier<S, T, D>, V, E> const& map)
+	{
+		return expr::coeff_print_length(map.value) + map.e.print_length() + SYEX_FT_OF_EXPR_FMT_LEN;
+	}
+
+	template<typename S, typename T, size_t D, typename V0, typename V1, typename G>
+	size_t print_map_length(OpMap<MapGridFourier<S, T, D>, V0, OpTerm<V1, G>> const& map)
+	{
+		return expr::coeff_print_length(map.value) + map.e.print_length() + SYEX_FT_OF_OP_FMT_LEN;
+	}
 }
 
+namespace expr
+{
 
+	template<typename G, typename V, typename E>
+	auto make_map(V const& value, OpExpression<E> const& e)
+	{
+		return symphas::internal::make_map<G>::template get(value, *static_cast<E const*>(&e));
+	}
+
+	template<typename G, typename E>
+	auto make_map(OpExpression<E> const& e)
+	{
+		return symphas::internal::make_map<G>::template get(*static_cast<E const*>(&e));
+	}
+
+}
 
 
 //! An expression applying a GridPair type.
@@ -1025,7 +1220,9 @@ namespace symphas::internal
 template<typename G, typename V, typename E>
 struct OpMap : OpExpression<OpMap<G, V, E>>
 {
-	using result_grid = typename expr::grid_type<E>::type;
+	using result_type = expr::eval_type_t<E>;
+
+	OpMap() : value{ V{} }, e{}, data{} {}
 
 	//! Create a mapping expression.
 	/*!
@@ -1035,11 +1232,12 @@ struct OpMap : OpExpression<OpMap<G, V, E>>
 	 * \param value The coefficient of the mapping expression.
 	 * \param e The expression which is evaluated and mapped.
 	 */
-	OpMap(V value, E const& e) : value{ value }, e{ e }, result{ expr::property::data_dimensions(e) }, data{ result } { update(); }
+	OpMap(V value, E const& e) :
+		value{ value }, e{ e }, data{ expr::data_dimensions(e) } {}
 
 	inline auto eval(iter_type n) const
 	{
-		return value * data[n];
+		return expr::eval(value) * data[n];
 	}
 
 	//! Update the underlying data.
@@ -1050,114 +1248,1011 @@ struct OpMap : OpExpression<OpMap<G, V, E>>
 	 */
 	void update()
 	{
-		expr::result(e, result, result.len);
+		expr::result(e, data.src, data.len);
 		data.update();
 	}
 
-
 	auto operator-() const
 	{
-		return symphas::internal::make_map::get(-value, e);
+		return expr::make_map<G>(-value, e);
 	}
+
 
 
 #ifdef PRINTABLE_EQUATIONS
 
 	size_t print(FILE* out) const
 	{
-		size_t n = expr::print_with_coeff(out, value);
-		n += fprintf(out, SYEX_OP_MAP_FMT_A);
-		n += e.print(out);
-		n += fprintf(out, SYEX_OP_MAP_FMT_B);
-		return n;
+		return symphas::internal::print_map(*this, out);
 	}
 
 	size_t print(char* out) const
 	{
-		size_t n = expr::print_with_coeff(out, value);
-		n += sprintf(out + n, SYEX_OP_MAP_FMT_A);
-		n += e.print(out + n);
-		n += sprintf(out + n, SYEX_OP_MAP_FMT_B);
-		return n;
+		return symphas::internal::print_map(*this, out);
 	}
 
 	size_t print_length() const
 	{
-		return expr::coeff_print_length(value) + e.print_length()
-			+ SYEX_CHAIN_APPLY_FMT_LEN;
+		return symphas::internal::print_map_length(*this);
 	}
 
 #endif
 
-
-	friend struct expr::compound_get;
+	friend auto const& expr::get_enclosed_expression(OpMap<G, V, E> const&);
+	friend auto& expr::get_enclosed_expression(OpMap<G, V, E>&);
 
 	V value;		//!< Coefficient of the map expression term.
 	E e;			//!< Expression to which this operator applies.
 
 protected:
 
-	result_grid result;
 	G data;
 
 };
 
-template<typename S1, typename G, typename V, typename E>
-auto operator*(OpLiteral<S1> const& a, OpMap<G, V, E> const& b)
+
+//! An expression applying a GridPair type.
+/*!
+ * Uses a GridPair
+ * transformation on the evaluated expression. Thus, also it needs to be
+ * updated before being evaluated.
+ *
+ * The primary difference between ::OpMap and ::OpFuncApply is that OpMap is more
+ * general and can deal with transformations over the whole grid, rather
+ * than point-wise transformations which the function expression handles.
+ *
+ * \tparam G The GridPair type which is used to transform the result
+ * of the applied expression.
+ * \tparam V The coefficient type.
+ * \tparam E The expression type that is evaluated and then transformed.
+ */
+template<typename V, typename E>
+struct OpMap<void, V, E> : OpExpression<OpMap<void, V, E>>
 {
-	return symphas::internal::make_map::template get<G>(a.value * b.value, expr::compound_get::template expr(b));
-}
+	using result_type = expr::eval_type_t<E>;
+
+	OpMap() : value{ V{} }, e{} {}
+
+	//! Create a mapping expression.
+	/*!
+	 * Create an expression which maps the given expression through the
+	 * the prescribed grid mapping type.
+	 *
+	 * \param value The coefficient of the mapping expression.
+	 * \param e The expression which is evaluated and mapped.
+	 */
+	OpMap(V value, E const& e) :
+		value{ value }, e{ e }
+	{
+		update();
+	}
+
+	inline auto eval(iter_type n) const
+	{
+		return expr::eval(value);
+	}
+
+	//! Update the underlying data.
+	/*!
+	 * Evaluate the expression that the OpMap is applied to and store the
+	 * result. Then update the GridPair object, which has been linked with the
+	 * result in the constructor.
+	 */
+	void update() {}
+
+	auto operator-() const
+	{
+		return expr::make_map<void>(-value, e);
+	}
 
 
 
+#ifdef PRINTABLE_EQUATIONS
 
-template<typename G, typename A>
-inline auto symphas::internal::make_map::get(A&& a)
+	size_t print(FILE* out) const
+	{
+		return symphas::internal::print_map(*this, out);
+	}
+
+	size_t print(char* out) const
+	{
+		return symphas::internal::print_map(*this, out);
+	}
+
+	size_t print_length() const
+	{
+		return symphas::internal::print_map_length(*this);
+	}
+
+#endif
+
+	friend auto const& expr::get_enclosed_expression(OpMap<void, V, E> const&);
+	friend auto& expr::get_enclosed_expression(OpMap<void, V, E>&);
+
+	V value;		//!< Coefficient of the map expression term.
+	E e;			//!< Expression to which this operator applies.
+
+};
+
+
+
+template<>
+struct symphas::internal::make_map<symphas::internal::HCTS>
 {
-	return get<G>(OpIdentity{}, std::forward<A>(a));
-}
+	//! Constructs the map with the identity coefficient.
+	template<typename E>
+	static auto get(OpExpression<E> const& a);
 
-template<typename G, typename V, typename E>
-inline auto symphas::internal::make_map::get(V v, OpExpression<E> const& e)
+	//! Constructs the map applied to an expression.
+	template<typename = void>
+	static auto get(OpVoid);
+
+	//! Constructs the map applied to an expression.
+	template<typename V, typename E>
+	static auto get(V v, OpExpression<E> const& e);
+
+	//! Constructs the map with the identity coefficient.
+	template<typename E>
+	static auto get(OpMap<symphas::internal::STHC, OpIdentity, E> const& a);
+};
+
+
+template<>
+struct symphas::internal::make_map<symphas::internal::STHC>
 {
-	return OpMap<G, V, E>(v, *static_cast<const E*>(&e));
-}
+	//! Constructs the map with the identity coefficient.
+	template<typename E>
+	static auto get(OpExpression<E> const& a);
 
+	//! Constructs the map applied to an expression.
+	template<typename = void>
+	static auto get(OpVoid);
 
+	//! Constructs the map applied to an expression.
+	template<typename V, typename E>
+	static auto get(V v, OpExpression<E> const& e);
 
-
-
+	//! Constructs the map with the identity coefficient.
+	template<typename E>
+	static auto get(OpMap<symphas::internal::HCTS, OpIdentity, E> const& a);
+};
 
 
 namespace expr
 {
-	//! Initializes a mapping expression based on the Fourier transformation.
+
+	//! Returns an index from the sequential grid using a half complex (FFTW format) grid.
 	/*!
-	 * Initializes an OpMap instance for the currently implemented grid pairs that
-	 * can be used, which is currently limited to the MapGridFourier type.
+	 * \param n The index corresponding to the sequential grid.
+	 * \param src The half complex grid the value is taken from.
+	 * \param dims The underlying dimensions of the data.
 	 */
-	template<typename V, typename E, size_t D = expr::grid_dim<E>::dimension>
-	auto make_fourier_map(V value, OpExpression<E> const& e)
+	template<size_t D>
+	struct eval_fftw_hcts 
 	{
-		using src_type = typename expr::eval_type<E>::type;
-		using grid_pair_type = MapGridFourier<src_type, complex_t, D>;
-		return OpMap<grid_pair_type, V, E>(value, *static_cast<E const*>(&e));
+		template<typename E>
+		auto operator()(iter_type n, OpExpression<E> const& e, const len_type* dims)
+		{
+			return static_cast<E const*>(&e)->eval(n);
+		}
+	};
 
-	}
+	//! Specialization based on symphas::dft::get_fftw_hcts.
+	template<>
+	struct eval_fftw_hcts<1>
+	{
+		template<typename E>
+		auto operator()(iter_type n, OpExpression<E> const& e, const len_type* dims) -> expr::eval_type_t<E>
+		{
+			using namespace expr;
+			using symphas::math::conj;
 
-	//! Initializes a mapping expression based on the Fourier transformation.
+			iter_type dn = dims[0] / 2 + 1;
+
+			if (n < dn)
+			{
+				return static_cast<E const*>(&e)->eval(n);
+			}
+			else
+			{
+				return conj(static_cast<E const*>(&e)->eval(dn - (n - dn) - 2));
+			}
+		}
+	};
+
+	//! Specialization based on symphas::dft::get_fftw_hcts.
+	template<>
+	struct eval_fftw_hcts<2>
+	{
+		template<typename E>
+		auto operator()(iter_type n, OpExpression<E> const& e, const len_type* dims) -> expr::eval_type_t<E>
+		{
+			using namespace expr;
+			using symphas::math::conj;
+			
+			iter_type dn = dims[0] / 2 + 1;
+			iter_type i0 = n % dims[0];
+			iter_type j0 = n / dims[0];
+
+			// Source half
+			if (i0 < dn)
+			{
+				iter_type n0 = i0 + j0 * dn;
+				return static_cast<E const*>(&e)->eval(n0);
+			}
+			// Hermitian half
+			else
+			{
+				iter_type i00 = (dn - (i0 - dn) - 2);
+				iter_type j00 = (j0 == 0) ? j0 : (dims[1] - j0);
+				iter_type n00 = i00 + j00 * dn;
+				return conj(static_cast<E const*>(&e)->eval(n00));
+			}
+		}
+	};
+
+	//! Specialization based on symphas::dft::get_fftw_hcts.
+	template<>
+	struct eval_fftw_hcts<3>
+	{
+		template<typename E>
+		auto operator()(iter_type n, OpExpression<E> const& e, const len_type* dims) -> expr::eval_type_t<E>
+		{
+			using namespace expr;
+			using symphas::math::conj;
+
+			iter_type dn = dims[0] / 2 + 1;
+			iter_type i0 = n % dims[0];
+			iter_type j0 = (n / dims[0]) % dims[1];
+			iter_type k0 = n / (dims[0] * dims[1]);
+			
+			// Source half
+			if (i0 < dn)
+			{
+				iter_type n0 = i0 + j0 * dn + k0 * dn * dims[1];
+				return static_cast<E const*>(&e)->eval(n0);
+			}
+			// Hermitian half
+			else
+			{
+				iter_type i00 = (dn - (i0 - dn) - 2);
+				iter_type j00 = (j0 == 0) ? j0 : (dims[1] - j0);
+				iter_type k00 = (k0 == 0) ? k0 : (dims[2] - k0);
+				iter_type n00 = i00 + j00 * dn;
+				return conj(static_cast<E const*>(&e)->eval(n00));
+			}
+			
+			if (i0 >= dn)
+			{
+				iter_type i00 = dims[0] - i0 - 1;
+				iter_type j00 = dims[1] - j0 - 1;
+				iter_type k00 = k0;
+				return conj(static_cast<E const*>(&e)->eval(i00 + j00 * dn + k00 * dn * dims[1]));
+			}
+			else
+			{
+				return static_cast<E const*>(&e)->eval(i0 + j0 * dn + k0 * dn * dims[1]);
+			}
+		}
+	};
+
+	//! Returns an index from the half complex (FFTW format) grid using sequential grid.
 	/*!
-	 * Initializes an OpMap instance for the currently implemented grid pairs that
-	 * can be used, which is currently limited to the MapGridFourier type.
+	 * \param n The index corresponding to the sequential grid.
+	 * \param src The half complex grid the value is taken from.
+	 * \param dims The underlying dimensions of the data.
 	 */
-	template<typename E, size_t D = expr::grid_dim<E>::dimension>
-	auto make_fourier_map(OpExpression<E> const& e)
+	template<size_t D>
+	struct eval_fftw_sthc 
 	{
-		return expr::make_fourier_map(OpIdentity{}, e);
-	}
+		template<typename E>
+		auto operator()(iter_type n, OpExpression<E> const& e, const len_type* dims)
+		{
+			return static_cast<E const*>(&e)->eval(n);
+		}
+	};
 
+	//! Specialization based on symphas::dft::get_fftw_sthc.
+	template<>
+	struct eval_fftw_sthc<1>
+	{
+		template<typename E>
+		auto operator()(iter_type n, OpExpression<E> const& e, const len_type* dims)
+		{
+			return static_cast<E const*>(&e)->eval(n);
+		}
+	};
+
+	//! Specialization based on symphas::dft::get_fftw_sthc.template<>
+	template<>
+	struct eval_fftw_sthc<2>
+	{
+		template<typename E>
+		auto operator()(iter_type n, OpExpression<E> const& e, const len_type* dims)
+		{
+			iter_type dn = dims[0] / 2 + 1;
+			iter_type i0 = n % dn;
+			iter_type j0 = n / dn;
+
+			return static_cast<E const*>(&e)->eval(i0 + j0 * dims[0]);
+		}
+	};
+
+	//! Specialization based on symphas::dft::get_fftw_sthc.
+	template<>
+	struct eval_fftw_sthc<3>
+	{
+		template<typename E>
+		auto operator()(iter_type n, OpExpression<E> const& e, const len_type* dims)
+		{
+			iter_type dn = dims[0] / 2 + 1;
+			iter_type i0 = n % dn;
+			iter_type j0 = (n / dn) % dims[1];
+			iter_type k0 = n / (dn * dims[1]);
+
+			return static_cast<E const*>(&e)->eval(i0 + j0 * dims[0] + k0 * dims[0] * dims[1]);
+		}
+	};
 }
 
+template<typename E>
+struct OpExpression<OpMap<symphas::internal::HCTS, OpIdentity, E>> 
+{
+	using parent_type = OpMap<symphas::internal::HCTS, OpIdentity, E>;
+
+	explicit OpExpression(E const& rest) : e(rest) {}
+	explicit OpExpression(E&& rest) noexcept : e(std::move(rest)) {}
+
+	auto operator()(iter_type n) const
+	{
+		return cast().eval(n);
+	}
+
+	template<typename EE>
+	auto operator()(OpExpression<EE> const& e) const
+	{
+		return cast() * (*static_cast<EE const*>(&e));
+	}
+
+	symphas::internal::expression_iterator<parent_type> begin() const
+	{
+		return symphas::internal::expression_iterator<parent_type>(cast());
+	}
+
+	symphas::internal::expression_iterator<parent_type> end(len_type len) const
+	{
+		return symphas::internal::expression_iterator<parent_type>(cast(), len);
+	}
+
+	auto& cast() const
+	{
+		return *static_cast<parent_type const*>(this);
+	}
+
+	E e;
+};
+
+//! Rearranges a complex-valued expression determined using FFTW algorithms.
+/*!
+ * Rearranges a complex-valued expression determined using FFTW algorithms.
+ */
+template<typename E>
+struct OpMap<symphas::internal::HCTS, OpIdentity, E> : OpExpression<OpMap<symphas::internal::HCTS, OpIdentity, E>>
+{
+	using parent_type = OpExpression<OpMap<symphas::internal::HCTS, OpIdentity, E>>;
+	using parent_type::e;
+
+	using result_type = expr::eval_type_t<E>;
+	static const size_t D = expr::grid_dim<E>::value;
+
+	OpMap() : parent_type{} {}
+
+	//! Create a mapping expression.
+	/*!
+	 * Create an expression which maps the given expression through the
+	 * the prescribed grid mapping type.
+	 *
+	 * \param value The coefficient of the mapping expression.
+	 * \param e The expression which is evaluated and mapped.
+	 */
+	OpMap(E const& e) : parent_type{ e }, dims{} 
+	{
+		const len_type *dims_copy = expr::data_dimensions(e);
+		for (iter_type i = 0; i < D; ++i)
+		{
+			dims[i] = dims_copy[i];
+		}
+	}
+
+	inline auto eval(iter_type n) const
+	{
+		return expr::eval_fftw_hcts<D>{}(n, e, dims);
+	}
+
+	void update() {}
+
+	auto operator-() const
+	{
+		return expr::make_map<symphas::internal::HCTS>(-e);
+	}
+
+#ifdef PRINTABLE_EQUATIONS
+
+	size_t print(FILE* out) const
+	{
+		return e.print(out);
+	}
+
+	size_t print(char* out) const
+	{
+		return e.print(out);
+	}
+
+	size_t print_length() const
+	{
+		return e.print_length();
+	}
+
+#endif
+
+	friend auto const& expr::get_enclosed_expression(OpMap<symphas::internal::HCTS, OpIdentity, E> const&);
+	friend auto& expr::get_enclosed_expression(OpMap<symphas::internal::HCTS, OpIdentity, E>&);
+
+	len_type dims[D];	//!< Dimensions of the expression.
+};
+
+
+template<typename E>
+struct OpExpression<OpMap<symphas::internal::STHC, OpIdentity, E>> 
+{
+	using parent_type = OpMap<symphas::internal::STHC, OpIdentity, E>;
+
+	explicit OpExpression(E const& rest) : e(rest) {}
+	explicit OpExpression(E&& rest) noexcept : e(std::move(rest)) {}
+
+	auto operator()(iter_type n) const
+	{
+		return cast().eval(n);
+	}
+
+	template<typename EE>
+	auto operator()(OpExpression<EE> const& e) const
+	{
+		return cast() * (*static_cast<EE const*>(&e));
+	}
+
+	symphas::internal::expression_iterator<parent_type> begin() const
+	{
+		return symphas::internal::expression_iterator<parent_type>(cast());
+	}
+
+	symphas::internal::expression_iterator<parent_type> end(len_type len) const
+	{
+		return symphas::internal::expression_iterator<parent_type>(cast(), len);
+	}
+
+	auto& cast() const
+	{
+		return *static_cast<parent_type const*>(this);
+	}
+
+	E e;
+};
+
+
+//! Rearranges a complex-valued expression determined using FFTW algorithms.
+/*!
+ * Rearranges a complex-valued expression determined using FFTW algorithms.
+ */
+template<typename E>
+struct OpMap<symphas::internal::STHC, OpIdentity, E> : OpExpression<OpMap<symphas::internal::STHC, OpIdentity, E>>
+{
+	using parent_type = OpExpression<OpMap<symphas::internal::STHC, OpIdentity, E>>;
+	using parent_type::e;
+
+	using result_type = expr::eval_type_t<E>;
+	static const size_t D = expr::grid_dim<E>::value;
+
+	OpMap() : parent_type{} {}
+
+	//! Create a mapping expression.
+	/*!
+	 * Create an expression which maps the given expression through the
+	 * the prescribed grid mapping type.
+	 *
+	 * \param value The coefficient of the mapping expression.
+	 * \param e The expression which is evaluated and mapped.
+	 */
+	OpMap(E const& e) : parent_type{ e }, dims{}
+	{
+		const len_type* dims_copy = expr::data_dimensions(e);
+		for (iter_type i = 0; i < D; ++i)
+		{
+			dims[i] = dims_copy[i];
+		}
+	}
+
+	inline auto eval(iter_type n) const
+	{
+		if (n >= symphas::dft::length<scalar_t, D>(dims))
+		{
+			n %= symphas::dft::length<scalar_t, D>(dims);
+		}
+		return expr::eval_fftw_sthc<D>{}(n, e, dims);
+	}
+
+	void update() {}
+
+	auto operator-() const
+	{
+		return expr::make_map<symphas::internal::STHC>(-e);
+	}
+
+#ifdef PRINTABLE_EQUATIONS
+
+	size_t print(FILE* out) const
+	{
+		return e.print(out);
+	}
+
+	size_t print(char* out) const
+	{
+		return e.print(out);
+	}
+
+	size_t print_length() const
+	{
+		return e.print_length();
+	}
+
+#endif
+
+	friend auto const& expr::get_enclosed_expression(OpMap<symphas::internal::HCTS, OpIdentity, E> const&);
+	friend auto& expr::get_enclosed_expression(OpMap<symphas::internal::HCTS, OpIdentity, E>&);
+
+	len_type dims[D];	//!< Dimensions of the expression.
+};
+
+
+
+
+template<typename coeff_t, typename G2, typename V2, typename E2,
+	typename std::enable_if_t<(expr::is_coeff<coeff_t> && !expr::is_tensor<V2>), int> = 0>
+auto operator*(coeff_t const& value, OpMap<G2, V2, E2> const& b)
+{
+	return expr::make_map<G2>(value * b.value, expr::get_enclosed_expression(b));
+}
+
+template<typename coeff_t, typename tensor_t, typename G2, typename E2,
+	typename std::enable_if_t<(expr::is_coeff<coeff_t> && expr::is_tensor<tensor_t>), int> = 0>
+auto operator*(coeff_t const& value, OpMap<G2, tensor_t, E2> const& b)
+{
+	return (value * b.value) * expr::make_map<G2>(expr::get_enclosed_expression(b));
+}
+
+template<typename coeff_t, typename E,
+	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator*(coeff_t const& value, OpMap<symphas::internal::HCTS, OpIdentity, E> const& b)
+{
+	return expr::make_map<symphas::internal::HCTS>(value * expr::get_enclosed_expression(b));
+}
+
+template<typename coeff_t, typename E,
+	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator*(coeff_t const& value, OpMap<symphas::internal::STHC, OpIdentity, E> const& b)
+{
+	return expr::make_map<symphas::internal::STHC>(value * expr::get_enclosed_expression(b));
+}
+
+
+
+
+
+
+namespace symphas::internal
+{
+	template<typename T>
+	struct real_space_type
+	{
+		using type = T;
+	};
+
+	template<typename T, size_t D>
+	struct real_space_type<any_vector_t<T, D>>
+	{
+		using type = T;
+	};
+}
+
+
+namespace expr
+{
+	namespace
+	{
+		template<typename... As, size_t... Is>
+		auto hcts_adds(OpAdd<As...> const& e, std::index_sequence<Is...>)
+		{
+			return (hcts(expr::get<Is>(e)) + ...);
+		}
+
+		template<typename... As, size_t... Is>
+		auto sthc_adds(OpAdd<As...> const& e, std::index_sequence<Is...>)
+		{
+			return (sthc(expr::get<Is>(e)) + ...);
+		}
+	}
+
+	template<typename E>
+	auto hcts(OpExpression<E> const& e)
+	{
+		return expr::make_map<symphas::internal::HCTS>(*static_cast<E const*>(&e));
+	}
+
+	//template<typename A, typename B>
+	//auto hcts(OpBinaryMul<A, B> const& e)
+	//{
+	//	return hcts(e.a) * hcts(e.b);
+	//}
+
+	//template<typename... As>
+	//auto hcts(OpAdd<As...> const& e)
+	//{
+	//	return hcts_adds(e, std::make_index_sequence<sizeof...(As)>{});
+	//}
+
+	template<typename E>
+	auto sthc(OpExpression<E> const& e)
+	{
+		return expr::make_map<symphas::internal::STHC>(*static_cast<E const*>(&e));
+	}
+
+	//template<typename A, typename B>
+	//auto sthc(OpBinaryMul<A, B> const& e)
+	//{
+	//	return sthc(e.a) * sthc(e.b);
+	//}
+
+	//template<typename... As>
+	//auto sthc(OpAdd<As...> const& e)
+	//{
+	//	return sthc_adds(e, std::make_index_sequence<sizeof...(As)>{});
+	//}
+
+
+	//! Initializes a mapping expression based on the Fourier transformation.
+	/*!
+	 * Initializes an OpMap instance for the currently implemented grid pairs that
+	 * can be used, which is currently limited to the MapGridFourier type. Will
+	 * perform an arrangement based on FFTW scalar->complex array organization so
+	 * that the result will be put in a sequential, or "full complex" format.
+	 */
+	template<typename V, typename E, size_t D = expr::grid_dim<E>::value, 
+		size_t R = expr::eval_type<E>::rank, typename std::enable_if_t<(R == 0), int> = 0>
+	auto make_fourier_map(V const& value, OpExpression<E> const& e)
+	{
+		static_assert(D > 0);
+
+		using src_type = typename expr::eval_type<E>::type;
+		using grid_pair_type = MapGridFourier<src_type, complex_t, D>;
+		using rt = typename symphas::internal::real_space_type<src_type>::type;
+
+		if constexpr (std::is_same<rt, scalar_t>::value)
+		{
+			return hcts(expr::make_map<grid_pair_type>(value, *static_cast<E const*>(&e)));
+		}
+		else
+		{
+			return expr::make_map<grid_pair_type>(value, *static_cast<E const*>(&e));
+		}
+	}
+
+	template<typename V>
+	auto make_fourier_map(V const& value, OpVoid)
+	{
+		return OpVoid{};
+	}
+
+	template<typename V, typename E, size_t D = expr::grid_dim<E>::value, size_t... Rs, size_t R = sizeof...(Rs)>
+	auto make_fourier_map(V const& value, OpExpression<E> const& e, std::index_sequence<Rs...>)
+	{
+		return (make_fourier_map(expr::make_column_vector<Rs, R>() * value, expr::make_row_vector<Rs, R>() * (*static_cast<E const*>(&e))) + ...);
+	}
+
+	template<typename V, typename E, size_t D = expr::grid_dim<E>::value,
+		size_t R = expr::eval_type<E>::rank, typename std::enable_if_t<(R > 0), int> = 0>
+	auto make_fourier_map(V const& value, OpExpression<E> const& e)
+	{
+		return make_fourier_map(value, *static_cast<E const*>(&e), std::make_index_sequence<R>{});
+	}
+
+	template<typename E>
+	auto make_fourier_map(OpExpression<E> const& e)
+	{
+		return expr::make_fourier_map(OpIdentity{}, *static_cast<E const*>(&e));
+	}
+
+	//! Initializes a mapping expression based on the Fourier transformation.
+	/*!
+	 * Initializes an OpMap instance for the currently implemented grid pairs that
+	 * can be used, which is currently limited to the MapGridFourier type.
+	 */
+	template<typename target_type, typename V, typename E, size_t D = expr::grid_dim<E>::value,
+		size_t R = expr::eval_type<E>::rank, typename std::enable_if_t<(R == 0), int> = 0>
+	auto make_inv_fourier_map(V const& value, OpExpression<E> const& e)
+	{
+		static_assert(D > 0);
+		using rt = typename symphas::internal::real_space_type<target_type>::type;
+
+		using grid_pair_type = MapGridInverseFourier<complex_t, rt, D>;
+
+		if constexpr (std::is_same<rt, scalar_t>::value)
+		{
+			return expr::make_map<grid_pair_type>(value, sthc(*static_cast<E const*>(&e)));
+		}
+		else
+		{
+			return expr::make_map<grid_pair_type>(value, *static_cast<E const*>(&e));
+		}
+	}
+
+	template<typename target_type, typename V>
+	auto make_inv_fourier_map(V const& value, OpVoid)
+	{
+		return OpVoid{};
+	}
+
+
+	template<typename target_type, typename V, typename E, size_t D = expr::grid_dim<E>::value, size_t... Rs, size_t R = sizeof...(Rs)>
+	auto make_inv_fourier_map(V const& value, OpExpression<E> const& e, std::index_sequence<Rs...>)
+	{
+		return (make_inv_fourier_map<target_type>(expr::make_column_vector<Rs, R>() * value, 
+			expr::make_row_vector<Rs, R>() * (*static_cast<E const*>(&e))) + ...);
+	}
+
+	template<typename target_type, typename V, typename E, size_t D = expr::grid_dim<E>::value,
+		size_t R = expr::eval_type<E>::rank, typename std::enable_if_t<(R > 0), int> = 0>
+	auto make_inv_fourier_map(V const& value, OpExpression<E> const& e)
+	{
+		return make_inv_fourier_map<target_type>(value, *static_cast<E const*>(&e), std::make_index_sequence<R>{});
+	}
+
+
+	//! Initializes a mapping expression based on the Fourier transformation.
+	/*!
+	 * Initializes an OpMap instance for the currently implemented grid pairs that
+	 * can be used, which is currently limited to the MapGridFourier type.
+	 */
+	template<typename target_type, typename E>
+	auto make_inv_fourier_map(OpExpression<E> const& e)
+	{
+		return expr::make_inv_fourier_map<target_type>(OpIdentity{}, *static_cast<E const*>(&e));
+	}
+}
+
+
+template<typename G>
+template<typename V, typename E>
+auto symphas::internal::make_map<G>::get(V value, OpExpression<E> const& e)
+{
+	return OpMap<G, V, E>(value, *static_cast<E const*>(&e));
+}
+
+template<typename G>
+template<typename A>
+auto symphas::internal::make_map<G>::get(A&& a)
+{
+	return get(OpIdentity{}, std::forward<A>(a));
+}
+
+template<typename>
+ auto symphas::internal::make_map<symphas::internal::HCTS>::get(OpVoid)
+{
+	return OpVoid{};
+}
+
+template<typename V, typename E>
+auto symphas::internal::make_map<symphas::internal::HCTS>::get(V value, OpExpression<E> const& e)
+{
+	return get(value * *static_cast<E const*>(&e));
+}
+
+template<typename E>
+auto symphas::internal::make_map<symphas::internal::HCTS>::get(OpExpression<E> const& e)
+{
+	return OpMap<symphas::internal::HCTS, OpIdentity, E>(*static_cast<E const*>(&e));
+}
+
+template<typename E>
+auto symphas::internal::make_map<symphas::internal::HCTS>::get(OpMap<symphas::internal::STHC, OpIdentity, E> const& e)
+{
+	return expr::get_enclosed_expression(e);
+}
+
+template<typename>
+inline auto symphas::internal::make_map<symphas::internal::STHC>::get(OpVoid)
+{
+	return OpVoid{};
+}
+
+template<typename V, typename E>
+auto symphas::internal::make_map<symphas::internal::STHC>::get(V value, OpExpression<E> const& e)
+{
+	return get(value * *static_cast<E const*>(&e));
+}
+
+template<typename E>
+auto symphas::internal::make_map<symphas::internal::STHC>::get(OpExpression<E> const& e)
+{
+	return OpMap<symphas::internal::STHC, OpIdentity, E>(*static_cast<E const*>(&e));
+}
+
+template<typename E>
+auto symphas::internal::make_map<symphas::internal::STHC>::get(OpMap<symphas::internal::HCTS, OpIdentity, E> const& e)
+{
+	return expr::get_enclosed_expression(e);
+}
+
+
+
+
+template<typename source_type, typename V, typename E>
+using OpFourierTransform = OpMap<MapGridFourier<source_type, complex_t, expr::grid_dim<E>::value>, V, E>;
+
+template<typename target_type, typename V, typename E>
+using OpInverseFourierTransform = OpMap<MapGridInverseFourier<complex_t, target_type, expr::grid_dim<E>::value>, V, E>;
+
+
+
+// Overloads to allow symbolic rules to work betwewen STHC expressions.
+
+template<typename coeff_t, typename E,
+	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator+(OpMap<symphas::internal::STHC, OpIdentity, E> const& a, coeff_t const& b)
+{
+	return expr::sthc(expr::get_enclosed_expression(a) + b);
+}
+
+template<typename coeff_t, typename E,
+	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator+(coeff_t const& a, OpMap<symphas::internal::STHC, OpIdentity, E> const& b)
+{
+	return expr::sthc(a + expr::get_enclosed_expression(b));
+}
+
+template<typename E1, typename E2>
+auto operator+(OpMap<symphas::internal::STHC, OpIdentity, E1> const& a, OpMap<symphas::internal::STHC, OpIdentity, E2> const& b)
+{
+	return expr::sthc(expr::get_enclosed_expression(a) + expr::get_enclosed_expression(b));
+}
+
+template<typename coeff_t, typename E,
+	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator-(OpMap<symphas::internal::STHC, OpIdentity, E> const& a, coeff_t const& b)
+{
+	return expr::sthc(expr::get_enclosed_expression(a) - b);
+}
+
+template<typename coeff_t, typename E,
+	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator-(coeff_t const& a, OpMap<symphas::internal::STHC, OpIdentity, E> const& b)
+{
+	return expr::sthc(a - expr::get_enclosed_expression(b));
+}
+
+template<typename E1, typename E2>
+auto operator-(OpMap<symphas::internal::STHC, OpIdentity, E1> const& a, OpMap<symphas::internal::STHC, OpIdentity, E2> const& b)
+{
+	return expr::sthc(expr::get_enclosed_expression(a) - expr::get_enclosed_expression(b));
+}
+
+template<typename E1, typename E2>
+auto operator*(OpMap<symphas::internal::STHC, OpIdentity, E1> const& a, OpMap<symphas::internal::STHC, OpIdentity, E2> const& b)
+{
+	return expr::sthc(expr::get_enclosed_expression(a) * expr::get_enclosed_expression(b));
+}
+
+template<typename coeff_t, typename E,
+	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator/(OpMap<symphas::internal::STHC, OpIdentity, E> const& a, coeff_t const& b)
+{
+	return expr::sthc(expr::get_enclosed_expression(a) / b);
+}
+
+template<typename coeff_t, typename E,
+	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator/(coeff_t const& a, OpMap<symphas::internal::STHC, OpIdentity, E> const& b)
+{
+	return expr::sthc(a / expr::get_enclosed_expression(b));
+}
+
+template<typename E1, typename E2>
+auto operator/(OpMap<symphas::internal::STHC, OpIdentity, E1> const& a, OpMap<symphas::internal::STHC, OpIdentity, E2> const& b)
+{
+	return expr::sthc(expr::get_enclosed_expression(a) / expr::get_enclosed_expression(b));
+}
+
+template<typename coeff_t, typename E,
+	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator+(OpMap<symphas::internal::HCTS, OpIdentity, E> const& a, coeff_t const& b)
+{
+	return expr::hcts(expr::get_enclosed_expression(a) + b);
+}
+
+template<typename coeff_t, typename E,
+	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator+(coeff_t const& a, OpMap<symphas::internal::HCTS, OpIdentity, E> const& b)
+{
+	return expr::hcts(a + expr::get_enclosed_expression(b));
+}
+
+template<typename E1, typename E2>
+auto operator+(OpMap<symphas::internal::HCTS, OpIdentity, E1> const& a, OpMap<symphas::internal::HCTS, OpIdentity, E2> const& b)
+{
+	return expr::hcts(expr::get_enclosed_expression(a) + expr::get_enclosed_expression(b));
+}
+
+template<typename coeff_t, typename E,
+	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator-(OpMap<symphas::internal::HCTS, OpIdentity, E> const& a, coeff_t const& b)
+{
+	return expr::hcts(expr::get_enclosed_expression(a) - b);
+}
+
+template<typename coeff_t, typename E,
+	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator-(coeff_t const& a, OpMap<symphas::internal::HCTS, OpIdentity, E> const& b)
+{
+	return expr::hcts(a - expr::get_enclosed_expression(b));
+}
+
+template<typename E1, typename E2>
+auto operator-(OpMap<symphas::internal::HCTS, OpIdentity, E1> const& a, OpMap<symphas::internal::HCTS, OpIdentity, E2> const& b)
+{
+	return expr::hcts(expr::get_enclosed_expression(a) - expr::get_enclosed_expression(b));
+}
+
+template<typename E1, typename E2>
+auto operator*(OpMap<symphas::internal::HCTS, OpIdentity, E1> const& a, OpMap<symphas::internal::HCTS, OpIdentity, E2> const& b)
+{
+	return expr::hcts(expr::get_enclosed_expression(a) * expr::get_enclosed_expression(b));
+}
+
+template<typename coeff_t, typename E,
+	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator/(OpMap<symphas::internal::HCTS, OpIdentity, E> const& a, coeff_t const& b)
+{
+	return expr::hcts(expr::get_enclosed_expression(a) / b);
+}
+
+template<typename coeff_t, typename E,
+	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator/(coeff_t const& a, OpMap<symphas::internal::HCTS, OpIdentity, E> const& b)
+{
+	return expr::hcts(a / expr::get_enclosed_expression(b));
+}
+
+template<typename E1, typename E2>
+auto operator/(OpMap<symphas::internal::HCTS, OpIdentity, E1> const& a, OpMap<symphas::internal::HCTS, OpIdentity, E2> const& b)
+{
+	return expr::hcts(expr::get_enclosed_expression(a) / expr::get_enclosed_expression(b));
+}
+
+#include "expressionexponentials.h"
+
+namespace expr
+{
+	template<typename E>
+	auto exp(OpMap<symphas::internal::STHC, OpIdentity, E> const& e)
+	{
+		return sthc(exp(get_enclosed_expression(e)));
+	}
+
+	template<typename E>
+	auto exp(OpMap<symphas::internal::HCTS, OpIdentity, E> const& e)
+	{
+		return hcts(exp(get_enclosed_expression(e)));
+	}
+}
 
 
 #undef SYEX_COMBINATION_FMT

@@ -65,74 +65,6 @@ namespace symphas::internal
 	struct provisional_system_type_match;
 
 
-	//! Makes correspondence of a non-type template argument to a property.
-	/*!
-	 * Given a templated object of template argument types and one non-type argument,
-	 * how would one map a property that corresponds to the non-type argument?
-	 * This paradigm implements such a mapping.
-	 * 
-	 * Moreover, it combines fixed non-type template arguments with unfixed template
-	 * arguments to the non-type argument to parse the property correctly.
-	 */
-	template<auto f>
-	struct base_wrap {};
-
-	template<auto f>
-	struct property_order
-	{
-		template<size_t O>
-		struct order_value
-		{
-			static constexpr size_t get_value(base_wrap<f>)
-			{
-				return O;
-			}
-		};
-	};
-	struct property_base
-	{
-		static constexpr size_t get_value(...)
-		{
-			return 0;
-		}
-	};
-
-	template<typename T, typename G, size_t O>
-	struct order_heirarchy :
-		property_order<&Solver<T>::template generalized_derivative<O, G>>::template order_value<O>,
-		std::conditional<(O > 1), order_heirarchy<T, G, O - 1>, property_base>::type
-	{
-		using property_order<&Solver<T>::template generalized_derivative<O, G>>::template order_value<O>::get_value;
-		using std::conditional<(O > 1), order_heirarchy<T, G, O - 1>, property_base>::type::get_value;
-	};
-
-	template<auto f, typename T, typename G>
-	struct deriv_order :
-		property_order<&Solver<T>::template gradient<G>>::template order_value<1>,
-		property_order<&Solver<T>::template laplacian<G>>::template order_value<2>,
-		property_order<&Solver<T>::template gradlaplacian<G>>::template order_value<3>,
-		property_order<&Solver<T>::template bilaplacian<G>>::template order_value<4>,
-		order_heirarchy<T, G, DERIV_MAX_ORDER>
-	{
-
-		using property_order<&Solver<T>::template gradient<G>>::template order_value<1>::get_value;
-		using property_order<&Solver<T>::template laplacian<G>>::template order_value<2>::get_value;
-		using property_order<&Solver<T>::template gradlaplacian<G>>::template order_value<3>::get_value;
-		using property_order<&Solver<T>::template bilaplacian<G>>::template order_value<4>::get_value;
-		using order_heirarchy<T, G, DERIV_MAX_ORDER>::get_value;
-
-	protected:
-		static constexpr size_t call_value()
-		{
-			return get_value(base_wrap<f>{});
-		}
-
-	public:
-
-		static const size_t value = call_value();
-
-	};
-
 }
 
 namespace symphas
@@ -341,7 +273,6 @@ struct symphas::internal::solver_supported_type_match<solver_id_type_ ## SOLVER_
 };
 
 
-
 //! Define a new solver of the given name.
 /*!
  * Definition of a new solver, which is a template class with a template type
@@ -352,26 +283,94 @@ struct symphas::internal::solver_supported_type_match<solver_id_type_ ## SOLVER_
  * 
  * \param NAME The name of the new solver.
  */
-#define NEW_SOLVER(NAME) \
+#define NEW_SOLVER_WITH_STENCIL(NAME) \
 struct solver_id_type_ ## NAME; \
-template<typename St> \
-struct NAME : Solver<NAME<St>>, St \
+template<typename stencil_t> \
+struct NAME : Solver<NAME<stencil_t>>, stencil_t \
 { \
-	using Solver<NAME<St>>::generalized_derivative; \
-	using Solver<NAME<St>>::laplacian; \
-	using Solver<NAME<St>>::bilaplacian; \
-	using Solver<NAME<St>>::gradlaplacian; \
-	using Solver<NAME<St>>::gradient; \
-	using Solver<NAME<St>>::applied_generalized_derivative; \
-	using Solver<NAME<St>>::applied_laplacian; \
-	using Solver<NAME<St>>::applied_bilaplacian; \
-	using Solver<NAME<St>>::applied_gradlaplacian; \
-	using Solver<NAME<St>>::applied_gradient; \
-	using Solver<NAME<St>>::order_of; \
-	using Solver<NAME<St>>::make_solver; \
-	using parent_type = Solver<NAME<St>>; \
+	using this_type = NAME<stencil_t>; \
+	using parent_type = Solver<this_type>; \
+	using parent_type::generalized_derivative; \
+	using parent_type::laplacian; \
+	using parent_type::bilaplacian; \
+	using parent_type::gradlaplacian; \
+	using parent_type::gradient; \
+	using stencil_t::applied_generalized_derivative; \
+	using stencil_t::applied_laplacian; \
+	using stencil_t::applied_bilaplacian; \
+	using stencil_t::applied_gradlaplacian; \
+	using stencil_t::applied_gradient; \
+	using parent_type::make_solver; \
+	using id_type = solver_id_type_ ## NAME; \
+	using stencil_t::stencil_t; \
+	stencil_t const& stencil() const { return (*static_cast<stencil_t const*>(this)); } \
+	stencil_t& stencil() { return (*static_cast<stencil_t*>(this)); }
+
+#define NEW_SOLVER(NAME, ...) \
+struct solver_id_type_ ## NAME; \
+struct NAME : Solver<NAME>, NoStencil, __VA_ARGS__ \
+{ \
+	using parent_type = Solver<NAME>; \
+	using parent_type::generalized_derivative; \
+	using parent_type::laplacian; \
+	using parent_type::bilaplacian; \
+	using parent_type::gradlaplacian; \
+	using parent_type::gradient; \
+	using NoStencil::applied_generalized_derivative; \
+	using NoStencil::applied_laplacian; \
+	using NoStencil::applied_bilaplacian; \
+	using NoStencil::applied_gradlaplacian; \
+	using NoStencil::applied_gradient; \
+	using parent_type::make_solver; \
 	using id_type = solver_id_type_ ## NAME;
 
+
+
+struct NoStencil
+{
+	template<Axis ax, size_t O, typename G>
+	auto applied_generalized_derivative(G&& e, iter_type n) const
+	{
+		return expr::BaseData<G>::get(std::forward<G>(e), n);
+	}
+
+	template<Axis ax, size_t O, typename G>
+	auto applied_generalized_directional_derivative(G&& e, iter_type n) const
+	{
+		return expr::BaseData<G>::get(std::forward<G>(e), n);
+	}
+
+	template<size_t... Os, typename G>
+	auto applied_generalized_mixed_derivative(G&& e, iter_type n) const
+	{
+		return expr::BaseData<G>::get(std::forward<G>(e), n);
+	}
+
+	template<typename G>
+	auto applied_laplacian(G&& e, iter_type n) const
+	{
+		return expr::BaseData<G>::get(std::forward<G>(e), n);
+	}
+
+	template<typename G>
+	auto applied_bilaplacian(G&& e, iter_type n) const
+	{
+		return expr::BaseData<G>::get(std::forward<G>(e), n);
+	}
+
+	template<Axis ax, typename G>
+	auto applied_gradlaplacian(G&& e, iter_type n) const
+	{
+		return expr::BaseData<G>::get(std::forward<G>(e), n);
+	}
+
+	template<Axis ax, typename G>
+	auto applied_gradient(G&& e, iter_type n) const
+	{
+		return expr::BaseData<G>::get(std::forward<G>(e), n);
+	}
+
+};
 
 //! @}
 
@@ -389,49 +388,58 @@ struct NAME : Solver<NAME<St>>, St \
 template<typename Sp>
 struct Solver
 {
-	//! The object which applies the derivative approximations.
-	template<size_t O>
+	//! The object which computes the derivative.
+	template<Axis ax, size_t O>
 	struct derivative;
 
-	//! The object which applies the derivative approximations.
+	//! The object which computes the directional derivative.
 	template<Axis ax, size_t O>
 	struct directional_derivative;
 
-	template<size_t O, typename G>
+	//! The object which computes the directional derivative.
+	template<size_t... Os>
+	struct mixed_derivative;
+
+	template<Axis ax, size_t O, typename G>
 	decltype(auto) generalized_derivative(G&& e, iter_type n) const
 	{
-		return cast_const().template applied_generalized_derivative<O>(std::forward<G>(e), n);
+		return cast().template applied_generalized_derivative<ax, O>(std::forward<G>(e), n);
 	}
 
 	template<Axis ax, size_t O, typename G>
 	decltype(auto) generalized_directional_derivative(G&& e, iter_type n) const
 	{
-		return cast_const().template applied_generalized_directional_derivative<ax, O>(std::forward<G>(e), n);
+		return cast().template applied_generalized_directional_derivative<ax, O>(std::forward<G>(e), n);
+	}
+
+	template<size_t... Os, typename G>
+	decltype(auto) generalized_mixed_derivative(G&& e, iter_type n) const
+	{
+		return cast().template applied_generalized_mixed_derivative<Os...>(std::forward<G>(e), n);
 	}
 
 	template<typename G>
 	decltype(auto) laplacian(G&& e, iter_type n) const
 	{
-		return cast_const().applied_laplacian(std::forward<G>(e), n);
+		return cast().applied_laplacian(std::forward<G>(e), n);
 	}
 
 	template<typename G>
 	decltype(auto) bilaplacian(G&& e, iter_type n) const
 	{
-		return cast_const().applied_bilaplacian(std::forward<G>(e), n);
+		return cast().applied_bilaplacian(std::forward<G>(e), n);
 	}
 
-
-	template<typename G>
+	template<Axis ax, typename G>
 	decltype(auto) gradlaplacian(G&& e, iter_type n) const
 	{
-		return cast_const().applied_gradlaplacian(std::forward<G>(e), n);
+		return cast().template applied_gradlaplacian<ax>(std::forward<G>(e), n);
 	}
 
-	template<typename G>
+	template<Axis ax, typename G>
 	decltype(auto) gradient(G&& e, iter_type n) const
 	{
-		return cast_const().applied_gradient(std::forward<G>(e), n);
+		return cast().template applied_gradient<ax>(std::forward<G>(e), n);
 	}
 
 
@@ -452,7 +460,7 @@ struct Solver
 	template<typename S>
 	void step(S&& ss, double dt) const
 	{
-		cast_const().template step(std::forward<S>(ss), dt);
+		cast().template step(std::forward<S>(ss), dt);
 	}
 
 	//! Evaluate the equations.
@@ -500,7 +508,7 @@ struct Solver
 	template<typename... Rs>
 	void equations(Rs&& ... rs) const
 	{
-		((..., cast_const().equation(std::forward<Rs>(rs))));
+		((..., cast().equation(std::forward<Rs>(rs))));
 	}
 
 	//! Evaluate the equations.
@@ -520,7 +528,7 @@ struct Solver
 	template<typename... Rs>
 	inline void evaluate(std::tuple<Rs...>& rs) const
 	{
-		cast_const().evaluate_apply(rs, std::make_index_sequence<sizeof...(Rs)>{});
+		cast().evaluate_apply(rs, std::make_index_sequence<sizeof...(Rs)>{});
 	}
 
 	//! Evaluate the given list of elements, typically equation/data pairs.
@@ -531,7 +539,7 @@ struct Solver
 	template<typename... Rs>
 	inline void evaluate(std::tuple<Rs...>&& rs) const
 	{
-		cast_const().evaluate_apply(rs, std::make_index_sequence<sizeof...(Rs)>{});
+		cast().evaluate_apply(rs, std::make_index_sequence<sizeof...(Rs)>{});
 	}
 
 	//! Evaluate the given list of elements, typically equation/data pairs.
@@ -542,7 +550,7 @@ struct Solver
 	template<typename... Rs>
 	inline void evaluate(Rs&&... rs) const
 	{
-		((..., cast_const().evaluate_one(std::forward<Rs>(rs))));
+		((..., cast().evaluate_one(std::forward<Rs>(rs))));
 	}
 
 
@@ -554,7 +562,7 @@ struct Solver
 	template<typename R>
 	inline void equation(R&& r) const
 	{
-		cast_const().equation(std::forward<R>(r));
+		cast().equation(std::forward<R>(r));
 	}
 
 
@@ -574,7 +582,7 @@ struct Solver
 		typename std::enable_if_t<symphas::internal::solver_supported_systems<Sp, S...>::value, int> = 0>
 	decltype(auto) form_expr_all(std::tuple<S...> const& systems, Es&& ...es) const
 	{
-		return cast_const().template form_expr<En>(systems, std::forward<Es>(es)...);
+		return cast().template form_expr<En>(systems, std::forward<Es>(es)...);
 	}
 
 	//! No equation is created for incompatible types.
@@ -608,7 +616,7 @@ struct Solver
 		typename std::enable_if_t<symphas::internal::solver_supported_systems<Sp, S...>::value, int> = 0>
 	decltype(auto) form_expr_all(std::tuple<S const&...>&& systems, Es&& ...es) const
 	{
-		return cast_const().template form_expr<En>(systems, std::forward<Es>(es)...);
+		return cast().template form_expr<En>(systems, std::forward<Es>(es)...);
 	}
 
 	//! Create the equation which is evaluated by the solver iteratively.
@@ -621,7 +629,7 @@ struct Solver
 	 */
 	template<size_t En, typename... S, typename... Es, 
 		typename std::enable_if_t<!symphas::internal::solver_supported_systems<Sp, S...>::value, int> = 0>
-		decltype(auto) form_expr_all(std::tuple<S const&...>&& systems, Es&& ...) const
+	decltype(auto) form_expr_all(std::tuple<S const&...>&& systems, Es&& ...) const
 	{
 		return symphas::internal::solver_unsupported_equation{};
 	}
@@ -650,39 +658,24 @@ struct Solver
 		return Sp::make_solver({0});
 	}
 
-
 	//! Cast the solver to the specialized type.
 	/*!
 	 * Cast the solver to the specialized type.
 	 */
-	inline Sp& cast()
-	{
-		return *static_cast<Sp*>(this);
-	}
-
-
-	//! Cast the solver to the specialized type.
-	/*!
-	 * Cast the solver to the specialized type.
-	 */
-	inline Sp const& cast_const() const
+	Sp const& cast() const
 	{
 		return *static_cast<Sp const*>(this);
 	}
 
-	//! Get the order of the given derivative function.
+	//! Cast the solver to the specialized type.
 	/*!
-	 * Determine the order of the derivative applied by the given member
-	 * function. The given function must be a member of the specialized type, 
-	 * and take a parameter exactly equal to type `G`.
-	 * 
-	 * \tparam f The member function of the specialized type which
-	 * applies a derivative.
-	 * \tparam G The parameter given to `f`, which is typically the grid
-	 * type.
+	 * Cast the solver to the specialized type.
 	 */
-	template<auto f, typename G>
-	static constexpr size_t order_of = symphas::internal::deriv_order<f, Sp, G>::value;
+	Sp& cast()
+	{
+		return *static_cast<Sp*>(this);
+	}
+
 
 
 	friend void swap(Solver<Sp>& first, Solver<Sp>& second)
@@ -694,75 +687,15 @@ struct Solver
 protected:
 
 
-	//! Default implementation of a derivative.
-	/*!
-	 * When the implemented solver doesn't implement derivative functions, default ones
-	 * are provided so that the compilation can still proceed, since expression derivatives
-	 * will use the derivative functions.
-	 */
-	template<Axis ax, size_t O>
-	auto applied_generalized_directional_derivative(...) const
-	{
-		return 0;
-	}
-
-	//! Default implementation of a derivative.
-	/*! 
-	 * When the implemented solver doesn't implement derivative functions, default ones
-	 * are provided so that the compilation can still proceed, since expression derivatives 
-	 * will use the derivative functions.
-	 */
-	template<size_t O>
-	auto applied_generalized_derivative(...) const
-	{
-		return 0;
-	}
-
-	//! Default implementation of a derivative. 
-	/*!
-	 * See Solver::applied_generalized_derivative.
-	 */ 
-	auto applied_laplacian(...) const
-	{
-		return 0;
-	}
-
-	//! Default implementation of a derivative. 
-	/*!
-	 * See Solver::applied_generalized_derivative.
-	 */
-	auto applied_bilaplacian(...) const
-	{
-		return 0;
-	}
 
 
-	//! Default implementation of a derivative. 
-	/*!
-	 * See Solver::applied_generalized_derivative.
-	 */
-	auto applied_gradlaplacian(...) const
-	{
-		return 0;
-	}
-
-	//! Default implementation of a derivative. 
-	/*!
-	 * See Solver::applied_generalized_derivative.
-	 */
-	auto applied_gradient(...) const
-	{
-		return 0;
-	}
-
-
-
+public:
 
 	//! Indirection used when the expression may be invalid.
 	template<size_t En, typename SS, typename... Es>
 	decltype(auto) form_expr(SS&& s, Es&& ...es) const
 	{
-		return std::make_tuple(cast_const().template form_expr_one<En>(std::forward<SS>(s), std::forward<Es>(es))...);
+		return std::make_tuple(cast().template form_expr_one<En>(std::forward<SS>(s), std::forward<Es>(es))...);
 	}
 
 	//! Applied implementation of evaluating a list of elements.
@@ -840,52 +773,60 @@ protected:
 
 
 template<Axis ax, size_t O, typename Sp, typename G>
-auto apply_derivative(Sp const& sp, G&& e, iter_type n)
+auto apply_directional_derivative(Sp const& sp, G&& e, iter_type n)
 {
 	return sp.template generalized_directional_derivative<ax, O>(std::forward<G>(e), n);
 }
 
-template<size_t O, typename Sp, typename G, typename std::enable_if_t<(O == 1), int> = 0>
+template<Axis ax, size_t O, typename Sp, typename G, typename std::enable_if_t<(O == 1), int> = 0>
 auto apply_derivative(Sp const& sp, G&& e, iter_type n)
 {
-	return sp.gradient(std::forward<G>(e), n);
+	return sp.template gradient<ax>(std::forward<G>(e), n);
 }
 
-template<size_t O, typename Sp, typename G, typename std::enable_if_t<(O == 2), int> = 0>
+template<Axis ax, size_t O, typename Sp, typename G, typename std::enable_if_t<(O == 2), int> = 0>
 auto apply_derivative(Sp const& sp, G&& e, iter_type n)
 {
 	return sp.laplacian(std::forward<G>(e), n);
 }
 
-template<size_t O, typename Sp, typename G, typename std::enable_if_t<(O == 3), int> = 0>
+template<Axis ax, size_t O, typename Sp, typename G, typename std::enable_if_t<(O == 3), int> = 0>
 auto apply_derivative(Sp const& sp, G&& e, iter_type n)
 {
-	return sp.gradlaplacian(std::forward<G>(e), n);
+	return sp.template gradlaplacian<ax>(std::forward<G>(e), n);
 }
 
-template<size_t O, typename Sp, typename G, typename std::enable_if_t<(O == 4), int> = 0>
+template<Axis ax, size_t O, typename Sp, typename G, typename std::enable_if_t<(O == 4), int> = 0>
 auto apply_derivative(Sp const& sp, G&& e, iter_type n)
 {
 	return sp.bilaplacian(std::forward<G>(e), n);
 }
 
-template<size_t O, typename Sp, typename G, typename std::enable_if_t<(O > 4), int> = 0>
+template<Axis ax, size_t O, typename Sp, typename G, typename std::enable_if_t<(O > 4), int> = 0>
 auto apply_derivative(Sp const& sp, G&& e, iter_type n)
 {
-	return sp.template generalized_derivative<O>(std::forward<G>(e), n);
+	return sp.template generalized_derivative<ax, O>(std::forward<G>(e), n);
+}
+
+template<size_t... Os, typename Sp, typename G>
+auto apply_mixed_derivative(Sp const& sp, G&& e, iter_type n)
+{
+	return sp.template generalized_mixed_derivative<Os...>(std::forward<G>(e), n);
 }
 
 
 template<typename Sp>
-template<size_t O>
+template<Axis ax, size_t O>
 struct Solver<Sp>::derivative
 {
 	template<typename G>
 	auto operator()(Sp const& sp, G&& e, iter_type n) const
 	{
-		return apply_derivative<O>(sp, std::forward<G>(e), n);
+		return apply_derivative<ax, O>(sp, std::forward<G>(e), n);
 	}
 	static const size_t order = O;
+	static const Axis axis = ax;
+	static const bool is_directional = (O == 1);
 };
 
 
@@ -896,12 +837,118 @@ struct Solver<Sp>::directional_derivative
 	template<typename G>
 	auto operator()(Sp const& sp, G&& e, iter_type n) const
 	{
-		return apply_derivative<ax, O>(sp, std::forward<G>(e), n);
+		return apply_directional_derivative<ax, O>(sp, std::forward<G>(e), n);
 	}
 	static const size_t order = O;
 	static const Axis axis = ax;
+	static const bool is_directional = true;
+};
+
+namespace symphas::internal
+{
+	template<typename A, typename L>
+	struct max_order_axis;
+
+	template<Axis ax1, size_t O1>
+	struct max_order_axis<symphas::lib::axis_list<ax1>, std::index_sequence<O1>>
+	{
+		static const Axis value = ax1;
+	};
+
+	template<Axis ax1, Axis ax2, size_t O1, size_t O2>
+	struct max_order_axis<symphas::lib::axis_list<ax1, ax2>, std::index_sequence<O1, O2>>
+	{
+		static const Axis value = (O1 > O2) ? ax1 : ax2;
+	};
+
+	template<Axis ax1, Axis ax2, Axis ax3, size_t O1, size_t O2, size_t O3>
+	struct max_order_axis<symphas::lib::axis_list<ax1, ax2, ax3>, std::index_sequence<O1, O2, O3>>
+	{
+		static const Axis value = (O1 > O2 && O1 > O3) ? ax1 : (O2 > O1 && O2 > O3) ? ax2 : ax3;
+	};
+}
+
+template<typename Sp>
+template<size_t... Os>
+struct Solver<Sp>::mixed_derivative
+{
+	template<typename G>
+	auto operator()(Sp const& sp, G&& e, iter_type n) const
+	{
+		return apply_mixed_derivative<Os...>(sp, std::forward<G>(e), n);
+	}
+	static const size_t order = symphas::math::sum<Os...>();
+	static const Axis axis = symphas::internal::max_order_axis<
+		decltype(symphas::lib::make_axis_list<sizeof...(Os)>()), std::index_sequence<Os...>>::value;
+	static const bool is_directional = (order == 1);
 };
 
 #include "provisionalsystemgroup.h"
 
+
+
+template<typename T, typename Ty>
+struct symphas::internal::solver_supported_type_match
+{
+	static const bool value = false;
+};
+
+template<typename T, typename S>
+struct symphas::internal::solver_supported_system
+{
+
+protected:
+
+	template<typename Ty>
+	struct supported_wrap
+	{
+		static const bool value = solver_supported_type<T, void>::value || solver_supported_type<T, Ty>::value;
+	};
+
+	template<size_t N, typename Ty>
+	static constexpr auto is_supported(MultiBlock<N, Ty>)
+	{
+		return supported_wrap<any_vector_t<Ty, N>>{};
+	}
+
+	template<typename Ty>
+	static constexpr auto is_supported(Block<Ty>)
+	{
+		return supported_wrap<Ty>{};
+	}
+
+	static constexpr auto get_value(S s)
+	{
+		return is_supported(s);
+	}
+
+	using wrap_type = typename std::invoke_result_t<decltype(&solver_supported_system<T, S>::get_value), S>;
+
+public:
+
+	static const size_t value = wrap_type::value;
+};
+
+
+
+template<typename T, typename... S>
+struct symphas::internal::solver_supported_systems
+{
+	static const size_t value = ((solver_supported_system<T, S>::value && ...));
+};
+
+
+template<typename T>
+struct symphas::internal::solver_system_type_match
+{
+	template<typename Ty, size_t D>
+	using type = SolverSystem<Ty, D>;
+};
+
+template<typename T>
+struct symphas::internal::provisional_system_type_match
+{
+	template<typename Ty, size_t D>
+	using type = ProvisionalSystem<Ty, D>;
+};
 

@@ -59,12 +59,6 @@
 #include <filesystem>
 #endif
 
-namespace symphas::internal
-{
-	template<size_t I, typename... Ss>
-	struct index_of_type_match;
-}
-
 
 
 
@@ -141,25 +135,28 @@ namespace symphas::internal
 
 
 
+	struct dims2d_t { len_type x; len_type y; };
+	struct dims3d_t { len_type x; len_type y; len_type z; };
+
 	template<size_t D>
-	auto dims_as_tuple(const len_type* dims);
+	auto dims_as_struct(const len_type* dims);
 
 	template<>
-	inline auto dims_as_tuple<1>(const len_type* dims)
+	inline auto dims_as_struct<1>(const len_type* dims)
 	{
-		return std::make_tuple(dims[0]);
+		return dims[0];
 	}
 
 	template<>
-	inline auto dims_as_tuple<2>(const len_type* dims)
+	inline auto dims_as_struct<2>(const len_type* dims)
 	{
-		return std::make_tuple(dims[0], dims[1]);
+		return dims2d_t{ dims[0], dims[1] };
 	}
 
 	template<>
-	inline auto dims_as_tuple<3>(const len_type* dims)
+	inline auto dims_as_struct<3>(const len_type* dims)
 	{
-		return std::make_tuple(dims[0], dims[1], dims[2]);
+		return dims3d_t{ dims[0], dims[1], dims[2] };
 	}
 }
 
@@ -171,6 +168,33 @@ namespace symphas::internal
 //! Defines functions providing information about a grid.
 namespace grid
 {
+	template<size_t D>
+	void set_dimensions(const len_type* dimensions, len_type* dims)
+	{
+		if (dimensions == nullptr)
+		{
+			std::fill(dims, dims + D, 0);
+		}
+		else
+		{
+			for (iter_type i = 0; i < D; ++i)
+			{
+				dims[i] = dimensions[i];
+			}
+		}
+	}
+
+	template<size_t D>
+	len_type length(len_type (&dimensions)[D])
+	{
+		len_type len = 1;
+		for (iter_type i = 0; i < D; ++i)
+		{
+			len *= dimensions[i];
+		}
+		return len;
+	}
+
 	//! Return the length of a grid with the prescribed dimensions.
 	/*!
 	 * The number of elements in a grid with the prescribed dimensions is
@@ -216,23 +240,19 @@ namespace grid
  * For a value of generic type which is not accepted by any overloads,
  * it is explicitly cast to the type `complex_t` to compute the result.
  */
-#define MATH_FUNCTION_OVERLOADS(NAME, FUNC) \
-inline scalar_t _ ## NAME(int v) { return FUNC(static_cast<scalar_t>(v)); } \
-inline scalar_t _ ## NAME(scalar_t v) { return FUNC(v); } \
-inline complex_t _ ## NAME(complex_t v) { return FUNC(v); } \
+#define MATH_FUNCTION_OVERLOADS_IMPL(NAME, RETURN) \
+inline scalar_t _ ## NAME(int vv) { auto v = static_cast<scalar_t>(vv); RETURN; } \
+inline scalar_t _ ## NAME(scalar_t v) { RETURN; } \
+inline complex_t _ ## NAME(complex_t v) { RETURN; } \
 template<typename T> \
 auto _ ## NAME(T v) { return _ ## NAME(static_cast<complex_t>(v)); } \
 template<typename T> \
 auto NAME(T v) { return _ ## NAME(v); }
 
+#define MATH_FUNCTION_OVERLOADS(NAME, FUNC) MATH_FUNCTION_OVERLOADS_IMPL(NAME, return FUNC(v))
+
 namespace symphas::math
 {
-	namespace
-	{
-
-
-
-	}
 	
 	//! Returns conjugate complex number for a generic type.
 	/*!
@@ -248,6 +268,29 @@ namespace symphas::math
 	{
 		return std::conj(v);
 	}
+
+	//! Returns conjugate complex number for a generic type.
+	/*!
+	 * Since additional types are introduced in the SymPhas library, an
+	 * extension of the standard library `conj` function is implemented to
+	 * apply to additional types.
+	 *
+	 * This implementation simply forwards its argument to the standard library
+	 * `conj` function.
+	 */
+	template<typename T, size_t D>
+	auto conj(any_vector_t<T, D> const& v)
+	{
+		using std::conj;
+
+		any_vector_t<T, D> vc;
+		for (iter_type i = 0; i < D; ++i)
+		{
+			vc[i] = conj(v[i]);
+		}
+		return vc;
+	}
+
 
 	//! Returns modulus of a value of a generic type.
 	/*!
@@ -319,10 +362,394 @@ namespace symphas::math
 	MATH_FUNCTION_OVERLOADS(asinh, std::asinh);
 	MATH_FUNCTION_OVERLOADS(atanh, std::atanh);
 	MATH_FUNCTION_OVERLOADS(sqrt, std::sqrt);
+	MATH_FUNCTION_OVERLOADS(log, std::log);
 
+	MATH_FUNCTION_OVERLOADS_IMPL(sec, return 1. / std::cos(v));
+	MATH_FUNCTION_OVERLOADS_IMPL(csc, return 1. / std::sin(v));
+	MATH_FUNCTION_OVERLOADS_IMPL(cot, return 1. / std::tan(v));
+
+
+
+	template<size_t N, size_t E>
+	constexpr size_t fixed_pow = N * fixed_pow<N, E - 1>;
+	template<size_t N>
+	constexpr size_t fixed_pow<N, 0> = 1;
+	template<size_t N>
+	constexpr size_t fixed_pow<N, 1> = N;
+
+
+
+	template<typename T, typename E>
+	auto pow(T&& base, E&& exponent)
+	{
+		using std::pow;
+		return pow(std::forward<T>(base), std::forward<E>(exponent));
+	}
+
+	template<size_t N, typename T>
+	auto pow(T const& base)
+	{
+		//using symphas::math::pow;
+		return pow(base, N);
+	}
+
+
+	template<size_t O, typename T, size_t D>
+	auto pow(any_vector_t<T, D> const& v)
+	{
+		using std::pow;
+		using symphas::math::pow;
+
+		if constexpr (O == 1)
+		{
+			return v;
+		}
+		else if constexpr (O == 2)
+		{
+			return dot(v, v);
+		}
+		else if constexpr (O % 2 == 0)
+		{
+			return pow<O / 2>(dot(v, v));
+		}
+		else
+		{
+			return pow<O / 2>(dot(v, v)) * v;
+		}
+	}
+
+	//! Cross product function for vectors.
+	/*!
+	 * Compound assignment operator to calculate the conventional cross product and assign it
+	 * to the calling instance.
+	 *
+	 * Assignment operator to compute the cross product, which is only applicable to the
+	 * 3-dimensional VectorValue template specialization. Operator is called by the left hand
+	 * instance, taking data from the right hand VectorValue to compute the cross product and
+	 * assigning the result to the left hand side.
+	 *
+	 * \param rhs The VectorValue instance where data is taken from to compute the cross product
+	 * the data from the left hand instance.
+	 */
+	template<typename T>
+	any_vector_t<T, 3> cross(any_vector_t<T, 3> const& lhs, any_vector_t<T, 3> const& rhs)
+	{
+		any_vector_t<T, 3> result;
+
+		result[0] = (lhs[1] * rhs[2] - lhs[2] * rhs[1]);
+		result[1] = (lhs[2] * rhs[0] - lhs[0] * rhs[2]);
+		result[2] = (lhs[0] * rhs[1] - lhs[1] * rhs[0]);
+
+		return result;
+	}
+
+
+	template<size_t D>
+	auto dot(any_vector_t<scalar_t, D> const& lhs, any_vector_t<complex_t, D> const& rhs)
+	{
+		complex_t sum = 0;
+		for (iter_type i = 0; i < D; ++i)
+		{
+			sum += lhs[i] * rhs[i];
+		}
+		return sum;
+	}
+
+	template<size_t D>
+	auto dot(any_vector_t<complex_t, D> const& lhs, any_vector_t<scalar_t, D> const& rhs)
+	{
+		complex_t sum = 0;
+		for (iter_type i = 0; i < D; ++i)
+		{
+			sum += lhs[i] * rhs[i];
+		}
+		return sum;
+	}
+
+
+	template<size_t... Os>
+	constexpr auto sum()
+	{
+		return (Os + ...);
+	}
+
+	template<size_t... Os>
+	constexpr auto product()
+	{
+		return (Os * ...);
+	}
 }
 
 
+namespace symphas::internal
+{
+	template<typename T>
+	struct check_is_non_vector
+	{
+	protected:
+
+		constexpr static std::true_type _get_value(complex_t)
+		{
+			return {};
+		}
+
+		constexpr static std::true_type _get_value(scalar_t)
+		{
+			return {};
+		}
+
+		constexpr static std::true_type _get_value(int)
+		{
+			return {};
+		}
+
+		template<typename T0>
+		constexpr static std::false_type _get_value(T0)
+		{
+			return {};
+		}
+
+		constexpr static auto get_value()
+		{
+			return _get_value(T{});
+		}
+
+
+	public:
+
+		static const bool value = std::invoke_result_t<decltype(&check_is_non_vector<T>::get_value)>::value;
+	};
+}
+
+
+template<typename T>
+constexpr bool is_non_vector = symphas::internal::check_is_non_vector<T>::value;
+
+template<typename T, size_t N, size_t M>
+using any_matrix_t = any_vector_t<any_vector_t<T, M>, N>;
+template<typename T, size_t N>
+using any_row_vector_t = any_matrix_t<T, 1, N>;
+
+
+template<typename T, size_t D, typename std::enable_if_t<is_non_vector<T>, int> = 0>
+auto operator*(any_vector_t<T, D> const& lhs, any_vector_t<T, D> const& rhs)
+{
+	using namespace std;
+	using namespace symphas::math;
+	return dot(lhs, rhs);
+}
+
+template<typename T, typename S, size_t D, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+auto operator*(any_row_vector_t<T, D> const& lhs, any_vector_t<S, D> const& rhs)
+{
+	any_vector_t<T, D> lhs0;
+	for (iter_type i = 0; i < D; ++i)
+	{
+		lhs0 = lhs[i];
+	}
+
+	using namespace std;
+	using namespace symphas::math;
+	return dot(lhs0, rhs);
+}
+
+template<typename T, typename S, size_t N, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+auto operator*(any_vector_t<T, N> const& lhs, S const& rhs)
+{
+	any_vector_t<mul_result_t<T, S>, N> result;
+	for (int i = 0; i < N; ++i)
+	{
+		result[i] = lhs[i] * rhs;
+	}
+	return result;
+}
+
+template<typename T, typename S, size_t N, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+auto operator*(T const& lhs, any_vector_t<S, N> const& rhs)
+{
+	any_vector_t<mul_result_t<T, S>, N> result;
+	for (int i = 0; i < N; ++i)
+	{
+		result[i] = lhs * rhs[i];
+	}
+	return result;
+}
+
+template<typename T, typename S, size_t N, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+auto operator*(any_row_vector_t<T, N> const& lhs, S const& rhs)
+{
+	any_row_vector_t<mul_result_t<T, S>, N> result;
+	for (int i = 0; i < N; ++i)
+	{
+		result[0][i] = lhs[0][i] * rhs;
+	}
+	return result;
+}
+
+template<typename T, typename S, size_t N, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+auto operator*(T const& lhs, any_row_vector_t<S, N> const& rhs)
+{
+	any_row_vector_t<mul_result_t<T, S>, N> result;
+	for (int i = 0; i < N; ++i)
+	{
+		result[0][i] = lhs * rhs[0][i];
+	}
+	return result;
+}
+
+template<typename T, typename S, size_t N, size_t M, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+auto operator*(any_matrix_t<T, N, M> const& lhs, S const& rhs)
+{
+	any_matrix_t<mul_result_t<T, S>, N, M> result;
+	for (int i = 0; i < N; ++i)
+	{
+		for (int j = 0; j < M; ++j)
+		{
+			result[i][i] = lhs[i][j] * rhs;
+		}
+	}
+	return result;
+}
+
+template<typename T, typename S, size_t N, size_t M, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+auto operator*(T const& lhs, any_matrix_t<S, N, N> const& rhs)
+{
+	any_matrix_t<mul_result_t<T, S>, N, M> result;
+	for (int i = 0; i < N; ++i)
+	{
+		for (int j = 0; j < M; ++j)
+		{
+			result[i][i] = lhs * rhs[i][j];
+		}
+	}
+	return result;
+}
+
+template<typename T, typename S, size_t L, size_t M, size_t N, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+auto operator*(any_matrix_t<T, L, M> const& lhs, any_matrix_t<S, M, N> const& rhs)
+{
+	any_matrix_t<mul_result_t<T, S>, L, N> result;
+	for (int i = 0; i < L; ++i)
+	{
+		for (int j = 0; j < N; ++j)
+		{
+			mul_result_t<T, S> sum{};
+			for (int k = 0; k < M; ++k)
+			{
+				sum += lhs[i][k] * rhs[k][j];
+			}
+			result[i][j] = sum;
+		}
+	}
+	return result;
+}
+
+
+template<typename T, typename S, size_t N, typename std::enable_if_t<(is_non_vector<T>&& is_non_vector<S>), int> = 0>
+auto operator/(any_vector_t<T, N> const& lhs, S const& rhs)
+{
+	any_vector_t<div_result_t<T, S>, N> result;
+	for (int i = 0; i < N; ++i)
+	{
+		result[i] = lhs[i] / rhs;
+	}
+	return result;
+}
+
+
+
+template<typename T, typename S, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+auto operator+(any_vector_t<T, 1> const& lhs, S const& rhs)
+{
+	return lhs[0] + rhs;
+}
+
+template<typename T, typename S, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+auto operator+(T const& lhs, any_vector_t<S, 1> const& rhs)
+{
+	return lhs + rhs[0];
+}
+
+template<typename T, typename S, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+auto operator+(any_row_vector_t<T, 1> const& lhs, S const& rhs)
+{
+	return lhs[0][0] + rhs;
+}
+
+template<typename T, typename S, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+auto operator+(T const& lhs, any_row_vector_t<S, 1> const& rhs)
+{
+	return lhs + rhs[0][0];
+}
+
+template<typename T, typename S, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+auto operator-(any_vector_t<T, 1> const& lhs, S const& rhs)
+{
+	return lhs[0] - rhs;
+}
+
+template<typename T, typename S, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+auto operator-(T const& lhs, any_vector_t<S, 1> const& rhs)
+{
+	return lhs - rhs[0];
+}
+
+template<typename T, typename S, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+auto operator-(any_row_vector_t<T, 1> const& lhs, S const& rhs)
+{
+	return lhs[0][0] - rhs;
+}
+
+template<typename T, typename S, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+auto operator-(T const& lhs, any_row_vector_t<S, 1> const& rhs)
+{
+	return lhs - rhs[0][0];
+}
+
+
+template<typename T, typename S, size_t N, size_t M, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+auto operator+(any_matrix_t<T, N, M> const& lhs, any_matrix_t<S, N, M> const& rhs)
+{
+	any_matrix_t<add_result_t<T, S>, N, M> result;
+	for (int i = 0; i < N; ++i)
+	{
+		result[0][i] = lhs[0][i] + rhs[0][i];
+	}
+	return result;
+}
+
+template<typename T, typename S, size_t N, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+auto operator+(any_vector_t<T, N> const& lhs, any_vector_t<S, N> const& rhs)
+{
+	any_vector_t<add_result_t<T, S>, N> result;
+	for (int i = 0; i < N; ++i)
+	{
+		result[i] = lhs[i] + rhs[i];
+	}
+	return result;
+}
+
+template<typename T, typename S, size_t N, size_t M, typename std::enable_if_t<(is_non_vector<T>&& is_non_vector<S>), int> = 0>
+auto operator-(any_matrix_t<T, N, M> const& lhs, any_matrix_t<S, N, M> const& rhs)
+{
+	any_matrix_t<sub_result_t<T, S>, N, M> result;
+	for (int i = 0; i < N; ++i)
+	{
+		result[0][i] = lhs[0][i] - rhs[0][i];
+	}
+	return result;
+}
+
+template<typename T, typename S, size_t N, typename std::enable_if_t<(is_non_vector<T>&& is_non_vector<S>), int> = 0>
+auto operator-(any_vector_t<T, N> const& lhs, any_vector_t<S, N> const& rhs)
+{
+	any_vector_t<sub_result_t<T, S>, N> result;
+	for (int i = 0; i < N; ++i)
+	{
+		result[i] = lhs[i] - rhs[i];
+	}
+	return result;
+}
 
 
 // *************************************************************************************************
@@ -475,6 +902,21 @@ namespace symphas::lib
 	iter_type* make_radial_index_map(const len_type(&dims)[3]);
 
 
+	template<typename... Ts>
+	struct types_list {};
+
+	template<typename... Ts>
+	auto to_types_list(std::tuple<Ts...> const&)
+	{
+		return types_list<Ts...>{};
+	}
+
+	template<typename T0, typename T1, typename... Ts>
+	auto to_types_list(T0 const&, T1 const&, Ts const&...)
+	{
+		return types_list<T0, T1, Ts...>{};
+	}
+
 	//! Reimplementation of `make_tuple` which differs in return type.
 	/*!
 	 * A reimplementation of the standard library function `make_tuple` which
@@ -550,8 +992,8 @@ namespace symphas::lib
 	 * \tparam I The index in the given tuple from where elements are taken.
 	 * \tparam Ns... The list of types of elements in the tuple.
 	 */
-	template<size_t I, size_t... Ns>
-	auto get_seq_ge(std::index_sequence<Ns...> const& seq);
+	template<size_t I, typename T, T... Ns>
+	auto get_seq_ge(std::integer_sequence<T, Ns...> const& seq);
 
 	//! Return all elements before the given index in the sequence.
 	/*!
@@ -564,8 +1006,8 @@ namespace symphas::lib
 	 * \tparam I The index in the given tuple before which elements are taken.
 	 * \tparam Ns... The list of types of elements in the tuple.
 	 */
-	template<size_t I, size_t... Ns>
-	auto get_seq_lt(std::index_sequence<Ns...> const& seq);
+	template<size_t I, typename T, T... Ns>
+	auto get_seq_lt(std::integer_sequence<T, Ns...> const& seq);
 
 
 	//! Constructs a list based on element types in the provided lists.
@@ -633,107 +1075,30 @@ namespace symphas::lib
 		std::tuple<std::pair<match_B_types, Bs>...> const& bs);
 
 
-
-	//! Return the index of the given type in the type list.
-	/*!
-	 * Given the type list, identify the index of the `I`-th chosen type. If
-	 * the type is not identified, then `-1` will be returned.
-	 *
-	 * \tparam Type The type to be found in the list.
-	 * \tparam I The current running index of the type to find.
-	 * \tparam S0 The next type in the type list to compare.
-	 */
-	template<typename Type, size_t I, size_t Sn, typename S0,
-		typename std::enable_if_t<!std::is_same<Type, S0>::value, int> = 0>
-		constexpr int index_of_type()
-	{
-		return -1;
-	}
-
-	//! Return the index of the given type in the type list.
-	/*!
-	 * Given the type list, identify the index of the `I`-th chosen type. If
-	 * the type is not identified, then `-1` will be returned.
-	 *
-	 * \tparam Type The type to be found in the list.
-	 * \tparam I The current running index of the type to find.
-	 * \tparam S0 The next type in the type list to compare.
-	 * \tparam Ss... The remaining types in the list.
-	 */
-	template<typename Type, size_t I, size_t Sn, typename S0, typename... Ss,
-		typename std::enable_if_t<std::is_same<Type, S0>::value, int> = 0>
-		constexpr int index_of_type()
-	{
-		return symphas::internal::index_of_type_match<I, S0, Ss...>::template value<Type, Sn>;
-	}
-
-	//! Return the index of the given type in the type list.
-	/*!
-	 * Given the type list, identify the index of the `I`-th chosen type. If
-	 * the type is not identified, then `-1` will be returned.
-	 *
-	 * \tparam Type The type to be found in the list.
-	 * \tparam I The current running index of the type to find.
-	 * \tparam S0 The next type in the type list to compare.
-	 * \tparam S0 The second next type in the type list to compare.
-	 * \tparam Ss... The remaining types in the list.
-	 */
-	template<typename Type, size_t I, size_t Sn, typename S0, typename S1, typename ...Ss,
-		typename std::enable_if_t<!std::is_same<Type, S0>::value, int> = 0>
-		constexpr int index_of_type()
-	{
-		return index_of_type<Type, I, Sn, S1, Ss...>();
-	}
-
-
-	template<size_t I, typename... Ts>
-	struct type_of_index;
-
-
-	template<typename T0, typename... Ts>
-	struct type_of_index<0, T0, Ts...>
-	{
-		using type = T0;
-	};
-
-	template<size_t I, typename T0, typename... Ts>
-	struct type_of_index<I, T0, Ts...>
-	{
-		using type = typename type_of_index<I - 1, Ts...>::type;
-	};
-
-	template<size_t I, typename... Ts>
-	struct type_of_index<I, std::tuple<Ts...>>
-	{
-		using type = typename type_of_index<I, Ts...>::type;
-	};
-
-	// **************************************************************************************
-
 	//! Joining a single sequence simply returns it.
-	template<typename T, size_t... Ys>
+	template<typename T, T... Ys>
 	constexpr auto seq_join(std::integer_sequence<T, Ys...>)
 	{
 		return std::integer_sequence<T, Ys...>{};
 	}
 
 	//! Joins two index sequences.
-	template<typename T, size_t... Ys, size_t... Qs>
+	template<typename T, T... Ys, T... Qs>
 	constexpr auto seq_join(std::integer_sequence<T, Ys...>, std::integer_sequence<T, Qs...>)
 	{
 		return std::integer_sequence<T, Ys..., Qs...>{};
 	}
 
 	//! Joins two index sequences.
-	template<typename T, size_t... Ys, size_t... Qs, typename... Seqs>
+	template<typename T, T... Ys, T... Qs, typename... Seqs>
 	constexpr auto seq_join(std::integer_sequence<T, Ys...>, std::integer_sequence<T, Qs...>, Seqs... seqs)
 	{
 		return seq_join(std::integer_sequence<T, Ys..., Qs...>{}, seqs...);
 	}
 
 
-	template<typename T, size_t... Ys>
-	constexpr auto seq_neg(std::integer_sequence<int, Ys...>)
+	template<typename T, T... Ys>
+	constexpr auto seq_neg(std::integer_sequence<T, Ys...>)
 	{
 		return std::integer_sequence<int, -Ys...>{};
 	}
@@ -746,7 +1111,7 @@ namespace symphas::lib
 
 
 	//! Adding a single sequence simply returns it.
-	template<typename T, size_t... Ys>
+	template<typename T, T... Ys>
 	constexpr auto seq_add(std::integer_sequence<T, Ys...>)
 	{
 		return std::integer_sequence<T, Ys...>{};
@@ -759,28 +1124,28 @@ namespace symphas::lib
 	 * to have 0s in the remaining entries, so that a sequence equal in length
 	 * to the longest sequence is always returned.
 	 */
-	template<typename T, size_t... Ys, size_t... Qs>
-	constexpr auto seq_add(std::integer_sequence<T, Ys...>, std::integer_sequence<T, Qs...>)
+	template<typename T0, T0... Ys, typename T1, T1... Qs, typename T = std::conditional_t<std::is_same<T0, T1>::value, T0, int>>
+	constexpr auto seq_add(std::integer_sequence<T0, Ys...>, std::integer_sequence<T1, Qs...>)
 	{
 		if constexpr (sizeof...(Ys) == sizeof...(Qs))
 		{
-			return std::integer_sequence<T, (Qs + Ys)...>{};
+			return std::integer_sequence<T, (T)(Qs + Ys)...>{};
 		}
 		else if constexpr (sizeof...(Ys) > sizeof...(Qs))
 		{
 			return seq_join(
 				seq_add(
-					symphas::lib::get_seq_lt<sizeof...(Qs)>(std::integer_sequence<T, Ys...>{}),
-					std::integer_sequence<T, Qs...>{}),
-				symphas::lib::get_seq_ge<sizeof...(Qs)>(std::integer_sequence<T, Ys...>{}));
+					symphas::lib::get_seq_lt<sizeof...(Qs)>(std::integer_sequence<T0, Ys...>{}),
+					std::integer_sequence<T1, Qs...>{}),
+				symphas::lib::get_seq_ge<sizeof...(Qs)>(std::integer_sequence<T0, Ys...>{}));
 		}
 		else
 		{
 			return seq_join(
 				seq_add(
-					std::integer_sequence<T, Ys...>{},
-					symphas::lib::get_seq_lt<sizeof...(Ys)>(std::integer_sequence<T, Qs...>{})),
-				symphas::lib::get_seq_ge<sizeof...(Ys)>(std::integer_sequence<T, Qs...>{}));
+					std::integer_sequence<T0, Ys...>{},
+					symphas::lib::get_seq_lt<sizeof...(Ys)>(std::integer_sequence<T1, Qs...>{})),
+				symphas::lib::get_seq_ge<sizeof...(Ys)>(std::integer_sequence<T1, Qs...>{}));
 		}
 	}
 
@@ -791,15 +1156,15 @@ namespace symphas::lib
 	 * to have 0s in the remaining entries, so that a sequence equal in length
 	 * to the longest sequence is always returned.
 	 */
-	template<typename T, size_t... Ys, size_t... Qs, typename... Seqs>
-	constexpr auto seq_add(std::integer_sequence<T, Ys...>, std::integer_sequence<T, Qs...>, Seqs... seqs)
+	template<typename T0, T0... Ys, typename T1, T1... Qs, typename... Seqs>
+	constexpr auto seq_add(std::integer_sequence<T0, Ys...>, std::integer_sequence<T1, Qs...>, Seqs... seqs)
 	{
-		return seq_add(seq_add(std::integer_sequence<T, Ys...>{}, std::integer_sequence<T, Qs...>{}), seqs...);
+		return seq_add(seq_add(std::integer_sequence<T0, Ys...>{}, std::integer_sequence<T1, Qs...>{}), seqs...);
 	}
 
 
 	//! Subtracting a single sequence simply returns it.
-	template<typename T, size_t... Ys>
+	template<typename T, T... Ys>
 	constexpr auto seq_sub(std::integer_sequence<T, Ys...>)
 	{
 		return std::integer_sequence<T, Ys...>{};
@@ -813,16 +1178,114 @@ namespace symphas::lib
 	 * to the longest sequence is always returned. The sequences are
 	 * all subtracted from the first one.
 	 */
-	template<typename T, size_t... Ys, size_t... Qs, typename... Seqs>
-	constexpr auto seq_sub(std::integer_sequence<T, Ys...>, std::integer_sequence<T, Qs...>, Seqs... seqs)
+	template<typename T0, T0... Ys, typename T1, T1... Qs, typename... Seqs>
+	constexpr auto seq_sub(std::integer_sequence<T0, Ys...>, std::integer_sequence<T1, Qs...>, Seqs... seqs)
 	{
-		return seq_sub(seq_add(std::integer_sequence<int, int(Ys)...>{}, seq_neg(std::integer_sequence<T, Qs...>{})), seqs...);
+		return seq_sub(seq_add(std::integer_sequence<int, int(Ys)...>{}, seq_neg(std::integer_sequence<T1, Qs...>{})), seqs...);
 	}
+
+	template<typename T, T... Ys>
+	constexpr auto filter_seq(std::integer_sequence<T, Ys...>)
+	{
+		return std::integer_sequence<T, Ys...>{};
+	}
+
+	namespace
+	{
+		template<typename T, T... Ys1, T Y0, T... Ys2, T Q0, T... Qs>
+		constexpr auto _filter_seq(std::integer_sequence<T, Ys1...>, std::integer_sequence<T, Y0, Ys2...>, std::integer_sequence<T, Q0>, std::integer_sequence<T, Qs...>);
+
+		template<typename T, T... Ys1, T Q0, T... Qs>
+		constexpr auto _filter_seq(std::integer_sequence<T>, std::integer_sequence<T, Ys1...>, std::integer_sequence<T>, std::integer_sequence<T, Q0, Qs...>)
+		{
+			return _filter_seq(std::integer_sequence<T>{}, std::integer_sequence<T, Ys1...>{}, std::integer_sequence<T, Q0>{}, std::integer_sequence<T, Qs...>{});
+		}
+
+		template<typename T, T... Ys1>
+		constexpr auto _filter_seq(std::integer_sequence<T>, std::integer_sequence<T, Ys1...>, std::integer_sequence<T>, std::integer_sequence<T>)
+		{
+			return std::integer_sequence<T, Ys1...>{};
+		}
+
+		template<typename T, T Y0, T... Ys1>
+		constexpr auto _filter_seq(std::integer_sequence<T, Y0, Ys1...>, std::integer_sequence<T>, std::integer_sequence<T>, std::integer_sequence<T>)
+		{
+			return std::integer_sequence<T, Y0, Ys1...>{};
+		}
+
+		template<typename T, T... Ys1, T Q0>
+		constexpr auto _filter_seq(std::integer_sequence<T, Ys1...>, std::integer_sequence<T>, std::integer_sequence<T, Q0>, std::integer_sequence<T>)
+		{
+			return std::integer_sequence<T, Ys1...>{};
+		}
+
+		template<typename T, T... Ys1, T Q0, T Q1, T... Qs>
+		constexpr auto _filter_seq(std::integer_sequence<T, Ys1...>, std::integer_sequence<T>, std::integer_sequence<T, Q0>, std::integer_sequence<T, Q1, Qs...>)
+		{
+			return _filter_seq(std::integer_sequence<T>{}, std::integer_sequence<T, Ys1...>{}, std::integer_sequence<T, Q1>{}, std::integer_sequence<T, Qs...>{});
+		}
+
+		template<typename T, T... Ys1, T Y0, T... Ys2, T Q0, T... Qs>
+		constexpr auto _filter_seq(std::integer_sequence<T, Ys1...>, std::integer_sequence<T, Y0, Ys2...>, std::integer_sequence<T, Q0>, std::integer_sequence<T, Qs...>)
+		{
+			if constexpr (Y0 == Q0)
+			{
+				return _filter_seq(std::integer_sequence<T, Ys1...>{}, std::integer_sequence<T, Ys2...>{}, std::integer_sequence<T, Q0>{}, std::integer_sequence<T, Qs...>{});
+			}
+			else
+			{
+				return _filter_seq(std::integer_sequence<T, Ys1..., Y0>{}, std::integer_sequence<T, Ys2...>{}, std::integer_sequence<T, Q0>{}, std::integer_sequence<T, Qs...>{});
+			}
+		}
+	}
+
+	//! Filters from the first sequence, all values in the subsequent sequences.
+	/*!
+	 * All values that appear in the second and subsequence sequences are removed from the first sequence. If
+	 * there are any values in the second sequence that do not appear in the first, there is no
+	 * effect. If the intersection of elements shared between the sets is empty, then it
+	 * will return the first sequence.
+	 * 
+	 * Note: Each element is filtered only once. This will not filter all repeating elements.
+	 */
+	template<typename T, T... Ys, T... Qs, typename... Seqs>
+	constexpr auto filter_seq(std::integer_sequence<T, Ys...>, std::integer_sequence<T, Qs...>, Seqs... seqs)
+	{
+		return filter_seq(_filter_seq(std::integer_sequence<T>{}, std::integer_sequence<T, Ys...>{}, std::integer_sequence<T>{}, std::integer_sequence<T, Qs...>{}), seqs...);
+	}
+
+
+	//! Makes a new sequence with values shared between all the sequences.
+	/*!
+	 * All values that are shared by all provided sequences will be put into a new
+	 * sequence.
+	 */
+	template<typename T, T... Ys>
+	constexpr auto intersect_seq(std::integer_sequence<T, Ys...>)
+	{
+		return std::integer_sequence<T, Ys...>{};
+	}
+
+	//! Makes a new sequence with values shared between all the sequences.
+	/*!
+	 * All values that are shared by all provided sequences will be put into a new
+	 * sequence.
+	 */
+	template<typename T, T... Ys, T... Qs, typename... Seqs>
+	constexpr auto intersect_seq(std::integer_sequence<T, Ys...>, std::integer_sequence<T, Qs...>, Seqs... seqs);
+
 
 
 	//! The index sequence result type of joining multiple sequences.
 	template<typename Seq, typename... Seqs>
 	struct seq_join_result
+	{
+		using type = decltype(seq_join(std::declval<Seq>(), std::declval<Seqs>()...));
+	};
+
+	//! The index sequence result type of joining multiple sequences.
+	template<typename Seq, typename... Seqs>
+	struct seq_join_result<types_list<Seq, Seqs...>>
 	{
 		using type = decltype(seq_join(std::declval<Seq>(), std::declval<Seqs>()...));
 	};
@@ -841,36 +1304,135 @@ namespace symphas::lib
 		using type = decltype(seq_sub(std::declval<Seq>(), std::declval<Seqs>()...));
 	};
 
-	//! Alias for the join result of multiple sequences.
+	//! The index sequence result type of adding multiple sequences.
 	template<typename... Seqs>
-	using seq_join_t = typename seq_join_result<Seqs...>::type;
+	struct filter_seq_result
+	{
+		using type = decltype(filter_seq(std::declval<Seqs>()...));
+	};
 
-	//! Alias for the add result of multiple sequences.
+	//! The index sequence result type of adding multiple sequences.
+	template<typename... Seqs>
+	struct intersect_seq_result
+	{
+		using type = decltype(intersect_seq(std::declval<Seqs>()...));
+	};
+
+	//! Alias for the join result of multiple sequences.
+	template<typename Seq, typename... Seqs>
+	using seq_join_t = typename seq_join_result<Seq, Seqs...>::type;
+
+	//! Alias for the addition result of multiple sequences.
 	template<typename... Seqs>
 	using seq_add_t = typename seq_add_result<Seqs...>::type;
 
-	//! Alias for the add result of multiple sequences.
+	//! Alias for the subtraction result of multiple sequences.
 	template<typename... Seqs>
 	using seq_sub_t = typename seq_sub_result<Seqs...>::type;
 
+	//! Alias for the filter result of multiple sequences.
+	template<typename... Seqs>
+	using filter_seq_t = typename filter_seq_result<Seqs...>::type;
+
+	//! Alias for the intersection result of multiple sequences.
+	template<typename... Seqs>
+	using intersect_seq_t = typename intersect_seq_result<Seqs...>::type;
+
+	//! Returns whether there is the given value in the sequence.
+	/*!
+	 * Returns true if the value `N` is in the given sequence.
+	 * 
+	 * \tparam N The existence of this value in the sequence is checked.
+	 * \tparam T The sequence to check.
+	 */
+	template<size_t N, typename T>
+	struct is_value_in_seq;
 
 	template<size_t N, typename T>
-	struct value_in_seq;
-
-	template<size_t N>
-	struct value_in_seq<N, std::index_sequence<>>
+	struct is_value_in_seq<N, std::integer_sequence<T>>
 	{
 		static const bool value = false;
 	};
 
-	template<size_t N, size_t I0, size_t... Is>
-	struct value_in_seq<N, std::index_sequence<I0, Is...>>
+	template<size_t N, typename T, size_t I0, size_t... Is>
+	struct is_value_in_seq<N, std::integer_sequence<T, I0, Is...>>
 	{
-		static const bool value = (I0 == N) || (value_in_seq<N, std::index_sequence<Is...>>::value);
+		static const bool value = (I0 == N) || (is_value_in_seq<N, std::integer_sequence<T, Is...>>::value);
 	};
 
+	//! Get the value at the specified index in the sequence.
+	/*!
+	 * Provides the value at the given index in the sequence.
+	 * 
+	 * \tparam N The index to get the value from.
+	 * \tparam T The sequence.
+	 */
+	template<size_t N, typename T>
+	struct seq_index_value;
+
+	template<size_t N, typename T>
+	struct seq_index_value<N, std::integer_sequence<T>>;
+
+	template<typename T, T I0, T... Is>
+	struct seq_index_value<0, std::integer_sequence<T, I0, Is...>>
+	{
+		static const T value = I0;
+	};
+
+	template<size_t N, typename T, T I0, T... Is>
+	struct seq_index_value<N, std::integer_sequence<T, I0, Is...>>
+	{
+		static const T value = seq_index_value<N - 1, std::integer_sequence<T, Is...>>::value;
+	};
+
+	//! Create a sequence made of a single value.
+	/*!
+	 * The sequence is equal to repeating the given parameter `I` a 
+	 * total of `N` times.
+	 * 
+	 * \tparam T The type of the repeated element.
+	 * \tparam N The number of repeated elements.
+	 * \tparam I The value of the repeated element.
+	 */
+	template<size_t N, typename T, T I>
+	struct seq_repeating_value
+	{
+	protected:
+
+		template<size_t N0>
+		static constexpr T V = I;
+
+		template<size_t... Ns>
+		static constexpr auto build_sequence(std::index_sequence<Ns...>)
+		{
+			return std::integer_sequence<T, V<Ns>...>{};
+		}
+
+	public:
+
+		using type = decltype(build_sequence(std::make_index_sequence<N>{}));
+	};
+
+	template<size_t N, typename T, T I>
+	using seq_repeating_value_t = typename seq_repeating_value<N, T, I>::type;
 
 
+	//! Makes a new sequence with values shared between all the sequences.
+	/*!
+	 * All values that are shared by all provided sequences will be put into a new
+	 * sequence.
+	 */
+	template<typename T, T... Ys, T... Qs, typename... Seqs>
+	constexpr auto intersect_seq(std::integer_sequence<T, Ys...>, std::integer_sequence<T, Qs...>, Seqs... seqs)
+	{
+		using filtered_t = seq_join_t<std::integer_sequence<T>, 
+			std::conditional_t<
+				is_value_in_seq<Ys, std::integer_sequence<T, Qs...>>::value,
+				std::integer_sequence<T, Ys>,
+				std::integer_sequence<T>>...
+			>;
+		return intersect_seq(filtered_t{}, seqs...);
+	}
 
 	namespace internal
 	{
@@ -896,7 +1458,7 @@ namespace symphas::lib
 			return V;
 		}
 
-		template<size_t N, typename T, T... Es, typename = std::enable_if_t<(N < sizeof...(Es)), int>>
+		template<size_t N, typename T, T... Es, typename std::enable_if_t<(N < sizeof...(Es)), int> = 0>
 		static size_t constexpr seq_value(std::integer_sequence<T, Es...>)
 		{
 			return get_value_from_seq(std::tuple_element_t<N, std::tuple<std::integer_sequence<T, Es>...>>{});
@@ -1009,7 +1571,7 @@ namespace symphas::lib
 			template<size_t N, T E, T... Es>
 			static auto constexpr select(seq_t<E, Es...>)
 			{
-				return std::integer_sequence < T, seq_value<N>(seq_t<E, Es...>{}) > {};
+				return std::integer_sequence<T, seq_value<N>(seq_t<E, Es...>{})>{};
 			}
 
 			template<size_t N, T E, T... Es, typename Seq, typename... Seqs, size_t L = seq_len_product<Seq, Seqs...>(), size_t N0 = N / L, size_t N1 = N - N0 * L>
@@ -1020,105 +1582,93 @@ namespace symphas::lib
 		};
 	}
 
-	/*!
-	 * Generate the cross product or cross join of all the numeric elements in the
-	 * provided std::integer_sequence types.
-	 *
-	 * \tparam Lists The std::integer_sequence containing a list of values which are
-	 * cross joined.
-	 */
-	template<typename... Lists>
-	struct CrossProductList;
+
+	template<typename T>
+	struct types_list_size;
+
+	template<typename... Ts>
+	struct types_list_size<types_list<Ts...>>
+	{
+		static const size_t value = sizeof...(Ts);
+	};
+
+	template<typename... Ts>
+	struct expand_types_list_impl;
 
 	template<>
-	struct CrossProductList<>
+	struct expand_types_list_impl<>
 	{
-		//using type = std::tuple<>;
-		static const size_t count = 0;
-		static const size_t rank = 0;
+		using type = types_list<>;
 	};
 
-	template<typename T, T... Es>
-	struct CrossProductList<std::integer_sequence<T, Es...>>
+	template<typename T>
+	struct expand_types_list_impl<T>
 	{
-		//using type = std::tuple<std::integer_sequence<T, Es>...>;
-
-		static const size_t count = sizeof...(Es);
-		static const size_t rank = 1;
-
-		template<size_t N>
-		static const size_t size = std::integer_sequence<T, Es...>::size();
-
-		template<size_t N, typename = std::enable_if_t<(N < count), int>>
-		using row = std::tuple_element_t<N, std::tuple<std::integer_sequence<T, Es>...>>;
-
+		using type = types_list<T>;
 	};
 
-
-	template<typename T, T... E1s, T... E2s>
-	struct CrossProductList<std::integer_sequence<T, E1s...>, std::integer_sequence<T, E2s...>>
+	template<typename T>
+	struct expand_types_list_impl<types_list<T>>
 	{
-		//using type = decltype(internal::CrossProductFunctions<T>::expand1(
-		//	std::declval<std::integer_sequence<T, E1s...>>(),
-		//	std::declval<std::integer_sequence<T, E2s...>>()));
-
-		static const size_t count = (sizeof...(E1s) * sizeof...(E2s));
-		static const size_t rank = 2;
-
-		template<size_t N>
-		static const size_t size = std::tuple_element_t<N, std::tuple<std::integer_sequence<T, E1s...>, std::integer_sequence<T, E2s...>>>::size();
-
-		template<size_t N, typename = std::enable_if_t<(N < count), int>>
-		using row = decltype(internal::CrossProductFunctions<T>::select<N>(
-			std::declval<std::integer_sequence<T, E1s...>>(),
-			std::declval<std::integer_sequence<T, E2s...>>()));
+		using type = types_list<T>;
 	};
 
-	template<typename T, T... Es, typename List1, typename List2, typename... Lists>
-	struct CrossProductList<std::integer_sequence<T, Es...>, List1, List2, Lists...>
+	template<typename... T1s, typename... T2s>
+	struct expand_types_list_impl<types_list<T1s...>, types_list<T2s...>>
 	{
-		//using type = decltype(internal::CrossProductFunctions<T>::expand11(
-		//	std::declval<std::integer_sequence<T, Es...>>(),
-		//	std::declval<List1>(),
-		//	std::declval<List2>(),
-		//	std::declval<Lists>()...));
-
-		static const size_t count = internal::seq_len_product<std::integer_sequence<T, Es...>, List1, List2, Lists...>();
-		static const size_t rank = 3 + sizeof...(Lists);
-
-		template<size_t N>
-		static const size_t size = std::tuple_element_t<N, std::tuple<std::integer_sequence<T, Es...>, List1, List2, Lists...>>::size();
-
-		template<size_t N, typename = std::enable_if_t<(N < count), int>>
-		using row = decltype(internal::CrossProductFunctions<T>::template select<N>(
-			std::declval<std::integer_sequence<T, Es...>>(),
-			std::declval<List1>(),
-			std::declval<List2>(),
-			std::declval<Lists>()...));
-
+		using type = types_list<T1s..., T2s...>;
 	};
 
-
-
-	//! Concatenates two tuple lists together into one tuple type.
-	/*
-	 * In general, the type is not defined; tuples need to be concatenated.
-	 */
-	template<typename A, typename B>
-	struct combine_types
+	template<typename T1, typename... T2s>
+	struct expand_types_list_impl<T1, types_list<T2s...>>
 	{
-		using type = std::tuple<A, B>;
+		using type = types_list<T1, T2s...>;
 	};
 
-	//! Concatenates two tuple lists together into one tuple type.
-	/*
-	 * The underlying types of two tuples are joined together in one tuple.
-	 */
-	template<typename... G1s, typename... G2s>
-	struct combine_types<std::tuple<G1s...>, std::tuple<G2s...>>
+	template<typename... T1s, typename T2>
+	struct expand_types_list_impl<types_list<T1s...>, T2>
 	{
-		using type = std::tuple<G1s..., G2s...>;
+		using type = types_list<T1s..., T2>;
 	};
+
+	template<typename T1, typename T2>
+	struct expand_types_list_impl<T1, T2>
+	{
+		using type = types_list<T1, T2>;
+	};
+
+	template<typename T0, typename T1, typename... Ts>
+	struct expand_types_list_impl<T0, T1, Ts...>
+	{
+		using type = typename expand_types_list_impl<typename expand_types_list_impl<T0, T1>::type, Ts...>::type;
+	};
+
+	template<typename... Ts>
+	using expand_types_list = typename expand_types_list_impl<Ts...>::type;
+
+
+
+	template<size_t N, typename T>
+	struct list_repeating_type
+	{
+	protected:
+
+		template<size_t N0>
+		using repeat_type = T;
+
+		template<size_t... Ns>
+		static constexpr auto build_list(std::index_sequence<Ns...>)
+		{
+			return types_list<repeat_type<Ns>...>{};
+		}
+
+	public:
+
+		using type = decltype(build_list(std::make_index_sequence<N>{}));
+	};
+
+	template<size_t N, typename T>
+	using list_repeating_type_t = typename list_repeating_type<N, T>::type;
 
 	//! Collect and count like types from a tuple list.
 	/*!
@@ -1136,22 +1686,22 @@ namespace symphas::lib
 		{
 			using type = G;
 			using count = std::index_sequence<1>;
-			using discard = std::tuple<>;
+			using discard = types_list<>;
 		};
 
 		template<typename G0>
-		struct cc_like_types_apply<std::tuple<G0>>
+		struct cc_like_types_apply<types_list<G0>>
 		{
-			using type = std::tuple<G0>;
+			using type = types_list<G0>;
 			using count = std::index_sequence<1>;
-			using discard = std::tuple<>;
+			using discard = types_list<>;
 		};
 
 		template<typename G0, typename... Gs>
-		struct cc_like_types_apply<std::tuple<G0, G0, Gs...>>
+		struct cc_like_types_apply<types_list<G0, G0, Gs...>>
 		{
 		protected:
-			using cft0 = cc_like_types_apply<std::tuple<G0, Gs...>>;
+			using cft0 = cc_like_types_apply<types_list<G0, Gs...>>;
 
 		public:
 			using type = typename cft0::type;
@@ -1160,39 +1710,36 @@ namespace symphas::lib
 		};
 
 		template<typename G0, typename G1, typename... Gs>
-		struct cc_like_types_apply<std::tuple<G0, G1, Gs...>>
+		struct cc_like_types_apply<types_list<G0, G1, Gs...>>
 		{
 		protected:
-			using cft0 = cc_like_types_apply<std::tuple<G0, Gs...>>;
+			using cft0 = cc_like_types_apply<types_list<G0, Gs...>>;
 
 		public:
 			using type = typename cft0::type;
 			using count = typename cft0::count;
-			using discard = typename combine_types<std::tuple<G1>, typename cft0::discard>::type;
+			using discard = expand_types_list<types_list<G1>, typename cft0::discard>;
 		};
 	}
 
 	template<>
-	struct cc_like_types<std::tuple<>>
+	struct cc_like_types<types_list<>>
 	{
-		using type = std::tuple<>;
+		using type = types_list<>;
 		using count = std::index_sequence<>;
 	};
 
 	template<typename G0, typename... Gs>
-	struct cc_like_types<std::tuple<G0, Gs...>>
+	struct cc_like_types<types_list<G0, Gs...>>
 	{
 	protected:
 
-		using cc0 = cc_like_types_apply<std::tuple<G0, Gs...>>;
+		using cc0 = cc_like_types_apply<types_list<G0, Gs...>>;
 		using cc1 = cc_like_types<typename cc0::discard>;
 
 	public:
 
-		using type = typename combine_types<
-			typename cc0::type,
-			typename cc1::type
-		>::type;
+		using type = expand_types_list<typename cc0::type, typename cc1::type>;
 
 		using count = seq_join_t<
 			typename cc0::count,
@@ -1202,8 +1749,8 @@ namespace symphas::lib
 	template<typename... Gs>
 	struct cc_like_types
 	{
-		using type = typename cc_like_types<std::tuple<Gs...>>::type;
-		using count = typename cc_like_types<std::tuple<Gs...>>::count;
+		using type = typename cc_like_types<types_list<Gs...>>::type;
+		using count = typename cc_like_types<types_list<Gs...>>::count;
 	};
 
 
@@ -1212,17 +1759,17 @@ namespace symphas::lib
 	 * Returns the unique list of types is returned from joining together
 	 * the list of types.
 	 */
-	template<typename A, typename B>
+	template<typename... Gs>
 	struct combine_types_unique
 	{
-		using type = typename cc_like_types<typename combine_types<A, B>::type>::type;
+		using type = typename cc_like_types<expand_types_list<Gs...>>::type;
 	};
 
 	namespace
 	{
 		// helper function that iterates over the tuple
-		template<typename... As, typename... Bs, size_t... Is>
-		auto unfurl_tuple(std::tuple<std::pair<As, Bs>...> const& ts, std::index_sequence<Is...>)
+		template<typename... As, typename... Bs, typename T, T... Is>
+		auto unfurl_tuple(std::tuple<std::pair<As, Bs>...> const& ts, std::integer_sequence<T, Is...>)
 		{
 			auto first_elements = symphas::lib::make_tuple(std::get<Is>(ts).first...);
 			auto second_elements = symphas::lib::make_tuple(std::get<Is>(ts).second...);
@@ -1232,37 +1779,37 @@ namespace symphas::lib
 		// helper function that takes index sequence and rebuilds the tuple from the 
 		// given index onwards
 		template<size_t I, typename... Ts, size_t... Is>
-		auto get_tuple_ge(std::tuple<Ts...> const& ts, std::index_sequence<Is...>)
+		auto get_tuple_ge(std::tuple<Ts...> const& ts, std::index_sequence<Is... >)
 		{
 			return symphas::lib::make_tuple(std::get<I + Is>(ts)...);
 		}
 
 		// helper function that takes index sequence and rebuilds the tuple up to and
 		// not including the given index
-		template<typename... Ts, size_t... Is>
-		auto get_tuple_lt(std::tuple<Ts...> const& ts, std::index_sequence<Is...>)
+		template<typename... Ts, typename T, T... Is>
+		auto get_tuple_lt(std::tuple<Ts...> const& ts, std::integer_sequence<T, Is...>)
 		{
 			return symphas::lib::make_tuple(std::get<Is>(ts)...);
 		}
 
 
-		template<typename T, size_t... Ns>
+		template<typename T, T... Ns>
 		auto get_seq_from_tuple(std::tuple<std::integer_sequence<T, Ns>...> const&)
 		{
 			return std::integer_sequence<T, Ns...>{};
 		}
 
 
-		template<size_t I, size_t... Ns, size_t... Is>
-		auto get_seq_ge(std::tuple<std::index_sequence<Ns>...> const& ts, std::index_sequence<Is...>)
+		template<size_t I, typename T, T... Ns, size_t... Is>
+		auto get_seq_ge(std::tuple<std::integer_sequence<T, Ns>...> const& ts, std::index_sequence<Is...>)
 		{
 			return get_seq_from_tuple(get_tuple_ge<I>(ts, std::index_sequence<Is...>{}));
 		}
 
-		template<size_t... Ns, size_t... Is>
-		auto get_seq_lt(std::tuple<std::index_sequence<Ns>...> const& ts, std::index_sequence<Is...>)
+		template<typename T, T... Ns, T... Is>
+		auto get_seq_lt(std::tuple<std::integer_sequence<T, Ns>...> const& ts, std::integer_sequence<T, Is...>)
 		{
-			return get_seq_from_tuple(get_tuple_lt(ts, std::index_sequence<Is...>{}));
+			return get_seq_from_tuple(get_tuple_lt(ts, std::integer_sequence<T, Is...>{}));
 		}
 
 
@@ -1535,6 +2082,285 @@ namespace symphas::lib
 	}
 
 
+	// **************************************************************************************
+
+	//! Return the index of the given type in the type list.
+	/*!
+	 * Given the type list, identify the index of the `I`-th chosen type. If
+	 * the type is not identified, then `-1` will be returned.
+	 *
+	 * \tparam Type The type to be found in the list.
+	 * \tparam I The index of the type to find out of those that match.
+	 * \tparam Ss... The types in the list.
+	 */
+	template<typename Type, size_t I, typename... Ss, size_t... Is>
+	constexpr int index_of_type_impl(std::index_sequence<Is...>)
+	{
+		using mask_t = seq_join_t<std::index_sequence<>,
+			std::conditional_t<
+			(std::is_same<Ss, Type>::value),
+			std::index_sequence<Is>,
+			std::index_sequence<>>...>;
+
+		if constexpr (I < mask_t::size())
+		{
+			return seq_index_value<I, mask_t>::value;
+		}
+		else
+		{
+			return -1;
+		}
+	}
+
+
+	//! Return the index of the given type in the type list.
+	/*!
+	 * Given the type list, identify the index of the `I`-th chosen type. If
+	 * the type is not identified, then `-1` will be returned.
+	 *
+	 * \tparam Type The type to be found in the list.
+	 * \tparam I The index of the type to find out of those that match.
+	 * \tparam S0 The next type in the type list to compare.
+	 * \tparam Ss... The remaining types in the list.
+	 */
+	template<typename Type, size_t N, typename S0, typename ...Ss>
+	constexpr int nth_index_of_type = index_of_type_impl<Type, N, S0, Ss...>(std::make_index_sequence<sizeof...(Ss) + 1>{});
+
+	//! Return the index of the given type in the type list.
+	/*!
+	 * Given the type list, identify the index of the `I`-th chosen type. If
+	 * the type is not identified, then `-1` will be returned.
+	 *
+	 * \tparam Type The type to be found in the list.
+	 * \tparam S0 The next type in the type list to compare.
+	 * \tparam Ss... The remaining types in the list.
+	 */
+	template<typename Type, typename S0, typename ...Ss>
+	constexpr int index_of_type = nth_index_of_type<Type, 0, S0, Ss...>;
+
+	template<typename Type, size_t N, typename S0, typename ...Ss>
+	constexpr int nth_index_of_type<Type, N, types_list<S0, Ss...>> = nth_index_of_type<Type, N, S0, Ss...>;
+
+	template<typename Type, typename S0, typename ...Ss>
+	constexpr int index_of_type<Type, types_list<S0, Ss...>> = index_of_type<Type, S0, Ss...>;
+
+
+
+	template<typename T>
+	struct unroll_types_list {};
+
+	template<size_t I, typename... Ts>
+	struct type_at_index_impl;
+
+	template<typename T0>
+	struct type_at_index_impl<0, T0>
+	{
+		using type = T0;
+	};
+
+	template<typename T0, typename T1, typename... Ts>
+	struct type_at_index_impl<0, T0, T1, Ts...>
+	{
+		using type = T0;
+	};
+
+	template<size_t I, typename T0, typename... Ts>
+	struct type_at_index_impl<I, T0, Ts...>
+	{
+		using type = typename type_at_index_impl<I - 1, Ts...>::type;
+	};
+
+	template<typename T0, typename... Ts>
+	struct type_at_index_impl<0, unroll_types_list<types_list<T0, Ts...>>>
+	{
+		using type = T0;
+	};
+
+	template<size_t I, typename... Ts>
+	struct type_at_index_impl<I, unroll_types_list<types_list<Ts...>>>
+	{
+		using type = typename type_at_index_impl<I, Ts...>::type;
+	};
+
+	template<size_t I, typename... Ts>
+	using type_at_index = typename type_at_index_impl<I, Ts...>::type;
+
+	template<size_t I, typename... Ts>
+	struct types_after_at_index_impl;
+
+
+	template<size_t I>
+	struct types_after_at_index_impl<I>
+	{
+		using type = types_list<>;
+	};
+
+	template<size_t I, typename T0, typename... Ts>
+	struct types_after_at_index_impl<I, T0, Ts...>
+	{
+		using type = std::conditional_t<
+			(I == 0),
+			types_list<T0, Ts...>,
+			typename types_after_at_index_impl<I - 1, Ts...>::type>;
+	};
+
+	template<size_t I, typename... Ts>
+	struct types_after_at_index_impl<I, unroll_types_list<types_list<Ts...>>>
+	{
+		using type = typename types_after_at_index_impl<I, Ts...>::type;
+	};
+
+	template<size_t I, typename... Ts>
+	using types_after_at_index = typename types_after_at_index_impl<I, Ts...>::type;
+
+
+	template<size_t I, typename T, typename... Ts>
+	struct types_before_index_impl;
+
+	template<size_t I, typename... T0s>
+	struct types_before_index_impl<I, types_list<T0s...>>
+	{
+		using type = types_list<T0s...>;
+	};
+
+	template<typename... T0s, typename T0, typename... Ts>
+	struct types_before_index_impl<0, types_list<T0s...>, T0, Ts...>
+	{
+		using type = types_list<T0s...>;
+	};
+
+	template<size_t I, typename... T0s, typename T0, typename... Ts>
+	struct types_before_index_impl<I, types_list<T0s...>, T0, Ts...>
+	{
+		using type = typename types_before_index_impl<I - 1, types_list<T0s..., T0>, Ts...>::type;
+	};
+
+	template<size_t I, typename... Ts>
+	struct types_before_index_impl<I, types_list<>, unroll_types_list<types_list<Ts...>>>
+	{
+		using type = typename types_before_index_impl<I, types_list<>, Ts...>::type;
+	};
+
+	template<typename T0, typename... Ts>
+	struct types_before_index_impl<0, types_list<>, unroll_types_list<types_list<T0, Ts...>>>
+	{
+		using type = types_list<T0>;
+	};
+
+	template<size_t I, typename... Ts>
+	using types_before_index = typename types_before_index_impl<I, types_list<>, Ts...>::type;
+
+
+	template<size_t I0, size_t I, typename... Ts>
+	struct types_between_index_impl
+	{
+		using type = types_after_at_index<I0, unroll_types_list<types_before_index<I, Ts...>>>;
+	};
+
+	template<size_t I0, size_t I, typename... Ts>
+	using types_between_index = typename types_between_index_impl<I0, I, Ts...>::type;
+
+
+
+	template<typename T, typename Seq>
+	struct reverse_types_list_impl;
+
+	template<typename... Es, size_t... Is>
+	struct reverse_types_list_impl<types_list<Es...>, std::index_sequence<Is...>>
+	{
+		using type = types_list<type_at_index<sizeof...(Is) - 1 - Is, Es...>...>;
+	};
+
+	template<typename... Es>
+	struct reverse_types_list_impl<types_list<Es...>, void>
+	{
+		using type = typename reverse_types_list_impl<types_list<Es...>, std::make_index_sequence<sizeof...(Es)>>::type;
+	};
+
+	//! Reverse a ::types_list.
+	template<typename T>
+	using reverse_types_list = typename reverse_types_list_impl<T, void>::type;
+
+
+	// **************************************************************************************
+
+
+	/*!
+	 * Generate the cross product or cross join of all the numeric elements in the
+	 * provided std::integer_sequence types.
+	 *
+	 * \tparam Lists The std::integer_sequence containing a list of values which are
+	 * cross joined.
+	 */
+	template<typename... Lists>
+	struct CrossProductList;
+
+	template<>
+	struct CrossProductList<>
+	{
+		static const size_t count = 0;
+		static const size_t rank = 0;
+	};
+
+	template<typename T, T... Es>
+	struct CrossProductList<std::integer_sequence<T, Es...>>
+	{
+		static const size_t count = sizeof...(Es);
+		static const size_t rank = 1;
+
+		template<size_t N>
+		static const size_t size = std::integer_sequence<T, Es...>::size();
+
+		template<size_t N, typename std::enable_if_t<(N < count), int> = 0>
+		using row = type_at_index<N, unroll_types_list<types_list<std::integer_sequence<T, Es>...>>>;
+
+	};
+
+
+	template<typename T, T... E1s, T... E2s>
+	struct CrossProductList<std::integer_sequence<T, E1s...>, std::integer_sequence<T, E2s...>>
+	{
+		//using type = decltype(internal::CrossProductFunctions<T>::expand1(
+		//	std::declval<std::integer_sequence<T, E1s...>>(),
+		//	std::declval<std::integer_sequence<T, E2s...>>()));
+
+		static const size_t count = (sizeof...(E1s) * sizeof...(E2s));
+		static const size_t rank = 2;
+
+		template<size_t N>
+		static const size_t size = type_at_index<N, unroll_types_list<types_list<std::integer_sequence<T, E1s...>, std::integer_sequence<T, E2s...>>>>::size();
+
+		template<size_t N, typename std::enable_if_t<(N < count), int> = 0>
+		using row = decltype(internal::CrossProductFunctions<T>::select<N>(
+			std::declval<std::integer_sequence<T, E1s...>>(),
+			std::declval<std::integer_sequence<T, E2s...>>()));
+	};
+
+	template<typename T, T... Es, typename List1, typename List2, typename... Lists>
+	struct CrossProductList<std::integer_sequence<T, Es...>, List1, List2, Lists...>
+	{
+		//using type = decltype(internal::CrossProductFunctions<T>::expand11(
+		//	std::declval<std::integer_sequence<T, Es...>>(),
+		//	std::declval<List1>(),
+		//	std::declval<List2>(),
+		//	std::declval<Lists>()...));
+
+		static const size_t count = internal::seq_len_product<std::integer_sequence<T, Es...>, List1, List2, Lists...>();
+		static const size_t rank = 3 + sizeof...(Lists);
+
+		template<size_t N>
+		static const size_t size = type_at_index<N, unroll_types_list<types_list<std::integer_sequence<T, Es...>, List1, List2, Lists...>>>::size();
+
+		template<size_t N, typename std::enable_if_t<(N < count), int> = 0>
+		using row = decltype(internal::CrossProductFunctions<T>::template select<N>(
+			std::declval<std::integer_sequence<T, Es...>>(),
+			std::declval<List1>(),
+			std::declval<List2>(),
+			std::declval<Lists>()...));
+
+	};
+
+	// **************************************************************************************
 
 
 	//! Generalized function to expand the given list.
@@ -1852,7 +2678,6 @@ namespace symphas::lib
 	}
 
 
-
 	inline iter_type next_block_i(iter_type i, len_type full_len, len_type block_count)
 	{
 		iter_type
@@ -2051,7 +2876,6 @@ namespace symphas::lib
 
 
 
-
 	//! For an list of data, return the dimensions.
 	/*!
 	 * For an list of data, return the dimensions. The data is assumed to be
@@ -2061,14 +2885,14 @@ namespace symphas::lib
 	 * are inferred.
 	 */
 	template<typename T>
-	inline std::tuple<len_type> get_sorted_dimensions(std::vector<std::pair<axis_1d_type, T>> sorted_data)
+	inline len_type get_sorted_dimensions(std::vector<std::pair<axis_1d_type, T>> sorted_data)
 	{
-		return { static_cast<iter_type>(sorted_data.size()) };
+		return static_cast<iter_type>(sorted_data.size());
 	}
 
 
 	template<typename T>
-	inline std::tuple<len_type, len_type> get_sorted_dimensions(std::vector<std::pair<axis_2d_type, T>> sorted_data)
+	inline symphas::internal::dims2d_t get_sorted_dimensions(std::vector<std::pair<axis_2d_type, T>> sorted_data)
 	{
 		len_type L = 1, M = 0;
 		double y0 = sorted_data.front().first[1];
@@ -2085,7 +2909,7 @@ namespace symphas::lib
 
 
 	template<typename T>
-	std::tuple<len_type, len_type, len_type> get_sorted_dimensions(std::vector<std::pair<axis_3d_type, T>> sorted_data)
+	symphas::internal::dims3d_t get_sorted_dimensions(std::vector<std::pair<axis_3d_type, T>> sorted_data)
 	{
 		len_type L = 0, M = 0, N = 0;
 		double
@@ -2114,7 +2938,7 @@ namespace symphas::lib
 	}
 
 
-	inline std::tuple<len_type, len_type, len_type> get_sorted_dimensions(const axis_3d_type* sorted_data, len_type len)
+	inline symphas::internal::dims3d_t get_sorted_dimensions(const axis_3d_type* sorted_data, len_type len)
 	{
 		len_type L = 0, M = 0, N = 0;
 		double
@@ -2142,7 +2966,7 @@ namespace symphas::lib
 
 	}
 
-	inline std::tuple<len_type, len_type> get_sorted_dimensions(const axis_2d_type* sorted_data, len_type len)
+	inline symphas::internal::dims2d_t get_sorted_dimensions(const axis_2d_type* sorted_data, len_type len)
 	{
 		len_type L = 0, M = 0;
 		double y0 = (*sorted_data)[1];
@@ -2156,9 +2980,9 @@ namespace symphas::lib
 
 	}
 
-	inline std::tuple<len_type> get_sorted_dimensions(const axis_1d_type*, len_type len)
+	inline len_type get_sorted_dimensions(const axis_1d_type*, len_type len)
 	{
-		return { len };
+		return len;
 	}
 
 	//! Return the min, max and separation distance of the given axis.
@@ -2215,7 +3039,7 @@ namespace symphas::lib
 		{
 			dim[n] = static_cast<len_type>(std::round((max[n] - min[n]) / sep[n])) + 1;
 		}
-		return symphas::internal::dims_as_tuple<D>(dim);
+		return symphas::internal::dims_as_struct<D>(dim);
 	}
 
 
@@ -2475,35 +3299,64 @@ namespace symphas::lib
 		return unfurl_tuple(ts, std::make_index_sequence<std::tuple_size<std::tuple<std::pair<As, Bs>...>>::value>{});
 	}
 
+	//! Get the elements of the tuple greater or equal to the given index.
+	/*!
+	 * Returns a new tuple consisting of all the elements with index greater than or equal to
+	 * the given index. If the given index is 0, then the original tuple will be returned.
+	 */
 	template<size_t I, typename... Ts>
 	auto get_tuple_ge(std::tuple<Ts...> const& ts)
 	{
 		return get_tuple_ge<I>(ts, std::make_index_sequence<sizeof...(Ts) - I>{});
 	}
 
+	//! Get the elements of the tuple less than the given index.
+	/*!
+	 * Returns a new tuple consisting of all the elements with index strictly less than the
+	 * given index. If the index is equal to the length of the tuple, the original tuple will 
+	 * be returned.
+	 */
 	template<size_t I, typename... Ts>
 	auto get_tuple_lt(std::tuple<Ts...> const& ts)
 	{
 		return get_tuple_lt(ts, std::make_index_sequence<I>{});
 	}
+	
+	//! Get the elements of the tuple in the given range, not including the last index.
+	/*!
+	 * Returns a new tuple consisting of all the elements between the first and last indices
+	 * provided, not including the last index. That is, this function will return the same tuple
+	 * the last index is equal to the size of the tuple. 
+	 */
+	template<size_t I0, size_t In, typename... Ts, typename std::enable_if_t<(I0 < In), int> = 0>
+	auto get_tuple_bw(std::tuple<Ts...> const& ts)
+	{
+		return get_tuple_lt(ts, symphas::lib::seq_add(symphas::lib::seq_repeating_value_t<In - I0, size_t, I0>{}, std::make_index_sequence<In - I0>{}));
+	}
 
-	template<size_t I, size_t... Ns>
-	auto get_seq_ge(std::index_sequence<Ns...> const& seq)
+	template<size_t I0, size_t In, typename... Ts, typename std::enable_if_t<(I0 >= In), int> = 0>
+	auto get_tuple_bw(std::tuple<Ts...> const& ts)
+	{
+		return std::tuple<>{};
+	}
+
+	template<size_t I, typename T, T... Ns>
+	auto get_seq_ge(std::integer_sequence<T, Ns...> const& seq)
 	{
 		if constexpr (sizeof...(Ns) < I)
 		{
-			return std::index_sequence<>{};
+			return std::integer_sequence<T>{};
 		}
 		else
 		{
-			return get_seq_ge<I>(std::tuple<std::index_sequence<Ns>...>{}, std::make_index_sequence<sizeof...(Ns) - I>{});
+			return get_seq_ge<I>(std::tuple<std::integer_sequence<T, Ns>...>{}, std::make_index_sequence<sizeof...(Ns) - I>{});
 		}
 	}
 
-	template<size_t I, size_t... Ns>
-	auto get_seq_lt(std::index_sequence<Ns...> const& seq)
+	template<size_t I, typename T, T... Ns>
+	auto get_seq_lt(std::integer_sequence<T, Ns...> const& seq)
 	{
-		return get_seq_lt(std::tuple<std::index_sequence<Ns>...>{}, std::make_index_sequence<I>{});
+		return get_seq_lt(std::tuple<std::integer_sequence<T, Ns>...>{}, std::integer_sequence<T, I>{});
 	}
 
 	template<typename... Ts>
@@ -2574,29 +3427,38 @@ namespace symphas::lib
 		else return v2;
 	}
 
+
+
+	template<Axis... axs>
+	struct axis_list {};
+
+	//! Put the first `D` axes in a types list.
+	/*!
+	 * Construct a types list with the first `D` axes in the list.
+	 */
+	template<size_t D>
+	auto make_axis_list()
+	{
+		if constexpr (D == 1)
+		{
+			return axis_list<Axis::X>{};
+		}
+		else if constexpr (D == 2)
+		{
+			return axis_list<Axis::X, Axis::Y>{};
+		}
+		else if constexpr (D == 3)
+		{
+			return axis_list<Axis::X, Axis::Y, Axis::Z>{};
+		}
+	}
+
+	template<size_t D, typename G>
+	auto make_axis_list()
+	{
+		return symphas::lib::types_list<G, decltype(make_axis_list<D>())>{};
+	}
 }
-
-template<typename S0, typename ...Ss>
-struct symphas::internal::index_of_type_match<0, S0, Ss...>
-{
-	template<typename Type, size_t Sn>
-	static const int value = Sn - sizeof...(Ss) - 1;
-};
-
-template<size_t I, typename S0, typename... Ss>
-struct symphas::internal::index_of_type_match<I, S0, Ss...>
-{
-	template<typename Type, size_t Sn>
-	static const int value = symphas::lib::index_of_type<Type, I - 1, Sn, Ss...>();
-};
-
-template<size_t I, typename... Ss>
-struct symphas::internal::index_of_type_match
-{
-	template<typename Type, size_t Sn>
-	static const int value = -1;
-};
-
 
 
 // **************************************************************************************

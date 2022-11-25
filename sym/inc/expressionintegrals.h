@@ -46,8 +46,13 @@ namespace symphas::internal
 		static auto get(A&& a);
 
 		template<typename V, typename E>
-		static auto get(V v, OpExpression<E> const& e);
+		static auto get(V const& v, OpExpression<E> const& e);
 
+		template<typename V, typename E>
+		static auto get(OpLiteral<V> const& v, E&& e)
+		{
+			return get(v.value, std::forward<E>(e));
+		}
 	};
 
 }
@@ -83,11 +88,13 @@ namespace expr
 template<size_t Z, typename V, typename E>
 struct OpFuncIntegral : OpExpression<OpFuncIntegral<Z, V, E>>
 {
+	OpFuncIntegral() : e{}, value{ V{} } {}
+
 	OpFuncIntegral(V value, E const& e) : e{ e }, value{ value } {}
 
 	inline auto eval(iter_type n) const
 	{
-		return OpVoid{};
+		return expr::eval(value) * OpVoid{};
 	}
 
 	auto operator-() const
@@ -127,17 +134,20 @@ protected:
 };
 
 
-template<typename S1, typename V2, typename E2>
-auto operator*(OpLiteral<S1> const& a, OpFuncIntegral<V2, E2> const& b)
+template<typename coeff_t, typename V2, size_t Z2, typename E2,
+	typename std::enable_if_t<(expr::is_coeff<coeff_t> && !expr::is_tensor<V2>), int> = 0>
+auto operator*(coeff_t const& value, OpFuncIntegral<Z2, V2, E2> const& b)
 {
-	return make_integral::template get(a.value * b.value, b.e);
+	return expr::make_integral<Z2>(value * b.value, b.e);
 }
 
-template<typename S2, typename V1, typename E1>
-auto operator*(OpFuncIntegral<V1, E1> const& a, OpLiteral<S2> const& b)
+template<typename coeff_t, typename tensor_t, size_t Z2, typename E2,
+	typename std::enable_if_t<(expr::is_coeff<coeff_t> && expr::is_tensor<tensor_t>), int> = 0>
+auto operator*(coeff_t const& value, OpFuncIntegral<Z2, tensor_t, E2> const& b)
 {
-	return make_integral::template get(b.value * a.value, a.e);
+	return (value * b.value) * expr::make_integral<Z2>(OpIdentity{}, b.e);
 }
+
 
 
 
@@ -146,9 +156,9 @@ namespace symphas::internal
 
 	template<size_t Z>
 	template<typename V, typename E>
-	inline auto make_integral<Z>::get(V v, OpExpression<E> const& e)
+	inline auto make_integral<Z>::get(V const& v, OpExpression<E> const& e)
 	{
-		return OpFuncIntegral<Z, V, E>(v, e);
+		return OpFuncIntegral<Z, V, E>(v, *static_cast<E const*>(&e));
 	}
 
 	template<size_t Z>

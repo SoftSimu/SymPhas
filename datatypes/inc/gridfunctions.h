@@ -69,6 +69,48 @@ namespace symphas::dft
 	{
 		scale(grid.values, grid.dims[0], grid.dims[1], grid.dims[2]);
 	}
+
+	//! Specialization based on symphas::dft::scale()
+	/*!
+	 * Scales the values of the grid type based on the number of elements
+	 * in the grid.
+	 *
+	 * \param grid The grid containing the values to be scaled.
+	 */
+	template<typename T>
+	void scale(Grid<any_vector_t<T, 1>, 1>& grid)
+	{
+		scale(grid.axis(Axis::X), grid.dims[0]);
+	}
+
+	//! Specialization based on symphas::dft::scale()
+	/*!
+	 * Scales the values of the grid type based on the number of elements
+	 * in the grid.
+	 *
+	 * \param grid The grid containing the values to be scaled.
+	 */
+	template<typename T>
+	void scale(Grid<any_vector_t<T, 2>, 2>& grid)
+	{
+		scale(grid.axis(Axis::X), grid.dims[0], grid.dims[1]);
+		scale(grid.axis(Axis::Y), grid.dims[0], grid.dims[1]);
+	}
+
+	//! Specialization based on symphas::dft::scale()
+	/*!
+	 * Scales the values of the grid type based on the number of elements
+	 * in the grid.
+	 *
+	 * \param grid The grid containing the values to be scaled.
+	 */
+	template<typename T>
+	void scale(Grid<any_vector_t<T, 3>, 3>& grid)
+	{
+		scale(grid.axis(Axis::X), grid.dims[0], grid.dims[1], grid.dims[2]);
+		scale(grid.axis(Axis::Y), grid.dims[0], grid.dims[1], grid.dims[2]);
+		scale(grid.axis(Axis::Z), grid.dims[0], grid.dims[1], grid.dims[2]);
+	}
 }
 
 

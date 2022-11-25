@@ -93,16 +93,15 @@ namespace symphas::internal
 	void validate_periodic_boundaries(BoundaryType(&types)[D]);
 
 
-	template<size_t D>
-	bool all_periodic(BoundaryType(&types)[D])
+	template<size_t N>
+	bool all_periodic(BoundaryType(&types)[N])
 	{
-		iter_type all_sides[D]{ 0 };
-		std::iota(all_sides, all_sides + 4, 1);
-
-		return std::transform_reduce(
-			all_sides, all_sides + D, true,
-			std::logical_and<>{},
-			[&](auto e) { return types[e] == BoundaryType::PERIODIC; });
+		bool flag = true;
+		for (iter_type i = 0; i < N; ++i)
+		{
+			flag = flag && (types[i] == BoundaryType::PERIODIC);
+		}
+		return flag;
 	}
 
 	template<>

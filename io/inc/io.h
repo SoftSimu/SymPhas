@@ -33,6 +33,16 @@
 #else
 #define DLLIO DLLIMPORT
 #endif
+
+
+
+
+using double_arr2 = double[2];
+using scalar_ptr_t = scalar_t*;
+
+template<typename T>
+using T_ptr_t = T*;
+
 //! \endcond
 
 /* the save directory names

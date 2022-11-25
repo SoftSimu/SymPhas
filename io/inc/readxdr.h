@@ -50,8 +50,8 @@ namespace symphas::io::xdr
 	 * \param ginfo The grid parameter specification.
 	 * \param f The pointer to the file that is accessed.
 	 */
-	template<typename T>
-	void read_block(T* grid, symphas::grid_info ginfo, XDRFILE* f);
+	template<typename value_type>
+	void read_block(value_type grid, symphas::grid_info ginfo, XDRFILE* f);
 
 	//! Read the xdr data into the given array.
 	/*!
@@ -67,10 +67,10 @@ namespace symphas::io::xdr
 	 * \param grid The array into which values are read.
 	 * \param rinfo Information about the data file that is read from.
 	 */
-	template<typename T>
-	int read_grid(T* grid, symphas::io::read_info const& rinfo)
+	template<typename value_type>
+	int read_grid(value_type grid, symphas::io::read_info const& rinfo)
 	{
-		return read_grid_standardized(grid, rinfo, open_xdrgridf, xdrfile_close, read_block<T>);
+		return read_grid_standardized(grid, rinfo, open_xdrgridf, xdrfile_close, read_block<value_type>);
 	}
 
 

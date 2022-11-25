@@ -30,7 +30,7 @@ add_library(symphas_sym_o OBJECT ${SOURCES_SYM})
 target_include_directories(symphas_sym_o PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
 	$<INSTALL_INTERFACE:include>)
-target_compile_definitions(symphas_sym_o PUBLIC USING_SYM PRIVATE EXPR_EXPORTS)
+target_compile_definitions(symphas_sym_o PUBLIC ${ADD_DEFINITIONS} USING_SYM PRIVATE EXPR_EXPORTS)
 target_link_libraries(symphas_sym_o PUBLIC symphas_datatypes)
 
 add_library(symphas_sym SHARED)

@@ -59,11 +59,7 @@ namespace symphas::lib
 
 
 	template<size_t... Qs, size_t Qmax>
-	constexpr auto sort_ids_depth(std::index_sequence<Qs...>, std::index_sequence<Qmax>)
-	{
-		return seq_join(sort_ids(std::index_sequence<Qs...>{}), std::index_sequence<Qmax>{});
-	}
-
+	constexpr auto sort_ids_depth(std::index_sequence<Qs...>, std::index_sequence<Qmax>);
 
 	//! Specialization based on symphas::lib::sort_ids().
 	template<size_t... Qs, size_t Qmax>
@@ -132,6 +128,11 @@ namespace symphas::lib
 		return std::index_sequence<>{};
 	}
 
+	template<size_t... Qs, size_t Qmax>
+	constexpr auto sort_ids_depth(std::index_sequence<Qs...>, std::index_sequence<Qmax>)
+	{
+		return seq_join(sort_ids(std::index_sequence<Qs...>{}), std::index_sequence<Qmax>{});
+	}
 
 	// **************************************************************************************
 
@@ -147,6 +148,10 @@ namespace symphas::lib
 		return std::index_sequence<Q0>{};
 	}
 
+	template<size_t Q0, size_t Q1, size_t... Qs,
+		typename std::enable_if_t<(Q0 != Q1), int> = 0>
+	constexpr auto fold_unique_ids_apply(std::index_sequence<Q0, Q1, Qs...>);
+
 	template<size_t Q0, size_t Q1, size_t... Qs, 
 		typename std::enable_if_t<(Q0 == Q1), int> = 0>
 	constexpr auto fold_unique_ids_apply(std::index_sequence<Q0, Q1, Qs...>)
@@ -154,8 +159,7 @@ namespace symphas::lib
 		return fold_unique_ids_apply(std::index_sequence<Q1, Qs...>{});
 	}
 
-	template<size_t Q0, size_t Q1, size_t... Qs, 
-		typename std::enable_if_t<(Q0 != Q1), int> = 0>
+	template<size_t Q0, size_t Q1, size_t... Qs, typename std::enable_if_t<(Q0 != Q1), int>>
 	constexpr auto fold_unique_ids_apply(std::index_sequence<Q0, Q1, Qs...>)
 	{
 		return seq_join(std::index_sequence<Q0>{}, fold_unique_ids_apply(std::index_sequence<Q1, Qs...>{}));

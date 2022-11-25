@@ -44,18 +44,18 @@ namespace simulate
 #define psi op(1)
 
 MODEL(NOCHANGE, (SCALAR),
-	MODEL_DEF(dpsi = lit(0))
+	EVOLUTION(dpsi = lit(0))
 )
 LINK_WITH_NAME(NOCHANGE, NOCHANGE)
 
 MODEL(MA, (SCALAR),
-	MODEL_DEF(
+	EVOLUTION(
 		dpsi = lap(psi) + (c1 - lit(4.) * c2 * psi * psi) * psi)
 )
 LINK_WITH_NAME(MA, MODELA)
 
 MODEL(CONV, (SCALAR),
-	MODEL_DEF(
+	EVOLUTION(
 		dpsi = -smoothing(psi))
 )
 LINK_WITH_NAME(CONV, CONVOLUTION)
@@ -63,7 +63,7 @@ LINK_WITH_NAME(CONV, CONVOLUTION)
 
 #else
 
-#include "pfcdefs.h"
+//#include "pfcdefs.h"
 #include "modeldefs.h"
 //#include "modelacmms.h"
 #endif

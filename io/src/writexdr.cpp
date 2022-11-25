@@ -166,48 +166,111 @@ void save_xdr(const vector_t<1>* grid, symphas::io::write_info winfo, symphas::g
 	xdrfile_close(f);
 }
 
+void save_xdr(const scalar_ptr_t(&grid)[3], symphas::io::write_info winfo, symphas::grid_info ginfo, bool is_checkpoint)
+{
+	XDRFILE* f = open_xdrgridf(winfo, is_checkpoint);
+	print_xdr_header(winfo.index, winfo.id, ginfo, winfo, f);
+
+	for (iter_type k = 0, ii = 0; k < ginfo.at(Axis::Z).count(); ++k)
+	{
+		for (iter_type j = 0; j < ginfo.at(Axis::Y).count(); ++j)
+		{
+			for (iter_type i = 0; i < ginfo.at(Axis::X).count(); ++i, ++ii)
+			{
+				int d[3];
+				d[0] = static_cast<int>(grid[0][ii] * XDR_COORD_COMPRESSION);
+				d[1] = static_cast<int>(grid[1][ii] * XDR_COORD_COMPRESSION);
+				d[2] = static_cast<int>(grid[2][ii] * XDR_COORD_COMPRESSION);
+
+				xdrfile_write_int(d, 3, f);
+			}
+		}
+	}
+	xdrfile_close(f);
+}
+
+void save_xdr(const scalar_ptr_t(&grid)[2], symphas::io::write_info winfo, symphas::grid_info ginfo, bool is_checkpoint)
+{
+	XDRFILE* f = open_xdrgridf(winfo, is_checkpoint);
+	print_xdr_header(winfo.index, winfo.id, ginfo, winfo, f);
+
+	for (iter_type j = 0, ii = 0; j < ginfo.at(Axis::Y).count(); ++j)
+	{
+		for (iter_type i = 0; i < ginfo.at(Axis::X).count(); ++i, ++ii)
+		{
+			int d[2];
+			d[0] = static_cast<int>(grid[0][ii] * XDR_COORD_COMPRESSION);
+			d[1] = static_cast<int>(grid[1][ii] * XDR_COORD_COMPRESSION);
+
+			xdrfile_write_int(d, 2, f);
+		}
+	}
+	xdrfile_close(f);
+}
+
+void save_xdr(const scalar_ptr_t(&grid)[1], symphas::io::write_info winfo, symphas::grid_info ginfo, bool is_checkpoint)
+{
+	XDRFILE* f = open_xdrgridf(winfo, is_checkpoint);
+	print_xdr_header(winfo.index, winfo.id, ginfo, winfo, f);
+
+	for (iter_type i = 0; i < ginfo.at(Axis::X).count(); ++i)
+	{
+		int d = static_cast<int>(grid[0][i] * XDR_COORD_COMPRESSION);
+		xdrfile_write_int(&d, 1, f);
+	}
+	xdrfile_close(f);
+}
 
 
 
 /*
  * functions to checkpoint the data to a file
  */
-template<>
-void symphas::io::xdr::save_grid_plotting<scalar_t>(const scalar_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::xdr::save_grid_plotting(const scalar_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	save_xdr(grid, winfo, ginfo, false);
 }
 
-template<>
-void symphas::io::xdr::save_grid_plotting<complex_t>(const complex_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::xdr::save_grid_plotting(const complex_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	save_xdr(grid, winfo, ginfo, false);
 }
 
-template<>
-void symphas::io::xdr::save_grid_plotting<double[2]>(const double(*grid)[2], symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::xdr::save_grid_plotting(const double_arr2* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	save_xdr(grid, winfo, ginfo, false);
 }
 
-template<>
-void symphas::io::xdr::save_grid_plotting<vector_t<3>>(const vector_t<3>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::xdr::save_grid_plotting(const vector_t<3>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	save_xdr(grid, winfo, ginfo, false);
 }
 
-template<>
-void symphas::io::xdr::save_grid_plotting<vector_t<2>>(const vector_t<2>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::xdr::save_grid_plotting(const vector_t<2>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	save_xdr(grid, winfo, ginfo, false);
 }
 
-template<>
-void symphas::io::xdr::save_grid_plotting<vector_t<1>>(const vector_t<1>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::xdr::save_grid_plotting(const vector_t<1>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	save_xdr(grid, winfo, ginfo, false);
 }
 
+
+void symphas::io::xdr::save_grid_plotting(const scalar_ptr_t(&grid)[3], symphas::io::write_info winfo, symphas::grid_info ginfo)
+{
+	save_xdr(grid, winfo, ginfo, false);
+}
+
+void symphas::io::xdr::save_grid_plotting(const scalar_ptr_t(&grid)[2], symphas::io::write_info winfo, symphas::grid_info ginfo)
+{
+	save_xdr(grid, winfo, ginfo, false);
+}
+
+void symphas::io::xdr::save_grid_plotting(const scalar_ptr_t(&grid)[1], symphas::io::write_info winfo, symphas::grid_info ginfo)
+{
+	save_xdr(grid, winfo, ginfo, false);
+}
 
 
 
@@ -215,41 +278,52 @@ void symphas::io::xdr::save_grid_plotting<vector_t<1>>(const vector_t<1>* grid, 
 /*
  * functions to checkpoint the data to a file
  */
-template<>
-void symphas::io::xdr::save_grid<scalar_t>(const scalar_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::xdr::save_grid(const scalar_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	save_xdr(grid, winfo, ginfo, true);
 }
 
-template<>
-void symphas::io::xdr::save_grid<complex_t>(const complex_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::xdr::save_grid(const complex_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	save_xdr(grid, winfo, ginfo, true);
 }
 
-template<>
-void symphas::io::xdr::save_grid<double[2]>(const double(*grid)[2], symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::xdr::save_grid(const double_arr2* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	save_xdr(grid, winfo, ginfo, true);
 }
 
-template<>
-void symphas::io::xdr::save_grid<vector_t<3>>(const vector_t<3>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::xdr::save_grid(const vector_t<3>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	save_xdr(grid, winfo, ginfo, true);
 }
 
-template<>
-void symphas::io::xdr::save_grid<vector_t<2>>(const vector_t<2>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::xdr::save_grid(const vector_t<2>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	save_xdr(grid, winfo, ginfo, true);
 }
 
-template<>
-void symphas::io::xdr::save_grid<vector_t<1>>(const vector_t<1>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::xdr::save_grid(const vector_t<1>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	save_xdr(grid, winfo, ginfo, true);
 }
+
+void symphas::io::xdr::save_grid(const scalar_ptr_t(&grid)[3], symphas::io::write_info winfo, symphas::grid_info ginfo)
+{
+	save_xdr(grid, winfo, ginfo, true);
+}
+
+void symphas::io::xdr::save_grid(const scalar_ptr_t(&grid)[2], symphas::io::write_info winfo, symphas::grid_info ginfo)
+{
+	save_xdr(grid, winfo, ginfo, true);
+}
+
+void symphas::io::xdr::save_grid(const scalar_ptr_t(&grid)[1], symphas::io::write_info winfo, symphas::grid_info ginfo)
+{
+	save_xdr(grid, winfo, ginfo, true);
+}
+
+
 
 
 

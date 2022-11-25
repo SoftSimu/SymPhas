@@ -375,6 +375,14 @@ namespace params
 	 */
 	DLLLIB extern double init_rand_val;
 
+	//! A string for the name of a data file.
+	/*!
+	 * The name of a data file that can be used later in the program. The configuration
+	 * can use this parameter to read an input file as initial data. The name can
+	 * contain commas (with no spaces), in which case multiple files can be given.
+	 */
+	DLLLIB extern char* input_data_file;
+
 	//! Determines the start index of the simulation.
 	/*!
 	 * The value of this parameter determines the simulation-wide starting

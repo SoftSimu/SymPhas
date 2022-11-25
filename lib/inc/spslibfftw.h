@@ -553,7 +553,7 @@ namespace symphas::dft
 	 *
 	 * \param src The source array which is in half complex output.
 	 * \param target The array that is rearranged so that it is expanded into
-	 * the full dimensions.0
+	 * the full dimensions.
 	 * \param dims The underlying dimensions of the data.
 	 */
 	template<size_t D>
@@ -564,10 +564,20 @@ namespace symphas::dft
 	inline void arrange_fftw_hcts<1>(complex_t* src, complex_t* target, const len_type* dims)
 	{
 		iter_type dn = dims[0] / 2 + 1;
+
+		if (src != target)
+		{
+#		pragma omp parallel for
+			for (iter_type i = 0; i < dn; ++i)
+			{
+				target[i] = src[i];
+			}
+		}
+
 #		pragma omp parallel for
 		for (iter_type i = dn; i < dims[0]; ++i)
 		{
-			target[i] = std::conj(src[dn - i + dn - 2]);
+			target[i] = std::conj(src[2 * dn - 2 - i]);
 		}
 	}
 
@@ -579,7 +589,7 @@ namespace symphas::dft
 		iter_type ii = grid::length<2>(dims) - dims[0] + dn;
 		iter_type n = dn * dims[1];
 
-		/* Iterate over the hermitian half.
+		/* Iterate over the source half.
 		 */
 		for (iter_type j = 0; j < dims[1]; ++j)
 		{
@@ -590,6 +600,8 @@ namespace symphas::dft
 			ii -= dims[0] - dn;
 		}
 
+		/* Iterate over the hermitian half.
+		 */
 		n = dims[0] * (dims[1] - 1) + dn - 2;
 		ii = dims[0] + dn;
 		for (iter_type j = 1; j < dims[1]; ++j)
@@ -891,47 +903,49 @@ namespace symphas::dft
 	 * \tparam D the dimension of the corresponding dimension.
 	 */
 	template<typename T, size_t D>
-	len_type len(len_type const* dims) = delete;
+	len_type length(len_type const* dims)
+	{
+		return 1;
+	}
 
-
-	//! Specialization of symphas::dft::len().
+	//! Specialization of symphas::dft::length().
 	template<>
-	inline len_type len<scalar_t, 1>(len_type const* dims)
+	inline len_type length<scalar_t, 1>(len_type const* dims)
 	{
 		return (dims[0] / 2 + 1);
 	}
 
-	//! Specialization of symphas::dft::len().
+	//! Specialization of symphas::dft::length().
 	template<>
-	inline len_type len<scalar_t, 2>(len_type const* dims)
+	inline len_type length<scalar_t, 2>(len_type const* dims)
 	{
 		return (dims[0] / 2 + 1) * dims[1];
 	}
 
-	//! Specialization of symphas::dft::len().
+	//! Specialization of symphas::dft::length().
 	template<>
-	inline len_type len<scalar_t, 3>(len_type const* dims)
+	inline len_type length<scalar_t, 3>(len_type const* dims)
 	{
 		return (dims[0] / 2 + 1) * dims[1] * dims[2];
 	}
 
-	//! Specialization of symphas::dft::len().
+	//! Specialization of symphas::dft::length().
 	template<>
-	inline len_type len<complex_t, 1>(len_type const* dims)
+	inline len_type length<complex_t, 1>(len_type const* dims)
 	{
 		return grid::length<1>(dims);
 	}
 
-	//! Specialization of symphas::dft::len().
+	//! Specialization of symphas::dft::length().
 	template<>
-	inline len_type len<complex_t, 2>(len_type const* dims)
+	inline len_type length<complex_t, 2>(len_type const* dims)
 	{
 		return grid::length<2>(dims);
 	}
 
-	//! Specialization of symphas::dft::len().
+	//! Specialization of symphas::dft::length().
 	template<>
-	inline len_type len<complex_t, 3>(len_type const* dims)
+	inline len_type length<complex_t, 3>(len_type const* dims)
 	{
 		return grid::length<3>(dims);
 	}

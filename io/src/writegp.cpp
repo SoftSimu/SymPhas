@@ -75,8 +75,7 @@ void symphas::io::gp::print_gp_header(int index, size_t id, symphas::grid_info c
 /*
  * functions to write data from the grid to a file
  */
-template<>
-void symphas::io::gp::save_grid_plotting<scalar_t>(const scalar_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::gp::save_grid_plotting(const scalar_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 
@@ -130,8 +129,7 @@ void symphas::io::gp::save_grid_plotting<scalar_t>(const scalar_t* grid, symphas
 	fclose(f);
 }
 
-template<>
-void symphas::io::gp::save_grid_plotting<complex_t>(const complex_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::gp::save_grid_plotting(const complex_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 
@@ -187,8 +185,7 @@ void symphas::io::gp::save_grid_plotting<complex_t>(const complex_t* grid, symph
 	fclose(f);
 }
 
-template<>
-void symphas::io::gp::save_grid_plotting<double[2]>(const double (*grid)[2], symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::gp::save_grid_plotting(const double_arr2* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 
@@ -228,8 +225,7 @@ void symphas::io::gp::save_grid_plotting<double[2]>(const double (*grid)[2], sym
 	fclose(f);
 }
 
-template<>
-void symphas::io::gp::save_grid_plotting<vector_t<3>>(const vector_t<3>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::gp::save_grid_plotting(const vector_t<3>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 
@@ -269,12 +265,11 @@ void symphas::io::gp::save_grid_plotting<vector_t<3>>(const vector_t<3>* grid, s
 			}
 		}
 	}
-	fprintf(f, "\n");
+	fprintf(f, "\n\n");
 	fclose(f);
 }
 
-template<>
-void symphas::io::gp::save_grid_plotting<vector_t<2>>(const vector_t<2>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::gp::save_grid_plotting(const vector_t<2>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 
@@ -303,12 +298,12 @@ void symphas::io::gp::save_grid_plotting<vector_t<2>>(const vector_t<2>* grid, s
 				x, y, dx, dy, m);
 		}
 	}
+	fprintf(f, "\n\n");
 	fclose(f);
 }
 
 
-template<>
-void symphas::io::gp::save_grid_plotting<vector_t<1>>(const vector_t<1>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::gp::save_grid_plotting(const vector_t<1>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 
@@ -325,9 +320,107 @@ void symphas::io::gp::save_grid_plotting<vector_t<1>>(const vector_t<1>* grid, s
 			"%." DATA_OUTPUT_ACCURACY_STR "f ",
 			x, v.v[0]);
 	}
-	fprintf(f, "\n");
+	fprintf(f, "\n\n");
 	fclose(f);
 }
+
+void symphas::io::gp::save_grid_plotting(const scalar_ptr_t(&grid)[3], symphas::io::write_info winfo, symphas::grid_info ginfo)
+{
+	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
+
+	double
+		dX = ginfo.INTERVAL_Xh,
+		dY = ginfo.INTERVAL_Yh,
+		dZ = ginfo.INTERVAL_Zh;
+
+	len_type N = ginfo.at(Axis::Z).count();
+	len_type M = ginfo.at(Axis::Y).count();
+	len_type L = ginfo.at(Axis::X).count();
+
+	for (iter_type k = 0; k < N; k++)
+	{
+		double z = ginfo.INTERVAL_Z0 + dZ * k;
+		for (iter_type j = 0; j < M; j++)
+		{
+			double y = ginfo.INTERVAL_Y0 + dY * j;
+			for (iter_type i = 0; i < L; i++)
+			{
+				double x = ginfo.INTERVAL_X0 + dX * i;
+				iter_type ii = i + (j * L) + (k * L * M);
+
+				double m = sqrt(grid[0][ii] * grid[0][ii] + grid[1][ii] * grid[1][ii] + grid[2][ii] * grid[2][ii]),
+					dx = grid[0][ii] / m,
+					dy = grid[1][ii] / m,
+					dz = grid[2][ii] / m;
+
+				fprintf(f,
+					"%." AXIS_OUTPUT_ACCURACY_STR "f %." AXIS_OUTPUT_ACCURACY_STR "f %." AXIS_OUTPUT_ACCURACY_STR "f "
+					"%." DATA_OUTPUT_ACCURACY_STR "f "
+					"%." DATA_OUTPUT_ACCURACY_STR "f "
+					"%." DATA_OUTPUT_ACCURACY_STR "f "
+					"%." DATA_OUTPUT_ACCURACY_STR "f\n",
+					x, y, z, dx, dy, dz, m);
+			}
+		}
+	}
+	fprintf(f, "\n\n");
+	fclose(f);
+}
+
+void symphas::io::gp::save_grid_plotting(const scalar_ptr_t(&grid)[2], symphas::io::write_info winfo, symphas::grid_info ginfo)
+{
+	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
+
+	double
+		dX = ginfo.INTERVAL_Xh,
+		dY = ginfo.INTERVAL_Yh;
+
+	for (iter_type j = 0; j < ginfo.at(Axis::Y).count(); j++)
+	{
+		double y = ginfo.INTERVAL_Y0 + dY * j;
+		for (iter_type i = 0; i < ginfo.at(Axis::X).count(); i++)
+		{
+			double x = ginfo.INTERVAL_X0 + dX * i;
+			iter_type ii = i + j * ginfo.at(Axis::X).count();
+
+			double m = sqrt(grid[0][ii] * grid[0][ii] + grid[1][ii] * grid[1][ii]),
+				dx = grid[0][ii] / m,
+				dy = grid[1][ii] / m;
+
+			fprintf(f,
+				"%." AXIS_OUTPUT_ACCURACY_STR "f %." AXIS_OUTPUT_ACCURACY_STR "f "
+				"%." DATA_OUTPUT_ACCURACY_STR "f "
+				"%." DATA_OUTPUT_ACCURACY_STR "f "
+				"%." DATA_OUTPUT_ACCURACY_STR "f\n",
+				x, y, dx, dy, m);
+		}
+	}
+	fprintf(f, "\n\n");
+	fclose(f);
+}
+
+
+void symphas::io::gp::save_grid_plotting(const scalar_ptr_t(&grid)[1], symphas::io::write_info winfo, symphas::grid_info ginfo)
+{
+	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
+
+	double dX = ginfo.INTERVAL_Xh;
+
+	for (iter_type i = 0; i < ginfo.at(Axis::X).count(); i++)
+	{
+		double x = ginfo.INTERVAL_X0 + dX * i;
+		iter_type ii = i;
+
+		fprintf(f,
+			"%." AXIS_OUTPUT_ACCURACY_STR "f "
+			"%." DATA_OUTPUT_ACCURACY_STR "f ",
+			x, grid[0][ii]);
+	}
+	fprintf(f, "\n\n");
+	fclose(f);
+}
+
+
 
 
 
@@ -340,8 +433,7 @@ void symphas::io::gp::save_grid_plotting<vector_t<1>>(const vector_t<1>* grid, s
 
 
 
-template<>
-void symphas::io::gp::save_grid<scalar_t>(const scalar_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::gp::save_grid(const scalar_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 	print_gp_header(winfo.index, winfo.id, ginfo, winfo, f);
@@ -366,8 +458,7 @@ void symphas::io::gp::save_grid<scalar_t>(const scalar_t* grid, symphas::io::wri
 	fclose(f);
 }
 
-template<>
-void symphas::io::gp::save_grid<complex_t>(const complex_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::gp::save_grid(const complex_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 	print_gp_header(winfo.index, winfo.id, ginfo, winfo, f);
@@ -394,8 +485,7 @@ void symphas::io::gp::save_grid<complex_t>(const complex_t* grid, symphas::io::w
 	fclose(f);
 }
 
-template<>
-void symphas::io::gp::save_grid<double[2]>(const double(*grid)[2], symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::gp::save_grid(const double_arr2 *grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 	print_gp_header(winfo.index, winfo.id, ginfo, winfo, f);
@@ -423,8 +513,7 @@ void symphas::io::gp::save_grid<double[2]>(const double(*grid)[2], symphas::io::
 	fclose(f);
 }
 
-template<>
-void symphas::io::gp::save_grid<vector_t<3>>(const vector_t<3>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::gp::save_grid(const vector_t<3>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 	print_gp_header(winfo.index, winfo.id, ginfo, winfo, f);
@@ -460,8 +549,7 @@ void symphas::io::gp::save_grid<vector_t<3>>(const vector_t<3>* grid, symphas::i
 	fclose(f);
 }
 
-template<>
-void symphas::io::gp::save_grid<vector_t<2>>(const vector_t<2>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::gp::save_grid(const vector_t<2>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 	print_gp_header(winfo.index, winfo.id, ginfo, winfo, f);
@@ -488,8 +576,7 @@ void symphas::io::gp::save_grid<vector_t<2>>(const vector_t<2>* grid, symphas::i
 }
 
 
-template<>
-void symphas::io::gp::save_grid<vector_t<1>>(const vector_t<1>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
+void symphas::io::gp::save_grid(const vector_t<1>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, DataFileType::CHECKPOINT_DATA);
 	print_gp_header(winfo.index, winfo.id, ginfo, winfo, f);
@@ -503,6 +590,76 @@ void symphas::io::gp::save_grid<vector_t<1>>(const vector_t<1>* grid, symphas::i
 
 
 
+void symphas::io::gp::save_grid(const scalar_ptr_t(&grid)[3], symphas::io::write_info winfo, symphas::grid_info ginfo)
+{
+	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
+	print_gp_header(winfo.index, winfo.id, ginfo, winfo, f);
+
+	len_type N = ginfo.at(Axis::Z).count();
+	len_type M = ginfo.at(Axis::Y).count();
+	len_type L = ginfo.at(Axis::X).count();
+
+	for (iter_type k = 0; k < N; k++)
+	{
+		for (iter_type j = 0; j < M; j++)
+		{
+			for (iter_type i = 0; i < L; i++)
+			{
+				iter_type ii = i + (j * L) + (k * L * M);
+
+				double m = sqrt(grid[0][ii] * grid[0][ii] + grid[1][ii] * grid[1][ii] + grid[2][ii] * grid[2][ii]),
+					dx = grid[0][ii] / m,
+					dy = grid[1][ii] / m,
+					dz = grid[2][ii] / m;
+
+				fprintf(f,
+					"%." DATA_OUTPUT_ACCURACY_STR "f "
+					"%." DATA_OUTPUT_ACCURACY_STR "f "
+					"%." DATA_OUTPUT_ACCURACY_STR "f "
+					"%." DATA_OUTPUT_ACCURACY_STR "f\n",
+					dx, dy, dz, m);
+			}
+		}
+	}
+
+	fclose(f);
+}
+
+void symphas::io::gp::save_grid(const scalar_ptr_t(&grid)[2], symphas::io::write_info winfo, symphas::grid_info ginfo)
+{
+	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
+	print_gp_header(winfo.index, winfo.id, ginfo, winfo, f);
+
+	for (iter_type j = 0; j < ginfo.at(Axis::Y).count(); j++)
+	{
+		for (iter_type i = 0; i < ginfo.at(Axis::X).count(); i++)
+		{
+			iter_type ii = i + j * ginfo.at(Axis::X).count();
+
+			double m = sqrt(grid[0][ii] * grid[0][ii] + grid[1][ii] * grid[1][ii]),
+				dx = grid[0][ii] / m,
+				dy = grid[1][ii] / m;
+
+			fprintf(f,
+				"%." DATA_OUTPUT_ACCURACY_STR "f "
+				"%." DATA_OUTPUT_ACCURACY_STR "f "
+				"%." DATA_OUTPUT_ACCURACY_STR "f\n",
+				dx, dy, m);
+		}
+	}
+	fclose(f);
+}
 
 
+void symphas::io::gp::save_grid(const scalar_ptr_t(&grid)[1], symphas::io::write_info winfo, symphas::grid_info ginfo)
+{
+	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, DataFileType::CHECKPOINT_DATA);
+	print_gp_header(winfo.index, winfo.id, ginfo, winfo, f);
+
+	for (iter_type i = 0; i < ginfo.at(Axis::X).count(); i++)
+	{
+		fprintf(f, "%." DATA_OUTPUT_ACCURACY_STR "f\n", grid[0][i]);
+	}
+	fclose(f);
+}
 
