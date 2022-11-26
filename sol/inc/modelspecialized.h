@@ -375,28 +375,51 @@ protected:
 // ****************************************************************************************
 
 
-template<symphas::internal::DynamicType dynamics>
-struct apply_dynamics;
-
-template<>
-struct apply_dynamics<symphas::internal::DynamicType::CONSERVED>
+namespace symphas::internal
 {
-	template<typename U_D, typename U, typename F, typename Sp>
-	auto operator()(U_D const& dop, U const& op, F const& fe, Sp const& solver)
-	{
-		return (dop = expr::make_operator_derivative<2>(solver) * expr::euler_lagrange_apply(op, fe, solver));
-	}
-};
 
-template<>
-struct apply_dynamics<symphas::internal::DynamicType::NONCONSERVED>
-{
-	template<typename U_D, typename U, typename F, typename Sp>
-	auto operator()(U_D const& dop, U const& op, F const& fe, Sp const& solver)
+	template<symphas::internal::DynamicType dynamics>
+	struct apply_dynamics;
+
+	template<>
+	struct apply_dynamics<symphas::internal::DynamicType::CONSERVED>
 	{
-		return (dop = -expr::euler_lagrange_apply(op, fe, solver));
+		template<typename U_D, typename U, typename F, typename Sp>
+		auto operator()(U_D const& dop, U const& op, F const& fe, Sp const& solver)
+		{
+			return (dop = expr::make_operator_derivative<2>(solver) * expr::euler_lagrange_apply(op, fe, solver));
+		}
+	};
+
+	template<>
+	struct apply_dynamics<symphas::internal::DynamicType::NONCONSERVED>
+	{
+		template<typename U_D, typename U, typename F, typename Sp>
+		auto operator()(U_D const& dop, U const& op, F const& fe, Sp const& solver)
+		{
+			return (dop = -expr::euler_lagrange_apply(op, fe, solver));
+		}
+	};
+	
+	template<symphas::internal::DynamicType dynamic, size_t I>
+	constexpr symphas::internal::DynamicType dynamic_i = dynamic;
+
+	template<size_t... Is, symphas::internal::DynamicType dynamic>
+	auto repeat_dynamics_value(std::index_sequence<Is...>, symphas::internal::dynamics_list<dynamic>)
+	{
+		return symphas::internal::dynamics_list<dynamic_i<dynamic, Is>...>{};
 	}
-};
+
+	template<size_t I, typename T>
+	auto parameter_i(T const& value)
+	{
+		return value;
+	}
+
+	template<size_t value, typename>
+	constexpr size_t value_i = value;
+
+}
 
 //! Provides usage for phase field variables in the equations of motion.
 /*! 
@@ -461,30 +484,44 @@ struct TraitEquation : parent_trait
 	template<symphas::internal::DynamicType... dynamics, typename E>
 	auto generate_equations(OpExpression<E> const& e)
 	{
-		using dynamics_list = symphas::lib::types_list<symphas::internal::dynamics_list<dynamics>...>;
+		using dynamics_list = symphas::internal::dynamics_list<dynamics...>;
 		return generate_equations(*static_cast<E const*>(&e), seq_t{}, dynamics_list{});
 	}
 
 	template<symphas::internal::DynamicType... dynamics, typename... As>
 	auto generate_equations(OpAdd<As...> const& sums)
 	{
-		using dynamics_list = symphas::lib::types_list<symphas::internal::dynamics_list<dynamics>...>;
+		using dynamics_list = symphas::internal::dynamics_list<dynamics...>;
 		return generate_equations(expand_sum(sums, std::make_index_sequence<sizeof...(As)>{}), seq_t{}, dynamics_list{});
 	}
 
 	template<symphas::internal::DynamicType... dynamics, typename I0, typename E, typename... Is>
 	auto generate_equations(OpCompound<expr::internal::CompoundOp::ADD, I0, E, Is...> const& sum)
 	{
-		using dynamics_list = symphas::lib::types_list<symphas::internal::dynamics_list<dynamics>...>;
+		using dynamics_list = symphas::internal::dynamics_list<dynamics...>;
 		return generate_equations(expand_sum(sum, seq_t{}), seq_t{}, dynamics_list{});
+	}
+
+	template<typename E, symphas::internal::DynamicType... dynamics>
+	auto generate_equations(OpExpression<E> const& e, symphas::internal::dynamics_list<dynamics...>)
+	{
+		return generate_equations<dynamics...>(*static_cast<E const*>(&e));
+	}
+
+	template<typename default_dynamics, typename E>
+	auto generate_equations(OpExpression<E> const& e)
+	{
+		using dynamics_list = decltype(symphas::internal::repeat_dynamics_value(seq_t{}, default_dynamics{}));
+		return generate_equations(*static_cast<E const*>(&e), dynamics_list{});
 	}
 
 protected:
 
 	template<typename E, size_t... Ns, symphas::internal::DynamicType... dynamics>
-	auto generate_equations(E const& fe, std::index_sequence<Ns...>, symphas::lib::types_list<symphas::internal::dynamics_list<dynamics>...>)
+	auto generate_equations(E const& fe, std::index_sequence<Ns...>, symphas::internal::dynamics_list<dynamics...>)
 	{
-		return std::make_tuple(apply_dynamics<dynamics>{}(dop<Ns>(), op<Ns>(), fe, solver)...);
+		//expr::apply_operators(fe).print(stdout);
+		return std::make_tuple(symphas::internal::apply_dynamics<dynamics>{}(dop<Ns>(), op<Ns>(), expr::apply_operators(fe), solver)...);
 	}
 
 	template<typename E>
@@ -493,10 +530,17 @@ protected:
 		return (*static_cast<E const*>(&e));
 	}
 
-	template<typename I0, typename E, typename... Is, size_t... Ns>
-	auto expand_sum(OpCompound<expr::internal::CompoundOp::ADD, I0, E, Is...> const& sum, std::index_sequence<Ns...>)
+	template<typename I0, typename I1, typename E, size_t... Ns>
+	auto expand_sum(OpCompound<expr::internal::CompoundOp::ADD, I0, E, I1> const& sum, std::index_sequence<Ns...>)
 	{
-		return sum.template expand<0, Is...>(op<Ns>()...);
+		auto list = std::make_tuple(op<Ns>()...);
+		return sum.template expand<0, I0>(list);
+	}
+
+	template<typename I0, typename E, size_t... Ns>
+	auto expand_sum(OpCompound<expr::internal::CompoundOp::ADD, I0, E> const& sum, std::index_sequence<Ns...>)
+	{
+		return sum.template expand<0>(op<Ns>()...);
 	}
 
 	template<typename I0, typename E, typename... Is>

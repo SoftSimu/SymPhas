@@ -758,7 +758,7 @@ public:
 
 	auto operator-() const
 	{
-		return (-combination) * e;
+		return (-combination)(e);
 	}
 
 
@@ -830,7 +830,7 @@ struct OpOperatorChain : OpOperator<OpOperatorChain<A1, A2>>
 
 	auto operator-() const
 	{
-		return OpOperatorChain(-f, g);
+		return ::OpOperatorChain(-f, g);
 	}
 
 
@@ -979,7 +979,7 @@ public:
 
 	auto operator-() const
 	{
-		return combination * -e;
+		return combination(-e);
 	}
 
 

@@ -80,8 +80,16 @@ DEFINE_MODEL_FIELD_NAMES(MH, ("m", "j"))
 MODEL(MA_FE, (SCALAR),
 	FREE_ENERGY((NONCONSERVED),
 		SUM(ii)(LANDAU_FE(op_ii)))
-)
+)		
 LINK_WITH_NAME(MA_FE, MODELA_FE)
+
+//! Example of coupling through the free energy using an iterated sum.
+MODEL(COUPLING4, (SCALARS(4)),
+	FREE_ENERGY((ALL_NONCONSERVED),
+		SUM(ii)(LANDAU_FE(op_ii)) + _4 * SUM(ii, jj)(op_ii * op_jj * op_jj))
+)
+LINK_WITH_NAME(COUPLING4, MODEL_COUPLING4)
+DEFINE_MODEL_FIELD_NAMES(COUPLING4, ("A", "B", "C", "D"))
 
 
 //! Model B defined by the free energy.

@@ -370,7 +370,14 @@ namespace symphas::internal
 			}
 			else
 			{
-				return fprintf(out, SYEX_DIRECTIONAL_DERIV_FMT(O, ax));
+				if constexpr (O == 1)
+				{
+					return fprintf(out, SYEX_DIRECTIONAL_DERIV_1_FMT(ax));
+				}
+				else
+				{
+					return fprintf(out, SYEX_DIRECTIONAL_DERIV_FMT(O, ax));
+				}
 			}
 		}
 
@@ -412,10 +419,14 @@ namespace symphas::internal
 			}
 			else
 			{
-				size_t n = 0;
-				n += fprintf(out, SYEX_DIRECTIONAL_DERIV_FMT(O, ax));
-				n += fprintf(out, SYEX_DERIV_APPLIED_EXPR_FMT, name);
-				return n;
+				if constexpr (O == 1)
+				{
+					return fprintf(out, SYEX_DIRECTIONAL_DERIV_1_VAR_FMT(name, ax));
+				}
+				else
+				{
+					return fprintf(out, SYEX_DIRECTIONAL_DERIV_VAR_FMT(name, O, ax));
+				}
 			}
 		}
 

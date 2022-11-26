@@ -748,6 +748,11 @@ public:
 		return expand_function<I0>(std::make_index_sequence<sizeof...(Es) + 1>{}, subs);
 	}
 
+	auto operator-() const
+	{
+		return expr::sum<I>(-e);
+	}
+
 	//// TODO
 #ifdef PRINTABLE_EQUATIONS
 
@@ -935,6 +940,14 @@ public:
 	 * Expand the sum, starting at the given index. The rest of the indices are given as
 	 * offsets of the first, and indicate the starting position of the substitutions in the list.
 	 * The offsets can only be positive, and do not loop around the list.
+	 * 
+	 * The given tuple is surrounded by up to one less than the number of indices. If there are 2
+	 * indices, then there is no nesting, it is just the outer tuple (2 - 1 = 1 tuple). If there 
+	 * are 3 indices, then the tuple must be nested once (3 - 1 = 2 tuples).
+	 * 
+	 * \tparam I The starting value of the first iteration index.
+	 * \tparam ISs... The starting value of the other indices is set to the current running index
+	 * of the specified index.
 	 */
 	template<int I, typename... ISs, typename T0, typename... Ts, typename Vs = expr::symbols::v_id_type<I0>,
 		typename std::enable_if_t<(index_of_type<Vs> >= 0 && (std::is_same<expr::base_data_t<I0>, expr::base_data_t<ISs>>::value && ...)), int> = 0>
@@ -943,6 +956,10 @@ public:
 		return expand_iterated<I>(subs, symphas::lib::types_list<ISs...>{}, std::make_index_sequence<sizeof...(Ts) + 1>{});
 	}
 
+	auto operator-() const
+	{
+		return expr::sum<I0, I1, Is...>(-e);
+	}
 
 
 #ifdef PRINTABLE_EQUATIONS
@@ -1051,7 +1068,7 @@ protected:
 			if constexpr (index_of_type<I0> >= 0)
 			{
 				return construct_iterated<I + int(J)>(
-					symphas::lib::get_tuple_ge<J + P0>(subs),
+					symphas::lib::get_tuple_ge<J + P0 + 1>(subs),
 					expr::transform::swap_grid<V>(
 						expr::transform::swap_grid<I0>(e, expr::make_integer<I + (int)J>()), 
 						std::get<J>(subs)), 
@@ -1059,13 +1076,13 @@ protected:
 			}
 
 			return construct_iterated<I + int(J)>(
-				symphas::lib::get_tuple_ge<J + P0>(subs),
+				symphas::lib::get_tuple_ge<J + P0 + 1>(subs),
 				expr::transform::swap_grid<V>(e, std::get<J>(subs)),
 				J0s{});
 		}
 		else
 		{
-			return construct_iterated(symphas::lib::get_tuple_ge<J + P0>(subs), e, J0s{});
+			return construct_iterated(symphas::lib::get_tuple_ge<J + P0  + 1>(subs), e, J0s{});
 		}
 	}
 
@@ -1097,12 +1114,12 @@ auto operator*(OpLiteral<T> const& a, OpCompound<expr::internal::CompoundOp::ADD
 {
 	return expr::sum<I>(a * sum.e);
 }
-
-template<typename T, typename I, typename E>
-auto operator-(OpCompound<expr::internal::CompoundOp::ADD, I, E> const& sum)
-{
-	return expr::sum<I>(-sum.e);
-}
+//
+//template<typename T, typename I, typename E>
+//auto operator-(OpCompound<expr::internal::CompoundOp::ADD, I, E> const& sum)
+//{
+//	return expr::sum<I>(-sum.e);
+//}
 
 template<typename coeff_t, typename I0, typename I1, typename... Is, typename E,
 	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
@@ -1115,12 +1132,6 @@ template<typename T, typename I0, typename I1, typename... Is, typename E>
 auto operator*(OpLiteral<T> const& a, OpCompound<expr::internal::CompoundOp::ADD, I0, E, I1, Is...> const& sum)
 {
 	return expr::sum<I0, I1, Is...>(a * sum.e);
-}
-
-template<typename T, typename I0, typename I1, typename... Is, typename E>
-auto operator-(OpCompound<expr::internal::CompoundOp::ADD, I0, E, I1, Is...> const& sum)
-{
-	return expr::sum<I0, I1, Is...>(-sum.e);
 }
 
 

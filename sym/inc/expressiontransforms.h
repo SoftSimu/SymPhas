@@ -1616,7 +1616,7 @@ namespace expr::transform
 					symphas::lib::seq_repeating_value_t<swap_index, size_t, 1>>;
 				using pick_terms2_t = symphas::lib::seq_add_t<
 					std::make_index_sequence<sizeof...(Is) - swap_index - 1>,
-					symphas::lib::seq_repeating_value_t<sizeof...(Is) - swap_index - 1, size_t, swap_index + 1>>;
+					symphas::lib::seq_repeating_value_t<sizeof...(Is) - swap_index - 1, size_t, swap_index + 2>>;
 
 				using pick_power_t = symphas::lib::type_at_index<swap_index, std::integer_sequence<exp_key_t, Xs>...>;
 

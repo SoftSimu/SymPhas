@@ -798,6 +798,8 @@ const static size_t DEFAULT_MODE_N = N;
 //! Indicates that a given field follows non-conserved EVOLUTION.
 #define NONCONSERVED symphas::internal::DynamicType::NONCONSERVED
 
+#define ALL_CONSERVED symphas::internal::dynamics_list<CONSERVED>
+#define ALL_NONCONSERVED symphas::internal::dynamics_list<NONCONSERVED>
 
 
 

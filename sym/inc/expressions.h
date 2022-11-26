@@ -882,7 +882,7 @@ namespace expr
 	{
 		//! Common fractions.
 		constexpr OpFractionLiteral<1, 2> _2{};
-		constexpr OpFractionLiteral<1, 2> _4{};
+		constexpr OpFractionLiteral<1, 4> _4{};
 	}
 }
 
