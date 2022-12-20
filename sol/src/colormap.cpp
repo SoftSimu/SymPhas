@@ -218,7 +218,7 @@ struct ColourPlotUpdaterConcrete : ColourPlotUpdater
 };
 
 
-void ColourPlot2d::init(scalar_t* values, len_type* dims, iter_type &index, ColourPlotUpdater* &updater)
+void ColourPlot2d::init(scalar_t* (&values), len_type* dims, iter_type& index, ColourPlotUpdater* (&updater))
 {
 	static bool one = false;
 	
@@ -287,16 +287,20 @@ void ColourPlot2d::init(scalar_t* values, len_type* dims, iter_type &index, Colo
 		vtkNew<vtkInteractorStyleImage> style;
 		vtkNew<vtkRenderWindowInteractor> renderWindowInteractor;
 
-		renderWindow->AddRenderer(renderer);
-		renderWindowInteractor->SetInteractorStyle(style);
-		renderWindowInteractor->SetRenderWindow(renderWindow);
-		
 		renderWindow->SetSize(1000, 500);
 		renderWindow->SetWindowName("SymPhas");
 
 
-		// first initialize the render interactor
-		renderWindowInteractor->Initialize();
+		try
+		{
+			renderWindow->AddRenderer(renderer);
+			renderWindowInteractor->SetInteractorStyle(style);
+			renderWindowInteractor->SetRenderWindow(renderWindow);
+
+			// first initialize the render interactor
+			renderWindowInteractor->Initialize();
+		}
+		catch (...) {}
 
 		filter_params* p = new filter_params{ imageImport };
 

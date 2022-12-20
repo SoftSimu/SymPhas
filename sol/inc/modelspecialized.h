@@ -58,17 +58,26 @@ namespace expr
 		}
 	}
 
-	template<typename G, typename Sp>
-	auto landau_fe(OpTerm<OpIdentity, G> const& term, Sp const& solver)
+	//! -c1/2 * op^2 + c2/4 * op^4 + |grad(op)|^2
+	template<typename G, typename Sp, typename coeff_t1 = OpIdentity, typename coeff_t2 = OpIdentity>
+	auto landau_fe(OpTerm<OpIdentity, G> const& term, Sp const& solver, coeff_t1 const& c1 = coeff_t1{}, coeff_t2 const& c2 = coeff_t2{})
 	{
-		return -expr::make_fraction<1, 2>() * expr::pow<2>(term) + expr::make_fraction<1, 4>() * expr::pow<4>(term)
+		return -c1 * expr::make_fraction<1, 2>() * expr::pow<2>(term) + c2 * expr::make_fraction<1, 4>() * expr::pow<4>(term)
 			+ expr::make_fraction<1, 2>() * expr::pow<2>(expr::make_operator_derivative<1>(solver)(term));
 	}
 
-	template<typename G, typename Sp>
-	auto doublewell_fe(OpTerm<OpIdentity, G> const& term, Sp const& solver)
+	//! c2/4 * (op^2 - c1)^2 + |grad(op)|^2
+	template<typename G, typename Sp, typename coeff_t1 = OpIdentity, typename coeff_t2 = OpIdentity>
+	auto doublewell_fe(OpTerm<OpIdentity, G> const& term, Sp const& solver, coeff_t1 const& c1 = coeff_t1{}, coeff_t2 const& c2 = coeff_t2{})
 	{
-		return expr::make_fraction<1, 4>() * expr::pow<2>(expr::pow<2>(term) - expr::symbols::one)
+		return c2 * expr::make_fraction<1, 4>() * expr::pow<2>(expr::pow<2>(term) - c1)
+			+ expr::make_fraction<1, 2>() * expr::pow<2>(expr::make_operator_derivative<1>(solver)(term));
+	}
+
+	template<typename G, typename Sp, typename coeff_t1 = OpIdentity, typename coeff_t2 = OpIdentity>
+	auto cellular_fe(OpTerm<OpIdentity, G> const& term, Sp const& solver, coeff_t1 const& c1 = coeff_t1{})
+	{
+		return expr::make_fraction<1, 4>() * expr::make_integer<30>() / (c1 * c1) * term * term * expr::pow<2>(expr::symbols::one - term)
 			+ expr::make_fraction<1, 2>() * expr::pow<2>(expr::make_operator_derivative<1>(solver)(term));
 	}
 
@@ -86,10 +95,19 @@ namespace symphas::internal
 
 	/* whether the model exhibits conserved or nonconserved EVOLUTION
 	 */
-	enum class DynamicType { CONSERVED, NONCONSERVED };
+	enum class DynamicType { NONE, CONSERVED, NONCONSERVED, HYDRODYNAMIC };
 
-	template<DynamicType... dynamics>
+	template<DynamicType dynamic0, DynamicType... dynamics>
 	struct dynamics_list {};
+
+	template<DynamicType dynamic0>
+	struct dynamics_list<dynamic0> 
+	{
+		static const DynamicType value = dynamic0;
+	};
+
+	template<DynamicType dynamic0, DynamicType dynamic1, DynamicType... dynamics>
+	struct dynamics_list<dynamic0, dynamic1, dynamics...> {};
 
 	template<typename parent_model>
 	struct MakeEquation : parent_model
@@ -107,18 +125,19 @@ namespace symphas::internal
 		template<typename... As, size_t... Is>
 		auto make_equations(std::tuple<As...> const& eqns, std::index_sequence<Is...>) const
 		{
-			((..., expr::printf(std::get<Is>(eqns).second, "given equation")));
+			((..., expr::printe(std::get<Is>(eqns).second, "given equation")));
 			return solver.template form_expr_all<model_num_parameters<parent_model>::value>(_s, std::get<Is>(eqns)...);
 		}
 
 		template<typename... A>
 		auto make_equations(A const& ...a) const
 		{
-			((..., expr::printf(a.second, "given equation")));
+			((..., expr::printe(a.second, "given equation")));
 			return solver.template form_expr_all<model_num_parameters<parent_model>::value>(_s, a...);
 		}
 
 	};
+
 
 	template<typename parent_trait>
 	struct MakeEquationProvisional : parent_trait
@@ -137,14 +156,14 @@ namespace symphas::internal
 		template<typename... As, size_t... Is>
 		auto make_equations(std::tuple<As...> const& eqns, std::index_sequence<Is...>) const
 		{
-			((..., expr::printf(std::get<Is>(eqns).second, "given equation")));
+			((..., expr::printe(std::get<Is>(eqns).second, "given equation")));
 			return solver.template form_expr_all<model_num_parameters<parent_trait>::value>(forward_systems(), std::get<Is>(eqns)...);
 		}
 
 		template<typename... A>
 		auto make_equations(A const& ...a) const
 		{
-			((..., expr::printf(a.second, "given equation")));
+			((..., expr::printe(a.second, "given equation")));
 			return solver.template form_expr_all<model_num_parameters<parent_trait>::value>(forward_systems(), a...);
 		}
 
@@ -173,7 +192,6 @@ namespace symphas::internal
 	};
 
 }
-
 
 //! Enclosing class for the generalized phase field problem representation.
 /*!
@@ -227,6 +245,23 @@ struct ModelApplied
 		};
 	};
 };
+
+
+namespace symphas::internal
+{
+	template<size_t Dm, typename Sp, typename... Ts>
+	struct expand_types_to_model
+	{
+		using type = typename ModelApplied<Dm, Sp>::template OpTypes<Ts...>;
+	};
+
+	template<size_t Dm, typename Sp, typename... Ts>
+	struct expand_types_to_model<Dm, Sp, symphas::lib::types_list<Ts...>>
+	{
+		using type = typename ModelApplied<Dm, Sp>::template OpTypes<Ts...>;
+	};
+}
+
 
 // ****************************************************************************************
 
@@ -377,6 +412,14 @@ protected:
 
 namespace symphas::internal
 {
+	using namespace expr::symbols;
+
+	template<DynamicType dynamic>
+	using dynamics_key_t = dynamics_list<dynamic>;
+
+	template<DynamicType dynamic>
+	using all_dynamics_key_t = symphas::lib::types_list<dynamics_key_t<dynamic>>;
+
 
 	template<symphas::internal::DynamicType dynamics>
 	struct apply_dynamics;
@@ -384,40 +427,288 @@ namespace symphas::internal
 	template<>
 	struct apply_dynamics<symphas::internal::DynamicType::CONSERVED>
 	{
-		template<typename U_D, typename U, typename F, typename Sp>
-		auto operator()(U_D const& dop, U const& op, F const& fe, Sp const& solver)
+		template<typename U_D, typename F, typename Sp>
+		auto operator()(U_D const& dop, F const& dfe, Sp const& solver)
 		{
-			return (dop = expr::make_operator_derivative<2>(solver) * expr::euler_lagrange_apply(op, fe, solver));
+			return (dop = expr::apply_operators(expr::make_operator_derivative<2>(solver) * dfe));
 		}
 	};
 
 	template<>
 	struct apply_dynamics<symphas::internal::DynamicType::NONCONSERVED>
 	{
-		template<typename U_D, typename U, typename F, typename Sp>
-		auto operator()(U_D const& dop, U const& op, F const& fe, Sp const& solver)
+		template<typename U_D, typename F, typename Sp>
+		auto operator()(U_D const& dop, F const& dfe, Sp const& solver)
 		{
-			return (dop = -expr::euler_lagrange_apply(op, fe, solver));
+			return (dop = -expr::apply_operators(dfe));
+		}
+	};
+
+	template<>
+	struct apply_dynamics<symphas::internal::DynamicType::NONE>
+	{
+		template<typename U_D, typename F, typename Sp>
+		auto operator()(U_D const& dop, F const& dfe, Sp const& solver)
+		{
+			return (dop = dfe);
+		}
+	};
+
+	// Specifies the dynamics for all fields.
+	template<size_t N, typename I, typename E>
+	struct special_dynamics
+	{
+		special_dynamics(OpExpression<E> const& e) : e{ *static_cast<E const*>(&e) } {}
+		special_dynamics(I) {}
+
+		E e;
+	};
+
+	// Specifies the dynamics for a single field.
+	template<size_t N, symphas::internal::DynamicType dynamic>
+	struct special_dynamics<N, void, dynamics_key_t<dynamic>> {};
+
+	// Specifies the dynamics for a single field.
+	template<size_t N, typename E>
+	struct special_dynamics<N, void, E>
+	{
+		special_dynamics(OpExpression<E> const& e) : e{ *static_cast<E const*>(&e) } {}
+		E e;
+	};
+
+	// Specifies the dynamics for all fields.
+	template<size_t N, typename I>
+	struct special_dynamics<N, I, void>
+	{
+		special_dynamics(I) {}
+		special_dynamics(std::index_sequence<N>, I) {}
+
+		template<typename E0>
+		auto operator()(OpExpression<E0> const& e)
+		{
+			return special_dynamics<N, I, E0>(*static_cast<E0 const*>(&e));
+		}
+
+		template<symphas::internal::DynamicType dynamic>
+		auto operator()(dynamics_key_t<dynamic>)
+		{
+			return special_dynamics<N, void, dynamics_key_t<dynamic>>();
+		}
+	};
+
+	// Specifies the dynamics for a single field.
+	template<size_t N>
+	struct special_dynamics<N, void, void>
+	{
+		special_dynamics(std::index_sequence<N>) {}
+
+		template<typename E0>
+		auto operator()(OpExpression<E0> const& e)
+		{
+			return special_dynamics<N, void, E0>(*static_cast<E0 const*>(&e));
+		}
+
+		template<symphas::internal::DynamicType dynamic>
+		auto operator()(dynamics_key_t<dynamic>)
+		{
+			return special_dynamics<N, void, dynamics_key_t<dynamic>>();
+		}
+	};
+
+
+	template<typename I>
+	special_dynamics(I) -> special_dynamics<0, I, void>;
+	template<size_t N, typename I>
+	special_dynamics(std::index_sequence<N>, I) -> special_dynamics<N, I, void>;
+	template<size_t N>
+	special_dynamics(std::index_sequence<N>) -> special_dynamics<N, void, void>;
+
+
+
+
+
+	template<int N>
+	using func_deriv_i = i_<N, 0>;
+
+	template<typename I>
+	constexpr auto func_deriv_sub_var(I)
+	{
+		return make_sum_variable(I{}, func_deriv_i<-1>{});
+	}
+
+	template<int N>
+	constexpr auto func_deriv_sub_var()
+	{
+		return make_sum_variable(func_deriv_i<N>{});
+	}
+
+
+	template<int N, typename E0, typename... Es>
+	auto substitute_for_dynamics(
+		symphas::lib::types_list<>,
+		OpExpression<E0> const& dyn0,
+		std::tuple<Es...> const& dfs)
+	{
+		return *static_cast<E0 const*>(&dyn0);
+	}
+
+	template<int N, int N0, int P0, int... Ns, int... Ps, typename... Vs, typename E0, typename... Es>
+	auto substitute_for_dynamics(
+		symphas::lib::types_list<
+			expr::symbols::v_id_type<expr::symbols::i_<N0, P0>, expr::symbols::i_<Ns, Ps>...>,
+			Vs...>,
+		OpExpression<E0> const& dyn0,
+		std::tuple<Es...> const& dfs)
+	{
+		using vvt = expr::symbols::v_id_type<expr::symbols::i_<N0, P0>, expr::symbols::i_<Ns, Ps>...>;
+		auto dyn = expr::transform::swap_grid<vvt>(*static_cast<E0 const*>(&dyn0), std::get<size_t(N + N0)>(dfs));
+		return substitute_for_dynamics<N>(symphas::lib::types_list<Vs...>{}, dyn, dfs);
+	}
+
+
+	template<typename S>
+	struct apply_special_dynamics;
+
+	template<size_t N, DynamicType dynamic>
+	struct apply_special_dynamics<special_dynamics<N, void, dynamics_key_t<dynamic>>>
+		: apply_dynamics<dynamic>
+	{
+		apply_special_dynamics(special_dynamics<N, void, dynamics_key_t<dynamic>>)
+			: apply_dynamics<dynamic>() {}
+
+		template<typename... U_Ds, typename... Us, typename... Fs, typename Sp>
+		auto operator()(std::tuple<U_Ds...> const& dops, std::tuple<Us...> const& ops, std::tuple<Fs...> const& dfes, Sp const& solver)
+		{
+			return apply_dynamics<dynamic>::operator()(std::get<N>(dops), std::get<N>(dfes), solver);
 		}
 	};
 	
-	template<symphas::internal::DynamicType dynamic, size_t I>
-	constexpr symphas::internal::DynamicType dynamic_i = dynamic;
-
-	template<size_t... Is, symphas::internal::DynamicType dynamic>
-	auto repeat_dynamics_value(std::index_sequence<Is...>, symphas::internal::dynamics_list<dynamic>)
+	template<size_t N, typename I0, typename E>
+	struct apply_special_dynamics<special_dynamics<N, I0, E>>
 	{
-		return symphas::internal::dynamics_list<dynamic_i<dynamic, Is>...>{};
+		apply_special_dynamics(special_dynamics<N, I0, E> const& e) : e{ e.e } {}
+
+		template<typename... U_Ds, typename... Us, typename... Fs, typename Sp>
+		auto operator()(std::tuple<U_Ds...> const& dops, std::tuple<Us...> const& ops, std::tuple<Fs...> const& dfes, Sp const& solver)
+		{
+			using df_v_types = typename select_v_<func_deriv_i<-1>, expr::op_types_t<E>>::type;
+
+			auto with_fes = substitute_for_dynamics<N>(df_v_types{}, e, dfes);
+			auto ev = substitute_ops(ops, with_fes);
+			return (std::get<N>(dops) = expr::apply_operators(ev));
+		}
+		
+		template<typename... Us, typename E0>
+		auto substitute_ops(std::tuple<Us...> const& ops, OpExpression<E0> const& with_fes)
+		{
+			using v_types = typename select_v_<expr::op_types_t<E0>>::type;
+			return substitute_for_dynamics<N>(v_types{}, *static_cast<E0 const*>(&with_fes), ops);
+		}
+
+		E e;
+	};
+
+	template<size_t N, typename E>
+	struct apply_special_dynamics<special_dynamics<N, void, E>>
+	{
+		apply_special_dynamics(special_dynamics<N, void, E> const& e) : e{ e.e } {}
+
+		template<typename... U_Ds, typename... Us, typename... Fs, typename Sp>
+		auto operator()(std::tuple<U_Ds...> const& dops, std::tuple<Us...> const& ops, std::tuple<Fs...> const& dfes, Sp const& solver)
+		{
+			using v_types = typename select_v_<expr::op_types_t<E>>::type;
+			auto ev = substitute_for_dynamics<0>(v_types{}, e, dfes);
+			return (std::get<N>(dops) = expr::apply_operators(ev));
+		}
+
+		E e;
+	};
+
+	template<typename S>
+	apply_special_dynamics(S) -> apply_special_dynamics<S>;
+
+	template<DynamicType dynamic, size_t I>
+	constexpr DynamicType dynamic_i = dynamic;
+
+	template<typename Dyn0, typename Dyn1, typename... Us>
+	auto replace_dynamics_if_none(Dyn0 const& dynamic, Dyn1 const&, std::tuple<Us...> const&)
+	{
+		return dynamic;
 	}
 
-	template<size_t I, typename T>
-	auto parameter_i(T const& value)
+	template<size_t N, size_t N0, typename I, typename E, typename... Us>
+	auto replace_dynamics_if_none(
+		special_dynamics<N, void, dynamics_key_t<DynamicType::NONE>>,
+		special_dynamics<N0, I, E> const& dynamic, 
+		std::tuple<Us...> const& ops)
 	{
-		return value;
+		return special_dynamics(std::index_sequence<N>{}, I{})(
+			expr::expand_sum(dynamic.e, ops, std::make_index_sequence<sizeof...(Us)>{}));
 	}
 
-	template<size_t value, typename>
-	constexpr size_t value_i = value;
+	template<size_t N, size_t N0, typename I, DynamicType dynamic0, typename... Us>
+	auto replace_dynamics_if_none(
+		special_dynamics<N, void, dynamics_key_t<DynamicType::NONE>>,
+		special_dynamics<N0, I, dynamics_key_t<dynamic0>> const& dynamic, 
+		std::tuple<Us...> const& ops)
+	{
+		return special_dynamics(std::index_sequence<N>{}, I{})(dynamics_key_t<dynamic0>{});
+	}
+
+	template<size_t... Is, typename... Dyns, size_t N, typename E, typename... Us>
+	auto interpret_dynamics(std::index_sequence<Is...>, std::tuple<Dyns...> const& dl,
+		special_dynamics<N, void, E> const& dynamic, std::tuple<Us...> const& ops)
+	{
+		return std::tuple_cat(
+			symphas::lib::get_tuple_lt<N>(dl),
+			std::make_tuple(special_dynamics(std::index_sequence<N>{})(
+				expr::expand_sum(dynamic.e, ops, std::make_index_sequence<sizeof...(Us)>{}))),
+			symphas::lib::get_tuple_ge<N + 1>(dl));
+	}
+
+	template<size_t... Is, typename... Dyns, size_t N, typename I, typename E, typename... Us>
+	auto interpret_dynamics(std::index_sequence<Is...>, std::tuple<Dyns...> const& dl,
+		special_dynamics<N, I, E> const& dynamic, std::tuple<Us...> const& ops)
+	{
+		return std::make_tuple(replace_dynamics_if_none(std::get<Is>(dl), dynamic, ops)...);
+	}
+
+
+	template<size_t... Is, typename Dyn0, typename... Us>
+	auto interpret_dynamics(std::index_sequence<Is...>, std::tuple<Dyn0> const& dynamic, std::tuple<Us...> const& ops)
+	{
+		auto dl = std::make_tuple(special_dynamics(std::index_sequence<Is>{})(dynamics_key_t<DynamicType::NONE>{})...);
+		return interpret_dynamics(std::index_sequence<Is...>{}, dl, std::get<0>(dynamic), ops);
+	}
+
+
+	template<size_t... Is, typename... DynDs, typename... Us>
+	auto interpret_dynamics(std::index_sequence<Is...>, std::tuple<DynDs...> const& all_dynamics,
+		std::tuple<> const& dynamics, std::tuple<Us...> const& ops)
+	{
+		return all_dynamics;
+	}
+
+	template<size_t... Is, typename... DynDs, typename Dyn0, typename... Dyns, typename... Us>
+	auto interpret_dynamics(std::index_sequence<Is...>, std::tuple<DynDs...> const& all_dynamics,
+		std::tuple<Dyn0, Dyns...> const& dynamics, std::tuple<Us...> const& ops)
+	{
+		auto next = interpret_dynamics(std::index_sequence<Is...>{}, all_dynamics, std::get<0>(dynamics), ops);
+		return interpret_dynamics(std::index_sequence<Is...>{}, next, symphas::lib::get_tuple_ge<1>(dynamics), ops);
+	}
+
+	template<size_t... Is, typename Dyn0, typename Dyn1, typename... Dyns, typename... Us>
+	auto interpret_dynamics(std::index_sequence<Is...>, std::tuple<Dyn0, Dyn1, Dyns...> const& dynamics, std::tuple<Us...> const& ops)
+	{
+		auto first = interpret_dynamics(std::index_sequence<Is...>{}, std::make_tuple(std::get<0>(dynamics)), ops);
+		return interpret_dynamics(std::index_sequence<Is...>{}, first, symphas::lib::get_tuple_ge<1>(dynamics), ops);
+	}
+
+	template<size_t... Is, DynamicType dynamic, typename... Us>
+	auto interpret_dynamics(std::index_sequence<Is...>, std::tuple<all_dynamics_key_t<dynamic>>, std::tuple<Us...> const& ops)
+	{
+		return dynamics_list<dynamic_i<dynamic, Is>...>{};
+	}
 
 }
 
@@ -439,6 +730,9 @@ struct TraitEquation : parent_trait
 	using parent_trait::parent_trait;
 	using parent_trait::solver;
 	using seq_t = std::make_index_sequence<model_num_parameters<parent_trait>::value>;
+
+
+
 
 	template<size_t I>
 	auto op()
@@ -481,78 +775,65 @@ struct TraitEquation : parent_trait
 		return *static_cast<model_base_t<parent_trait> const*>(this);
 	}
 
-	template<symphas::internal::DynamicType... dynamics, typename E>
-	auto generate_equations(OpExpression<E> const& e)
+	template<symphas::internal::DynamicType dynamic0, symphas::internal::DynamicType... dynamics,typename E>
+	auto generate_equations(std::tuple<symphas::internal::dynamics_key_t<dynamic0>, symphas::internal::dynamics_key_t<dynamics>...>, OpExpression<E> const& e)
 	{
-		using dynamics_list = symphas::internal::dynamics_list<dynamics...>;
-		return generate_equations(*static_cast<E const*>(&e), seq_t{}, dynamics_list{});
+		using dynamics_list = symphas::internal::dynamics_list<dynamic0, dynamics...>;
+		return generate_equations_apply(expand_sum(*static_cast<E const*>(&e), seq_t{}), seq_t{}, dynamics_list{});
 	}
 
-	template<symphas::internal::DynamicType... dynamics, typename... As>
-	auto generate_equations(OpAdd<As...> const& sums)
+	template<typename... special_dynamics, typename E, size_t... Ns>
+	auto generate_equations(std::tuple<special_dynamics...> const& dynamics, OpExpression<E> const& e, std::index_sequence<Ns...>)
 	{
-		using dynamics_list = symphas::internal::dynamics_list<dynamics...>;
-		return generate_equations(expand_sum(sums, std::make_index_sequence<sizeof...(As)>{}), seq_t{}, dynamics_list{});
+		return generate_equations_apply(
+			*static_cast<E const*>(&e), 
+			symphas::internal::interpret_dynamics(seq_t{}, dynamics, std::make_tuple(op<Ns>()...)));
 	}
 
-	template<symphas::internal::DynamicType... dynamics, typename I0, typename E, typename... Is>
-	auto generate_equations(OpCompound<expr::internal::CompoundOp::ADD, I0, E, Is...> const& sum)
+	template<typename... special_dynamics, typename E>
+	auto generate_equations(std::tuple<special_dynamics...> const& dynamics, OpExpression<E> const& e)
 	{
-		using dynamics_list = symphas::internal::dynamics_list<dynamics...>;
-		return generate_equations(expand_sum(sum, seq_t{}), seq_t{}, dynamics_list{});
-	}
-
-	template<typename E, symphas::internal::DynamicType... dynamics>
-	auto generate_equations(OpExpression<E> const& e, symphas::internal::dynamics_list<dynamics...>)
-	{
-		return generate_equations<dynamics...>(*static_cast<E const*>(&e));
-	}
-
-	template<typename default_dynamics, typename E>
-	auto generate_equations(OpExpression<E> const& e)
-	{
-		using dynamics_list = decltype(symphas::internal::repeat_dynamics_value(seq_t{}, default_dynamics{}));
-		return generate_equations(*static_cast<E const*>(&e), dynamics_list{});
+		return generate_equations(dynamics, *static_cast<E const*>(&e), seq_t{});
 	}
 
 protected:
 
+	template<typename E, symphas::internal::DynamicType... dynamics>
+	auto generate_equations_apply(OpExpression<E> const& e,
+		symphas::internal::dynamics_list<dynamics...> const& ed)
+	{
+		return generate_equations(std::make_tuple(symphas::internal::dynamics_key_t<dynamics>{}...), *static_cast<E const*>(&e));
+	}
+
+	template<typename E, size_t... Ns, typename... Is, typename... Es>
+	auto generate_equations_apply(OpExpression<E> const& e,
+		std::tuple<symphas::internal::special_dynamics<Ns, Is, Es>...> const& ed)
+	{
+		auto dfes = generate_equations(
+			std::make_tuple(symphas::internal::all_dynamics_key_t<symphas::internal::DynamicType::NONE>{}),
+			*static_cast<E const*>(&e));
+
+		return std::make_tuple(symphas::internal::apply_special_dynamics(std::get<Ns>(ed))(
+			std::make_tuple(dop<Ns>()...), 
+			std::make_tuple(op<Ns>()...), 
+			std::make_tuple(std::get<1>(std::get<Ns>(dfes))...),
+			solver)...);
+	}
+
 	template<typename E, size_t... Ns, symphas::internal::DynamicType... dynamics>
-	auto generate_equations(E const& fe, std::index_sequence<Ns...>, symphas::internal::dynamics_list<dynamics...>)
+	auto generate_equations_apply(E const& fe, std::index_sequence<Ns...>, symphas::internal::dynamics_list<dynamics...>)
 	{
-		//expr::apply_operators(fe).print(stdout);
-		return std::make_tuple(symphas::internal::apply_dynamics<dynamics>{}(dop<Ns>(), op<Ns>(), expr::apply_operators(fe), solver)...);
+		return std::make_tuple(
+			symphas::internal::apply_dynamics<dynamics>{}(
+				dop<Ns>(), 
+				expr::euler_lagrange_apply(op<Ns>(), fe, solver), 
+				solver)...);
 	}
 
-	template<typename E>
-	auto expand_sum(OpExpression<E> const& e)
+	template<typename E, typename... Us, size_t... Ns>
+	auto expand_sum(OpExpression<E> const& e, std::index_sequence<Ns...>)
 	{
-		return (*static_cast<E const*>(&e));
-	}
-
-	template<typename I0, typename I1, typename E, size_t... Ns>
-	auto expand_sum(OpCompound<expr::internal::CompoundOp::ADD, I0, E, I1> const& sum, std::index_sequence<Ns...>)
-	{
-		auto list = std::make_tuple(op<Ns>()...);
-		return sum.template expand<0, I0>(list);
-	}
-
-	template<typename I0, typename E, size_t... Ns>
-	auto expand_sum(OpCompound<expr::internal::CompoundOp::ADD, I0, E> const& sum, std::index_sequence<Ns...>)
-	{
-		return sum.template expand<0>(op<Ns>()...);
-	}
-
-	template<typename I0, typename E, typename... Is>
-	auto expand_sum(OpCompound<expr::internal::CompoundOp::ADD, I0, E, Is...> const& sum)
-	{
-		return expand_sum(sum, seq_t{});
-	}
-
-	template<typename... As, size_t... Is>
-	auto expand_sum(OpAdd<As...> const& sums, std::index_sequence<Is...>)
-	{
-		return (expand_sum(expr::get<Is>(sums)) + ...);
+		return expr::expand_sum(*static_cast<E const*>(&e), std::make_tuple(op<Ns>()...), seq_t{});
 	}
 
 
@@ -689,6 +970,7 @@ struct TraitEquationModel : TraitEquation<TraitEquationModel, parent_trait> \
 	using parent_type::solver; \
 	using parent_type::parent_type; \
 	using parent_type::generate_equations; \
+	static const size_t Dm = model_dimension<parent_type>::value; \
 	auto make_equations() { \
 		using namespace std; using namespace expr; using namespace expr::symbols; \
 		constexpr size_t D = model_dimension<parent_type>::value; \
@@ -729,6 +1011,28 @@ struct model_field_name<model_ ## MODEL_NAME::TraitEquationModel> \
 	const char* operator()(int index) { \
 		static const char* names[]{SINGLE_ARG NAMES}; \
 		return names[index]; \
+	} \
+};
+
+#define DEFINE_MODEL_FIELD_NAMES_FORMAT(MODEL_NAME, FORMAT) \
+template<> \
+struct model_field_name<model_ ## MODEL_NAME::TraitEquationModel> \
+{ \
+	const char* operator()(int index) { \
+		static char** names = build_names(); \
+		return names[index]; \
+	} \
+	char** build_names() \
+	{ \
+		constexpr size_t len = 100; \
+		char** names = new char*[len]; \
+		char buffer[100]; \
+		for (size_t i = 1; i <= len; ++i) { \
+			sprintf(buffer, FORMAT, int(i)); \
+			names[i - 1] = new char[std::strlen(buffer) + 1]; \
+			std::strcpy(names[i - 1], buffer); \
+		} \
+		return names; \
 	} \
 };
 

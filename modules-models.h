@@ -144,6 +144,7 @@ struct model_select
 
 #undef Ii
 #undef lit
+#undef integer
 #undef one
 
 
@@ -188,6 +189,9 @@ struct model_select
 #undef DYNAMIC
 #undef MODE
 
+
+#undef POW
+#undef LENGTH
 
 #endif
 

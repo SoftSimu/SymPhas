@@ -32,20 +32,20 @@ bool add_base_params(param_map_type& param_map)
 	using namespace params;
 
 	param_map["title"] = std::make_pair(&title, new param_assign<char*>);
-	param_map["extend_boundary"] = std::make_pair(&extend_boundary, new param_assign<bool>);
-	param_map["extend_boundaryend"] = std::make_pair(&extend_boundary, new param_assign<bool>);
-	param_map["extend_boundary"] = std::make_pair(&extend_boundary, new param_assign<bool>);
-	param_map["extend_boundaries"] = std::make_pair(&extend_boundary, new param_assign<bool>);
+	param_map["extend-boundary"] = std::make_pair(&extend_boundary, new param_assign<bool>);
+	param_map["extend-boundaryend"] = std::make_pair(&extend_boundary, new param_assign<bool>);
+	param_map["extend-boundary"] = std::make_pair(&extend_boundary, new param_assign<bool>);
+	param_map["extend-boundaries"] = std::make_pair(&extend_boundary, new param_assign<bool>);
 	param_map["visualization"] = std::make_pair(&viz_interval, new param_assign<int>);
 	param_map["visualize"] = std::make_pair(&viz_interval, new param_assign<int>);
-	param_map["viz_interval"] = std::make_pair(&viz_interval, new param_assign<int>);
-	param_map["init_inside_val"] = std::make_pair(&init_inside_val, new param_assign<double>);
-	param_map["init_inside"] = std::make_pair(&init_inside_val, new param_assign<double>);
-	param_map["init_outside_val"] = std::make_pair(&init_outside_val, new param_assign<double>);
-	param_map["init_outside"] = std::make_pair(&init_outside_val, new param_assign<double>);
-	param_map["init_rand_val"] = std::make_pair(&init_rand_val, new param_assign<double>);
-	param_map["init_rand"] = std::make_pair(&init_rand_val, new param_assign<double>);
-	param_map["input_data_file"] = std::make_pair(&input_data_file, new param_assign<char*>);
+	param_map["viz-interval"] = std::make_pair(&viz_interval, new param_assign<int>);
+	param_map["init-inside_val"] = std::make_pair(&init_inside_val, new param_assign<double>);
+	param_map["init-inside"] = std::make_pair(&init_inside_val, new param_assign<double>);
+	param_map["init-outside_val"] = std::make_pair(&init_outside_val, new param_assign<double>);
+	param_map["init-outside"] = std::make_pair(&init_outside_val, new param_assign<double>);
+	param_map["init-rand_val"] = std::make_pair(&init_rand_val, new param_assign<double>);
+	param_map["init-rand"] = std::make_pair(&init_rand_val, new param_assign<double>);
+	param_map["data-file"] = std::make_pair(&input_data_file, new param_assign<char*>);
 	param_map["data"] = std::make_pair(&input_data_file, new param_assign<char*>);
 
 	return true;

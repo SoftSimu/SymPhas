@@ -230,6 +230,28 @@ namespace symphas::internal
 		return expr::make_tensor<Ms...>(v);
 	}
 
+	template<typename T, typename S, size_t N0, size_t N>
+	auto tensor_multiply(OpTensor<T, 0, 0, 1, 1> const& a, OpTensor<S, 0, N0, 1, N> const& b)
+	{
+		auto v = symphas::internal::tensor_cast::cast(a) * symphas::internal::tensor_cast::cast(b);
+		return expr::make_tensor<0, N0, 1, N>(v);
+	}
+
+
+	template<typename S>
+	auto tensor_multiply(OpTensor<OpIdentity, 0, 0> const& a, OpTensor<S, 0, 1> const& b)
+	{
+		return OpIdentity{};
+	}
+
+	template<typename S>
+	auto tensor_multiply(OpTensor<S, 0, 0, 1, 1> const& a, OpTensor<OpIdentity, 0, 0> const& b)
+	{
+		return OpIdentity{};
+	}
+
+
+
 
 	template<typename T, typename S>
 	auto tensor_multiply(OpTensor<T, 0, 1> const& a, OpTensor<S, 0, 1> const& b)
@@ -246,25 +268,44 @@ namespace symphas::internal
 	template<typename T, typename S>
 	auto tensor_multiply(OpTensor<S, 0, 1> const& a, OpTensor<T, 0, 0, 1, 1> const& b)
 	{
-		return symphas::internal::tensor_cast::cast(a) * symphas::internal::tensor_cast::cast(b);
+		auto v = symphas::internal::tensor_cast::cast(a) * symphas::internal::tensor_cast::cast(b);
+		return expr::make_tensor<0, 0, 1, 1>(v);
 	}
 
 	template<size_t N0, size_t N1, size_t NA, size_t NB, typename T>
-	auto get_tensor(T const& value)
+	auto tensor_as_coeff(T const& value)
 	{
-		using elem_type = std::invoke_result_t<decltype(&T::eval), T, iter_type>;
-		any_matrix_t<elem_type, NA, NB> matrix;
-		matrix[N0][N1] = value.eval();
-		return matrix;
+		//if constexpr (N0 == 0 && N1 == 0 && NA == 1 && NB == 1)
+		//{
+		//	return value.eval();
+		//}
+		//else
+		{
+			using elem_type = std::invoke_result_t<decltype(&T::eval), T, iter_type>;
+			any_matrix_t<elem_type, NA, NB> matrix;
+			matrix[N0][N1] = value.eval();
+			return matrix;
+		}
 	}
 
 	template<size_t N0, size_t NA, typename T>
-	auto get_tensor(T const& value)
+	auto tensor_as_coeff(T const& value)
 	{
-		using elem_type = std::invoke_result_t<decltype(&T::eval), T, iter_type>;
-		any_vector_t<elem_type, NA> vector;
-		vector[N0] = value.eval();
-		return vector;
+		if constexpr (N0 == 0 && NA == 0)
+		{
+			return value;
+		}
+		//else if constexpr (N0 == 0 && NA == 1)
+		//{
+		//	return value.eval();
+		//}
+		else
+		{
+			using elem_type = std::invoke_result_t<decltype(&T::eval), T, iter_type>;
+			any_vector_t<elem_type, NA> vector;
+			vector[N0] = value.eval();
+			return vector;
+		}
 	}
 
 	template<typename>
@@ -319,7 +360,7 @@ struct OpTensor : OpExpression<OpTensor<T, Ns...>>
 
 	auto eval(iter_type n = 0) const
 	{
-		return symphas::internal::get_tensor<Ns...>(cast());
+		return symphas::internal::tensor_as_coeff<Ns...>(cast());
 	}
 
 	template<typename S, size_t... Ms>
@@ -883,6 +924,9 @@ namespace expr
 		//! Common fractions.
 		constexpr OpFractionLiteral<1, 2> _2{};
 		constexpr OpFractionLiteral<1, 4> _4{};
+
+		//! Pi to 7th order
+		constexpr OpFractionLiteral<355, 113> Pi{};
 	}
 }
 
@@ -912,13 +956,23 @@ namespace symphas::internal
 		{
 			static_assert(symphas::internal::all_positive(seq_sub_t<dim_t, pos_t>{}),
 				"incorrect tensor arguments");
-
 			return OpTensor<T, Ns...>{ v };
 		}
 	};
 
 	template<size_t N0, size_t NA>
 	struct construct_tensor<N0, 0, NA, 1> : construct_tensor<N0, NA> {};
+
+
+	template<>
+	struct construct_tensor<0, 0, 1, 1>
+	{
+		template<typename T>
+		auto operator()(T const& v)
+		{
+			return OpTensor<T, 0, 0, 1, 1>{ v };
+		}
+	};
 }
 
 
@@ -956,6 +1010,49 @@ template<size_t I, size_t N>
 constexpr auto expr::make_row_vector()
 {
 	return make_row_vector<I, N>(OpIdentity{});
+}
+
+
+template<size_t R, size_t R0>
+auto expr::make_filled_column_vector()
+{
+	if constexpr (R0 >= R)
+	{
+		return OpIdentity{};
+	}
+	else
+	{
+		auto c = expr::make_column_vector<R0, R>();
+		if constexpr (R0 == R - 1)
+		{
+			return c;
+		}
+		else
+		{
+			return c + make_filled_column_vector<R, R0 + 1>();
+		}
+	}
+}
+
+template<size_t R, size_t R0>
+auto expr::make_filled_row_vector()
+{
+	if constexpr (R0 >= R)
+	{
+		return OpIdentity{};
+	}
+	else
+	{
+		auto c = expr::make_row_vector<R0, R>();
+		if constexpr (R0 == R - 1)
+		{
+			return c;
+		}
+		else
+		{
+			return c + make_filled_row_vector<R, R0 + 1>();
+		}
+	}
 }
 
 template<typename T>
@@ -1622,6 +1719,9 @@ namespace expr
 	{
 		return OpBinaryMul<E1, E2>(a, b);
 	}
+
+	template<typename E1, typename E2>
+	auto dot(OpExpression<E1> const& a, OpExpression<E2> const& b);
 }
 
 template<typename E1, typename E2, 
@@ -1631,6 +1731,31 @@ auto operator*(OpExpression<E1> const& a, OpExpression<E2> const& b)
 	return expr::make_mul(*static_cast<const E1*>(&a), *static_cast<const E2*>(&b));
 }
 
+template<typename E1, typename E2,
+	typename std::enable_if_t<(expr::eval_type<E1>::rank == 0 || expr::eval_type<E2>::rank == 0), int> = 0>
+auto operator*(OpExpression<E1> const& a, OpOperator<E2> const& b)
+{
+	return OpOperatorChain(*static_cast<const E1*>(&a), *static_cast<const E2*>(&b));
+}
+
+template<typename E1, typename E2,
+	typename std::enable_if_t<(expr::eval_type<E1>::rank > 0 && expr::eval_type<E2>::rank > 0), int> = 0>
+auto operator*(OpExpression<E1> const& a, OpOperator<E2> const& b)
+{
+	return expr::dot(*static_cast<const E1*>(&a), *static_cast<const E2*>(&b));
+}
+
+template<typename A, typename B, typename E>
+auto operator*(OpBinaryMul<A, B> const& a, OpOperator<E> const& b)
+{
+	return OpOperatorChain(a, *static_cast<const E*>(&b));
+}
+
+template<typename E1, typename E2>
+auto operator*(OpOperator<E1> const& a, OpOperator<E2> const& b)
+{
+	return (*static_cast<const E1*>(&a)).operator*(*static_cast<const E2*>(&b));
+}
 
 //! Binary expression, the division of two terms.
 template<typename E1, typename E2>
@@ -1808,6 +1933,11 @@ namespace expr
 		return OpBinaryDiv((*static_cast<const E1*>(&a)), (*static_cast<const E2*>(&b)));
 	}
 
+	template<typename E2>
+	auto make_div(OpVoid, OpExpression<E2> const& b)
+	{
+		return OpVoid{};
+	}
 }
 
 

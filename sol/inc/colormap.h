@@ -39,5 +39,5 @@ struct ColourPlotUpdater
 
 struct ColourPlot2d
 {
-	void init(scalar_t* values, len_type* dims, iter_type &index, ColourPlotUpdater* &updater);
+	void init(scalar_t* (&values), len_type* dims, iter_type& index, ColourPlotUpdater* (&updater));
 };

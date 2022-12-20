@@ -403,8 +403,8 @@ Conf symphas::conf::restore_checkpoint(param_map_type param_map, const char* dir
 	std::strcpy(load_name, dir);
 
 	symphas::init_data_type load;
-	load.in = Inside::CHECKPOINT;
-	load.file = { load_name, params::start_index };
+	load[Axis::NONE].in = Inside::CHECKPOINT;
+	load[Axis::NONE].file = {load_name, params::start_index};
 
 	/* change the initial data so it is loaded from the saved name
 	 */

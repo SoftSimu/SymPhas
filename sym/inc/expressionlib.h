@@ -193,7 +193,6 @@ struct VectorComponentData
 	T values;
 };
 
-
 //! Wraps a pointer in order to represent it as a grid.
 /*!
  * Wraps a pointer as a grid type, so that the symbolic algebra can interpret
@@ -204,15 +203,16 @@ struct VectorComponentData
 template<typename T, size_t D>
 struct GridData
 {
-	GridData(T* data, len_type const* dims) : data{ data }, dims{ 0 }
+	GridData(T* data, len_type const* dims) : data{ data }, dims{ 0 }, len{ 0 }
 	{
 		for (iter_type i = 0; i < D; ++i)
 		{
 			this->dims[i] = dims[i];
 		}
+		len = grid::length<D>(dims);
 	}
 
-	GridData() : data{ nullptr }, dims{ 0 } {}
+	GridData() : data{ nullptr }, dims{ 0 }, len{ 0 } {}
 
 	const T& operator[](iter_type i) const
 	{
@@ -246,22 +246,41 @@ protected:
 public:
 
 	len_type dims[D];
+	len_type len;
 
 };
 
+template<size_t D>
+struct GridData<void, D> 
+{
+	GridData(len_type const* dims) : dims{ 0 }, len{ 0 }
+	{
+		for (iter_type i = 0; i < D; ++i)
+		{
+			this->dims[i] = dims[i];
+		}
+		len = grid::length<D>(dims);
+	}
+
+	GridData() : dims{ 0 }, len{ 0 } {}
+
+	len_type dims[D];
+	len_type len;
+};
 
 template<typename T, size_t N>
 struct GridData<MultiBlock<N, T>, N>
 {
-	GridData(MultiBlock<N, T> const& data, len_type const* dims) : data{ std::ref(const_cast<MultiBlock<N, T>&>(data)) }, dims{ 0 }
+	GridData(MultiBlock<N, T> const& data, len_type const* dims) : data{ std::ref(const_cast<MultiBlock<N, T>&>(data)) }, dims{ 0 }, len{ 0 }
 	{
 		for (iter_type i = 0; i < N; ++i)
 		{
 			this->dims[i] = dims[i];
 		}
+		len = grid::length<N>(dims);
 	}
 
-	GridData() : data{ nullptr }, dims{ 0 } {}
+	GridData() : data{ nullptr }, dims{ 0 }, len{ 0 } {}
 
 	const auto& operator[](iter_type i) const
 	{
@@ -290,6 +309,7 @@ protected:
 public:
 
 	len_type dims[N];
+	len_type len;
 
 };
 
@@ -300,6 +320,36 @@ public:
 
 namespace expr
 {
+	template<Axis ax, size_t D, typename T>
+	auto as_component_data(T* data)
+	{
+		return VectorComponentData<ax, T*, D>{ data };
+	}
+
+	template<Axis ax, size_t N, typename T>
+	VectorComponentData<ax, T*, N> resolve_axis_component(MultiBlock<N, T> const& data)
+	{
+		return { data.values[symphas::axis_to_index(ax)] };
+	}
+
+	template<Axis ax, size_t N, typename T>
+	VectorComponentData<ax, T*, N> resolve_axis_component(MultiBlock<N, T>& data)
+	{
+		return { data.values[symphas::axis_to_index(ax)] };
+	}
+
+	template<Axis ax, typename T, size_t D>
+	VectorComponentData<ax, T, D> resolve_axis_component(any_vector_t<T, D> const& data)
+	{
+		return { data[symphas::axis_to_index(ax)] };
+	}
+
+	template<Axis ax, typename T, size_t D>
+	VectorComponentData<ax, T, D> resolve_axis_component(any_vector_t<T, D>& data)
+	{
+		return { data[symphas::axis_to_index(ax)] };
+	}
+
 
 	//! Constructs a constant of the given value.
 	/*!
@@ -368,6 +418,11 @@ namespace expr
 	template<size_t I, size_t N>
 	constexpr auto make_row_vector();
 
+	template<size_t R, size_t R0 = 0>
+	auto make_filled_column_vector();
+
+	template<size_t R, size_t R0 = 0>
+	auto make_filled_row_vector();
 
 	//! Returns the given data in a wrapper imitating a Grid with specified dimensions.
 	/*!
@@ -495,13 +550,13 @@ namespace symphas::internal
 	* is the coefficient to an expression.
 	 */
 
-	template <typename E>
-	static char test_coeff_attribute(decltype(&E::value));
+	template<typename E>
+	static char test_coeff_attribute(decltype(E::value)*);
 
-	template <typename E>
-	static char test_coeff_attribute(decltype(&E::term));
+	template<typename E>
+	static char test_coeff_attribute(add_result_t<decltype(E::term), decltype(E::term)>*);
 
-	template <typename E>
+	template<typename E>
 	static long test_coeff_attribute(...);
 
 	template<typename E>
@@ -570,27 +625,7 @@ namespace symphas::internal
 	template<typename E>
 	struct test_is_symbol
 	{
-	protected:
-
-		/*static constexpr std::true_type _is_symbol(expr::symbols::Symbol*)
-		{
-			return {};
-		}
-
-		static constexpr std::false_type _is_symbol(...)
-		{
-			return {};
-		}
-
-		static constexpr auto is_symbol(E*)
-		{
-			return _is_symbol(e);
-		}*/
-
-	public:
-
 		static const bool value = std::is_convertible_v<E, expr::symbols::Symbol>;
-		//std::invoke_result_t<decltype(&test_is_symbol<E>::is_symbol)>::value;
 	};
 	
 
@@ -807,6 +842,12 @@ namespace expr
 			return {};
 		}
 
+		template<typename T, size_t D>
+		static constexpr std::index_sequence<D> _infer_dimension(GridData<T, D>)
+		{
+			return {};
+		}
+
 		template<Axis ax, typename G>
 		static constexpr auto _infer_dimension(VectorComponent<ax, G>)
 		{
@@ -989,6 +1030,18 @@ namespace expr
 	struct derivative_order<OpOperatorDerivative<O, V, Sp>>
 	{
 		const static size_t value = O;
+	};
+
+	template<Axis ax, size_t O, typename V, typename Sp>
+	struct derivative_order<OpOperatorDirectionalDerivative<ax, O, V, Sp>>
+	{
+		const static size_t value = O;
+	};
+
+	template<typename V, typename Sp, size_t... Os>
+	struct derivative_order<OpOperatorMixedDerivative<V, Sp, Os...>>
+	{
+		const static size_t value = (Os + ...);
 	};
 
 	template<typename Dd, typename V, typename Sp, typename E>
@@ -1397,17 +1450,51 @@ struct expr::op_types<OpFuncDerivative<Dd, V, E, Sp>>
 };
 
 //! Specialization based on expr::op_types.
+template<typename A1, typename A2>
+struct expr::op_types<OpOperatorCombination<A1, A2>>
+{
+protected:
+	using At = typename expr::op_types<A1>::type;
+	using Bt = typename expr::op_types<A2>::type;
+
+public:
+	using type = typename symphas::lib::combine_types_unique<At, Bt>::type;
+};
+
+//! Specialization based on expr::op_types.
+template<typename A1, typename A2>
+struct expr::op_types<OpOperatorChain<A1, A2>>
+{
+protected:
+	using At = typename expr::op_types<A1>::type;
+	using Bt = typename expr::op_types<A2>::type;
+
+public:
+	using type = typename symphas::lib::combine_types_unique<At, Bt>::type;
+};
+
+//! Specialization based on expr::op_types.
 template<typename A1, typename A2, typename E>
 struct expr::op_types<OpCombination<A1, A2, E>>
 {
-	using type = typename expr::op_types<E>::type;
+protected:
+	using At = typename expr::op_types<OpOperatorCombination<A1, A2>>::type;
+	using Bt = typename expr::op_types<E>::type;
+
+public:
+	using type = typename symphas::lib::combine_types_unique<At, Bt>::type;
 };
 
 //! Specialization based on expr::op_types.
 template<typename A1, typename A2, typename E>
 struct expr::op_types<OpChain<A1, A2, E>>
 {
-	using type = typename expr::op_types<E>::type;
+protected:
+	using At = typename expr::op_types<OpOperatorChain<A1, A2>>::type;
+	using Bt = typename expr::op_types<E>::type;
+
+public:
+	using type = typename symphas::lib::combine_types_unique<At, Bt>::type;
 };
 
 //! Specialization based on expr::op_types.
@@ -1725,6 +1812,18 @@ struct expr::is_operator_like<OpOperatorDerivative<O, V, Sp>>
 	static const bool value = true;
 };
 
+template<Axis ax, size_t O, typename V, typename Sp>
+struct expr::is_operator_like<OpOperatorDirectionalDerivative<ax, O, V, Sp>>
+{
+	static const bool value = true;
+};
+
+template<typename V, typename Sp, size_t... Os>
+struct expr::is_operator_like<OpOperatorMixedDerivative<V, Sp, Os...>>
+{
+	static const bool value = true;
+};
+
 //! Specialization based on expr::is_linear.
 template<typename Dd, typename V, typename E, typename Sp>
 struct expr::is_operator_like<OpFuncDerivative<Dd, V, E, Sp>>
@@ -1835,6 +1934,18 @@ struct expr::is_linear<OpFuncDerivative<Dd, V, E, Sp>>
 //! Specialization based on expr::is_linear.
 template<size_t O, typename V, typename Sp>
 struct expr::is_linear<OpOperatorDerivative<O, V, Sp>>
+{
+	static const bool value = true;
+};
+
+template<Axis ax, size_t O, typename V, typename Sp>
+struct expr::is_linear<OpOperatorDirectionalDerivative<ax, O, V, Sp>>
+{
+	static const bool value = true;
+};
+
+template<typename V, typename Sp, size_t... Os>
+struct expr::is_linear<OpOperatorMixedDerivative<V, Sp, Os...>>
 {
 	static const bool value = true;
 };
@@ -2482,6 +2593,12 @@ struct expr::derivative_index<L, OpOperatorDirectionalDerivative<ax, O, V, Sp>>
 	static const size_t value = expr::derivative_index_raw<O>::value;
 };
 
+template<size_t L, typename V, typename Sp, size_t... Os>
+struct expr::derivative_index<L, OpOperatorMixedDerivative<V, Sp, Os...>>
+{
+	static const size_t value = expr::derivative_index_raw<(Os + ...)>::value;
+};
+
 
 //! Specialization based on expr::derivative_index.
 template<size_t L, typename Dd, typename V, typename E, typename Sp>
@@ -2506,6 +2623,12 @@ public:
 	static const size_t value = (value_1 < L) ? value_2 : value_1;
 };
 
+//! Specialization based on expr::derivative_index.
+template<size_t L, typename A, typename B>
+struct expr::derivative_index<L, OpBinaryMul<A, B>>
+{
+	static const size_t value = expr::derivative_index<L, OpOperatorChain<A, B>>::value;
+};
 
 // ******************************************************************************************
 // Identity expressions.
@@ -2732,7 +2855,6 @@ namespace expr
 		return coeff(e.a);
 	}
 
-
 	template<typename E, typename Enable>
 	struct coeff_type;
 
@@ -2745,7 +2867,7 @@ namespace expr
 	template<typename E>
 	struct coeff_type<E, std::enable_if_t<has_coeff<E>, int>>
 	{
-		using type = decltype(E::value);
+		using type = decltype(expr::coeff(std::declval<E>()));
 	};
 
 	template<typename coeff_t>
@@ -2754,15 +2876,15 @@ namespace expr
 		using type = coeff_t;
 	};
 
-	template<typename V, typename G0, exp_key_t X0, typename... Gs, exp_key_t... Xs>
-	struct coeff_type<OpTerms<V, Term<G0, X0>, Term<Gs, Xs>...>,
-		std::enable_if_t<has_coeff<OpTerms<V, Term<G0, X0>, Term<Gs, Xs>...>>, int>>
-	{
-		using type = V;
-	};
+	//template<typename V, typename G0, exp_key_t X0, typename... Gs, exp_key_t... Xs>
+	//struct coeff_type<OpTerms<V, Term<G0, X0>, Term<Gs, Xs>...>,
+	//	std::enable_if_t<has_coeff<OpTerms<V, Term<G0, X0>, Term<Gs, Xs>...>>, int>>
+	//{
+	//	using type = V;
+	//};
 
-	template<typename G0, exp_key_t X0, typename... Gs, exp_key_t... Xs>
-	struct coeff_type<OpTerms<Term<G0, X0>, Term<Gs, Xs>...>, int>;
+	//template<typename G0, exp_key_t X0, typename... Gs, exp_key_t... Xs>
+	//struct coeff_type<OpTerms<Term<G0, X0>, Term<Gs, Xs>...>, int>;
 
 	template<typename E>
 	using coeff_t = typename coeff_type<E, int>::type;
@@ -2839,6 +2961,12 @@ protected:
 
 	template<typename E0>
 	static constexpr std::index_sequence<expr::eval_type<E0>::rank> _get_rank(OpExpression<E0> const& e)
+	{
+		return {};
+	}
+
+	template<typename E0>
+	static constexpr std::index_sequence<expr::eval_type<E0>::template rank_<1>> _get_rank_1(OpExpression<E0> const& e)
 	{
 		return {};
 	}

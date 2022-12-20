@@ -74,7 +74,7 @@ struct model_field_name
 			else
 			{
 				char* name = new char[BUFFER_LENGTH];
-				sprintf(name, ORDER_PARAMETER_NAME_EXTRA_FMT, i);
+				snprintf(name, BUFFER_LENGTH, ORDER_PARAMETER_NAME_EXTRA_FMT, i);
 				EXTRA_NAMES.push_back(name);
 				return EXTRA_NAMES.back();
 			}
@@ -510,7 +510,6 @@ public:
 	 */
 	void step(double dt)
 	{
-		++index;
 		step(std::make_index_sequence<SN>{}, dt);
 
 #ifdef VTK_ON
@@ -650,18 +649,18 @@ protected:
 	ColourPlotUpdater* viz_update;
 	
 
+	template<int N = index_of_type<scalar_t>>
 	void visualize()
 	{
-		if constexpr (num_fields<scalar_t>() > 0)
+		if constexpr (N >= 0)
 		{
 			if (params::viz_interval > 0)
 			{
-				auto& frame = grid<index_of_type<scalar_t>>();
-				viz_thread = std::thread([&] ()
+				viz_thread = std::thread([] (auto* viz_grid, int* index, auto** viz_update)
 				{
 					ColourPlot2d viz{};
-					viz.init(frame.values, frame.dims, index, viz_update);
-				});
+					viz.init(viz_grid->values, viz_grid->dims, *index, *viz_update);
+				}, &grid<size_t(N)>(), &index, &viz_update);
 			}
 		}
 	}
@@ -881,7 +880,9 @@ protected:
 	template<size_t... Is>
 	void step(std::index_sequence<Is...>, double dt)
 	{
-		((..., solver.step(system<Is>(), dt)));
+		++index;
+		solver.dt = dt;
+		((..., solver.step(system<Is>())));
 	}
 
 

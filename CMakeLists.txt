@@ -35,7 +35,7 @@ set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 
-set(COMBINE_SHARED ON CACHE BOOL "create a single dll to include in the compilation of an executable")
+set(COMBINE_SHARED ON CACHE BOOL "create a single library to include in the compilation of an executable")
 
 
 set(LIBDIR "lib")
@@ -220,7 +220,7 @@ endforeach()
 list(APPEND SYMPHAS_LIBS ${SYMPHAS_DEP_LIBS} ${PROJECT_NAME})
 
 if(COMBINE_SHARED)
-	add_library(symphas_all SHARED ${MODULES_SOURCE})
+	add_library(symphas_all STATIC ${MODULES_SOURCE})
 	target_link_libraries(symphas_all PRIVATE ${SYMPHAS_OBJ_LIBS})
 	target_compile_definitions(symphas_all PRIVATE MODULES_EXPORT)
 

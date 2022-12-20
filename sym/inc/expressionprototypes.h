@@ -94,6 +94,11 @@ namespace expr
 	{
 		struct Symbol 
 		{
+			auto eval(iter_type = 0) const
+			{
+				return *this;
+			}
+
 			inline auto operator+(expr::symbols::Symbol)
 			{
 				return expr::symbols::Symbol{};
@@ -136,6 +141,16 @@ namespace expr
 			auto operator/(E)
 			{
 				return expr::symbols::Symbol{};
+			}
+
+			auto& operator+=(Symbol)
+			{
+				return *this;
+			}
+
+			auto& operator-=(Symbol)
+			{
+				return *this;
 			}
 		};
 
@@ -231,6 +246,8 @@ template<size_t O, typename V, typename T>
 struct OpOperatorDerivative;
 template<Axis ax, size_t O, typename V, typename Sp>
 struct OpOperatorDirectionalDerivative;
+template<typename V, typename Sp, size_t... Os>
+struct OpOperatorMixedDerivative;
 
 template<typename V, typename E1, typename E2>
 struct OpFuncConvolution;

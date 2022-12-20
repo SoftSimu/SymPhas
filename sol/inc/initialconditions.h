@@ -91,7 +91,7 @@
   * If an initial condition is generated with <span style="color:violet">`Inside`</span>`::NONE` 
   * and <span style="color:violet">`InsideTag`</span>`::NONE`, then no values are populated. If an 
   * initial condition is combined with an invalid modifier, the program reports an error and no 
-  * values will be populated. The default constructed  <span style="color:teal">`init_data_type`</span> 
+  * values will be populated. The default constructed  <span style="color:teal">`init_entry_type`</span> 
   * is initialized with <span style="color:violet">`Inside`</span>`::NONE` and 
   * <span style="color:violet">`InsideTag`</span>`::NONE`, so it is valid but will not generate 
   * any initial conditions.
@@ -121,7 +121,7 @@
   * Now, create the initial conditions parameter and the system can be initialized.
   * 
   * ```
-  * symphas::init_data_type tdata{ Inside::FILE, { index, "path/to/file/filename" } };
+  * symphas::init_entry_type tdata{ Inside::FILE, { index, "path/to/file/filename" } };
   * System<scalar_t, 2> sys(tdata, vdata);
   * ```
   * 
@@ -146,11 +146,11 @@ struct InitialConditionsData
 	 * \param dims The dimensions of the system.
 	 */
 	InitialConditionsData(
-		symphas::init_data_type const& tdata,
+		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
 		len_type const* dims
 	) :
-		tdata{ tdata }, vdata{ vdata }, dims{ 0 }
+		init{ init }, vdata{ vdata }, dims{ 0 }
 	{
 		std::copy(dims, dims + D, this->dims);
 	}
@@ -162,7 +162,9 @@ struct InitialConditionsData
 		return true;
 	}
 
-	symphas::init_data_type tdata;		//!< Initial condition parameters.
+	virtual ~InitialConditionsData() {};
+
+	symphas::init_entry_type init;		//!< Initial condition parameters.
 	symphas::interval_data_type vdata;	//!< Interval parameters.
 	len_type dims[D];					//!< Dimensions of the system.
 
@@ -178,7 +180,7 @@ namespace symphas::internal
 	template<>
 	struct value_fill<scalar_t>
 	{
-		scalar_t operator()(scalar_t value) const
+		scalar_t operator()(Axis ax, scalar_t const& current, scalar_t value) const
 		{
 			return value;
 		}
@@ -191,13 +193,41 @@ namespace symphas::internal
 			gen{ std::random_device{}() }, 
 			th{ -symphas::PI, symphas::PI } {}
 
-		complex_t operator()(scalar_t value) const
+		complex_t operator()(Axis ax, complex_t const& current, scalar_t value) const
 		{
-			using std::abs;
-			scalar_t
-				a = th(gen),
-				r = abs(value);
-			return { r * cos(a), r * sin(a) };
+			using namespace std;
+			switch (ax)
+			{
+			case Axis::NONE:
+			{
+				scalar_t
+					a = th(gen),
+					r = std::abs(value);
+				return { r * cos(a), r * sin(a) };
+			}
+			case Axis::X:
+			{
+				return { value, current.imag() };
+			}
+			case Axis::Y:
+			{
+				return { current.real(), value };
+			}
+			case Axis::T:
+			{
+				scalar_t m = abs(current);
+				return { m * cos(PI * value), m * sin(PI * value) };
+			}
+			case Axis::R:
+			{
+				scalar_t r = abs(current) / value;
+				return { current.real() / r, current.imag() / r };
+			}
+			default:
+			{
+				return current;
+			}
+			}
 		}
 
 		mutable std::mt19937 gen;
@@ -208,7 +238,7 @@ namespace symphas::internal
 	template<>
 	struct value_fill<vector_t<1>>
 	{
-		vector_t<1> operator()(scalar_t value) const
+		vector_t<1> operator()(Axis ax, vector_t<1> const& current, scalar_t value) const
 		{
 			return { value };
 		}
@@ -219,9 +249,9 @@ namespace symphas::internal
 	{
 		using value_fill<complex_t>::value_fill;
 
-		vector_t<2> operator()(scalar_t value) const
+		vector_t<2> operator()(Axis ax, vector_t<2> const& current, scalar_t value) const
 		{
-			auto c = value_fill<complex_t>::operator()(value);
+			auto c = value_fill<complex_t>::operator()(ax, complex_t(current[0], current[1]), value);
 			return { c.real(), c.imag() };
 		}
 	};
@@ -231,14 +261,55 @@ namespace symphas::internal
 	{
 		using value_fill<complex_t>::value_fill;
 
-		vector_t<3> operator()(scalar_t value) const
+		vector_t<3> operator()(Axis ax, vector_t<3> const& current, scalar_t value) const
 		{
-			using std::abs;
-			scalar_t
-				a = th(gen),
-				b = th(gen),
-				r = abs(value);
-			return { r * sin(a) * cos(b), r * sin(a) * sin(b), r * cos(a) };
+			using namespace std;
+			switch (ax)
+			{
+			case Axis::NONE:
+			{
+				scalar_t
+					a = th(gen),
+					b = th(gen),
+					r = std::abs(value);
+				return { r * sin(a) * cos(b), r * sin(a) * sin(b), r * cos(a) };
+			}
+			case Axis::X:
+			{
+				return { value, current[1], current[2] };
+			}
+			case Axis::Y:
+			{
+				return { current[0], value, current[2] };
+			}
+			case Axis::Z:
+			{
+				return { current[0], current[1], value };
+			}
+			case Axis::T:
+			{
+				scalar_t m = abs(current);
+				scalar_t th = PI * value;
+				scalar_t phi = acos(current[2] / m);
+				return { m * sin(phi) * cos(th), m * sin(phi) * sin(th), m * cos(phi) };
+			}
+			case Axis::S:
+			{
+				scalar_t m = abs(current);
+				scalar_t th = atan(current[1] / current[0]);
+				scalar_t phi = PI * value;
+				return { m * sin(phi) * cos(th), m * sin(phi) * sin(th), m * cos(phi) };
+			}
+			case Axis::R:
+			{
+				scalar_t r = abs(current) / value;
+				return { current[0] / r, current[1] / r, current[2] / r };
+			}
+			default:
+			{
+				return current;
+			}
+			}
 		}
 	};
 
@@ -261,36 +332,27 @@ namespace symphas::internal
 		//! Create an iterator starting at the given position.
 		/*!
 		 * Create an iterator over an expression starting at the given
-		 * position.
-		 *
-		 * \param pos The index of the underlying data in the expression
-		 * which is the first index in the iterator.
-		 */
-		ic_iterator(difference_type pos = 0)
-			: fill{}, init{ nullptr }, pos{ pos } {}
-
-		//! Create an iterator starting at the given position.
-		/*!
-		 * Create an iterator over an expression starting at the given
 		 * position. The expression is explicitly given.
 		 *
 		 * \param e The expression for this iterator.
 		 * \param pos The index of the underlying data in the expression
 		 * which is the first index in the iterator.
 		 */
-		explicit ic_iterator(E const& e, difference_type pos = 0)
-			: fill{}, init{ static_cast<E const*>(&e) }, pos{ pos } {}
+		explicit ic_iterator(Axis ax, T* values, E const& e, difference_type pos = 0)
+			: fill{}, init{ static_cast<E const*>(&e) }, pos{ pos }, ax{ ax }, values{ values } {}
 
 
 		ic_iterator(ic_iterator<T, D> const& other) :
-			ic_iterator(*other.init, other.pos) {}
+			ic_iterator(other.ax, other.values, *other.init, other.pos) {}
 		ic_iterator(ic_iterator<T, D>&& other) :
-			ic_iterator(*other.init, other.pos) {}
+			ic_iterator(other.ax, *other.init, other.pos) {}
 		ic_iterator<T, D>& operator=(ic_iterator<T, D> other)
 		{
 			fill = other.fill;
 			init = other.init;
 			pos = other.pos;
+			ax = other.ax;
+			values = other.values;
 			return *this;
 		}
 
@@ -343,13 +405,13 @@ namespace symphas::internal
 		//! Dereference the iterator.
 		inline value_type operator*() const
 		{
-			return fill((*init)(pos));
+			return fill(ax, values[pos], (*init)(pos));
 		};
 
 		//! Dereference past the iterator.
 		inline value_type operator[](difference_type given_pos) const
 		{
-			return fill((*init)(pos + given_pos));
+			return fill(ax, values[pos], (*init)(pos + given_pos));
 		}
 
 		//! Member access of the iterated expression.
@@ -470,6 +532,8 @@ namespace symphas::internal
 		value_fill<T> fill;		//!< Method to return the correct type from the generation result.
 		E const* init;			//!< Pointer to the initial conditions generator.
 		difference_type pos;	//!< Current index of iteration.
+		Axis ax;				//!< Axis of the entries to fill. If NONE, all entries are initialized.
+		T* values;				//!< Pointer to the values that will be filled.
 	};
 
 }
@@ -490,7 +554,6 @@ template<size_t D, Inside in, InsideTag... tags>
 struct InitialConditionsAlg;
 
 
-
 namespace symphas::internal
 {
 	template<InsideTag... tags>
@@ -508,14 +571,13 @@ namespace symphas::internal
 	struct make_new_ic_delegate
 	{
 		InitialConditionsData<D>* operator()(
-			symphas::init_data_type const& tdata,
+			symphas::init_entry_type const& init,
 			symphas::interval_data_type const& vdata,
-			len_type const* dims)
+			len_type const* dims) const
 		{
-			if (tdata.in == in)
+			if (init.in == in)
 			{
-				return check_tags_start(
-					tdata, vdata, dims, typename tags_for_init_value<in>::type{});
+				return check_tags_start(init, vdata, dims, typename tags_for_init_value<in>::type{});
 			}
 			else
 			{
@@ -525,40 +587,40 @@ namespace symphas::internal
 
 	protected:
 
-		template<typename... other_tags>
 		InitialConditionsData<D>* check_tags(
-			symphas::init_data_type const& tdata,
+			symphas::init_entry_type const& init,
 			symphas::interval_data_type const& vdata,
-			len_type const* dims)
+			len_type const* dims) const
 		{
-			return new InitialConditionsAlg<D, in>(tdata, vdata, dims);
+			return new InitialConditionsAlg<D, in>(init, vdata, dims);
 		}
 
 		template<typename... other_tag_types, InsideTag... tags>
 		InitialConditionsData<D>* check_tags(
-			symphas::init_data_type const& tdata,
+			symphas::init_entry_type const& init,
 			symphas::interval_data_type const& vdata,
 			len_type const* dims,
-			init_tag_values_list<tags...>, other_tag_types... other_tags)
+			init_tag_values_list<tags...>, other_tag_types... other_tags) const
 		{
-			if (((tag_bit_compare(tdata.intag, tags) && ...)))
+			size_t check_tag = build_intag(tags...);
+			if (init.intag == check_tag)
 			{
-				return new InitialConditionsAlg<D, in, tags...>(tdata, vdata, dims);
+				return new InitialConditionsAlg<D, in, tags...>(init, vdata, dims);
 			}
 			else
 			{
-				return check_tags(tdata, vdata, dims, other_tags...);
+				return check_tags(init, vdata, dims, other_tags...);
 			}
 		}
 
 		template<typename... tag_tuple_types>
 		InitialConditionsData<D>* check_tags_start(
-			symphas::init_data_type const& tdata,
+			symphas::init_entry_type const& init,
 			symphas::interval_data_type const& vdata,
 			len_type const* dims,
-			symphas::lib::types_list<tag_tuple_types...>)
+			symphas::lib::types_list<tag_tuple_types...>) const
 		{
-			return check_tags(tdata, vdata, dims, tag_tuple_types{}...);
+			return check_tags(init, vdata, dims, tag_tuple_types{}...);
 		}
 
 		
@@ -626,11 +688,11 @@ struct InitialConditionsAlg<D, Inside::SQUARE, InsideTag::RANDOM> :
 	using parent_type = InitialConditionsAlg<D, Inside::SQUARE>;
 	
 	InitialConditionsAlg(
-		symphas::init_data_type const& tdata, 
+		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
 		len_type const* dims
 	) :
-		parent_type(tdata, vdata, dims)
+		parent_type(init, vdata, dims)
 	{
 		offsets = symphas::internal::RandomDeltas<D>(1, dims, IC_SQUARE_RND_FACTOR);
 	}
@@ -767,11 +829,11 @@ struct InitialConditionsAlg<D, Inside::CIRCLE, InsideTag::RANDOM> :
 {
 	using parent_type = InitialConditionsAlg<D, Inside::CIRCLE>;
 	InitialConditionsAlg(
-		symphas::init_data_type const& tdata, 
+		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
 		len_type const* dims
 	) :
-		parent_type(tdata, vdata, dims)
+		parent_type(init, vdata, dims)
 	{
 		offsets = symphas::internal::RandomDeltas<D>(1, dims, IC_CIRCLE_RND_FACTOR);
 	}
@@ -945,18 +1007,18 @@ struct InitialConditionsAlg<D, Inside::CUBIC, InsideTag::RANDOM> :
 	using parent_type::parent_type;
 
 	InitialConditionsAlg(
-		symphas::init_data_type const& tdata,
+		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
 		len_type const* dims
 	) :
-		parent_type(tdata, vdata, dims)
+		parent_type(init, vdata, dims)
 	{
 		size_t prod = 1;
 		len_type local_dims[D];
 		for (iter_type i = 0; i < D; ++i)
 		{
-			prod *= static_cast<size_t>(tdata.data.gp[i]);
-			local_dims[i] = static_cast<len_type>(dims[i] / tdata.data.gp[i]);
+			prod *= static_cast<size_t>(init.data.gp[i]);
+			local_dims[i] = static_cast<len_type>(dims[i] / init.data.gp[i]);
 		}
 		offsets = symphas::internal::RandomDeltas<D>(prod, local_dims, IC_CUBIC_RND_FACTOR);
 	}
@@ -1075,18 +1137,18 @@ struct InitialConditionsAlg<D, Inside::HEXAGONAL, InsideTag::RANDOM> :
 	using parent_type = InitialConditionsAlg<D, Inside::HEXAGONAL>;
 
 	InitialConditionsAlg(
-		symphas::init_data_type const& tdata, 
+		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
 		len_type const* dims
 	) :
-		parent_type(tdata, vdata, dims)
+		parent_type(init, vdata, dims)
 	{
 		size_t prod = D;
 		len_type local_dims[D];
 		for (iter_type i = 0; i < D; ++i)
 		{
-			prod *= static_cast<size_t>(tdata.data.gp[i]);
-			local_dims[i] = static_cast<len_type>(dims[i] / tdata.data.gp[i]);
+			prod *= static_cast<size_t>(init.data.gp[i]);
+			local_dims[i] = static_cast<len_type>(dims[i] / init.data.gp[i]);
 		}
 		offsets = symphas::internal::RandomDeltas<D>(prod, local_dims, IC_HEX_RND_FACTOR);
 	}
@@ -1155,13 +1217,13 @@ struct InitialConditionsAlg<D, Inside::SEEDSSQUARE> :
 	using parent_type::parent_type;
 
 	InitialConditionsAlg(
-		symphas::init_data_type const& tdata, 
+		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
 		len_type const* dims
 	) :
-		parent_type(tdata, vdata, dims)
+		parent_type(init, vdata, dims)
 	{
-		size_t n = static_cast<size_t>(tdata.data.gp[0]);
+		size_t n = static_cast<size_t>(init.data.gp[0]);
 
 		len_type center_dims[D];
 		double center_delta[D];
@@ -1204,16 +1266,16 @@ struct InitialConditionsAlg<D, Inside::SEEDSSQUARE, InsideTag::RANDOM> :
 	using parent_type = InitialConditionsAlg<D, Inside::SEEDSSQUARE>;
 	
 	InitialConditionsAlg(
-		symphas::init_data_type const& tdata, 
+		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
 		len_type const* dims
 	) :
-		parent_type(tdata, vdata, dims)
+		parent_type(init, vdata, dims)
 	{
-		size_t n = static_cast<size_t>(tdata.data.gp[0]);
-		scalar_t in_value = (symphas::internal::tag_bit_compare(tdata.intag, InsideTag::INVERT)
-			? tdata.data.gp[3]
-			: tdata.data.gp[2]);
+		size_t n = static_cast<size_t>(init.data.gp[0]);
+		scalar_t in_value = (symphas::internal::tag_bit_compare(init.intag, InsideTag::INVERT)
+			? init.data.gp[3]
+			: init.data.gp[2]);
 		scalar_t value_rng[] = { in_value * (1 - IC_SEED_RND_FACTOR) };
 
 		values = symphas::internal::RandomOffsets<scalar_t, 1>(n, value_rng, IC_SEED_RND_FACTOR);
@@ -1338,15 +1400,15 @@ struct InitialConditionsAlg<D, Inside::SEEDSSQUARE, InsideTag::VARC> :
 	scalar_t operator()(iter_type) const override;
 
 	InitialConditionsAlg(
-		symphas::init_data_type const& tdata,
+		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
 		len_type const* dims
 	) :
-		parent_type(tdata, vdata, dims),
+		parent_type(init, vdata, dims),
 		gen{ std::random_device{}() },
 		seed_value_dis{
-			(tdata.data.gp[2] < tdata.data.gp[3]) ? tdata.data.gp[2] : tdata.data.gp[3],
-			(tdata.data.gp[3] > tdata.data.gp[2]) ? tdata.data.gp[3] : tdata.data.gp[2] } {}
+			(init.data.gp[2] < init.data.gp[3]) ? init.data.gp[2] : init.data.gp[3],
+			(init.data.gp[3] > init.data.gp[2]) ? init.data.gp[3] : init.data.gp[2] } {}
 
 
 	mutable std::mt19937 gen;
@@ -1369,7 +1431,7 @@ struct InitialConditionsAlg<D, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::
 	scalar_t operator()(iter_type) const override;
 
 	InitialConditionsAlg(
-		symphas::init_data_type const& tdata,
+		symphas::init_entry_type const& tdata,
 		symphas::interval_data_type const& vdata,
 		len_type const* dims
 	) : 
@@ -1980,12 +2042,12 @@ struct InitialConditionsAlg<D, Inside::VORONOI> :
 	using parent_type = InitialConditionsData<D>;
 
 	InitialConditionsAlg(
-		symphas::init_data_type const& tdata,
+		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
 		len_type const* dims
 	) :
-		parent_type(tdata, vdata, dims),
-		N{ static_cast<size_t>(tdata.data.gp[0]) }
+		parent_type(init, vdata, dims),
+		N{ static_cast<size_t>(init.data.gp[0]) }
 	{
 		scalar_t center_delta[D];
 		for (iter_type i = 0; i < D; ++i)
@@ -1997,8 +2059,8 @@ struct InitialConditionsAlg<D, Inside::VORONOI> :
 		offsets.add_to_all(center_delta);
 		offsets.sort();
 
-		double value_rng[] = { (tdata.data.gp[1] + tdata.data.gp[2]) / 2 };
-		values = symphas::internal::RandomOffsets<scalar_t, 1>(N, value_rng, (tdata.data.gp[1] - tdata.data.gp[2]) / 2);
+		double value_rng[] = { (init.data.gp[1] + init.data.gp[2]) / 2 };
+		values = symphas::internal::RandomOffsets<scalar_t, 1>(N, value_rng, (init.data.gp[2] - init.data.gp[1]) / 2);
 	}
 
 	scalar_t operator()(iter_type) const override;
@@ -2009,18 +2071,145 @@ struct InitialConditionsAlg<D, Inside::VORONOI> :
 
 };
 
+#define BUBBLE_R_RATIO (1.0 / 16)
 
 
-//! Generates values for a Voronoi Diagram. 
+//! Fills the system with equally sized semi-overlapping bubbles. 
+/*!
+ * Fill the bubble with N points, where N is the first parameter of the initial conditions.
+ * The second parameter of the initial conditions is the packing ratio. For high packing ratios,
+ * the value may not be reached, but the algorithm will attempt to place as many bubbles
+ * as possible.
+ */
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::BUBBLE> :
+	InitialConditionsData<D>
+{
+	using parent_type = InitialConditionsData<D>;
+
+	InitialConditionsAlg(
+		symphas::init_entry_type const& init,
+		symphas::interval_data_type const& vdata,
+		len_type const* dims
+	) :
+		parent_type(init, vdata, dims),
+		N{ size_t(init.data.gp[0]) }, R{ symphas::internal::compute_bubble_R(vdata, init.data.gp[3], N) }
+	{
+		// The amount of overlap controls how close bubbles should be to each other.
+		// For high packing ratios, the overlap will be positive because bubble can be generated
+		// on top of each other. For small packing ratios, the overlap will be ngative to give
+		// each bubble more space.
+		scalar_t overlap = symphas::internal::compute_bubble_overlap(init.data.gp[3], R, init.data.gp[4]);
+
+		// The change in overlap varies from .2R to 1R as overlap itself goes from .2R to -2R, after which it is always R
+		double overlap_eps = symphas::internal::compute_bubble_overlap_range(init.data.gp[3], R, init.data.gp[4]);
+
+		// when overlap is negative, then the episolon needs to be added in order for the offsets to be computed correctly.
+		symphas::internal::RandomOffsets<scalar_t, 1> overlaps(N, overlap, overlap_eps);
+		symphas::internal::RandomOffsets<iter_type, D> start(1, dims);
+
+		offsets = symphas::internal::get_bubble_positions<D>(N, R, overlap + overlap_eps, overlaps, dims, start.get_offset(0));
+		offsets.sort();
+
+		double value_rng[] = { (init.data.gp[1] + init.data.gp[2]) / 2 };
+		values = symphas::internal::RandomOffsets<scalar_t, 1>(N, value_rng, (init.data.gp[2] - init.data.gp[1]) / 2);
+	}
+
+	scalar_t operator()(iter_type) const override;
+
+	size_t N;													//!< Number of regions.
+	double R;
+	symphas::internal::RandomDeltas<D> offsets;					//!< Manages a list of random offsets.
+	symphas::internal::RandomOffsets<scalar_t, 1> values;		//!< Manages a list of random values.
+
+};
+
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::SIN> :
+	InitialConditionsData<D>
+{
+	using parent_type = InitialConditionsData<D>;
+	using parent_type::parent_type;
+	using parent_type::init;
+	using parent_type::dims;
+	using parent_type::vdata;
+
+	scalar_t operator()(iter_type n) const override
+	{
+		return symphas::internal::get_function_value(n, &symphas::math::sin<scalar_t>, dims, vdata, init.data.gp);
+	}
+};
+
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::SIN, InsideTag::VARA> :
+	InitialConditionsData<D>
+{
+	using parent_type = InitialConditionsData<D>;
+	using parent_type::parent_type;
+	using parent_type::init;
+	using parent_type::dims;
+	using parent_type::vdata;
+
+	scalar_t operator()(iter_type n) const override
+	{
+		return symphas::internal::get_function_value_A(n, &symphas::math::sin<scalar_t>, dims, vdata, init.data.gp);
+	}
+};
+
+
+template<>
+struct symphas::internal::tags_for_init_value<Inside::SIN>
+{
+	using type = symphas::lib::types_list<
+		init_tag_values_list<InsideTag::VARA>>;
+};
+
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::COS> :
+	InitialConditionsData<D>
+{
+	using parent_type = InitialConditionsData<D>;
+	using parent_type::parent_type;
+	using parent_type::init;
+	using parent_type::dims;
+	using parent_type::vdata;
+
+	scalar_t operator()(iter_type n) const override
+	{
+		return symphas::internal::get_function_value(n, &symphas::math::cos<scalar_t>, dims, vdata, init.data.gp);
+	}
+};
+
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::COS, InsideTag::VARA> :
+	InitialConditionsData<D>
+{
+	using parent_type = InitialConditionsData<D>;
+	using parent_type::parent_type;
+	using parent_type::init;
+	using parent_type::dims;
+	using parent_type::vdata;
+
+	scalar_t operator()(iter_type n) const override
+	{
+		return symphas::internal::get_function_value_A(n, &symphas::math::cos<scalar_t>, dims, vdata, init.data.gp);
+	}
+};
+
+template<>
+struct symphas::internal::tags_for_init_value<Inside::COS>
+{
+	using type = symphas::lib::types_list<
+		init_tag_values_list<InsideTag::VARA>>;
+};
+
+//! Generates values for a Voronoi Diagram with periodic boundaries. 
 /*!
  * Given the number of Voronoi points as the first initial condition parameter,
  * this algorithm will generate a
  * corresponding number of random values in the uniform range between the
  * second and third initial conditions parameters for each crystal.
- * That is, given parameters `N`, `A` and `B`, (specified in that order),
- * `N` is the number of crystals generated, `A` is the lowest value a crystal
- * can be populated with, and `B` is the greatest value a crystal can
- * be populated with.
+ * Each crystal will be periodic around the system.
  * 
  * This variation will apply periodic boundaries when determining the closest
  * point.
@@ -2031,16 +2220,852 @@ struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::VARA> :
 {
 	using parent_type = InitialConditionsAlg<D, Inside::VORONOI>;
 	using parent_type::parent_type;
+
 	scalar_t operator()(iter_type) const override;
 };
+
+//! Generates values for a Voronoi Diagram which, once set, are always the same. 
+/*!
+ * If generating multiple fields, but the voronoi crystal should have the exact same
+ * parameters, then this variation will always return the same values.
+ */
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED> 
+	: InitialConditionsData<D>
+{
+	using parent_type = InitialConditionsData<D>;
+
+	InitialConditionsAlg(
+		symphas::init_entry_type const& init,
+		symphas::interval_data_type const& vdata,
+		len_type const* dims
+	) :
+		parent_type(init, vdata, dims), voronoi{ get_voronoi(init, vdata, dims) } {}
+
+
+	scalar_t operator()(iter_type n) const override
+	{
+		return voronoi(n);
+	}
+
+	auto get_voronoi(
+		symphas::init_entry_type const& init,
+		symphas::interval_data_type const& vdata,
+		len_type const* dims)
+	{
+		static InitialConditionsAlg<D, Inside::VORONOI> v(init, vdata, dims);
+		return v;
+	}
+
+	InitialConditionsAlg<D, Inside::VORONOI> voronoi;
+	
+};
+
+//! Generates values for a Voronoi Diagram which, once set, are always the same. 
+/*!
+ * If generating multiple fields, but the voronoi crystal should have the exact same
+ * parameters, then this variation will always return the same values.
+ *
+ * This variation will apply periodic boundaries when determining the closest
+ * point.
+ */
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::VARA>
+	: InitialConditionsData<D>
+{
+	using parent_type = InitialConditionsData<D>;
+
+	InitialConditionsAlg(
+		symphas::init_entry_type const& init,
+		symphas::interval_data_type const& vdata,
+		len_type const* dims
+	) :
+		parent_type(init, vdata, dims), voronoi{ get_voronoi(init, vdata, dims) } {}
+
+
+	scalar_t operator()(iter_type n) const override
+	{
+		return voronoi(n);
+	}
+
+	auto get_voronoi(
+		symphas::init_entry_type const& init,
+		symphas::interval_data_type const& vdata,
+		len_type const* dims)
+	{
+		static InitialConditionsAlg<D, Inside::VORONOI> v(init, vdata, dims);
+		return v;
+	}
+
+	InitialConditionsAlg<D, Inside::VORONOI, InsideTag::VARA> voronoi;
+
+};
+
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::VARA, InsideTag::FIXEDSEED> :
+	InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::VARA>
+{
+	using parent_type = InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::VARA>;
+	using parent_type::parent_type;
+};
+
+//! Generates values for a Voronoi Diagram where the crystal always has the same shape. 
+/*!
+ * If generating multiple fields, but the voronoi crystal should have the exact same
+ * parameters, then this variation will always return the same crystal, but the values
+ * of the crystal will be different.
+ */
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM> :
+	InitialConditionsData<D>
+{
+	using parent_type = InitialConditionsData<D>;
+
+	InitialConditionsAlg(
+		symphas::init_entry_type const& init,
+		symphas::interval_data_type const& vdata,
+		len_type const* dims
+	) :
+		parent_type(init, vdata, dims),
+		N{ static_cast<size_t>(init.data.gp[0]) }
+	{
+		static auto offsets0 = get_offsets(dims);
+		offsets = offsets0;
+
+		double value_rng[] = { (init.data.gp[1] + init.data.gp[2]) / 2 };
+		values = symphas::internal::RandomOffsets<scalar_t, 1>(N, value_rng, (init.data.gp[1] - init.data.gp[2]) / 2);
+	}
+
+	auto get_offsets(len_type const* dims)
+	{
+		scalar_t center_delta[D];
+		for (iter_type i = 0; i < D; ++i)
+		{
+			center_delta[i] = dims[i] / 2;
+		}
+
+		symphas::internal::RandomDeltas<D> offsets0(N, dims, 0.5);
+		offsets0.add_to_all(center_delta);
+		offsets0.sort();
+		return offsets0;
+	}
+
+	scalar_t operator()(iter_type) const override;
+
+	size_t N;													//!< Number of regions.
+	symphas::internal::RandomDeltas<D> offsets;					//!< Manages a list of random offsets.
+	symphas::internal::RandomOffsets<scalar_t, 1> values;		//!< Manages a list of random values.
+
+};
+
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::RANDOM, InsideTag::FIXEDSEED> :
+	InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM>
+{
+	using parent_type = InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM>;
+	using parent_type::parent_type;
+};
+
+
+//! Generates values for a Voronoi Diagram where the crystal always has the same shape. 
+/*!
+ * If generating multiple fields, but the voronoi crystal should have the exact same
+ * parameters, then this variation will always return the same crystal, but the values
+ * of the crystal will be different.
+ *
+ * This variation will apply periodic boundaries when determining the closest
+ * point.
+ */
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA> :
+	InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM>
+{
+	using parent_type = InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM>;
+	using parent_type::parent_type;
+	using parent_type::N;
+	using parent_type::offsets;
+	using parent_type::values;
+
+	scalar_t operator()(iter_type) const override;
+
+};
+
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::RANDOM, InsideTag::FIXEDSEED, InsideTag::VARA> :
+	InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA>
+{
+	using parent_type = InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA>;
+	using parent_type::parent_type;
+};
+
+//! Generates values for a Voronoi Diagram where the crystal always has the same shape. 
+/*!
+ * If generating multiple fields, but the voronoi crystal should have the exact same
+ * parameters, then this variation will always return the same crystal, but the values
+ * of the crystal will be different.
+ */
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB> :
+	InitialConditionsData<D>
+{
+	using parent_type = InitialConditionsData<D>;
+
+	InitialConditionsAlg(
+		symphas::init_entry_type const& init,
+		symphas::interval_data_type const& vdata,
+		len_type const* dims
+	) :
+		parent_type(init, vdata, dims),
+		N{ static_cast<size_t>(init.data.gp[0]) }
+	{
+		static auto offsets0 = get_offsets(dims);
+		offsets = offsets0;
+
+		values = get_values(init);
+	}
+
+	auto get_offsets(len_type const* dims) const
+	{
+		scalar_t center_delta[D];
+		for (iter_type i = 0; i < D; ++i)
+		{
+			center_delta[i] = dims[i] / 2;
+		}
+
+		symphas::internal::RandomDeltas<D> offsets0(N, dims, 0.5);
+		offsets0.add_to_all(center_delta);
+		offsets0.sort();
+		return offsets0;
+	}
+
+	auto get_values(symphas::init_entry_type const& init) const
+	{
+		static int I = 0;
+		double value_rng[] = { (init.data.gp[1] + init.data.gp[2]) / 2 };
+		static symphas::internal::RandomOffsets<scalar_t, 1> values0(N, value_rng, (init.data.gp[1] - init.data.gp[2]) / 2);
+		
+		double value_rng0[] = { init.data.gp[1] };
+		symphas::internal::RandomOffsets<scalar_t, 1> values1(N, value_rng0, 0);
+		values1.set_offset(I, values0.get_offset(I));
+
+		I += 1;
+		return values1;
+	}
+
+	scalar_t operator()(iter_type) const override;
+
+	size_t N;													//!< Number of regions.
+	symphas::internal::RandomDeltas<D> offsets;					//!< Manages a list of random offsets.
+	symphas::internal::RandomOffsets<scalar_t, 1> values;		//!< Manages a list of random values.
+
+};
+
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::VARB, InsideTag::RANDOM, InsideTag::FIXEDSEED> :
+	InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>
+{
+	using parent_type = InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>;
+	using parent_type::parent_type;
+};
+
+//! Generates values for a Voronoi Diagram where the crystal always has the same shape. 
+/*!
+ * If generating multiple fields, but the voronoi crystal should have the exact same
+ * parameters, then this variation will always return the same crystal, but the values
+ * of the crystal will be different.
+ *
+ * This variation will apply periodic boundaries when determining the closest
+ * point.
+ */
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARB> :
+	InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>
+{
+	using parent_type = InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>;
+	using parent_type::parent_type;
+	using parent_type::N;
+	using parent_type::offsets;
+	using parent_type::values;
+
+	scalar_t operator()(iter_type) const override;
+
+};
+
+
+
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB, InsideTag::VARA> :
+	InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>
+{
+	using parent_type = InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>;
+	using parent_type::parent_type;
+};
+
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::RANDOM, InsideTag::FIXEDSEED, InsideTag::VARA, InsideTag::VARB> :
+	InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>
+{
+	using parent_type = InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>;
+	using parent_type::parent_type;
+};
+
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::RANDOM, InsideTag::FIXEDSEED, InsideTag::VARB, InsideTag::VARA> :
+	InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>
+{
+	using parent_type = InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>;
+	using parent_type::parent_type;
+};
+
+
+//! Generates values for a Voronoi Diagram where the crystal always has the same shape. 
+/*!
+ * If generating multiple fields, but the voronoi crystal should have the exact same
+ * parameters, then this variation will always return the same crystal, but the values
+ * of the crystal will be different.
+ *
+ * This variation will apply periodic boundaries when determining the closest
+ * point.
+ */
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC> :
+	InitialConditionsData<D>
+{
+	using parent_type = InitialConditionsData<D>;
+
+	InitialConditionsAlg(
+		symphas::init_entry_type const& init,
+		symphas::interval_data_type const& vdata,
+		len_type const* dims
+	) :
+		parent_type(init, vdata, dims),
+		N{ static_cast<size_t>(init.data.gp[0]) }
+	{
+		static auto offsets0 = get_offsets(dims);
+		offsets = offsets0;
+
+		values = get_values(init);
+	}
+
+	auto get_offsets(len_type const* dims) const
+	{
+		scalar_t center_delta[D];
+		for (iter_type i = 0; i < D; ++i)
+		{
+			center_delta[i] = dims[i] / 2;
+		}
+
+		symphas::internal::RandomDeltas<D> offsets0(N, dims, 0.5);
+		offsets0.add_to_all(center_delta);
+		offsets0.sort();
+		return offsets0;
+	}
+
+	auto get_values(symphas::init_entry_type const& init) const
+	{
+		static int I = 0;
+
+		double value_rng0[] = { init.data.gp[1] };
+		symphas::internal::RandomOffsets<scalar_t, 1> values1(N, value_rng0, 0);
+		values1.set_offset(I, init.data.gp[2]);
+
+		I += 1;
+		return values1;
+	}
+
+	scalar_t operator()(iter_type) const override;
+
+	size_t N;													//!< Number of regions.
+	symphas::internal::RandomDeltas<D> offsets;					//!< Manages a list of random offsets.
+	symphas::internal::RandomOffsets<scalar_t, 1> values;		//!< Manages a list of random values.
+
+};
+
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::RANDOM, InsideTag::FIXEDSEED, InsideTag::VARC> :
+	InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>
+{
+	using parent_type = InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>;
+	using parent_type::parent_type;
+};
+
+
+
+//! Generates values for a Voronoi Diagram where the crystal always has the same shape. 
+/*!
+ * If generating multiple fields, but the voronoi crystal should have the exact same
+ * parameters, then this variation will always return the same crystal, but the values
+ * of the crystal will be different.
+ *
+ * This variation will apply periodic boundaries when determining the closest
+ * point.
+ */
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARC> :
+	InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>
+{
+	using parent_type = InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>;
+	using parent_type::parent_type;
+	using parent_type::N;
+	using parent_type::offsets;
+	using parent_type::values;
+
+	scalar_t operator()(iter_type) const override;
+
+};
+
 
 
 template<>
 struct symphas::internal::tags_for_init_value<Inside::VORONOI>
 {
 	using type = symphas::lib::types_list<
-		init_tag_values_list<InsideTag::VARA>>;
+		init_tag_values_list<InsideTag::VARA>,
+		init_tag_values_list<InsideTag::FIXEDSEED>,
+		init_tag_values_list<InsideTag::FIXEDSEED, InsideTag::RANDOM>,
+		init_tag_values_list<InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA>,
+		init_tag_values_list<InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>,
+		init_tag_values_list<InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>,
+		init_tag_values_list<InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARB>,
+		init_tag_values_list<InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARC>>;
 };
+
+
+
+
+
+//! Generates values for a Voronoi Diagram with periodic boundaries. 
+/*!
+ * Given the number of Voronoi points as the first initial condition parameter,
+ * this algorithm will generate a
+ * corresponding number of random values in the uniform range between the
+ * second and third initial conditions parameters for each crystal.
+ * Each crystal will be periodic around the system.
+ *
+ * This variation will apply periodic boundaries when determining the closest
+ * point.
+ */
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::VARA> :
+	InitialConditionsAlg<D, Inside::BUBBLE>
+{
+	using parent_type = InitialConditionsAlg<D, Inside::BUBBLE>;
+	using parent_type::parent_type;
+
+	scalar_t operator()(iter_type) const override;
+};
+
+//! Fills the system with equally sized semi-overlapping bubbles. 
+/*!
+ * If generating multiple fields, but the bubble crystal should have the exact same
+ * parameters, then this variation will always return the same values.
+ */
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED>
+	: InitialConditionsData<D>
+{
+	using parent_type = InitialConditionsData<D>;
+
+	InitialConditionsAlg(
+		symphas::init_entry_type const& init,
+		symphas::interval_data_type const& vdata,
+		len_type const* dims
+	) :
+		parent_type(init, vdata, dims), bubble{ get_bubble(init, vdata, dims) } {}
+
+
+	scalar_t operator()(iter_type n) const override
+	{
+		return bubble(n);
+	}
+
+	auto get_bubble(
+		symphas::init_entry_type const& init,
+		symphas::interval_data_type const& vdata,
+		len_type const* dims)
+	{
+		static InitialConditionsAlg<D, Inside::BUBBLE> v(init, vdata, dims);
+		return v;
+	}
+
+	InitialConditionsAlg<D, Inside::BUBBLE> bubble;
+
+};
+
+//! Fills the system with equally sized semi-overlapping bubbles. 
+/*!
+ * If generating multiple fields, but the bubble crystal should have the exact same
+ * parameters, then this variation will always return the same values.
+ *
+ * This variation will apply periodic boundaries when determining the closest
+ * point.
+ */
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::VARA>
+	: InitialConditionsData<D>
+{
+	using parent_type = InitialConditionsData<D>;
+
+	InitialConditionsAlg(
+		symphas::init_entry_type const& init,
+		symphas::interval_data_type const& vdata,
+		len_type const* dims
+	) :
+		parent_type(init, vdata, dims), bubble{ get_bubble(init, vdata, dims) } {}
+
+
+	scalar_t operator()(iter_type n) const override
+	{
+		return bubble(n);
+	}
+
+	auto get_bubble(
+		symphas::init_entry_type const& init,
+		symphas::interval_data_type const& vdata,
+		len_type const* dims)
+	{
+		static InitialConditionsAlg<D, Inside::BUBBLE> v(init, vdata, dims);
+		return v;
+	}
+
+	InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::VARA> bubble;
+
+};
+
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::VARA, InsideTag::FIXEDSEED> :
+	InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::VARA>
+{
+	using parent_type = InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::VARA>;
+	using parent_type::parent_type;
+};
+
+//! Fills the system with equally sized semi-overlapping bubbles. 
+/*!
+ * Fill the bubble with N points, where N is the first parameter of the initial conditions.
+ * The second parameter of the initial conditions is the packing ratio. For high packing ratios,
+ * the value may not be reached, but the algorithm will attempt to place as many bubbles
+ * as possible.
+ */
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM> :
+	InitialConditionsData<D>
+{
+	using parent_type = InitialConditionsData<D>;
+
+	InitialConditionsAlg(
+		symphas::init_entry_type const& init,
+		symphas::interval_data_type const& vdata,
+		len_type const* dims
+	) :
+		parent_type(init, vdata, dims),
+		N{ size_t(init.data.gp[0]) }, R{ symphas::internal::compute_bubble_R(vdata, init.data.gp[3], N) }
+	{
+		// The amount of overlap controls how close bubbles should be to each other.
+		// For high packing ratios, the overlap will be positive because bubble can be generated
+		// on top of each other. For small packing ratios, the overlap will be ngative to give
+		// each bubble more space.
+		scalar_t overlap = symphas::internal::compute_bubble_overlap(init.data.gp[3], R, init.data.gp[4]);
+
+		// The change in overlap varies from .2R to 1R as overlap itself goes from .2R to -2R, after which it is always R
+		double overlap_eps = symphas::internal::compute_bubble_overlap_range(init.data.gp[3], R, init.data.gp[4]);
+
+		// when overlap is negative, then the episolon needs to be added in order for the offsets to be computed correctly.
+		static symphas::internal::RandomOffsets<scalar_t, 1> overlaps(N, overlap, overlap_eps);
+		static symphas::internal::RandomOffsets<iter_type, D> start(1, dims);
+		static auto offsets0 = symphas::internal::get_bubble_positions<D>(N, R, overlap + overlap_eps, overlaps, dims, start.get_offset(0));
+
+		offsets = offsets0;
+
+		double value_rng[] = { (init.data.gp[1] + init.data.gp[2]) / 2 };
+		values = symphas::internal::RandomOffsets<scalar_t, 1>(N, value_rng, (init.data.gp[2] - init.data.gp[1]) / 2);;
+	}
+
+	scalar_t operator()(iter_type) const override;
+
+	size_t N;													//!< Number of regions.
+	double R;
+	symphas::internal::RandomDeltas<D> offsets;					//!< Manages a list of random offsets.
+	symphas::internal::RandomOffsets<scalar_t, 1> values;		//!< Manages a list of random values.
+};
+
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::RANDOM, InsideTag::FIXEDSEED> :
+	InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM>
+{
+	using parent_type = InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM>;
+	using parent_type::parent_type;
+};
+
+
+//! Fills the system with equally sized semi-overlapping bubbles. 
+/*!
+ * If generating multiple fields, but the bubble should have the exact same
+ * parameters, then this variation will always return the same crystal, but the values
+ * of the crystal will be different.
+ *
+ * This variation will apply periodic boundaries when determining the closest
+ * point.
+ */
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA> :
+	InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM>
+{
+	using parent_type = InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM>;
+	using parent_type::parent_type;
+	using parent_type::N;
+	using parent_type::offsets;
+	using parent_type::values;
+
+	scalar_t operator()(iter_type) const override;
+
+};
+
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::RANDOM, InsideTag::FIXEDSEED, InsideTag::VARA> :
+	InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA>
+{
+	using parent_type = InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA>;
+	using parent_type::parent_type;
+};
+
+//! Generates values for a Voronoi Diagram where the crystal always has the same shape. 
+/*!
+ * If generating multiple fields, but the bubble crystal should have the exact same
+ * parameters, then this variation will always return the same crystal, but the values
+ * of the crystal will be different.
+ */
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB> :
+	InitialConditionsData<D>
+{
+	using parent_type = InitialConditionsData<D>;
+
+	InitialConditionsAlg(
+		symphas::init_entry_type const& init,
+		symphas::interval_data_type const& vdata,
+		len_type const* dims
+	) :
+		parent_type(init, vdata, dims),
+		N{ size_t(init.data.gp[0]) }, R{ symphas::internal::compute_bubble_R(vdata, init.data.gp[3], N) }
+	{
+		// The amount of overlap controls how close bubbles should be to each other.
+		// For high packing ratios, the overlap will be positive because bubble can be generated
+		// on top of each other. For small packing ratios, the overlap will be ngative to give
+		// each bubble more space.
+		scalar_t overlap = symphas::internal::compute_bubble_overlap(init.data.gp[3], R, init.data.gp[4]);
+
+		// The change in overlap varies from .2R to 1R as overlap itself goes from .2R to -2R, after which it is always R
+		double overlap_eps = symphas::internal::compute_bubble_overlap_range(init.data.gp[3], R, init.data.gp[4]);
+
+		// when overlap is negative, then the episolon needs to be added in order for the offsets to be computed correctly.
+		static symphas::internal::RandomOffsets<scalar_t, 1> overlaps(N, overlap, overlap_eps);
+		static symphas::internal::RandomOffsets<iter_type, D> start(1, dims);
+		static auto offsets0 = symphas::internal::get_bubble_positions<D>(N, R, overlap + overlap_eps, overlaps, dims, start.get_offset(0));
+
+		offsets = offsets0;
+
+		double value_rng[] = { (init.data.gp[2] + init.data.gp[3]) / 2 };
+		values = get_values(init);
+	}
+
+	scalar_t operator()(iter_type) const override;
+
+
+	auto get_values(symphas::init_entry_type const& init) const
+	{
+		static int I = 0;
+		double value_rng[] = { (init.data.gp[1] + init.data.gp[2]) / 2 };
+		static auto values0 = symphas::internal::RandomOffsets<scalar_t, 1>(N, value_rng, (init.data.gp[2] - init.data.gp[1]) / 2);
+
+		double value_rng0[] = { init.data.gp[1] };
+		symphas::internal::RandomOffsets<scalar_t, 1> values1(N, value_rng0, 0);
+		values1.set_offset(I, values0.get_offset(I));
+
+		I += 1;
+		return values1;
+	}
+
+	size_t N;													//!< Number of regions.
+	double R;
+	symphas::internal::RandomDeltas<D> offsets;					//!< Manages a list of random offsets.
+	symphas::internal::RandomOffsets<scalar_t, 1> values;		//!< Manages a list of random values.
+
+};
+
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::VARB, InsideTag::RANDOM, InsideTag::FIXEDSEED> :
+	InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>
+{
+	using parent_type = InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>;
+	using parent_type::parent_type;
+};
+
+//! Generates values for a Voronoi Diagram where the crystal always has the same shape. 
+/*!
+ * If generating multiple fields, but the bubble crystal should have the exact same
+ * parameters, then this variation will always return the same crystal, but the values
+ * of the crystal will be different.
+ *
+ * This variation will apply periodic boundaries when determining the closest
+ * point.
+ */
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARB> :
+	InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>
+{
+	using parent_type = InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>;
+	using parent_type::parent_type;
+	using parent_type::N;
+	using parent_type::offsets;
+	using parent_type::values;
+
+	scalar_t operator()(iter_type) const override;
+
+};
+
+
+
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB, InsideTag::VARA> :
+	InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>
+{
+	using parent_type = InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>;
+	using parent_type::parent_type;
+};
+
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::RANDOM, InsideTag::FIXEDSEED, InsideTag::VARA, InsideTag::VARB> :
+	InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>
+{
+	using parent_type = InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>;
+	using parent_type::parent_type;
+};
+
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::RANDOM, InsideTag::FIXEDSEED, InsideTag::VARB, InsideTag::VARA> :
+	InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>
+{
+	using parent_type = InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>;
+	using parent_type::parent_type;
+};
+
+
+//! Generates values for a Voronoi Diagram where the crystal always has the same shape. 
+/*!
+ * If generating multiple fields, but the bubble crystal should have the exact same
+ * parameters, then this variation will always return the same crystal, but the values
+ * of the crystal will be different.
+ *
+ * This variation will apply periodic boundaries when determining the closest
+ * point.
+ */
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC> :
+	InitialConditionsData<D>
+{
+
+	using parent_type = InitialConditionsData<D>;
+
+	InitialConditionsAlg(
+		symphas::init_entry_type const& init,
+		symphas::interval_data_type const& vdata,
+		len_type const* dims
+	) :
+		parent_type(init, vdata, dims),
+		N{ size_t(init.data.gp[0]) }, R{ symphas::internal::compute_bubble_R(vdata, init.data.gp[3], N) }
+	{
+		// The amount of overlap controls how close bubbles should be to each other.
+		// For high packing ratios, the overlap will be positive because bubble can be generated
+		// on top of each other. For small packing ratios, the overlap will be ngative to give
+		// each bubble more space.
+		scalar_t overlap = symphas::internal::compute_bubble_overlap(init.data.gp[3], R, init.data.gp[4]);
+
+		// The change in overlap varies from .2R to 1R as overlap itself goes from .2R to -2R, after which it is always R
+		double overlap_eps = symphas::internal::compute_bubble_overlap_range(init.data.gp[3], R, init.data.gp[4]);
+
+		// when overlap is negative, then the episolon needs to be added in order for the offsets to be computed correctly.
+		static symphas::internal::RandomOffsets<scalar_t, 1> overlaps(N, overlap, overlap_eps);
+		static symphas::internal::RandomOffsets<iter_type, D> start(1, dims);
+		static auto offsets0 = symphas::internal::get_bubble_positions<D>(N, R, overlap + overlap_eps, overlaps, dims, start.get_offset(0));
+
+		offsets = offsets0;
+
+		double value_rng[] = { (init.data.gp[1] + init.data.gp[2]) / 2 };
+		values = get_values(init);
+	}
+
+	scalar_t operator()(iter_type) const override;
+
+
+	auto get_values(symphas::init_entry_type const& init) const
+	{
+		static int I = 0;
+
+		double value_rng0[] = { init.data.gp[1] };
+		symphas::internal::RandomOffsets<scalar_t, 1> values1(N, value_rng0, 0);
+		values1.set_offset(I, init.data.gp[2]);
+
+		I += 1;
+		return values1;
+	}
+
+	size_t N;													//!< Number of regions.
+	double R;
+	symphas::internal::RandomDeltas<D> offsets;					//!< Manages a list of random offsets.
+	symphas::internal::RandomOffsets<scalar_t, 1> values;		//!< Manages a list of random values.
+
+};
+
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::RANDOM, InsideTag::FIXEDSEED, InsideTag::VARC> :
+	InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>
+{
+	using parent_type = InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>;
+	using parent_type::parent_type;
+};
+
+
+
+//! Generates values for a Voronoi Diagram where the crystal always has the same shape. 
+/*!
+ * If generating multiple fields, but the bubble crystal should have the exact same
+ * parameters, then this variation will always return the same crystal, but the values
+ * of the crystal will be different.
+ *
+ * This variation will apply periodic boundaries when determining the closest
+ * point.
+ */
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARC> :
+	InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>
+{
+	using parent_type = InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>;
+	using parent_type::parent_type;
+	using parent_type::N;
+	using parent_type::offsets;
+	using parent_type::values;
+
+	scalar_t operator()(iter_type) const override;
+
+};
+
+
+
+template<>
+struct symphas::internal::tags_for_init_value<Inside::BUBBLE>
+{
+	using type = symphas::lib::types_list<
+		init_tag_values_list<InsideTag::VARA>,
+		init_tag_values_list<InsideTag::FIXEDSEED>,
+		init_tag_values_list<InsideTag::FIXEDSEED, InsideTag::RANDOM>,
+		init_tag_values_list<InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA>,
+		init_tag_values_list<InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>,
+		init_tag_values_list<InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>,
+		init_tag_values_list<InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARB>,
+		init_tag_values_list<InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARC>>;
+};
+
 
 
 /***************************************************************************
@@ -2052,16 +3077,16 @@ struct InitialConditionsAlg<D, Inside::GAUSSIAN> :
 	InitialConditionsData<D>
 {
 	using parent_type = InitialConditionsData<D>;
-	using parent_type::tdata;
+	using parent_type::init;
 
 	InitialConditionsAlg(
-		symphas::init_data_type const& tdata,
+		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
 		len_type const* dims
 	) :
-		parent_type(tdata, vdata, dims),
+		parent_type(init, vdata, dims),
 		gen{ std::random_device{}() },
-		dis{ tdata.data.gp[0], tdata.data.gp[1] }
+		dis{ init.data.gp[0], init.data.gp[1] }
 	{}
 
 	scalar_t operator()(iter_type) const override
@@ -2078,25 +3103,27 @@ struct InitialConditionsAlg<D, Inside::UNIFORM> :
 	InitialConditionsData<D>
 {
 	using parent_type = InitialConditionsData<D>;
-	using parent_type::tdata;
+	using parent_type::init;
 
 	InitialConditionsAlg(
-		symphas::init_data_type const& tdata,
+		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
 		len_type const* dims
 	) :
-		parent_type(tdata, vdata, dims),
+		parent_type(init, vdata, dims),
 		gen{ std::random_device{}() },
-		dis{ tdata.data.gp[0], tdata.data.gp[1] }
+		dis{ 0, 1 }, a{ init.data.gp[0] }, b{ init.data.gp[1] }
 	{}
 
 	scalar_t operator()(iter_type) const override
 	{
-		return dis(gen);
+		return (a + dis(gen) * (b - a));
 	}
 
 	mutable std::mt19937 gen;
 	mutable std::uniform_real_distribution<scalar_t> dis;
+	double a;
+	double b;
 };
 
 
@@ -2111,11 +3138,11 @@ struct InitialConditionsAlg<D, Inside::CONSTANT> :
 {
 	using parent_type = InitialConditionsData<D>;
 	using parent_type::parent_type;
-	using parent_type::tdata;
+	using parent_type::init;
 
 	scalar_t operator()(iter_type) const override
 	{
-		return tdata.data.gp[0];
+		return init.data.gp[0];
 	}
 
 	scalar_t value;
@@ -2127,22 +3154,22 @@ struct InitialConditionsAlg<D, Inside::CAPPED> :
 {
 	using parent_type = InitialConditionsAlg<D, Inside::UNIFORM>;
 	using parent_type::parent_type;
-	using parent_type::tdata;
+	using parent_type::init;
 
 	InitialConditionsAlg(
-		symphas::init_data_type const& tdata,
+		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
 		len_type const* dims
 	) :
-		parent_type(tdata, vdata, dims),
-		mean{ (tdata.data.gp[0] + tdata.data.gp[1]) / 2 }
+		parent_type(init, vdata, dims),
+		mean{ (init.data.gp[0] + init.data.gp[1]) / 2 }
 	{}
 
 	scalar_t operator()(iter_type n) const override
 	{
 		return (parent_type::operator()(n) < mean)
-			? tdata.data.gp[0]
-			: tdata.data.gp[1];
+			? init.data.gp[0]
+			: init.data.gp[1];
 	}
 
 	scalar_t mean;
@@ -2184,29 +3211,54 @@ struct InitialConditions
 		data{ get_data(tdata, vdata, dims) }
 	{}
 
-
-	auto begin() const
+	~InitialConditions()
 	{
-		return symphas::internal::ic_iterator<T, D>(*data);
+		for (auto& [key, entry] : data)
+		{
+			delete entry;
+		}
 	}
 
-	auto end() const
+	auto begin(Axis ax, T* values) const
 	{
-		return symphas::internal::ic_iterator<T, D>(*data, grid::length<D>(data->dims));
+		return symphas::internal::ic_iterator<T, D>(ax, values, *(data.at(ax)));
 	}
 
-	bool initialize(T* values, size_t id = 0)
+	auto end(Axis ax, T* values) const
+	{
+		return symphas::internal::ic_iterator<T, D>(ax, values, *(data.at(ax)), grid::length<D>(data.at(ax)->dims));
+	}
+
+	bool initialize(T* values, size_t id = 0) const
+	{
+		bool initialized = true;
+		if (data.find(Axis::NONE) != data.end())
+		{
+			initialized = initialize(Axis::NONE, values, id);
+		}
+
+		for (auto const& [key, entry] : data)
+		{
+			if (key != Axis::NONE)
+			{
+				initialized = initialized && initialize(key, values, id);
+			}
+		}
+		return initialized;
+	}
+
+	bool initialize(Axis ax, T* values, size_t id = 0) const
 	{
 		// If the initial conditions are not set, then nothing is done.
-		if (data->tdata.in == Inside::NONE)
+		if (data.at(ax)->init.in == Inside::NONE)
 		{
-			if (symphas::internal::tag_bit_compare(data->tdata.intag, InsideTag::NONE))
+			if (symphas::internal::tag_bit_compare(data.at(ax)->init.intag, InsideTag::NONE))
 			{
 				return true;
 			}
-			else if (symphas::internal::tag_bit_compare(data->tdata.intag, InsideTag::DEFAULT))
+			else if (symphas::internal::tag_bit_compare(data.at(ax)->init.intag, InsideTag::DEFAULT))
 			{
-				data->tdata.f_init->initialize(values, data->dims, D);
+				data.at(ax)->init.f_init->initialize(values, data.at(ax)->dims, D);
 				return true;
 			}
 			else
@@ -2215,43 +3267,43 @@ struct InitialConditions
 			}
 		}
 #ifdef USING_IO
-		else if (data->tdata.in == Inside::FILE || data->tdata.in == Inside::CHECKPOINT)
+		else if (data.at(ax)->init.in == Inside::FILE || data.at(ax)->init.in == Inside::CHECKPOINT)
 		{
 			symphas::io::read_info rinfo{ 
-				data->tdata.file.get_index(), id,
-				data->tdata.file.get_name(), data->tdata.in == Inside::CHECKPOINT };
+				data.at(ax)->init.file.get_index(), id,
+				data.at(ax)->init.file.get_name(), data.at(ax)->init.in == Inside::CHECKPOINT };
 
 			symphas::grid_info ginfo = symphas::io::read_header(rinfo);
 			for (iter_type n = 0; n < D; ++n)
 			{
 				auto file_dims = ginfo.get_dims();
-				if (file_dims[n] != data->dims[n])
+				if (file_dims[n] != data.at(ax)->dims[n])
 				{
-					Axis ax = symphas::index_to_axis(n);
+					Axis ax0 = symphas::index_to_axis(n);
 					fprintf(SYMPHAS_WARN, "%c-dimension read from file header (%d) is inconsistent with "
 						"system dimension that is being initialized (%d)\n",
-						(ax == Axis::X) ? 'x' : (ax == Axis::Y) ? 'y' : (ax == Axis::Z) ? 'z' : '0',
-						file_dims[n], data->dims[n]);
+						(ax0 == Axis::X) ? 'x' : (ax0 == Axis::Y) ? 'y' : (ax0 == Axis::Z) ? 'z' : '0',
+						file_dims[n], data.at(ax)->dims[n]);
 
 					return false;
 				}
 			}
 
 			int read_index = symphas::io::read_grid(values, rinfo);
-			if (data->tdata.file.get_index() != read_index)
+			if (data.at(ax)->init.file.get_index() != read_index)
 			{
 				fprintf(SYMPHAS_ERR,
 					"system initialization requires the loaded datafile to contain the given index '%d'\n",
-					data->tdata.file.get_index());
+					data.at(ax)->init.file.get_index());
 				return false;
 			}
 
 		}
 #endif
-		else if (data->tdata.in == Inside::EXPRESSION)
+		else if (data.at(ax)->init.in == Inside::EXPRESSION)
 		{
-			return match_init_expr<D>(data->tdata.expr_data.get_name(), values, data->dims,
-				data->vdata, data->tdata.expr_data.get_coeff(), data->tdata.expr_data.get_num_coeff());
+			return match_init_expr<D>(data.at(ax)->init.expr_data.get_name(), values, data.at(ax)->dims,
+				data.at(ax)->vdata, data.at(ax)->init.expr_data.get_coeff(), data.at(ax)->init.expr_data.get_num_coeff());
 		}
 		else
 		{
@@ -2261,7 +3313,7 @@ struct InitialConditions
 #ifdef EXECUTION_HEADER_AVAILABLE
 					std::execution::par_unseq,
 #endif
-					begin(), end(), values);
+					begin(ax, values), end(ax, values), values);
 
 			}
 			else
@@ -2275,69 +3327,71 @@ struct InitialConditions
 
 	operator bool() const
 	{
-		return *data;
+		for (auto const& [key, entry] : data)
+		{
+			if (!entry) return false;
+		}
+		return true;
 	}
 
-	InitialConditionsData<D>* data;
 
 protected:
+	
+	std::map<Axis, InitialConditionsData<D>*> data;
 
-	InitialConditionsData<D>* get_data(
+	auto get_data(
 		symphas::init_data_type const& tdata,
 		symphas::interval_data_type const& vdata,
 		len_type const* dims)
 	{
-		if (tdata.in == Inside::NONE)
+		std::map<Axis, InitialConditionsData<D>*> data0;
+		for (auto& [key, entry] : tdata)
 		{
-			return next_ic(tdata, vdata, dims,
-				symphas::internal::init_values_list<>{});
+			InitialConditionsData<D>* init;
+			if (entry.in == Inside::NONE)
+			{
+				init = next_ic(entry, vdata, dims,
+					symphas::internal::init_values_list<>{});
+			}
+			else
+			{
+				init = next_ic(entry, vdata, dims,
+					symphas::internal::init_values_list<
+					ALL_INSIDE_GEN_VALUES
+					>{});
+			}
+			data0[key] = init;
 		}
-		else
-		{
-			return next_ic(tdata, vdata, dims,
-				symphas::internal::init_values_list<
-					Inside::CAPPED,
-					Inside::CIRCLE,
-					Inside::SQUARE,
-					Inside::CONSTANT,
-					Inside::CUBIC,
-					Inside::HEXAGONAL,
-					Inside::GAUSSIAN,
-					Inside::UNIFORM,
-					Inside::SEEDSCIRCLE,
-					Inside::SEEDSSQUARE,
-					Inside::VORONOI
-				>{});
-		}
+		return data0;
 	}
 
 	template<Inside in>
 	using icd_type = symphas::internal::make_new_ic_delegate<D, in>;
 
 	InitialConditionsData<D>* next_ic(
-		symphas::init_data_type const& tdata,
+		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
 		len_type const* dims,
 		symphas::internal::init_values_list<>)
 	{
-		return new InitialConditionsAlg<D, Inside::NONE, InsideTag::NONE>(tdata, vdata, dims);
+		return new InitialConditionsAlg<D, Inside::NONE, InsideTag::NONE>(init, vdata, dims);
 	}
 
 	template<Inside in0, Inside... ins>
 	InitialConditionsData<D>* next_ic(
-		symphas::init_data_type const& tdata,
+		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
 		len_type const* dims,
 		symphas::internal::init_values_list<in0, ins...>)
 	{
-		InitialConditionsData<D>* init = icd_type<in0>{}(tdata, vdata, dims);
-		if (!init)
+		InitialConditionsData<D>* ic = icd_type<in0>{}(init, vdata, dims);
+		if (!ic)
 		{
-			return next_ic(tdata, vdata, dims, symphas::internal::init_values_list<ins...>{});
+			return next_ic(init, vdata, dims, symphas::internal::init_values_list<ins...>{});
 		}
 		else
 		{
-			return init;
+			return ic;
 		}
 	}
 

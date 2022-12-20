@@ -48,10 +48,9 @@ inline len_type SP_DIMS[] = { THICKNESS * 2 + 1, THICKNESS * 2 + 1 };
  */
 NEW_SOLVER(SolverSP)
 
-	double dt;
 	double h[3];
 
-	SolverSP(const double *h, double dt, size_t dim) : dt{ dt }, h{ 0 } 
+	SolverSP(const double *h, double dt, size_t dim) : parent_type(dt), h{ 0 }
 	{
 		std::copy(h, h + dim, this->h);
 	}
@@ -68,46 +67,9 @@ NEW_SOLVER(SolverSP)
 		return grid::get_subgrid(src, extent, n);
 	}
 
-	//template<Axis ax, size_t O, typename T, size_t D>
-	//auto applied_generalized_derivative(Grid<T, D> const& e, iter_type n) const
-	//{
-	//	auto g = subgrid(e, n);
-	//	return e[0];
-	//}
-
-	//template<Axis ax, typename T, size_t D>
-	//auto applied_laplacian(Grid<T, D> const& e, iter_type n) const
-	//{
-	//	auto g = subgrid(e, n);
-	//	return e[0];
-	//}
-
-	//template<Axis ax, typename T, size_t D>
-	//auto applied_bilaplacian(Grid<T, D> const& e, iter_type n) const
-	//{
-	//	auto g = subgrid(e, n);
-	//	return e[0];
-	//}
-
-	//template<Axis ax, typename T, size_t D>
-	//auto applied_gradlaplacian(Grid<T, D> const& e, iter_type n) const
-	//{
-	//	auto g = subgrid(e, n);
-	//	return e[0];
-	//}
-
-	//template<Axis ax, typename T, size_t D>
-	//auto applied_gradient(Grid<T, D> const& e, iter_type n) const
-	//{
-	//	auto g = subgrid(e, n);
-	//	return e[0];
-	//}
-
-
-
 
 	template<typename S>
-	void step(S&&, double) const {}
+	void step(S&&) const {}
 
 	template<size_t Z, typename S, typename T>
 	void equation(std::pair<Variable<Z, symphas::ref<S>>, T>& r) const
@@ -116,7 +78,6 @@ NEW_SOLVER(SolverSP)
 		data.update();
 		expr::result(data.scheme, sys.get().dframe, sys.get().transformed_len);
 	}
-
 
 	/*
 	 * the spectral solver does some work on the given equation in order
@@ -128,26 +89,28 @@ NEW_SOLVER(SolverSP)
 	decltype(auto) form_expr_one(std::tuple<Ss...> const& systems, std::pair<Variable<Z, symphas::ref<S>>, E> const& e) const
 	{
 		auto&& [sys, equation] = e;
-		auto&& [linear, nonlinear] = expr::split::by_linear(equation);
+		auto&& [linear, nonlinear] = expr::split::by_linear(expr::apply_operators(equation));
+		nonlinear.print(stdout);
+		printf("\n");
 
 		auto [linear_in_Z, linear_in_nonZ] = expr::split::separate_var<Z>(linear);
 		auto [l_op, non_op] = solver_sp::get_l_op<Z>(linear_in_Z, h);
 
 		auto A_expression = solver_sp::form_A_op<D>(l_op, dt, sys.get().dims);
 		auto B_expression = solver_sp::form_B_op<D>(l_op, dt, sys.get().dims);
+		
 
-		//auto linear_swapped = solver_sp::swap_var(systems, );
 		auto nonlinear_scheme = solver_sp::construct_nonlinear<Z, D>(systems, B_expression, linear_in_nonZ + non_op + nonlinear, h, sys.get().dims);
 
 
-		// the A operator for the linear term
-		auto A_term = solver_sp::get_A_term<T_src>(A_expression);
 		auto name = expr::get_fourier_name(expr::get_op_name(expr::get_variable<Z>(equation)));
 
-		auto dims = expr::data_dimensions(equation);
+		len_type dims[D];
+		expr::fill_data_dimensions(equation, dims);
 		auto term_ft = expr::as_grid_data<D>(sys.get().frame_t, dims);
 
-		auto scheme = A_term * expr::make_term<Z + sizeof...(Ss)>(NamedData(std::move(term_ft), name)) + nonlinear_scheme;
+		auto A_term = solver_sp::get_A_term<T_src>(A_expression);
+		auto scheme = expr::make_add(A_term * expr::make_term<Z + sizeof...(Ss)>(NamedData(std::move(term_ft), name)), nonlinear_scheme);
 		scheme.print(stdout);
 		fprintf(stdout, "\n");
 

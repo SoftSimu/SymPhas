@@ -20,7 +20,7 @@
  * MODULE:  expr
  * PURPOSE: Defines elements that can allow definition of additional symbols
  * that can be used in the symbolic algebra framework, as well as type traits
- * that define rules and factoring of expressions. 
+ * that define rules and factoring of expressions.
  *
  * ***************************************************************************
  */
@@ -30,7 +30,7 @@
 #include "expressionlib.h"
 
 
-/*! 
+/*!
  * \defgroup expraddsyms Adding Symbols to the Expression Library
  * \ingroup Op
  *
@@ -43,8 +43,8 @@
  * - The `DATA_NAME` parameter is the name of the data member within the object.
  * - The `RETURN` parameter depends on the context of the macro, but is typically
  * the data element corresponding to the new data object being added.
- * 
- * Symbols can also have the rules of symbolic algebra modified for them, 
+ *
+ * Symbols can also have the rules of symbolic algebra modified for them,
  * such as multiplication rules and whether or not they should be combined
  * as like terms.
  * @{
@@ -53,21 +53,21 @@
 //! Define a new Symbol in the symbolic algebra functionality.
 /*!
  * The symbol is added so as to be printed by the symbolic algebra
- * functionality. 
- * 
+ * functionality.
+ *
  * The macro wraps a specialization which defines a function to return the
  * name of the data element (the new symbol being added). The parameter
- * name to the function is `data`. The function body is defined in the 
+ * name to the function is `data`. The function body is defined in the
  * parameter \p RETURN and must return something that can be interpreted by
  * expr::get_op_name.
- * 
+ *
  * For example, the following will add a new symbol using the existing class
  * `new_symbol`, templated on type `T`:
- * 
+ *
  * ```cpp
  * DEFINE_SYMBOL_ID((typename T), (new_symbol<T>), return "S")
  * ```
- * 
+ *
  * \param TEMPLATES The templates which are passed to the new
  * symbol type in the specialization. The argument is always surrounded
  * by parentheses.
@@ -75,7 +75,7 @@
  * arguments that are given in \p TEMPLATES. The argument is always surrounded
  * by parentheses.
  * \param ... The body of the function which returns the symbol identifier.
- */
+  */
 #define DEFINE_SYMBOL_ID(TEMPLATES, TYPE, ...) \
 template<SINGLE_ARG TEMPLATES> \
 struct expr::SymbolID<SINGLE_ARG TYPE> \
@@ -89,12 +89,12 @@ struct expr::SymbolID<SINGLE_ARG TYPE> \
 //! Define a new Symbol in the symbolic algebra functionality.
 /*!
  * The symbol is added so as to be printed by the symbolic algebra
- * functionality. 
+ * functionality.
  * Defines a new symbol using the condition to instantiate this
  * symbol specialization.
- * 
+ *
  * See #DEFINE_SYMBOL_ID.
- * 
+ *
  * \param TEMPLATES The templates which are passed to the new
  * symbol type in the specialization. The argument is always surrounded
  * by parentheses.
@@ -118,8 +118,8 @@ struct expr::SymbolID<SINGLE_ARG TYPE, typename std::enable_if_t<SINGLE_ARG COND
 
 //! \cond
 
- /* definition helpers for creating a new data type for use in expression templates
- */
+/* definition helpers for creating a new data type for use in expression templates
+*/
 #define SYEX_IMPL_DEFINE_BASE_DATA(TEMPLATES, TYPE, CONST_RETURN_TYPE, RETURN_TYPE, RETURN_EVAL, RETURN_DATA) \
 template<SINGLE_ARG TEMPLATES> \
 struct expr::BaseData<SINGLE_ARG TYPE> \
@@ -141,16 +141,16 @@ struct expr::BaseData<SINGLE_ARG TYPE> \
 	  return SINGLE_ARG RETURN_DATA; \
 	} \
 };
- //! \endcond
+	 //! \endcond
 
 //! Applies an implicit cast of the base data access.
 /*!
  * The given data is redirected to the base data of its template arguments.
- * 
- * \param TYPENAME_TEMPLATES The templates which are passed to the 
+ *
+ * \param TYPENAME_TEMPLATES The templates which are passed to the
  * specialization of the base data object.
  * \param REDIRECT_TEMPLATE The template which is passed to the static cast
- * to cast the object to its base type. This also implies that \p TYPE should 
+ * to cast the object to its base type. This also implies that \p TYPE should
  * be implicitly convertible to this type.
  * \param TYPE The type which is redirected to another base object
  * through the cast to \p REDIRECT_TEMPLATE.
@@ -164,11 +164,11 @@ SYEX_IMPL_DEFINE_BASE_DATA((SINGLE_ARG TYPENAME_TEMPLATES), (SINGLE_ARG TYPE), d
  * Use this for a new object which contains data and which should be used
  * by the symbolic algebra functionality. By defining a expr::BaseData, a variable
  * defined with this type can be evaluated and return a value.
- * 
+ *
  * When writing a parameter for the \p RETURN_ELEMENT or \p RETURN_DATA arguments,
  * the instance of type \p TYPE is named `data`. As can example, one can write:
 ```
-	DEFINE_BASE_DATA((typename T, size_t D), (Grid<T, D>), data[n], data)
+	 DEFINE_BASE_DATA((typename T, size_t D), (Grid<T, D>), data[n], data)
 ```
  * which would define a new ::BaseData specialization for the Grid class (one already
  * exists though), and get the element of the grid, and the grid itself.
@@ -176,7 +176,7 @@ SYEX_IMPL_DEFINE_BASE_DATA((SINGLE_ARG TYPENAME_TEMPLATES), (SINGLE_ARG TYPE), d
  * \param TEMPLATES Template arguments used by the type specialization. Wrapped
  * in parentheses.
  * \param TYPE The type that the expr::BaseData is specialized for.
- * \param RETURN_ELEMENT A statement which will access an element 
+ * \param RETURN_ELEMENT A statement which will access an element
  * of the specialized type instance, and placed after a `return` keyword
  * in order for it to be returned.
  * \param RETURN_DATA A statement which will return a data object, which can be
@@ -197,11 +197,11 @@ DEFINE_BASE_DATA((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPE), (data[n]), (data))
 
 //! Define a new base data access method for a point type.
 /*!
- * See #DEFINE_BASE_DATA. Applies the access method for a data
- * which has only a point as the underlying data.
- * 
- * The name of the value of the type instance is given by \p DATA_NAME.
- */
+* See #DEFINE_BASE_DATA. Applies the access method for a data
+* which has only a point as the underlying data.
+*
+* The name of the value of the type instance is given by \p DATA_NAME.
+*/
 #define DEFINE_BASE_DATA_POINT(TEMPLATES, TYPE, DATA_NAME) \
 DEFINE_BASE_DATA((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPE), (data.DATA_NAME), (data))
 
@@ -213,12 +213,12 @@ DEFINE_BASE_DATA((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPE), (data.DATA_NAME), (d
 
 //! Defines a new array-like type to be used as data in expressions.
 /*!
- * Creates expression specific definitions around an object of block- (array-) 
- * type, which will satisfy the prerequisites of using it in the symbolic 
- * algebra. The given object has must have its template parameters specified in 
- * brackets. The object type specification must also be surrounded in brackets. 
+ * Creates expression specific definitions around an object of block- (array-)
+ * type, which will satisfy the prerequisites of using it in the symbolic
+ * algebra. The given object has must have its template parameters specified in
+ * brackets. The object type specification must also be surrounded in brackets.
  * The last parameter is the name of the objects underlying data member.
- * 
+ *
  * The type must have its elements able to be accessed using `operator[]`.
  *
  * See #DEFINE_BASE_DATA and #DEFINE_SYMBOL_ID
@@ -227,16 +227,16 @@ DEFINE_BASE_DATA((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPE), (data.DATA_NAME), (d
 DEFINE_BASE_DATA((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPE), data[n], data.data_NAME) \
 DEFINE_SYMBOL_ID((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPE), return data.DATA_NAME)
 
- //! Defines a new type of object to be used as data in expressions.
- /*!
-  * Creates expression specific definitions around an object of block- (array-)
-  * type, which will satisfy the prerequisites of using it in the symbolic
-  * algebra. The given object has must have its template parameters specified in
-  * brackets. The object type specification must also be surrounded in brackets.
-  * The last parameter is the name of the objects underlying data member.
-  * 
-  * Additionally, the type must have its elements able to be accessed using `operator[]`. 
-  */
+//! Defines a new type of object to be used as data in expressions.
+/*!
+ * Creates expression specific definitions around an object of block- (array-)
+ * type, which will satisfy the prerequisites of using it in the symbolic
+ * algebra. The given object has must have its template parameters specified in
+ * brackets. The object type specification must also be surrounded in brackets.
+ * The last parameter is the name of the objects underlying data member.
+ *
+ * Additionally, the type must have its elements able to be accessed using `operator[]`.
+ */
 #define ADD_EXPR_TYPE_POINT(TEMPLATE, TYPE, DATA_NAME) \
 DEFINE_BASE_DATA_POINT(TEMPLATE, TYPE, DATA_NAME) \
 DEFINE_SYMBOL_ID(TEMPLATE, TYPE, return &data.DATA_NAME)
@@ -304,7 +304,7 @@ RESTRICT_COMMUTATIVITY((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPES COMMA typename 
  * In the case of more complicated object inheritance heirarchies, a base type needs to be defined
  * in order for the expressions to detect the correct type in their evaluations, as the type
  * heirarchy will be descended into to determine relationships.
- * 
+ *
  * (for instance, it may be useful to define
  * a child of an object if it has certain identites, that way it is parameterized as a special type to
  * be accepted by the appropriate function)
@@ -321,21 +321,21 @@ struct expr::base_data_type<SINGLE_ARG TYPE> \
 };
 
 
- //! Define the base type that the new data object corresponds to.
-  /*!
-  * In the case of more complicated object inheritance heirarchies, a base type needs to be defined
-  * in order for the expressions to detect the correct type in their evaluations, as the type
-  * heirarchy will be descended into to determine relationships.
-  * 
-  * (for instance, it may be useful to define
-  * a child of an object if it has certain identites, that way it is parameterized as a special type to
-  * be accepted by the appropriate function)
-  *
-  * \param TEMPLATE Template arguments to the to the defining objects.
-  * \param TYPE The base type itself.
+//! Define the base type that the new data object corresponds to.
+ /*!
+ * In the case of more complicated object inheritance heirarchies, a base type needs to be defined
+ * in order for the expressions to detect the correct type in their evaluations, as the type
+ * heirarchy will be descended into to determine relationships.
+ *
+ * (for instance, it may be useful to define
+ * a child of an object if it has certain identites, that way it is parameterized as a special type to
+ * be accepted by the appropriate function)
+ *
+ * \param TEMPLATE Template arguments to the to the defining objects.
+ * \param TYPE The base type itself.
  * \param PARENT Parent of the base type that the given TYPE is translated to when using this object.
-  * \param CONDITION The compile-time condition under which the base type will be valid.
-  */
+ * \param CONDITION The compile-time condition under which the base type will be valid.
+ */
 #define DEFINE_BASE_TYPE_CONDITION(TEMPLATE, TYPE, PARENT, CONDITION) \
 DEFINE_BASE_TYPE(TEMPLATE, TYPE COMMA typename std::enable_if_t<(CONDITION) COMMA int>, PARENT)
 
@@ -344,9 +344,9 @@ DEFINE_BASE_TYPE(TEMPLATE, TYPE COMMA typename std::enable_if_t<(CONDITION) COMM
 
 
 /* in some specializations of grids, variables should still be able to divide each other
- * in particular, if the specialization has a power associated with it, then the expression logic
- * should be able to manually divide the grids even if their types don't match exactly
- */
+* in particular, if the specialization has a power associated with it, then the expression logic
+* should be able to manually divide the grids even if their types don't match exactly
+*/
 
 
 //! Allows division between objects of the specified type.
@@ -371,15 +371,15 @@ DEFINE_FACTOR_COUNT(TEMPLATES, TYPE1, TYPE2 COMMA typename std::enable_if_t<(CON
 
 
 //! Add a 'dataless' symbol to the symbolic algebra.
-/*! 
+/*!
  * Adds a dataless symbol to the symbolic algebra library. Dataless means that the
  * symbol doesn't store or define any data, it is simply a symbol for algebra manipulations,
  * and being distinguished from other symbols.
- * 
- * The name is defined by the provided parameter, \p TYPE, and a new class of that name is 
- * added to the namespace expr::symbols. 
- * 
- * \param TYPE The name of the new symbol that is added. 
+ *
+ * The name is defined by the provided parameter, \p TYPE, and a new class of that name is
+ * added to the namespace expr::symbols.
+ *
+ * \param TYPE The name of the new symbol that is added.
  */
 #define ADD_EXPR_TYPE_SYMBOL(TYPE) \
 namespace expr::symbols { \
@@ -388,13 +388,14 @@ using TYPE = OpTerm<OpIdentity, TYPE ## _symbol>; } \
 DEFINE_SYMBOL_ID((), (expr::symbols::TYPE ## _symbol), return #TYPE) \
 DEFINE_BASE_TYPE((), (expr::symbols:: TYPE), expr::symbols::TYPE ## _symbol) \
 ALLOW_COMBINATION((), (expr::symbols::TYPE ## _symbol)) \
+DEFINE_BASE_DATA((), (expr::symbols::TYPE ## _symbol), expr::symbols::Symbol{}, expr::symbols::Symbol{})
 
 
- // **************************************************************************************
+// **************************************************************************************
 
 
 
- //! @}
+//! @}
 
 
 namespace expr
@@ -408,7 +409,7 @@ namespace expr
 	 * object that could be used in an expression, in order to return the address
 	 * of some part of the unique object. i.e. the address of a data, or simply
 	 * the pointer of an array, is the unique element.
-	 * 
+	 *
 	 * \ingroup Op
 	 */
 	template<typename A, typename Enable = void>
@@ -439,6 +440,7 @@ namespace expr
 
 DEFINE_SYMBOL_ID((typename A), (A*), return data)
 DEFINE_SYMBOL_ID((typename T, size_t D), (Grid<T, D>), return data.values)
+DEFINE_SYMBOL_ID((typename T, size_t D), (Grid<any_vector_t<T, D>, D>), return data.values[0])
 
 
 
@@ -697,29 +699,6 @@ namespace expr
 	template<Axis ax, typename G>
 	struct BaseData<VectorComponent<ax, G>>
 	{
-		template<size_t N, typename T>
-		static VectorComponentData<ax, T*, N> resolve_axis_component(MultiBlock<N, T> const& data)
-		{
-			return { data.values[symphas::axis_to_index(ax)] };
-		}
-
-		template<size_t N, typename T>
-		static VectorComponentData<ax, T*, N> resolve_axis_component(MultiBlock<N, T>& data)
-		{
-			return { data.values[symphas::axis_to_index(ax)] };
-		}
-
-		template<typename T, size_t D>
-		static VectorComponentData<ax, T, D> resolve_axis_component(any_vector_t<T, D> const& data)
-		{
-			return { data[symphas::axis_to_index(ax)] };
-		}
-
-		template<typename T, size_t D>
-		static VectorComponentData<ax, T, D> resolve_axis_component(any_vector_t<T, D>& data)
-		{
-			return { data[symphas::axis_to_index(ax)] };
-		}
 
 		template<typename T>
 		static auto const& get_index(T const& data, iter_type n)
@@ -735,19 +714,20 @@ namespace expr
 
 		static auto const& get(VectorComponent<ax, G> const& data, iter_type n)
 		{
-			return get_index(resolve_axis_component(BaseData<G>::get(*static_cast<G const*>(&data))), n);
+			return get_index(resolve_axis_component<ax>(BaseData<G>::get(*static_cast<G const*>(&data))), n);
 		}
+
 		static auto get(VectorComponent<ax, G> const& data)
 		{
-			return resolve_axis_component(BaseData<G>::get(*static_cast<G const*>(&data)));
+			return resolve_axis_component<ax>(BaseData<G>::get(*static_cast<G const*>(&data)));
 		}
 		static auto& get(VectorComponent<ax, G>& data, iter_type n)
 		{
-			return get_index(resolve_axis_component(BaseData<G>::get(*static_cast<G*>(&data))), n);
+			return get_index(resolve_axis_component<ax>(BaseData<G>::get(*static_cast<G*>(&data))), n);
 		}
 		static auto get(VectorComponent<ax, G>& data)
 		{
-			return resolve_axis_component(BaseData<G>::get(*static_cast<G*>(&data)));
+			return resolve_axis_component<ax>(BaseData<G>::get(*static_cast<G*>(&data)));
 		}
 	};
 
@@ -781,7 +761,7 @@ namespace expr
 	 * data object for all the used op-type wrappers. Typically used in identifying
 	 * whether something satisfies an identity or getting the original object type
 	 * of an expression data.
-	 * 
+	 *
 	 * By default, it returns the type of the object that it is given, but for
 	 * the data of OpTerms, including data using types where there is the
 	 * underlying or inherited data object which should represent it as the base
@@ -804,8 +784,8 @@ namespace expr
 
 	//! Indicates whether a data can commute. 
 	/*!
-	 * Specialized for types which are the exception to this behaviour. 
-	 * 
+	 * Specialized for types which are the exception to this behaviour.
+	 *
 	 * Specialize this for desired data (grid)
 	 * types. This affects how terms are combined during multiplication of
 	 * OpTerms.
@@ -855,12 +835,12 @@ namespace expr
 
 	//! Provides the number of times that `C` can divide `G`. 
 	/*!
-	 * In the specialized case, if `C` is X^2 and G is `X^6` then the value 
-	 * should be 3. Used in particular for rules in specialized grids, but in 
-	 * general this is 0 as the division is performed primarily between data 
+	 * In the specialized case, if `C` is X^2 and G is `X^6` then the value
+	 * should be 3. Used in particular for rules in specialized grids, but in
+	 * general this is 0 as the division is performed primarily between data
 	 * which can be linearly combined (the default behaviour is for Variable)
 	 *
-	 * for other types that won't follow exponent laws, but can combine, 
+	 * for other types that won't follow exponent laws, but can combine,
 	 * the predicate is automatically satisfied.
 	 */
 	template<typename C, typename G, typename Enable = int>
@@ -875,9 +855,9 @@ namespace expr
 
 	//! Extends factor checking to enumerated types.
 	/*!
-	 * Returns the number of factors of `Variable<Y, G>` (where `G` is any type): it just acts 
+	 * Returns the number of factors of `Variable<Y, G>` (where `G` is any type): it just acts
 	 * as a wrapper so that the enumerated type `Y` can be processed by expr::factor_count.
-	 * 
+	 *
 	 * \tparam Y The index of the variable that is searched as the factor.
 	 * \tparam G The expression type or grid to compare.
 	 */
@@ -889,7 +869,7 @@ namespace expr
 	struct factor_count
 	{
 		static const size_t value = expr::grid_divides_count<
-			typename expr::base_data_type<C>::type, 
+			typename expr::base_data_type<C>::type,
 			typename expr::base_data_type<G>::type>::value;
 	};
 
@@ -914,7 +894,7 @@ namespace expr
 	//! Provides all shared factors between `E1` and `E2`.
 	/*!
 	 * The factors between the two expressions is computed.
-	 * 
+	 *
 	 * \tparam E1 The first expression type.
 	 * \tparam E2 The second expression type.
 	 */
@@ -983,13 +963,13 @@ namespace expr
 	 */
 	template<typename G1, typename G2>
 	constexpr bool is_commutable = expr::grid_can_commute<
-		typename expr::base_data_type<G1>::type, 
+		typename expr::base_data_type<G1>::type,
 		typename expr::base_data_type<G2>::type, int>::value;
 
 	//! Indicates whether or not there is a multiplication rule between two grids.
 	template<typename G1, typename G2>
 	constexpr bool has_identity = grid_has_identity<
-		typename base_data_type<G1>::type, 
+		typename base_data_type<G1>::type,
 		typename base_data_type<G2>::type, int>::value;
 
 
@@ -1013,7 +993,6 @@ namespace expr
 			return value;
 		}
 	}
-
 }
 
 // ******************************************************************************************
@@ -1156,8 +1135,8 @@ struct expr::factor_count<C, symphas::ref<G>>
 template<typename C, typename G, expr::exp_key_t X>
 struct expr::factor_count<C, Term<G, X>>
 {
-	static const size_t value = 
-		((expr::_Xk_t<X>::N - expr::_Xk_t<X>::N % expr::_Xk_t<X>::D) / expr::_Xk_t<X>::D) 
+	static const size_t value =
+		((expr::_Xk_t<X>::N - expr::_Xk_t<X>::N % expr::_Xk_t<X>::D) / expr::_Xk_t<X>::D)
 		* expr::factor_count<C, G>::value;
 };
 
@@ -1294,10 +1273,10 @@ protected:
 
 public:
 	using type = typename std::conditional_t<
-		(N > 0), 
+		(N > 0),
 		symphas::lib::types_list<
-			std::pair<std::index_sequence<N>, 
-			std::index_sequence<I0>>>, 
+		std::pair<std::index_sequence<N>,
+		std::index_sequence<I0>>>,
 		symphas::lib::types_list<>>;
 };
 
@@ -1327,8 +1306,8 @@ protected:
 
 public:
 	using type = typename std::conditional_t<
-		(N > 0), 
-		symphas::lib::types_list<std::pair<std::index_sequence<N>, T0>>, 
+		(N > 0),
+		symphas::lib::types_list<std::pair<std::index_sequence<N>, T0>>,
 		symphas::lib::types_list<>>;
 };
 

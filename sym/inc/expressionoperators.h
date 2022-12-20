@@ -605,6 +605,12 @@ struct OpOperatorCombination : OpOperator<OpOperatorCombination<A1, A2>>
 	 * \param g The operator on the right hand side of the addition.
 	 */
 	OpOperatorCombination(A1 const& f, A2 const& g) : f{ f }, g{ g } {}
+	OpOperatorCombination() : f{}, g{} {}
+
+	inline auto eval(iter_type n = 0) const
+	{
+		return f.eval(n) + g.eval(n);
+	}
 
 	auto operator-() const
 	{
@@ -655,33 +661,40 @@ struct OpOperatorCombination : OpOperator<OpOperatorCombination<A1, A2>>
 		return OpCombination(*this, *static_cast<E const*>(&e));
 	}
 
-	//! Apply the chain operation to an expression.
-	template<typename E, typename AA1 = A1, typename AA2 = A2, typename std::enable_if_t<
-		!(std::is_same<mul_result_t<AA1, E>, std::invoke_result_t<decltype(&AA1::template apply<E>), AA1, E>>::value
-		&& std::is_same<mul_result_t<AA2, E>, std::invoke_result_t<decltype(&AA2::template apply<E>), AA2, E>>::value), int> = 0>
-	auto operator*(OpExpression<E> const& e) const
-	{
-		return f * (*static_cast<E const*>(&e)) + g * (*static_cast<E const*>(&e));
-	}
-
-	//! Apply the chain operation to an expression.
-	template<typename E, typename AA1 = A1, typename AA2 = A2, typename std::enable_if_t<
-		(std::is_same<mul_result_t<AA1, E>, std::invoke_result_t<decltype(&AA1::template apply<E>), AA1, E>>::value
-			&& std::is_same<mul_result_t<AA2, E>, std::invoke_result_t<decltype(&AA2::template apply<E>), AA2, E>>::value), int> = 0>
-	auto operator*(OpExpression<E> const& e) const
-	{
-			return apply(*static_cast<E const*>(&e));
-	}
-
+	
 	A1 f; //!< Operator on the left of the plus sign.
 	A2 g; //!< Operator on the right of the plus sign.
 };
+
+//! Apply the chain operation to an expression.
+template<typename E, typename A1, typename A2, typename std::enable_if_t<
+	!(std::is_same<mul_result_t<A1, E>, std::invoke_result_t<decltype(&A1::template apply<E>), A1, E>>::value
+		&& std::is_same<mul_result_t<A2, E>, std::invoke_result_t<decltype(&A2::template apply<E>), A2, E>>::value), int> = 0>
+auto operator*(OpOperatorCombination<A1, A2> const& a, OpExpression<E> const& e)
+{
+	return a.f * (*static_cast<E const*>(&e)) + a.g * (*static_cast<E const*>(&e));
+}
+
+//! Apply the chain operation to an expression.
+template<typename E, typename A1, typename A2, typename std::enable_if_t<
+	(std::is_same<mul_result_t<A1, E>, std::invoke_result_t<decltype(&A1::template apply<E>), A1, E>>::value
+		&& std::is_same<mul_result_t<A2, E>, std::invoke_result_t<decltype(&A2::template apply<E>), A2, E>>::value), int> = 0>
+auto operator*(OpOperatorCombination<A1, A2> const& a, OpExpression<E> const& e)
+{
+	return a.apply(*static_cast<E const*>(&e));
+}
+
+template<typename A1, typename A2, typename B1, typename B2>
+auto operator*(OpOperatorCombination<A1, A2> const& a, OpOperatorCombination<B1, B2> const& b)
+{
+	return a.f * b + a.g * b;
+}
 
 
 template<typename coeff_t, typename A1, typename A2, typename = std::enable_if_t<expr::is_coeff<coeff_t>, int>>
 auto operator*(coeff_t const& a, OpOperatorCombination<A1, A2> const& b)
 {
-	return OpOperatorCombination(a * b.f, a * b.g);
+	return a * b.f + a * b.g;
 }
 
 
@@ -800,6 +813,31 @@ protected:
 };
 
 
+template<typename coeff_t, typename A1, typename A2, typename E,
+	typename std::enable_if_t<(expr::is_coeff<coeff_t>), int> = 0>
+auto operator*(coeff_t const& value, OpCombination<A1, A2, E> const& b)
+{
+	return (value * b.combination)(b.e);
+}
+
+template<typename coeff_t, typename A1, typename A2, typename E,
+	typename std::enable_if_t<(expr::is_coeff<coeff_t>
+		&& expr::is_tensor<coeff_t> && expr::eval_type<OpOperatorCombination<A1, A2>>::rank == 0), int> = 0>
+auto operator*(coeff_t const& value, OpCombination<A1, A2, E> const& b)
+{
+	return (b.combination)(value * b.e);
+}
+
+template<typename coeff_t, typename A1, typename A2, typename E,
+	typename std::enable_if_t<(expr::is_coeff<coeff_t>
+		&& expr::is_tensor<coeff_t> && expr::eval_type<OpOperatorCombination<A1, A2>>::rank > 0), int> = 0>
+	auto operator*(coeff_t const& value, OpCombination<A1, A2, E> const& b)
+{
+	return (value * b.combination)(b.e);
+}
+
+
+
 
 // ******************************************************************************************
 
@@ -827,6 +865,12 @@ struct OpOperatorChain : OpOperator<OpOperatorChain<A1, A2>>
 	 * \param g The operator on the right hand side of the addition.
 	 */
 	OpOperatorChain(A1 const& f, A2 const& g) : f{ f }, g{ g } {}
+	OpOperatorChain() : f{}, g{} {}
+
+	inline auto eval(iter_type n = 0) const
+	{
+		return f.eval(n) * g.eval(n);
+	}
 
 	auto operator-() const
 	{
@@ -881,10 +925,10 @@ struct OpOperatorChain : OpOperator<OpOperatorChain<A1, A2>>
 
 
 //! Apply the chain operation to an expression.
-template<typename A1, typename A2, typename E>
-auto operator*(OpOperatorChain<A1, A2> const& chain, OpExpression<E> const& e)
+template<typename A1, typename A2, typename E, typename std::enable_if_t<!expr::is_coeff<E>, int> = 0>
+auto operator*(OpOperatorChain<A1, A2> const& chain, E const& e)
 {
-	return chain.f(chain.g * (*static_cast<E const*>(&e)));
+	return chain.f(chain.g * e);
 }
 
 //! Apply the chain operation to an expression.
@@ -923,7 +967,7 @@ template<typename coeff_t, typename A1, typename A2,
 	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
 auto operator*(coeff_t const& a, OpOperatorChain<A1, A2> const& b)
 {
-	return OpOperatorChain(a * b.f, b.g);
+	return (a * b.f)(b.g);
 }
 
 
@@ -1020,6 +1064,29 @@ public:
 
 };
 
+
+template<typename coeff_t, typename A1, typename A2, typename E,
+	typename std::enable_if_t<(expr::is_coeff<coeff_t> && !expr::is_tensor<coeff_t>), int> = 0>
+auto operator*(coeff_t const& value, OpChain<A1, A2, E> const& b)
+{
+	return (value * b.combination)(b.e);
+}
+
+template<typename coeff_t, typename A1, typename A2, typename E,
+	typename std::enable_if_t<(expr::is_coeff<coeff_t> 
+		&& expr::is_tensor<coeff_t> && expr::eval_type<OpOperatorChain<A1, A2>>::rank == 0), int> = 0>
+auto operator*(coeff_t const& value, OpChain<A1, A2, E> const& b)
+{
+	return (b.combination)(value * b.e);
+}
+
+template<typename coeff_t, typename A1, typename A2, typename E,
+	typename std::enable_if_t<(expr::is_coeff<coeff_t>
+		&& expr::is_tensor<coeff_t> && expr::eval_type<OpOperatorChain<A1, A2>>::rank > 0), int> = 0>
+auto operator*(coeff_t const& value, OpChain<A1, A2, E> const& b)
+{
+	return (value * b.combination)(b.e);
+}
 
 
 // *********************************************************************************************************************************
@@ -1885,39 +1952,28 @@ namespace expr
 	template<typename E>
 	auto hcts(OpExpression<E> const& e)
 	{
-		return expr::make_map<symphas::internal::HCTS>(*static_cast<E const*>(&e));
+		if constexpr (expr::is_coeff<E>)
+		{
+			return *static_cast<E const*>(&e);
+		}
+		else
+		{
+			return expr::make_map<symphas::internal::HCTS>(*static_cast<E const*>(&e));
+		}
 	}
-
-	//template<typename A, typename B>
-	//auto hcts(OpBinaryMul<A, B> const& e)
-	//{
-	//	return hcts(e.a) * hcts(e.b);
-	//}
-
-	//template<typename... As>
-	//auto hcts(OpAdd<As...> const& e)
-	//{
-	//	return hcts_adds(e, std::make_index_sequence<sizeof...(As)>{});
-	//}
 
 	template<typename E>
 	auto sthc(OpExpression<E> const& e)
 	{
-		return expr::make_map<symphas::internal::STHC>(*static_cast<E const*>(&e));
+		if constexpr (expr::is_coeff<E>)
+		{
+			return *static_cast<E const*>(&e);
+		}
+		else
+		{
+			return expr::make_map<symphas::internal::STHC>(*static_cast<E const*>(&e));
+		}
 	}
-
-	//template<typename A, typename B>
-	//auto sthc(OpBinaryMul<A, B> const& e)
-	//{
-	//	return sthc(e.a) * sthc(e.b);
-	//}
-
-	//template<typename... As>
-	//auto sthc(OpAdd<As...> const& e)
-	//{
-	//	return sthc_adds(e, std::make_index_sequence<sizeof...(As)>{});
-	//}
-
 
 	//! Initializes a mapping expression based on the Fourier transformation.
 	/*!
@@ -2251,6 +2307,18 @@ namespace expr
 	auto exp(OpMap<symphas::internal::HCTS, OpIdentity, E> const& e)
 	{
 		return hcts(exp(get_enclosed_expression(e)));
+	}
+
+	template<typename E>
+	constexpr auto coeff(OpMap<symphas::internal::STHC, OpIdentity, E> const& e)
+	{
+		return coeff(e.e);
+	}
+
+	template<typename E>
+	constexpr auto coeff(OpMap<symphas::internal::HCTS, OpIdentity, E> const& e)
+	{
+		return coeff(e.e);
 	}
 }
 

@@ -61,9 +61,30 @@ struct ModelPFCEquation : Model<D, Sp, S...>,
 	using parent_type::_s;
 
 
-	ModelPFCEquation(double const* coeff_in, size_t num_coeff_in, symphas::problem_parameters_type const& parameters) :
-		Model<D, Sp, S...>(coeff_in, num_coeff_in, parameters)
+	ModelPFCEquation(double const* coeff, size_t num_coeff, symphas::problem_parameters_type const& parameters) :
+		Model<D, Sp, S...>(coeff, num_coeff, parameters)
 	{
+		set_parameters();
+	}
+
+	ModelPFCEquation(symphas::problem_parameters_type const& parameters) :
+		ModelPFCEquation(nullptr, 0, parameters) {}
+
+	ModelPFCEquation(ModelPFCEquation<PFC, D, Sp, S...> const& other) :
+		Model<D, Sp, S...>(*static_cast<Model<D, Sp, S...> const*>(&other)) 
+	{
+		set_parameters();
+	}
+
+	ModelPFCEquation(ModelPFCEquation<PFC, D, Sp, S...>&& other) :
+		Model<D, Sp, S...>(static_cast<Model<D, Sp, S...>&&>(other))
+	{
+		set_parameters();
+	}
+
+	void set_parameters()
+	{
+
 		size_t num_interactions = (SN - 1) * ((SN - 1) + 1) / 2;
 		size_t base_num_coeff = SN * 5;
 		size_t total_num_coeff = base_num_coeff + num_interactions * 6;
@@ -82,45 +103,43 @@ struct ModelPFCEquation : Model<D, Sp, S...>,
 		}
 
 
+
 		for (iter_type i = 0; i < SN; ++i)
 		{
-			iter_type offset_base = i * 5;
-
-			alpha[i][i] = coeff[offset_base];
-			beta[i][i] = coeff[1 + offset_base];
-			nu[i][i] = coeff[2 + offset_base];
-			gamma[i][i] = coeff[3 + offset_base];
-			delta[i][i] = coeff[4 + offset_base];
+			alpha[i][i] = coeff[i];
+			beta[i][i] = coeff[i + SN];
+			nu[i][i] = coeff[i + 2 * SN];
+			gamma[i][i] = coeff[i + 3 * SN];
+			delta[i][i] = coeff[i + 4 * SN];
 			eps[i][i] = 1.0;
 
 			for (iter_type j = i + 1; j < SN; ++j)
 			{
-				size_t offset_interaction = 
-					base_num_coeff + (j - 1) * 6 // beginning of the coupling group
-					+ static_cast<size_t>((i - 1) * i * 0.5); // coupling group offset
+				size_t offset_group = (SN * (SN + 1)) / 2;	// offset from groups
+				size_t offset_noninteraction = SN * 5;
+				size_t offset_interaction =
+					offset_noninteraction			// offset from the noninteracting coefficients
+					+ (j - i - 1)					// offset from the previous coupling index
+					+ i * SN - (i * (i + 1)) / 2;	// offset from the coupling index of the previous field
 
 				alpha[i][j] = alpha[j][i] = coeff[offset_interaction];
-				beta[i][j] = beta[j][i] = coeff[offset_interaction + 1];
-				nu[i][j] = nu[j][i] = coeff[offset_interaction + 2];
-				gamma[i][j] = gamma[j][i] = coeff[offset_interaction + 3];
-				delta[i][j] = delta[j][i] = coeff[offset_interaction + 4];
-				eps[i][j] = eps[j][i] = coeff[offset_interaction + 5];
+				beta[i][j] = beta[j][i] = coeff[offset_interaction + offset_group];
+				nu[i][j] = nu[j][i] = coeff[offset_interaction + 2 * offset_group];
+				gamma[i][j] = gamma[j][i] = coeff[offset_interaction + 3 * offset_group];
+				delta[i][j] = delta[j][i] = coeff[offset_interaction + 4 * offset_group];
+				eps[i][j] = eps[j][i] = coeff[offset_interaction + 5 * offset_group];
 			}
 		}
 	}
 
-	ModelPFCEquation(symphas::problem_parameters_type const& parameters) :
-		ModelPFCEquation(nullptr, 0, parameters) {}
-
-
 	// phase field crystal coefficients
 
-	double alpha[SN][SN]{}; //!< Coefficients representing \f$\alpha_{ij}\f$
-	double beta[SN][SN]{}; //!< Coefficients representing \f$\beta_{ij}\f$
-	double nu[SN][SN]{}; //!< Coefficients representing \f$\nu_{ij}\f$
-	double gamma[SN][SN]{}; //!< Coefficients representing \f$\gamma_{ij}\f$
-	double delta[SN][SN]{}; //!< Coefficients representing \f$\delta_{ij}\f$
-	double eps[SN][SN]{}; //!< Coefficients representing \f$\epsilon_{ij}\f$
+	double alpha[SN][SN];	//!< Coefficients representing \f$\alpha_{ij}\f$
+	double beta[SN][SN];	//!< Coefficients representing \f$\beta_{ij}\f$
+	double nu[SN][SN];		//!< Coefficients representing \f$\nu_{ij}\f$
+	double gamma[SN][SN];	//!< Coefficients representing \f$\gamma_{ij}\f$
+	double delta[SN][SN];	//!< Coefficients representing \f$\delta_{ij}\f$
+	double eps[SN][SN];		//!< Coefficients representing \f$\epsilon_{ij}\f$
 
 
 	template<size_t N>
@@ -249,7 +268,7 @@ protected:
 	template<size_t... Is>
 	auto _make_equations(std::index_sequence<Is...>)
 	{
-		((..., expr::printf(std::get<1>(get_dynamic_N<Is>()), "given equation")));
+		((..., expr::printe(std::get<1>(get_dynamic_N<Is>()), "given equation")));
 		return solver.template form_expr_all<SN>(_s, get_dynamic_N<Is>()...);
 	}
 
@@ -257,15 +276,22 @@ protected:
 };
 
 template<template<size_t, typename> typename PFC, size_t D, typename Sp, typename... S>
-using GeneralizedPFCModel = typename
-	ModelApplied<D, Sp>::
-	template OpTypes<S...>::
+using GeneralizedPFCModel = typename symphas::internal::expand_types_to_model<D, Sp, S...>::type::
 	template Specialized<symphas::internal::MakeEquation, ModelPFCEquation<PFC, D, Sp, S...>>;
 
 
 
 #undef SN
 
+
+
+
+template<template<size_t, typename> typename PFC, size_t D, typename Sp, typename... S>
+struct ModelPFCEquation<PFC, D, Sp, symphas::lib::types_list<S...>> : ModelPFCEquation<PFC, D, Sp, S...>
+{
+	using parent_type = ModelPFCEquation<PFC, D, Sp, S...>;
+	using parent_type::parent_type;
+};
 
 
 

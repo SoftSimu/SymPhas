@@ -475,22 +475,6 @@ struct symphas::internal::allowed_model_dimensions<model_ ## NAME ## _t, D> \
 { static const bool value = model_ ## NAME::allowed_model_dimensions<void, D>::value; };
 
 
-
-namespace symphas::internal
-{
-	template<size_t Dm, typename Sp, typename... Ts>
-	struct expand_types_to_model
-	{
-		using type = typename ModelApplied<Dm, Sp>::template OpTypes<Ts...>;
-	};
-
-	template<size_t Dm, typename Sp, typename... Ts>
-	struct expand_types_to_model<Dm, Sp, symphas::lib::types_list<Ts...>>
-	{
-		using type = typename ModelApplied<Dm, Sp>::template OpTypes<Ts...>;
-	};
-}
-
 //! Definition for defining the intermediate variables.
 /*!
  * Intermediate variables used in a phase field problem are called provisional variables.
@@ -652,7 +636,7 @@ EQUATION_TRAIT_DEFINITION(__VA_ARGS__)
 EVOLUTION_PREAMBLE((), __VA_ARGS__)
 
 #define FREE_ENERGY(SELECTED_DYNAMICS, ...) \
-EVOLUTION(parent_type::template generate_equations<SINGLE_ARG SELECTED_DYNAMICS>(__VA_ARGS__))
+EVOLUTION(parent_type::template generate_equations(std::make_tuple(SINGLE_ARG SELECTED_DYNAMICS), __VA_ARGS__))
 
 
 #ifdef USING_MODEL_SELECTION
@@ -753,7 +737,7 @@ template<size_t Dm, typename Sp> \
 using ModelPFCSpecialized = GeneralizedPFCModel<ModelPFCApplied, Dm, Sp, SINGLE_ARG TYPES>; \
 __VA_ARGS__ } \
 template<size_t Dm, typename Sp> \
-using modelpfc_ ## NAME ## _t = modelpfc_ ## NAME ::ModelPFCSpecialized<Dm, Sp>;
+using model_ ## NAME ## _t = modelpfc_ ## NAME ::ModelPFCSpecialized<Dm, Sp>;
 
 
 //! Specify different default behaviours.
@@ -775,7 +759,7 @@ using modelpfc_ ## NAME ## _t = modelpfc_ ## NAME ::ModelPFCSpecialized<Dm, Sp>;
  * the phase field crystal problem.
  */
 #define DYNAMICS(TYPE) \
-const static symphas::internal::DynamicType DEFAULT_DYNAMIC = TYPE;
+const static symphas::internal::DynamicType DEFAULT_DYNAMIC = decltype(TYPE)::value;
 
 //! Sets the default mode of the phase field crystal problem.
 /*!
@@ -793,15 +777,13 @@ const static symphas::internal::DynamicType DEFAULT_DYNAMIC = TYPE;
 const static size_t DEFAULT_MODE_N = N;
 
 //! Indicates that a given field follows conserved EVOLUTION.
-#define CONSERVED symphas::internal::DynamicType::CONSERVED
+#define CONSERVED symphas::internal::dynamics_list<symphas::internal::DynamicType::CONSERVED>{}
 
 //! Indicates that a given field follows non-conserved EVOLUTION.
-#define NONCONSERVED symphas::internal::DynamicType::NONCONSERVED
+#define NONCONSERVED symphas::internal::dynamics_list<symphas::internal::DynamicType::NONCONSERVED>{}
 
-#define ALL_CONSERVED symphas::internal::dynamics_list<CONSERVED>
-#define ALL_NONCONSERVED symphas::internal::dynamics_list<NONCONSERVED>
-
-
+#define ALL_CONSERVED symphas::internal::all_dynamics_key_t<all_dynamics_t>{}
+#define ALL_NONCONSERVED symphas::lib::types_list<decltype(NONCONSERVED)>{}
 
 //! Modify the EVOLUTION of the given field.
 /*!
@@ -812,7 +794,7 @@ const static size_t DEFAULT_MODE_N = N;
  * \param FIELD_N The field index which is specialized.
  * \param TYPE The dynamic type which dictates the new EVOLUTION of the field.
  */
-#define DYNAMICS_OF(FIELD_N, TYPE) template<> constexpr symphas::internal::DynamicType PFCParameters::dynamic_val_apply<FIELD_N - 1>() { return TYPE; }
+#define DYNAMICS_OF(FIELD_N, TYPE) template<> constexpr symphas::internal::DynamicType PFCParameters::dynamic_val_apply<FIELD_N - 1>() { return decltype(TYPE)::value; }
 
 //! Modify the mode of a field.
 /*!
@@ -826,6 +808,9 @@ const static size_t DEFAULT_MODE_N = N;
  * \param N The new mode value of the field.
  */
 #define MODE_OF(FIELD_N, N) template<> constexpr size_t PFCParameters::mode_val_apply<FIELD_N - 1>() { return N; }
+
+#define EQUATION_OF(FIELD_N) symphas::internal::special_dynamics(std::index_sequence<FIELD_N - 1>{})
+#define EQUATION_OF_EACH(In) symphas::internal::special_dynamics(In)
 
 
 #ifdef USING_MODEL_SELECTION
@@ -1003,9 +988,16 @@ struct allowed_model_dimensions<void, D> \
 #define param(N) parent_type::template param<N - 1>()
 
 
+#define _nW(TYPE, ...) expr::make_noise<NoiseType::WHITE, TYPE, Dm>( \
+	parent_type::template system<0>().dims, \
+	parent_type::template system<0>().get_info().get_widths().get(), \
+	&solver.dt, __VA_ARGS__)
+
 // **************************************************************************************
 
+#define POW(N) expr::pow<N>
 
+#define LENGTH(AXIS) expr::make_literal(parent_type::template system<0>().get_info()[Axis::AXIS].length())
 
 //! The modulus of the given expression.
 /*!
@@ -1042,12 +1034,14 @@ struct allowed_model_dimensions<void, D> \
 #define Re(EXPR) expr::real(EXPR)
 
 //! Standard Gaussian with spatial distance equal to unity.
-#define Gaussian GaussianSmoothing<model_dimension<parent_type>::value>{ \
+#define Gaussian GaussianSmoothing<Dm>{ \
 	parent_type::template system<0>().dims, 1.0, 1.0 }
 
 //! Gaussian with spatial width based on the i-th field.
-#define Gaussian_F(i) GaussianSmoothing<model_dimension<parent_type>::value>{ \
-	parent_type::template system<i>().dims, parent_type::template system<i>().get_info().get_widths().get(), 1.0, 1.0 }
+#define Gaussian_F(i) GaussianSmoothing<Dm>{ \
+	parent_type::template system<i>().dims, \
+	parent_type::template system<i>().get_info().get_widths().get(), \
+	1.0, 1.0 }
 
 //! Apply smoothing to the expression `Z`.
 #define smoothing(Z) expr::make_convolution(Gaussian, Z)
@@ -1064,14 +1058,6 @@ struct allowed_model_dimensions<void, D> \
  */
 #define lit(V) expr::make_literal(V)
 #define integer(N) expr::make_integer<N>()
-
-//! The number 1 for an expression.
-/*!
- * Uses the multiplicative identity in an expression, useful in particular
- * for ensuring that symbolic algebra rules are followed.
- */
-#define one OpIdentity{}
-
 
 //! The imaginary number for an expression.
 /*!
@@ -1106,22 +1092,35 @@ struct allowed_model_dimensions<void, D> \
 
 // free energy parameters
 
-#define LANDAU_FE(U) landau_fe(U, solver)
-#define DOUBLE_WELL_FE(U) double_well_fe(U, solver)
 
-#define SUM(...) expr::sum<__VA_ARGS__>
-#define SUM_INDEX(I, N) i_<I, N>
+#define LANDAU_FE(U, ...) landau_fe(U, solver, __VA_ARGS__)
+#define DOUBLE_WELL_FE(U, ...) doublewell_fe(U, solver, __VA_ARGS__)
+#define CELLULAR_FE(U, ...) cellular_fe(U, solver, __VA_ARGS__)
 
-#define ii_(N) SUM_INDEX(0, N)
+#define SUM(...) symphas::internal::index_conditions(__VA_ARGS__)
+#define SUM_INDEX(I, P) (i_<I, P>{})
+#define SUM_VARIABLE(In, P) expr::symbols::make_sum_variable<P>(In)
+
+#define ii_(P) SUM_INDEX(0, P)
 #define ii ii_(0)
-#define jj_(N) SUM_INDEX(1, N)
+#define jj_(P) SUM_INDEX(1, P)
 #define jj jj_(0)
+#define kk_(P) SUM_INDEX(2, P)
+#define kk kk_(0)
 
-#define op_ii_(N) v_<ii_(N)>{}
+#define op_(In, P) SUM_VARIABLE(In, P)
+#define op_ii_(P) op_(ii_(P), P)
 #define op_ii op_ii_(0)
-#define op_jj_(N) v_<jj_(N)>{}
+#define op_jj_(P) op_(jj_(P), P)
 #define op_jj op_jj_(0)
+#define op_kk_(P) op_(kk_(P), P)
+#define op_kk op_kk_(0)
 
+
+#define DF(N) symphas::internal::func_deriv_sub_var<N - 1>()
+#define DF_(In) symphas::internal::func_deriv_sub_var(In)
+#define DF_ii DF_(ii_(0))
+#define DF_jj DF_(jj_(0))
 
  // **************************************************************************************
 

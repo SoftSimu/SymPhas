@@ -57,7 +57,7 @@ template<>
 scalar_t InitialConditionsAlg<1, Inside::SQUARE>::operator()(iter_type n) const
 {
 	double ra = dims[0] / 2.0;
-	double aa = ra / tdata.data.gp[0];
+	double aa = ra / init.data.gp[0];
 	double x = static_cast<double>(n);
 
 	return (x > ra - aa && x < ra + aa) ? IC_INNER_VALUE : IC_OUTER_VALUE;
@@ -69,7 +69,7 @@ scalar_t InitialConditionsAlg<1, Inside::SQUARE, InsideTag::RANDOM>::operator()(
 	double shift_circle_x = offsets.get_delta(0);
 
 	double ra = dims[0] / 2.0;
-	double aa = ra / tdata.data.gp[0] - shift_circle_x;
+	double aa = ra / init.data.gp[0] - shift_circle_x;
 	double x = static_cast<double>(n);
 
 	return (x > ra - aa && x < ra + aa) ? IC_INNER_VALUE : IC_OUTER_VALUE;
@@ -80,8 +80,8 @@ template<>
 scalar_t InitialConditionsAlg<1, Inside::CUBIC>::operator()(iter_type n) const
 {
 	double const
-		dx = dims[0] / tdata.data.gp[0],
-		aa = dx / (4.0 * tdata.data.gp[1]);
+		dx = dims[0] / init.data.gp[0],
+		aa = dx / (4.0 * init.data.gp[1]);
 
 	iter_type const ci = static_cast<iter_type>(n / dx);
 	double const mx = n - dx * ci;
@@ -108,8 +108,8 @@ scalar_t InitialConditionsAlg<1, Inside::CUBIC, InsideTag::VARA>::operator()(ite
 {
 	// size of symmetry square
 	double const
-		dx = dims[0] / tdata.data.gp[0],
-		aa = dx / (4.0 * tdata.data.gp[1]);
+		dx = dims[0] / init.data.gp[0],
+		aa = dx / (4.0 * init.data.gp[1]);
 
 	iter_type const
 		ci = static_cast<iter_type>(n / dx),
@@ -128,15 +128,15 @@ template<>
 scalar_t InitialConditionsAlg<1, Inside::CUBIC, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	double const
-		dx = dims[0] / tdata.data.gp[0],
-		aa = dx / (4.0 * tdata.data.gp[1]);
+		dx = dims[0] / init.data.gp[0],
+		aa = dx / (4.0 * init.data.gp[1]);
 
 	iter_type const ci = static_cast<iter_type>(n / dx);
 	double const mx = n - dx * ci;
 
 	iter_type const
-		i_l = static_cast<iter_type>((ci + 1 == static_cast<iter_type>(tdata.data.gp[0])) ? 0 : ci + 1) + ci,
-		i_r = static_cast<iter_type>((ci + 1 == static_cast<iter_type>(tdata.data.gp[0])) ? 0 : ci + 1);
+		i_l = static_cast<iter_type>((ci + 1 == static_cast<iter_type>(init.data.gp[0])) ? 0 : ci + 1) + ci,
+		i_r = static_cast<iter_type>((ci + 1 == static_cast<iter_type>(init.data.gp[0])) ? 0 : ci + 1);
 
 	// position of center of each ellipse
 	using p = struct { double x, y; };
@@ -161,40 +161,40 @@ template<>
 scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_1(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_square_1, 
 		&offsets,
-		tdata.data.gp[2], tdata.data.gp[3]);
+		init.data.gp[2], init.data.gp[3]);
 }
 
 template<>
 scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_1(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_circle_1, 
 		&offsets,
-		tdata.data.gp[2], tdata.data.gp[3]);
+		init.data.gp[2], init.data.gp[3]);
 }
 
 template<>
 scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_rnd_1(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_square_1, 
 		&offsets, &values,
-		tdata.data.gp[2], tdata.data.gp[3], 0);
+		init.data.gp[2], init.data.gp[3], 0);
 }
 
 template<>
 scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_rnd_1(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_circle_1, 
 		&offsets, &values,
-		tdata.data.gp[2], tdata.data.gp[3], 0);
+		init.data.gp[2], init.data.gp[3], 0);
 }
 
 
@@ -204,40 +204,40 @@ template<>
 scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARA>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_A_1(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_square_1, 
 		&offsets, &lengths,
-		tdata.data.gp[2], tdata.data.gp[3]);
+		init.data.gp[2], init.data.gp[3]);
 }
 
 template<>
 scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARA>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_A_1(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_circle_1, 
 		&offsets, &lengths,
-		tdata.data.gp[2], tdata.data.gp[3]);
+		init.data.gp[2], init.data.gp[3]);
 }
 
 template<>
 scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARA, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_A_rnd_1(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_square_1, 
 		&offsets, &lengths, &values,
-		tdata.data.gp[2], tdata.data.gp[3], 0);
+		init.data.gp[2], init.data.gp[3], 0);
 }
 
 template<>
 scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARA, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_A_rnd_1(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_circle_1, 
 		&offsets, &lengths, &values,
-		tdata.data.gp[2], tdata.data.gp[3], 0);
+		init.data.gp[2], init.data.gp[3], 0);
 }
 
 
@@ -246,40 +246,40 @@ template<>
 scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARB>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_B_1(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_square_1, 
 		&offsets, &lengths,
-		tdata.data.gp[2], tdata.data.gp[3]);
+		init.data.gp[2], init.data.gp[3]);
 }
 
 template<>
 scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARB>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_B_1(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_circle_1, 
 		&offsets, &lengths,
-		tdata.data.gp[2], tdata.data.gp[3]);
+		init.data.gp[2], init.data.gp[3]);
 }
 
 template<>
 scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARB, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_B_rnd_1(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_square_1, 
 		&offsets, &lengths, &values,
-		tdata.data.gp[2], tdata.data.gp[3], 0);
+		init.data.gp[2], init.data.gp[3], 0);
 }
 
 template<>
 scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARB, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_B_rnd_1(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_circle_1, 
 		&offsets, &lengths, &values,
-		tdata.data.gp[2], tdata.data.gp[3], 0);
+		init.data.gp[2], init.data.gp[3], 0);
 }
 
 
@@ -287,9 +287,9 @@ template<>
 scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARC>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
+	double field_value = init.data.gp[4];
 	return symphas::internal::seeds_1(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_square_1,
 		&offsets,
 		seed_value, field_value);
@@ -299,9 +299,9 @@ template<>
 scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARC>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
+	double field_value = init.data.gp[4];
 	return symphas::internal::seeds_1(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_circle_1,
 		&offsets,
 		seed_value, field_value);
@@ -311,10 +311,10 @@ template<>
 scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
-	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(tdata.intag, InsideTag::INVERT)) ? tdata.data.gp[3] : tdata.data.gp[2]);
+	double field_value = init.data.gp[4];
+	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(init.intag, InsideTag::INVERT)) ? init.data.gp[3] : init.data.gp[2]);
 	return symphas::internal::seeds_rnd_1(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_square_1,
 		&offsets, &values,
 		seed_value, field_value, rnd_offset);
@@ -324,10 +324,10 @@ template<>
 scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
-	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(tdata.intag, InsideTag::INVERT)) ? tdata.data.gp[3] : tdata.data.gp[2]);
+	double field_value = init.data.gp[4];
+	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(init.intag, InsideTag::INVERT)) ? init.data.gp[3] : init.data.gp[2]);
 	return symphas::internal::seeds_rnd_1(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_circle_1,
 		&offsets, &values,
 		seed_value, field_value, rnd_offset);
@@ -339,9 +339,9 @@ template<>
 scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARA>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
+	double field_value = init.data.gp[4];
 	return symphas::internal::seeds_A_1(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_square_1,
 		&offsets, &lengths,
 		seed_value, field_value);
@@ -351,9 +351,9 @@ template<>
 scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARA>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
+	double field_value = init.data.gp[4];
 	return symphas::internal::seeds_A_1(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_circle_1,
 		&offsets, &lengths,
 		seed_value, field_value);
@@ -363,10 +363,10 @@ template<>
 scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARA, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
-	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(tdata.intag, InsideTag::INVERT)) ? tdata.data.gp[3] : tdata.data.gp[2]);
+	double field_value = init.data.gp[4];
+	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(init.intag, InsideTag::INVERT)) ? init.data.gp[3] : init.data.gp[2]);
 	return symphas::internal::seeds_A_rnd_1(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_square_1,
 		&offsets, &lengths, &values,
 		seed_value, field_value, rnd_offset);
@@ -376,10 +376,10 @@ template<>
 scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARA, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
-	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(tdata.intag, InsideTag::INVERT)) ? tdata.data.gp[3] : tdata.data.gp[2]);
+	double field_value = init.data.gp[4];
+	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(init.intag, InsideTag::INVERT)) ? init.data.gp[3] : init.data.gp[2]);
 	return symphas::internal::seeds_A_rnd_1(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_square_1,
 		&offsets, &lengths, &values,
 		seed_value, field_value, rnd_offset);
@@ -389,9 +389,9 @@ template<>
 scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARB>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
+	double field_value = init.data.gp[4];
 	return symphas::internal::seeds_B_1(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_square_1,
 		&offsets, &lengths,
 		seed_value, field_value);
@@ -401,9 +401,9 @@ template<>
 scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARB>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
+	double field_value = init.data.gp[4];
 	return symphas::internal::seeds_B_1(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_circle_1,
 		&offsets, &lengths,
 		seed_value, field_value);
@@ -413,10 +413,10 @@ template<>
 scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARB, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
-	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(tdata.intag, InsideTag::INVERT)) ? tdata.data.gp[3] : tdata.data.gp[2]);
+	double field_value = init.data.gp[4];
+	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(init.intag, InsideTag::INVERT)) ? init.data.gp[3] : init.data.gp[2]);
 	return symphas::internal::seeds_B_rnd_1(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_square_1,
 		&offsets, &lengths, &values,
 		seed_value, field_value, rnd_offset);
@@ -426,10 +426,10 @@ template<>
 scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARB, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
-	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(tdata.intag, InsideTag::INVERT)) ? tdata.data.gp[3] : tdata.data.gp[2]);
+	double field_value = init.data.gp[4];
+	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(init.intag, InsideTag::INVERT)) ? init.data.gp[3] : init.data.gp[2]);
 	return symphas::internal::seeds_B_rnd_1(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_square_1,
 		&offsets, &lengths, &values,
 		seed_value, field_value, rnd_offset);
@@ -450,8 +450,8 @@ scalar_t InitialConditionsAlg<2, Inside::SQUARE>::operator()(iter_type n) const
 		uy = dims[1] / 2.0;
 
 	double const
-		aa = (dims[0]) / (2.0 * tdata.data.gp[0]),
-		bb = (dims[1]) / (2.0 * tdata.data.gp[1]);
+		aa = (dims[0]) / (2.0 * init.data.gp[0]),
+		bb = (dims[1]) / (2.0 * init.data.gp[1]);
 
 	iter_type const
 		x = n % dims[0],
@@ -472,8 +472,8 @@ scalar_t InitialConditionsAlg<2, Inside::SQUARE, InsideTag::RANDOM>::operator()(
 		uy = dims[1] / 2.0;
 
 	double const
-		aa = (dims[0]) / (2.0 * tdata.data.gp[0]),
-		bb = (dims[1]) / (2.0 * tdata.data.gp[1]);
+		aa = (dims[0]) / (2.0 * init.data.gp[0]),
+		bb = (dims[1]) / (2.0 * init.data.gp[1]);
 
 	iter_type const
 		x = n % dims[0] + shift_x,
@@ -490,8 +490,8 @@ scalar_t InitialConditionsAlg<2, Inside::SQUARE, InsideTag::VARA>::operator()(it
 	double u = d / 2.0;
 
 	double const
-		aa = u / tdata.data.gp[0],
-		bb = u / tdata.data.gp[1];
+		aa = u / init.data.gp[0],
+		bb = u / init.data.gp[1];
 
 	iter_type const
 		x = n % dims[0],
@@ -511,8 +511,8 @@ scalar_t InitialConditionsAlg<2, Inside::SQUARE, InsideTag::VARA, InsideTag::RAN
 	double const u = d / 2.0;
 
 	double const
-		aa = u / tdata.data.gp[0],
-		bb = u / tdata.data.gp[1];
+		aa = u / init.data.gp[0],
+		bb = u / init.data.gp[1];
 
 	iter_type const
 		x = n % dims[0] + shift_x,
@@ -530,8 +530,8 @@ scalar_t InitialConditionsAlg<2, Inside::CIRCLE>::operator()(iter_type n) const
 		uy = dims[1] / 2.0;
 
 	double const
-		aa = (dims[0]) / (2.0 * tdata.data.gp[0]),
-		bb = (dims[1]) / (2.0 * tdata.data.gp[1]);
+		aa = (dims[0]) / (2.0 * init.data.gp[0]),
+		bb = (dims[1]) / (2.0 * init.data.gp[1]);
 
 	iter_type const
 		x = n % dims[0],
@@ -552,8 +552,8 @@ scalar_t InitialConditionsAlg<2, Inside::CIRCLE, InsideTag::RANDOM>::operator()(
 		uy = dims[1] / 2.0;
 
 	double const
-		aa = (dims[0]) / (2.0 * tdata.data.gp[0]),
-		bb = (dims[1]) / (2.0 * tdata.data.gp[1]);
+		aa = (dims[0]) / (2.0 * init.data.gp[0]),
+		bb = (dims[1]) / (2.0 * init.data.gp[1]);
 
 	iter_type const
 		x = n % dims[0] + shift_x,
@@ -569,8 +569,8 @@ scalar_t InitialConditionsAlg<2, Inside::CIRCLE, InsideTag::VARA>::operator()(it
 	double u = d / 2.0;
 
 	double const
-		aa = u / tdata.data.gp[0],
-		bb = u / tdata.data.gp[1];
+		aa = u / init.data.gp[0],
+		bb = u / init.data.gp[1];
 
 	iter_type const
 		x = n % dims[0],
@@ -590,8 +590,8 @@ scalar_t InitialConditionsAlg<2, Inside::CIRCLE, InsideTag::VARA, InsideTag::RAN
 	double const u = d / 2.0;
 
 	double const
-		aa = u / tdata.data.gp[0],
-		bb = u / tdata.data.gp[1];
+		aa = u / init.data.gp[0],
+		bb = u / init.data.gp[1];
 
 	iter_type const
 		x = n % dims[0] + shift_x,
@@ -605,13 +605,13 @@ scalar_t InitialConditionsAlg<2, Inside::CUBIC>::operator()(iter_type n) const
 {
 	// size of symmetry square
 	double const
-		dx = dims[0] / tdata.data.gp[0],
-		dy = dims[1] / tdata.data.gp[1];
+		dx = dims[0] / init.data.gp[0],
+		dy = dims[1] / init.data.gp[1];
 
 	// dimensions of ellipse
 	double const
-		aa = dx / (4.0 * tdata.data.gp[2]),
-		bb = dy / (4.0 * tdata.data.gp[2]);
+		aa = dx / (4.0 * init.data.gp[2]),
+		bb = dy / (4.0 * init.data.gp[2]);
 
 	// x y cursor position
 	iter_type const
@@ -649,13 +649,13 @@ scalar_t InitialConditionsAlg<2, Inside::CUBIC, InsideTag::VARA>::operator()(ite
 {
 	// size of symmetry square
 	double const
-		dx = dims[0] / tdata.data.gp[0],
-		dy = dims[1] / tdata.data.gp[1];
+		dx = dims[0] / init.data.gp[0],
+		dy = dims[1] / init.data.gp[1];
 
 	// dimensions of ellipse
 	double const
-		aa = dx / (4.0 * tdata.data.gp[2]),
-		bb = dy / (4.0 * tdata.data.gp[2]);
+		aa = dx / (4.0 * init.data.gp[2]),
+		bb = dy / (4.0 * init.data.gp[2]);
 
 	// x y cursor position
 	iter_type const
@@ -686,13 +686,13 @@ scalar_t InitialConditionsAlg<2, Inside::CUBIC, InsideTag::RANDOM>::operator()(i
 
 	// size of symmetry square
 	double const
-		dx = dims[0] / tdata.data.gp[0],
-		dy = dims[1] / tdata.data.gp[1];
+		dx = dims[0] / init.data.gp[0],
+		dy = dims[1] / init.data.gp[1];
 
 	// dimensions of ellipse
 	double const
-		aa = dx / (4.0 * tdata.data.gp[2]),
-		bb = dy / (4.0 * tdata.data.gp[2]);
+		aa = dx / (4.0 * init.data.gp[2]),
+		bb = dy / (4.0 * init.data.gp[2]);
 
 	// x y cursor position
 	iter_type const
@@ -710,8 +710,8 @@ scalar_t InitialConditionsAlg<2, Inside::CUBIC, InsideTag::RANDOM>::operator()(i
 	 */
 
 	iter_type const
-		ci_len = static_cast<iter_type>(tdata.data.gp[0]),
-		cj_len = static_cast<iter_type>(tdata.data.gp[1]),
+		ci_len = static_cast<iter_type>(init.data.gp[0]),
+		cj_len = static_cast<iter_type>(init.data.gp[1]),
 		ci_next = (ci + 1) % ci_len,
 		cj_next = (cj + 1) % cj_len;
 
@@ -745,13 +745,13 @@ scalar_t InitialConditionsAlg<2, Inside::HEXAGONAL>::operator()(iter_type n) con
 {
 	// size of symmetry square
 	double const
-		dx = dims[0] / tdata.data.gp[0],
-		dy = dims[1] / tdata.data.gp[1];
+		dx = dims[0] / init.data.gp[0],
+		dy = dims[1] / init.data.gp[1];
 
 	// dimensions of ellipse
 	double const
-		aa = dx / (4.0 * tdata.data.gp[2]),
-		bb = dy / (4.0 * tdata.data.gp[2]);
+		aa = dx / (4.0 * init.data.gp[2]),
+		bb = dy / (4.0 * init.data.gp[2]);
 
 	// x y cursor position
 	iter_type const
@@ -790,13 +790,13 @@ scalar_t InitialConditionsAlg<2, Inside::HEXAGONAL, InsideTag::RANDOM>::operator
 {
 	// size of symmetry square
 	double const
-		dx = dims[0] / tdata.data.gp[0],
-		dy = dims[1] / tdata.data.gp[1];
+		dx = dims[0] / init.data.gp[0],
+		dy = dims[1] / init.data.gp[1];
 
 	// dimensions of ellipse
 	double const
-		aa = dx / (4.0 * tdata.data.gp[2]),
-		bb = dy / (4.0 * tdata.data.gp[2]);
+		aa = dx / (4.0 * init.data.gp[2]),
+		bb = dy / (4.0 * init.data.gp[2]);
 
 	// x y cursor position
 	iter_type const
@@ -813,8 +813,8 @@ scalar_t InitialConditionsAlg<2, Inside::HEXAGONAL, InsideTag::RANDOM>::operator
 	/* these variables are to map each position to the correct random index
 	 */
 	iter_type const
-		ci_len = static_cast<iter_type>(tdata.data.gp[0]),
-		cj_len = static_cast<iter_type>(tdata.data.gp[1]),
+		ci_len = static_cast<iter_type>(init.data.gp[0]),
+		cj_len = static_cast<iter_type>(init.data.gp[1]),
 		ci_next = (ci + 1) % ci_len,
 		cj_next = (cj + 1) % cj_len;
 
@@ -851,40 +851,40 @@ template<>
 scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_2(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_square_2, 
 		&offsets,
-		tdata.data.gp[2], tdata.data.gp[3]);
+		init.data.gp[2], init.data.gp[3]);
 }
 
 template<>
 scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_2(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_circle_2, 
 		&offsets,
-		tdata.data.gp[2], tdata.data.gp[3]);
+		init.data.gp[2], init.data.gp[3]);
 }
 
 template<>
 scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_rnd_2(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_square_2, 
 		&offsets, &values,
-		tdata.data.gp[2], tdata.data.gp[3], 0);
+		init.data.gp[2], init.data.gp[3], 0);
 }
 
 template<>
 scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_rnd_2(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_circle_2, 
 		&offsets, &values,
-		tdata.data.gp[2], tdata.data.gp[3], 0);
+		init.data.gp[2], init.data.gp[3], 0);
 }
 
 
@@ -894,40 +894,40 @@ template<>
 scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARA>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_A_2(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_square_2, 
 		&offsets, &lengths,
-		tdata.data.gp[2], tdata.data.gp[3]);
+		init.data.gp[2], init.data.gp[3]);
 }
 
 template<>
 scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARA>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_A_2(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_circle_2, 
 		&offsets, &lengths,
-		tdata.data.gp[2], tdata.data.gp[3]);
+		init.data.gp[2], init.data.gp[3]);
 }
 
 template<>
 scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARA, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_A_rnd_2(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_square_2, 
 		&offsets, &lengths, &values,
-		tdata.data.gp[2], tdata.data.gp[3], 0);
+		init.data.gp[2], init.data.gp[3], 0);
 }
 
 template<>
 scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARA, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_A_rnd_2(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_circle_2, 
 		&offsets, &lengths, &values,
-		tdata.data.gp[2], tdata.data.gp[3], 0);
+		init.data.gp[2], init.data.gp[3], 0);
 }
 
 
@@ -936,40 +936,40 @@ template<>
 scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARB>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_B_2(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_square_2, 
 		&offsets, &lengths,
-		tdata.data.gp[2], tdata.data.gp[3]);
+		init.data.gp[2], init.data.gp[3]);
 }
 
 template<>
 scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARB>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_B_2(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_circle_2, 
 		&offsets, &lengths,
-		tdata.data.gp[2], tdata.data.gp[3]);
+		init.data.gp[2], init.data.gp[3]);
 }
 
 template<>
 scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARB, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_B_rnd_2(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_square_2, 
 		&offsets, &lengths, &values,
-		tdata.data.gp[2], tdata.data.gp[3], 0);
+		init.data.gp[2], init.data.gp[3], 0);
 }
 
 template<>
 scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARB, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_B_rnd_2(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_circle_2, 
 		&offsets, &lengths, &values,
-		tdata.data.gp[2], tdata.data.gp[3], 0);
+		init.data.gp[2], init.data.gp[3], 0);
 }
 
 
@@ -977,9 +977,9 @@ template<>
 scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARC>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
+	double field_value = init.data.gp[4];
 	return symphas::internal::seeds_2(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_square_2,
 		&offsets,
 		seed_value, field_value);
@@ -989,9 +989,9 @@ template<>
 scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARC>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
+	double field_value = init.data.gp[4];
 	return symphas::internal::seeds_2(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_circle_2,
 		&offsets,
 		seed_value, field_value);
@@ -1001,10 +1001,10 @@ template<>
 scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
-	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(tdata.intag, InsideTag::INVERT)) ? tdata.data.gp[3] : tdata.data.gp[2]);
+	double field_value = init.data.gp[4];
+	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(init.intag, InsideTag::INVERT)) ? init.data.gp[3] : init.data.gp[2]);
 	return symphas::internal::seeds_rnd_2(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_square_2,
 		&offsets, &values,
 		seed_value, field_value, rnd_offset);
@@ -1014,10 +1014,10 @@ template<>
 scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
-	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(tdata.intag, InsideTag::INVERT)) ? tdata.data.gp[3] : tdata.data.gp[2]);
+	double field_value = init.data.gp[4];
+	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(init.intag, InsideTag::INVERT)) ? init.data.gp[3] : init.data.gp[2]);
 	return symphas::internal::seeds_rnd_2(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_circle_2,
 		&offsets, &values,
 		seed_value, field_value, rnd_offset);
@@ -1029,9 +1029,9 @@ template<>
 scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARA>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
+	double field_value = init.data.gp[4];
 	return symphas::internal::seeds_A_2(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_square_2,
 		&offsets, &lengths,
 		seed_value, field_value);
@@ -1041,9 +1041,9 @@ template<>
 scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARA>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
+	double field_value = init.data.gp[4];
 	return symphas::internal::seeds_A_2(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_circle_2,
 		&offsets, &lengths,
 		seed_value, field_value);
@@ -1053,10 +1053,10 @@ template<>
 scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARA, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
-	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(tdata.intag, InsideTag::INVERT)) ? tdata.data.gp[3] : tdata.data.gp[2]);
+	double field_value = init.data.gp[4];
+	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(init.intag, InsideTag::INVERT)) ? init.data.gp[3] : init.data.gp[2]);
 	return symphas::internal::seeds_A_rnd_2(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_square_2,
 		&offsets, &lengths, &values,
 		seed_value, field_value, rnd_offset);
@@ -1066,10 +1066,10 @@ template<>
 scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARA, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
-	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(tdata.intag, InsideTag::INVERT)) ? tdata.data.gp[3] : tdata.data.gp[2]);
+	double field_value = init.data.gp[4];
+	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(init.intag, InsideTag::INVERT)) ? init.data.gp[3] : init.data.gp[2]);
 	return symphas::internal::seeds_A_rnd_2(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_square_2,
 		&offsets, &lengths, &values,
 		seed_value, field_value, rnd_offset);
@@ -1081,9 +1081,9 @@ template<>
 scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARB>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
+	double field_value = init.data.gp[4];
 	return symphas::internal::seeds_B_2(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_square_2,
 		&offsets, &lengths,
 		seed_value, field_value);
@@ -1093,9 +1093,9 @@ template<>
 scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARB>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
+	double field_value = init.data.gp[4];
 	return symphas::internal::seeds_B_2(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_circle_2,
 		&offsets, &lengths,
 		seed_value, field_value);
@@ -1105,10 +1105,10 @@ template<>
 scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARB, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
-	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(tdata.intag, InsideTag::INVERT)) ? tdata.data.gp[3] : tdata.data.gp[2]);
+	double field_value = init.data.gp[4];
+	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(init.intag, InsideTag::INVERT)) ? init.data.gp[3] : init.data.gp[2]);
 	return symphas::internal::seeds_B_rnd_2(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_square_2,
 		&offsets, &lengths, &values,
 		seed_value, field_value, rnd_offset);
@@ -1118,10 +1118,10 @@ template<>
 scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARB, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
-	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(tdata.intag, InsideTag::INVERT)) ? tdata.data.gp[3] : tdata.data.gp[2]);
+	double field_value = init.data.gp[4];
+	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(init.intag, InsideTag::INVERT)) ? init.data.gp[3] : init.data.gp[2]);
 	return symphas::internal::seeds_B_rnd_2(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_square_2,
 		&offsets, &lengths, &values,
 		seed_value, field_value, rnd_offset);
@@ -1144,9 +1144,9 @@ scalar_t InitialConditionsAlg<3, Inside::SQUARE>::operator()(iter_type n) const
 		uz = dims[2] / 2.0;
 
 	double const
-		aa = ux / tdata.data.gp[0],
-		bb = uy / tdata.data.gp[1],
-		cc = uz / tdata.data.gp[2];
+		aa = ux / init.data.gp[0],
+		bb = uy / init.data.gp[1],
+		cc = uz / init.data.gp[2];
 
 	iter_type const
 		x = n % dims[0],
@@ -1170,9 +1170,9 @@ scalar_t InitialConditionsAlg<3, Inside::SQUARE, InsideTag::RANDOM>::operator()(
 		uz = dims[2] / 2.0;
 
 	double const
-		aa = ux / tdata.data.gp[0],
-		bb = uy / tdata.data.gp[1],
-		cc = uz / tdata.data.gp[2];
+		aa = ux / init.data.gp[0],
+		bb = uy / init.data.gp[1],
+		cc = uz / init.data.gp[2];
 
 	iter_type const
 		x = n % dims[0] + shift_x,
@@ -1190,9 +1190,9 @@ scalar_t InitialConditionsAlg<3, Inside::SQUARE, InsideTag::VARA>::operator()(it
 	double const u = d / 2.0;
 
 	double const
-		aa = u / tdata.data.gp[0],
-		bb = u / tdata.data.gp[1],
-		cc = u / tdata.data.gp[2];
+		aa = u / init.data.gp[0],
+		bb = u / init.data.gp[1],
+		cc = u / init.data.gp[2];
 
 	iter_type const
 		x = n % dims[0],
@@ -1216,9 +1216,9 @@ scalar_t InitialConditionsAlg<3, Inside::SQUARE, InsideTag::VARA, InsideTag::RAN
 	double const u = d / 2.0;
 
 	double const
-		aa = u / tdata.data.gp[0],
-		bb = u / tdata.data.gp[1],
-		cc = u / tdata.data.gp[2];
+		aa = u / init.data.gp[0],
+		bb = u / init.data.gp[1],
+		cc = u / init.data.gp[2];
 
 	iter_type const
 		x = n % dims[0] + shift_x,
@@ -1238,9 +1238,9 @@ scalar_t InitialConditionsAlg<3, Inside::CIRCLE>::operator()(iter_type n) const
 		uz = dims[2] / 2.0;
 
 	double const
-		aa = ux / tdata.data.gp[0],
-		bb = uy / tdata.data.gp[1],
-		cc = uz / tdata.data.gp[2];
+		aa = ux / init.data.gp[0],
+		bb = uy / init.data.gp[1],
+		cc = uz / init.data.gp[2];
 
 	iter_type const
 		x = n % dims[0],
@@ -1264,9 +1264,9 @@ scalar_t InitialConditionsAlg<3, Inside::CIRCLE, InsideTag::RANDOM>::operator()(
 		uz = dims[2] / 2.0;
 
 	double const
-		aa = ux / tdata.data.gp[0],
-		bb = uy / tdata.data.gp[1],
-		cc = uz / tdata.data.gp[2];
+		aa = ux / init.data.gp[0],
+		bb = uy / init.data.gp[1],
+		cc = uz / init.data.gp[2];
 
 	iter_type const
 		x = n % dims[0] + shift_x,
@@ -1283,9 +1283,9 @@ scalar_t InitialConditionsAlg<3, Inside::CIRCLE, InsideTag::VARA>::operator()(it
 	double const u = d / 2.0;
 
 	double const
-		aa = u / tdata.data.gp[0],
-		bb = u / tdata.data.gp[1],
-		cc = u / tdata.data.gp[2];
+		aa = u / init.data.gp[0],
+		bb = u / init.data.gp[1],
+		cc = u / init.data.gp[2];
 
 	iter_type const
 		x = n % dims[0],
@@ -1308,9 +1308,9 @@ scalar_t InitialConditionsAlg<3, Inside::CIRCLE, InsideTag::VARA, InsideTag::RAN
 	double const u = d / 2.0;
 
 	double const
-		aa = u / tdata.data.gp[0],
-		bb = u / tdata.data.gp[1],
-		cc = u / tdata.data.gp[2];
+		aa = u / init.data.gp[0],
+		bb = u / init.data.gp[1],
+		cc = u / init.data.gp[2];
 
 	iter_type const
 		x = n % dims[0] + shift_x,
@@ -1326,15 +1326,15 @@ scalar_t InitialConditionsAlg<3, Inside::CUBIC>::operator()(iter_type n) const
 {
 	// size of symmetry square
 	double const
-		dx = dims[0] / tdata.data.gp[0],
-		dy = dims[1] / tdata.data.gp[1],
-		dz = dims[2] / tdata.data.gp[2];
+		dx = dims[0] / init.data.gp[0],
+		dy = dims[1] / init.data.gp[1],
+		dz = dims[2] / init.data.gp[2];
 
 	// dimensions of ellipse
 	double const
-		aa = dx / (4.0 * tdata.data.gp[3]),
-		bb = dy / (4.0 * tdata.data.gp[3]),
-		cc = dz / (4.0 * tdata.data.gp[3]);
+		aa = dx / (4.0 * init.data.gp[3]),
+		bb = dy / (4.0 * init.data.gp[3]),
+		cc = dz / (4.0 * init.data.gp[3]);
 
 	// x y cursor position
 	iter_type const
@@ -1380,15 +1380,15 @@ scalar_t InitialConditionsAlg<3, Inside::CUBIC, InsideTag::VARA>::operator()(ite
 {
 	// size of symmetry square
 	double const
-		dx = dims[0] / tdata.data.gp[0],
-		dy = dims[1] / tdata.data.gp[1],
-		dz = dims[2] / tdata.data.gp[2];
+		dx = dims[0] / init.data.gp[0],
+		dy = dims[1] / init.data.gp[1],
+		dz = dims[2] / init.data.gp[2];
 
 	// dimensions of ellipse
 	double const
-		aa = dx / (4.0 * tdata.data.gp[2]),
-		bb = dy / (4.0 * tdata.data.gp[2]),
-		cc = dy / (4.0 * tdata.data.gp[2]);
+		aa = dx / (4.0 * init.data.gp[2]),
+		bb = dy / (4.0 * init.data.gp[2]),
+		cc = dy / (4.0 * init.data.gp[2]);
 
 	// x y cursor position
 	iter_type const
@@ -1418,15 +1418,15 @@ scalar_t InitialConditionsAlg<3, Inside::CUBIC, InsideTag::RANDOM>::operator()(i
 {
 	// size of symmetry square
 	double const
-		dx = dims[0] / tdata.data.gp[0],
-		dy = dims[1] / tdata.data.gp[1],
-		dz = dims[2] / tdata.data.gp[2];
+		dx = dims[0] / init.data.gp[0],
+		dy = dims[1] / init.data.gp[1],
+		dz = dims[2] / init.data.gp[2];
 
 	// dimensions of ellipse
 	double const
-		aa = dx / (4.0 * tdata.data.gp[3]),
-		bb = dy / (4.0 * tdata.data.gp[3]),
-		cc = dz / (4.0 * tdata.data.gp[3]);
+		aa = dx / (4.0 * init.data.gp[3]),
+		bb = dy / (4.0 * init.data.gp[3]),
+		cc = dz / (4.0 * init.data.gp[3]);
 
 	// x y cursor position
 	iter_type const
@@ -1444,9 +1444,9 @@ scalar_t InitialConditionsAlg<3, Inside::CUBIC, InsideTag::RANDOM>::operator()(i
 		mz = cz - static_cast<iter_type>(dz * ck);
 
 	iter_type const
-		ci_len = static_cast<iter_type>(tdata.data.gp[0]),
-		cj_len = static_cast<iter_type>(tdata.data.gp[1]),
-		ck_len = static_cast<iter_type>(tdata.data.gp[2]),
+		ci_len = static_cast<iter_type>(init.data.gp[0]),
+		cj_len = static_cast<iter_type>(init.data.gp[1]),
+		ck_len = static_cast<iter_type>(init.data.gp[2]),
 		ci_next = (ci + 1) % ci_len,
 		cj_next = (cj + 1) % cj_len,
 		ck_next = (ck + 1) % ck_len;
@@ -1487,14 +1487,14 @@ template<>
 scalar_t InitialConditionsAlg<3, Inside::HEXAGONAL>::operator()(iter_type n) const
 {
 	double const
-		dx = dims[0] / tdata.data.gp[0],
-		dy = dims[1] / tdata.data.gp[1],
-		dz = dims[2] / tdata.data.gp[2];
+		dx = dims[0] / init.data.gp[0],
+		dy = dims[1] / init.data.gp[1],
+		dz = dims[2] / init.data.gp[2];
 
 	double const
-		aa = dx / (4.0 * tdata.data.gp[3]),
-		bb = dy / (4.0 * tdata.data.gp[3]),
-		cc = dz / (4.0 * tdata.data.gp[3]);
+		aa = dx / (4.0 * init.data.gp[3]),
+		bb = dy / (4.0 * init.data.gp[3]),
+		cc = dz / (4.0 * init.data.gp[3]);
 
 	iter_type const
 		cx = n % dims[0],
@@ -1534,14 +1534,14 @@ template<>
 scalar_t InitialConditionsAlg<3, Inside::HEXAGONAL, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	double const
-		dx = dims[0] / tdata.data.gp[0],
-		dy = dims[1] / tdata.data.gp[1],
-		dz = dims[2] / tdata.data.gp[2];
+		dx = dims[0] / init.data.gp[0],
+		dy = dims[1] / init.data.gp[1],
+		dz = dims[2] / init.data.gp[2];
 
 	double const
-		aa = dx / (4.0 * tdata.data.gp[3]),
-		bb = dy / (4.0 * tdata.data.gp[3]),
-		cc = dz / (4.0 * tdata.data.gp[3]);
+		aa = dx / (4.0 * init.data.gp[3]),
+		bb = dy / (4.0 * init.data.gp[3]),
+		cc = dz / (4.0 * init.data.gp[3]);
 
 	iter_type const
 		cx = n % dims[0],
@@ -1558,9 +1558,9 @@ scalar_t InitialConditionsAlg<3, Inside::HEXAGONAL, InsideTag::RANDOM>::operator
 		mz = cz - static_cast<iter_type>(dz * ck);
 
 	iter_type const
-		ci_len = static_cast<iter_type>(tdata.data.gp[0]),
-		cj_len = static_cast<iter_type>(tdata.data.gp[1]),
-		ck_len = static_cast<iter_type>(tdata.data.gp[2]),
+		ci_len = static_cast<iter_type>(init.data.gp[0]),
+		cj_len = static_cast<iter_type>(init.data.gp[1]),
+		ck_len = static_cast<iter_type>(init.data.gp[2]),
 		ci_next = (ci + 1) % ci_len,
 		cj_next = (cj + 1) % cj_len,
 		ck_next = (ck + 1) % ck_len;
@@ -1602,40 +1602,40 @@ template<>
 scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_3(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_square_3, 
 		&offsets, 
-		tdata.data.gp[2], tdata.data.gp[3]);
+		init.data.gp[2], init.data.gp[3]);
 }
 
 template<>
 scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_3(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_circle_3, 
 		&offsets, 
-		tdata.data.gp[2], tdata.data.gp[3]);
+		init.data.gp[2], init.data.gp[3]);
 }
 
 template<>
 scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_rnd_3(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_square_3, 
 		&offsets, &values, 
-		tdata.data.gp[2], tdata.data.gp[3], 0);
+		init.data.gp[2], init.data.gp[3], 0);
 }
 
 template<>
 scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_rnd_3(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_circle_3, 
 		&offsets, &values, 
-		tdata.data.gp[2], tdata.data.gp[3], 0);
+		init.data.gp[2], init.data.gp[3], 0);
 }
 
 
@@ -1645,40 +1645,40 @@ template<>
 scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARA>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_A_3(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_square_3, 
 		&offsets, &lengths, 
-		tdata.data.gp[2], tdata.data.gp[3]);
+		init.data.gp[2], init.data.gp[3]);
 }
 
 template<>
 scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARA>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_A_3(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_circle_3, 
 		&offsets, &lengths, 
-		tdata.data.gp[2], tdata.data.gp[3]);
+		init.data.gp[2], init.data.gp[3]);
 }
 
 template<>
 scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARA, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_A_rnd_3(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_square_3, 
 		&offsets, &lengths, &values, 
-		tdata.data.gp[2], tdata.data.gp[3], 0);
+		init.data.gp[2], init.data.gp[3], 0);
 }
 
 template<>
 scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARA, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_A_rnd_3(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_circle_3, 
 		&offsets, &lengths, &values, 
-		tdata.data.gp[2], tdata.data.gp[3], 0);
+		init.data.gp[2], init.data.gp[3], 0);
 }
 
 
@@ -1687,40 +1687,40 @@ template<>
 scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARB>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_B_3(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_square_3, 
 		&offsets, &lengths, 
-		tdata.data.gp[2], tdata.data.gp[3]);
+		init.data.gp[2], init.data.gp[3]);
 }
 
 template<>
 scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARB>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_B_3(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_circle_3, 
 		&offsets, &lengths, 
-		tdata.data.gp[2], tdata.data.gp[3]);
+		init.data.gp[2], init.data.gp[3]);
 }
 
 template<>
 scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARB, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_B_rnd_3(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_square_3, 
 		&offsets, &lengths, &values, 
-		tdata.data.gp[2], tdata.data.gp[3], 0);
+		init.data.gp[2], init.data.gp[3], 0);
 }
 
 template<>
 scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARB, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	return symphas::internal::seeds_B_rnd_3(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_circle_3, 
 		&offsets, &lengths, &values, 
-		tdata.data.gp[2], tdata.data.gp[3], 0);
+		init.data.gp[2], init.data.gp[3], 0);
 }
 
 
@@ -1730,9 +1730,9 @@ template<>
 scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARC>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
+	double field_value = init.data.gp[4];
 	return symphas::internal::seeds_3(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_square_3,
 		&offsets,
 		seed_value, field_value);
@@ -1742,9 +1742,9 @@ template<>
 scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARC>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
+	double field_value = init.data.gp[4];
 	return symphas::internal::seeds_3(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_circle_3, 
 		&offsets,
 		seed_value, field_value);
@@ -1754,10 +1754,10 @@ template<>
 scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
-	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(tdata.intag, InsideTag::INVERT)) ? tdata.data.gp[3] : tdata.data.gp[2]);
+	double field_value = init.data.gp[4];
+	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(init.intag, InsideTag::INVERT)) ? init.data.gp[3] : init.data.gp[2]);
 	return symphas::internal::seeds_rnd_3(
-		n, dims, tdata, 
+		n, dims, init, 
 		&symphas::internal::is_in_square_3, 
 		&offsets, &values, 
 		seed_value, field_value, rnd_offset);
@@ -1767,10 +1767,10 @@ template<>
 scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
-	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(tdata.intag, InsideTag::INVERT)) ? tdata.data.gp[3] : tdata.data.gp[2]);
+	double field_value = init.data.gp[4];
+	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(init.intag, InsideTag::INVERT)) ? init.data.gp[3] : init.data.gp[2]);
 	return symphas::internal::seeds_rnd_3(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_circle_3,
 		&offsets, &values,
 		seed_value, field_value, rnd_offset);
@@ -1782,9 +1782,9 @@ template<>
 scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARA>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
+	double field_value = init.data.gp[4];
 	return symphas::internal::seeds_A_3(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_square_3,
 		&offsets, &lengths,
 		seed_value, field_value);
@@ -1794,9 +1794,9 @@ template<>
 scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARA>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
+	double field_value = init.data.gp[4];
 	return symphas::internal::seeds_A_3(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_circle_3,
 		&offsets, &lengths,
 		seed_value, field_value);
@@ -1806,10 +1806,10 @@ template<>
 scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARA, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
-	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(tdata.intag, InsideTag::INVERT)) ? tdata.data.gp[3] : tdata.data.gp[2]);
+	double field_value = init.data.gp[4];
+	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(init.intag, InsideTag::INVERT)) ? init.data.gp[3] : init.data.gp[2]);
 	return symphas::internal::seeds_A_rnd_3(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_square_3,
 		&offsets, &lengths, &values,
 		seed_value, field_value, rnd_offset);
@@ -1819,10 +1819,10 @@ template<>
 scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARA, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
-	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(tdata.intag, InsideTag::INVERT)) ? tdata.data.gp[3] : tdata.data.gp[2]);
+	double field_value = init.data.gp[4];
+	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(init.intag, InsideTag::INVERT)) ? init.data.gp[3] : init.data.gp[2]);
 	return symphas::internal::seeds_A_rnd_3(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_square_3,
 		&offsets, &lengths, &values,
 		seed_value, field_value, rnd_offset);
@@ -1833,9 +1833,9 @@ template<>
 scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARB>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
+	double field_value = init.data.gp[4];
 	return symphas::internal::seeds_B_3(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_square_3,
 		&offsets, &lengths,
 		seed_value, field_value);
@@ -1845,9 +1845,9 @@ template<>
 scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARB>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
+	double field_value = init.data.gp[4];
 	return symphas::internal::seeds_B_3(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_circle_3,
 		&offsets, &lengths,
 		seed_value, field_value);
@@ -1857,10 +1857,10 @@ template<>
 scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARB, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
-	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(tdata.intag, InsideTag::INVERT)) ? tdata.data.gp[3] : tdata.data.gp[2]);
+	double field_value = init.data.gp[4];
+	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(init.intag, InsideTag::INVERT)) ? init.data.gp[3] : init.data.gp[2]);
 	return symphas::internal::seeds_B_rnd_3(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_square_3,
 		&offsets, &lengths, &values,
 		seed_value, field_value, rnd_offset);
@@ -1870,10 +1870,10 @@ template<>
 scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARB, InsideTag::RANDOM>::operator()(iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
-	double field_value = tdata.data.gp[4];
-	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(tdata.intag, InsideTag::INVERT)) ? tdata.data.gp[3] : tdata.data.gp[2]);
+	double field_value = init.data.gp[4];
+	double rnd_offset = seed_value - ((symphas::internal::tag_bit_compare(init.intag, InsideTag::INVERT)) ? init.data.gp[3] : init.data.gp[2]);
 	return symphas::internal::seeds_B_rnd_3(
-		n, dims, tdata,
+		n, dims, init,
 		&symphas::internal::is_in_square_3,
 		&offsets, &lengths, &values,
 		seed_value, field_value, rnd_offset);
@@ -1882,10 +1882,8 @@ scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag
 
 
 
-
-
-template<>
-scalar_t InitialConditionsAlg<1, Inside::VORONOI>::operator()(iter_type n) const
+scalar_t voronoi_value_1(iter_type n, const len_type* dims, size_t N,
+	symphas::internal::RandomDeltas<1> const& offsets, symphas::internal::RandomOffsets<scalar_t, 1> const& values)
 {
 	int x = n;
 	axis_1d_type p{ static_cast<axis_coord_t>(x) };
@@ -1910,28 +1908,28 @@ scalar_t InitialConditionsAlg<1, Inside::VORONOI>::operator()(iter_type n) const
 	return values.get_offset(index);
 }
 
-template<>
-scalar_t InitialConditionsAlg<2, Inside::VORONOI>::operator()(iter_type n) const
+
+scalar_t voronoi_value_2(iter_type n, const len_type* dims, size_t N,
+	symphas::internal::RandomDeltas<2> const& offsets, symphas::internal::RandomOffsets<scalar_t, 1> const& values)
 {
 	int x = n % dims[0];
 	int y = n / dims[0];
 
-	axis_2d_type p{ 
-		static_cast<axis_coord_t>(x), 
+	axis_2d_type p{
+		static_cast<axis_coord_t>(x),
 		static_cast<axis_coord_t>(y) };
-	
+
 	axis_coord_t d0 = symphas::lib::length(
-		axis_2d_type{ 
+		axis_2d_type{
 			static_cast<axis_coord_t>(dims[0]),
 			static_cast<axis_coord_t>(dims[1]) });
-	
+
 	iter_type index = 0;
-#	pragma omp parallel for
 	for (iter_type i = 0; i < N; ++i)
 	{
 		axis_2d_type v{ offsets.get_delta(i)[0], offsets.get_delta(i)[1] };
 		axis_coord_t d = symphas::lib::distance(p, v);
-		
+
 		if (d < d0)
 		{
 			index = i;
@@ -1942,8 +1940,8 @@ scalar_t InitialConditionsAlg<2, Inside::VORONOI>::operator()(iter_type n) const
 	return values.get_offset(index);
 }
 
-template<>
-scalar_t InitialConditionsAlg<3, Inside::VORONOI>::operator()(iter_type n) const
+scalar_t voronoi_value_3(iter_type n, const len_type* dims, size_t N,
+	symphas::internal::RandomDeltas<3> const& offsets, symphas::internal::RandomOffsets<scalar_t, 1> const& values)
 {
 	int x = n % dims[0];
 	int y = (n / dims[0]) % dims[1];
@@ -1962,7 +1960,6 @@ scalar_t InitialConditionsAlg<3, Inside::VORONOI>::operator()(iter_type n) const
 	axis_coord_t d0 = symphas::lib::length(dm);
 
 	iter_type index = 0;
-#	pragma omp parallel for
 	for (iter_type i = 0; i < N; ++i)
 	{
 		axis_3d_type v{ offsets.get_delta(i)[0], offsets.get_delta(i)[1], offsets.get_delta(i)[2] };
@@ -1978,11 +1975,8 @@ scalar_t InitialConditionsAlg<3, Inside::VORONOI>::operator()(iter_type n) const
 }
 
 
-
-
-
-template<>
-scalar_t InitialConditionsAlg<1, Inside::VORONOI, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t voronoi_value_A_1(iter_type n, const len_type* dims, size_t N,
+	symphas::internal::RandomDeltas<1> const& offsets, symphas::internal::RandomOffsets<scalar_t, 1> const& values)
 {
 	int x = n;
 	axis_1d_type p{ static_cast<axis_coord_t>(x) };
@@ -2010,11 +2004,14 @@ scalar_t InitialConditionsAlg<1, Inside::VORONOI, InsideTag::VARA>::operator()(i
 	}
 
 	return values.get_offset(index);
+
 }
 
-template<>
-scalar_t InitialConditionsAlg<2, Inside::VORONOI, InsideTag::VARA>::operator()(iter_type n) const
+
+scalar_t voronoi_value_A_2(iter_type n, const len_type* dims, size_t N,
+	symphas::internal::RandomDeltas<2> const& offsets, symphas::internal::RandomOffsets<scalar_t, 1> const& values)
 {
+
 	int x = n % dims[0];
 	int y = n / dims[0];
 
@@ -2032,12 +2029,11 @@ scalar_t InitialConditionsAlg<2, Inside::VORONOI, InsideTag::VARA>::operator()(i
 			dm[1] * 2 });
 
 	iter_type index = 0;
-#	pragma omp parallel for
 	for (iter_type i = 0; i < N; ++i)
 	{
 		axis_2d_type v0{ offsets.get_delta(i)[0], offsets.get_delta(i)[1] };
 
-		axis_2d_type v_t{ v0[0], v0[1] + dm[1]};
+		axis_2d_type v_t{ v0[0], v0[1] + dm[1] };
 		axis_2d_type v_b{ v0[0], v0[1] - dm[1] };
 		axis_2d_type v_r{ v0[0] + dm[0], v0[1] };
 		axis_2d_type v_l{ v0[0] - dm[0], v0[1] };
@@ -2061,8 +2057,8 @@ scalar_t InitialConditionsAlg<2, Inside::VORONOI, InsideTag::VARA>::operator()(i
 	return values.get_offset(index);
 }
 
-template<>
-scalar_t InitialConditionsAlg<3, Inside::VORONOI, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t voronoi_value_A_3(iter_type n, const len_type* dims, size_t N,
+	symphas::internal::RandomDeltas<3> const& offsets, symphas::internal::RandomOffsets<scalar_t, 1> const& values)
 {
 	int x = n % dims[0];
 	int y = (n / dims[0]) % dims[1];
@@ -2086,7 +2082,6 @@ scalar_t InitialConditionsAlg<3, Inside::VORONOI, InsideTag::VARA>::operator()(i
 
 	iter_type index = 0;
 
-#	pragma omp parallel for
 	for (iter_type i = 0; i < N; ++i)
 	{
 		axis_3d_type v0{ offsets.get_delta(i)[0], offsets.get_delta(i)[1], offsets.get_delta(i)[2] };
@@ -2123,7 +2118,7 @@ scalar_t InitialConditionsAlg<3, Inside::VORONOI, InsideTag::VARA>::operator()(i
 		axis_3d_type v_fbr{ v0[0] + dm[0], v0[1] - dm[1], v0[2] - dm[2] };
 		axis_3d_type v_fbl{ v0[0] - dm[0], v0[1] - dm[1], v0[2] - dm[2] };
 
-		for (auto const& v : { 
+		for (auto const& v : {
 			v0, v_n, v_f, v_t, v_b, v_r, v_l, v_tr, v_tl, v_br, v_bl,
 			v_fr, v_fl, v_nr, v_nl, v_ft, v_fb, v_nt, v_nb,
 			v_ntr, v_ntl, v_nbr, v_nbl, v_ftr, v_ftl, v_fbr, v_fbl })
@@ -2139,3 +2134,560 @@ scalar_t InitialConditionsAlg<3, Inside::VORONOI, InsideTag::VARA>::operator()(i
 
 	return values.get_offset(index);
 }
+
+
+
+template<>
+scalar_t InitialConditionsAlg<1, Inside::VORONOI>::operator()(iter_type n) const
+{
+	return voronoi_value_1(n, dims, N, offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<2, Inside::VORONOI>::operator()(iter_type n) const
+{
+	return voronoi_value_2(n, dims, N, offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<3, Inside::VORONOI>::operator()(iter_type n) const
+{
+	return voronoi_value_3(n, dims, N, offsets, values);
+}
+
+
+template<>
+scalar_t InitialConditionsAlg<1, Inside::VORONOI, InsideTag::VARA>::operator()(iter_type n) const
+{
+	return voronoi_value_A_1(n, dims, N, offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<2, Inside::VORONOI, InsideTag::VARA>::operator()(iter_type n) const
+{
+	return voronoi_value_A_2(n, dims, N, offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<3, Inside::VORONOI, InsideTag::VARA>::operator()(iter_type n) const
+{
+	return voronoi_value_A_3(n, dims, N, offsets, values);
+}
+
+
+
+template<>
+scalar_t InitialConditionsAlg<1, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM>::operator()(iter_type n) const
+{
+	return voronoi_value_1(n, dims, N, offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<2, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM>::operator()(iter_type n) const
+{
+	return voronoi_value_2(n, dims, N, offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<3, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM>::operator()(iter_type n) const
+{
+	return voronoi_value_3(n, dims, N, offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<1, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA>::operator()(iter_type n) const
+{
+	return voronoi_value_A_1(n, dims, N, offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<2, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA>::operator()(iter_type n) const
+{
+	return voronoi_value_A_2(n, dims, N, offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<3, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA>::operator()(iter_type n) const
+{
+	return voronoi_value_A_3(n, dims, N, offsets, values);
+}
+
+
+template<>
+scalar_t InitialConditionsAlg<1, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>::operator()(iter_type n) const
+{
+	return voronoi_value_1(n, dims, N, offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<2, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>::operator()(iter_type n) const
+{
+	return voronoi_value_2(n, dims, N, offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<3, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>::operator()(iter_type n) const
+{
+	return voronoi_value_3(n, dims, N, offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<1, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARB>::operator()(iter_type n) const
+{
+	return voronoi_value_A_1(n, dims, N, offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<2, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARB>::operator()(iter_type n) const
+{
+	return voronoi_value_A_2(n, dims, N, offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<3, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARB>::operator()(iter_type n) const
+{
+	return voronoi_value_A_3(n, dims, N, offsets, values);
+}
+
+
+template<>
+scalar_t InitialConditionsAlg<1, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>::operator()(iter_type n) const
+{
+	return voronoi_value_1(n, dims, N, offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<2, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>::operator()(iter_type n) const
+{
+	return voronoi_value_2(n, dims, N, offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<3, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>::operator()(iter_type n) const
+{
+	return voronoi_value_3(n, dims, N, offsets, values);
+}
+
+
+template<>
+scalar_t InitialConditionsAlg<1, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARC>::operator()(iter_type n) const
+{
+	return voronoi_value_A_1(n, dims, N, offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<2, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARC>::operator()(iter_type n) const
+{
+	return voronoi_value_A_2(n, dims, N, offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<3, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARC>::operator()(iter_type n) const
+{
+	return voronoi_value_A_3(n, dims, N, offsets, values);
+}
+
+
+scalar_t bubble_value_1(iter_type n, const len_type* dims, size_t N, double R,
+	scalar_t default_value,
+	symphas::internal::RandomDeltas<1> const& offsets, 
+	symphas::internal::RandomOffsets<scalar_t, 1> const& values)
+{
+	int x = n;
+	axis_1d_type p{ static_cast<axis_coord_t>(x) };
+
+	axis_coord_t d0 = symphas::lib::length(
+		axis_1d_type{
+			static_cast<axis_coord_t>(dims[0]) });
+
+	for (iter_type i = 0; i < offsets.size(); ++i)
+	{
+		axis_1d_type v{ offsets.get_delta(i) };
+		axis_coord_t d = symphas::lib::distance(p, v);
+
+		if (d < R)
+		{
+			return values.get_offset(i);
+		}
+	}
+	return default_value;
+}
+
+
+scalar_t bubble_value_2(iter_type n, const len_type* dims, size_t N, double R,
+	scalar_t default_value,
+	symphas::internal::RandomDeltas<2> const& offsets,
+	symphas::internal::RandomOffsets<scalar_t, 1> const& values)
+{
+	int x = n % dims[0];
+	int y = n / dims[0];
+
+	axis_2d_type p{
+		static_cast<axis_coord_t>(x),
+		static_cast<axis_coord_t>(y) };
+
+	for (iter_type i = 0; i < offsets.size(); ++i)
+	{
+		axis_2d_type v{ offsets.get_delta(i)[0], offsets.get_delta(i)[1] };
+		axis_coord_t d = symphas::lib::distance(p, v);
+
+		if (d < R)
+		{
+			return values.get_offset(i);
+		}
+	}
+	return default_value;
+}
+
+scalar_t bubble_value_3(iter_type n, const len_type* dims, size_t N, double R,
+	scalar_t default_value,
+	symphas::internal::RandomDeltas<3> const& offsets,
+	symphas::internal::RandomOffsets<scalar_t, 1> const& values)
+{
+	int x = n % dims[0];
+	int y = (n / dims[0]) % dims[1];
+	int z = n / (dims[0] * dims[1]);
+
+	axis_3d_type p{
+		static_cast<axis_coord_t>(x),
+		static_cast<axis_coord_t>(y),
+		static_cast<axis_coord_t>(z) };
+
+	axis_3d_type dm{
+			static_cast<axis_coord_t>(dims[0]),
+			static_cast<axis_coord_t>(dims[1]),
+			static_cast<axis_coord_t>(dims[2]) };
+
+	axis_coord_t d0 = symphas::lib::length(dm);
+
+	for (iter_type i = 0; i < offsets.size(); ++i)
+	{
+		axis_3d_type v{ offsets.get_delta(i)[0], offsets.get_delta(i)[1], offsets.get_delta(i)[2] };
+		axis_coord_t d = symphas::lib::distance(p, v);
+
+		if (d < R)
+		{
+			return values.get_offset(i);
+		}
+	}
+
+	return default_value;
+}
+
+
+scalar_t bubble_value_A_1(iter_type n, const len_type* dims, size_t N, double R,
+	scalar_t default_value,
+	symphas::internal::RandomDeltas<1> const& offsets,
+	symphas::internal::RandomOffsets<scalar_t, 1> const& values)
+{
+	int x = n;
+	axis_1d_type p{ static_cast<axis_coord_t>(x) };
+
+	axis_1d_type dm{
+			static_cast<axis_coord_t>(dims[0]) };
+	axis_coord_t d0 = symphas::lib::length(dm * 2);
+
+	for (iter_type i = 0; i < offsets.size(); ++i)
+	{
+		axis_1d_type v0{ offsets.get_delta(i) };
+		axis_1d_type v_l{ offsets.get_delta(i) - dm };
+		axis_1d_type v_r{ offsets.get_delta(i) + dm };
+
+		for (auto const& v : { v0, v_l, v_r })
+		{
+			axis_coord_t d = symphas::lib::distance(p, v);
+			if (d < R)
+			{
+				return values.get_offset(i);
+			}
+		}
+	}
+
+	return default_value;
+}
+
+
+scalar_t bubble_value_A_2(iter_type n, const len_type* dims, size_t N, double R,
+	scalar_t default_value,
+	symphas::internal::RandomDeltas<2> const& offsets,
+	symphas::internal::RandomOffsets<scalar_t, 1> const& values)
+{
+
+	int x = n % dims[0];
+	int y = n / dims[0];
+
+	axis_2d_type p{
+		static_cast<axis_coord_t>(x),
+		static_cast<axis_coord_t>(y) };
+
+	axis_2d_type dm{
+			static_cast<axis_coord_t>(dims[0]),
+			static_cast<axis_coord_t>(dims[1]) };
+
+	axis_coord_t d0 = symphas::lib::length(
+		axis_2d_type{
+			dm[0] * 2,
+			dm[1] * 2 });
+
+	for (iter_type i = 0; i < offsets.size(); ++i)
+	{
+		axis_2d_type v0{ offsets.get_delta(i)[0], offsets.get_delta(i)[1] };
+
+		axis_2d_type v_t{ v0[0], v0[1] + dm[1] };
+		axis_2d_type v_b{ v0[0], v0[1] - dm[1] };
+		axis_2d_type v_r{ v0[0] + dm[0], v0[1] };
+		axis_2d_type v_l{ v0[0] - dm[0], v0[1] };
+
+		axis_2d_type v_tr{ v0[0] + dm[0], v0[1] + dm[1] };
+		axis_2d_type v_tl{ v0[0] - dm[0], v0[1] + dm[1] };
+		axis_2d_type v_br{ v0[0] + dm[0], v0[1] - dm[1] };
+		axis_2d_type v_bl{ v0[0] - dm[0], v0[1] - dm[1] };
+
+		for (auto const& v : { v0, v_t, v_b, v_r, v_l, v_tr, v_tl, v_br, v_bl })
+		{
+			axis_coord_t d = symphas::lib::distance(p, v);
+			if (d < R)
+			{
+				return values.get_offset(i);
+			}
+		}
+	}
+
+	return default_value;
+}
+
+scalar_t bubble_value_A_3(iter_type n, const len_type* dims, size_t N, double R,
+	scalar_t default_value,
+	symphas::internal::RandomDeltas<3> const& offsets,
+	symphas::internal::RandomOffsets<scalar_t, 1> const& values)
+{
+	int x = n % dims[0];
+	int y = (n / dims[0]) % dims[1];
+	int z = n / (dims[0] * dims[1]);
+
+	axis_3d_type p{
+		static_cast<axis_coord_t>(x),
+		static_cast<axis_coord_t>(y),
+		static_cast<axis_coord_t>(z) };
+
+	axis_3d_type dm{
+			static_cast<axis_coord_t>(dims[0]),
+			static_cast<axis_coord_t>(dims[1]),
+			static_cast<axis_coord_t>(dims[2]) };
+
+	axis_coord_t d0 = symphas::lib::length(
+		axis_3d_type{
+			dm[0] * 16,
+			dm[1] * 16,
+			dm[2] * 16 });
+
+	for (iter_type i = 0; i < offsets.size(); ++i)
+	{
+		axis_3d_type v0{ offsets.get_delta(i)[0], offsets.get_delta(i)[1], offsets.get_delta(i)[2] };
+
+		axis_3d_type v_t{ v0[0], v0[1] + dm[1], v0[2] };
+		axis_3d_type v_b{ v0[0], v0[1] - dm[1], v0[2] };
+		axis_3d_type v_r{ v0[0] + dm[0], v0[1], v0[2] };
+		axis_3d_type v_l{ v0[0] - dm[0], v0[1], v0[2] };
+		axis_3d_type v_n{ v0[0], v0[1], v0[2] + dm[2] };
+		axis_3d_type v_f{ v0[0], v0[1], v0[2] - dm[2] };
+
+		axis_3d_type v_nr{ v0[0] + dm[0], v0[1], v0[2] + dm[2] };
+		axis_3d_type v_nl{ v0[0] - dm[0], v0[1], v0[2] + dm[2] };
+		axis_3d_type v_fr{ v0[0] + dm[0], v0[1], v0[2] - dm[2] };
+		axis_3d_type v_fl{ v0[0] - dm[0], v0[1], v0[2] - dm[2] };
+
+		axis_3d_type v_tr{ v0[0] + dm[0], v0[1] + dm[1], v0[2] };
+		axis_3d_type v_tl{ v0[0] - dm[0], v0[1] + dm[1], v0[2] };
+		axis_3d_type v_br{ v0[0] + dm[0], v0[1] - dm[1], v0[2] };
+		axis_3d_type v_bl{ v0[0] - dm[0], v0[1] - dm[1], v0[2] };
+
+		axis_3d_type v_nt{ v0[0], v0[1] + dm[1], v0[2] + dm[2] };
+		axis_3d_type v_nb{ v0[0], v0[1] - dm[1], v0[2] + dm[2] };
+		axis_3d_type v_ft{ v0[0], v0[1] + dm[1], v0[2] - dm[2] };
+		axis_3d_type v_fb{ v0[0], v0[1] - dm[1], v0[2] - dm[2] };
+
+		axis_3d_type v_ntr{ v0[0] + dm[0], v0[1] + dm[1], v0[2] + dm[2] };
+		axis_3d_type v_ntl{ v0[0] - dm[0], v0[1] + dm[1], v0[2] + dm[2] };
+		axis_3d_type v_nbr{ v0[0] + dm[0], v0[1] - dm[1], v0[2] + dm[2] };
+		axis_3d_type v_nbl{ v0[0] - dm[0], v0[1] - dm[1], v0[2] + dm[2] };
+
+		axis_3d_type v_ftr{ v0[0] + dm[0], v0[1] + dm[1], v0[2] - dm[2] };
+		axis_3d_type v_ftl{ v0[0] - dm[0], v0[1] + dm[1], v0[2] - dm[2] };
+		axis_3d_type v_fbr{ v0[0] + dm[0], v0[1] - dm[1], v0[2] - dm[2] };
+		axis_3d_type v_fbl{ v0[0] - dm[0], v0[1] - dm[1], v0[2] - dm[2] };
+
+		for (auto const& v : {
+			v0, v_n, v_f, v_t, v_b, v_r, v_l, v_tr, v_tl, v_br, v_bl,
+			v_fr, v_fl, v_nr, v_nl, v_ft, v_fb, v_nt, v_nb,
+			v_ntr, v_ntl, v_nbr, v_nbl, v_ftr, v_ftl, v_fbr, v_fbl })
+		{
+			axis_coord_t d = symphas::lib::distance(p, v);
+			if (d < R)
+			{
+				return values.get_offset(i);
+			}
+		}
+	}
+
+	return default_value;
+}
+
+
+
+
+template<>
+scalar_t InitialConditionsAlg<1, Inside::BUBBLE>::operator()(iter_type n) const
+{
+	return bubble_value_1(n, dims, N, R, init.data.gp[1], offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<2, Inside::BUBBLE>::operator()(iter_type n) const
+{
+	return bubble_value_2(n, dims, N, R, init.data.gp[1], offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<3, Inside::BUBBLE>::operator()(iter_type n) const
+{
+	return bubble_value_3(n, dims, N, R, init.data.gp[1], offsets, values);
+}
+
+
+template<>
+scalar_t InitialConditionsAlg<1, Inside::BUBBLE, InsideTag::VARA>::operator()(iter_type n) const
+{
+	return bubble_value_A_1(n, dims, N, R, init.data.gp[1], offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<2, Inside::BUBBLE, InsideTag::VARA>::operator()(iter_type n) const
+{
+	return bubble_value_A_2(n, dims, N, R, init.data.gp[1], offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<3, Inside::BUBBLE, InsideTag::VARA>::operator()(iter_type n) const
+{
+	return bubble_value_A_3(n, dims, N, R, init.data.gp[1], offsets, values);
+}
+
+
+
+template<>
+scalar_t InitialConditionsAlg<1, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM>::operator()(iter_type n) const
+{
+	return bubble_value_1(n, dims, N, R, init.data.gp[1], offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<2, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM>::operator()(iter_type n) const
+{
+	return bubble_value_2(n, dims, N, R, init.data.gp[1], offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<3, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM>::operator()(iter_type n) const
+{
+	return bubble_value_3(n, dims, N, R, init.data.gp[1], offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<1, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA>::operator()(iter_type n) const
+{
+	return bubble_value_A_1(n, dims, N, R, init.data.gp[1], offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<2, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA>::operator()(iter_type n) const
+{
+	return bubble_value_A_2(n, dims, N, R, init.data.gp[1], offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<3, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA>::operator()(iter_type n) const
+{
+	return bubble_value_A_3(n, dims, N, R, init.data.gp[1], offsets, values);
+}
+
+
+template<>
+scalar_t InitialConditionsAlg<1, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>::operator()(iter_type n) const
+{
+	return bubble_value_1(n, dims, N, R, init.data.gp[1], offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<2, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>::operator()(iter_type n) const
+{
+	return bubble_value_2(n, dims, N, R, init.data.gp[1], offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<3, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>::operator()(iter_type n) const
+{
+	return bubble_value_3(n, dims, N, R, init.data.gp[1], offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<1, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARB>::operator()(iter_type n) const
+{
+	return bubble_value_A_1(n, dims, N, R, init.data.gp[1], offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<2, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARB>::operator()(iter_type n) const
+{
+	return bubble_value_A_2(n, dims, N, R, init.data.gp[1], offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<3, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARB>::operator()(iter_type n) const
+{
+	return bubble_value_A_3(n, dims, N, R, init.data.gp[1], offsets, values);
+}
+
+
+template<>
+scalar_t InitialConditionsAlg<1, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>::operator()(iter_type n) const
+{
+	return bubble_value_1(n, dims, N, R, init.data.gp[1], offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<2, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>::operator()(iter_type n) const
+{
+	return bubble_value_2(n, dims, N, R, init.data.gp[1], offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<3, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>::operator()(iter_type n) const
+{
+	return bubble_value_3(n, dims, N, R, init.data.gp[1], offsets, values);
+}
+
+
+template<>
+scalar_t InitialConditionsAlg<1, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARC>::operator()(iter_type n) const
+{
+	return bubble_value_A_1(n, dims, N, R, init.data.gp[1], offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<2, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARC>::operator()(iter_type n) const
+{
+	return bubble_value_A_2(n, dims, N, R, init.data.gp[1], offsets, values);
+}
+
+template<>
+scalar_t InitialConditionsAlg<3, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARC>::operator()(iter_type n) const
+{
+	return bubble_value_A_3(n, dims, N, R, init.data.gp[1], offsets, values);
+}
+
+
+
+
+
+

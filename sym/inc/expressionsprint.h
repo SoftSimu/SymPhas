@@ -44,6 +44,22 @@ namespace symphas::internal
 	struct wrap_f : wrap_base {};
 }
 
+namespace expr
+{
+
+	template<size_t N>
+	struct expr_name_arr
+	{
+		char value[N];
+		char* new_str()
+		{
+			char* name = new char[N];
+			std::strcpy(name, value);
+			return name;
+		}
+	};
+}
+
 #ifdef PRINTABLE_EQUATIONS
 
 //! \cond
@@ -72,7 +88,7 @@ namespace symphas::internal
 #define SYEX_DERIV_STR_1 "\\vec{\\nabla}"
 #else
 //! Display string of the derivative.
-#define SYEX_DIRECTIONAL_DERIV_VAR_STR(NAME, VALUE, AXIS) SYEX_DERIV_APPLIED_EXPR_FMT_A "d" VALUE NAME "/d" AXIS VALUE SYEX_DERIV_APPLIED_EXPR_FMT_B
+#define SYEX_DIRECTIONAL_DERIV_VAR_STR(NAME, VALUE, AXIS) "d" VALUE NAME "/d" AXIS VALUE
 #define SYEX_DIRECTIONAL_DERIV_STR(VALUE, AXIS) SYEX_DIRECTIONAL_DERIV_VAR_STR("", VALUE, AXIS)
 #define SYEX_DIRECTIONAL_DERIV_1_VAR_STR(NAME, AXIS) SYEX_DIRECTIONAL_DERIV_VAR_STR(NAME, "", AXIS)
 #define SYEX_DIRECTIONAL_DERIV_1_STR(AXIS) SYEX_DIRECTIONAL_DERIV_1_VAR_STR("", AXIS)
@@ -86,21 +102,25 @@ namespace symphas::internal
 #endif
 
 
-#define SYEX_DIRECTIONAL_DERIV_VAR_FMT(NAME, ORDER, AXIS) SYEX_DIRECTIONAL_DERIV_VAR_STR("%s", "%zd", "%c"), ORDER, NAME, \
-	((AXIS == Axis::X) ? 'x' : (AXIS == Axis::Y) ? 'y' : (AXIS == Axis::Y) ? 'z' : '?'), ORDER
+#define SYEX_DIRECTIONAL_DERIV_VAR_WITH_OTHER_FMT(NAME, ORDER, AXIS, OTHER) SYEX_DIRECTIONAL_DERIV_VAR_STR("%s", "%zd", "%s"), ORDER, NAME, \
+	((AXIS == Axis::X) ? "x" : (AXIS == Axis::Y) ? "y" : (AXIS == Axis::Z) ? "z" : OTHER), ORDER
+#define SYEX_DIRECTIONAL_DERIV_VAR_FMT(NAME, ORDER, AXIS) SYEX_DIRECTIONAL_DERIV_VAR_WITH_OTHER_FMT(NAME, ORDER, AXIS, "?")
 #define SYEX_DIRECTIONAL_DERIV_VAR_LEN(NAME, ORDER) \
 	(STR_ARR_LEN(SYEX_DIRECTIONAL_DERIV_VAR_STR("", "", "")) + 2 * symphas::lib::num_digits<ORDER>() + std::strlen(NAME) + 1)
 
-#define SYEX_DIRECTIONAL_DERIV_FMT(ORDER, AXIS) SYEX_DIRECTIONAL_DERIV_STR("%zd", "%c"), ORDER, \
-	((AXIS == Axis::X) ? 'x' : (AXIS == Axis::Y) ? 'y' : (AXIS == Axis::Y) ? 'z' : '?'), ORDER
+#define SYEX_DIRECTIONAL_DERIV_WITH_OTHER_FMT(ORDER, AXIS, OTHER) SYEX_DIRECTIONAL_DERIV_STR("%zd", "%s"), ORDER, \
+	((AXIS == Axis::X) ? "x" : (AXIS == Axis::Y) ? "y" : (AXIS == Axis::Z) ? "z" : OTHER), ORDER
+#define SYEX_DIRECTIONAL_DERIV_FMT(ORDER, AXIS) SYEX_DIRECTIONAL_DERIV_WITH_OTHER_FMT(ORDER, AXIS, "?")
 #define SYEX_DIRECTIONAL_DERIV_LEN(ORDER) (STR_ARR_LEN(SYEX_DIRECTIONAL_DERIV_STR("", "")) + 2 * symphas::lib::num_digits<ORDER>() + 1)
 
-#define SYEX_DIRECTIONAL_DERIV_1_VAR_FMT(NAME, AXIS) SYEX_DIRECTIONAL_DERIV_1_VAR_STR("%s", "%c"), \
-	NAME, ((AXIS == Axis::X) ? 'x' : (AXIS == Axis::Y) ? 'y' : (AXIS == Axis::Y) ? 'z' : '?')
+#define SYEX_DIRECTIONAL_DERIV_1_VAR_WITH_OTHER_FMT(NAME, AXIS, OTHER) SYEX_DIRECTIONAL_DERIV_1_VAR_STR("%s", "%s"), \
+	NAME, ((AXIS == Axis::X) ? "x" : (AXIS == Axis::Y) ? "y" : (AXIS == Axis::Z) ? "z" : OTHER)
+#define SYEX_DIRECTIONAL_DERIV_1_VAR_FMT(NAME, AXIS) SYEX_DIRECTIONAL_DERIV_1_VAR_WITH_OTHER_FMT(NAME, AXIS, "?")
 #define SYEX_DIRECTIONAL_DERIV_1_VAR_LEN(NAME) (STR_ARR_LEN(SYEX_DIRECTIONAL_DERIV_1_VAR_STR("", "")) + std::strlen(NAME) + 1)
 
-#define SYEX_DIRECTIONAL_DERIV_1_FMT(AXIS) SYEX_DIRECTIONAL_DERIV_1_STR("%c"), \
-	((AXIS == Axis::X) ? 'x' : (AXIS == Axis::Y) ? 'y' : (AXIS == Axis::Y) ? 'z' : '?')
+#define SYEX_DIRECTIONAL_DERIV_1_WITH_OTHER_FMT(AXIS, OTHER) SYEX_DIRECTIONAL_DERIV_1_STR("%s"), \
+	((AXIS == Axis::X) ? "x" : (AXIS == Axis::Y) ? "y" : (AXIS == Axis::Z) ? "z" : OTHER)
+#define SYEX_DIRECTIONAL_DERIV_1_FMT(AXIS) SYEX_DIRECTIONAL_DERIV_1_WITH_OTHER_FMT(AXIS, "?")
 #define SYEX_DIRECTIONAL_DERIV_1_LEN STR_ARR_LEN(SYEX_DIRECTIONAL_DERIV_1_STR("") + 1)
 
 
@@ -187,10 +207,10 @@ static constexpr size_t print_length(wrap_f<&symphas::math:: F <typename expr::e
 // N is the number of rows (entries in a column)
 // M is the number of columns (entries in a row)
 #define SYEX_TENSOR_FMT_LEN(N, M) \
-STR_ARR_LEN(SYEX_TENSOR_FMT_A SYEX_TENSOR_FMT_B) + \
+(STR_ARR_LEN(SYEX_TENSOR_FMT_A SYEX_TENSOR_FMT_B) + \
 ((N - 1) * STR_ARR_LEN(SYEX_TENSOR_COLUMN_SEP_FMT)) + \
 ((M - 1) * STR_ARR_LEN(SYEX_TENSOR_ROW_SEP_FMT)) + \
-((M * N - 1) * STR_ARR_LEN(SYEX_TENSOR_EMPTY_FMT))
+((M * N - 1) * STR_ARR_LEN(SYEX_TENSOR_EMPTY_FMT)))
 
 #define SYEX_VECTOR_FMT_LEN STR_ARR_LEN(SYEX_VECTOR_FMT_A SYEX_VECTOR_FMT_SEP SYEX_VECTOR_FMT_B)
 
@@ -333,16 +353,13 @@ namespace symphas::internal
 
 
 
-	template<size_t O, Axis ax = Axis::X, bool is_directional = false>
+	template<size_t O, Axis ax = Axis::NONE, bool is_directional = false>
 	struct print_deriv
 	{
 
-		//! Print the derivative of an order inferred from the function.
+		//! Print the derivative the given order to a file.
 		/*!
-		 * Print the derivative of an order inferred from the function.
-		 * The derivative output is printed the output file, and
-		 * formatted using the given string representing the
-		 * expression which the derivative is applied to.
+		 * Print the derivative of the given order, and formatted using the order.
 		 *
 		 * \param out The file to which the derivative is printed.
 		 */
@@ -381,12 +398,11 @@ namespace symphas::internal
 			}
 		}
 
-		//! Print the derivative of an order inferred from the function.
+		//! Print the derivative the given order to a file.
 		/*!
-		 * Print the derivative of an order inferred from the function.
-		 * The derivative output is printed the output file, and
-		 * formatted using the given string representing the
-		 * expression which the derivative is applied to.
+		 * Print the derivative of the given order, and formatted using the order. A
+		 * name is also provided, which is the name of the variable to which the derivative
+		 * is applied.
 		 *
 		 * \param out The file to which the derivative is printed.
 		 * \param name A string that appears in the numerator after the partial symbol.
@@ -431,12 +447,9 @@ namespace symphas::internal
 		}
 
 
-		//! Print the derivative of an order inferred from the function.
+		//! Print the derivative the given order to a string.
 		/*!
-		 * Print the derivative of an order inferred from the function.
-		 * The derivative output is printed the output string, and
-		 * formatted using the given string representing the
-		 * expression which the derivative is applied to.
+		 * Print the derivative of the given order, and formatted using the order.
 		 *
 		 * \param out The string to which the derivative is printed.
 		 */
@@ -464,16 +477,22 @@ namespace symphas::internal
 			}
 			else
 			{
-				return sprintf(out, SYEX_DIRECTIONAL_DERIV_FMT(O, ax));
+				if constexpr (O == 1)
+				{
+					return fprintf(out, SYEX_DIRECTIONAL_DERIV_1_FMT(ax));
+				}
+				else
+				{
+					return fprintf(out, SYEX_DIRECTIONAL_DERIV_FMT(O, ax));
+				}
 			}
 		}
 
-		//! Print the derivative of an order inferred from the function.
+		//! Print the derivative the given order to a string.
 		/*!
-		 * Print the derivative of an order inferred from the function.
-		 * The derivative output is printed the output string, and
-		 * formatted using the given string representing the
-		 * expression which the derivative is applied to.
+		 * Print the derivative of the given order, and formatted using the order. A
+		 * name is also provided, which is the name of the variable to which the derivative
+		 * is applied.
 		 *
 		 * \param out The string to which the derivative is printed.
 		 * \param name A string that appears in the numerator after the partial symbol.
@@ -506,10 +525,14 @@ namespace symphas::internal
 			}
 			else
 			{
-				size_t n = 0;
-				n += sprintf(out + n, SYEX_DIRECTIONAL_DERIV_FMT(O, ax));
-				n += sprintf(out + n, SYEX_DERIV_APPLIED_EXPR_FMT, name);
-				return n;
+				if constexpr (O == 1)
+				{
+					return sprintf(out, SYEX_DIRECTIONAL_DERIV_1_VAR_FMT(name, ax));
+				}
+				else
+				{
+					return sprintf(out, SYEX_DIRECTIONAL_DERIV_VAR_FMT(name, O, ax));
+				}
 			}
 		}
 
@@ -519,24 +542,34 @@ namespace symphas::internal
 		 * printed to display the derivative. Only includes characters that
 		 * are printed as part of the format, and not substituted expression
 		 * strings.
-		 *
-		 * \tparam f The function which applies the derivative and from
-		 * which to infer the order of the derivative. This function must
-		 * be a member of the given solver type.
 		 */
 		static size_t print_length()
 		{
-			if constexpr (O == 1)
+			if constexpr (!is_directional)
 			{
-				return SYEX_DIRECTIONAL_DERIV_1_STR_LEN;
-			}
-			else if constexpr (O % 2 == 1)
-			{
-				return SYEX_DIRECTIONAL_DERIV_1_STR_LEN + SYEX_DERIV_STR_LEN(O - 1);
+				if constexpr (O == 1)
+				{
+					return SYEX_DIRECTIONAL_DERIV_1_LEN;
+				}
+				else if constexpr (O % 2 == 1)
+				{
+					return SYEX_DIRECTIONAL_DERIV_1_LEN + SYEX_DERIV_STR_LEN(O - 1);
+				}
+				else
+				{
+					return SYEX_DERIV_STR_LEN(O);
+				}
 			}
 			else
 			{
-				return SYEX_DERIV_STR_LEN(O);
+				if constexpr (O == 1)
+				{
+					return SYEX_DIRECTIONAL_DERIV_1_LEN;
+				}
+				else
+				{
+					return SYEX_DIRECTIONAL_DERIV_LEN(O);
+				}
 			}
 		}
 
@@ -546,33 +579,299 @@ namespace symphas::internal
 		 * printed to display the derivative. Only includes characters that
 		 * are printed as part of the format, and not substituted expression
 		 * strings.
-		 *
-		 * \tparam f The function which applies the derivative and from
-		 * which to infer the order of the derivative. This function must
-		 * be a member of the given solver type.
 		 */
 		static size_t print_length(const char* name)
 		{
-			if constexpr (O == 1)
+			if constexpr (!is_directional)
 			{
-				return SYEX_DIRECTIONAL_DERIV_1_VAR_LEN(NAME);
-			}
-			else if constexpr (O % 2 == 1)
-			{
-				return std::strlen(name) + SYEX_DIRECTIONAL_DERIV_1_LEN
-					+ SYEX_DERIV_STR_LEN(O - 1) + SYEX_DERIV_APPLIED_EXPR_LEN;
+				if constexpr (O == 1)
+				{
+					return SYEX_DIRECTIONAL_DERIV_1_VAR_LEN(name);
+				}
+				else if constexpr (O % 2 == 1)
+				{
+					return std::strlen(name) + SYEX_DIRECTIONAL_DERIV_1_LEN
+						+ SYEX_DERIV_STR_LEN(O - 1) + SYEX_DERIV_APPLIED_EXPR_LEN;
+				}
+				else
+				{
+					return std::strlen(name) + SYEX_DERIV_STR_LEN(O - 1) + SYEX_DERIV_APPLIED_EXPR_LEN;
+				}
 			}
 			else
 			{
-				return std::strlen(name) + SYEX_DERIV_STR_LEN(O) + SYEX_DERIV_APPLIED_EXPR_LEN;
+				if constexpr (O == 1)
+				{
+					return SYEX_DIRECTIONAL_DERIV_1_VAR_LEN(name);
+				}
+				else
+				{
+					return SYEX_DIRECTIONAL_DERIV_VAR_LEN(name, O);
+				}
 			}
 		}
 	};
 
-	//SYEX_PRINT_DERIV_STRUCT(1, deriv_formats::gradient_fmt);
-	//SYEX_PRINT_DERIV_STRUCT(2, deriv_formats::laplacian_fmt);
-	//SYEX_PRINT_DERIV_STRUCT(3, deriv_formats::gradlaplacian_fmt);
-	//SYEX_PRINT_DERIV_STRUCT(4, deriv_formats::bilaplacian_fmt);
+
+	template<typename G>
+	auto set_var_string(G const& var);
+
+	template<size_t O>
+	struct print_deriv<O, Axis::NONE, true>
+	{
+
+		//! Print the derivative the given order to a file.
+		/*!
+		 * Print the derivative of the given order, and formatted using the order.
+		 *
+		 * \param out The file to which the derivative is printed.
+		 */
+		template<typename G>
+		static size_t print(FILE* out, G const& var)
+		{
+			auto buffer = set_var_string(var);
+			if constexpr (O == 1)
+			{
+				return fprintf(out, SYEX_DIRECTIONAL_DERIV_1_WITH_OTHER_FMT(ax, buffer));
+			}
+			else
+			{
+				return fprintf(out, SYEX_DIRECTIONAL_DERIV_WITH_OTHER_FMT(O, ax, buffer));
+			}
+		}
+
+		//! Print the derivative the given order to a file.
+		/*!
+		 * Print the derivative of the given order, and formatted using the order. A
+		 * name is also provided, which is the name of the variable to which the derivative
+		 * is applied.
+		 *
+		 * \param out The file to which the derivative is printed.
+		 * \param name A string that appears in the numerator after the partial symbol.
+		 */
+		template<typename G>
+		static size_t print(FILE* out, const char* name, G const& var)
+		{
+			auto buffer = set_var_string(var);
+			if constexpr (O == 1)
+			{
+				return fprintf(out, SYEX_DIRECTIONAL_DERIV_1_VAR_WITH_OTHER_FMT(name, ax, buffer));
+			}
+			else
+			{
+				return fprintf(out, SYEX_DIRECTIONAL_DERIV_VAR_WITH_OTHER_FMT(name, O, ax, buffer));
+			}
+		}
+
+
+		//! Print the derivative the given order to a string.
+		/*!
+		 * Print the derivative of the given order, and formatted using the order.
+		 *
+		 * \param out The string to which the derivative is printed.
+		 */
+		template<typename G>
+		static size_t print(char* out, G const& var)
+		{
+			auto buffer = set_var_string(var);
+			if constexpr (O == 1)
+			{
+				return fprintf(out, SYEX_DIRECTIONAL_DERIV_1_WITH_OTHER_FMT(ax, buffer));
+			}
+			else
+			{
+				return fprintf(out, SYEX_DIRECTIONAL_DERIV_WITH_OTHER_FMT(O, ax, buffer));
+			}
+		}
+
+		//! Print the derivative the given order to a string.
+		/*!
+		 * Print the derivative of the given order, and formatted using the order. A
+		 * name is also provided, which is the name of the variable to which the derivative
+		 * is applied.
+		 *
+		 * \param out The string to which the derivative is printed.
+		 * \param name A string that appears in the numerator after the partial symbol.
+		 */
+		template<typename G>
+		static size_t print(char* out, const char* name, G const& var)
+		{
+			auto buffer = set_var_string(var);
+			if constexpr (O == 1)
+			{
+				return sprintf(out, SYEX_DIRECTIONAL_DERIV_1_VAR_WITH_OTHER_FMT(name, ax, buffer));
+			}
+			else
+			{
+				return sprintf(out, SYEX_DIRECTIONAL_DERIV_VAR_WITH_OTHER_FMT(name, O, ax, buffer));
+			}
+		}
+
+		//! Get the print length of the derivative output string.
+		/*!
+		 * Returns the number of characters in the format string that is
+		 * printed to display the derivative. Only includes characters that
+		 * are printed as part of the format, and not substituted expression
+		 * strings.
+		 */
+		template<typename G>
+		static size_t print_length(G const& var)
+		{
+			auto buffer = set_var_string(var);
+			if constexpr (O == 1)
+			{
+				return SYEX_DIRECTIONAL_DERIV_1_LEN + std::strlen(buffer);
+			}
+			else
+			{
+				return SYEX_DIRECTIONAL_DERIV_LEN(O) + std::strlen(buffer);
+			}
+		}
+
+		//! Get the print length of the derivative output string.
+		/*!
+		 * Returns the number of characters in the format string that is
+		 * printed to display the derivative. Only includes characters that
+		 * are printed as part of the format, and not substituted expression
+		 * strings.
+		 */
+		template<typename G>
+		static size_t print_length(const char* name, G const& var)
+		{
+			auto buffer = set_var_string(var);
+			if constexpr (O == 1)
+			{
+				return SYEX_DIRECTIONAL_DERIV_1_VAR_LEN(name) + std::strlen(buffer);
+			}
+			else
+			{
+				return SYEX_DIRECTIONAL_DERIV_VAR_LEN(name, O) + std::strlen(buffer);
+			}
+		}
+
+	};
+
+
+
+	template<Axis ax, bool is_directional>
+	struct print_deriv<0, ax, is_directional>
+	{
+		static size_t print(...)
+		{
+			return 0;
+		}
+
+		static size_t print_length(...)
+		{
+			return 0;
+		}
+	};
+
+
+
+	template<Axis ax, size_t... Os>
+	struct print_mixed_deriv;
+
+	template<Axis ax>
+	struct print_mixed_deriv<ax>
+	{
+		static size_t print(...)
+		{
+			return 0;
+		}
+
+		static size_t print_length(...)
+		{
+			return 0;
+		}
+	};
+
+
+	template<Axis ax, size_t O, size_t... Os>
+	struct print_mixed_deriv<ax, O, Os...> 
+	{
+		static const Axis next_ax = (ax == Axis::X) ? Axis::Y : (ax == Axis::Y) ? Axis::Z : Axis::NONE;
+
+		using next_type = std::conditional_t<
+			(sizeof...(Os) > 1),
+			print_mixed_deriv<next_ax, Os...>,
+			print_deriv<Os..., next_ax, true>>;
+		
+		static size_t print(FILE* out)
+		{
+			size_t n = print_deriv<O, ax, true>::print(out);
+			n += next_type::print(out);
+			return n;
+		}
+
+		static size_t print(FILE* out, const char* name)
+		{
+			size_t n = print_deriv<O, ax, true>::print(out);
+			n += next_type::print(out, name);
+			return n;
+		}
+
+		static size_t print(char* out)
+		{
+			size_t n = print_deriv<O, ax, true>::print(out);
+			n += next_type::print(out + n);
+			return n;
+		}
+
+		static size_t print(char* out, const char* name)
+		{
+			size_t n = print_deriv<O, ax, true>::print(out);
+			n += next_type::print(out + n, name);
+			return n;
+		}
+
+		static size_t print_length()
+		{
+			size_t n = print_deriv<O, ax, true>::print_length();
+			n += next_type::print_length();
+			return n;
+		}
+
+		static size_t print_length(const char* name)
+		{
+			size_t n = print_deriv<O, ax, true>::print_length();
+			n += next_type::print_length(name);
+			return n;
+		}
+	};
+
+
+
+	template<size_t O>
+	auto select_print_deriv(std::index_sequence<O>)
+	{
+		return print_deriv<O, Axis::NONE, true>{};
+	}
+
+	template<typename Sp, Axis ax, size_t O>
+	auto select_print_deriv(typename Solver<Sp>::template derivative<ax, O>)
+	{
+		using Dd = typename Solver<Sp>::template derivative<ax, O>;
+		return print_deriv<O, ax, Dd::is_directional>{};
+	}
+
+	template<typename Sp, Axis ax, size_t O>
+	auto select_print_deriv(typename Solver<Sp>::template directional_derivative<ax, O>)
+	{
+		return print_deriv<O, ax, true>{};
+	}
+
+	template<typename Sp, size_t O1, size_t O2>
+	auto select_print_deriv(typename Solver<Sp>::template mixed_derivative<O1, O2>)
+	{
+		return print_mixed_deriv<Axis::X, O1, O2>{};
+	}
+
+	template<typename Sp, size_t O1, size_t O2, size_t O3>
+	auto select_print_deriv(typename Solver<Sp>::template mixed_derivative<O1, O2, O3>)
+	{
+		return print_mixed_deriv<Axis::X, O1, O2, O3>{};
+	}
 
 
 }
@@ -592,7 +891,7 @@ namespace expr
 	 * \param ... The arguments to the print format.
 	 */
 	template<typename E>
-	size_t printf(E const& expr, const char* fmt = "", ...)
+	size_t printe(E const& expr, const char* fmt = "", ...)
 	{
 		size_t n = 0;
 		if (*fmt)
@@ -611,6 +910,67 @@ namespace expr
 		n += fprintf(SYMPHAS_LOG, "\n");
 		return n;
 	}
+
+	//! Print a formatted expression.
+	/*!
+	 * The expression is printed to the log with the given description, which
+	 * can be formatted.
+	 *
+	 * \param expr The expression to be printed.
+	 * \param fmt The string format used in the printing.
+	 * \param ... The arguments to the print format.
+	 */
+	template<typename E>
+	size_t fprinte(E const& expr, FILE* out, const char* fmt = "", ...)
+	{
+		size_t n = 0;
+		if (*fmt)
+		{
+			va_list list;
+			va_start(list, fmt);
+
+			char buffer[LINE_READ_BUFFER];
+			vsnprintf(buffer, LINE_READ_BUFFER, fmt, list);
+			n += fprintf(out, "%s " SYEX_EQN_SEP " ", buffer);
+
+			va_end(list);
+		}
+
+		n += expr.print(out);
+		n += fprintf(out, "\n");
+		return n;
+	}
+
+	//! Print a formatted expression.
+	/*!
+	 * The expression is printed to the log with the given description, which
+	 * can be formatted.
+	 *
+	 * \param expr The expression to be printed.
+	 * \param fmt The string format used in the printing.
+	 * \param ... The arguments to the print format.
+	 */
+	template<typename E>
+	size_t sprinte(E const& expr, char* out, const char* fmt = "", ...)
+	{
+		size_t n = 0;
+		if (*fmt)
+		{
+			va_list list;
+			va_start(list, fmt);
+
+			char buffer[LINE_READ_BUFFER];
+			vsnprintf(buffer, LINE_READ_BUFFER, fmt, list);
+			n += sprintf(out + n, "%s " SYEX_EQN_SEP " ", buffer);
+
+			va_end(list);
+		}
+
+		n += expr.print(out + n);
+		n += sprintf(out + n, "\n");
+		return n;
+	}
+
 
 
 
@@ -670,17 +1030,17 @@ namespace expr
 	}
 
 	template<typename T, size_t N, size_t M>
-	size_t tensor_print_length(T const& value, std::index_sequence<N, M>)
+	size_t print_tensor_length(T const& value, std::index_sequence<N, M>)
 	{
-		size_t n = coeff_print_length(value);
+		size_t n = make_literal(expr::eval(value)).print_length();
 		n += SYEX_TENSOR_FMT_LEN(N, M);
 		return n;
 	}
 
 	template<typename T, size_t N>
-	size_t tensor_print_length(T const& value, std::index_sequence<N>)
+	size_t print_tensor_length(T const& value, std::index_sequence<N>)
 	{
-		size_t n = coeff_print_length(value);
+		size_t n = make_literal(expr::eval(value)).print_length();
 		n += SYEX_TENSOR_FMT_LEN(N, 1);
 		return n;
 	}
@@ -789,7 +1149,7 @@ namespace expr
 	{
 		using p_seq = symphas::lib::seq_join_t<symphas::lib::types_before_index<sizeof...(Ns) / 2, std::index_sequence<Ns>...>>;
 		using n_seq = symphas::lib::seq_join_t<symphas::lib::types_after_at_index<sizeof...(Ns) / 2, std::index_sequence<Ns>...>>;
-
+		
 		size_t n = print_tensor(out, symphas::internal::tensor_cast::cast(value), p_seq{}, n_seq{});
 		n += sprintf(out + n, "%s", expr);
 		return n;
@@ -802,7 +1162,7 @@ namespace expr
 		n += sprintf(out + n, SYEX_VECTOR_FMT_A);
 		for (iter_type i = 0; i < D; ++i)
 		{
-			n += make_literal(value[i]).print(out);
+			n += make_literal(value[i]).print(out + n);
 			if (i < D - 1)
 			{
 				n += sprintf(out + n, SYEX_VECTOR_FMT_SEP);
@@ -922,7 +1282,9 @@ namespace expr
 		size_t len = coeff_print_length(value) + 1;
 		char* buffer = new char[len];
 		print_with_coeff(buffer, "", value);
-		return fprintf(out, "%s%s", buffer, expr);
+		size_t n = fprintf(out, "%s%s", buffer, expr);
+		delete[] buffer;
+		return n;
 	}
 
 	template<typename... Ts>
@@ -983,6 +1345,18 @@ namespace expr
 	{
 		return 1;
 	}
+	
+	template<size_t N, size_t D>
+	inline size_t coeff_print_length(OpFractionLiteral<N, D>)
+	{
+		return OpFractionLiteral<N, D>{}.print_length();
+	}
+
+	template<size_t N, size_t D>
+	inline size_t coeff_print_length(OpNegFractionLiteral<N, D>)
+	{
+		return OpNegFractionLiteral<N, D>{}.print_length();
+	}
 
 	template<typename V>
 	size_t coeff_print_length(V const& value)
@@ -1013,9 +1387,9 @@ namespace expr
 	template<typename T, size_t... Ns>
 	size_t coeff_print_length(OpTensor<T, Ns...> const& value)
 	{
-		using n_seq = symphas::lib::seq_join_t<symphas::lib::types_after_at_index<sizeof...(Ns) / 2, std::index_sequence<Ns>...>>;
-
-		return tensor_print_length(symphas::internal::tensor_cast::cast(value), n_seq{});
+		//using n_seq = symphas::lib::seq_join_t<symphas::lib::types_after_at_index<sizeof...(Ns) / 2, std::index_sequence<Ns>...>>;
+		//return print_tensor_length(symphas::internal::tensor_cast::cast(value), n_seq{});
+		return 100;
 	}
 
 	template<typename... Ts>
@@ -1028,29 +1402,16 @@ namespace expr
 	size_t coeff_print_length(any_vector_t<T, D> const& value)
 	{
 		size_t n = 0;
-		n += 2;
+		n += STR_ARR_LEN(SYEX_VECTOR_FMT_A SYEX_VECTOR_FMT_B) 
+			+ (D - 1) * STR_ARR_LEN(SYEX_VECTOR_FMT_SEP);
 		for (iter_type i = 0; i < D; ++i)
 		{
 			n += coeff_print_length(value[i]);
-			if (i < D - 1)
-			{
-				n += 1;
-			}
 		}
 		return n;
+
 	}
 
-	template<size_t N>
-	struct expr_name_arr
-	{
-		char value[N];
-		char* new_str()
-		{
-			char* name = new char[N];
-			std::strcpy(name, value);
-			return name;
-		}
-	};
 
 	namespace
 	{
@@ -1151,13 +1512,25 @@ namespace expr
 
 namespace expr
 {
+	template<size_t... Os, typename... T>
+	expr_name_arr<1> print_with_subscript(T&&...)
+	{
+		return "";
+	}
+
+	template<size_t... Os, typename... T>
+	expr_name_arr<1> print_with_subscripts(T&&...)
+	{
+		return "";
+	}
+
 	//! Empty implementation of printing an expression.
 	/*!
 	 * Empty implementation for the print function when #PRINTABLE_EQUATIONS is
 	 * not used. Therefore, the print function can still be invoked but there is no effect.
 	 */ 
 	template<typename... T>
-	auto printf(T&&...) {}
+	auto printe(T&&...) {}
 
 
 	//! Empty implementation for obtaining a variable's string represenation.
@@ -1181,6 +1554,12 @@ namespace expr
 	size_t coeff_print_length(T&&...)
 	{
 		return 0;
+	}
+
+	template<typename... T>
+	auto get_fourier_name(T&&...)
+	{
+		return "";
 	}
 }
 

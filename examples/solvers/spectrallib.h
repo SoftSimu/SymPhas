@@ -51,13 +51,13 @@ namespace solver_sp
 		template<Axis ax, size_t Z, size_t Q0, size_t N, typename T, typename E>
 		auto swap_var_apply_axes(MultiBlock<N, T> const& grid, OpExpression<E> const& expr, const len_type* dims)
 		{
+			auto data = expr::as_grid_data<N>(grid, dims);
 #ifdef PRINTABLE_EQUATIONS
 			auto v = expr::get_variable<Q0>(*static_cast<E const*>(&expr));
 			auto name = expr::get_fourier_name(expr::get_op_name(v));
-			auto data = expr::as_grid_data<N>(grid, dims);
 			auto replace = expr::as_component<ax>(expr::as_variable<Z>(NamedData(std::move(data), name)));
 #else
-			auto replace = expr::as_component<ax>(expr::as_variable<Z>(grid));
+			auto replace = expr::as_component<ax>(expr::as_variable<Z>(std::move(data)));
 #endif
 			auto e = expr::transform::swap_grid<ax, Q0>(*static_cast<const E*>(&expr), replace);
 			constexpr size_t I = (ax == Axis::X) ? 0 : (ax == Axis::Y) ? 1 : (ax == Axis::Z) ? 2 : -1;
@@ -77,12 +77,12 @@ namespace solver_sp
 		template<size_t Z, size_t Q0, size_t N, typename T, typename E>
 		auto swap_var_apply(MultiBlock<N, T> const& grid, OpExpression<E> const& expr, const len_type* dims)
 		{
+			auto data = expr::as_grid_data<N>(grid, dims);
 #ifdef PRINTABLE_EQUATIONS
 			auto name = expr::get_fourier_name(expr::get_op_name(expr::get_variable<Q0>(*static_cast<E const*>(&expr))));
-			auto data = expr::as_grid_data<N>(grid, dims);
 			auto replace = expr::as_variable<Z>(NamedData(std::move(data), name));
 #else
-			auto replace = expr::as_variable<Z>(grid);
+			auto replace = expr::as_variable<Z>(std::move(data));
 #endif
 			auto e = swap_var_apply_axes<Axis::X, Z, Q0>(grid, *static_cast<const E*>(&expr), dims);
 			return expr::transform::swap_grid<Q0>(e, replace);
@@ -99,7 +99,7 @@ namespace solver_sp
 			auto name = expr::get_fourier_name(expr::get_op_name(expr::get_variable<Q0>(*static_cast<E const*>(&expr))));
 			auto replace = expr::as_variable<Z>(NamedData(std::move(data), name));
 #else
-			auto replace = expr::as_variable<Z>(data);
+			auto replace = expr::as_variable<Z>(std::move(data));
 #endif
 			return expr::transform::swap_grid<Q0>(*static_cast<const E*>(&expr), replace);
 		}
@@ -123,14 +123,6 @@ namespace solver_sp
 		template<typename... S, typename E, size_t Q0, size_t... Qs>
 		auto swap_var_apply(std::tuple<S...> const& systems, OpExpression<E> const& expr, std::index_sequence<Q0, Qs...>)
 		{
-#ifdef PRINTABLE_EQUATIONS
-			//auto replace = expr::as_variable<Q0 + sizeof...(S)>(NamedData(
-			//	std::get<Q0>(systems).frame_t,
-			//	expr::get_fourier_name(expr::get_op_name(expr::get_variable<Q0>(*static_cast<E const*>(&expr)))))
-			//);
-#else
-			auto replace = reinterpret_cast<complex_t*>(std::get<Q0>(systems).frame_t);
-#endif
 			constexpr size_t D = expr::grid_dim<E>::value;
 			len_type dims[D];
 			set_system_dimensions(std::get<Q0>(systems), dims);
@@ -147,15 +139,12 @@ namespace solver_sp
 			else
 			{
 				return swap_var_apply(systems, e,
-					//expr::transform::swap_grid<Q0>(*static_cast<const E*>(&expr), replace), 
 					std::index_sequence<Qs...>{});
 			}
 		}
 
 
 	}
-
-	// TODO
 
 	template<typename E>
 	auto drop_hcts(OpExpression<E> const& e)
@@ -264,22 +253,15 @@ namespace solver_sp
 	template<size_t D>
 	auto form_B_op(OpVoid, double dt, len_type const* dims)
 	{
-		return OpIdentity{};
+		return expr::make_literal(dt);
 	}
 
 	//! Given the linear expression, returns the \f$A\f$ operator.
-	template<typename T, typename A, size_t R = expr::eval_type<A>::rank, size_t D = expr::grid_dim<A>::value, size_t... Rs>
-	auto get_A_term(OpExpression<A> const& A_expression, std::index_sequence<Rs...>)
-	{
-		return ((expr::make_tensor<Rs, Rs, R, R>() * expr::make_term(NamedData(
-			expr::transform::to_grid(expr::make_row_vector<Rs, R>() * sthc_apply_on_scalar<T>(*static_cast<A const*>(&A_expression))),
-			expr::make_row_vector<0, D>() * (*static_cast<A const*>(&A_expression)))))
-			+ ...);
-	}
+	template<typename T, typename A, size_t R = expr::eval_type<A>::rank, size_t... Rs>
+	auto get_A_term(OpExpression<A> const& A_expression, std::index_sequence<Rs...>);
 
 	//! Given the linear expression, returns the \f$A\f$ operator.
-	template<typename T, typename A, size_t R = expr::eval_type<A>::rank,
-		typename std::enable_if_t<(R == 0), int> = 0>
+	template<typename T, typename A, size_t R = expr::eval_type<A>::rank, typename std::enable_if_t<(R == 0), int> = 0>
 	auto get_A_term(OpExpression<A> const& A_expression)
 	{
 		auto a = expr::transform::to_grid(sthc_apply_on_scalar<T>(*static_cast<A const*>(&A_expression)));
@@ -302,15 +284,24 @@ namespace solver_sp
 	}
 
 	//! Given the linear expression, returns the \f$A\f$ operator.
-	template<typename T, typename B, size_t R = expr::eval_type<B>::rank, size_t D = expr::grid_dim<B>::value, size_t... Rs>
-	auto get_B_term(OpExpression<B> const& B_expression, std::index_sequence<Rs...>)
+	template<typename T, typename A, size_t R, size_t... Rs>
+	auto get_A_term(OpExpression<A> const& A_expression, std::index_sequence<Rs...>)
 	{
-		return ((expr::make_tensor<Rs, Rs, R, R>() * expr::make_term(NamedData(
-			expr::transform::to_grid(expr::make_row_vector<Rs, R>() * sthc_apply_on_scalar<T>(*static_cast<B const*>(&B_expression))),
-			expr::make_row_vector<0, D>() * (*static_cast<B const*>(&B_expression))
-			)))
+		return ((expr::make_tensor<Rs, Rs, R, R>() * get_A_term<T>(
+			expr::make_row_vector<Rs, R>() * sthc_apply_on_scalar<T>(*static_cast<A const*>(&A_expression))))
 			+ ...);
 	}
+
+	//! Given the linear expression, returns the \f$A\f$ operator.
+	template<typename T, typename T0>
+	auto get_B_term(OpLiteral<T0> const& B_expression)
+	{
+		return B_expression;
+	}
+
+	//! Given the linear expression, returns the \f$A\f$ operator.
+	template<typename T, typename B, size_t R = expr::eval_type<B>::rank, size_t... Rs>
+	auto get_B_term(OpExpression<B> const& B_expression, std::index_sequence<Rs...>);
 
 	//! Given the linear expression, returns the \f$A\f$ operator.
 	template<typename T, typename B, size_t R = expr::eval_type<B>::rank, typename std::enable_if_t<(R == 0), int> = 0>
@@ -333,6 +324,15 @@ namespace solver_sp
 		return OpIdentity{};
 	}
 
+	//! Given the linear expression, returns the \f$A\f$ operator.
+	template<typename T, typename B, size_t R, size_t... Rs>
+	auto get_B_term(OpExpression<B> const& B_expression, std::index_sequence<Rs...>)
+	{
+		return ((expr::make_tensor<Rs, Rs, R, R>() * get_B_term<T>(
+			expr::make_row_vector<Rs, R>() * sthc_apply_on_scalar<T>(*static_cast<B const*>(&B_expression))))
+			+ ...);
+	}
+
 	//! Swap real for Fourier variables in the given expression.
 	/*!
 	 * Take a list of all the systems appearing in the phase field problem,
@@ -353,8 +353,8 @@ namespace solver_sp
 	template<size_t Zn, typename T1, typename T2, typename... S, typename E1, typename E2>
 	auto anti_convolve(std::tuple<S...> const&, OpExpression<E1> const& a, OpExpression<E2> const& b)
 	{
-		auto ae = expr::make_inv_fourier_map<T1>((*static_cast<E1 const*>(&a)));
-		auto be = expr::make_inv_fourier_map<T2>((*static_cast<E2 const*>(&b)));
+		auto ae = expr::make_inv_fourier_map<T1>(hcts_apply_on_scalar<T1>(*static_cast<E1 const*>(&a)));
+		auto be = expr::make_inv_fourier_map<T2>(hcts_apply_on_scalar<T2>(*static_cast<E2 const*>(&b)));
 		return expr::make_fourier_map(ae * be);
 	}
 
@@ -362,14 +362,14 @@ namespace solver_sp
 	auto anti_convolve(std::tuple<S...> const&, OpExpression<E1> const& a, OpFourierTransform<S2, V2, E2> const& b)
 	{
 		auto e = expr::get_enclosed_expression(b);
-		return expr::make_fourier_map(expr::make_inv_fourier_map<T1>((*static_cast<E1 const*>(&a))) * e);
+		return expr::coeff(b) * expr::make_fourier_map(expr::make_inv_fourier_map<T1>(hcts_apply_on_scalar<T1>(*static_cast<E1 const*>(&a))) * e);
 	}
 
 	template<size_t Zn, typename T1, typename T2, typename... S, typename S1, typename V1, typename E1, typename E2>
 	auto anti_convolve(std::tuple<S...> const&, OpFourierTransform<S1, V1, E1> const& a, OpExpression<E2> const& b)
 	{
 		auto e = expr::get_enclosed_expression(a);
-		return expr::make_fourier_map(e * expr::make_inv_fourier_map<T2>((*static_cast<E2 const*>(&b))));
+		return expr::coeff(a) * expr::make_fourier_map(e * expr::make_inv_fourier_map<T2>(hcts_apply_on_scalar<T2>(*static_cast<E2 const*>(&b))));
 	}
 
 	template<size_t Zn, typename T1, typename T2, typename... S, typename S1, typename V1, typename E1, typename S2, typename V2, typename E2>
@@ -377,42 +377,96 @@ namespace solver_sp
 	{
 		auto ae = expr::get_enclosed_expression(a);
 		auto be = expr::get_enclosed_expression(a);
-		return expr::make_fourier_map(ae * be);
+		return (expr::coeff(a) * expr::coeff(b)) * expr::make_fourier_map(ae * be);
 	}
 
 	template<size_t Zn, typename T1, typename T2, typename... S, typename T, size_t Z, typename G, typename E2, size_t D = expr::grid_dim<G>::value>
 	auto anti_convolve(std::tuple<S...> const& variables, OpTerm<T, Variable<Z, G>> const& a, OpExpression<E2> const& b)
 	{
 		auto ae = expr::transform::swap_grid<Z>(a, std::get<Z - Zn>(variables));
-		auto be = expr::make_inv_fourier_map<T2>((*static_cast<E2 const*>(&b)));
+		auto be = expr::make_inv_fourier_map<T2>(hcts_apply_on_scalar<T2>(*static_cast<E2 const*>(&b)));
 		return expr::make_fourier_map(ae * be);
+	}
+
+	template<size_t Zn, typename T1, typename T2, typename... S, typename T, size_t Z, typename G, typename S2, typename V2, typename E2, size_t D = expr::grid_dim<G>::value>
+	auto anti_convolve(std::tuple<S...> const& variables, OpTerm<T, Variable<Z, G>> const& a, OpFourierTransform<S2, V2, E2> const& b)
+	{
+		auto ae = expr::transform::swap_grid<Z>(a, std::get<Z - Zn>(variables));
+		auto be = expr::get_enclosed_expression(b);
+		return expr::coeff(b) * expr::make_fourier_map(ae * be);
 	}
 
 	template<size_t Zn, typename T1, typename T2, typename... S, typename E1, typename T, size_t Z, typename G, size_t D = expr::grid_dim<G>::value>
 	auto anti_convolve(std::tuple<S...> const& variables, OpExpression<E1> const& a, OpTerm<T, Variable<Z, G>> const& b)
 	{
-		auto ae = expr::make_inv_fourier_map<T1>((*static_cast<E1 const*>(&a)));
+		auto ae = expr::make_inv_fourier_map<T1>(hcts_apply_on_scalar<T1>(*static_cast<E1 const*>(&a)));
 		auto be = expr::transform::swap_grid<Z>(b, std::get<Z - Zn>(variables));
 		return expr::make_fourier_map(ae * be);
+	}
+
+	template<size_t Zn, typename T1, typename T2, typename... S, typename S1, typename V1, typename E1, typename T, size_t Z, typename G, size_t D = expr::grid_dim<G>::value>
+	auto anti_convolve(std::tuple<S...> const& variables, OpFourierTransform<S1, V1, E1> const& a, OpTerm<T, Variable<Z, G>> const& b)
+	{
+		auto ae = expr::get_enclosed_expression(a);
+		auto be = expr::transform::swap_grid<Z>(b, std::get<Z - Zn>(variables));
+		return expr::coeff(a) * expr::make_fourier_map(ae * be);
+	}
+
+	template<size_t Zn, typename T1, typename T2, typename... S, typename T, size_t Z, Axis ax, typename G, typename E2, size_t D = expr::grid_dim<G>::value>
+	auto anti_convolve(std::tuple<S...> const& variables, OpTerm<T, Variable<Z, VectorComponent<ax, G>>> const& a, OpExpression<E2> const& b)
+	{
+		auto ae = expr::transform::swap_grid<ax, Z>(a, expr::as_component<ax>(std::get<Z - Zn>(variables)));
+		auto be = expr::make_inv_fourier_map<T2>(hcts_apply_on_scalar<T2>(*static_cast<E2 const*>(&b)));
+		return expr::make_fourier_map(ae * be);
+	}
+
+	template<size_t Zn, typename T1, typename T2, typename... S, typename T, size_t Z, Axis ax, typename G, typename S2, typename V2, typename E2, size_t D = expr::grid_dim<G>::value>
+	auto anti_convolve(std::tuple<S...> const& variables, OpTerm<T, Variable<Z, VectorComponent<ax, G>>> const& a, OpFourierTransform<S2, V2, E2> const& b)
+	{
+		auto ae = expr::transform::swap_grid<ax, Z>(a, expr::as_component<ax>(std::get<Z - Zn>(variables)));
+		auto be = expr::get_enclosed_expression(b);
+		return expr::coeff(b) * expr::make_fourier_map(ae * be);
 	}
 
 	template<size_t Zn, typename T1, typename T2, typename... S, typename E1, typename T, size_t Z, Axis ax, typename G, size_t D = expr::grid_dim<G>::value>
 	auto anti_convolve(std::tuple<S...> const& variables, OpExpression<E1> const& a, OpTerm<T, Variable<Z, VectorComponent<ax, G>>> const& b)
 	{
-		auto ae = expr::make_inv_fourier_map<T1>((*static_cast<E1 const*>(&a)));
+		auto ae = expr::make_inv_fourier_map<T1>(hcts_apply_on_scalar<T1>(*static_cast<E1 const*>(&a)));
 		auto be = expr::transform::swap_grid<ax, Z>(b, expr::as_component<ax>(std::get<Z - Zn>(variables)));
 		return expr::make_fourier_map(ae * be);
 	}
 
-	template<size_t Zn, typename T1, typename T2, typename... S, typename E2, typename T, size_t Z, Axis ax, typename G, size_t D = expr::grid_dim<G>::value>
-	auto anti_convolve(std::tuple<S...> const& variables, OpTerm<T, Variable<Z, VectorComponent<ax, G>>> const& a, OpExpression<E2> const& b)
+	template<size_t Zn, typename T1, typename T2, typename... S, typename S1, typename V1, typename E1, typename T, size_t Z, Axis ax, typename G, size_t D = expr::grid_dim<G>::value>
+	auto anti_convolve(std::tuple<S...> const& variables, OpFourierTransform<S1, V1, E1> const& a, OpTerm<T, Variable<Z, VectorComponent<ax, G>>> const& b)
 	{
-		auto ae = expr::transform::swap_grid<ax, Z>(a, expr::as_component<ax>(std::get<Z - Zn>(variables)));
-		auto be = expr::make_inv_fourier_map<T2>((*static_cast<E2 const*>(&b)));
-		return expr::make_fourier_map(ae * be);
+		auto ae = expr::get_enclosed_expression(a);
+		auto be = expr::transform::swap_grid<ax, Z>(b, expr::as_component<ax>(std::get<Z - Zn>(variables)));
+		return expr::coeff(a) * expr::make_fourier_map(ae * be);
 	}
 
+	template<size_t Zn, typename T1, typename T2, typename... S, typename... As, typename E1, size_t... Is>
+	auto anti_convolve(std::tuple<S...> const& variables, E1 const& a, OpAdd<As...> const& b, std::index_sequence<Is...>)
+	{
+		return (anti_convolve<Zn, T1, T2>(variables, a, expr::get<Is>(b)) + ...);
+	}
 
+	template<size_t Zn, typename T1, typename T2, typename... S, typename... As, typename E1>
+	auto anti_convolve(std::tuple<S...> const& variables, E1 const& a, OpAdd<As...> const& b)
+	{
+		return anti_convolve<Zn, T1, T2>(variables, a, b, std::make_index_sequence<sizeof...(As)>{});
+	}
+
+	template<size_t Zn, typename T1, typename T2, typename... S, typename... As, typename E2, size_t... Is>
+	auto anti_convolve(std::tuple<S...> const& variables, OpAdd<As...> const& a, E2 const& b, std::index_sequence<Is...>)
+	{
+		return (anti_convolve<Zn, T1, T2>(variables, expr::get<Is>(a), b) +  ...);
+	}
+
+	template<size_t Zn, typename T1, typename T2, typename... S, typename... As, typename E2>
+	auto anti_convolve(std::tuple<S...> const& variables, OpAdd<As...> const& a, E2 const& b)
+	{
+		return anti_convolve<Zn, T1, T2>(variables, a, b, std::make_index_sequence<sizeof...(As)>{});
+	}
 
 
 	//! Convert terms of an expression to Fourier space.
@@ -438,9 +492,13 @@ namespace solver_sp
 	template<size_t Z0, size_t D, typename... S, typename B, typename A1, typename A2, typename E>
 	auto construct_nonlinear(std::tuple<S...> const& systems, OpExpression<B> const& bop,
 		OpChain<A1, A2, E> const& e, double const* h, const len_type* dims);
-	template<size_t Z0, size_t D, typename... S, typename B, typename T, typename G>
+	template<size_t Z0, size_t D, size_t Z, typename... S, typename B, typename T, typename G,
+		typename = std::enable_if_t<(Z < sizeof...(S)), int>>
 	auto construct_nonlinear(std::tuple<S...> const& systems, OpExpression<B> const& bop,
-		OpTerm<T, G> const& e, double const* h, const len_type* dims);
+		OpTerm<T, Variable<Z, G>> const& e, double const* h, const len_type* dims);
+	//template<size_t Z0, size_t D, NoiseType nt, typename... S, typename B, typename T, typename V>
+	//auto construct_nonlinear(std::tuple<S...> const& systems, OpExpression<B> const& bop,
+	//	OpTerm<V, NoiseData<nt, T, D>> const& e, double const* h, const len_type* dims);
 	template<size_t Z0, size_t D, typename... S, typename B, typename... Es>
 	auto construct_nonlinear(std::tuple<S...> const& systems, OpExpression<B> const& bop,
 		OpAdd<Es...> const& e, double const* h, const len_type* dims);
@@ -538,9 +596,9 @@ namespace solver_sp
 		return B_term * construct_nonlinear<Z0, D>(systems, OpIdentity{}, en, h, dims);
 	}
 
-	template<size_t Z0, size_t D, typename... S, typename B, typename T, typename G>
+	template<size_t Z0, size_t D, size_t Z, typename... S, typename B, typename T, typename G, typename>
 	auto construct_nonlinear(std::tuple<S...> const& systems, OpExpression<B> const& bop, 
-		OpTerm<T, G> const& e, double const* h, const len_type* dims)
+		OpTerm<T, Variable<Z, G>> const& e, double const* h, const len_type* dims)
 	{
 		using vt = variable_type<std::tuple_element_t<Z0, std::tuple<S...>>>;
 
@@ -554,7 +612,10 @@ namespace solver_sp
 		auto construct_nonlinear_adds(std::tuple<S...> const& systems, OpExpression<B> const& bop, 
 			OpAdd<Es...> const& e, double const* h, const len_type* dims, std::index_sequence<Is...>)
 		{
-			return expr::add_all(construct_nonlinear<Z0, D>(systems, *static_cast<B const*>(&bop), expr::get<Is>(e), h, dims)...);
+			using vt = variable_type<std::tuple_element_t<Z0, std::tuple<S...>>>;
+			auto B_term = solver_sp::get_B_term<vt>(*static_cast<B const*>(&bop));
+
+			return expr::make_add(B_term * construct_nonlinear<Z0, D>(systems, OpIdentity{}, expr::get<Is>(e), h, dims)...);
 		}
 	}
 
@@ -581,8 +642,8 @@ namespace solver_sp
 		auto variables = expr::get_indexed_variable_list(e);
 
 		auto ee = sthc_apply_on_scalar<vt>(anti_convolve<sizeof...(S), T1, T2>(variables,
-			hcts_apply_on_scalar<T1>(construct_nonlinear<Z0, D>(systems, OpIdentity{}, e.a, h, dims)),
-			hcts_apply_on_scalar<T2>(construct_nonlinear<Z0, D>(systems, OpIdentity{}, e.b, h, dims))));
+			(construct_nonlinear<Z0, D>(systems, OpIdentity{}, e.a, h, dims)),
+			(construct_nonlinear<Z0, D>(systems, OpIdentity{}, e.b, h, dims))));
 
 		return B_term * ee;
 	}
@@ -601,8 +662,8 @@ namespace solver_sp
 		auto variables = expr::get_indexed_variable_list(e);
 
 		auto ee = sthc_apply_on_scalar<vt>(anti_convolve<sizeof...(S), T1, T2>(variables,
-			hcts_apply_on_scalar<T1>(construct_nonlinear<Z0, D>(systems, OpIdentity{}, e.a, h, dims)),
-			hcts_apply_on_scalar<T2>(construct_nonlinear<Z0, D>(systems, OpIdentity{}, expr::inverse(e.b), h, dims))));
+			(construct_nonlinear<Z0, D>(systems, OpIdentity{}, e.a, h, dims)),
+			(construct_nonlinear<Z0, D>(systems, OpIdentity{}, expr::inverse(e.b), h, dims))));
 
 		return B_term * ee;
 	}
@@ -656,17 +717,64 @@ namespace solver_sp
 		return std::make_pair(OpVoid{}, *static_cast<E const*>(&e));
 	}
 
+	template<size_t R0, typename G, typename T, size_t R = expr::eval_type<OpTerm<OpIdentity, G>>::rank>
+	auto column_vector_from_variable(OpTerm<T, G> const& e)
+	{
+		if constexpr (R == 0)
+		{
+			return OpIdentity{};
+		}
+		else
+		{
+			auto c = expr::make_column_vector<R0, R>();
+			if constexpr (R0 + 1 < R)
+			{
+				return c + column_vector_from_variable<R0 + 1>(e);
+			}
+			else
+			{
+				return c;
+			}
+		}
+	}
+
 	template<size_t Z, typename T, typename G, 
 		typename std::enable_if_t<l_op_compatible<Z, G>, int> = 0>
 	auto get_l_op(OpTerm<T, G> const& e, double const*)
 	{
+		return std::make_pair(expr::coeff(e) * column_vector_from_variable<0>(e), OpVoid{});
+	}
+
+	//template<typename G, typename T, size_t R = expr::eval_type<OpTerm<T, VectorComponent<Axis::X, G>>>::rank>
+	//auto column_vector_from_axis(OpTerm<T, VectorComponent<Axis::X, G>>)
+	//{
+	//	return expr::make_row_vector<0, R>();
+	//}
+
+	//template<typename G, typename T, size_t R = expr::eval_type<OpTerm<T, VectorComponent<Axis::X, G>>>::rank>
+	//auto column_vector_from_axis(OpTerm<T, VectorComponent<Axis::Y, G>>)
+	//{
+	//	return expr::make_row_vector<1, R>();
+	//}
+
+	//template<typename G, typename T, size_t R = expr::eval_type<OpTerm<T, VectorComponent<Axis::X, G>>>::rank>
+	//auto column_vector_from_axis(OpTerm<T, VectorComponent<Axis::Z, G>>)
+	//{
+	//	return expr::make_row_vector<2, R>();
+	//}
+
+	template<size_t Z, typename T, Axis ax, typename G,
+		typename std::enable_if_t<l_op_compatible<Z, G>, int> = 0>
+	auto get_l_op(OpTerm<T, VectorComponent<ax, G>> const& e, double const*)
+	{
+		// * column_vector_from_axis(e)
 		return std::make_pair(expr::coeff(e), OpVoid{});
 	}
 
 	namespace
 	{
 		template<size_t Z, typename... Es, size_t... Is>
-		auto get_l_op_tuple(OpAdd<Es...> const& e, double const* h, std::index_sequence<Is...>)
+		auto get_l_op_adds(OpAdd<Es...> const& e, double const* h, std::index_sequence<Is...>)
 		{
 			auto&& a = std::make_tuple(get_l_op<Z>(expr::get<Is>(e), h)...);
 			return std::make_pair(expr::add_all(std::get<Is>(a).first...), expr::add_all(std::get<Is>(a).second...));
@@ -676,13 +784,15 @@ namespace solver_sp
 	template<size_t Z, typename... Es>
 	auto get_l_op(OpAdd<Es...> const& e, double const* h)
 	{
-		return get_l_op_tuple<Z>(e, h, std::make_index_sequence<sizeof...(Es)>{});
+		return get_l_op_adds<Z>(e, h, std::make_index_sequence<sizeof...(Es)>{});
 	}
 
 	template<size_t Z, typename A1, typename A2, typename E>
 	auto get_l_op(OpChain<A1, A2, E> const& e, double const* h)
 	{
-		const len_type* dims = expr::data_dimensions(expr::get_enclosed_expression(e));
+		constexpr size_t D = expr::grid_dim<E>::dimension;
+		len_type dims[D];
+		expr::fill_data_dimensions(e, dims);
 
 		auto op_ft = expr::transform::to_ft<expr::grid_dim<E>::dimension>(e.combination, h, dims);
 		auto&& [expr_l, non_op] = get_l_op<Z>(expr::get_enclosed_expression(e), h);
@@ -693,7 +803,9 @@ namespace solver_sp
 	template<size_t Z, typename A1, typename A2, typename E>
 	auto get_l_op(OpCombination<A1, A2, E> const& e, double const* h)
 	{
-		const len_type* dims = expr::data_dimensions(expr::get_enclosed_expression(e));
+		constexpr size_t D = expr::grid_dim<E>::dimension;
+		len_type dims[D];
+		expr::fill_data_dimensions(e, dims);
 
 		auto op_ft = expr::transform::to_ft<expr::grid_dim<E>::dimension>(e.combination, h, dims);
 		auto&& [expr_l, non_op] = get_l_op<Z>(expr::get_enclosed_expression(e), h);
@@ -701,69 +813,24 @@ namespace solver_sp
 		return std::make_pair(op_ft * expr_l, e.combination(non_op));
 	}
 
-	namespace
-	{
-		template<typename Dd, typename V, typename E, typename Sp>
-		auto get_l_derivative(OpFuncDerivative<Dd, V, E, Sp> const& e, double const* h)
-		{
-			const len_type* dims = expr::data_dimensions(expr::get_enclosed_expression(e));
-
-			constexpr size_t order = OpFuncDerivative<Dd, V, E, Sp>::order;
-			constexpr Axis axis = OpFuncDerivative<Dd, V, E, Sp>::axis;
-			constexpr size_t dimension = expr::grid_dim<E>::dimension;
-
-			static_assert(order > 0);
-
-			if constexpr (order % 2 == 0)
-			{
-				return expr::transform::to_ft<dimension>(
-					expr::make_operator_derivative<order>(e.solver),
-					h, dims);
-			}
-			else
-			{
-				if constexpr (order > 1)
-				{
-					return expr::transform::to_ft<dimension>(
-						expr::make_operator_directional_derivative<axis, 1>(e.solver)
-						* expr::make_operator_derivative<order - 1>(e.solver),
-						h, dims);
-				}
-				else
-				{
-					return expr::transform::to_ft<dimension>(
-						expr::make_operator_directional_derivative<axis, 1>(e.solver),
-						h, dims);
-				}
-			}
-
-		}
-	}
-
 	template<size_t Z, typename Dd, typename V, typename E, typename Sp>
 	auto get_l_op(OpFuncDerivative<Dd, V, E, Sp> const& e, double const* h)
 	{
-		const len_type* dims = expr::data_dimensions(e);
+		constexpr size_t D = expr::grid_dim<E>::dimension;
+		len_type dims[D];
+		expr::fill_data_dimensions(e, dims);
 
 		constexpr size_t order = OpFuncDerivative<Dd, V, E, Sp>::order;
 		constexpr Axis axis = OpFuncDerivative<Dd, V, E, Sp>::axis;
 
 		static_assert(order > 0);
 
-		auto op_ft = get_l_derivative(e, h);
-		auto&& [expr_l, non_op] = get_l_op<Z>(expr::get_enclosed_expression(e), h);
+		auto [op, en] = expr::split::separate_operator(e);
+		auto&& [expr_l, non_op] = get_l_op<Z>(en, h);
 
-		if constexpr (std::is_same<decltype(non_op), OpVoid>::value)
-		{
-			return std::make_pair(expr::coeff(e) * op_ft * expr_l, OpVoid{});
-		}
-		else
-		{
-			return std::make_pair(
-				expr::coeff(e) * op_ft * expr_l,
-				expr::nth_derivative_apply<axis, order, Sp>::get(non_op, e.solver));
-		}
-
+		return std::make_pair(
+			expr::transform::to_ft<D>(op, h, dims) * expr_l,
+			expr::make_derivative<Dd>(non_op, e.solver));
 	}
 
 

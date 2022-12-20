@@ -44,31 +44,26 @@
 template<size_t D>
 struct GaussianSmoothing : OpExpression<GaussianSmoothing<D>>
 {
-	GaussianSmoothing() : dims{ 0 }, h{ 0 }, data{ 0 } {}
+	GaussianSmoothing() : data{ 0 } {}
 
-	GaussianSmoothing(symphas::interval_data_type const& intervals, double sigma = 1.0, double mean = 1.0) :
-		GaussianSmoothing()
+	GaussianSmoothing(symphas::interval_data_type const& intervals, double sigma = 1.0, double mean = 1.0) : data{ grid::dim_list(intervals) }
 	{
-		len_type dims[D];
 		double h[D];
 
 		for (iter_type i = 0; i < D; ++i)
 		{
-			dims[i] = intervals.at(symphas::index_to_axis(i)).count();
 			h[i] = intervals.at(symphas::index_to_axis(i)).width();
 		}
 
-		initialize_values(dims, h, sigma, mean);
+		initialize_values(h, sigma, mean);
 	}
 
-	GaussianSmoothing(const len_type* dims, const double* h, double sigma = 1.0, double mean = 1.0) : 
-		GaussianSmoothing()
+	GaussianSmoothing(const len_type* dims, const double* h, double sigma = 1.0, double mean = 1.0) : data{ dims }
 	{
-		initialize_values(dims, h, sigma, mean);
+		initialize_values(h, sigma, mean);
 	}
 
-	GaussianSmoothing(const len_type* dims, double sigma = 1.0, double mean = 1.0) : 
-		GaussianSmoothing()
+	GaussianSmoothing(const len_type* dims, double sigma = 1.0, double mean = 1.0) : data{ dims }
 	{
 		double h[D];
 
@@ -77,7 +72,7 @@ struct GaussianSmoothing : OpExpression<GaussianSmoothing<D>>
 			h[i] = 1.0;
 		}
 
-		initialize_values(dims, h, sigma, mean);
+		initialize_values(h, sigma, mean);
 	}
 
 
@@ -147,13 +142,12 @@ protected:
 		}
 	}
 
-	void initialize_values(const len_type* dims, const double* h, double sigma, double mean)
+	void initialize_values(const double* h, double sigma, double mean)
 	{
-		data = Grid<scalar_t, D>{ dims };
-		expr::k_field<D>::template fill<2>(data.values, dims, h);
+		expr::k_field<D>::template fill<2>(data, data.dims, h);
 
 		double a = -mean / (2 * sigma * sigma);
-		len_type len = grid::length<D>(dims);
+		len_type len = grid::length<D>(data.dims);
 
 		for (auto* it = data.values; it < data.values + len; ++it)
 		{

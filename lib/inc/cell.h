@@ -44,7 +44,6 @@ struct VectorValue
 	 */
 	T v[D]{};
 
-
 	//! Data access operator.
 	/*!
 	 * Access operator for the data memeber `v`. The position in the array is passed.

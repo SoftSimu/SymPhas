@@ -192,6 +192,12 @@ namespace symphas::internal
 	//}
 
 
+	template<typename T>
+	auto neg_one_element(T const&)
+	{
+		return std::invoke_result_t<decltype(&T::operator-), T>{};
+	}
+
 	template<typename... Ts>
 	auto neg_elements(types_list<Ts...> const&)
 	{
@@ -437,6 +443,9 @@ namespace symphas::internal
 	template<int I>
 	constexpr int fixed_abs = (I < 0) ? -I : I;
 
+	template<int I>
+	constexpr int fixed_sign = (I < 0) ? -1 : 1;
+
 	template<int R, int... As>
 	constexpr bool test_in_radius = (fixed_abs<As> + ...) <= R;
 
@@ -509,18 +518,34 @@ namespace symphas::internal
 		constexpr int JM = fixed_max<Js...>;
 		constexpr int RJ = JM - Jm + 1;
 
-		if constexpr (O % 2 == 0)
-		{
-			constexpr int Im = fixed_min<Js...>;
-			constexpr int IM = fixed_max<Js...>;
-			constexpr int RI = IM - Im + 1;
-			constexpr int R = fixed_min<RI, RJ>;
+		constexpr int Im = fixed_min<Is...>;
+		constexpr int IM = fixed_max<Is...>;
+		constexpr int RI = IM - Im + 1;
 
+		constexpr int R = fixed_min<RI, RJ>;
+
+		if constexpr (O == 0)
+		{
+			return typename pack_dictionary<
+				types_list<std::conditional_t<
+					Is == 0 || Js == 0 || (
+						(USE_RADIUS_CENTRAL_2D) 
+						? (test_in_radius<R / 2 - NEG_RADIUS_CENTRAL_2D + 1, Is, Js>)
+						: false),
+					OpTerm<OpIdentity, expr::symbols::internal::S2_symbol<Is, Js>>,
+					OpVoid>...>,
+				std::integer_sequence<int, Is...>, std::integer_sequence<int, Js...>
+			>::type{};
+		}
+		else if constexpr (O % 2 == 0)
+		{
 			return simplify_axes_2d_even(
 				typename pack_dictionary<
 					types_list<std::conditional_t<
-						Is == 0 || Js == 0
-						|| ((USE_RADIUS_CENTRAL_2D) ? (fixed_abs<Is> + fixed_abs<Js> <= R / 2 - NEG_RADIUS_CENTRAL_2D) : false),
+						Is == 0 || Js == 0 || (
+							(USE_RADIUS_CENTRAL_2D) 
+							? (test_in_radius<R / 2 - NEG_RADIUS_CENTRAL_2D, Is, Js>)
+							: false),
 						OpTerm<OpIdentity, expr::symbols::internal::S2_symbol<Is, Js>>,
 						OpVoid>...>,
 					std::integer_sequence<int, Is...>, std::integer_sequence<int, Js...>
@@ -920,6 +945,10 @@ namespace symphas::internal
 		static const bool value = get_value(std::make_index_sequence<sizeof...(Symbols)>{});
 	};
 
+
+	template<size_t O, size_t N, size_t R0 = O + N - 2>
+	constexpr size_t R_ = (R0 <= 1) ? 1 : (R0 % 2 == 1) ? (R0 + 1) / 2 : R0 / 2;
+
 }
 
 	
@@ -983,7 +1012,11 @@ namespace expr
 		using expression_first_half_t = types_between_index<0, sizeof...(Is) / 2, OpTerm<OpIdentity, expr::symbols::internal::S1_symbol<Is>>...>;
 		using expression_at_half_t = type_at_index<sizeof...(Is) / 2, OpTerm<OpIdentity, expr::symbols::internal::S1_symbol<Is>>...>;
 
-		if constexpr (O % 2 == 0)
+		if constexpr (O == 0)
+		{
+			return dict;
+		}
+		else if constexpr (O % 2 == 0)
 		{
 			return typename pack_dictionary<
 				expand_types_list<
@@ -1012,7 +1045,257 @@ namespace expr
 		return keep_axes_2d<O>(
 			types_list<OpTerm<OpIdentity, expr::symbols::internal::S2_symbol<Is, Js>>...>{},
 			std::integer_sequence<int, Is...>{}, std::integer_sequence<int, Js...>{});
-	} 
+	}
+
+	template<size_t Oy, size_t N, int... Is, int... Js, typename... Es>
+	auto simplify_central_mixed_stencils(types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...> const& dict)
+	{
+		constexpr int Jm = fixed_min<Js...>;
+		constexpr int JM = fixed_max<Js...>;
+		constexpr int Im = fixed_min<Is...>;
+		constexpr int IM = fixed_max<Is...>;
+		constexpr int R = fixed_max<JM - Jm + 1, IM - Im + 1>;
+
+		constexpr int RJ_2 = R_<Oy, N>;
+
+		if constexpr (Oy == 0)
+		{
+			return typename pack_dictionary<types_list<
+				std::conditional_t<(test_in_radius<RJ_2 - 1, Js>), Es, OpVoid>...>,
+				std::integer_sequence<int, Is...>, std::integer_sequence<int, Js...>>::type{};
+		}
+		else if constexpr (Oy % 2 == 1)
+		{
+			using Ts = types_list<Es...>;
+			using nTs = types_list<std::invoke_result_t<decltype(&neg_one_element<Es>), Es>...>;
+
+			return typename pack_dictionary<types_list<
+				std::conditional_t<
+					((Js != 0 && test_in_radius<RJ_2, Is, Js>) || (!test_in_radius<R / 2, Is, Js> && test_in_radius<R / 2 + 1, Is, Js>)),
+					typename at_stencil_index_2d<
+						Is, -fixed_abs<Js>,
+						std::conditional_t<(Js < 0), Ts, nTs>, 
+						std::integer_sequence<int, Is...>, std::integer_sequence<int, Js...>>::type,
+					OpVoid>...>,
+				std::integer_sequence<int, Is...>, std::integer_sequence<int, Js... >> ::type{};
+		}
+		else
+		{
+			return typename pack_dictionary<types_list<
+				std::conditional_t<
+					((test_in_radius<RJ_2 - NEG_RADIUS_CENTRAL_2D, Is, Js> || fixed_abs<Js> == fixed_abs<Is>)),
+					typename at_stencil_index_2d<
+						(Is != 0 && Js != 0) ? fixed_sign<Is> * fixed_min<fixed_abs<Js>, fixed_abs<Is>> : Is,
+						(Is != 0 && Js != 0) ? -fixed_max<fixed_abs<Is>, fixed_abs<Js>> : -fixed_abs<Js>,
+						types_list<Es...>,
+						std::integer_sequence<int, Is...>, std::integer_sequence<int, Js...>>::type,
+					OpVoid>...>,
+				std::integer_sequence<int, Is...>, std::integer_sequence<int, Js...>>::type{};
+		}
+	}
+
+	template<size_t Ox, size_t Oy, size_t N, int... Is, int... Js, typename... Es>
+	auto simplify_central_mixed_stencils(types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...> const& dict)
+	{
+		constexpr int Jm = fixed_min<Js...>;
+		constexpr int JM = fixed_max<Js...>;
+		constexpr int Im = fixed_min<Is...>;
+		constexpr int IM = fixed_max<Is...>;
+		constexpr int R = fixed_max<JM - Jm + 1, IM - Im + 1>;
+
+		constexpr int RI_2 = R_<Ox, N>;
+
+		if constexpr (Ox == 0)
+		{
+			using dictx = typename pack_dictionary<
+				types_list<std::conditional_t<(test_in_radius<RI_2 - 1, Is>), Es, OpVoid>...>,
+				std::integer_sequence<int, Is...>, std::integer_sequence<int, Js...>>::type;
+			return simplify_central_mixed_stencils<Oy, N>(dictx{});
+		}
+		else if constexpr (Ox % 2 == 1)
+		{
+			using Ts = types_list<Es...>;
+			using nTs = types_list<std::invoke_result_t<decltype(&neg_one_element<Es>), Es>...>;
+
+			using dictx = typename pack_dictionary<types_list<
+				std::conditional_t<
+					((Is != 0 && test_in_radius<RI_2, Is, Js>) || (!test_in_radius<R / 2, Is, Js> && test_in_radius<R / 2 + 1, Is, Js>)),
+					typename at_stencil_index_2d<
+						-fixed_abs<Is>, Js,
+						std::conditional_t<(Is < 0), Ts, nTs>, 
+						std::integer_sequence<int, Is...>, std::integer_sequence<int, Js...>>::type,
+					OpVoid>...>,
+				std::integer_sequence<int, Is...>, std::integer_sequence<int, Js...>>::type;
+			return simplify_central_mixed_stencils<Oy, N>(dictx{});
+		}
+		else
+		{
+			using dictx = typename pack_dictionary<types_list<
+				std::conditional_t<
+					((test_in_radius<RI_2 - NEG_RADIUS_CENTRAL_2D, Is, Js> || fixed_abs<Js> == fixed_abs<Is>)),
+					typename at_stencil_index_2d<
+						(Is != 0 && Js != 0) ? -fixed_max<fixed_abs<Js>, fixed_abs<Is>> : -fixed_abs<Is>,
+						(Is != 0 && Js != 0) ? fixed_sign<Js> * fixed_min<fixed_abs<Js>, fixed_abs<Is>> : Js,
+						types_list<Es...>,
+						std::integer_sequence<int, Is...>, std::integer_sequence<int, Js...>>::type,
+					OpVoid>...>,
+				std::integer_sequence<int, Is...>, std::integer_sequence<int, Js...>>::type;
+			return simplify_central_mixed_stencils<Oy, N>(dictx{});
+		}
+
+	}
+
+
+	
+	template<size_t Oz, size_t N, int... Is, int... Js, int... Ks, typename... Es>
+	auto simplify_central_mixed_stencils(types_list<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>...> const& dict)
+	{
+		constexpr int Km = fixed_min<Ks...>;
+		constexpr int KM = fixed_max<Ks...>;
+		constexpr int Jm = fixed_min<Js...>;
+		constexpr int JM = fixed_max<Js...>;
+		constexpr int Im = fixed_min<Is...>;
+		constexpr int IM = fixed_max<Is...>;
+		constexpr int R = fixed_max<JM - Jm + 1, IM - Im + 1, KM - Km + 1>;
+
+		constexpr int RK_2 = R_<Oz, N>;
+
+		if constexpr (Oz == 0)
+		{
+			return typename pack_dictionary<types_list<
+				std::conditional_t<(test_in_radius<RK_2 - 1, Ks>), Es, OpVoid>...>,
+				std::integer_sequence<int, Is...>, std::integer_sequence<int, Js...>, std::integer_sequence<int, Ks...>>::type{};
+		}
+		else if constexpr (Oz % 2 == 1)
+		{
+			using Ts = types_list<Es...>;
+			using nTs = types_list<std::invoke_result_t<decltype(&neg_one_element<Es>), Es>...>;
+
+			return typename pack_dictionary<types_list<
+				std::conditional_t<
+					((Ks != 0 && test_in_radius<RK_2, Ks>) || !test_in_radius<R / 2, Is, Js, Ks>),
+					typename at_stencil_index_3d<
+						Is, Js, -fixed_abs<Ks>,
+						std::conditional_t<(Ks < 0), Ts, nTs>,
+						std::integer_sequence<int, Is...>, std::integer_sequence<int, Js...>, std::integer_sequence<int, Ks...>>::type,
+					OpVoid>...>,
+				std::integer_sequence<int, Is...>, std::integer_sequence<int, Js... >, std::integer_sequence<int, Ks...>>::type{};
+		}
+		else
+		{
+			return typename pack_dictionary<types_list<
+				std::conditional_t<
+					((test_in_radius<R / 2 - 1 - NEG_RADIUS_CENTRAL_3D, Is, Js, Ks> || fixed_abs<Ks> == fixed_abs<Js> || fixed_abs<Ks> == fixed_abs<Is>)),
+					typename at_stencil_index_3d<
+						Is, Js, -fixed_abs<Ks>,
+						types_list<Es...>,
+						std::integer_sequence<int, Is...>, std::integer_sequence<int, Js...>, std::integer_sequence<int, Ks...>>::type,
+					OpVoid>...>,
+				std::integer_sequence<int, Is...>, std::integer_sequence<int, Js...>, std::integer_sequence<int, Ks...>>::type{};
+		}
+	}
+
+	template<size_t Oy, size_t Oz, size_t N, int... Is, int... Js, int... Ks, typename... Es>
+	auto simplify_central_mixed_stencils(types_list<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>...> const& dict)
+	{
+		constexpr int Km = fixed_min<Ks...>;
+		constexpr int KM = fixed_max<Ks...>;
+		constexpr int Jm = fixed_min<Js...>;
+		constexpr int JM = fixed_max<Js...>;
+		constexpr int Im = fixed_min<Is...>;
+		constexpr int IM = fixed_max<Is...>;
+		constexpr int R = fixed_max<JM - Jm + 1, IM - Im + 1, KM - Km + 1>;
+
+		constexpr int RJ_2 = R_<Oy, N>;
+
+		if constexpr (Oy == 0)
+		{
+			using dicty = typename pack_dictionary<types_list<
+				std::conditional_t<(test_in_radius<RJ_2 - 1, Js>), Es, OpVoid>...>,
+				std::integer_sequence<int, Is...>, std::integer_sequence<int, Js...>, std::integer_sequence<int, Ks...>>::type;
+			return simplify_central_mixed_stencils<Oz, N>(dicty{});
+		}
+		else if constexpr (Oy % 2 == 1)
+		{
+			using Ts = types_list<Es...>;
+			using nTs = types_list<std::invoke_result_t<decltype(&neg_one_element<Es>), Es>...>;
+
+			using dicty = typename pack_dictionary<types_list<
+				std::conditional_t<
+					((Js != 0 && test_in_radius<RJ_2, Js>) || !test_in_radius<R / 2, Is, Js, Ks>),
+					typename at_stencil_index_3d<
+						Is, -fixed_abs<Js>, Ks,
+						std::conditional_t<(Js < 0), Ts, nTs>,
+						std::integer_sequence<int, Is...>, std::integer_sequence<int, Js...>, std::integer_sequence<int, Ks...>>::type,
+					OpVoid>...>,
+				std::integer_sequence<int, Is...>, std::integer_sequence<int, Js...>, std::integer_sequence<int, Ks...>>::type;
+			return simplify_central_mixed_stencils<Oz, N>(dicty{});
+		}
+		else
+		{
+			using dicty = typename pack_dictionary<types_list<
+				std::conditional_t<
+					((test_in_radius<R / 2 - 1 - NEG_RADIUS_CENTRAL_3D, Is, Js, Ks> || fixed_abs<Js> == fixed_abs<Is> || fixed_abs<Js> == fixed_abs<Ks>)),
+					typename at_stencil_index_3d<
+						Is, -fixed_abs<Js>, Ks,
+						types_list<Es...>,
+						std::integer_sequence<int, Is...>, std::integer_sequence<int, Js...>, std::integer_sequence<int, Ks...>>::type,
+					OpVoid>...>,
+				std::integer_sequence<int, Is...>, std::integer_sequence<int, Js...>, std::integer_sequence<int, Ks...>>::type;
+			return simplify_central_mixed_stencils<Oz, N>(dicty{});
+		}
+	}
+
+	template<size_t Ox, size_t Oy, size_t Oz, size_t N, int... Is, int... Js, int... Ks, typename... Es>
+	auto simplify_central_mixed_stencils(types_list<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>...> const& dict)
+	{
+		constexpr int Jm = fixed_min<Js...>;
+		constexpr int JM = fixed_max<Js...>;
+		constexpr int Im = fixed_min<Is...>;
+		constexpr int IM = fixed_max<Is...>;
+		constexpr int R = fixed_max<JM - Jm + 1, IM - Im + 1>;
+
+		constexpr int RI_2 = R_<Ox, N>;
+
+		if constexpr (Ox == 0)
+		{
+			using dictx = typename pack_dictionary<
+				types_list<std::conditional_t<(test_in_radius<RI_2 - 1, Is>), Es, OpVoid>...>,
+				std::integer_sequence<int, Is...>, std::integer_sequence<int, Js...>, std::integer_sequence<int, Ks...>>::type;
+			return simplify_central_mixed_stencils<Oy, Oz, N>(dictx{});
+		}
+		else if constexpr (Ox % 2 == 1)
+		{
+			using Ts = types_list<Es...>;
+			using nTs = types_list<std::invoke_result_t<decltype(&neg_one_element<Es>), Es>...>;
+
+			using dictx = typename pack_dictionary<types_list<
+				std::conditional_t<
+					((Is != 0 && test_in_radius<RI_2, Is>) || !test_in_radius<R / 2, Is, Js, Ks>),
+					typename at_stencil_index_3d<
+						-fixed_abs<Is>, Js, Ks,
+						std::conditional_t<(Is < 0), Ts, nTs>,
+						std::integer_sequence<int, Is...>, std::integer_sequence<int, Js...>, std::integer_sequence<int, Ks...>>::type,
+					OpVoid>...>,
+				std::integer_sequence<int, Is...>, std::integer_sequence<int, Js...>, std::integer_sequence<int, Ks...>>::type;
+			return simplify_central_mixed_stencils<Oy, Oz, N>(dictx{});
+		}
+		else
+		{
+			using dictx = typename pack_dictionary<types_list<
+				std::conditional_t<
+					((test_in_radius<R / 2 - 1 - NEG_RADIUS_CENTRAL_3D, Is, Js, Ks> || fixed_abs<Is> == fixed_abs<Js> || fixed_abs<Is> == fixed_abs<Ks>)),
+					typename at_stencil_index_3d<
+						-fixed_abs<Is>, Js, Ks,
+						types_list<Es...>,
+						std::integer_sequence<int, Is...>, std::integer_sequence<int, Js...>, std::integer_sequence<int, Ks...>>::type,
+					OpVoid>...>,
+				std::integer_sequence<int, Is...>, std::integer_sequence<int, Js...>, std::integer_sequence<int, Ks...>>::type;
+			return simplify_central_mixed_stencils<Oy, Oz, N>(dictx{});
+		}
+
+	}
+
 
 	template<size_t O, int... Is, int... Js, int... Ks>
 	auto simplify_central_stencils(types_list<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, OpTerm<OpIdentity, expr::symbols::internal::S3_symbol<Is, Js, Ks>>>...> const& dict)
@@ -1020,6 +1303,12 @@ namespace expr
 		return keep_axes_3d<O>(
 				types_list<OpTerm<OpIdentity, expr::symbols::internal::S3_symbol<Is, Js, Ks>>...>{},
 				std::integer_sequence<int, Is...>{}, std::integer_sequence<int, Js...>{}, std::integer_sequence<int, Ks...>{});
+	}
+
+	template<typename... Ss>
+	auto simplify_central_stencils(types_list<Ss...> const& dict)
+	{
+		return simplify_central_stencils<0>(dict);
 	}
 
 	// *************************************************************************************************
@@ -1147,27 +1436,284 @@ namespace expr
 	auto update_stencil_dictionary(types_list<std::pair<Symbols, Es>...> const& dict, types_list<> const& exprs)
 	{
 		return dict;
-		//return update_stencil_dictionary(dict, types_list<>{});
 	}
 
-	template<typename... Symbols, typename... Es, typename E0, typename... E0s,
-		typename std::enable_if_t<dict_complete<types_list<std::pair<Symbols, Es>...>>::value, int> = 0>
+	template<typename... Symbols, typename... Es, typename E0, typename... E0s>
 	auto update_stencil_dictionary(types_list<std::pair<Symbols, Es>...> const& dict, types_list<E0, E0s...> const& exprs)
 	{
-		return dict;
-		//return update_stencil_dictionary(dict, types_list<>{});
-	}
-
-	template<typename... Symbols, typename... Es, typename E0, typename... E0s,
-		typename std::enable_if_t<!dict_complete<types_list<std::pair<Symbols, Es>...>>::value, int> = 0>
-	auto update_stencil_dictionary(types_list<std::pair<Symbols, Es>...> const& dict, types_list<E0, E0s...> const& exprs)
-	{
-		auto&& dict2 = update_stencil_dictionary(dict, E0{});
-		return update_stencil_dictionary(dict2, types_list<E0s...>{});
+		if constexpr (!dict_complete<types_list<std::pair<Symbols, Es>...>>::value)
+		{
+			auto&& dict2 = update_stencil_dictionary(dict, E0{});
+			return update_stencil_dictionary(dict2, types_list<E0s...>{});
+		}
+		else
+		{
+			return dict;
+		}
 	}
 
 
 }
+
+namespace symphas::internal
+{
+
+	template<size_t Q, size_t P, size_t L, int... Is, int... Js, int... Ks, typename... Es, typename E>
+	auto setup_stencil_equation_permute(
+		types_list<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>...> const& dict,
+		E const& d_op)
+	{
+		return types_list<
+			decltype(expr::setup_stencil_equation<Q, P, L>(dict, d_op)),
+			decltype(expr::setup_stencil_equation<L, Q, P>(dict, d_op)),
+			decltype(expr::setup_stencil_equation<P, L, Q>(dict, d_op))>{};
+	}
+
+
+	template<size_t Q0, size_t Q, size_t P, size_t L, int... Is, int... Js, int... Ks, typename... Es, typename E>
+	auto setup_stencil_equation_expand_2(
+		types_list<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>...> const& dict,
+		E const& d_op)
+	{
+		if constexpr (Q == Q0 / 2 && Q0 % 2 == 0)
+		{
+			return types_list<>{};
+		}
+		else
+		{
+			return setup_stencil_equation_permute<Q, P, L>(dict, d_op);
+		}
+
+	}
+
+	template<size_t Q0, size_t Q, size_t P, size_t... Ps, int... Is, int... Js, int... Ks, typename... Es, typename E>
+	auto setup_stencil_equation_expand_1(
+		types_list<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>...> const& dict,
+		E const& d_op, std::index_sequence<Ps...>)
+	{
+		return expand_types_list<decltype(setup_stencil_equation_expand_2<Q0, Q, P - Ps, Ps>(dict, d_op))...>{};
+	}
+
+}
+
+namespace expr
+{
+
+	template<size_t Ox>
+	auto get_mixed_derivative()
+	{
+		return expr::make_operator_derivative<Ox, expr::symbols::x_symbol>();
+	}
+
+	template<size_t Ox, size_t Oy>
+	auto get_mixed_derivative()
+	{
+		return expr::make_operator_derivative<Ox, expr::symbols::x_symbol>() *
+			expr::make_operator_derivative<Oy, expr::symbols::y_symbol>();
+	}
+
+	template<size_t Ox, size_t Oy, size_t Oz>
+	auto get_mixed_derivative()
+	{
+		return expr::make_operator_derivative<Ox, expr::symbols::x_symbol>() *
+			(expr::make_operator_derivative<Oy, expr::symbols::y_symbol>() *
+				expr::make_operator_derivative<Oz, expr::symbols::z_symbol>());
+	}
+
+
+
+	//! Separates a list of equations based on the order of the x and y variables.
+	template<size_t Q, int... Is, int... Js, typename... Es, size_t... Ls, typename E>
+	auto setup_stencil_equation_list(types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...> const& dict,
+		E const& d_op, std::index_sequence<Ls...>)
+	{
+		using symphas::internal::split_by;
+		using symphas::internal::reverse_types_list;
+		
+		using expr_types = types_list<decltype(expr::setup_stencil_equation<Q - Ls, Ls>(dict, d_op))...>;
+		return expr_types{};
+	}
+
+	//! Separates a list of equations based on the order of the x and y variables.
+	template<size_t Q, int R, int... Is, int... Js, int... Ks, typename... Es, size_t... Ls, typename E>
+	auto setup_stencil_equation_list(types_list<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>...> const& dict,
+		E const& d_op, std::index_sequence<Ls...>)
+	{
+		using symphas::internal::split_by;
+
+		using expr_types = types_list<decltype(
+			symphas::internal::setup_stencil_equation_expand_1<Q, Q - Ls, Ls>(dict, d_op, std::make_index_sequence<Ls>{}))...>;
+		using x_splits = typename split_by<expr::symbols::x_symbol, expr_types>::type;
+		using y_splits = typename split_by<expr::symbols::y_symbol, x_splits>::type;
+		using z_splits = typename split_by<expr::symbols::z_symbol, y_splits>::type;
+		return z_splits{};
+	}
+
+
+	// *************************************************************************************************
+	// `get_central_space_stencil`: entry point for setting up the equations and recursively updating the 
+	// dictionary based on those equations.
+	// *************************************************************************************************
+
+	template<size_t Q, size_t N, int R, int... Is,
+		typename... Es, typename E, size_t O = expr::derivative_order<E>::value>
+	auto construct_stencil(types_list<std::pair<expr::symbols::internal::S1_symbol<Is>, Es>...> const& dict, E const& d_op)
+	{
+		auto equations = typename split_by<expr::symbols::x_symbol, decltype(setup_stencil_equation<Q>(dict, d_op))>::type{};
+		return update_stencil_dictionary(dict, equations);
+	}
+
+	template<size_t Q, size_t N, int R, int... Is, int... Js, typename... Es,
+		typename E, size_t O = expr::derivative_order<E>::value>
+	auto construct_stencil(types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...> const& dict, E const& d_op)
+	{
+		using symphas::internal::split_by;
+		using symphas::internal::reverse_types_list;
+		
+		using expr_types = decltype(setup_stencil_equation_list<Q>(dict, d_op, std::make_index_sequence<Q + 1>{}));
+		using x_splits = typename split_by<expr::symbols::x_symbol, expr_types>::type;
+		using y_splits = typename split_by<expr::symbols::y_symbol, x_splits>::type;
+
+		return update_stencil_dictionary(dict, y_splits{});
+	}
+
+
+	template<size_t Q, size_t N, int R, int... Is, int... Js, int... Ks, typename... Es,
+		typename E, size_t O = expr::derivative_order<E>::value>
+	auto construct_stencil(types_list<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>...> const& dict, E const& d_op)
+	{
+		auto equations = setup_stencil_equation_list<Q, R>(dict, d_op, std::make_index_sequence<Q / 2 + 1>{});
+		return update_stencil_dictionary(dict, equations);
+	}
+
+	template<size_t O1, size_t O2>
+	using mixed_deriv_2d_t = std::invoke_result_t<decltype(&get_mixed_derivative<O1, O2>)>;
+
+	template<int I, int J, size_t O, typename T>
+	using dict_entry_2d_t = std::pair<expr::symbols::internal::S2_symbol<I, J>, decltype(T{} / expr::pow<O>(expr::symbols::h{}))>;
+
+	//template<size_t N, size_t D, typename E, size_t O = expr::derivative_order<E>::value>
+	//auto get_central_space_stencil(E const& d_op)
+	//{
+	//	constexpr int R = symphas::internal::R_<O, N>;
+
+	//	auto dict = make_central_stencil_dictionary<D, R>();
+
+	//	constexpr size_t Q = O + N - 1;
+	//	return get_central_space_stencil<Q, N, R>(dict, d_op);
+	//}
+
+	template<size_t N, size_t D, typename E, typename... Ss, size_t O = expr::derivative_order<E>::value>
+	auto get_stencil(E const& d_op, types_list<Ss...> const& dict)
+	{
+		constexpr int R = symphas::internal::R_<O, N>;
+
+		constexpr size_t Q = O + N - 1;
+		auto dict0 = construct_stencil<Q, N, R>(dict, d_op);
+		//if constexpr (!dict_complete<decltype(dict0)>::value)
+		//{
+		//	return construct_stencil<Q + 1, N, R>(dict0, d_op);
+		//}
+		//else
+		{
+			return dict0;
+		}
+	}
+
+	template<size_t O, size_t N, size_t D>
+	auto get_central_space_stencil()
+	{
+		constexpr int R = symphas::internal::R_<O, N>;
+		auto dict = simplify_central_stencils<O>(make_central_stencil_dictionary<D, R>());
+		
+		if constexpr (D == 1)
+		{
+			return get_stencil<N, 1>(expr::make_operator_derivative<O, expr::symbols::x_symbol>(), dict);
+		}
+		else if constexpr (D == 2)
+		{
+			if constexpr (O == 1)
+			{
+				return get_stencil<N, 2>(expr::make_operator_derivative<1, expr::symbols::x_symbol>(), dict);
+			}
+			if constexpr (O % 2 == 0)
+			{
+				return get_stencil<N, 2>(
+					expr::pow<O / 2>(
+						expr::make_operator_derivative<2, expr::symbols::x_symbol>() + expr::make_operator_derivative<2, expr::symbols::y_symbol>()), dict);
+			}
+			else
+			{
+				return get_stencil<N, 2>(
+					expr::make_operator_derivative<1, expr::symbols::x_symbol>()
+					* expr::pow<O / 2>(expr::make_operator_derivative<2, expr::symbols::x_symbol>()
+						+ expr::make_operator_derivative<2, expr::symbols::y_symbol>()), dict);
+			}
+		}
+		else if constexpr (D == 3)
+		{
+			if constexpr (O == 1)
+			{
+				return get_stencil<N, 3>(expr::make_operator_derivative<1, expr::symbols::x>(), dict);
+			}
+			if constexpr (O % 2 == 0)
+			{
+				return get_stencil<N, 3>(
+					expr::pow<O / 2>(
+						expr::make_operator_derivative<2, expr::symbols::x_symbol>()
+						+ expr::make_operator_derivative<2, expr::symbols::y_symbol>()
+						+ expr::make_operator_derivative<2, expr::symbols::z_symbol>()), dict);
+			}
+			else
+			{
+				return get_stencil<N, 3>(
+					expr::make_operator_derivative<1, expr::symbols::x_symbol>()
+					* expr::pow<O / 2>(
+						expr::make_operator_derivative<2, expr::symbols::x_symbol>()
+						+ expr::make_operator_derivative<2, expr::symbols::y_symbol>()
+						+ expr::make_operator_derivative<2, expr::symbols::z_symbol>()), dict);
+			}
+		}
+	}
+
+
+	template<size_t N, size_t O1, size_t O2>
+	auto get_central_space_mixed_stencil(std::index_sequence<O1, O2>)
+	{
+		constexpr int R = symphas::internal::R_<fixed_max<O1, O2>, N>;
+		auto dict = simplify_central_mixed_stencils<O1, O2, N>(make_central_stencil_dictionary<2, R>());
+		return get_stencil<N, 2>(expr::get_mixed_derivative<O1, O2>(), dict);
+	}
+
+	template<size_t N, size_t O1, size_t O2, size_t O3>
+	auto get_central_space_mixed_stencil(std::index_sequence<O1, O2, O3>)
+	{
+		constexpr int R = symphas::internal::R_<fixed_max<O1, O2, O3>, N>;
+		auto dict = simplify_central_mixed_stencils<O1, O2, O3, N>(make_central_stencil_dictionary<3, R>());
+		return get_stencil<N, 3>(expr::get_mixed_derivative<O1, O2, O3>(), dict);
+	}
+
+	template<Axis ax, size_t O, size_t N, size_t D>
+	auto get_central_space_directional_stencil()
+	{
+		constexpr int R = symphas::internal::R_<O, N>;
+		if constexpr (D == 1)
+		{
+			return get_central_space_stencil<O, N, 1>();
+		}
+		if constexpr (D == 2)
+		{
+			return get_central_space_mixed_stencil<N>(std::index_sequence<(ax == Axis::X) ? O : 0, (ax == Axis::Y) ? O : 0>{});
+		}
+		else
+		{
+			return get_central_space_mixed_stencil<N>(std::index_sequence<(ax == Axis::X) ? O : 0, (ax == Axis::Y) ? O : 0, (ax == Axis::Z) ? O : 0>{});
+		}
+	}
+
+}
+
+
 
 namespace symphas::internal
 {
@@ -1182,15 +1728,19 @@ namespace symphas::internal
 	template<typename T>
 	struct StencilCoeff;
 
+
+#define BOX_SPACING 26
+#define ENTRY_SPACING 9
+
 	template<typename S, typename E>
 	struct StencilCoeff<std::pair<S, E>>
 	{
 		static const size_t h_exponent = 0;
 
-		template<typename T>
-		constexpr auto operator()(T const* v, len_type stride)
+		template<typename T, size_t D>
+		constexpr auto operator()(T const* v, len_type(&stride)[D])
 		{
-			return E{}.eval();
+			return E{}.eval(0);
 		}
 
 		size_t print(char* out)
@@ -1207,6 +1757,11 @@ namespace symphas::internal
 			n += E{}.print(out);
 			n += OpTerm<OpIdentity, S>{}.print(out);
 			return n;
+		}
+
+		size_t print_length()
+		{
+			return E{}.print_length() + OpTerm<OpIdentity, S>{}.print_length();
 		}
 	};
 
@@ -1222,7 +1777,7 @@ namespace symphas::internal
 		}
 
 		template<typename T, size_t D>
-		constexpr auto operator()(T const* v, const len_type (&stride)[D])
+		constexpr auto operator()(T const* v, const len_type(&stride)[D])
 		{
 			return OpVoid{}.eval();
 		}
@@ -1242,11 +1797,16 @@ namespace symphas::internal
 			n += OpTerm<OpIdentity, S>{}.print(out);
 			return n;
 		}
+
+		size_t print_length()
+		{
+			return OpVoid{}.print_length() + OpTerm<OpIdentity, S>{}.print_length();
+		}
 	};
 
 	template<int N, typename Nt, typename Dt, size_t P>
 	struct StencilCoeff<std::pair<
-		expr::symbols::internal::S1_symbol<N>, 
+		expr::symbols::internal::S1_symbol<N>,
 		OpBinaryDiv<Nt, OpTerms<Dt, Term<expr::symbols::h_symbol, P>>>>>
 	{
 
@@ -1273,11 +1833,16 @@ namespace symphas::internal
 			n += expr::symbols::internal::S1<N>{}.print(out);
 			return n;
 		}
+
+		size_t print_length()
+		{
+			return OpBinaryDiv<Nt, Dt>{}.print_length() + expr::symbols::internal::S1<N>{}.print_length();
+		}
 	};
-	
+
 	template<int N0, int N1, typename Nt, typename Dt, size_t P>
 	struct StencilCoeff<std::pair<
-		expr::symbols::internal::S2_symbol<N0, N1>, 
+		expr::symbols::internal::S2_symbol<N0, N1>,
 		OpBinaryDiv<Nt, OpTerms<Dt, Term<expr::symbols::h_symbol, P>>>>>
 	{
 		static const size_t h_exponent = P;
@@ -1302,6 +1867,11 @@ namespace symphas::internal
 			n += OpBinaryDiv<Nt, Dt>{}.print(out);
 			n += expr::symbols::internal::S2<N0, N1>{}.print(out);
 			return n;
+		}
+
+		size_t print_length()
+		{
+			return OpBinaryDiv<Nt, Dt>{}.print_length() + expr::symbols::internal::S2<N0, N1>{}.print_length();
 		}
 	};
 
@@ -1333,11 +1903,16 @@ namespace symphas::internal
 			n += expr::symbols::internal::S3<N0, N1, N2>{}.print(out);
 			return n;
 		}
+
+		size_t print_length()
+		{
+			return OpBinaryDiv<Nt, Dt>{}.print_length() + expr::symbols::internal::S3<N0, N1, N2>{}.print_length();
+		}
 	};
 
 
 	template<typename E0>
-	struct coeff_type_divh { using type = E0;  };
+	struct coeff_type_divh { using type = E0; };
 	template<>
 	struct coeff_type_divh<OpVoid> { using type = OpVoid; };
 	template<typename A, typename B>
@@ -1393,6 +1968,55 @@ namespace symphas::internal
 			return n;
 		}
 	};
+	
+
+	template<int Im, int Jm, int I>
+	void print_stencil(types_list<>)
+	{
+		printf("|\n");
+	}
+
+	template<int Im, int Jm, int I, int I0, int J0, typename E0, int... Is, int... Js, typename... Es>
+	void print_stencil(types_list<std::pair<expr::symbols::internal::S2_symbol<I0, J0>, E0>, std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...> content)
+	{
+		using entry_t = StencilCoeff<std::pair<expr::symbols::internal::S2_symbol<I0, J0>, E0>>;
+
+		if constexpr (I0 < I && J0 != Jm)
+		{
+			printf("|\n");
+			print_stencil<Im, Jm, Im>(content);
+		}
+		else
+		{
+			if constexpr (I0 == I)
+			{
+				char* buffer = nullptr;
+				size_t len = entry_t{}.print_length();
+				buffer = new char[len + 1];
+				entry_t{}.print(buffer);
+				printf("| %*s ", BOX_SPACING, buffer);
+				delete[] buffer;
+				print_stencil<Im, Jm, I + 1>(types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...>{});
+			}
+			else
+			{
+				printf("| %*s ", BOX_SPACING, "");
+				print_stencil<Im, Jm, I + 1>(content);
+			}
+		}
+	}
+
+	template<int... Is, int... Js, typename... Es>
+	void print_stencil(types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...> content)
+	{
+		print_stencil<fixed_min<Is...>, fixed_min<Js...>, fixed_min<Is...>>(content);
+	}
+
+	template<int... Is, int... Js, typename... Es>
+	void print_stencil(GeneratedStencilApply<types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...>>)
+	{
+		print_stencil(types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...>{});
+	}
 
 
 	template<int... Is, int... Js, typename... Es>
@@ -1458,203 +2082,6 @@ namespace symphas::internal
 			return n;
 		}
 	};
-}
-
-namespace expr::internal
-{
-
-	template<size_t Q, size_t P, size_t L, int... Is, int... Js, int... Ks, typename... Es, typename E>
-	auto setup_stencil_equation_permute(
-		types_list<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>...> const& dict,
-		OpOperator<E> const& d_op)
-	{
-		return types_list<
-			decltype(expr::setup_stencil_equation<Q, P, L>(dict, *static_cast<E const*>(&d_op))),
-			decltype(expr::setup_stencil_equation<L, Q, P>(dict, *static_cast<E const*>(&d_op))),
-			decltype(expr::setup_stencil_equation<P, L, Q>(dict, *static_cast<E const*>(&d_op)))>{};
-	}
-
-
-	template<size_t Q0, size_t Q, size_t P, size_t L, int... Is, int... Js, int... Ks, typename... Es, typename E>
-	auto setup_stencil_equation_expand_2(
-		types_list<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>...> const& dict,
-		OpOperator<E> const& d_op)
-	{
-		if constexpr (Q == Q0 / 2 && Q0 % 2 == 0)
-		{
-			return types_list<>{};
-		}
-		else
-		{
-			return setup_stencil_equation_permute<Q, P, L>(dict, *static_cast<E const*>(&d_op));
-		}
-
-	}
-
-	template<size_t Q0, size_t Q, size_t P, size_t... Ps, int... Is, int... Js, int... Ks, typename... Es, typename E>
-	auto setup_stencil_equation_expand_1(
-		types_list<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>...> const& dict,
-		OpOperator<E> const& d_op, std::index_sequence<Ps...>)
-	{
-		return expand_types_list<decltype(setup_stencil_equation_expand_2<Q0, Q, P - Ps, Ps>(dict, *static_cast<E const*>(&d_op)))...>{};
-	}
-
-}
-
-namespace expr
-{
-
-	//! Separates a list of equations based on the order of the x and y variables.
-	template<size_t Q, int... Is, int... Js, typename... Es, size_t... Ls, typename E>
-	auto setup_stencil_equation_list(types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...> const& dict,
-		OpOperator<E> const& d_op, std::index_sequence<Ls...>)
-	{
-		using symphas::internal::split_by;
-		using symphas::internal::reverse_types_list;
-
-		using expr_types = types_list<decltype(expr::setup_stencil_equation<Q - Ls, Ls>(dict, *static_cast<E const*>(&d_op)))...>;
-		return expr_types{};
-	}
-
-	//! Separates a list of equations based on the order of the x and y variables.
-	template<size_t Q, int R, int... Is, int... Js, int... Ks, typename... Es, size_t... Ls, size_t... Ms, typename E>
-	auto setup_stencil_equation_list(types_list<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>...> const& dict,
-		OpOperator<E> const& d_op, std::index_sequence<Ls...>)
-	{
-		using symphas::internal::split_by;
-
-		using expr_types = types_list<decltype(
-			expr::internal::setup_stencil_equation_expand_1<Q, Q - Ls, Ls>(dict, *static_cast<E const*>(&d_op), std::make_index_sequence<Ls>{}))...>;
-		using x_splits = typename split_by<expr::symbols::x_symbol, expr_types>::type;
-		using y_splits = typename split_by<expr::symbols::y_symbol, x_splits>::type;
-		using z_splits = typename split_by<expr::symbols::z_symbol, y_splits>::type;
-		return z_splits{};
-	}
-
-
-	// *************************************************************************************************
-	// `get_central_space_stencil`: entry point for setting up the equations and recursively updating the 
-	// dictionary based on those equations.
-	// *************************************************************************************************
-
-	template<size_t Q, size_t N, int R, int... Is,
-		typename... Es, typename E, size_t O = expr::derivative_order<E>::value>
-	auto get_central_space_stencil(types_list<std::pair<expr::symbols::internal::S1_symbol<Is>, Es>...> const& dict, OpOperator<E> const& d_op)
-	{
-		auto equations = typename split_by<expr::symbols::x_symbol, decltype(setup_stencil_equation<Q>(dict, *static_cast<E const*>(&d_op)))>::type{};
-		return update_stencil_dictionary(dict, equations);
-	}
-
-	template<size_t Q, size_t N, int R, int... Is, int... Js, typename... Es,
-		typename E, size_t O = expr::derivative_order<E>::value>
-	auto get_central_space_stencil(types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...> const& dict, OpOperator<E> const& d_op)
-	{
-		using symphas::internal::split_by;
-		using symphas::internal::reverse_types_list;
-
-		using expr_types = decltype(setup_stencil_equation_list<Q>(dict, *static_cast<E const*>(&d_op), std::make_index_sequence<Q / 2>{}));
-		using x_splits = typename split_by<expr::symbols::x_symbol, expr_types>::type;
-		using y_splits = typename split_by<expr::symbols::y_symbol, x_splits>::type;
-
-		return update_stencil_dictionary(dict, y_splits{});
-	}
-
-
-	template<size_t Q, size_t N, int R, int... Is, int... Js, int... Ks, typename... Es,
-		typename E, size_t O = expr::derivative_order<E>::value>
-	auto get_central_space_stencil(types_list<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>...> const& dict, OpOperator<E> const& d_op)
-	{
-		auto equations = setup_stencil_equation_list<Q, R>(dict, *static_cast<E const*>(&d_op), std::make_index_sequence<Q / 2 + 1>{});
-		return update_stencil_dictionary(dict, equations);
-	}
-
-	template<size_t N, size_t D, typename E, size_t O = expr::derivative_order<E>::value>
-	auto get_central_space_stencil(OpOperator<E> const& d_op)
-	{
-		constexpr int R0 = O + N - 2;
-		constexpr int R = (R0 <= 1) ? 1 : (R0 % 2 == 1) ? (R0 + 1) / 2 : R0 / 2;
-
-		auto dict = simplify_central_stencils<O>(make_central_stencil_dictionary<D, R>());
-
-		constexpr size_t Q = O + N - 1;
-		return get_central_space_stencil<Q, N, R>(dict, *static_cast<E const*>(&d_op));
-	}
-
-
-	template<size_t O, size_t N, size_t D>
-	auto get_central_space_stencil()
-	{
-		if constexpr (D == 1)
-		{
-			return get_central_space_stencil<N, 1>(expr::make_operator_derivative<O, expr::symbols::x_symbol>());
-		}
-		else if constexpr (D == 2)
-		{
-			if constexpr (O == 1)
-			{
-				return get_central_space_stencil<N, 2>(expr::make_operator_derivative<1, expr::symbols::x_symbol>());
-			}
-			if constexpr (O % 2 == 0)
-			{
-				return get_central_space_stencil<N, 2>(
-					expr::pow<O / 2>(
-						expr::make_operator_derivative<2, expr::symbols::x_symbol>() + expr::make_operator_derivative<2, expr::symbols::y_symbol>()));
-			}
-			else
-			{
-				return get_central_space_stencil<N, 2>(
-					expr::make_operator_derivative<1, expr::symbols::x_symbol>() 
-					* expr::pow<O / 2>(expr::make_operator_derivative<2, expr::symbols::x_symbol>() 
-						+ expr::make_operator_derivative<2, expr::symbols::y_symbol>()));
-			}
-		}
-		else if constexpr (D == 3)
-		{
-			if constexpr (O == 1)
-			{
-				return get_central_space_stencil<N, 3>(expr::make_operator_derivative<1, expr::symbols::x>());
-			}
-			if constexpr (O % 2 == 0)
-			{
-				return get_central_space_stencil<N, 3>(
-					expr::pow<O / 2>(
-						expr::make_operator_derivative<2, expr::symbols::x_symbol>()
-						+ expr::make_operator_derivative<2, expr::symbols::y_symbol>()
-						+ expr::make_operator_derivative<2, expr::symbols::z_symbol>()));
-			}
-			else
-			{
-				return get_central_space_stencil<N, 3>(
-					expr::make_operator_derivative<1, expr::symbols::x_symbol>()
-					* expr::pow<O / 2>(
-						expr::make_operator_derivative<2, expr::symbols::x_symbol>()
-						+ expr::make_operator_derivative<2, expr::symbols::y_symbol>()
-						+ expr::make_operator_derivative<2, expr::symbols::z_symbol>()));
-			}
-		}
-	}
-
-
-	template<size_t Ox>
-	auto get_mixed_derivative()
-	{
-		return expr::make_operator_derivative<Ox, expr::symbols::x_symbol>();
-	}
-
-	template<size_t Ox, size_t Oy>
-	auto get_mixed_derivative()
-	{
-		return expr::make_operator_derivative<Ox, expr::symbols::x_symbol>() *
-			expr::make_operator_derivative<Ox, expr::symbols::y_symbol>();
-	}
-
-	template<size_t Ox, size_t Oy, size_t Oz>
-	auto get_mixed_derivative()
-	{
-		return expr::make_operator_derivative<Ox, expr::symbols::x_symbol>() *
-			expr::make_operator_derivative<Ox, expr::symbols::y_symbol>() *
-			expr::make_operator_derivative<Oz, expr::symbols::z_symbol>();
-	}
 }
 
 /*

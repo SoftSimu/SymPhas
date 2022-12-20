@@ -312,7 +312,7 @@ namespace expr
 			auto swap_all_grids(OpExpression<E> const& e)
 			{
 				constexpr size_t M = N - sizeof...(Xs) - 1;
-				if constexpr (!symphas::lib::is_value_in_seq<M, Seq>::value)
+				if constexpr (!symphas::lib::is_value_in_seq<size_t, M, Seq>::value)
 				{
 					return expr::transform::swap_grid<X>(
 						swap_all_grids<N, E, Xs...>(*static_cast<E const*>(&e)), expr::symbols::arg<M>{ OpVoid{} });
@@ -423,6 +423,18 @@ namespace expr
 			{
 				return i_op_type<N, P>() / i_op_type<M, Q>();
 			}
+
+			template<int M, int Q>
+			auto operator=(i_<M, Q>)
+			{
+				return symphas::lib::types_list<i_<N, P>, i_<M, Q>>{};
+			}
+
+			template<int M, int Q>
+			auto operator!=(i_<M, Q>)
+			{
+				return symphas::lib::types_list<std::false_type, i_<N, P>, i_<M, Q>>{};
+			}
 		};
 
 
@@ -434,6 +446,18 @@ namespace expr
 		template<typename I0, typename... Is>
 		using v_ = OpTerm<OpIdentity, v_id_type<I0, Is...>>;
 
+
+		template<int N0, int P0, int... Ns, int... Ps>
+		auto make_sum_variable(i_<N0, P0>, i_<Ns, Ps>...)
+		{
+			return v_<i_<N0, P0>, i_<Ns, Ps>...>{};
+		};
+
+		template<int P0, int N, int P>
+		auto make_sum_variable(i_<N, P>)
+		{
+			return v_<i_<N, P + P0>>{};
+		};
 	}
 
 
@@ -534,7 +558,7 @@ auto operator/(OpExpression<E> const& e, expr::symbols::i_<N, P>)
 	return (*static_cast<E const*>(&e)) / expr::symbols::i_op_type<N, P>{};
 }
 
-namespace expr::internal
+namespace symphas::internal
 {
 	enum struct CompoundOp
 	{
@@ -614,6 +638,19 @@ namespace expr::internal
 	};
 
 
+
+	template<int N0, typename V>
+	struct search_index_in_v
+	{
+		static const bool value = 0;
+	};
+
+	template<int N0, int N1, int P, typename... Is>
+	struct search_index_in_v<N0, expr::symbols::v_id_type<expr::symbols::i_<N1, P>, Is...>>
+	{
+		static const bool value = (N0 == N1) ? P : search_index_in_v<N0, expr::symbols::v_id_type<Is...>>::value;
+	};
+
 	template<typename... Ts>
 	struct select_v_;
 
@@ -623,12 +660,16 @@ namespace expr::internal
 		using type = symphas::lib::types_list<Vs...>;
 	};
 
-	template<int N0, int P0, typename... Vs, int... Ps, typename... Rest>
-	struct select_v_<expr::symbols::i_<N0, P0>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<N0, Ps>...>, Rest...>>
+	template<int N0, int P0, typename... Vs, int... Ns, int... Ps, typename... Rest>
+	struct select_v_<expr::symbols::i_<N0, P0>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>, Rest...>>
 	{
+		static const bool flag = symphas::lib::is_value_in_seq<int, N0, std::integer_sequence<int, Ns...>>::value;
+
 		using type = typename select_v_<
 			expr::symbols::i_<N0, P0>,
-			symphas::lib::types_list<Vs..., expr::symbols::v_id_type<expr::symbols::i_<N0, Ps>...>>,
+			std::conditional_t<flag, 
+				symphas::lib::types_list<Vs..., expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>>,
+				symphas::lib::types_list<Vs...>>,
 			symphas::lib::types_list<Rest...>>::type;
 	};
 
@@ -651,6 +692,73 @@ namespace expr::internal
 	};
 
 
+	template<typename... Vs, typename... Is, typename... Rest>
+	struct select_v_<symphas::lib::types_list<Vs...>, symphas::lib::types_list<expr::symbols::v_id_type<Is...>, Rest...>>
+	{
+		using type = typename select_v_<
+			symphas::lib::types_list<Vs..., expr::symbols::v_id_type<Is...>>,
+			symphas::lib::types_list<Rest...>>::type;
+	};
+
+	template<typename... Vs, typename T, typename... Rest>
+	struct select_v_<symphas::lib::types_list<Vs...>, symphas::lib::types_list<T, Rest...>>
+	{
+		using type = typename select_v_<
+			symphas::lib::types_list<Vs...>,
+			symphas::lib::types_list<Rest...>>::type;
+	};
+
+	template<typename... Vs>
+	struct select_v_<symphas::lib::types_list<Vs...>, symphas::lib::types_list<>>
+	{
+		using type = symphas::lib::types_list<Vs...>;
+	};
+
+	template<typename... Vs>
+	struct select_v_<symphas::lib::types_list<Vs...>>
+	{
+		using type = typename select_v_<
+			symphas::lib::types_list<>,
+			symphas::lib::types_list<Vs...>>::type;
+	};
+
+	
+	template<typename... Ts>
+	struct select_all_i_;
+
+	template<int N, typename... Is>
+	struct select_all_i_<expr::symbols::i_<N, 0>, symphas::lib::types_list<Is...>, symphas::lib::types_list<>>
+	{
+		using type = symphas::lib::types_list<Is...>;
+	};
+
+	template<int N, typename... Is, int N0, int P0, typename... Rest>
+	struct select_all_i_<expr::symbols::i_<N, 0>, symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<N0, P0>>, Rest...>>
+	{
+		using type = typename select_all_i_<expr::symbols::i_<N, 0>, 
+			symphas::lib::types_list<Is...>, symphas::lib::types_list<Rest...>>::type;
+	};
+
+	template<int N, typename... Is, int P0, typename... Rest>
+	struct select_all_i_<expr::symbols::i_<N, 0>, symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<N, P0>>, Rest...>>
+	{
+		using type = typename select_all_i_<expr::symbols::i_<N, 0>, 
+			symphas::lib::types_list<Is..., expr::symbols::i_<N, P0>>, symphas::lib::types_list<Rest...>>::type;
+	};
+
+	template<int N, typename... Is, typename Other, typename... Rest>
+	struct select_all_i_<expr::symbols::i_<N, 0>, symphas::lib::types_list<Is...>, symphas::lib::types_list<Other, Rest...>>
+	{
+		using type = typename select_all_i_<expr::symbols::i_<N, 0>,
+			symphas::lib::types_list<Is...>, symphas::lib::types_list<Rest...>>::type;
+	};
+
+	template<int N, int P, typename... Vs>
+	struct select_all_i_<expr::symbols::i_<N, P>, symphas::lib::types_list<Vs...>>
+	{
+		using type = typename select_all_i_<expr::symbols::i_<N, 0>, 
+			symphas::lib::types_list<>, symphas::lib::types_list<Vs...>>::type;
+	};
 }
 
 //! Defines a summation of an expression with indices and substitutable expressions.
@@ -667,22 +775,24 @@ namespace expr::internal
  * the sum's corresponding index, expr::symbols::i_, in order to allow terms or expressions
  * to be substituted into the expansion of the sum.
  */
-template<expr::internal::CompoundOp Op, typename I, typename E, typename... Is>
+template<symphas::internal::CompoundOp Op, typename I, typename E, typename... Is>
 struct OpCompound;
 
-template<expr::internal::CompoundOp Op, typename I, typename E>
+template<symphas::internal::CompoundOp Op, typename I, typename E>
 struct OpCompound<Op, I, E> : OpExpression<OpCompound<Op, I, E>>
 {
 protected:
 
 	using all_var_types = typename expr::op_types<E>::type;
-	template<typename V>
-	static constexpr int index_of_type = symphas::lib::index_of_type<V, all_var_types>;
-	
-	using v_types = typename expr::internal::select_v_<I, all_var_types>::type;
+	using v_types = typename symphas::internal::select_v_<I, all_var_types>::type;
+	using all_indices_of_id = typename symphas::internal::select_all_i_<I, all_var_types>::type;
 
 	template<typename V>
 	static constexpr int index_of_v = symphas::lib::index_of_type<V, v_types>;
+
+	template<typename V>
+	static constexpr int index_of_type = symphas::lib::index_of_type<V, all_var_types>;
+
 
 public:
 
@@ -708,11 +818,12 @@ public:
 	{
 		if constexpr (I1 < I0)
 		{
-			return typename expr::internal::identity_op<Op>::type{};
+			return typename symphas::internal::identity_op<Op>::type{};
 		}
 		else
 		{
 			return expand_integer(
+				all_indices_of_id{},
 				symphas::lib::seq_add(
 					std::make_integer_sequence<int, I1 - I0>{},
 					symphas::lib::seq_repeating_value_t<I1 - I0, int, I0>{}));
@@ -731,7 +842,7 @@ public:
 	auto expand(OpExpression<E0> const& sub, OpExpression<Es> const& ...subs) const
 	{
 		return expand_function<I0>(
-			std::make_index_sequence<sizeof...(Es) + 1>{}, 
+			std::make_index_sequence<sizeof...(Es) + 1>{}, all_indices_of_id{},
 			std::make_tuple(*static_cast<E0 const*>(&sub), *static_cast<Es const*>(&subs)...));
 	}
 
@@ -745,7 +856,7 @@ public:
 		typename std::enable_if_t<(index_of_v<V> >= 0), int> = 0>
 	auto expand(std::tuple<E0, Es...> const& subs) const
 	{
-		return expand_function<I0>(std::make_index_sequence<sizeof...(Es) + 1>{}, subs);
+		return expand_function<I0>(std::make_index_sequence<sizeof...(Es) + 1>{}, all_indices_of_id{}, subs);
 	}
 
 	auto operator-() const
@@ -775,19 +886,25 @@ public:
 
 	E e;				//!< The expression which is summed.
 
-//protected:
+protected:
 
-	template<int... Is>
-	auto expand_integer(std::integer_sequence<int, Is...>) const
+	template<int I0, int I00, int... IJ0s>
+	auto swap_ii(symphas::lib::types_list<expr::symbols::i_<I00, IJ0s>...>)
 	{
-		if constexpr (index_of_type<I> >= 0)
+		return expr::transform::swap_grid<expr::symbols::i_<I00, IJ0s>...>(e, expr::make_integer<I0 + IJ0s>()...);
+	}
+
+	template<int I00, int... IJ0s, int... Is>
+	auto expand_integer(symphas::lib::types_list<expr::symbols::i_<I00, IJ0s>...>, std::integer_sequence<int, Is...>) const
+	{
+		if constexpr (((index_of_type<expr::symbols::i_<I00, IJ0s>> >= 0) || ...))
 		{
-			return expr::internal::recursive_op_apply<Op>{}(expr::transform::swap_grid<I>(e, expr::make_integer<Is>())...);
+			return symphas::internal::recursive_op_apply<Op>{}(swap_ii<Is>(symphas::lib::types_list<expr::symbols::i_<I00, IJ0s>...>{})...);
 		}
 		else
 		{
 			auto ee = [&] (int) { return e; };
-			return expr::internal::recursive_op_apply<Op>{}(ee(Is)...);
+			return symphas::internal::recursive_op_apply<Op>{}(ee(Is)...);
 		}
 	}
 
@@ -808,8 +925,9 @@ public:
 		}
 	}
 
-	template<size_t Is, typename Ex, typename... Es>
+	template<size_t Is, int I0, int P0, typename Ex, typename... Es>
 	auto substitute_functions(
+		expr::symbols::i_<I0, P0>,
 		symphas::lib::types_list<>,
 		Ex const& ex,
 		std::tuple<Es...> const& subs) const
@@ -817,42 +935,41 @@ public:
 		return ex;
 	}
 
-	template<size_t Is, typename Ex, typename... Es, int N0, int P0, int... Ns, int... Ps>
+	template<size_t Is, int I0, int P0, typename Ex, typename... Es, int... Ps>
 	auto substitute_functions(
-		symphas::lib::types_list<
-			expr::symbols::v_id_type<expr::symbols::i_<N0, P0>>, 
-			expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>>...>, 
+		expr::symbols::i_<I0, P0>,
+		symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<I0, Ps>>...>, 
 		Ex const& ex, 
 		std::tuple<Es...> const& subs) const
 	{
-		return substitute_functions<Is>(
-			symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>>...>{},
-			expr::transform::swap_grid<expr::symbols::v_id_type<expr::symbols::i_<N0, P0>>>(ex, get_substituted<int(Is) + P0>(subs)),
-			subs);
+		return expr::transform::swap_grid<expr::symbols::v_id_type<expr::symbols::i_<I0, Ps>>...>(ex, get_substituted<int(Is) + P0 + Ps>(subs)...);
 	}
 
-	template<int I0, typename... Es, size_t... Is>
-	auto expand_function(std::index_sequence<Is...>, std::tuple<Es...> const& subs) const
+	template<int I0, int I00, int... IJ0s, typename... Es, size_t... Is>
+	auto expand_function(std::index_sequence<Is...>, 
+		symphas::lib::types_list<expr::symbols::i_<I00, IJ0s>...>, 
+		std::tuple<Es...> const& subs) const
 	{
-		if constexpr (index_of_type<I> >= 0)
+		if constexpr (((index_of_type<expr::symbols::i_<I00, IJ0s>> >= 0) || ...))
 		{
-			return expr::internal::recursive_op_apply<Op>{}(
+			return symphas::internal::recursive_op_apply<Op>{}(
 				substitute_functions<Is>(
+					I{},
 					v_types{},
-					expr::transform::swap_grid<I>(e, expr::make_integer<int(Is) + I0>()),
+					swap_ii<Is>(symphas::lib::types_list<expr::symbols::i_<I00, IJ0s>...>{}),
 					subs)...);
 		}
 		else
 		{
-			return expr::internal::recursive_op_apply<Op>{}(
-				substitute_functions<Is>(v_types{}, e, subs)...);
+			return symphas::internal::recursive_op_apply<Op>{}(
+				substitute_functions<Is>(I{}, v_types{}, e, subs)...);
 		}
 	}
 
 	template<int I0>
 	auto expand() const
 	{
-		return typename expr::internal::identity_op<Op>::type{};
+		return typename symphas::internal::identity_op<Op>::type{};
 	}
 
 };
@@ -871,15 +988,23 @@ public:
  * the sum's corresponding index, expr::symbols::i_, in order to allow terms or expressions
  * to be substituted into the expansion of the sum.
  */
-template<expr::internal::CompoundOp Op, typename I0, typename E, typename I1, typename... Is>
+template<symphas::internal::CompoundOp Op, typename I0, typename E, typename I1, typename... Is>
 struct OpCompound<Op, I0, E, I1, Is...> : OpExpression<OpCompound<Op, I0, E, I1, Is...>>
 {
 
 protected:
 
 	using all_var_types = typename expr::op_types<E>::type;
+	using v_types = typename symphas::internal::select_v_<I0, all_var_types>::type;
+	using all_v_types = typename symphas::internal::select_v_<all_var_types>::type;
+
+	template<typename II>
+	using all_indices_of_id = typename symphas::internal::select_all_i_<II, all_var_types>::type;
+
 	template<typename V>
 	static constexpr int index_of_type = symphas::lib::index_of_type<V, all_var_types>;
+
+
 
 public:
 
@@ -935,25 +1060,36 @@ public:
 		return expand_nested<0>(sub, e, std::integer_sequence<int, I0s...>{}, std::make_index_sequence<sizeof...(Ts) + 1>{});
 	}
 
-	//! Expand the sum on a single list of functions using indices offset from the first.
+	//! Start the iterated sum expansion using a single list of functions.
 	/*!
-	 * Expand the sum, starting at the given index. The rest of the indices are given as
-	 * offsets of the first, and indicate the starting position of the substitutions in the list.
-	 * The offsets can only be positive, and do not loop around the list.
+	 * Expand the sum, starting at the given index. The rest of the indices have offsets that
+	 * indicate the starting position of the substitutions in the list. The offsets are not based
+	 * on the primary index, can only be positive, and do not loop around the list.
 	 * 
-	 * The given tuple is surrounded by up to one less than the number of indices. If there are 2
-	 * indices, then there is no nesting, it is just the outer tuple (2 - 1 = 1 tuple). If there 
-	 * are 3 indices, then the tuple must be nested once (3 - 1 = 2 tuples).
+	 * The list of functions is non-nested; it is assumed that the iterated sum has expressions 
+	 * that are indexed by only a single value, e.g. $\psi_i$.
+	 * 
+	 * \param subs The list of expressions that is substituted, only a single list
+	 * since it is assumed that the iterated sum has expressions that are indexed by only
+	 * a single value, e.g. $\psi_i$.
 	 * 
 	 * \tparam I The starting value of the first iteration index.
 	 * \tparam ISs... The starting value of the other indices is set to the current running index
 	 * of the specified index.
 	 */
 	template<int I, typename... ISs, typename T0, typename... Ts, typename Vs = expr::symbols::v_id_type<I0>,
-		typename std::enable_if_t<(index_of_type<Vs> >= 0 && (std::is_same<expr::base_data_t<I0>, expr::base_data_t<ISs>>::value && ...)), int> = 0>
+		typename std::enable_if_t<(index_of_type<Vs> >= 0 && sizeof...(ISs) == sizeof...(Is) + 1), int> = 0>
 	auto expand(std::tuple<T0, Ts...> const& subs) const
 	{
 		return expand_iterated<I>(subs, symphas::lib::types_list<ISs...>{}, std::make_index_sequence<sizeof...(Ts) + 1>{});
+	}
+
+	//! Start the iterated sum expansion using a single list of functions.
+	template<int I, typename... ISs, typename T0, typename... Ts, typename Vs = expr::symbols::v_id_type<I0>,
+		typename std::enable_if_t<(index_of_type<Vs> >= 0 && sizeof...(ISs) == sizeof...(Is) + 1), int> = 0>
+	auto expand(T0 const& sub0, Ts const&... subs) const
+	{
+		return expand<I, ISs...>(std::make_tuple(sub0, subs...));
 	}
 
 	auto operator-() const
@@ -983,26 +1119,40 @@ public:
 
 protected:
 
+	template<int Ip, typename... Ts>
+	auto substitute_from_list(std::tuple<Ts...> const& subs) const
+	{
+		if constexpr (Ip < 0 || Ip >= sizeof...(Ts))
+		{
+			return OpVoid{};
+		}
+		else
+		{
+			return std::get<size_t(Ip)>(subs);
+		}
+	}
+
 	template<size_t N, typename... Ts, typename EE, int I00, int... I00s>
 	auto expand_nested(std::tuple<> const& sub, EE const& expr0, std::integer_sequence<int, I00, I00s...>) const
 	{
-		return typename expr::internal::identity_op<Op>::type{};
+		return typename symphas::internal::identity_op<Op>::type{};
 	}
-
+	
 	template<size_t N, typename E0, typename... Es, typename EE, int I00, size_t... Js, typename Vs = expr::symbols::v_<I0, I1, Is...>,
 		typename In = std::tuple_element_t<N, std::tuple<I0, I1, Is...>>, typename V0 = expr::symbols::v_<In>>
-	auto expand_nested(std::tuple<E0, Es...> const& sub, EE const& expr0, std::integer_sequence<int, I00>, std::index_sequence<Js...>) const
+	auto expand_nested(std::tuple<E0, Es...> const& sub, EE const& expr0, 
+		std::integer_sequence<int, I00>, std::index_sequence<Js...>) const
 	{
 		if constexpr (index_of_type<In> >= 0)
 		{
-			return expr::internal::recursive_op_apply<Op>{}(
+			return symphas::internal::recursive_op_apply<Op>{}(
 				expr::transform::swap_grid<Vs>(
 					expr::transform::swap_grid<In>(expr0, expr::make_integer<int(Js) + I00>()),
 					std::get<Js>(sub))...);
 		}
 		else
 		{
-			return expr::internal::recursive_op_apply<Op>{}(
+			return symphas::internal::recursive_op_apply<Op>{}(
 				expr::transform::swap_grid<Vs>(expr0, std::get<Js>(sub))...);
 		}
 	}
@@ -1016,7 +1166,7 @@ protected:
 
 		if constexpr (index_of_type<In> >= 0)
 		{
-			return expr::internal::recursive_op_apply<Op>{}(
+			return symphas::internal::recursive_op_apply<Op>{}(
 				expand_nested<N + 1>(
 					std::get<Js>(sub),
 					expr::transform::swap_grid<In>(expr0, expr::make_integer<int(Js) + I00>()),
@@ -1026,7 +1176,7 @@ protected:
 		}
 		else
 		{
-			return expr::internal::recursive_op_apply<Op>{}(
+			return symphas::internal::recursive_op_apply<Op>{}(
 				expand_nested<N + 1>(
 					std::get<Js>(sub),
 					expr0,
@@ -1037,62 +1187,102 @@ protected:
 
 	}
 
-	template<int I, typename T0, typename... Ts, typename EE, int... Ns, int... Ps>
+	template<int JI, int J0, int JP, typename T0, typename... Ts, typename EE, int... Ns, int... Ps>
 	auto construct_iterated(
 		std::tuple<T0, Ts...> const& subs, 
 		EE const& expr0, 
 		symphas::lib::types_list<expr::symbols::i_<Ns, Ps>...>) const
 	{
-		return OpCompound<Op, I1, EE, Is...>(expr0).template expand<I, expr::symbols::i_<Ns, Ps>...>(subs);
+		return OpCompound<Op, expr::symbols::i_<J0, JP>, EE, Is...>(expr0).template expand<JI, expr::symbols::i_<Ns, Ps>...>(subs);
 	}
 
-	template<int I, typename... Ts, typename EE, int... Ns, int... Ps>
+	template<int JI, int J0, int JP, typename... Ts, typename EE, int... Ns, int... Ps>
 	auto construct_iterated(
 		std::tuple<> const& subs,
 		EE const& expr0,
 		symphas::lib::types_list<expr::symbols::i_<Ns, Ps>...>) const
 	{
-		return typename expr::internal::identity_op<Op>::type{};
+		return typename symphas::internal::identity_op<Op>::type{};
 	}
 
-	template<int I, size_t J, int M0, int Q0, int N0, int P0, int... Ns, int... Ps, typename... Ts, typename V = expr::symbols::v_id_type<I0>>
+	//! Processes the first index for an iterated sum.
+	/*!
+	 * If any index is set to the current index that is being expanded, it will be set equal to
+	 * its own ID value in order to be substituted correctly. Its global offset will be
+	 * set to the current value of this index, plus its own offset.
+	 * 
+	 * \param subs The list of functions that is substituted.
+	 * 
+	 * \tparam I is the value that the first index starts at.
+	 * \tparam Ic is the current position in the list for the first index.
+	 * \tparam N0 The ID of the index which `I1` will start at.
+	 */
+	template<int I, size_t Ic, int I00, int... IJ0s, int... IJ1s, int N0, int P0, int... Ns, int... Ps,
+		int IP0, int J00, int JP0, int... Ls, int... Rs, typename... Ts>
 	auto construct_iterated(
 		std::tuple<Ts...> const& subs,
-		expr::symbols::i_<M0, Q0>, 
-		symphas::lib::types_list<expr::symbols::i_<N0, P0>, expr::symbols::i_<Ns, Ps>...>) const
+		symphas::lib::types_list<expr::symbols::i_<I00, IJ0s>...>,							// all offsets of I0 in the expression
+		symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<I00, IJ1s>>...>,// all index functions to substitute, v_<i_...>>
+		symphas::lib::types_list<expr::symbols::i_<N0, P0>, expr::symbols::i_<Ns, Ps>...>,	// All iterated index starting values
+		symphas::lib::types_list<
+			expr::symbols::i_<I00, IP0>,								// I0
+			expr::symbols::i_<J00, JP0>,								// I1
+			expr::symbols::i_<Ls, Rs>...>) const						// All indices to be substituted, Is...
 	{
-		using J0s = symphas::lib::types_list<expr::symbols::i_<M0, Ps - I>...>;
+		constexpr int Ip = int(Ic) + IP0;								// position from which to start picking from substitution list
+		constexpr int JI = (N0 == I00) ? 0 : P0;						// starting value of the next index
+		constexpr int J0 = (N0 == I00) ? J00 : N0;						// the identity of the next index
+		constexpr int JP = (N0 == I00) ? Ip + P0 : P0;
 
-		if constexpr (index_of_type<V> >= 0)
+		using J0s = symphas::lib::types_list<
+			expr::symbols::i_<
+				(Ns == I00) ? Ls : Ns,		// if the index starts at I0, set it back to its own ID
+				(Ns == I00) ? Ip + Ps : Ps>	// if the index starts at I0, add the offset of I0 to it
+			...>;
+
+		if constexpr (((index_of_type<expr::symbols::v_id_type<expr::symbols::i_<I00, IJ0s>>> >= 0) || ...))
 		{
-			if constexpr (index_of_type<I0> >= 0)
+			if constexpr (((index_of_type<expr::symbols::i_<I00, IJ0s>> >= 0) || ...))
 			{
-				return construct_iterated<I + int(J)>(
-					symphas::lib::get_tuple_ge<J + P0 + 1>(subs),
-					expr::transform::swap_grid<V>(
-						expr::transform::swap_grid<I0>(e, expr::make_integer<I + (int)J>()), 
-						std::get<J>(subs)), 
+				return construct_iterated<JI, J0, JP>(
+					subs, 
+					expr::transform::swap_grid<expr::symbols::v_id_type<expr::symbols::i_<I00, IJ1s>>...>(
+						expr::transform::swap_grid<expr::symbols::i_<I00, IJ0s>...>(e, expr::make_integer<I + int(Ic) + IJ0s>()...),
+						substitute_from_list<Ip + IJ1s>(subs)...),
 					J0s{});
 			}
 
-			return construct_iterated<I + int(J)>(
-				symphas::lib::get_tuple_ge<J + P0 + 1>(subs),
-				expr::transform::swap_grid<V>(e, std::get<J>(subs)),
+			return construct_iterated<JI, J0, JP>(
+				subs, 
+				expr::transform::swap_grid<expr::symbols::v_id_type<expr::symbols::i_<I00, IJ1s>>...>(e, substitute_from_list<Ip + IJ1s>(subs)...),
 				J0s{});
 		}
-		else
+		else 
 		{
-			return construct_iterated(symphas::lib::get_tuple_ge<J + P0  + 1>(subs), e, J0s{});
+			return construct_iterated<JI, J0, JP>(subs, e, J0s{});
 		}
 	}
 
-	template<int I, typename... Ts, int... Ns, int... Ps, size_t... Js>
+	//! Start the iterated sum expansion.
+	/*!
+	 * Start the iterated sum expansion.
+	 * 
+	 * \param subs The list of expressions that is substituted, only a single list
+	 * since it is assumed that the iterated sum has expressions that are indexed by only
+	 * a single value, e.g. $\psi_i$. 
+	 * 
+	 * \tparam Ns... The starting index ID of an index from Is...
+	 * \tparam Ps... The starting index value of an index from Is...
+	 */
+	template<int I, typename... Ts, int... Ns, int... Ps, size_t... Ics>
 	auto expand_iterated(std::tuple<Ts...> const& subs, 
 		symphas::lib::types_list<expr::symbols::i_<Ns, Ps>...>, 
-		std::index_sequence<Js...>) const
+		std::index_sequence<Ics...>) const
 	{
-		return expr::internal::recursive_op_apply<Op>{}(
-			construct_iterated<I, Js>(subs, I1{}, symphas::lib::types_list<expr::symbols::i_<Ns, Ps>...>{})...);
+		return symphas::internal::recursive_op_apply<Op>{}(
+			construct_iterated<I, Ics>(subs, all_indices_of_id<I0>{}, v_types{},
+				symphas::lib::types_list<expr::symbols::i_<Ns, Ps>...>{}, // All iterated index starting values
+				symphas::lib::types_list<I0, I1, Is...>{})...); // All indices to be substituted, Is
 	}
 
 public:
@@ -1104,36 +1294,152 @@ public:
 
 template<typename coeff_t, typename I, typename E,
 	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
-auto operator*(coeff_t, OpCompound<expr::internal::CompoundOp::ADD, I, E> const& sum)
+auto operator*(coeff_t, OpCompound<symphas::internal::CompoundOp::ADD, I, E> const& sum)
 {
 	return expr::sum<I>(coeff_t{} *sum.e);
 }
 
 template<typename T, typename I, typename E>
-auto operator*(OpLiteral<T> const& a, OpCompound<expr::internal::CompoundOp::ADD, I, E> const& sum)
+auto operator*(OpLiteral<T> const& a, OpCompound<symphas::internal::CompoundOp::ADD, I, E> const& sum)
 {
 	return expr::sum<I>(a * sum.e);
 }
-//
-//template<typename T, typename I, typename E>
-//auto operator-(OpCompound<expr::internal::CompoundOp::ADD, I, E> const& sum)
-//{
-//	return expr::sum<I>(-sum.e);
-//}
 
 template<typename coeff_t, typename I0, typename I1, typename... Is, typename E,
 	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
-auto operator*(coeff_t, OpCompound<expr::internal::CompoundOp::ADD, I0, E, I1, Is...> const& sum)
+auto operator*(coeff_t, OpCompound<symphas::internal::CompoundOp::ADD, I0, E, I1, Is...> const& sum)
 {
 	return expr::sum<I0, I1, Is...>(coeff_t{} *sum.e);
 }
 
 template<typename T, typename I0, typename I1, typename... Is, typename E>
-auto operator*(OpLiteral<T> const& a, OpCompound<expr::internal::CompoundOp::ADD, I0, E, I1, Is...> const& sum)
+auto operator*(OpLiteral<T> const& a, OpCompound<symphas::internal::CompoundOp::ADD, I0, E, I1, Is...> const& sum)
 {
 	return expr::sum<I0, I1, Is...>(a * sum.e);
 }
 
+
+namespace symphas::internal
+{
+
+
+	template<typename... Is>
+	struct index_conditions;
+
+	template<>
+	struct index_conditions<> {};
+
+	template<typename... Is>
+	struct index_conditions
+	{
+		index_conditions(Is...) {}
+		index_conditions() {}
+
+		template<typename E>
+		struct sum : index_conditions<E, Is...>, OpExpression<sum<E>>, index_conditions<>
+		{
+			auto eval(iter_type n) const
+			{
+				return e.eval(n);
+			}
+
+			auto operator-() const
+			{
+				return index_conditions<Is...>(Is{}...)(-e);
+			}
+
+			sum(E const& e) : e{ e } {}
+			E e;
+		};
+
+		template<typename E>
+		auto operator()(OpExpression<E> const& e)
+		{
+			return construct_sum(*static_cast<E const*>(&e), parse_condition(Is{})...);
+		}
+
+	protected:
+
+		template<typename E, typename... I0s>
+		auto construct_sum(OpExpression<E> const& e, I0s...)
+		{
+			return typename index_conditions<I0s...>::template sum<E>(*static_cast<E const*>(&e));
+		}
+
+		template<typename C>
+		C parse_condition(C)
+		{
+			return {};
+		}
+
+		template<size_t N0, size_t I0, size_t M>
+		auto parse_condition(OpAdd<expr::symbols::i_<N0, I0>, OpFractionLiteral<M, 1>>)
+		{
+			return expr::symbols::i_<N0, I0 + M>{};
+		}
+
+		template<size_t N0, size_t I0, size_t M>
+		auto parse_condition(OpAdd<expr::symbols::i_<N0, I0>, OpNegFractionLiteral<M, 1>>)
+		{
+			return expr::symbols::i_<N0, I0 - M>{};
+		}
+
+		template<size_t N0, size_t I0>
+		auto parse_condition(OpAdd<expr::symbols::i_<N0, I0>, OpIdentity>)
+		{
+			return expr::symbols::i_<N0, I0 + 1>{};
+		}
+
+		template<size_t N0, size_t I0>
+		auto parse_condition(OpAdd<expr::symbols::i_<N0, I0>, OpNegIdentity>)
+		{
+			return expr::symbols::i_<N0, I0 - 1>{};
+		}
+
+		template<size_t N0, size_t I0, size_t N1, size_t I1, size_t M>
+		auto parse_condition(types_list<expr::symbols::i_<N0, I0>, OpAdd<expr::symbols::i_<N1, I1>, OpFractionLiteral<M, 1>>>)
+		{
+			return types_list<expr::symbols::i_<N0, I0>, expr::symbols::i_<N1, I1 + M>>{};
+		}
+
+		template<size_t N0, size_t I0, size_t N1, size_t I1, size_t M>
+		auto parse_condition(types_list<expr::symbols::i_<N0, I0>, OpAdd<expr::symbols::i_<N1, I1>, OpNegFractionLiteral<M, 1>>>)
+		{
+			return types_list<expr::symbols::i_<N0, I0>, expr::symbols::i_<N1, I1 - M>>{};
+		}
+
+		template<size_t N0, size_t I0, size_t N1, size_t I1>
+		auto parse_condition(types_list<expr::symbols::i_<N0, I0>, OpAdd<expr::symbols::i_<N1, I1>, OpIdentity>>)
+		{
+			return types_list<expr::symbols::i_<N0, I0>, expr::symbols::i_<N1, I1 + 1>>{};
+		}
+
+		template<size_t N0, size_t I0, size_t N1, size_t I1>
+		auto parse_condition(types_list<expr::symbols::i_<N0, I0>, OpAdd<expr::symbols::i_<N1, I1>, OpNegIdentity>>)
+		{
+			return types_list<expr::symbols::i_<N0, I0>, expr::symbols::i_<N1, I1 - 1>>{};
+		}
+	};
+
+	template<typename E, typename... Is>
+	constexpr bool test_index_conditions(index_conditions<E, Is...>*)
+	{
+		return true;
+	}
+
+	inline constexpr bool test_index_conditions(...)
+	{
+		return false;
+	}
+
+
+	template<typename E, typename... Is>
+	using sum_conditions = typename symphas::internal::index_conditions<Is...>::template sum<E>;
+
+
+	template<typename... Ts>
+	using index_relation = symphas::lib::types_list<Ts...>;
+}
 
 
 namespace expr
@@ -1156,7 +1462,7 @@ namespace expr
 	template<typename I, typename E, typename>
 	auto sum(OpExpression<E> const& e)
 	{
-		return OpCompound<expr::internal::CompoundOp::ADD, I, E>(*static_cast<E const*>(&e));
+		return OpCompound<symphas::internal::CompoundOp::ADD, I, E>(*static_cast<E const*>(&e));
 	}
 
 	//! Defines a summation of an expression with indices and substitutable expressions.
@@ -1178,7 +1484,7 @@ namespace expr
 	template<typename I0, typename I1, typename... Is, typename E, typename>
 	auto sum(OpExpression<E> const& e)
 	{
-		return OpCompound<expr::internal::CompoundOp::ADD, I0, E, I1, Is...>(*static_cast<E const*>(&e));
+		return OpCompound<symphas::internal::CompoundOp::ADD, I0, E, I1, Is...>(*static_cast<E const*>(&e));
 	}
 
 
@@ -1189,7 +1495,7 @@ namespace expr
 	template<typename I, typename E, typename>
 	auto prod(OpExpression<E> const& e)
 	{
-		return OpCompound<expr::internal::CompoundOp::MUL, I, E>(*static_cast<E const*>(&e));
+		return OpCompound<symphas::internal::CompoundOp::MUL, I, E>(*static_cast<E const*>(&e));
 	}
 
 	//! Defines a product of an expression with indices and substitutable expressions.
@@ -1199,10 +1505,193 @@ namespace expr
 	template<typename I0, typename I1, typename... Is, typename E, typename>
 	auto prod(OpExpression<E> const& e)
 	{
-		return OpCompound<expr::internal::CompoundOp::MUL, I0, E, I1, Is...>(*static_cast<E const*>(&e));
+		return OpCompound<symphas::internal::CompoundOp::MUL, I0, E, I1, Is...>(*static_cast<E const*>(&e));
 	}
+
+
+	using namespace expr::symbols;
+
+
+
+	template<typename E, typename I0, typename... Is, typename... Us, size_t... Ns>
+	auto expand_sum(symphas::internal::index_conditions<E, I0, Is...> const& sum,
+		std::tuple<Us...> const& ops, std::index_sequence<Ns...>)
+	{
+		auto e = (*static_cast<symphas::internal::sum_conditions<E, I0, Is...> const*>(&sum)).e;
+		return expr::sum<I0, Is...>(e).template expand<0, Is...>(std::make_tuple(std::get<Ns>(ops)...));
+	}
+
+	template<typename E, int I, int N, typename... Us, size_t... Ns>
+	auto expand_sum(symphas::internal::index_conditions<E, i_<I, N>> const& sum,
+		std::tuple<Us...> const& ops, std::index_sequence<Ns...>)
+	{
+		auto e = (*static_cast<symphas::internal::sum_conditions<E, i_<I, N>> const*>(&sum)).e;
+		return expr::sum<i_<I, N>>(e).template expand<0>(std::get<Ns>(ops)...);
+	}
+
+	template<typename E, int I0, int N0, int I1, int N1, typename... Us, size_t... Ns>
+	auto expand_sum(symphas::internal::index_conditions<E, i_<I0, N0>, i_<I1, N1>> const& sum,
+		std::tuple<Us...> const& ops, std::index_sequence<Ns...>)
+	{
+		auto e = (*static_cast<symphas::internal::sum_conditions<E, i_<I0, N0>, i_<I1, N1>> const*>(&sum)).e;
+		return expr::sum<i_<I0, N0>, i_<I1, N1>>(e).template expand<0>(std::get<Ns>(ops)...);
+	}
+
+	template<typename E, int I0, int N0, int I1, int N1, int N2, typename... Us, size_t... Ns>
+	auto expand_sum(symphas::internal::index_conditions<E, i_<I0, N0>, 
+		symphas::internal::index_relation<i_<I1, N1>, i_<I0, N2>>> const& sum,
+		std::tuple<Us...> const& ops, std::index_sequence<Ns...>)
+	{
+		auto e = (*static_cast<symphas::internal::sum_conditions<E, i_<I0, N0>, 
+			symphas::internal::index_relation<i_<I1, N1>, i_<I0, N2>>> const*>(&sum)).e;
+
+		return expr::sum<i_<I0, N0>, i_<I1, N1>>(e).template expand<0, i_<I1, N2>>(std::make_tuple(std::get<Ns>(ops)...));
+	}
+
+	namespace
+	{
+		template<size_t Ns, size_t NN, int I0, int I1, int N0, int N1, int N2, typename E, typename... Us>
+		auto expand_cancelled_term(OpExpression<E> const& e, i_<I0, N0>, i_<I1, N1>, i_<I0, N2>, std::tuple<Us...> const& ops)
+		{
+			if constexpr (N1 <= Ns + N0 + N2 && Ns + N0 + N2 < NN)
+			{
+				auto e_j = expr::sum<i_<I1, 0>>(e).template expand<Ns + N0 + N2 - N1>(std::get<Ns + N0 + N2>(ops));
+				return expr::sum<i_<I0, 0>>(e_j).template expand<Ns + N0>(std::get<Ns + N0 + N2>(ops));;
+			}
+			else
+			{
+				return OpVoid{};
+			}
+		}
+	}
+
+	//! Expand the sum where the condition is: jj != ii + n.
+	/*!
+	 * The full sum is expanded, where the expansion of jj assumes the iteration value starts at 0.
+	 * Then sums are carried out with only jj = ii + n is expanded, they are all summed, and then
+	 * ii is substituted as its usual value. This is then subtracted from the full sum, in order
+	 * to get an expression where jj != ii. Note that N0 refers to the starting point in the
+	 * list of functions that v_ii starts substituting. N2 is means that jj is not supposed to be
+	 * ii + N0 + N2.
+	 *
+	 * \tparam N0 The global offset of index I0
+	 * \tparam N1 The global offset of index I1
+	 */
+	template<typename E, int I0, int N0, int I1, int N1, int N2, typename... Us, size_t... Ns>
+	auto expand_sum(symphas::internal::index_conditions<E, i_<I0, N0>, 
+		symphas::internal::index_relation<std::false_type, i_<I1, N1>, i_<I0, N2>>> const& sum,
+		std::tuple<Us...> const& ops, std::index_sequence<Ns...>)
+	{
+		auto e = (*static_cast<symphas::internal::sum_conditions<E, i_<I0, N0>, 
+			symphas::internal::index_relation<std::false_type, i_<I1, N1>, i_<I0, N2>>> const*>(&sum)).e;
+
+		auto cancelled = (expand_cancelled_term<Ns, sizeof...(Ns)>(e, i_<I0, N0>{}, i_<I1, N1>{}, i_<I0, N2>{}, ops) + ...);
+		return expr::sum<i_<I0, N0>, i_<I1, N1>>(e).template expand<0, i_<I1, 0>>(std::make_tuple(std::get<Ns>(ops)...)) - cancelled;
+	}
+
+	//! Expand the sum where the first index does not have one of the values substituted.
+	/*!
+	 * The full sum is expanded, where the expansion of jj assumes the iteration value starts at 0.
+	 * Then sums are carried out with only jj = ii + n is expanded, they are all summed, and then
+	 * ii is substituted as its usual value. This is then subtracted from the full sum, in order
+	 * to get an expression where jj != ii. Note that N0 refers to the starting point in the
+	 * list of functions that v_ii starts substituting. N2 is means that jj is not supposed to be
+	 * ii + N0 + N2.
+	 *
+	 * \tparam N0 The global offset of index I0
+	 * \tparam N1 The global offset of index I1
+	 */
+	template<typename E, int I0, int N0, int I, int N, typename... Us, size_t... Ns>
+	auto expand_sum(symphas::internal::index_conditions<E, symphas::internal::index_relation<std::false_type, i_<I0, N0>, i_<I, N>>> const& sum,
+		std::tuple<Us...> const& ops, std::index_sequence<Ns...>)
+	{
+		auto e = (*static_cast<symphas::internal::sum_conditions<E, 
+			symphas::internal::index_relation<std::false_type, i_<I0, N0>, i_<I, N>>> const*>(&sum)).e;
+
+		auto cancelled = v_<i_<I, N>>{};
+		return expr::sum<i_<I0, N0>>(e).template expand<0>(std::make_tuple(std::get<Ns>(ops)...)) - cancelled;
+	}
+
+	template<typename E, typename... Us, size_t... Ns,
+		typename std::enable_if_t<!std::is_convertible_v<E, symphas::internal::index_conditions<>>, int> = 0>
+	auto expand_sum(OpExpression<E> const& e, std::tuple<Us...> const& ops, std::index_sequence<Ns...>)
+	{
+		return (*static_cast<E const*>(&e));
+	}
+
+	template<typename A, typename B, typename... Us, size_t... Ns>
+	auto expand_sum(OpBinaryMul<A, B> const& sums, std::tuple<Us...> const& ops, std::index_sequence<Ns...>);
+	template<typename A, typename B, typename... Us, size_t... Ns>
+	auto expand_sum(OpOperatorCombination<A, B> const& sums, std::tuple<Us...> const& ops, std::index_sequence<Ns...>);
+	template<typename A, typename B, typename E, typename... Us, size_t... Ns>
+	auto expand_sum(OpCombination<A, B, E> const& sums, std::tuple<Us...> const& ops, std::index_sequence<Ns...>);
+	template<typename A, typename B, typename... Us, size_t... Ns>
+	auto expand_sum(OpOperatorChain<A, B> const& sums, std::tuple<Us...> const& ops, std::index_sequence<Ns...>);
+	template<typename A, typename B, typename E, typename... Us, size_t... Ns>
+	auto expand_sum(OpChain<A, B, E> const& sums, std::tuple<Us...> const& ops, std::index_sequence<Ns...>);
+	template<typename Dd, typename V, typename E, typename Sp, typename... Us, size_t... Ns>
+	auto expand_sum(OpFuncDerivative<Dd, V, E, Sp> const& sums, std::tuple<Us...> const& ops, std::index_sequence<Ns...>);
+
+	template<typename... As, size_t... Is, typename... Us, size_t... Ns>
+	auto expand_sum_adds(OpAdd<As...> const& sums, std::index_sequence<Is...>, std::tuple<Us...> const& ops, std::index_sequence<Ns...>)
+	{
+		return (expand_sum(expr::get<Is>(sums), ops, std::index_sequence<Ns...>{}) + ...);
+	}
+
+	template<typename... As, typename... Us, size_t... Ns>
+	auto expand_sum(OpAdd<As...> const& sums, std::tuple<Us...> const& ops, std::index_sequence<Ns...>)
+	{
+		return expand_sum_adds(sums, std::make_index_sequence<sizeof...(As)>{}, ops, std::index_sequence<Ns...>{});
+	}
+
+	template<typename A, typename B, typename... Us, size_t... Ns>
+	auto expand_sum(OpOperatorCombination<A, B> const& sums, std::tuple<Us...> const& ops, std::index_sequence<Ns...>)
+	{
+		return OpOperatorCombination(expand_sum(sums.f, ops, std::index_sequence<Ns...>{}), expand_sum(sums.g, ops, std::index_sequence<Ns...>{}));
+	}
+
+	template<typename A, typename B, typename E, typename... Us, size_t... Ns>
+	auto expand_sum(OpCombination<A, B, E> const& sums, std::tuple<Us...> const& ops, std::index_sequence<Ns...>)
+	{
+		return expand_sum(sums.combination, ops, std::index_sequence<Ns...>{})(expand_sum(expr::get_enclosed_expression(sums), ops, std::index_sequence<Ns...>{}));
+	}
+
+	template<typename A, typename B, typename... Us, size_t... Ns>
+	auto expand_sum(OpOperatorChain<A, B> const& sums, std::tuple<Us...> const& ops, std::index_sequence<Ns...>)
+	{
+		return OpOperatorChain(expand_sum(sums.f, ops, std::index_sequence<Ns...>{}), expand_sum(sums.g, ops, std::index_sequence<Ns...>{}));
+	}
+
+	template<typename A, typename B, typename E, typename... Us, size_t... Ns>
+	auto expand_sum(OpChain<A, B, E> const& sums, std::tuple<Us...> const& ops, std::index_sequence<Ns...>)
+	{
+		return expand_sum(sums.combination, ops, std::index_sequence<Ns...>{})(expand_sum(expr::get_enclosed_expression(sums), ops, std::index_sequence<Ns...>{}));
+	}
+
+	template<typename Dd, typename V, typename E, typename Sp, typename... Us, size_t... Ns>
+	auto expand_sum(OpFuncDerivative<Dd, V, E, Sp> const& sums, std::tuple<Us...> const& ops, std::index_sequence<Ns...>)
+	{
+		return expr::make_derivative<Dd>(expr::coeff(sums), expand_sum(expr::get_enclosed_expression(sums), ops, std::index_sequence<Ns...>{}));
+	}
+
+	template<typename A, typename B, typename... Us, size_t... Ns>
+	auto expand_sum(OpBinaryMul<A, B> const& sums, std::tuple<Us...> const& ops, std::index_sequence<Ns...>)
+	{
+		return expand_sum(sums.a, ops, std::index_sequence<Ns...>{}) * expand_sum(sums.b, ops, std::index_sequence<Ns...>{});
+	}
+
 }
 
+
+/* multiplication of a derivative object by a literal
+ */
+template<typename coeff_t, typename... Is, typename E,
+	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator*(coeff_t const& value, symphas::internal::index_conditions<E, Is...> const& sum)
+{
+	return symphas::internal::index_conditions(Is{}...)(value * 
+		(*static_cast<symphas::internal::sum_conditions<E, Is...> const*>(&sum)).e);
+}
 
 
 

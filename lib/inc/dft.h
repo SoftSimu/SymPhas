@@ -43,48 +43,6 @@ namespace symphas
 
 namespace symphas::dft
 {
-	 //! Fills the array with axis values of Fourier space. 
-	 /*!
-	  * Compute \f$x\f$-axis values of a 3-dimensional Fourier transform, and
-	  * store them in the provided array.
-	  */
-	void fill_x_axis(axis_nd_t<3>* dft_x, iter_type L, iter_type M, iter_type N);
-
-	//! Fills the array with axis values of Fourier space. 
-	/*!
-	 * Compute \f$x\f$-axis values of a 2-dimensional Fourier transform, and
-	 * store them in the provided array.
-	 */
-	void fill_x_axis(axis_nd_t<2>* dft_x, iter_type L, iter_type M);
-
-	//! Fills the array with axis values of Fourier space. 
-	/*!
-	 * Compute \f$x\f$-axis values of a 1-dimensional Fourier transform, and
-	 * store them in the provided array.
-	 */
-	void fill_x_axis(axis_nd_t<1>* dft_x, iter_type L);
-
-	//! Fills the array with axis values of Fourier space. 
-	/*!
-	 * Compute \f$x\f$-axis values of a 3-dimensional Fourier transform, and
-	 * store them in the provided array.
-	 */
-	void fill_x_axis(axis_nd_t<3>* dft_x, const axis_nd_t<3>* data_x, len_type len);
-
-	//! Fills the array with axis values of Fourier space. 
-	/*!
-	 * Compute \f$x\f$-axis values of a 2-dimensional Fourier transform, and
-	 * store them in the provided array.
-	 */
-	void fill_x_axis(axis_nd_t<2>* dft_x, const axis_nd_t<2>* data_x, len_type len);
-
-	//! Fills the array with axis values of Fourier space. 
-	/*!
-	 * Compute \f$x\f$-axis values of a 1-dimensional Fourier transform, and
-	 * store them in the provided array.
-	 */
-	void fill_x_axis(axis_nd_t<1>* dft_x, const axis_nd_t<1>* data_x, len_type len);
-
 
 	void long_dft(scalar_t* data, complex_t* out, iter_type L, bool backward = false);
 	void long_dft(scalar_t* data, complex_t* out, iter_type L, iter_type M, bool backward = false);
@@ -112,7 +70,7 @@ namespace symphas::dft
 		template<typename T>
 		void operator()(const axis_nd_t<2>* data_x, const T* data_y, complex_t* out, len_type len, bool backward = false)
 		{
-			auto [L, M] = symphas::lib::get_dimensions<2>(data_x, len);
+			auto [L, M] = symphas::lib::get_dimensions<2>(data_x, len)._2();
 			long_dft(data_y, out, L, M, backward);
 		}
 	};
@@ -123,7 +81,7 @@ namespace symphas::dft
 		template<typename T>
 		void operator()(const axis_nd_t<3>* data_x, const T* data_y, complex_t* out, len_type len, bool backward = false)
 		{
-			auto [L, M, N] = symphas::lib::get_dimensions<3>(data_x, len);
+			auto [L, M, N] = symphas::lib::get_dimensions<3>(data_x, len)._3();
 			long_dft(data_y, out, L, M, N, backward);
 		}
 	};

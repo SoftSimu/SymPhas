@@ -258,7 +258,7 @@ namespace expr
 	template<size_t N, typename T, typename>
 	auto pow(OpLiteral<T> const& e)
 	{
-		using namespace symphas::math;
+		using symphas::math::pow;
 		return expr::make_literal(pow<N>(e.value));
 	}
 

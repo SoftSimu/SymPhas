@@ -407,12 +407,11 @@ struct GeneralizedStencil
 	 * \tparam ax Axis of the directional derivative.
 	 */
 	template<size_t OD1, size_t OD2, size_t OD3, typename T,
-		typename d_type = std::invoke_result_t<decltype(&expr::get_mixed_derivative<OD1, OD2, OD3>)>,
-		typename Stt = std::invoke_result_t<decltype(&expr::get_central_space_stencil<OA, DD, d_type>)>>
+		typename Stt = std::invoke_result_t<decltype(&expr::get_central_space_mixed_stencil<OA, OD1, OD2, OD3>), std::index_sequence<OD1, OD2, OD3>>>
 	auto apply_mixed(T* const v) const
 	{
 		len_type stride[DD];
-		symphas::set_stride<Axis::X>(stride, cast().dims);
+		symphas::set_stride<Axis::X>(stride, dims);
 		return symphas::internal::GeneratedStencilApply<Stt>{ stride, divh }(v);
 	}
 
@@ -425,12 +424,11 @@ struct GeneralizedStencil
 	 * \tparam ax Axis of the directional derivative.
 	 */
 	template<size_t OD1, size_t OD2, typename T,
-		typename d_type = std::invoke_result_t<decltype(&expr::get_mixed_derivative<OD1, OD2>)>,
-		typename Stt = std::invoke_result_t<decltype(&expr::get_central_space_stencil<OA, DD, d_type>)>>
+		typename Stt = std::invoke_result_t<decltype(&expr::get_central_space_mixed_stencil<OA, OD1, OD2>), std::index_sequence<OD1, OD2>>>
 	auto apply_mixed(T* const v) const
 	{
 		len_type stride[DD];
-		symphas::set_stride<Axis::X>(stride, cast().dims);
+		symphas::set_stride<Axis::X>(stride, dims);
 		return symphas::internal::GeneratedStencilApply<Stt>{ stride, divh }(v);
 	}
 
@@ -442,13 +440,11 @@ struct GeneralizedStencil
 	 * \tparam OD Order of the derivative.
 	 * \tparam ax Axis of the directional derivative.
 	 */
-	template<size_t OD1, typename T,
-		typename d_type = std::invoke_result_t<decltype(&expr::get_mixed_derivative<OD1>)>,
-		typename Stt = std::invoke_result_t<decltype(&expr::get_central_space_stencil<OA, DD, d_type>)>>
+	template<size_t OD1, typename T, typename Stt = std::invoke_result_t<decltype(&expr::get_central_space_stencil<OD1, OA, 1>)>>
 	auto apply_mixed(T* const v) const
 	{
 		len_type stride[DD];
-		symphas::set_stride<Axis::X>(stride, cast().dims);
+		symphas::set_stride<Axis::X>(stride, dims);
 		return symphas::internal::GeneratedStencilApply<Stt>{ stride, divh }(v);
 	}
 };

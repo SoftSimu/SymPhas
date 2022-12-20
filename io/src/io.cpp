@@ -89,18 +89,18 @@ bool add_io_params(param_map_type& param_map)
 	using namespace params;
 
 
-	param_map["plots_only"] = std::make_pair(&plots_only, new param_assign<bool>);
-	param_map["writer_type"] = std::make_pair(&writer, new param_assign<WriterType>);
+	param_map["plots-only"] = std::make_pair(&plots_only, new param_assign<bool>);
+	param_map["writer-type"] = std::make_pair(&writer, new param_assign<WriterType>);
 	param_map["writer"] = std::make_pair(&writer, new param_assign<WriterType>);
-	param_map["reader_type"] = std::make_pair(&reader, new param_assign<WriterType>);
+	param_map["reader-type"] = std::make_pair(&reader, new param_assign<WriterType>);
 	param_map["reader"] = std::make_pair(&reader, new param_assign<WriterType>);
 	param_map["use_timestamp"] = std::make_pair(&use_timestamp, new param_assign<bool>);
-	param_map["single_output_file"] = std::make_pair(&single_output_file, new param_assign<bool>);
-	param_map["single_input_file"] = std::make_pair(&single_input_file, new param_assign<bool>);
-	param_map["single_output"] = std::make_pair(&single_output_file, new param_assign<bool>);
-	param_map["single_input"] = std::make_pair(&single_input_file, new param_assign<bool>);
+	param_map["single-output_file"] = std::make_pair(&single_output_file, new param_assign<bool>);
+	param_map["single-input_file"] = std::make_pair(&single_input_file, new param_assign<bool>);
+	param_map["single-output"] = std::make_pair(&single_output_file, new param_assign<bool>);
+	param_map["single-input"] = std::make_pair(&single_input_file, new param_assign<bool>);
 	param_map["checkpoint"] = std::make_pair(&checkpoint, new param_assign<char*>);
-	param_map["checkpoint_count"] = std::make_pair(&checkpoint_count, new param_assign<int>);
+	param_map["checkpoint-count"] = std::make_pair(&checkpoint_count, new param_assign<int>);
 
 	using param_io_file_arr = bool*[2];
 	param_map["single_io_file"] = std::make_pair(

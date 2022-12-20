@@ -34,12 +34,21 @@
 
 #ifndef BASIC_MODELS
 
+ //! Model A with noise.
+MODEL(MAWN, (SCALAR),
+	EVOLUTION(
+		dpsi = lap(psi) + (c1 - c2 * psi * psi) * psi + _nW(SCALAR))
+)
+LINK_WITH_NAME(MAWN, MODELA_WN)
+
+
 //! Model A.
 MODEL(MA, (SCALAR),
 	EVOLUTION(
 		dpsi = lap(psi) + (c1 - c2 * psi * psi) * psi)
 )
 LINK_WITH_NAME(MA, MODELA)
+
 
 
 //! Model B.
@@ -49,11 +58,18 @@ MODEL(MB, (SCALAR),
 )
 LINK_WITH_NAME(MB, MODELB)
 
+//! Model B.
+MODEL(MBWN, (SCALAR),
+	EVOLUTION(
+		dpsi = -c3 * bilap(psi) - lap((c1 - c2 * psi * psi) * psi + _nW(SCALAR)))
+)
+LINK_WITH_NAME(MBWN, MODELB_WN)
+
 //! Model C.
 MODEL(MC, (SCALARS(2)),
 	EVOLUTION(
-		dpsi = -bilap(psi) - lap((c1 - c2 * psi * psi) * psi + c5 * rho * rho), 
-		drho = lap(rho) + (c3 - c4 * rho * rho) * rho + integer(2) * c5 * psi * rho)
+		dpsi = -bilap(psi) - lap((c1 - c2 * psi * psi + _nW(SCALAR)) * psi + c5 * rho * rho),
+		drho = lap(rho) + (c3 - c4 * rho * rho + _nW(SCALAR)) * rho + integer(2) * c5 * psi * rho)
 )
 LINK_WITH_NAME(MC, MODELC)
 DEFINE_MODEL_FIELD_NAMES(MC, ("psi", "m"))
@@ -65,65 +81,79 @@ DEFINE_MODEL_FIELD_NAMES(MC, ("psi", "m"))
 MODEL(MH, (SCALAR, VECTOR),
 	EVOLUTION_PREAMBLE(
 		(auto f = lap(psi) + (c1 - c2 * psi * psi) * psi; ),
-		dpsi = -lap(f) - c3 * grad(psi) * j,
-		dj = lap(j) + c4 * grad(psi) * f)
+		dpsi = -lap(f) - c3 * grad(psi) * j + lap(_nW(SCALAR, -2)),
+		dj = lap(j) + c3 * grad(psi) * f + lap(_nW(VECTOR, 2)))
 )
 LINK_WITH_NAME(MH, MODELH)
 DEFINE_MODEL_FIELD_NAMES(MH, ("m", "j"))
-
+/*
+//
+//! Example of coupling through the free energy using an iterated sum.
+MODEL(MH_FE, (SCALAR, VECTOR),
+	FREE_ENERGY((
+			EQUATION_OF(1)(-lap(-DF(1)) - grad(op(1)) * DF(2)), 
+			EQUATION_OF(2)(lap(DF(2)) + grad(op(1)) * -DF(1))
+			),
+		LANDAU_FE(psi) + _2 * POW(2)(j))
+)
+LINK_WITH_NAME(MH_FE, MODELH_FE)
 
 #undef j
 #undef dj
-
+*/
 
 //! Model A defined by the free energy.
-MODEL(MA_FE, (SCALAR),
-	FREE_ENERGY((NONCONSERVED),
-		SUM(ii)(LANDAU_FE(op_ii)))
-)		
-LINK_WITH_NAME(MA_FE, MODELA_FE)
-
+//MODEL(MA_FE, (SCALAR),
+//	FREE_ENERGY((NONCONSERVED),
+//		SUM(ii)(LANDAU_FE(op_ii, c1, c2)))
+//)		
+//LINK_WITH_NAME(MA_FE, MODELA_FE)
+//
 //! Example of coupling through the free energy using an iterated sum.
+
+//
+////! Model B defined by the free energy.
+//MODEL(MB_FE, (SCALAR),
+//	FREE_ENERGY((CONSERVED),
+//		SUM(ii)(LANDAU_FE(op_ii)))
+//)
+//LINK_WITH_NAME(MB_FE, MODELB_FE)
+//
+////! Model B defined by the free energy.
+//MODEL(MC_FE, (SCALAR, SCALAR),
+//	FREE_ENERGY((NONCONSERVED, CONSERVED),
+//		SUM(ii)(LANDAU_FE(op_ii)) + psi * psi * rho)
+//)
+//LINK_WITH_NAME(MC_FE, MODELC_FE)
+//
+//
+////! The Gray-Scott phase field model.
+//MODEL(GRAYSCOTT, (SCALAR, SCALAR),
+//	EVOLUTION_PREAMBLE((auto prr = psi * rho * rho;),
+//		dpsi = c1 * lap(psi) - prr + c3 * (one - psi),
+//		drho = c2 * lap(rho) + prr - (c3 + c4) * rho)
+//)
+//LINK_WITH_NAME(GRAYSCOTT, GRAYSCOTT)
+//
+//// Turing Model
+//MODEL(Turing, (SCALAR, SCALAR),
+//	EVOLUTION(
+//		dpsi = c1 * lap(psi) + c2 * (psi + c3 * rho - psi * rho * rho - c4 * psi * rho),
+//		drho = lap(rho) + c2 * (c5 * rho + c6 * psi + psi * rho * rho + c4 * psi * rho))
+//)
+//LINK_WITH_NAME(Turing, TURING)
+
+
+/*
+
 MODEL(COUPLING4, (SCALARS(4)),
 	FREE_ENERGY((ALL_NONCONSERVED),
-		SUM(ii)(LANDAU_FE(op_ii)) + _4 * SUM(ii, jj)(op_ii * op_jj * op_jj))
+		SUM(ii)(LANDAU_FE(op_ii)) + _4 * SUM(ii, jj != ii)(op_ii * op_jj * op_jj) + op(1))
 )
 LINK_WITH_NAME(COUPLING4, MODEL_COUPLING4)
 DEFINE_MODEL_FIELD_NAMES(COUPLING4, ("A", "B", "C", "D"))
 
 
-//! Model B defined by the free energy.
-MODEL(MB_FE, (SCALAR),
-	FREE_ENERGY((CONSERVED),
-		SUM(ii)(LANDAU_FE(op_ii)))
-)
-LINK_WITH_NAME(MB_FE, MODELB_FE)
-
-//! Model B defined by the free energy.
-MODEL(MC_FE, (SCALAR, SCALAR),
-	FREE_ENERGY((NONCONSERVED, CONSERVED),
-		SUM(ii)(LANDAU_FE(op_ii)) + psi * psi * rho)
-)
-LINK_WITH_NAME(MC_FE, MODELC_FE)
-
-
-//! The Gray-Scott phase field model.
-MODEL(GRAYSCOTT, (SCALAR, SCALAR),
-	EVOLUTION_PREAMBLE((auto prr = psi * rho * rho;),
-		dpsi = c1 * lap(psi) - prr + c3 * (one - psi),
-		drho = c2 * lap(rho) + prr - (c3 + c4) * rho)
-)
-LINK_WITH_NAME(GRAYSCOTT, GRAYSCOTT)
-
-// Turing Model
-MODEL(Turing, (SCALAR, SCALAR),
-	EVOLUTION(
-		dpsi = c1 * lap(psi) + c2 * (psi + c3 * rho - psi * rho * rho - c4 * psi * rho),
-		drho = lap(rho) + c2 * (c5 * rho + c6 * psi + psi * rho * rho + c4 * psi * rho))
-)
-LINK_WITH_NAME(Turing, TURING)
-
-/*
 //! Example of provisional variables, Model B.
 MODEL(MBB, (SCALAR),
 	PROVISIONAL_DEF((SCALAR),

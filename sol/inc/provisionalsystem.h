@@ -147,7 +147,7 @@ protected:
  * The initial conditions of a provisional system are undefined and set to
  * `NONE` value for both parameters, thereby skipping any initial generation.
  */
-inline symphas::init_data_type provisional_init{
+inline symphas::init_entry_type provisional_init{
 	Inside::NONE,
 	symphas::build_intag(InsideTag::NONE),
 	symphas::init_data_parameters{} };

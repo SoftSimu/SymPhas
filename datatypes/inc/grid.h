@@ -52,6 +52,97 @@
 
 namespace grid
 {
+
+
+
+	struct dim_list
+	{
+		len_type* dims;
+		size_t n;
+
+		dim_list(len_type dim0, len_type dim1, len_type dim2) :
+			dim_list(dim0, dim1, dim2, (dim1 > 0 && dim2 > 0) ? 3 : (dim1 > 0 || dim2 > 0) ? 2 : 1) {}
+		dim_list(len_type dim0, len_type dim1) :
+			dim_list(dim0, dim1, 0, (dim1 == 0) ? 1 : 2) {}
+		dim_list(len_type dim0) : dim_list(dim0, 0, 0, 1) {}
+		dim_list() : dim_list(0, 0, 0, 0) {}
+
+		dim_list(symphas::interval_data_type const& intervals) :
+			dim_list(
+				(intervals.find(Axis::X) != intervals.end()) ? intervals.at(Axis::X).count() : 0,
+				(intervals.find(Axis::Y) != intervals.end()) ? intervals.at(Axis::Y).count() : 0,
+				(intervals.find(Axis::Z) != intervals.end()) ? intervals.at(Axis::Z).count() : 0) {}
+
+		dim_list(dim_list const& other) noexcept : dim_list(other.dims, other.n) {}
+
+		dim_list(len_type* dims, size_t D) : dim_list(
+			(D > 0) ? dims[0] : 0,
+			(D > 1) ? dims[1] : 0,
+			(D > 2) ? dims[2] : 0,
+			D) {}
+
+		dim_list(dim_list&& other) noexcept : dim_list()
+		{
+			swap(*this, other);
+		}
+
+		~dim_list()
+		{
+			delete[] dims;
+		}
+
+		operator len_type* () const
+		{
+			return dims;
+		}
+
+		operator len_type () const
+		{
+			return dims[0];
+		}
+
+		std::tuple<len_type, len_type, len_type> _3() const
+		{
+			return { dims[0], dims[1], dims[2] };
+		}
+
+		std::tuple<len_type, len_type> _2() const
+		{
+			return { dims[0], dims[1] };
+		}
+
+		std::tuple<len_type> _1() const
+		{
+			return { dims[0] };
+		}
+
+		friend void swap(dim_list& first, dim_list& second)
+		{
+			using std::swap;
+			swap(first.dims, second.dims);
+			swap(first.n, second.n);
+		}
+
+	protected:
+
+		dim_list(const len_type* dims, size_t n) : dims{ (n > 0) ? new len_type[n] : nullptr }, n{ n }
+		{
+			for (iter_type i = 0; i < n; ++i)
+			{
+				this->dims[i] = dims[i];
+			}
+		}
+
+		dim_list(len_type dim0, len_type dim1, len_type dim2, size_t n) : dims{ (n > 0) ? new len_type[n] : nullptr }, n{ n }
+		{
+			if (n > 0) dims[0] = dim0;
+			if (n > 1) dims[1] = dim1;
+			if (n > 2) dims[2] = dim2;
+		}
+
+	};
+
+
 	//! Compute the number of interior points.
 	/*!
 	 * For grids that include boundaries, only the interior values are typically
@@ -99,6 +190,7 @@ namespace grid
 		return length<D>(dimensions);
 	}
 
+
 }
 
 
@@ -110,7 +202,9 @@ namespace grid
 	namespace
 	{
 
-
+		template<size_t D>
+		using dim_arr_type = len_type[D];
+		
 		/*
 		 * helper functions to create an array for iterating over the interior values of a grid
 		 *
@@ -122,11 +216,6 @@ namespace grid
 		 * hence, each grid creation will immediately have access to the same list of inner values, which
 		 * increase runtime and more importantly, decreases memory cost
 		 */
-
-		template<size_t D>
-		using dim_arr_type = len_type[D];
-
-
 		template<size_t I>
 		void fill_inner_arr(iter_type* (&inner_i), len_type const* dimensions, iter_type& index);
 
@@ -433,6 +522,7 @@ struct multi_value
 	multi_value& operator=(any_vector_t<T, N>&& vector);
 	multi_value& operator=(multi_value<N, T> const& other);
 	multi_value& operator=(multi_value<N, T>&& other);
+	multi_value& operator=(T const& other);
 
 	multi_value(multi_value<N, T> const& other) : multi_value(other.value) {}
 	multi_value(multi_value<N, T>&& other) : multi_value(other.value) {}
@@ -598,6 +688,28 @@ multi_value<N, T>& multi_value<N, T>::operator=(multi_value<N, T>&& other)
 	return *this;
 }
 
+template<size_t N, typename T>
+multi_value<N, T>& multi_value<N, T>::operator=(T const& other)
+{
+	//any_vector_t<T, N> vector = *this;
+	//auto m = abs(vector);
+	//for (iter_type i = 0; i < N; ++i)
+	//{
+	//	vector[i] = other * vector[i] / m;
+	//}
+
+	//*this = vector;
+	//return *this;
+	any_vector_t<T, N> vector;;
+	for (iter_type i = 0; i < N; ++i)
+	{
+		vector[i] = other;
+	}
+	*this = vector;
+	return *this;
+}
+
+
 template<size_t N, typename T, typename V>
 auto operator*(multi_value<N, T> const& a, V&& b)
 {
@@ -666,9 +778,9 @@ public:
 	 * 
 	 * \param dimensions The dimensions of the grid.
 	 */
-	Grid(std::initializer_list<len_type> dimensions) : Block<T>{ grid::length<D>(dimensions.begin()) }, dims{ 0 }
+	Grid(grid::dim_list dimensions) : Block<T>{ grid::length<D>(dimensions) }, dims{ 0 }
 	{
-		set_dimensions(dimensions.begin());
+		set_dimensions(dimensions);
 	}
 
 	//! Create a grid of the prescribed dimensions.
@@ -735,10 +847,10 @@ public:
 	 *
 	 * \param dimensions The dimensions of the grid.
 	 */
-	Grid(std::initializer_list<len_type> dimensions) :
-		parent_type{ grid::length<D>(dimensions.begin()) }, dims{ 0 }
+	Grid(grid::dim_list dimensions) :
+		parent_type{ grid::length<D>(dimensions) }, dims{ 0 }
 	{
-		set_dimensions(dimensions.begin());
+		set_dimensions(dimensions);
 	}
 
 	//! Create a grid of the prescribed dimensions.
@@ -809,7 +921,7 @@ struct BoundaryGrid : Grid<T, D>
 	len_type len_inner;
 
 public:
-	BoundaryGrid(std::initializer_list<len_type> dimensions) : BoundaryGrid(dimensions.begin()) {}
+	BoundaryGrid(grid::dim_list dimensions) : BoundaryGrid(static_cast<const len_type*>(dimensions)) {}
 	BoundaryGrid(const len_type* dimensions) : Grid<T, D>{ dimensions }, len_inner{ grid::length_interior<D>(dims) }, inners{ grid::interior_indices_list<D>(dims) } {}
 	BoundaryGrid(Grid<T, D> const& other) : Grid<T, D>{ other }, len_inner{ grid::length_interior<D>(dims) }, inners{ grid::interior_indices_list<D>(dims) } {}
 	BoundaryGrid(Grid<T, D>&& other) noexcept : Grid<T, D>{ other }, len_inner{ grid::length_interior<D>(dims) }, inners{ grid::interior_indices_list<D>(dims) } {}
@@ -822,7 +934,7 @@ public:
 
 #else
 
-	BoundaryGrid(std::initializer_list<len_type> dimensions) : Grid<T, D>{ dimensions } {}
+	BoundaryGrid(grid::dim_list dimensions) : Grid<T, D>{ dimensions } {}
 	BoundaryGrid(Grid<T, D> const& other) : Grid<T, D>{ other } {}
 	BoundaryGrid(Grid<T, D>&& other) noexcept : Grid<T, D>{ other } {}
 
@@ -882,7 +994,7 @@ struct BoundaryGrid<T, 3> : Grid<T, 3>
 	len_type len_inner;
 
 public:
-	BoundaryGrid(std::initializer_list<len_type> dimensions) : BoundaryGrid(dimensions.begin()) {}
+	BoundaryGrid(grid::dim_list dimensions) : BoundaryGrid(static_cast<const len_type*>(dimensions)) {}
 	BoundaryGrid(const len_type* dimensions) : Grid<T, 3>(dimensions), inners{ grid::interior_indices_list<3>(dims) }, len_inner{ grid::length_interior<3>(dims) } {}
 	BoundaryGrid(Grid<T, 3> const& other) : Grid<T, 3>(other), inners{ grid::interior_indices_list<3>(dims) }, len_inner{ grid::length_interior<3>(dims) } {}
 	BoundaryGrid(Grid<T, 3>&& other) noexcept : Grid<T, 3>(other), inners{ grid::interior_indices_list<3>(dims) }, len_inner{ grid::length_interior<3>(dims) } {}
@@ -894,7 +1006,7 @@ public:
 
 #else
 
-	BoundaryGrid(std::initializer_list<len_type> dimensions) : Grid<T, 3>(dimensions) {}
+	BoundaryGrid(grid::dim_list dimensions) : Grid<T, 3>(dimensions) {}
 	BoundaryGrid(Grid<T, 3> const& other) : Grid<T, 3>(other) {}
 	BoundaryGrid(Grid<T, 3>&& other) noexcept : Grid<T, 3>(other) {}
 
@@ -954,7 +1066,7 @@ struct BoundaryGrid<T, 2> : Grid<T, 2>
 	len_type len_inner;
 
 public:
-	BoundaryGrid(std::initializer_list<len_type> dimensions) : BoundaryGrid(dimensions.begin()) {}
+	BoundaryGrid(grid::dim_list dimensions) : BoundaryGrid(static_cast<const len_type*>(dimensions)) {}
 	BoundaryGrid(const len_type* dimensions) : Grid<T, 2>(dimensions), inners{ grid::interior_indices_list<2>(dims) }, len_inner{ grid::length_interior<2>(dims) } {}
 	BoundaryGrid(Grid<T, 2> const& other) : Grid<T, 2>(other), inners{ grid::interior_indices_list<2>(dims) }, len_inner{ grid::length_interior<2>(dims) } {}
 	BoundaryGrid(Grid<T, 2>&& other) noexcept : Grid<T, 2>(other), inners{ grid::interior_indices_list<2>(dims) }, len_inner{ grid::length_interior<2>(dims) } {}
@@ -966,7 +1078,7 @@ public:
 
 #else
 
-	BoundaryGrid(std::initializer_list<len_type> dimensions) : Grid<T, 2>(dimensions) {}
+	BoundaryGrid(grid::dim_list dimensions) : Grid<T, 2>(dimensions) {}
 	BoundaryGrid(Grid<T, 2> const& other) : Grid<T, 2>(other) {}
 	BoundaryGrid(Grid<T, 2>&& other) noexcept : Grid<T, 2>(other) {}
 
@@ -1019,7 +1131,7 @@ struct BoundaryGrid<T, 1> : Grid<T, 1>
 	len_type len_inner;
 
 public:
-	BoundaryGrid(std::initializer_list<len_type> dimensions) : BoundaryGrid(dimensions.begin()) {}
+	BoundaryGrid(grid::dim_list dimensions) : BoundaryGrid(static_cast<const len_type*>(dimensions)) {}
 	BoundaryGrid(const len_type* dimensions) : Grid<T, 1>(dimensions), inners{ grid::interior_indices_list<1>(dims) }, len_inner{ grid::length_interior<1>(dims) } {}
 	BoundaryGrid(Grid<T, 1> const& other) : Grid<T, 1>(other), inners{ grid::interior_indices_list<1>(dims) }, len_inner{ grid::length_interior<1>(dims) } {}
 	BoundaryGrid(Grid<T, 1>&& other) noexcept : Grid<T, 1>(other), inners{ grid::interior_indices_list<1>(dims) }, len_inner{ grid::length_interior<1>(dims) } {}
@@ -1031,7 +1143,7 @@ public:
 
 #else
 
-	BoundaryGrid(std::initializer_list<len_type> dimensions) : Grid<T, 1>(dimensions) {}
+	BoundaryGrid(grid::dim_list dimensions) : Grid<T, 1>(dimensions) {}
 	BoundaryGrid(Grid<T, 1> const& other) : Grid<T, 1>(other) {}
 	BoundaryGrid(Grid<T, 1>&& other) noexcept : Grid<T, 1>(other) {}
 

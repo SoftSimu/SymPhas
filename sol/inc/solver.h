@@ -209,7 +209,7 @@ namespace symphas
  * 
  * ```cpp
  * template<typename S>
- * void step(S& sys, double dt) const
+ * void step(S& sys) const
  * ```
  * 
  * The type `S` is the phase field system, depending on the type that
@@ -290,6 +290,7 @@ struct NAME : Solver<NAME<stencil_t>>, stencil_t \
 { \
 	using this_type = NAME<stencil_t>; \
 	using parent_type = Solver<this_type>; \
+	using parent_type::parent_type; \
 	using parent_type::generalized_derivative; \
 	using parent_type::laplacian; \
 	using parent_type::bilaplacian; \
@@ -303,6 +304,7 @@ struct NAME : Solver<NAME<stencil_t>>, stencil_t \
 	using parent_type::make_solver; \
 	using id_type = solver_id_type_ ## NAME; \
 	using stencil_t::stencil_t; \
+	using parent_type::dt; \
 	stencil_t const& stencil() const { return (*static_cast<stencil_t const*>(this)); } \
 	stencil_t& stencil() { return (*static_cast<stencil_t*>(this)); }
 
@@ -388,6 +390,11 @@ struct NoStencil
 template<typename Sp>
 struct Solver
 {
+
+	double dt;
+
+	Solver(double dt = 0) : dt{ dt } {}
+
 	//! The object which computes the derivative.
 	template<Axis ax, size_t O>
 	struct derivative;
@@ -455,12 +462,11 @@ struct Solver
 	 * will be used.
 	 * 
 	 * \param ss The system which is stepped forward.
-	 * \param dt The time step.
 	 */
 	template<typename S>
-	void step(S&& ss, double dt) const
+	void step(S&& ss) const
 	{
-		cast().template step(std::forward<S>(ss), dt);
+		cast().template step(std::forward<S>(ss));
 	}
 
 	//! Evaluate the equations.
@@ -676,20 +682,11 @@ struct Solver
 		return *static_cast<Sp*>(this);
 	}
 
-
-
 	friend void swap(Solver<Sp>& first, Solver<Sp>& second)
 	{
 		using std::swap;
 		swap(*static_cast<Sp*>(&first), *static_cast<Sp*>(&second));
 	}
-
-protected:
-
-
-
-
-public:
 
 	//! Indirection used when the expression may be invalid.
 	template<size_t En, typename SS, typename... Es>
@@ -827,6 +824,7 @@ struct Solver<Sp>::derivative
 	static const size_t order = O;
 	static const Axis axis = ax;
 	static const bool is_directional = (O == 1);
+	static const bool is_mixed = false;
 };
 
 
@@ -842,6 +840,7 @@ struct Solver<Sp>::directional_derivative
 	static const size_t order = O;
 	static const Axis axis = ax;
 	static const bool is_directional = true;
+	static const bool is_mixed = false;
 };
 
 namespace symphas::internal
@@ -858,13 +857,13 @@ namespace symphas::internal
 	template<Axis ax1, Axis ax2, size_t O1, size_t O2>
 	struct max_order_axis<symphas::lib::axis_list<ax1, ax2>, std::index_sequence<O1, O2>>
 	{
-		static const Axis value = (O1 > O2) ? ax1 : ax2;
+		static const Axis value = (O1 >= O2) ? ax1 : ax2;
 	};
 
 	template<Axis ax1, Axis ax2, Axis ax3, size_t O1, size_t O2, size_t O3>
 	struct max_order_axis<symphas::lib::axis_list<ax1, ax2, ax3>, std::index_sequence<O1, O2, O3>>
 	{
-		static const Axis value = (O1 > O2 && O1 > O3) ? ax1 : (O2 > O1 && O2 > O3) ? ax2 : ax3;
+		static const Axis value = (O1 >= O2 && O1 >= O3) ? ax1 : (O2 >= O1 && O2 >= O3) ? ax2 : ax3;
 	};
 }
 
@@ -880,7 +879,8 @@ struct Solver<Sp>::mixed_derivative
 	static const size_t order = symphas::math::sum<Os...>();
 	static const Axis axis = symphas::internal::max_order_axis<
 		decltype(symphas::lib::make_axis_list<sizeof...(Os)>()), std::index_sequence<Os...>>::value;
-	static const bool is_directional = (order == 1);
+	static const bool is_directional = true;
+	static const bool is_mixed = true;
 };
 
 #include "provisionalsystemgroup.h"

@@ -34,9 +34,9 @@
 #ifdef LATEX_PLOT
 
 #define SYEX_K_COMPONENT_OP_STR "k"
-#define SYEX_K_AXIS_OP_STR "\\vec{" SYEX_K_COMPONENT_OP_STR ""}"
+#define SYEX_K_AXIS_OP_STR "\\vec{" SYEX_K_COMPONENT_OP_STR "}"
 #define SYEX_K_OP_STR "|" SYEX_K_AXIS_OP_STR "|"
-#define SUBSCRIPT_AXIS "{_%c}"
+#define SUBSCRIPT_AXIS "_{%c}"
 
 #else
 
@@ -76,6 +76,11 @@ namespace expr
 	template<size_t O, size_t D>
 	using wave_vector_axis_grid = std::conditional_t<(O % 2 == 0), Grid<scalar_t, D>, Grid<complex_t, D>>;
 
+	//template<size_t O, size_t D>
+	//using wave_vector_grid = std::index_sequence<O, D>;
+	//template<size_t O, size_t D>
+	//using wave_vector_axis_grid = std::index_sequence<O, D>;
+
 	//! Manages the filling of values of a wavenumber field.
 	/*!
 	 * Computes the values of the wavevector field, equivalent to the Fourier
@@ -114,16 +119,20 @@ namespace expr
 					kx = std::pow(symphas::EPS, 1.0 / (double)(O));
 				}
 
-				cvector_t<1> k{ Ii * kx };
-				scalar_t k2 = (k * k).real();
+				cvector_t<1> kk{ Ii * kx };
+				scalar_t k2 = (kk * kk).real();
 
-				if constexpr (O % 2 == 0)
+				if constexpr (O == 1)
+				{
+					into[i] = kk;
+				}
+				else if constexpr (O % 2 == 0)
 				{
 					into[i] = std::pow(k2, O / 2);
 				}
 				else
 				{
-					into[i] = k * std::pow(k2, O / 2);
+					into[i] = kk * std::pow(k2, O / 2);
 				}
 			}
 
@@ -140,34 +149,35 @@ namespace expr
 		template<Axis ax, size_t O>
 		static void fill(wave_vector_axis_grid<O, 1>& into, const len_type* dims, const double* h)
 		{
-			if constexpr (ax == Axis::X)
+			std::complex Ii(0.0, 1.0);
+			len_type L = dims[0];
+
+			scalar_t dk_i = 2 * symphas::PI / (h[0] * L);
+
+			iter_type ii = 0;
+			for (iter_type i = 0; i < L; ++i)
 			{
-				std::complex Ii(0.0, 1.0);
-				len_type L = dims[0];
-
-				scalar_t dk_i = 2 * symphas::PI / (h[0] * L);
-
-				iter_type ii = 0;
-				for (iter_type i = 0; i < L; ++i)
+				scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
+				if (kx == 0)
 				{
-					scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
-					if (kx == 0)
-					{
-						kx = std::pow(symphas::EPS, 1.0 / (double)(O));
-					}
+					kx = std::pow(symphas::EPS, 1.0 / (double)(O));
+				}
 
-					complex_t kc = Ii * ((ax == Axis::X) ? kx : 0);
-					cvector_t<1> k{ Ii * kx };
-					scalar_t k2 = (k * k).real();
+				complex_t kc = Ii * ((ax == Axis::X) ? kx : -Ii);
+				cvector_t<1> k{ Ii * kx };
+				scalar_t k2 = (k * k).real();
 
-					if constexpr (O % 2 == 0)
-					{
-						into[i] = std::pow(k2, O / 2);
-					}
-					else
-					{
-						into[i] = kc * std::pow(k2, O / 2);
-					}
+				if constexpr (O == 1)
+				{
+					into[i] = kc;
+				}
+				else if constexpr (O % 2 == 0)
+				{
+					into[i] = std::pow(k2, O / 2);
+				}
+				else
+				{
+					into[i] = kc * std::pow(k2, O / 2);
 				}
 			}
 		}
@@ -183,32 +193,33 @@ namespace expr
 		template<Axis ax, size_t O>
 		static void fill_axis(wave_vector_axis_grid<O, 1>& into, const len_type* dims, const double* h)
 		{
-			if constexpr (ax == Axis::X)
+			std::complex Ii(0.0, 1.0);
+			len_type L = dims[0];
+
+			scalar_t dk_i = 2 * symphas::PI / (h[0] * L);
+
+			for (iter_type i = 0; i < L; ++i)
 			{
-				std::complex Ii(0.0, 1.0);
-				len_type L = dims[0];
-
-				scalar_t dk_i = 2 * symphas::PI / (h[0] * L);
-
-				for (iter_type i = 0; i < L; ++i)
+				scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
+				if (kx == 0)
 				{
-					scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
-					if (kx == 0)
-					{
-						kx = std::pow(symphas::EPS, 1.0 / (double)(O));
-					}
+					kx = std::pow(symphas::EPS, 1.0 / (double)(O));
+				}
 
-					complex_t k = Ii * ((ax == Axis::X) ? kx : 0);
-					scalar_t k2 = (k * k).real();
+				complex_t kk = Ii * ((ax == Axis::X) ? kx : -Ii);
+				scalar_t k2 = (kk * kk).real();
 
-					if constexpr (O % 2 == 0)
-					{
-						into[i] = std::pow(k2, O / 2);
-					}
-					else
-					{
-						into[i] = k * std::pow(k2, O / 2);
-					}
+				if constexpr (O == 1)
+				{
+					into[i] = kk;
+				}
+				else if constexpr (O % 2 == 0)
+				{
+					into[i] = std::pow(k2, O / 2);
+				}
+				else
+				{
+					into[i] = kk * std::pow(k2, O / 2);
 				}
 			}
 		}
@@ -252,16 +263,20 @@ namespace expr
 					{
 						kx = std::pow(symphas::EPS, 1.0 / (double)(O));
 					}
-					cvector_t<2> k{ Ii * kx, Ii * ky };
-					scalar_t k2 = (k * k).real();
+					cvector_t<2> kk{ Ii * kx, Ii * ky };
+					scalar_t k2 = (kk * kk).real();
 
-					if constexpr (O % 2 == 0)
+					if constexpr (O == 1)
+					{
+						into[ii++] = kk;
+					}
+					else if constexpr (O % 2 == 0)
 					{
 						into[ii++] = std::pow(k2, O / 2);
 					}
 					else
 					{
-						into[ii++] = k * std::pow(k2, O / 2);
+						into[ii++] = kk * std::pow(k2, O / 2);
 					}
 				}
 			}
@@ -278,45 +293,46 @@ namespace expr
 		template<Axis ax, size_t O>
 		static void fill(wave_vector_axis_grid<O, 2> &into, const len_type* dims, const double* h)
 		{
-			if constexpr (ax == Axis::X || ax == Axis::Y)
+			std::complex Ii(0.0, 1.0);
+
+			len_type L = dims[0];
+			len_type M = dims[1];
+
+			scalar_t dk_i = 2 * symphas::PI / (h[0] * L);
+			scalar_t dk_j = 2 * symphas::PI / (h[1] * M);
+
+			iter_type ii = 0;
+			for (iter_type j = 0; j < M; ++j)
 			{
-				std::complex Ii(0.0, 1.0);
-
-				len_type L = dims[0];
-				len_type M = dims[1];
-
-				scalar_t dk_i = 2 * symphas::PI / (h[0] * L);
-				scalar_t dk_j = 2 * symphas::PI / (h[1] * M);
-
-				iter_type ii = 0;
-				for (iter_type j = 0; j < M; ++j)
+				scalar_t ky = (j < M / 2) ? j * dk_j : (j - M) * dk_j;
+				if (ky == 0)
 				{
-					scalar_t ky = (j < M / 2) ? j * dk_j : (j - M) * dk_j;
-					if (ky == 0)
+					ky = std::pow(symphas::EPS, 1.0 / (double)(O));
+				}
+
+				for (iter_type i = 0; i < L; ++i)
+				{
+					scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
+					if (kx == 0)
 					{
-						ky = std::pow(symphas::EPS, 1.0 / (double)(O));
+						kx = std::pow(symphas::EPS, 1.0 / (double)(O));
 					}
 
-					for (iter_type i = 0; i < L; ++i)
+					complex_t kc = Ii * ((ax == Axis::X) ? kx : (ax == Axis::Y) ? ky : -Ii);
+					cvector_t<2> k{ Ii * kx, Ii * ky };
+					scalar_t k2 = (k * k).real();
+
+					if constexpr (O == 1)
 					{
-						scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
-						if (kx == 0)
-						{
-							kx = std::pow(symphas::EPS, 1.0 / (double)(O));
-						}
-
-						complex_t kc = Ii * ((ax == Axis::X) ? kx : (ax == Axis::Y) ? ky : 0);
-						cvector_t<2> k{ Ii * kx, Ii * ky };
-						scalar_t k2 = (k * k).real();
-
-						if constexpr (O % 2 == 0)
-						{
-							into[ii++] = std::pow(k2, O / 2);
-						}
-						else
-						{
-							into[ii++] = kc * std::pow(k2, O / 2);
-						}
+						into[ii++] = kc;
+					}
+					else if constexpr (O % 2 == 0)
+					{
+						into[ii++] = std::pow(k2, O / 2);
+					}
+					else
+					{
+						into[ii++] = kc * std::pow(k2, O / 2);
 					}
 				}
 			}
@@ -333,44 +349,45 @@ namespace expr
 		template<Axis ax, size_t O>
 		static void fill_axis(wave_vector_axis_grid<O, 2>& into, const len_type* dims, const double* h)
 		{
-			if constexpr (ax == Axis::X || ax == Axis::Y)
+			std::complex Ii(0.0, 1.0);
+
+			len_type L = dims[0];
+			len_type M = dims[1];
+
+			scalar_t dk_i = 2 * symphas::PI / (h[0] * L);
+			scalar_t dk_j = 2 * symphas::PI / (h[1] * M);
+
+			iter_type ii = 0;
+			for (iter_type j = 0; j < M; ++j)
 			{
-				std::complex Ii(0.0, 1.0);
-
-				len_type L = dims[0];
-				len_type M = dims[1];
-
-				scalar_t dk_i = 2 * symphas::PI / (h[0] * L);
-				scalar_t dk_j = 2 * symphas::PI / (h[1] * M);
-
-				iter_type ii = 0;
-				for (iter_type j = 0; j < M; ++j)
+				scalar_t ky = (j < M / 2) ? j * dk_j : (j - M) * dk_j;
+				if (ky == 0)
 				{
-					scalar_t ky = (j < M / 2) ? j * dk_j : (j - M) * dk_j;
-					if (ky == 0)
+					ky = std::pow(symphas::EPS, 1.0 / (double)(O));
+				}
+
+				for (iter_type i = 0; i < L; ++i)
+				{
+					scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
+					if (kx == 0)
 					{
-						ky = std::pow(symphas::EPS, 1.0 / (double)(O));
+						kx = std::pow(symphas::EPS, 1.0 / (double)(O));
 					}
 
-					for (iter_type i = 0; i < L; ++i)
+					complex_t kk = Ii * ((ax == Axis::X) ? kx : (ax == Axis::Y) ? ky : -Ii);
+					scalar_t k2 = (kk * kk).real();
+
+					if constexpr (O == 1)
 					{
-						scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
-						if (kx == 0)
-						{
-							kx = std::pow(symphas::EPS, 1.0 / (double)(O));
-						}
-
-						complex_t k = Ii * ((ax == Axis::X) ? kx : (ax == Axis::Y) ? ky : 0);
-						scalar_t k2 = (k * k).real();
-
-						if constexpr (O % 2 == 0)
-						{
-							into[ii++] = std::pow(k2, O / 2);
-						}
-						else
-						{
-							into[ii++] = k * std::pow(k2, O / 2);
-						}
+						into[ii++] = kk;
+					}
+					else if constexpr (O % 2 == 0)
+					{
+						into[ii++] = std::pow(k2, O / 2);
+					}
+					else
+					{
+						into[ii++] = kk * std::pow(k2, O / 2);
 					}
 				}
 			}
@@ -428,17 +445,21 @@ namespace expr
 						{
 							kx = std::pow(symphas::EPS, 1.0 / (double)(O));
 						}
-						
-						cvector_t<3> k{ Ii * kx, Ii * ky, Ii * kz };
-						scalar_t k2 = (k * k).real();
 
-						if constexpr (O % 2 == 0)
+						cvector_t<3> kk{ Ii * kx, Ii * ky, Ii * kz };
+						scalar_t k2 = (kk * kk).real();
+
+						if constexpr (O == 1)
+						{
+							into[ii++] = kk;
+						}
+						else if constexpr (O % 2 == 0)
 						{
 							into[ii++] = std::pow(k2, O / 2);
 						}
 						else
 						{
-							into[ii++] = k * std::pow(k2, O / 2);
+							into[ii++] = kk * std::pow(k2, O / 2);
 						}
 					}
 				}
@@ -454,7 +475,7 @@ namespace expr
 		 * \tparam O The exponential order (power) of the wavenumber.
 		 */
 		template<Axis ax, size_t O>
-		static void fill(wave_vector_axis_grid<O, 3> &into, const len_type* dims, const double* h)
+		static void fill(wave_vector_axis_grid<O, 3>& into, const len_type* dims, const double* h)
 		{
 			std::complex Ii(0.0, 1.0);
 
@@ -490,11 +511,15 @@ namespace expr
 							kx = std::pow(symphas::EPS, 1.0 / (double)(O));
 						}
 
-						complex_t kc = Ii * ((ax == Axis::X) ? kx : (ax == Axis::Y) ? ky : (ax == Axis::Z) ? kz : 0);
-						cvector_t<3> k{ Ii * kx, Ii * ky, Ii * kz };
-						scalar_t k2 = (k * k).real();
+						complex_t kc = Ii * ((ax == Axis::X) ? kx : (ax == Axis::Y) ? ky : (ax == Axis::Z) ? kz : -Ii);
+						cvector_t<3> kk{ Ii * kx, Ii * ky, Ii * kz };
+						scalar_t k2 = (kk * kk).real();
 
-						if constexpr (O % 2 == 0)
+						if constexpr (O == 1)
+						{
+							into[ii++] = kc;
+						}
+						else if constexpr (O % 2 == 0)
 						{
 							into[ii++] = std::pow(k2, O / 2);
 						}
@@ -552,19 +577,525 @@ namespace expr
 							kx = std::pow(symphas::EPS, 1.0 / (double)(O));
 						}
 
-						complex_t k = Ii * ((ax == Axis::X) ? kx : (ax == Axis::Y) ? ky : (ax == Axis::Z) ? kz : 0);
-						scalar_t k2 = (k * k).real();
+						complex_t kk = Ii * ((ax == Axis::X) ? kx : (ax == Axis::Y) ? ky : (ax == Axis::Z) ? kz : -Ii);
+						scalar_t k2 = (kk * kk).real();
 
-						if constexpr (O % 2 == 0)
+						if constexpr (O == 1)
+						{
+							into[ii++] = kk;
+						}
+						else if constexpr (O % 2 == 0)
 						{
 							into[ii++] = std::pow(k2, O / 2);
 						}
 						else
 						{
-							into[ii++] = k * std::pow(k2, O / 2);
+							into[ii++] = kk * std::pow(k2, O / 2);
 						}
 					}
 				}
+			}
+		}
+	};
+
+	template<Axis ax, size_t O, size_t D>
+	struct k_field_axis_entry;
+
+	//! Specialization based on k_field.
+	template<Axis ax, size_t O>
+	struct k_field_axis_entry<ax, O, 3>
+	{
+		//! Fills the values of the wavenumber field of the prescribed dimension.
+		/*!
+		 * \param into The data array of the wavenumber.
+		 * \param dims The dimensions of the wavenumber.
+		 * \param h The uniform grid spacing of the wavenumber.
+		 *
+		 * \tparam O The exponential order (power) of the wavenumber.
+		 */
+		auto operator()(int n, const len_type* dims, const double* h) const
+		{
+			std::complex Ii(0.0, 1.0);
+
+			len_type L = dims[0];
+			len_type M = dims[1];
+			len_type N = dims[2];
+
+			int i = n % L;
+			int j = (n / L) % M;
+			int k = n / (L * M);
+
+			scalar_t
+				dk_i = 2 * symphas::PI / (h[0] * L),
+				dk_j = 2 * symphas::PI / (h[1] * M),
+				dk_k = 2 * symphas::PI / (h[2] * N);
+
+			scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
+			scalar_t ky = (j < M / 2) ? j * dk_j : (j - M) * dk_j;
+			scalar_t kz = (k < N / 2) ? k * dk_k : (k - N) * dk_k;
+			if (kz == 0)
+			{
+				kz = std::pow(symphas::EPS, 1.0 / (double)(O));
+			}
+			if (ky == 0)
+			{
+				ky = std::pow(symphas::EPS, 1.0 / (double)(O));
+			}
+			if (kx == 0)
+			{
+				kx = std::pow(symphas::EPS, 1.0 / (double)(O));
+			}
+
+			complex_t kk = Ii * ((ax == Axis::X) ? kx : (ax == Axis::Y) ? ky : (ax == Axis::Z) ? kz : -Ii);
+			scalar_t k2 = (kk * kk).real();
+
+			if constexpr (O == 1)
+			{
+				return kk;
+			}
+			else if constexpr (O % 2 == 0)
+			{
+				return std::pow(k2, O / 2);
+			}
+			else
+			{
+				return kk * std::pow(k2, O / 2);
+			}
+		}
+	};
+
+	//! Specialization based on k_field.
+	template<Axis ax, size_t O>
+	struct k_field_axis_entry<ax, O, 2>
+	{
+		//! Fills the values of the wavenumber field of the prescribed dimension.
+		/*!
+		 * \param into The data array of the wavenumber.
+		 * \param dims The dimensions of the wavenumber.
+		 * \param h The uniform grid spacing of the wavenumber.
+		 *
+		 * \tparam O The exponential order (power) of the wavenumber.
+		 */
+		auto operator()(int n, const len_type* dims, const double* h) const
+		{
+			std::complex Ii(0.0, 1.0);
+
+			len_type L = dims[0];
+			len_type M = dims[1];
+
+			int i = n % L;
+			int j = n / L;
+
+			scalar_t
+				dk_i = 2 * symphas::PI / (h[0] * L),
+				dk_j = 2 * symphas::PI / (h[1] * M);
+
+			scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
+			scalar_t ky = (j < M / 2) ? j * dk_j : (j - M) * dk_j;
+			if (ky == 0)
+			{
+				ky = std::pow(symphas::EPS, 1.0 / (double)(O));
+			}
+			if (kx == 0)
+			{
+				kx = std::pow(symphas::EPS, 1.0 / (double)(O));
+			}
+
+			complex_t kk = Ii * ((ax == Axis::X) ? kx : (ax == Axis::Y) ? ky : -Ii);
+			scalar_t k2 = (kk * kk).real();
+
+			if constexpr (O == 1)
+			{
+				return kk;
+			}
+			else if constexpr (O % 2 == 0)
+			{
+				return std::pow(k2, O / 2);
+			}
+			else
+			{
+				return kk * std::pow(k2, O / 2);
+			}
+		}
+	};
+
+	//! Specialization based on k_field.
+	template<Axis ax, size_t O>
+	struct k_field_axis_entry<ax, O, 1>
+	{
+		//! Fills the values of the wavenumber field of the prescribed dimension.
+		/*!
+		 * \param into The data array of the wavenumber.
+		 * \param dims The dimensions of the wavenumber.
+		 * \param h The uniform grid spacing of the wavenumber.
+		 *
+		 * \tparam O The exponential order (power) of the wavenumber.
+		 */
+		auto operator()(int n, const len_type* dims, const double* h) const
+		{
+			std::complex Ii(0.0, 1.0);
+
+			len_type L = dims[0];
+
+			int i = n;
+
+			scalar_t dk_i = 2 * symphas::PI / (h[0] * L);
+
+			scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
+			if (kx == 0)
+			{
+				kx = std::pow(symphas::EPS, 1.0 / (double)(O));
+			}
+
+			complex_t kk = Ii * kx;
+			scalar_t k2 = (kk * kk).real();
+
+			if constexpr (O == 1)
+			{
+				return kk;
+			}
+			else if constexpr (O % 2 == 0)
+			{
+				return std::pow(k2, O / 2);
+			}
+			else
+			{
+				return kk * std::pow(k2, O / 2);
+			}
+		}
+	};
+
+
+	template<Axis ax, size_t O, size_t D>
+	struct k_field_entry;
+
+	//! Specialization based on k_field.
+	template<Axis ax, size_t O>
+	struct k_field_entry<ax, O, 3>
+	{
+		//! Fills the values of the wavenumber field of the prescribed dimension.
+		/*!
+		 * \param into The data array of the wavenumber.
+		 * \param dims The dimensions of the wavenumber.
+		 * \param h The uniform grid spacing of the wavenumber.
+		 *
+		 * \tparam O The exponential order (power) of the wavenumber.
+		 */
+		auto operator()(int n, const len_type* dims, const double* h) const
+		{
+			std::complex Ii(0.0, 1.0);
+
+			len_type L = dims[0];
+			len_type M = dims[1];
+			len_type N = dims[2];
+
+			int i = n % L;
+			int j = (n / L) % M;
+			int k = n / (L * M);
+
+			scalar_t
+				dk_i = 2 * symphas::PI / (h[0] * L),
+				dk_j = 2 * symphas::PI / (h[1] * M),
+				dk_k = 2 * symphas::PI / (h[2] * N);
+
+			scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
+			scalar_t ky = (j < M / 2) ? j * dk_j : (j - M) * dk_j;
+			scalar_t kz = (k < N / 2) ? k * dk_k : (k - N) * dk_k;
+			if (kz == 0)
+			{
+				kz = std::pow(symphas::EPS, 1.0 / (double)(O));
+			}
+			if (ky == 0)
+			{
+				ky = std::pow(symphas::EPS, 1.0 / (double)(O));
+			}
+			if (kx == 0)
+			{
+				kx = std::pow(symphas::EPS, 1.0 / (double)(O));
+			}
+
+			complex_t kc = Ii * ((ax == Axis::X) ? kx : (ax == Axis::Y) ? ky : (ax == Axis::Z) ? kz : -Ii);
+			cvector_t<3> kk{ Ii * kx, Ii * ky, Ii * kz };
+			scalar_t k2 = (kk * kk).real();
+
+			if constexpr (O == 1)
+			{
+				return kc;
+			}
+			else if constexpr (O % 2 == 0)
+			{
+				return std::pow(k2, O / 2);
+			}
+			else
+			{
+				return kc * std::pow(k2, O / 2);
+			}
+		}
+	};
+
+	//! Specialization based on k_field.
+	template<Axis ax, size_t O>
+	struct k_field_entry<ax, O, 2>
+	{
+		//! Fills the values of the wavenumber field of the prescribed dimension.
+		/*!
+		 * \param into The data array of the wavenumber.
+		 * \param dims The dimensions of the wavenumber.
+		 * \param h The uniform grid spacing of the wavenumber.
+		 *
+		 * \tparam O The exponential order (power) of the wavenumber.
+		 */
+		auto operator()(int n, const len_type* dims, const double* h) const
+		{
+			std::complex Ii(0.0, 1.0);
+
+			len_type L = dims[0];
+			len_type M = dims[1];
+
+			int i = n % L;
+			int j = (n / L);
+
+			scalar_t
+				dk_i = 2 * symphas::PI / (h[0] * L),
+				dk_j = 2 * symphas::PI / (h[1] * M);
+
+			scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
+			scalar_t ky = (j < M / 2) ? j * dk_j : (j - M) * dk_j;
+			if (ky == 0)
+			{
+				ky = std::pow(symphas::EPS, 1.0 / (double)(O));
+			}
+			if (kx == 0)
+			{
+				kx = std::pow(symphas::EPS, 1.0 / (double)(O));
+			}
+
+			complex_t kc = Ii * ((ax == Axis::X) ? kx : (ax == Axis::Y) ? ky : -Ii);
+			cvector_t<2> kk{ Ii * kx, Ii * ky};
+			scalar_t k2 = (kk * kk).real();
+
+			if constexpr (O == 1)
+			{
+				return kc;
+			}
+			else if constexpr (O % 2 == 0)
+			{
+				return std::pow(k2, O / 2);
+			}
+			else
+			{
+				return kc * std::pow(k2, O / 2);
+			}
+		}
+	};
+
+	//! Specialization based on k_field.
+	template<Axis ax, size_t O>
+	struct k_field_entry<ax, O, 1>
+	{
+		//! Fills the values of the wavenumber field of the prescribed dimension.
+		/*!
+		 * \param into The data array of the wavenumber.
+		 * \param dims The dimensions of the wavenumber.
+		 * \param h The uniform grid spacing of the wavenumber.
+		 *
+		 * \tparam O The exponential order (power) of the wavenumber.
+		 */
+		auto operator()(int n, const len_type* dims, const double* h) const
+		{
+			std::complex Ii(0.0, 1.0);
+
+			len_type L = dims[0];
+
+			int i = n;
+
+			scalar_t dk_i = 2 * symphas::PI / (h[0] * L);
+
+			scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
+			if (kx == 0)
+			{
+				kx = std::pow(symphas::EPS, 1.0 / (double)(O));
+			}
+
+			complex_t kc = Ii * kx;
+			cvector_t<1> kk{ Ii * kx };
+			scalar_t k2 = (kk * kk).real();
+
+			if constexpr (O == 1)
+			{
+				return kc;
+			}
+			else if constexpr (O % 2 == 0)
+			{
+				return std::pow(k2, O / 2);
+			}
+			else
+			{
+				return kc * std::pow(k2, O / 2);
+			}
+		}
+	};
+
+	//! Specialization based on k_field.
+	template<size_t O>
+	struct k_field_entry<Axis::NONE, O, 3>
+	{
+		//! Fills the values of the wavenumber field of the prescribed dimension.
+		/*!
+		 * \param into The data array of the wavenumber.
+		 * \param dims The dimensions of the wavenumber.
+		 * \param h The uniform grid spacing of the wavenumber.
+		 *
+		 * \tparam O The exponential order (power) of the wavenumber.
+		 */
+		auto operator()(int n, const len_type* dims, const double* h) const
+		{
+			std::complex Ii(0.0, 1.0);
+
+			len_type L = dims[0];
+			len_type M = dims[1];
+			len_type N = dims[2];
+
+			int i = n % L;
+			int j = (n / L) % M;
+			int k = n / (L * M);
+
+			scalar_t
+				dk_i = 2 * symphas::PI / (h[0] * L),
+				dk_j = 2 * symphas::PI / (h[1] * M),
+				dk_k = 2 * symphas::PI / (h[2] * N);
+
+			scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
+			scalar_t ky = (j < M / 2) ? j * dk_j : (j - M) * dk_j;
+			scalar_t kz = (k < N / 2) ? k * dk_k : (k - N) * dk_k;
+			if (kz == 0)
+			{
+				kz = std::pow(symphas::EPS, 1.0 / (double)(O));
+			}
+			if (ky == 0)
+			{
+				ky = std::pow(symphas::EPS, 1.0 / (double)(O));
+			}
+			if (kx == 0)
+			{
+				kx = std::pow(symphas::EPS, 1.0 / (double)(O));
+			}
+
+			cvector_t<3> kk{ Ii * kx, Ii * ky, Ii * kz };
+			scalar_t k2 = (kk * kk).real();
+
+			if constexpr (O == 1)
+			{
+				return kk;
+			}
+			else if constexpr (O % 2 == 0)
+			{
+				return std::pow(k2, O / 2);
+			}
+			else
+			{
+				return kk * std::pow(k2, O / 2);
+			}
+		}
+	};
+
+	//! Specialization based on k_field.
+	template<size_t O>
+	struct k_field_entry<Axis::NONE, O, 2>
+	{
+		//! Fills the values of the wavenumber field of the prescribed dimension.
+		/*!
+		 * \param into The data array of the wavenumber.
+		 * \param dims The dimensions of the wavenumber.
+		 * \param h The uniform grid spacing of the wavenumber.
+		 *
+		 * \tparam O The exponential order (power) of the wavenumber.
+		 */
+		auto operator()(int n, const len_type* dims, const double* h) const
+		{
+			std::complex Ii(0.0, 1.0);
+
+			len_type L = dims[0];
+			len_type M = dims[1];
+
+			int i = n % L;
+			int j = (n / L);
+
+			scalar_t
+				dk_i = 2 * symphas::PI / (h[0] * L),
+				dk_j = 2 * symphas::PI / (h[1] * M);
+
+			scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
+			scalar_t ky = (j < M / 2) ? j * dk_j : (j - M) * dk_j;
+			if (ky == 0)
+			{
+				ky = std::pow(symphas::EPS, 1.0 / (double)(O));
+			}
+			if (kx == 0)
+			{
+				kx = std::pow(symphas::EPS, 1.0 / (double)(O));
+			}
+
+			cvector_t<2> kk{ Ii * kx, Ii * ky };
+			scalar_t k2 = (kk * kk).real();
+
+			if constexpr (O == 1)
+			{
+				return kk;
+			}
+			else if constexpr (O % 2 == 0)
+			{
+				return std::pow(k2, O / 2);
+			}
+			else
+			{
+				return kk * std::pow(k2, O / 2);
+			}
+		}
+	};
+
+	//! Specialization based on k_field.
+	template<size_t O>
+	struct k_field_entry<Axis::NONE, O, 1>
+	{
+		//! Fills the values of the wavenumber field of the prescribed dimension.
+		/*!
+		 * \param into The data array of the wavenumber.
+		 * \param dims The dimensions of the wavenumber.
+		 * \param h The uniform grid spacing of the wavenumber.
+		 *
+		 * \tparam O The exponential order (power) of the wavenumber.
+		 */
+		auto operator()(int n, const len_type* dims, const double* h) const
+		{
+			std::complex Ii(0.0, 1.0);
+
+			len_type L = dims[0];
+
+			int i = n;
+
+			scalar_t dk_i = 2 * symphas::PI / (h[0] * L);
+
+			scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
+			if (kx == 0)
+			{
+				kx = std::pow(symphas::EPS, 1.0 / (double)(O));
+			}
+
+			cvector_t<1> kk{ Ii * kx };
+			scalar_t k2 = (kk * kk).real();
+
+			if constexpr (O == 1)
+			{
+				return kk;
+			}
+			else if constexpr (O % 2 == 0)
+			{
+				return std::pow(k2, O / 2);
+			}
+			else
+			{
+				return kk * std::pow(k2, O / 2);
 			}
 		}
 	};
@@ -609,12 +1140,14 @@ struct WaveVectorDataAxis;
  * \tparam O The exponential order (power) of the wavenumber.
  */
 template<size_t D>
-struct K
+struct K : GridData<void, D>
 {
-	K() : h{ 0 } {}
+	using parent_type = GridData<void, D>;
+	using parent_type::dims;
 
+	K() : parent_type(), h{ 0 } {}
 
-	K(double const* h) : h{ 0 }
+	K(const len_type* dims, double const* h) : parent_type(dims), h{ 0 }
 	{
 		if (h != nullptr)
 		{
@@ -633,32 +1166,31 @@ struct K
 	}
 
 	double h[D];
-
 };
 
 template<size_t O, size_t D>
-struct WaveVectorData : expr::wave_vector_grid<O, D>, K<D>
+struct WaveVectorData : expr::k_field_entry<Axis::NONE, O, D>, K<D>// : expr::wave_vector_grid<O, D>, K<D>
 {
-	using parent_type = expr::wave_vector_grid<O, D>;
+	using parent_type = expr::k_field_entry<Axis::NONE, O, D>;
 
-	using parent_type::dims;
-	using parent_type::len;
+	using K<D>::dims;
+	using K<D>::len;
 	using K<D>::h;
 
-	WaveVectorData(const len_type* dimensions, double const* h) : parent_type(dimensions), K<D>(h)
+	WaveVectorData(const len_type* dimensions, double const* h) : parent_type(), K<D>(dimensions, h)
 	{
-		expr::k_field<D>::template fill<O>(cast(), dims, h);
+		//expr::k_field<D>::template fill<O>(cast(), dims, h);
 	}
 
-	WaveVectorData(std::initializer_list<len_type> dimensions, double const* h) : parent_type(dimensions), K<D>(h)
+	WaveVectorData(std::initializer_list<len_type> dimensions, double const* h) : parent_type(), K<D>(dimensions, h)
 	{
-		expr::k_field<D>::template fill<O>(cast(), dims, h);
+		//expr::k_field<D>::template fill<O>(cast(), dims, h);
 	}
 
 	template<size_t O2>
-	WaveVectorData(WaveVectorData<O2, D> const& other) : parent_type(other.dims), K<D>(other.h)
+	WaveVectorData(WaveVectorData<O2, D> const& other) : parent_type(), K<D>(other.dims, other.h)
 	{
-		expr::k_field<D>::template fill<O>(cast(), dims, h);
+		//expr::k_field<D>::template fill<O>(cast(), dims, h);
 	}
 
 	template<size_t O2>
@@ -673,14 +1205,9 @@ struct WaveVectorData : expr::wave_vector_grid<O, D>, K<D>
 		return *this;
 	}
 
-	parent_type& cast()
+	auto operator[](iter_type n) const
 	{
-		return *static_cast<parent_type*>(this);
-	}
-
-	parent_type const& cast() const
-	{
-		return *static_cast<parent_type const*>(this);
+		return parent_type::operator()(n, dims, h);
 	}
 
 	friend void swap(WaveVectorData<O, D>& first, WaveVectorData<O, D>& second)
@@ -697,28 +1224,28 @@ protected:
 };
 
 template<Axis ax, size_t O, size_t D>
-struct WaveVectorDataComponent : expr::wave_vector_axis_grid<O, D>, K<D>
+struct WaveVectorDataComponent : expr::k_field_entry<ax, O, D>, K<D>// : expr::wave_vector_axis_grid<O, D>, K<D>
 {
-	using parent_type = expr::wave_vector_axis_grid<O, D>;
+	using parent_type = expr::k_field_entry<ax, O, D>;
 
-	using parent_type::dims;
-	using parent_type::len;
+	using K<D>::dims;
+	using K<D>::len;
 	using K<D>::h;
 
-	WaveVectorDataComponent(const len_type* dimensions, double const* h) : parent_type(dimensions), K<D>(h)
+	WaveVectorDataComponent(const len_type* dimensions, double const* h) : parent_type(), K<D>(dimensions, h)
 	{
-		expr::k_field<D>::template fill<ax, O>(cast(), dims, h);
+		//expr::k_field<D>::template fill<ax, O>(cast(), dims, h);
 	}
 
-	WaveVectorDataComponent(std::initializer_list<len_type> dimensions, double const* h) : parent_type(dimensions), K<D>(h)
+	WaveVectorDataComponent(std::initializer_list<len_type> dimensions, double const* h) : parent_type(), K<D>(dimensions, h)
 	{
-		expr::k_field<D>::template fill<ax, O>(cast(), dims, h);
+		//expr::k_field<D>::template fill<ax, O>(cast(), dims, h);
 	}
 
 	template<Axis ax2, size_t O2>
-	WaveVectorDataComponent(WaveVectorDataComponent<ax2, O2, D> const& other) : parent_type(other.dims), K<D>(other.h)
+	WaveVectorDataComponent(WaveVectorDataComponent<ax2, O2, D> const& other) : parent_type(), K<D>(other.dims, other.h)
 	{
-		expr::k_field<D>::template fill<ax, O>(cast(), dims, h);
+		//expr::k_field<D>::template fill<ax, O>(cast(), dims, h);
 	}
 
 	template<Axis ax2, size_t O2>
@@ -733,14 +1260,9 @@ struct WaveVectorDataComponent : expr::wave_vector_axis_grid<O, D>, K<D>
 		return *this;
 	}
 
-	parent_type& cast()
+	auto operator[](iter_type n) const
 	{
-		return *static_cast<parent_type*>(this);
-	}
-
-	parent_type const& cast() const
-	{
-		return *static_cast<parent_type const*>(this);
+		return parent_type::operator()(n, dims, h);
 	}
 
 	friend void swap(WaveVectorDataComponent<ax, O, D>& first, WaveVectorDataComponent<ax, O, D>& second)
@@ -756,29 +1278,30 @@ protected:
 };
 
 template<Axis ax, size_t O, size_t D>
-struct WaveVectorDataAxis : expr::wave_vector_axis_grid<O, D>, K<D>
+struct WaveVectorDataAxis : expr::k_field_axis_entry<ax, O, D>, K<D> // : expr::wave_vector_axis_grid<O, D>
 {
-	using parent_type = expr::wave_vector_axis_grid<O, D>;
+	//using parent_type = expr::wave_vector_axis_grid<O, D>;
+	using parent_type = expr::k_field_axis_entry<ax, O, D>;
 
 	//using Grid<T, D>::values;
-	using parent_type::dims;
-	using parent_type::len;
+	using K<D>::dims;
+	using K<D>::len;
 	using K<D>::h;
 
-	WaveVectorDataAxis(const len_type* dimensions, double const* h) : parent_type(dimensions), K<D>(h)
+	WaveVectorDataAxis(const len_type* dimensions, double const* h) : parent_type(), K<D>(dimensions, h)
 	{
-		expr::k_field<D>::template fill_axis<ax, O>(cast(), dims, h);
+		//expr::k_field<D>::template fill_axis<ax, O>(cast(), dims, h);
 	}
 
-	WaveVectorDataAxis(std::initializer_list<len_type> dimensions, double const* h) : parent_type(dimensions), K<D>(h)
+	WaveVectorDataAxis(std::initializer_list<len_type> dimensions, double const* h) : parent_type(), K<D>(dimensions,h)
 	{
-		expr::k_field<D>::template fill_axis<ax, O>(cast(), dims, h);
+		//expr::k_field<D>::template fill_axis<ax, O>(cast(), dims, h);
 	}
 
 	template<Axis ax2, size_t O2>
-	WaveVectorDataAxis(WaveVectorDataAxis<ax2, O2, D> const& other) : parent_type(other.dims), K<D>(other.h)
+	WaveVectorDataAxis(WaveVectorDataAxis<ax2, O2, D> const& other) : parent_type(), K<D>(other.dims, other.h)
 	{
-		expr::k_field<D>::template fill_axis<ax, O>(cast(), dims, h);
+		//expr::k_field<D>::template fill_axis<ax, O>(cast(), dims, h);
 	}
 
 	template<Axis ax2, size_t O2>
@@ -793,14 +1316,9 @@ struct WaveVectorDataAxis : expr::wave_vector_axis_grid<O, D>, K<D>
 		return *this;
 	}
 
-	parent_type& cast()
+	auto operator[](iter_type n) const
 	{
-		return *static_cast<parent_type*>(this);
-	}
-
-	parent_type const& cast() const
-	{
-		return *static_cast<parent_type const*>(this);
+		return parent_type::operator()(n, dims, h);
 	}
 
 	friend void swap(WaveVectorDataAxis<ax, O, D>& first, WaveVectorDataAxis<ax, O, D>& second)
@@ -843,25 +1361,25 @@ namespace symphas::internal
 	}
 
 	template<typename E>
-	struct order_K_type
+	struct order_K_type_check
 	{
 		static const size_t value = 0;
 	};
 
 	template<size_t O, size_t D>
-	struct order_K_type<k_grid_type<O, D>>
+	struct order_K_type_check<k_grid_type<O, D>>
 	{
 		static const size_t value = O;
 	};
 
 	template<Axis ax, size_t O, size_t D>
-	struct order_K_type<k_grid_component_type<ax, O, D>>
+	struct order_K_type_check<k_grid_component_type<ax, O, D>>
 	{
 		static const size_t value = O;
 	};
 
 	template<Axis ax, size_t O, size_t D>
-	struct order_K_type<k_grid_axis_type<ax, O, D>>
+	struct order_K_type_check<k_grid_axis_type<ax, O, D>>
 	{
 		static const size_t value = O;
 	};
@@ -874,7 +1392,7 @@ namespace symphas::internal
 template<typename G>
 struct order_K_type
 {
-	static const size_t value = symphas::internal::order_K_type<expr::original_data_t<G>>::value;
+	static const size_t value = symphas::internal::order_K_type_check<expr::original_data_t<G>>::value;
 };
 
 template<typename E>
@@ -1010,11 +1528,12 @@ DEFINE_FACTOR_COUNT((Axis ax, size_t O1, size_t O2, size_t D), (WaveVectorDataAx
  * K<O>::Grid; but this is always how the K<O>::Grid is originally constructed.
  */
 template<typename K1, expr::exp_key_t X1, typename K2, expr::exp_key_t X2, 
-	size_t O1 = order_K_type<K1>::value * expr::_Xk_t<X1>::N * expr::_Xk_t<X2>::D,
-	size_t O2 = order_K_type<K2>::value * expr::_Xk_t<X2>::N * expr::_Xk_t<X1>::D,
 	typename std::enable_if_t<(order_K_type<K1>::value > 0 && order_K_type<K2>::value > 0), int> = 0>
 auto operator*(Term<K1, X1> const& a, Term<K2, X2> const& b)
 {
+	constexpr size_t O1 = order_K_type<K1>::value * expr::_Xk_t<X1>::N * expr::_Xk_t<X2>::D;
+	constexpr size_t O2 = order_K_type<K2>::value * expr::_Xk_t<X2>::N * expr::_Xk_t<X1>::D;
+
 	constexpr size_t dimension = expr::grid_dim<K1>::dimension;
 	constexpr size_t D = expr::_Xk_t<X1>::D * expr::_Xk_t<X2>::D;
 

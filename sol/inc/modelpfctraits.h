@@ -92,20 +92,13 @@ protected:
 template<typename PFC>
 struct PFCTraitDynamic
 {
-	template<size_t N, symphas::internal::DynamicType dd, typename std::enable_if_t<(dd == symphas::internal::DynamicType::CONSERVED), int> = 0>
+	template<size_t N, symphas::internal::DynamicType dd>
 	auto construct_dynamic()
 	{
-		return
-			(OpLHS(expr::as_variable<N>(cast().template system<N>())) =
-				expr::laplacian(cast().template bulk_pfc_dynamic_N<N>() + cast().template coupled_pfc_dynamic_N<N>(), cast().solver));
-	}
-
-	template<size_t N, symphas::internal::DynamicType dd, typename std::enable_if_t<(dd == symphas::internal::DynamicType::NONCONSERVED), int> = 0>
-	auto construct_dynamic()
-	{
-		return
-			(OpLHS(expr::as_variable<N>(cast().template system<N>())) =
-				-cast().template bulk_pfc_dynamic_N<N>() - cast().template coupled_pfc_dynamic_N<N>());
+		return symphas::internal::apply_dynamics<dd>{}(
+			OpLHS(expr::as_variable<N>(cast().template system<N>())), 
+			cast().template bulk_pfc_dynamic_N<N>() + cast().template coupled_pfc_dynamic_N<N>(), 
+			cast().solver);
 	}
 
 protected:

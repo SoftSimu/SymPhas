@@ -141,8 +141,8 @@ struct ModelVirtual : Model<D, DataStepper<D>, S...>
 		symphas::problem_parameters_type pp{ SN };
 
 		symphas::init_data_type load;
-		load.in = (checkpoint) ? Inside::CHECKPOINT : Inside::FILE;
-		load.file = { dir, start_index };
+		load[Axis::NONE].in = (checkpoint) ? Inside::CHECKPOINT : Inside::FILE;
+		load[Axis::NONE].file = {dir, start_index};
 		pp.set_initial_data(&load, 1);
 
 		for (size_t n = 0; n < SN; ++n)

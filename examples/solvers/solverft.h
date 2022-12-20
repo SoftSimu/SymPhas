@@ -44,15 +44,11 @@ NEW_SOLVER_WITH_STENCIL(SolverFT)
 
 
 
-
-
-
-
 	/*
 	 * forward euler method for actually updating the grid
 	 */
 	template<typename S>
-	void step(S &sys, double dt) const
+	void step(S &sys) const
 	{
 		expr::result_interior(expr::make_term(sys.as_grid()) + expr::make_term(dt, sys.dframe), sys);
 	}
@@ -84,6 +80,7 @@ NEW_SOLVER_WITH_STENCIL(SolverFT)
 		auto [sys, equation] = e;
 		auto eq_ft = expr::apply_operators(equation);
 		
+		std::printf("\n");
 		return std::make_pair(sys, eq_ft);
 	}
 

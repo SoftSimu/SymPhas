@@ -731,7 +731,7 @@ namespace symphas::internal
 
 	inline void save_vec_default_print(std::vector<std::pair<axis_nd_t<2>, scalar_t>> const& data, FILE* f)
 	{
-		auto [L, M] = symphas::lib::get_dimensions<2>(data);
+		auto [L, M] = symphas::lib::get_dimensions<2>(data)._2();
 
 		fprintf(f, "% 10d ", 0);
 		for (iter_type i = 0; i < L; i++)
@@ -757,7 +757,7 @@ namespace symphas::internal
 
 	inline void save_vec_default_print(std::vector<std::pair<axis_nd_t<3>, scalar_t>> const& data, FILE *f)
 	{
-		auto [L, M, N] = symphas::lib::get_dimensions<3>(data);
+		auto [L, M, N] = symphas::lib::get_dimensions<3>(data)._3();
 		for (iter_type k = 0; k < N; k++)
 		{
 			fprintf(f, "% 10d ", k);
@@ -799,7 +799,7 @@ namespace symphas::internal
 
 	inline void save_vec_default_print(std::vector<std::pair<axis_nd_t<2>, complex_t>> const& data, FILE* f)
 	{
-		auto [L, M] = symphas::lib::get_dimensions<2>(data);
+		auto [L, M] = symphas::lib::get_dimensions<2>(data)._2();
 		
 		fprintf(f, "% 10d ", 0);
 		for (iter_type i = 0; i < L; i++)
@@ -825,7 +825,7 @@ namespace symphas::internal
 
 	inline void save_vec_default_print(std::vector<std::pair<axis_nd_t<3>, complex_t>> const& data, FILE* f)
 	{
-		auto [L, M, N] = symphas::lib::get_dimensions<3>(data);
+		auto [L, M, N] = symphas::lib::get_dimensions<3>(data)._3();
 		for (iter_type k = 0; k < N; k++)
 		{
 			fprintf(f, "% 10." AXIS_OUTPUT_ACCURACY_STR "f ", data[k * L * M].first[2]);

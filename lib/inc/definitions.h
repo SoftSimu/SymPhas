@@ -103,7 +103,7 @@ namespace symphas
 	/*!
 	 * Constant which represents a value which is almost but not equal to zero.
 	 */
-	constexpr double EPS = 1e-12;
+	constexpr double EPS = 1e-8;
 
 
 
@@ -393,9 +393,13 @@ enum class Geometry
  */
 enum class Axis
 {
-	X, //!< The horizontal component of a grid.
-	Y, //!< The vertical component of a grid.
-	Z  //!< The depth component of a grid.
+	X,		//!< The horizontal component of a grid.
+	Y,		//!< The vertical component of a grid.
+	Z,		//!< The depth component of a grid.
+	T,		//!< The angle of polar coordinates.
+	S,		//!< The angle of spherical coordinates.
+	R,		//!< The radius of polar or spherical coordinates.
+	NONE	//!< No axis is specified.
 };
 
 

@@ -137,7 +137,7 @@ namespace symphas::internal
 
 	/*!
 	 * Inplace calculation of the discrete fourier transform using
-	 * the Cooley–Tukey FFT algorithm.
+	 * the Cooleyï¿½Tukey FFT algorithm.
 	 */
 	inline void fft_alg(double* const (&r), double* const (&c), size_t N)
 	{

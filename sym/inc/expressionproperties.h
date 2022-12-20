@@ -95,24 +95,53 @@ namespace expr
 			return data_len_data(*static_cast<G const*>(&data));
 		}
 
+
 		//! Obtains the dimensions from the Grid compatible instance.
-		template<typename T, size_t D>
-		const len_type* data_dimensions_cast(Grid<T, D> const* data)
+		template<typename T>
+		grid::dim_list data_dimensions_cast(GridData<T, 1> const* data)
 		{
-			return data->dims;
+			return { data->dims[0] };
+		}
+		
+		//! Obtains the dimensions from the Grid compatible instance.
+		template<typename T>
+		grid::dim_list data_dimensions_cast(GridData<T, 2> const* data)
+		{
+			return { data->dims[0], data->dims[1] };
 		}
 
 		//! Obtains the dimensions from the Grid compatible instance.
-		template<typename T, size_t D>
-		const len_type* data_dimensions_cast(GridData<T, D> const* data)
+		template<typename T>
+		grid::dim_list data_dimensions_cast(GridData<T, 3> const* data)
 		{
-			return data->dims;
+			return { data->dims[0], data->dims[1], data->dims[2] };
+		}
+
+		//! Obtains the dimensions from the Grid compatible instance.
+		template<typename T>
+		grid::dim_list data_dimensions_cast(Grid<T, 1> const* data)
+		{
+			return { data->dims[0] };
+		}
+
+		//! Obtains the dimensions from the Grid compatible instance.
+		template<typename T>
+		grid::dim_list data_dimensions_cast(Grid<T, 2> const* data)
+		{
+			return { data->dims[0], data->dims[1] };
+		}
+
+		//! Obtains the dimensions from the Grid compatible instance.
+		template<typename T>
+		grid::dim_list data_dimensions_cast(Grid<T, 3> const* data)
+		{
+			return { data->dims[0], data->dims[1], data->dims[2] };
 		}
 
 		//! The dimension of a typical data object is undefined.
-		const len_type* data_dimensions_cast(...)
+		grid::dim_list data_dimensions_cast(...)
 		{
-			return nullptr;
+			return {};
 		}
 
 		//! Determines the dimensions of the data.
@@ -122,35 +151,35 @@ namespace expr
 		 * the data_len.
 		 */
 		template<typename T>
-		const len_type* data_dimensions_data(T const& data)
+		grid::dim_list data_dimensions_data(T const& data)
 		{
 			return data_dimensions_cast(&data);
 		}
 
 		//! Specialization based on expr::data_dimensions_data().
 		template<typename G>
-		const len_type* data_dimensions_data(symphas::ref<G> const& data)
+		grid::dim_list data_dimensions_data(symphas::ref<G> const& data)
 		{
 			return data_dimensions_data(data.get());
 		}
 
 		//! Specialization based on expr::data_dimensions_data().
 		template<typename G>
-		const len_type* data_dimensions_data(NamedData<G> const& data)
+		grid::dim_list data_dimensions_data(NamedData<G> const& data)
 		{
 			return data_dimensions_data(static_cast<G const&>(data));
 		}
 
 		//! Specialization based on expr::data_dimensions_data().
 		template<size_t Z, typename G>
-		const len_type* data_dimensions_data(Variable<Z, G> const& data)
+		grid::dim_list data_dimensions_data(Variable<Z, G> const& data)
 		{
 			return data_dimensions_data(*static_cast<G const*>(&data));
 		}
 
 		//! Specialization based on expr::data_dimensions_data().
 		template<Axis ax, typename G>
-		const len_type* data_dimensions_data(VectorComponent<ax, G> const& data)
+		grid::dim_list data_dimensions_data(VectorComponent<ax, G> const& data)
 		{
 			return data_dimensions_data(*static_cast<G const*>(&data));
 		}
@@ -173,9 +202,6 @@ namespace expr
 	//! Specialization based on expr::data_list(E const&).
 	template<typename V, typename... Gs, expr::exp_key_t... Xs>
 	auto data_list(OpTerms<V, Term<Gs, Xs>...> const& e);
-	//! Specialization based on expr::data_list(E const&).
-	template<typename G0, expr::exp_key_t X0, typename... Gs, expr::exp_key_t... Xs>
-	auto data_list(OpTerms<Term<G0, X0>, Term<Gs, Xs>...> const& e);
 	//! Specialization based on expr::data_list(E const&).
 	template<typename Dd, typename V, typename E, typename Sp>
 	auto data_list(OpFuncDerivative<Dd, V, E, Sp> const& e);
@@ -246,13 +272,14 @@ namespace expr
 	template<typename V, typename... Gs, expr::exp_key_t... Xs>
 	auto data_list(OpTerms<V, Term<Gs, Xs>...> const& e)
 	{
-		return data_list(expr::terms_after_first(e), std::make_index_sequence<sizeof...(Gs)>{});
-	}
-
-	template<typename G0, expr::exp_key_t X0, typename... Gs, expr::exp_key_t... Xs>
-	auto data_list(OpTerms<Term<G0, X0>, Term<Gs, Xs>...> const& e)
-	{
-		return data_list(e, std::make_index_sequence<sizeof...(Gs)>{});
+		if constexpr (expr::has_coeff<OpTerms<V, Term<Gs, Xs>...>>)
+		{
+			return data_list(expr::terms_after_first(e), std::make_index_sequence<sizeof...(Gs)>{});
+		}
+		else
+		{
+			return data_list(e, std::make_index_sequence<sizeof...(Gs)>{});
+		}
 	}
 
 	template<typename Dd, typename V, typename E, typename Sp>
@@ -402,55 +429,52 @@ namespace expr
 	 * returned.
 	 */
 	template<typename E>
-	const len_type* data_dimensions(E const& e);
+	grid::dim_list data_dimensions(E const& e);
 	//! Specialization based on expr::data_dimensions(E const&).
 	template<typename E>
-	const len_type* data_dimensions(OpExpression<E> const& e);
+	grid::dim_list data_dimensions(OpExpression<E> const& e);
 	//! Specialization based on expr::data_dimensions(E const&).
 	template<typename V, typename... Gs, expr::exp_key_t... Xs>
-	const len_type* data_dimensions(OpTerms<V, Term<Gs, Xs>...> const& e);
-	//! Specialization based on expr::data_dimensions(E const&).
-	template<typename G0, expr::exp_key_t X0, typename... Gs, expr::exp_key_t... Xs>
-	const len_type* data_dimensions(OpTerms<Term<G0, X0>, Term<Gs, Xs>...> const& e);
+	grid::dim_list data_dimensions(OpTerms<V, Term<Gs, Xs>...> const& e);
 	//! Specialization based on expr::data_dimensions(E const&).
 	template<typename Dd, typename V, typename E, typename Sp>
-	const len_type* data_dimensions(OpFuncDerivative<Dd, V, E, Sp> const& e);
+	grid::dim_list data_dimensions(OpFuncDerivative<Dd, V, E, Sp> const& e);
 	//! Specialization based on expr::data_dimensions(E const&).
 	template<typename A1, typename A2, typename E>
-	const len_type* data_dimensions(OpCombination<A1, A2, E> const& e);
+	grid::dim_list data_dimensions(OpCombination<A1, A2, E> const& e);
 	//! Specialization based on expr::data_dimensions(E const&).
 	template<typename A1, typename A2, typename E>
-	const len_type* data_dimensions(OpChain<A1, A2, E> const& e);
+	grid::dim_list data_dimensions(OpChain<A1, A2, E> const& e);
 	//! Specialization based on expr::data_dimensions(E const&).
 	template<typename V, typename E>
-	const len_type* data_dimensions(OpExponential<V, E> const& e);
+	grid::dim_list data_dimensions(OpExponential<V, E> const& e);
 	//! Specialization based on expr::data_dimensions(E const&).
 	template<auto f, typename V, typename E>
-	const len_type* data_dimensions(OpFuncApply<f, V, E> const& e);
+	grid::dim_list data_dimensions(OpFuncApply<f, V, E> const& e);
 	//! Specialization based on expr::data_dimensions(E const&).
 	template<typename V, typename E, typename F, typename Arg0, typename... Args>
-	const len_type* data_dimensions(OpFunc<V, E, F, Arg0, Args...> const& e);
+	grid::dim_list data_dimensions(OpFunc<V, E, F, Arg0, Args...> const& e);
 	//! Specialization based on expr::data_dimensions(E const&).
 	template<typename V, typename E1, typename E2>
-	const len_type* data_dimensions(OpFuncConvolution<V, E1, E2> const& e);
+	grid::dim_list data_dimensions(OpFuncConvolution<V, E1, E2> const& e);
 	//! Specialization based on expr::data_dimensions(E const&).
 	template<typename V, size_t D, typename E>
-	const len_type* data_dimensions(OpFuncConvolution<V, GaussianSmoothing<D>, E> const& e);
+	grid::dim_list data_dimensions(OpFuncConvolution<V, GaussianSmoothing<D>, E> const& e);
 	//! Specialization based on expr::data_dimensions(E const&).
 	template<typename G, typename V, typename E>
-	const len_type* data_dimensions(OpMap<G, V, E> const& e);
+	grid::dim_list data_dimensions(OpMap<G, V, E> const& e);
 	//! Specialization based on expr::data_dimensions(E const&).
 	template<size_t D>
-	const len_type* data_dimensions(GaussianSmoothing<D> const& e);
+	grid::dim_list data_dimensions(GaussianSmoothing<D> const& e);
 	//! Specialization based on expr::data_dimensions(E const&).
 	template<typename E0, typename... Es>
-	const len_type* data_dimensions(OpAdd<E0, Es...> const& e);
+	grid::dim_list data_dimensions(OpAdd<E0, Es...> const& e);
 	//! Specialization based on expr::data_dimensions(E const&).
 	template<typename E1, typename E2>
-	const len_type* data_dimensions(OpBinaryMul<E1, E2> const& e);
+	grid::dim_list data_dimensions(OpBinaryMul<E1, E2> const& e);
 	//! Specialization based on expr::data_dimensions(E const&).
 	template<typename E1, typename E2>
-	const len_type* data_dimensions(OpBinaryDiv<E1, E2> const& e);
+	grid::dim_list data_dimensions(OpBinaryDiv<E1, E2> const& e);
 
 
 	//! Obtain the dimensions of the data in the expression.
@@ -462,122 +486,130 @@ namespace expr
 	 * the dimensions from the other.
 	 */
 	template<typename E1, typename E2>
-	const len_type* data_dimensions(OpExpression<E1> const& a, OpExpression<E2> const& b);
+	grid::dim_list data_dimensions(OpExpression<E1> const& a, OpExpression<E2> const& b);
 
 
 	template<typename E>
-	const len_type* data_dimensions(E const& e)
+	grid::dim_list data_dimensions(E const& e)
 	{
 		return data_dimensions_data(e);
 	}
 
 	template<typename E>
-	const len_type* data_dimensions(OpExpression<E> const& e)
+	grid::dim_list data_dimensions(OpExpression<E> const& e)
 	{
 		return data_dimensions(*static_cast<E const*>(&e));
 	}
 
-
-	template<typename G0, expr::exp_key_t X0, typename... Gs, expr::exp_key_t... Xs>
-	const len_type* data_dimensions(OpTerms<Term<G0, X0>, Term<Gs, Xs>...> const& e)
-	{
-		auto data_dimensions1 = data_dimensions(e.term.data());
-		return (data_dimensions1 != nullptr) ? data_dimensions1 : data_dimensions(expr::terms_after_first(e));
-
-	}
-
 	template<typename V, typename... Gs, expr::exp_key_t... Xs>
-	const len_type* data_dimensions(OpTerms<V, Term<Gs, Xs>...> const& e)
+	grid::dim_list data_dimensions(OpTerms<V, Term<Gs, Xs>...> const& e)
 	{
-		return data_dimensions(expr::terms_after_first(e));
+		if constexpr (expr::has_coeff<OpTerms<V, Term<Gs, Xs>...>>)
+		{
+			return data_dimensions(expr::terms_after_first(e));
+		}
+		else
+		{
+			auto data_dimensions1 = data_dimensions(e.term.data());
+			return (data_dimensions1.n > 0) ? data_dimensions1 : data_dimensions(expr::terms_after_first(e));
+		}
 	}
 
 	template<typename Dd, typename V, typename E, typename Sp>
-	const len_type* data_dimensions(OpFuncDerivative<Dd, V, E, Sp> const& e)
+	grid::dim_list data_dimensions(OpFuncDerivative<Dd, V, E, Sp> const& e)
 	{
 		return data_dimensions(expr::get_enclosed_expression(e));
 	}
 
 	template<typename A1, typename A2, typename E>
-	const len_type* data_dimensions(OpCombination<A1, A2, E> const& e)
+	grid::dim_list data_dimensions(OpCombination<A1, A2, E> const& e)
 	{
 		return data_dimensions(expr::get_enclosed_expression(e));
 	}
 
 	template<typename A1, typename A2, typename E>
-	const len_type* data_dimensions(OpChain<A1, A2, E> const& e)
+	grid::dim_list data_dimensions(OpChain<A1, A2, E> const& e)
 	{
 		return data_dimensions(e.e);
 	}
 
 	template<typename V, typename E>
-	const len_type* data_dimensions(OpExponential<V, E> const& e)
+	grid::dim_list data_dimensions(OpExponential<V, E> const& e)
 	{
 		return data_dimensions(e.e);
 	}
 
 	template<auto f, typename V, typename E>
-	const len_type* data_dimensions(OpFuncApply<f, V, E> const& e)
+	grid::dim_list data_dimensions(OpFuncApply<f, V, E> const& e)
 	{
 		return data_dimensions(e.e);
 	}
 
 	template<typename V, typename E, typename F, typename Arg0, typename... Args>
-	const len_type* data_dimensions(OpFunc<V, E, F, Arg0, Args...> const& e)
+	grid::dim_list data_dimensions(OpFunc<V, E, F, Arg0, Args...> const& e)
 	{
 		return data_dimensions(e.e);
 	}
 
 	template<typename V, typename E1, typename E2>
-	const len_type* data_dimensions(OpFuncConvolution<V, E1, E2> const& e)
+	grid::dim_list data_dimensions(OpFuncConvolution<V, E1, E2> const& e)
 	{
 		return data_dimensions(e.a, e.b);
 	}
 
 	template<typename V, size_t D, typename E>
-	const len_type* data_dimensions(OpFuncConvolution<V, GaussianSmoothing<D>, E> const& e)
+	grid::dim_list data_dimensions(OpFuncConvolution<V, GaussianSmoothing<D>, E> const& e)
 	{
 		return data_dimensions(expr::get_enclosed_expression(e), e.smoother);
 	}
 
 	template<typename G, typename V, typename E>
-	const len_type* data_dimensions(OpMap<G, V, E> const& e)
+	grid::dim_list data_dimensions(OpMap<G, V, E> const& e)
 	{
 		return data_dimensions(expr::get_enclosed_expression(e));
 	}
 
 	template<size_t D>
-	const len_type* data_dimensions(GaussianSmoothing<D> const& e)
+	grid::dim_list data_dimensions(GaussianSmoothing<D> const& e)
 	{
 		return data_dimensions_data(e.data);
 	}
 
 	template<typename E0, typename... Es>
-	const len_type* data_dimensions(OpAdd<E0, Es...> const& e)
+	grid::dim_list data_dimensions(OpAdd<E0, Es...> const& e)
 	{
 		auto data_dimensions1 = data_dimensions(e.data);
-		return (data_dimensions1 != nullptr) ? data_dimensions1 : data_dimensions(expr::terms_after_first(e));
+		return (data_dimensions1.n > 0) ? data_dimensions1 : data_dimensions(expr::terms_after_first(e));
 	}
 
 	template<typename E1, typename E2>
-	const len_type* data_dimensions(OpBinaryMul<E1, E2> const& e)
+	grid::dim_list data_dimensions(OpBinaryMul<E1, E2> const& e)
 	{
 		return data_dimensions(e.a, e.b);
 	}
 
 	template<typename E1, typename E2>
-	const len_type* data_dimensions(OpBinaryDiv<E1, E2> const& e)
+	grid::dim_list data_dimensions(OpBinaryDiv<E1, E2> const& e)
 	{
 		return data_dimensions(e.a, e.b);
 	}
 
 	template<typename E1, typename E2>
-	const len_type* data_dimensions(OpExpression<E1> const& a, OpExpression<E2> const& b)
+	grid::dim_list data_dimensions(OpExpression<E1> const& a, OpExpression<E2> const& b)
 	{
 		auto data_dimensions1 = data_dimensions(*static_cast<const E1*>(&a));
 		return (data_dimensions1 != nullptr) ? data_dimensions1 : data_dimensions(*static_cast<const E2*>(&b));
 	}
 
+	template<typename E, size_t D>
+	void fill_data_dimensions(OpExpression<E> const& a, len_type (&dims)[D])
+	{
+		auto data_dims = data_dimensions(*static_cast<const E*>(&a));
+		for (iter_type i = 0; i < D; ++i)
+		{
+			dims[i] = data_dims[i];
+		}
+	}
 
 
 	//! Obtain the length of the data in the expression.
@@ -595,9 +627,6 @@ namespace expr
 	//! Specialization based on expr::data_len(E const&).
 	template<typename V, typename... Gs, expr::exp_key_t... Xs>
 	len_type data_len(OpTerms<V, Term<Gs, Xs>...> const& e);
-	//! Specialization based on expr::data_len(E const&).
-	template<typename G0, expr::exp_key_t X0, typename... Gs, expr::exp_key_t... Xs>
-	len_type data_len(OpTerms<Term<G0, X0>, Term<Gs, Xs>...> const& e);
 	//! Specialization based on expr::data_len(E const&).
 	template<typename Dd, typename V, typename E, typename Sp>
 	len_type data_len(OpFuncDerivative<Dd, V, E, Sp> const& e);
@@ -678,13 +707,14 @@ namespace expr
 	template<typename V, typename... Gs, expr::exp_key_t... Xs>
 	len_type data_len(OpTerms<V, Term<Gs, Xs>...> const& e)
 	{
-		return data_len(expr::terms_after_first(e), std::make_index_sequence<sizeof...(Gs)>{});
-	}
-
-	template<typename G0, expr::exp_key_t X0, typename... Gs, expr::exp_key_t... Xs>
-	len_type data_len(OpTerms<Term<G0, X0>, Term<Gs, Xs>...> const& e)
-	{
-		return data_len(e, std::make_index_sequence<sizeof...(Gs) + 1>{});
+		if constexpr (expr::has_coeff<OpTerms<V, Term<Gs, Xs>...>>)
+		{
+			return data_len(expr::terms_after_first(e), std::make_index_sequence<sizeof...(Gs)>{});
+		}
+		else
+		{
+			return data_len(e, std::make_index_sequence<sizeof...(Gs) + 1>{});
+		}
 	}
 
 	template<typename Dd, typename V, typename E, typename Sp>
@@ -750,7 +780,7 @@ namespace expr
 	//template<typename E>
 	//len_type data_len(OpMap<symphas::internal::STHC, OpIdentity, E> const& e)
 	//{
-	//	const len_type* dims = data_dimensions(expr::get_enclosed_expression(e));
+	//	grid::dim_list dims = data_dimensions(expr::get_enclosed_expression(e));
 	//	len_type len = dims[0] / 2 + 1;
 	//	for (iter_type i = 1; i < expr::grid_dim<E>::value; ++i)
 	//	{

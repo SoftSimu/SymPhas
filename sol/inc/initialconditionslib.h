@@ -54,11 +54,11 @@
 
 
 //! Returns the outer value to an initial condition.
-#define IC_OUTER_VALUE (symphas::internal::tag_bit_compare(tdata.intag, InsideTag::INVERT) \
+#define IC_OUTER_VALUE (symphas::internal::tag_bit_compare(init.intag, InsideTag::INVERT) \
 	? params::init_inside_val \
 	: params::init_outside_val)
 //! Returns the interior value to an initial condition.
-#define IC_INNER_VALUE (symphas::internal::tag_bit_compare(tdata.intag, InsideTag::INVERT) \
+#define IC_INNER_VALUE (symphas::internal::tag_bit_compare(init.intag, InsideTag::INVERT) \
 	? params::init_outside_val \
 	: params::init_inside_val)
 
@@ -86,11 +86,30 @@ enum class Inside
 	SEEDSSQUARE, 		//!< Values are put into randomly arranged squares.
 	SEEDSCIRCLE,		//!< Values are put into randomly arranged circles.
 	VORONOI,			//!< Generate values in a Voronoi diagram.
+	BUBBLE,				//!< Generate random semi-overlapping circles.
+	SIN,				//!< Generate values from the sin function.
+	COS,				//!< Generate values from the sin function.
 	FILE, 				//!< Values are read in from a file.
 	CHECKPOINT,			//!< Values are read in from a checkpoint.
 	EXPRESSION,			//!< An equation that is specified similar to the model definitions.
 	NONE				//!< Represents no initial condition.
 };
+
+#define ALL_INSIDE_GEN_VALUES \
+Inside::CAPPED,					\
+Inside::CIRCLE,					\
+Inside::SQUARE,					\
+Inside::CONSTANT,				\
+Inside::CUBIC,					\
+Inside::HEXAGONAL,				\
+Inside::GAUSSIAN,				\
+Inside::UNIFORM,				\
+Inside::SEEDSCIRCLE,			\
+Inside::SEEDSSQUARE,			\
+Inside::VORONOI,				\
+Inside::BUBBLE,					\
+Inside::SIN,					\
+Inside::COS
 
 //! Modifies the initial condition generation algorithm.
 /*!
@@ -101,6 +120,7 @@ enum class InsideTag
 {
 	DEFAULT,	//!< The default initial generation algorithm is chosen.
 	RANDOM,		//!< The generation is modified to include some kind of randomness.
+	FIXEDSEED,	//!< Randomness will not vary throughout the field; not supported by all algorithms.
 	VARA,		//!< The A variation is chosen (different from the default variation).
 	VARB,		//!< The B variation is chosen.
 	VARC,		//!< The C variation is chosen.
@@ -131,7 +151,7 @@ namespace symphas::internal
 namespace symphas
 {
 
-	//! Creates a tag index from the given ::InsideTag. \relatesalso init_data_type const& InsideTag Inside
+	//! Creates a tag index from the given ::InsideTag. \relatesalso init_entry_type const& InsideTag Inside
 	/*!
 	 * The tag is created by bit-shifting the number of bits equal to the index
 	 * of the InsideTag. This represents the tag value associated with
@@ -141,7 +161,20 @@ namespace symphas
 	 */
 	inline size_t build_intag(InsideTag tag)
 	{
-		return (1ull << symphas::internal::tagtoul(tag));
+		if (tag == InsideTag::NONE)
+		{
+			return 0ull;
+		}
+		else
+		{
+			return (1ull << symphas::internal::tagtoul(tag));
+		}
+	}
+
+	template<typename... tag_types>
+	inline size_t build_intag(tag_types... tags)
+	{
+		return (0ull | ... | build_intag(tags));
 	}
 
 	//! Creates a tag index from the given ::InsideTag and index.
@@ -179,16 +212,44 @@ namespace symphas
 	 */
 	struct init_data_parameters
 	{
-		double gp[NUM_INIT_CONSTANTS]{ 0 };	//!< The generation parameters for the algorithm generating the values.
+		double* gp;			//!< The generation parameters for the algorithm generating the values.
+		size_t N;			//!< The number of parameters.
+
+		init_data_parameters(size_t N = NUM_INIT_CONSTANTS) : gp{ (N > 0) ? new double[N] {0} : nullptr }, N{ N } {}
+		init_data_parameters(init_data_parameters const& other) : init_data_parameters(other.N)
+		{
+			std::copy(other.gp, other.gp + other.N, gp);
+		}
+		init_data_parameters(init_data_parameters&& other) noexcept : init_data_parameters(0)
+		{
+			swap(*this, other);
+		}
+		init_data_parameters& operator=(init_data_parameters other)
+		{
+			swap(*this, other);
+			return *this;
+		}
+
+		~init_data_parameters()
+		{
+			delete[] gp;
+		}
+
+		friend void swap(init_data_parameters& first, init_data_parameters& second)
+		{
+			using std::swap;
+			swap(first.gp, second.gp);
+			swap(first.N, second.N);
+		}
 
 		//! Creates the list of parameters which are all set to 1.
 		/*!
 		 * Creates the list of parameters which are all set to 1.
 		 */
-		static init_data_parameters one()
+		static init_data_parameters one(size_t N = NUM_INIT_CONSTANTS)
 		{
-			init_data_parameters tp;
-			for (iter_type i = 0; i < sizeof(tp.gp) / sizeof(double); ++i)
+			init_data_parameters tp(N);
+			for (iter_type i = 0; i < N; ++i)
 			{
 				tp.gp[i] = 1;
 			}
@@ -463,14 +524,14 @@ namespace symphas
 	 * the file name should conform to *SymPhas* standards, as the file
 	 * name can't be set directly. See ::init_data_read.
 	 */
-	struct init_data_type
+	struct init_entry_type
 	{
 		//! Create initial conditions data with no parameters.
 		/*!
 		 * The default initial condition is disabled.
 		 */
-		init_data_type() : 
-			in{ Inside::NONE }, intag{ symphas::build_intag(InsideTag::NONE) }, data{ 0 } {}
+		init_entry_type() : 
+			in{ Inside::NONE }, intag{ symphas::build_intag(InsideTag::NONE) }, data{} {}
 
 		//! Create initial conditions data.
 		/*!
@@ -485,7 +546,7 @@ namespace symphas
 		 * \param intag The modifiers to the initial conditions algorithm.
 		 * \param data Parameters used in generating the initial conditions.
 		 */
-		init_data_type(Inside in, size_t intag, init_data_parameters data) : 
+		init_entry_type(Inside in, size_t intag, init_data_parameters data) : 
 			in{ in }, intag{ intag }, data{ data } {}
 
 		//! Create initial conditions data.
@@ -499,8 +560,8 @@ namespace symphas
 		 * \param intag The modifiers to the initial conditions algorithm.
 		 * \param data Parameters used in generating the initial conditions.
 		 */
-		init_data_type(Inside in, InsideTag intag, init_data_parameters data) : 
-			init_data_type(in, symphas::build_intag(intag), data) {}
+		init_entry_type(Inside in, InsideTag intag, init_data_parameters data) : 
+			init_entry_type(in, symphas::build_intag(intag), data) {}
 
 		//! Create initial conditions data.
 		/*!
@@ -513,8 +574,8 @@ namespace symphas
 		 * algorithm.
 		 * \param data Parameters used in generating the initial conditions.
 		 */
-		init_data_type(Inside in, init_data_parameters data) : 
-			init_data_type(in, InsideTag::DEFAULT, data) {}
+		init_entry_type(Inside in, init_data_parameters data) : 
+			init_entry_type(in, InsideTag::DEFAULT, data) {}
 
 		//! Create initial conditions data.
 		/*!
@@ -525,8 +586,8 @@ namespace symphas
 		 * \param in A value representing initial condition generation
 		 * algorithm.
 		 */
-		init_data_type(Inside in) : 
-			init_data_type(in, InsideTag::DEFAULT, init_data_parameters::one()) {}
+		init_entry_type(Inside in) : 
+			init_entry_type(in, InsideTag::DEFAULT, init_data_parameters::one()) {}
 
 		//! Create initial conditions data from a file.
 		/*!
@@ -537,7 +598,7 @@ namespace symphas
 		 * algorithm.
 		 * \param file Information about the file.
 		 */
-		init_data_type(Inside in, init_data_read file) : 
+		init_entry_type(Inside in, init_data_read file) : 
 			in{ in }, intag{ symphas::build_intag(InsideTag::DEFAULT) }, file{ file } {}
 
 		//! Create initial conditions data from a file.
@@ -547,8 +608,8 @@ namespace symphas
 		 *
 		 * \param file Information about the file.
 		 */
-		init_data_type(init_data_read file) :
-			init_data_type(Inside::FILE, file) {}
+		init_entry_type(init_data_read file) :
+			init_entry_type(Inside::FILE, file) {}
 
 		//! Create initial conditions data from a file.
 		/*!
@@ -557,7 +618,7 @@ namespace symphas
 		 *
 		 * \param file Information about the file.
 		 */
-		init_data_type(init_data_expr expr_data) :
+		init_entry_type(init_data_expr expr_data) :
 			in{ Inside::EXPRESSION }, intag{ symphas::build_intag(InsideTag::DEFAULT) }, expr_data{ expr_data } {}
 
 		//! Create initial conditions using a given functor.
@@ -570,33 +631,33 @@ namespace symphas
 		 * the initial conditions.
 		 */
 		template<typename F>
-		init_data_type(init_data_functor<F> const& f) : 
+		init_entry_type(init_data_functor<F> const& f) : 
 			in{ Inside::NONE }, intag{ symphas::build_intag(InsideTag::DEFAULT) }, 
 			f_init{ f.make_copy() } {}
 
 		template<typename F, typename = std::invoke_result_t<F, iter_type, len_type const*, size_t>>
-		init_data_type(F &&f) : init_data_type(init_data_functor{ std::forward<F>(f) }) {}
+		init_entry_type(F &&f) : init_entry_type(init_data_functor{ std::forward<F>(f) }) {}
 
 
-		init_data_type(init_data_type&& other) noexcept : init_data_type()
+		init_entry_type(init_entry_type&& other) noexcept : init_entry_type()
 		{
 			swap(*this, other);
 		}
 
-		init_data_type(init_data_type const& other) : init_data_type()
+		init_entry_type(init_entry_type const& other) : init_entry_type()
 		{
 			other.copy_to(*this);
 		}
 
-		init_data_type operator=(init_data_type other)
+		init_entry_type operator=(init_entry_type other)
 		{
 			swap(*this, other);
 			return *this;
 		}
 
-		friend void swap(init_data_type& first, init_data_type& second)
+		friend void swap(init_entry_type& first, init_entry_type& second)
 		{
-			init_data_type tmp;
+			init_entry_type tmp;
 
 			first.copy_to(tmp);
 			second.copy_to(first);
@@ -604,7 +665,7 @@ namespace symphas
 		}
 
 
-		~init_data_type()
+		~init_entry_type()
 		{
 			if (in == Inside::NONE 
 				&& symphas::internal::tag_bit_compare(intag, InsideTag::DEFAULT))
@@ -626,7 +687,7 @@ namespace symphas
 			init_data_expr expr_data;			//!< The file from which the field is populated.
 		};
 
-		void copy_to(init_data_type &other) const
+		void copy_to(init_entry_type &other) const
 		{
 			other.in = in;
 			other.intag = intag;
@@ -655,7 +716,9 @@ namespace symphas
 		}
 
 	};
-	void swap(init_data_type& first, init_data_type& second);
+	void swap(init_entry_type& first, init_entry_type& second);
+
+	using init_data_type = std::map<Axis, init_entry_type>;
 
 	//! From the given string, get the corresponding initial condition.
 	/*!
@@ -689,7 +752,7 @@ namespace symphas
 
 }
 
-inline void swap(symphas::init_data_type& first, symphas::init_data_type& second)
+inline void swap(symphas::init_entry_type& first, symphas::init_entry_type& second)
 {
 	symphas::swap(first, second);
 }
@@ -745,6 +808,14 @@ namespace symphas::internal
 			return offsets[i].data();
 		}
 
+		void set_offset(size_t i, const T* values) const
+		{
+			for (iter_type n = 0; n < D; ++n)
+			{
+				offsets[i].data()[n] = values[n];
+			}
+		}
+
 
 	private:
 		std::vector<std::array<T, D>> offsets;
@@ -757,15 +828,24 @@ namespace symphas::internal
 		RandomOffsets() {}
 		template<typename S>
 		RandomOffsets(size_t n, S const* means, double s);
+
 		template<typename S>
 		RandomOffsets(size_t n, S const* scales);
+
+		template<typename S, typename = std::enable_if_t<(!std::is_pointer_v<S> && !std::is_array_v<S>), int>>
+		RandomOffsets(size_t n, S const& mean, double s) : RandomOffsets(n, &mean, s) {}
 
 		auto get_offset(size_t i) const
 		{
 			return offsets[i];
 		}
 
-	private:
+		void set_offset(size_t i, T const& value)
+		{
+			offsets[i] = value;
+		}
+
+	protected:
 		std::vector<T> offsets;
 	};
 
@@ -1208,16 +1288,30 @@ namespace symphas::internal
 		 */
 		RandomDeltas(size_t n, len_type const* dims, double s = 1);
 
+		//! Create the delts from an existing list.
+		/*!
+		 * \param points The list of points to copy in.
+		 */
+		RandomDeltas(std::vector<std::array<double, D>> const& points) : points{ points } {}
+
 		//! Return the element at the chosen index..
-		const double* get_delta(size_t i) const
+		std::array<double, D> get_delta(size_t i) const
 		{
-			return points[i].data();
+			return points[i];
 		}
 
 		//! Return the list of all elements.
 		auto get_deltas() const
 		{
 			return points;
+		}
+
+		auto set_delta(size_t i, std::array<double, D> const& value)
+		{
+			for (iter_type n = 0; n < D; ++n)
+			{
+				points[i][n] = value[n];
+			}
 		}
 
 		//! Add a value to each of the random elements.
@@ -1230,6 +1324,11 @@ namespace symphas::internal
 					e[i] += value[i];
 				}
 			}
+		}
+
+		size_t size() const
+		{
+			return points.size();
 		}
 
 		void sort();
@@ -1256,12 +1355,22 @@ namespace symphas::internal
 			return points;
 		}
 
+		auto set_delta(size_t i, double const& value)
+		{
+			points[i] = value;
+		}
+
 		void add_to_all(const double *value)
 		{
 			for (auto& e : points)
 			{
 				e += *value;
 			}
+		}
+
+		size_t size() const
+		{
+			return points.size();
 		}
 
 		void sort()
@@ -1391,7 +1500,7 @@ namespace symphas::internal
 
 
 	template<typename Pred>
-	double seeds_1(iter_type n, len_type const* dims, symphas::init_data_type const& init_data, Pred p, 
+	double seeds_1(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
 		RandomDeltas<1> const* offsets, double seed_val, double field_val)
 	{
 		size_t num_points = static_cast<size_t>(init_data.data.gp[0]);
@@ -1411,7 +1520,7 @@ namespace symphas::internal
 
 
 	template<typename Pred>
-	double seeds_rnd_1(iter_type n, len_type const* dims, symphas::init_data_type const& init_data, Pred p, 
+	double seeds_rnd_1(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
 		RandomDeltas<1> const* offsets, RandomOffsets<double, 1> const* values, 
 		double seed_val, double field_val, double rnd_offset)
 	{
@@ -1432,7 +1541,7 @@ namespace symphas::internal
 
 
 	template<typename Pred>
-	double seeds_A_1(iter_type n, len_type const* dims, symphas::init_data_type const& init_data, Pred p, 
+	double seeds_A_1(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
 		RandomDeltas<1> const* offsets, RandomOffsets<len_type, 1> const* scales, double seed_val, double field_val)
 	{
 		size_t num_points = static_cast<size_t>(init_data.data.gp[0]);
@@ -1452,7 +1561,7 @@ namespace symphas::internal
 	}
 
 	template<typename Pred>
-	double seeds_A_rnd_1(iter_type n, len_type const* dims, symphas::init_data_type const& init_data, Pred p, 
+	double seeds_A_rnd_1(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
 		RandomDeltas<1> const* offsets, RandomOffsets<len_type, 1> const* scales, RandomOffsets<double, 1> const* values,
 		double seed_val, double field_val, double rnd_offset)
 	{
@@ -1474,7 +1583,7 @@ namespace symphas::internal
 
 
 	template<typename Pred>
-	double seeds_B_1(iter_type n, len_type const* dims, symphas::init_data_type const& init_data, Pred p, 
+	double seeds_B_1(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
 		RandomDeltas<1> const* offsets, RandomOffsets<len_type, 1> const* scales, double seed_val, double field_val)
 	{
 		return seeds_A_1(n, dims, init_data, p, offsets, scales, seed_val, field_val);
@@ -1482,7 +1591,7 @@ namespace symphas::internal
 
 
 	template<typename Pred>
-	double seeds_B_rnd_1(iter_type n, len_type const* dims, symphas::init_data_type const& init_data, Pred p, 
+	double seeds_B_rnd_1(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
 		RandomDeltas<1> const* offsets, RandomOffsets<len_type, 1> const* scales, RandomOffsets<double, 1> const* values, 
 		double seed_val, double field_val, double rnd_offset)
 	{
@@ -1495,7 +1604,7 @@ namespace symphas::internal
 	// ********************************************************************************
 
 	template<typename Pred>
-	double seeds_2(iter_type n, len_type const* dims, symphas::init_data_type const& init_data, Pred p, 
+	double seeds_2(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
 		RandomDeltas<2> const* offsets, double seed_val, double field_val)
 	{
 		size_t num_points = static_cast<size_t>(init_data.data.gp[0]);
@@ -1523,7 +1632,7 @@ namespace symphas::internal
 
 
 	template<typename Pred>
-	double seeds_rnd_2(iter_type n, len_type const* dims, symphas::init_data_type const& init_data, Pred p, 
+	double seeds_rnd_2(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
 		RandomDeltas<2> const* offsets, RandomOffsets<double, 1> const* values,
 		double seed_val, double field_val, double rnd_offset)
 	{
@@ -1552,7 +1661,7 @@ namespace symphas::internal
 
 
 	template<typename Pred>
-	double seeds_A_2(iter_type n, len_type const* dims, symphas::init_data_type const& init_data, Pred p, 
+	double seeds_A_2(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
 		RandomDeltas<2> const* offsets, RandomOffsets<len_type, 2> const* scales, double seed_val, double field_val)
 	{
 		size_t num_points = static_cast<size_t>(init_data.data.gp[0]);
@@ -1579,7 +1688,7 @@ namespace symphas::internal
 	}
 
 	template<typename Pred>
-	double seeds_A_rnd_2(iter_type n, len_type const* dims, symphas::init_data_type const& init_data, Pred p, 
+	double seeds_A_rnd_2(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
 		RandomDeltas<2> const* offsets, RandomOffsets<len_type, 2> const* scales, RandomOffsets<double, 1> const* values,
 		double seed_val, double field_val, double rnd_offset)
 	{
@@ -1608,7 +1717,7 @@ namespace symphas::internal
 
 
 	template<typename Pred>
-	double seeds_B_2(iter_type n, len_type const* dims, symphas::init_data_type const& init_data, Pred p, 
+	double seeds_B_2(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
 		RandomDeltas<2> const* offsets, RandomOffsets<len_type, 2> const* scales, double seed_val, double field_val)
 	{
 		auto d = *std::min_element(dims, dims + 2);
@@ -1618,7 +1727,7 @@ namespace symphas::internal
 
 
 	template<typename Pred>
-	double seeds_B_rnd_2(iter_type n, len_type const* dims, symphas::init_data_type const& init_data, Pred p, 
+	double seeds_B_rnd_2(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
 		RandomDeltas<2> const* offsets, RandomOffsets<len_type, 2> const* scales, RandomOffsets<double, 1> const* values,
 		double seed_val, double field_val, double rnd_offset)
 	{
@@ -1635,7 +1744,7 @@ namespace symphas::internal
 	// ********************************************************************************
 
 	template<typename Pred>
-	double seeds_3(iter_type n, len_type const* dims, symphas::init_data_type const& init_data, Pred p, 
+	double seeds_3(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
 		RandomDeltas<3> const* offsets, double seed_val, double field_val)
 	{
 		size_t num_points = static_cast<size_t>(init_data.data.gp[0]);
@@ -1666,7 +1775,7 @@ namespace symphas::internal
 
 
 	template<typename Pred>
-	double seeds_rnd_3(iter_type n, len_type const* dims, symphas::init_data_type const& init_data, Pred p, 
+	double seeds_rnd_3(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
 		RandomDeltas<3> const* offsets, RandomOffsets<double, 1> const* values,
 		double seed_val, double field_val, double rnd_offset)
 	{
@@ -1698,7 +1807,7 @@ namespace symphas::internal
 
 
 	template<typename Pred>
-	double seeds_A_3(iter_type n, len_type const* dims, symphas::init_data_type const& init_data, Pred p, 
+	double seeds_A_3(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
 		RandomDeltas<3> const* offsets, RandomOffsets<len_type, 3> const* scales, double seed_val, double field_val)
 	{
 		size_t num_points = static_cast<size_t>(init_data.data.gp[0]);
@@ -1728,7 +1837,7 @@ namespace symphas::internal
 	}
 
 	template<typename Pred>
-	double seeds_A_rnd_3(iter_type n, len_type const* dims, symphas::init_data_type const& init_data, Pred p, 
+	double seeds_A_rnd_3(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
 		RandomDeltas<3> const* offsets, RandomOffsets<len_type, 3> const* scales, RandomOffsets<double, 1> const* values,
 		double seed_val, double field_val, double rnd_offset)
 	{
@@ -1760,7 +1869,7 @@ namespace symphas::internal
 
 
 	template<typename Pred>
-	double seeds_B_3(iter_type n, len_type const* dims, symphas::init_data_type const& init_data, Pred p, 
+	double seeds_B_3(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
 		RandomDeltas<3> const* offsets, RandomOffsets<len_type, 3> const* scales, double seed_val, double field_val)
 	{
 		auto d = *std::min_element(dims, dims + 3);
@@ -1770,7 +1879,7 @@ namespace symphas::internal
 
 
 	template<typename Pred>
-	double seeds_B_rnd_3(iter_type n, len_type const* dims, symphas::init_data_type const& init_data, Pred p, 
+	double seeds_B_rnd_3(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
 		RandomDeltas<3> const* offsets, RandomOffsets<len_type, 3> const* scales, RandomOffsets<double, 1> const* values,
 		double seed_val, double field_val, double rnd_offset)
 	{
@@ -1781,5 +1890,169 @@ namespace symphas::internal
 
 
 
+	template<typename F>
+	auto get_function_value(iter_type n, F f, const len_type(&dims)[1], symphas::interval_data_type vdata, const double* params, double zero_at_left = false)
+	{
+		double x = (n % dims[0]) * vdata[Axis::X].width();
+
+		return params[0] * f(x * params[1]);
+	}
+
+	template<typename F>
+	auto get_function_value(iter_type n, F f, const len_type(&dims)[2], symphas::interval_data_type vdata, const double* params, double zero_at_left = false)
+	{
+		double x = (n % dims[0]) * vdata[Axis::X].width();
+		double y = (n / dims[0]) * vdata[Axis::Y].width();
+
+		return params[0] * f(x * params[1] + y * params[2]);
+	}
+
+	template<typename F>
+	auto get_function_value(iter_type n, F f, const len_type(&dims)[3], symphas::interval_data_type vdata, const double* params, double zero_at_left = false)
+	{
+		double x = (n % dims[0]) * vdata[Axis::X].width();
+		double y = ((n / dims[0]) % dims[1]) * vdata[Axis::Y].width();
+		double z = (n / (dims[1] * dims[2])) * vdata[Axis::Y].width();
+
+		return params[0] * f(x * params[1] + y * params[2] + z * params[3]);
+	}
+
+	template<typename F>
+	auto get_function_value_A(iter_type n, F f, const len_type(&dims)[1], symphas::interval_data_type vdata, const double* params, double zero_at_left = false)
+	{
+		double x = (n % dims[0]) * vdata[Axis::X].width();
+
+		return params[0] * f(x * params[1]);
+	}
+
+	template<typename F>
+	auto get_function_value_A(iter_type n, F f, const len_type(&dims)[2], symphas::interval_data_type vdata, const double* params, double zero_at_left = false)
+	{
+		double x = (n % dims[0]) * vdata[Axis::X].width();
+		double y = (n / dims[0]) * vdata[Axis::Y].width();
+
+		return params[0] * (f(x * params[1]) + f(y * params[2]));
+	}
+
+	template<typename F>
+	auto get_function_value_A(iter_type n, F f, const len_type(&dims)[3], symphas::interval_data_type vdata, const double* params, double zero_at_left = false)
+	{
+		double x = (n % dims[0]) * vdata[Axis::X].width();
+		double y = ((n / dims[0]) % dims[1]) * vdata[Axis::Y].width();
+		double z = (n / (dims[1] * dims[2])) * vdata[Axis::Y].width();
+
+		return params[0] * (f(x * params[1]) + f(y * params[2]) + f(z * params[3]));
+	}
+
+
+	//! Compute the radius of a bubble.
+	double compute_bubble_R(symphas::interval_data_type const& vdata, double coverage, size_t N);
+
+	//! Compute overlap given coverage.
+	/*!
+	 * When the coverage is 1, the overlap will be about 20% of the radius.
+	 * If the coverage is 0.5, the overlap will be about -125% of the radius (meaning
+	 * bubbles will be generated so they are away from each other).
+	 * 
+	 * \param coverage How full the system should be, from 0 to 1.
+	 */
+	double compute_bubble_overlap(double coverage, double R, double ratio);
+
+	//! Compute how much overlap should change by when randomly generated.
+	/*!
+	 * When the coverage is 1, the overlap will vary equal to its magnitude. When
+	 * coverage is small, bubbles are far away from each other and should stay far,
+	 * and the overlap range is fixed to the radius of a bubble.
+	 * 
+	 * \param coverage How full the system should be, from 0 to 1.
+	 */
+	double compute_bubble_overlap_range(double coverage, double R, double ratio);
+
+
+	//! Generate the position of bubbles in a 1d system.
+	/*!
+	 * Generate the position of bubbles in a 1d system.
+	 *
+	 * \param N The number of bubbles to generate.
+	 * \param R The radius of the bubble.
+	 * \param overlap How much bubbles can overlap.
+	 * \param x0 The first x position.
+	 */
+	symphas::internal::RandomDeltas<1> get_bubble_positions_1(
+		size_t N,
+		double R,
+		double max_overlap,
+		symphas::internal::RandomOffsets<scalar_t, 1> const& overlaps,
+		const len_type* dims,
+		iter_type x0);
+
+	//! Generate the position of bubbles in a 2d system.
+	/*!
+	 * Generate the position of bubbles in a 2d system.
+	 *
+	 * \param N The number of bubbles to generate.
+	 * \param R The radius of the bubble.
+	 * \param overlap How much bubbles can overlap.
+	 * \param x0 The first x position.
+	 * \param y0 The first y position.
+	 */
+	symphas::internal::RandomDeltas<2> get_bubble_positions_2(
+		size_t N,
+		double R,
+		double max_overlap,
+		symphas::internal::RandomOffsets<scalar_t, 1> const& overlaps,
+		const len_type* dims,
+		iter_type x0, iter_type y0);
+
+	//! Generate the position of bubbles in a 3d system.
+	/*!
+	 * Generate the position of bubbles in a 3d system.
+	 *
+	 * \param N The number of bubbles to generate.
+	 * \param R The radius of the bubble.
+	 * \param overlap How much bubbles can overlap.
+	 * \param x0 The first x position.
+	 * \param y0 The first y position.
+	 * \param z0 The first z position.
+	 */
+	symphas::internal::RandomDeltas<3> get_bubble_positions_3(
+		size_t N,
+		double R,
+		double max_overlap,
+		symphas::internal::RandomOffsets<scalar_t, 1> const& overlaps,
+		const len_type* dims,
+		iter_type x0, iter_type y0, iter_type z0);
+
+
+	template<size_t D>
+	auto get_bubble_positions(size_t N, double R, double max_overlap, symphas::internal::RandomOffsets<scalar_t, 1> const& overlaps, const len_type* dims, iter_type pos0);
+
+	template<size_t D>
+	auto get_bubble_positions(size_t N, double R, double max_overlap, symphas::internal::RandomOffsets<scalar_t, 1> const& overlaps, const len_type* dims, const iter_type* pos0);
+
+
+	template<>
+	inline auto get_bubble_positions<1>(size_t N, double R, double max_overlap, symphas::internal::RandomOffsets<scalar_t, 1> const& overlaps, const len_type* dims, iter_type pos0)
+	{
+		return get_bubble_positions_1(N, R, max_overlap, overlaps, dims, pos0);
+	}
+
+	template<>
+	inline auto get_bubble_positions<1>(size_t N, double R, double max_overlap, symphas::internal::RandomOffsets<scalar_t, 1> const& overlaps, const len_type* dims, const iter_type* pos0)
+	{
+		return get_bubble_positions_1(N, R, max_overlap, overlaps, dims, pos0[0]);
+	}
+
+	template<>
+	inline auto get_bubble_positions<2>(size_t N, double R, double max_overlap, symphas::internal::RandomOffsets<scalar_t, 1> const& overlaps, const len_type* dims, const iter_type* pos0)
+	{
+		return get_bubble_positions_2(N, R, max_overlap, overlaps, dims, pos0[0], pos0[1]);
+	}
+
+	template<>
+	inline auto get_bubble_positions<3>(size_t N, double R, double max_overlap, symphas::internal::RandomOffsets<scalar_t, 1> const& overlaps, const len_type* dims, const iter_type* pos0)
+	{
+		return get_bubble_positions_3(N, R, max_overlap, overlaps, dims, pos0[0], pos0[1], pos0[2]);
+	}
 }
 

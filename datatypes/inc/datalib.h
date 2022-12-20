@@ -58,7 +58,61 @@ namespace symphas
 		 */
 		template<size_t D>
 		auto new_system_axis_list(const len_type* dims);
+
+		template<size_t D>
+		grid::dim_list get_dimensions(const axis_nd_t<D>* axis_values, len_type len);
+
+		template<size_t D, typename T>
+		grid::dim_list get_dimensions(std::vector<std::pair<axis_nd_t<D>, T>> const& data);
 	}
+
+
+
+	namespace dft
+	{
+		//! Fills the array with axis values of Fourier space. 
+		/*!
+		 * Compute \f$x\f$-axis values of a 3-dimensional Fourier transform, and
+		 * store them in the provided array.
+		 */
+		void fill_x_axis(axis_nd_t<3>* dft_x, iter_type L, iter_type M, iter_type N);
+
+		//! Fills the array with axis values of Fourier space. 
+		/*!
+		 * Compute \f$x\f$-axis values of a 2-dimensional Fourier transform, and
+		 * store them in the provided array.
+		 */
+		void fill_x_axis(axis_nd_t<2>* dft_x, iter_type L, iter_type M);
+
+		//! Fills the array with axis values of Fourier space. 
+		/*!
+		 * Compute \f$x\f$-axis values of a 1-dimensional Fourier transform, and
+		 * store them in the provided array.
+		 */
+		void fill_x_axis(axis_nd_t<1>* dft_x, iter_type L);
+
+		//! Fills the array with axis values of Fourier space. 
+		/*!
+		 * Compute \f$x\f$-axis values of a 3-dimensional Fourier transform, and
+		 * store them in the provided array.
+		 */
+		void fill_x_axis(axis_nd_t<3>* dft_x, const axis_nd_t<3>* data_x, len_type len);
+
+		//! Fills the array with axis values of Fourier space. 
+		/*!
+		 * Compute \f$x\f$-axis values of a 2-dimensional Fourier transform, and
+		 * store them in the provided array.
+		 */
+		void fill_x_axis(axis_nd_t<2>* dft_x, const axis_nd_t<2>* data_x, len_type len);
+
+		//! Fills the array with axis values of Fourier space. 
+		/*!
+		 * Compute \f$x\f$-axis values of a 1-dimensional Fourier transform, and
+		 * store them in the provided array.
+		 */
+		void fill_x_axis(axis_nd_t<1>* dft_x, const axis_nd_t<1>* data_x, len_type len);
+	}
+
 
 
 	//! Representation of a data series with dependent and independent axes.
@@ -510,13 +564,13 @@ namespace symphas
 		}
 		else if constexpr (D == 2)
 		{
-			auto [L, M] = symphas::lib::get_dimensions<2>(x, len);
+			auto [L, M] = symphas::lib::get_dimensions<2>(x, len)._2();
 			dims[0] = L;
 			dims[1] = M;
 		}
 		else if constexpr (D == 3)
 		{
-			auto [L, M, N] = symphas::lib::get_dimensions<3>(x, len);
+			auto [L, M, N] = symphas::lib::get_dimensions<3>(x, len)._3();
 			dims[0] = L;
 			dims[1] = M;
 			dims[2] = N;
@@ -685,7 +739,7 @@ namespace symphas::lib
 		axis_3d_type* dft_x = new axis_3d_type[len];
 		complex_t* dft_y = new complex_t[len];
 
-		auto [L, M, N] = symphas::lib::get_dimensions<3>(data_x, len);
+		auto [L, M, N] = symphas::lib::get_dimensions<3>(data_x, len)._3();
 		symphas::dft::dft(data_y, dft_y, L, M, N, backward);
 		symphas::dft::fill_x_axis(dft_x, data_x, len);
 
@@ -2046,6 +2100,41 @@ namespace symphas::lib
 	}
 
 
+
+
+
+	//! For an list of data, return the dimensions.
+	/*!
+	 * For an list of data, return the dimensions. The data is assumed to be
+	 * sorted.
+	 *
+	 * \param sorted_data The sorted list of data from which the dimensions
+	 * are inferred.
+	 */
+	template<typename T>
+	inline len_type get_sorted_dimensions(std::vector<std::pair<axis_1d_type, T>> sorted_data)
+	{
+		return static_cast<iter_type>(sorted_data.size());
+	}
+
+
+	template<typename T>
+	inline grid::dim_list get_sorted_dimensions(std::vector<std::pair<axis_2d_type, T>> sorted_data)
+	{
+		len_type L = 1, M = 0;
+		double y0 = sorted_data.front().first[1];
+		for (auto it = sorted_data.begin() + 1; it < sorted_data.end() && y0 == it->first[1]; ++it)
+		{
+			++L;
+		}
+		M = static_cast<len_type>(sorted_data.size()) / L;
+
+		return { L, M };
+
+	}
+
+
+
 	// ****************************************************************************************
 
 
@@ -2165,10 +2254,383 @@ namespace symphas::lib
 
 	}
 
+	template<typename T>
+	grid::dim_list get_sorted_dimensions(std::vector<std::pair<axis_3d_type, T>> sorted_data)
+	{
+		len_type L = 0, M = 0, N = 0;
+		double
+			z0 = sorted_data.front().first[2],
+			y0 = sorted_data.front().first[1];
+		for (auto it = sorted_data.begin() + 1; it < sorted_data.end(); ++it)
+		{
+			if (y0 != it->first[1])
+			{
+				L = static_cast<iter_type>(it - sorted_data.begin());
+				break;
+			}
+		}
+		for (auto it = sorted_data.begin() + L; it < sorted_data.end(); it += L)
+		{
+			if (z0 != it->first[2])
+			{
+				M = static_cast<iter_type>(it - sorted_data.begin()) / L;
+				break;
+			}
+		}
+		N = static_cast<len_type>(sorted_data.size()) / (M * L);
+
+		return { L, M, N };
+
+	}
+
+
+	inline grid::dim_list get_sorted_dimensions(const axis_3d_type* sorted_data, len_type len)
+	{
+		len_type L = 0, M = 0, N = 0;
+		double
+			z0 = (*sorted_data)[2],
+			y0 = (*sorted_data)[1];
+		for (auto* it = sorted_data + 1; it < sorted_data + len; ++it)
+		{
+			if (y0 != (*it)[1])
+			{
+				L = static_cast<iter_type>(it - sorted_data);
+				break;
+			}
+		}
+		for (auto* it = sorted_data + L; it < sorted_data + len; it += L)
+		{
+			if (z0 != (*it)[2])
+			{
+				M = static_cast<iter_type>(it - sorted_data) / L;
+				break;
+			}
+		}
+		N = len / (M * L);
+
+		return { L, M, N };
+
+	}
+
+	inline grid::dim_list get_sorted_dimensions(const axis_2d_type* sorted_data, len_type len)
+	{
+		len_type L = 0, M = 0;
+		double y0 = (*sorted_data)[1];
+		while (y0 == (*sorted_data++)[1])
+		{
+			++L;
+		}
+		M = len / L;
+
+		return { L, M };
+
+	}
+
+	inline len_type get_sorted_dimensions(const axis_1d_type*, len_type len)
+	{
+		return len;
+	}
+
+	//! Return the min, max and separation distance of the given axis.
+	template<size_t D>
+	auto get_axis_mms(const axis_nd_t<D>* axis_values, len_type len)
+	{
+		std::array<axis_coord_t, D> min{}, max{}, sep{};
+		std::fill(min.begin(), min.end(), std::numeric_limits<axis_coord_t>::max());
+		std::fill(max.begin(), max.end(), std::numeric_limits<axis_coord_t>::min());
+		std::fill(sep.begin(), sep.end(), std::numeric_limits<axis_coord_t>::max());
+
+		for (iter_type i = 0; i < len; ++i)
+		{
+			for (iter_type n = 0; n < D; ++n)
+			{
+				double dd = std::abs(min[n] - axis_values[i][n]);
+				sep[n] = (dd > 0 && dd < sep[n]) ? dd : sep[n];
+
+				min[n] = (axis_values[i][n] < min[n]) ? axis_values[i][n] : min[n];
+				max[n] = (axis_values[i][n] > max[n]) ? axis_values[i][n] : max[n];
+			}
+		}
+
+		return std::make_tuple(min, max, sep);
+	}
+
+	template<>
+	inline auto get_axis_mms<1>(const axis_nd_t<1>* axis_values, len_type len)
+	{
+		std::array<axis_coord_t, 1> min = { std::numeric_limits<axis_coord_t>::max() };
+		std::array<axis_coord_t, 1> max = { std::numeric_limits<axis_coord_t>::min() };
+		std::array<axis_coord_t, 1> sep = { std::numeric_limits<axis_coord_t>::max() };
+
+		for (iter_type i = 0; i < len; ++i)
+		{
+			double dd = std::abs(min[0] - axis_values[i]);
+			sep[0] = (dd > 0 && dd < sep[0]) ? dd : sep[0];
+
+			min[0] = (axis_values[i] < min[0]) ? axis_values[i] : min[0];
+			max[0] = (axis_values[i] > max[0]) ? axis_values[i] : max[0];
+		}
+
+		return std::make_tuple(min, max, sep);
+	}
+
+
+
+	template<size_t D>
+	grid::dim_list get_dimensions(const axis_nd_t<D>* axis_values, len_type len)
+	{
+		auto [min, max, sep] = get_axis_mms<D>(axis_values, len);
+		len_type dim[D];
+		for (iter_type n = 0; n < D; ++n)
+		{
+			dim[n] = static_cast<len_type>(std::round((max[n] - min[n]) / sep[n])) + 1;
+		}
+		return grid::dim_list(dim, D);
+	}
+
+
+	template<size_t D, typename T>
+	grid::dim_list get_dimensions(std::vector<std::pair<axis_nd_t<D>, T>> const& data)
+	{
+		axis_nd_t<D>* axis_values = new axis_nd_t<D>[data.size()] {};
+		for (iter_type i = 0; i < data.size(); ++i)
+		{
+			axis_values[i] = data[i].first;
+		}
+
+		auto&& dims = get_dimensions<D>(axis_values, static_cast<len_type>(data.size()));
+		delete[] axis_values;
+		return dims;
+	}
+
+
+
+	//! Return information on the interval of the given axis data.
+	/*!
+	 * The given data is expected to be sorted.
+	 */
+	template<typename T>
+	void fill_sorted_ranges(std::vector<std::pair<axis_3d_type, T>> const& data, axis_coord_t(&ranges)[6])
+	{
+		if (data.size() > 0)
+		{
+			ranges[0] = data.front().first[0];
+			ranges[1] = data.back().first[0];
+			ranges[2] = data.front().first[1];
+			ranges[3] = data.back().first[1];
+			ranges[4] = data.front().first[2];
+			ranges[5] = data.back().first[2];
+		}
+	}
+
+	template<typename T>
+	void fill_sorted_ranges(std::vector<std::pair<axis_2d_type, T>> const& data, axis_coord_t(&ranges)[4])
+	{
+		if (data.size() > 0)
+		{
+			ranges[0] = data.front().first[0];
+			ranges[1] = data.back().first[0];
+			ranges[2] = data.front().first[1];
+			ranges[3] = data.back().first[1];
+		}
+	}
+
+	template<typename T>
+	void fill_sorted_ranges(std::vector<std::pair<axis_1d_type, T>> const& data, axis_coord_t(&ranges)[2])
+	{
+		if (data.size() > 0)
+		{
+			ranges[0] = data.front().first;
+			ranges[1] = data.back().first;
+		}
+	}
+
+	template<size_t D, typename T>
+	void fill_sorted_ranges(std::vector<std::pair<axis_nd_t<D / 2>, T>> const& data, axis_coord_t(&ranges)[D], T(&extrema)[2])
+	{
+		if (data.size() > 0)
+		{
+			fill_sorted_ranges(data, ranges);
+			extrema[0] = std::max_element(data.begin(), data.end(), [&] (auto a, auto b) { return a.second > b.second; })->second;
+			extrema[1] = std::max_element(data.begin(), data.end(), [&] (auto a, auto b) { return a.second < b.second; })->second;
+		}
+	}
+
+
+
+
+	inline void fill_sorted_ranges(const axis_3d_type* data_x, len_type len, axis_coord_t(&ranges)[6])
+	{
+		if (len > 0)
+		{
+			auto [L, M, N] = get_sorted_dimensions(data_x, len)._3();
+			ranges[0] = (data_x[0])[0];
+			ranges[1] = (data_x[L - 1])[0];
+			ranges[2] = (data_x[0])[1];
+			ranges[3] = (data_x[L * (M - 1)])[1];
+			ranges[4] = (data_x[0])[2];
+			ranges[5] = (data_x[L * M * (N - 1)])[2];
+		}
+	}
+
+	inline void fill_sorted_ranges(const axis_2d_type* data_x, len_type len, axis_coord_t(&ranges)[4])
+	{
+		if (len > 0)
+		{
+			auto [L, M] = get_sorted_dimensions(data_x, len)._2();
+			ranges[0] = (data_x[0])[0];
+			ranges[1] = (data_x[L - 1])[0];
+			ranges[2] = (data_x[0])[1];
+			ranges[3] = (data_x[L * (M - 1)])[1];
+		}
+	}
+
+	inline void fill_sorted_ranges(const axis_1d_type* data_x, len_type len, axis_coord_t(&ranges)[2])
+	{
+		if (len > 0)
+		{
+			ranges[0] = *(data_x);
+			ranges[1] = *(data_x + len - 1);
+		}
+	}
+
+	template<typename T>
+	void fill_sorted_ranges(const T* data, len_type len, T(&ranges)[2])
+	{
+		if (len > 0)
+		{
+			auto max = std::max_element(data, data + len, [&] (auto a, auto b) { return a < b; });
+			auto min = std::max_element(data, data + len, [&] (auto a, auto b) { return a > b; });
+			ranges[0] = min;
+			ranges[1] = max;
+		}
+	}
+
+
+
+
+	template<typename T>
+	void fill_ranges(std::vector<std::tuple<iter_type, axis_1d_type, T>> const& data, T(&ranges)[4])
+	{
+		if (data.size() > 0)
+		{
+			auto max_it_y = std::max_element(data.begin(), data.end(), [&] (auto a, auto b) { return std::get<2>(a) < std::get<2>(b); });
+			auto min_it_y = std::max_element(data.begin(), data.end(), [&] (auto a, auto b) { return std::get<2>(a) > std::get<2>(b); });
+			auto max_it_x = std::max_element(data.begin(), data.end(), [&] (auto a, auto b) { return std::get<1>(a) < std::get<1>(b); });
+			auto min_it_x = std::max_element(data.begin(), data.end(), [&] (auto a, auto b) { return std::get<1>(a) > std::get<1>(b); });
+
+			auto max_y = std::get<2>(*max_it_y);
+			auto min_y = std::get<2>(*min_it_y);
+			auto max_x = std::get<1>(*max_it_x);
+			auto min_x = std::get<1>(*min_it_x);
+
+			ranges[0] = static_cast<T>(max_x);
+			ranges[1] = static_cast<T>(min_x);
+			ranges[2] = max_y;
+			ranges[3] = min_y;
+		}
+	}
+
+	inline void fill_ranges(axis_3d_type const* data_x, len_type len, axis_coord_t(&ranges)[6])
+	{
+		// initialize infinite of opposite sign on ranges 
+		// so that the checks with data_x can work.
+
+		ranges[0] = +INFINITY;
+		ranges[2] = +INFINITY;
+		ranges[4] = +INFINITY;
+
+		ranges[1] = -INFINITY;
+		ranges[3] = -INFINITY;
+		ranges[5] = -INFINITY;
+
+		for (iter_type i = 0; i < len; ++i)
+		{
+			if (data_x[i][0] < ranges[0])
+			{
+				ranges[0] = data_x[i][0];
+			}
+			if (data_x[i][0] > ranges[1])
+			{
+				ranges[1] = data_x[i][0];
+			}
+			if (data_x[i][1] < ranges[2])
+			{
+				ranges[2] = data_x[i][1];
+			}
+			if (data_x[i][1] > ranges[3])
+			{
+				ranges[3] = data_x[i][1];
+			}
+			if (data_x[i][2] < ranges[4])
+			{
+				ranges[4] = data_x[i][2];
+			}
+			if (data_x[i][2] > ranges[5])
+			{
+				ranges[5] = data_x[i][2];
+			}
+		}
+	}
+
+
+	inline void fill_ranges(axis_2d_type const* data_x, len_type len, axis_coord_t(&ranges)[4])
+	{
+		// initialize infinite of opposite sign on ranges 
+		// so that the checks with data_x can work.
+
+		ranges[0] = +INFINITY;
+		ranges[2] = +INFINITY;
+
+		ranges[1] = -INFINITY;
+		ranges[3] = -INFINITY;
+
+		for (iter_type i = 0; i < len; ++i)
+		{
+			if (data_x[i][0] < ranges[0])
+			{
+				ranges[0] = data_x[i][0];
+			}
+			if (data_x[i][0] > ranges[1])
+			{
+				ranges[1] = data_x[i][0];
+			}
+			if (data_x[i][1] < ranges[2])
+			{
+				ranges[2] = data_x[i][1];
+			}
+			if (data_x[i][1] > ranges[3])
+			{
+				ranges[3] = data_x[i][1];
+			}
+		}
+	}
+
+
+
+	inline void fill_ranges(axis_1d_type const* data_x, len_type len, axis_coord_t(&ranges)[2])
+	{
+		// initialize infinite of opposite sign on ranges 
+		// so that the checks with data_x can work.
+
+		ranges[0] = +INFINITY;
+		ranges[1] = -INFINITY;
+
+		for (iter_type i = 0; i < len; ++i)
+		{
+			if (data_x[i] < ranges[0])
+			{
+				ranges[0] = data_x[i];
+			}
+			if (data_x[i] > ranges[1])
+			{
+				ranges[1] = data_x[i];
+			}
+		}
+	}
+
 
 }
-
-
 
 
 

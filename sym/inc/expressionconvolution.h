@@ -405,7 +405,6 @@ struct OpFuncConvolution<V, GaussianSmoothing<D>, E> : OpExpression<OpFuncConvol
 {
 	using G_T = typename expr::eval_type<E>::type;
 
-
 	OpFuncConvolution() : g0{ 0 }, data{ 0 }, value{ V{} }, smoother{ GaussianSmoothing<D>() } {}
 
 	//! Generate the convolution expression.
@@ -593,7 +592,6 @@ struct OpFuncConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>> :
 	using G_T = typename expr::eval_type<E>::type;
 	using G0 = Grid<G_T, D>;
 
-
 	OpFuncConvolution() : g0{ 0 }, data{ 0 }, value{ V{} }, smoother{ GaussianSmoothing<D>() } {}
 
 	//! Generate the convolution expression.
@@ -609,7 +607,7 @@ struct OpFuncConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>> :
 	template<typename V0, typename V1, typename std::enable_if_t<std::is_convertible<mul_result_t<V0, V1>, V>::value, int> = 0>
 	OpFuncConvolution(V0 value, GaussianSmoothing<D> const& smoother, OpTerm<V1, G> const& a) :
 		g0{ expr::data_dimensions(smoother) }, data{ expr::data(a) }, 
-		value{ value * expr::coeff(a).eval() }, smoother{smoother},
+		value{ value * expr::coeff(a) }, smoother{smoother},
 		compute{ expr::BaseData<G>::get(data), g0 } { /*update();*/; }
 	OpFuncConvolution(V value, GaussianSmoothing<D> const& smoother, G grid) :
 		g0{ expr::data_dimensions(smoother) }, data{ grid }, 
