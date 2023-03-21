@@ -382,6 +382,12 @@ namespace symphas::math
 		}
 	}
 
+	template<typename T, size_t D>
+	auto pow(any_vector_t<T, D> const& v, double exponent)
+	{
+		throw;
+	}
+
 	//! Cross product function for vectors.
 	/*!
 	 * Compound assignment operator to calculate the conventional cross product and assign it
@@ -448,46 +454,51 @@ namespace symphas::math
 namespace symphas::internal
 {
 	template<typename T>
-	struct check_is_non_vector
+	struct check_is_simple_data
 	{
 	protected:
 
-		constexpr static std::true_type _get_value(complex_t)
+		constexpr static std::true_type _get_value(complex_t*)
 		{
 			return {};
 		}
 
-		constexpr static std::true_type _get_value(scalar_t)
+		constexpr static std::true_type _get_value(scalar_t*)
 		{
 			return {};
 		}
 
-		constexpr static std::true_type _get_value(int)
+		constexpr static std::true_type _get_value(int*)
 		{
 			return {};
 		}
 
 		template<typename T0>
-		constexpr static std::false_type _get_value(T0)
+		constexpr static std::false_type _get_value(T0*)
 		{
 			return {};
 		}
 
-		constexpr static auto get_value()
+		constexpr static auto get_value(T* ptr)
 		{
-			return _get_value(T{});
+			return _get_value(ptr);
 		}
 
 
 	public:
 
-		static const bool value = std::invoke_result_t<decltype(&check_is_non_vector<T>::get_value)>::value;
+		static const bool value = std::invoke_result_t<decltype(&check_is_simple_data<T>::get_value), T*>::value;
 	};
+
+	template<typename T>
+	struct check_is_simple_data<T&> : check_is_simple_data<T> {};
+	template<typename T>
+	struct check_is_simple_data<T const> : check_is_simple_data<T> {};
 }
 
 
 template<typename T>
-constexpr bool is_non_vector = symphas::internal::check_is_non_vector<T>::value;
+constexpr bool is_simple_data = symphas::internal::check_is_simple_data<T>::value;
 
 template<typename T, size_t N, size_t M>
 using any_matrix_t = any_vector_t<any_vector_t<T, M>, N>;
@@ -495,7 +506,7 @@ template<typename T, size_t N>
 using any_row_vector_t = any_matrix_t<T, 1, N>;
 
 
-template<typename T, size_t D, typename std::enable_if_t<is_non_vector<T>, int> = 0>
+template<typename T, size_t D, typename std::enable_if_t<is_simple_data<T>, int> = 0>
 auto operator*(any_vector_t<T, D> const& lhs, any_vector_t<T, D> const& rhs)
 {
 	using namespace std;
@@ -503,7 +514,7 @@ auto operator*(any_vector_t<T, D> const& lhs, any_vector_t<T, D> const& rhs)
 	return dot(lhs, rhs);
 }
 
-template<typename T, typename S, size_t D, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+template<typename T, typename S, size_t D, typename std::enable_if_t<(is_simple_data<T> && is_simple_data<S>), int> = 0>
 auto operator*(any_row_vector_t<T, D> const& lhs, any_vector_t<S, D> const& rhs)
 {
 	any_vector_t<T, D> lhs0;
@@ -517,7 +528,7 @@ auto operator*(any_row_vector_t<T, D> const& lhs, any_vector_t<S, D> const& rhs)
 	return dot(lhs0, rhs);
 }
 
-template<typename T, typename S, size_t N, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+template<typename T, typename S, size_t N, typename std::enable_if_t<(is_simple_data<T> && is_simple_data<S>), int> = 0>
 auto operator*(any_vector_t<T, N> const& lhs, S const& rhs)
 {
 	any_vector_t<mul_result_t<T, S>, N> result;
@@ -528,7 +539,7 @@ auto operator*(any_vector_t<T, N> const& lhs, S const& rhs)
 	return result;
 }
 
-template<typename T, typename S, size_t N, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+template<typename T, typename S, size_t N, typename std::enable_if_t<(is_simple_data<T> && is_simple_data<S>), int> = 0>
 auto operator*(T const& lhs, any_vector_t<S, N> const& rhs)
 {
 	any_vector_t<mul_result_t<T, S>, N> result;
@@ -539,7 +550,7 @@ auto operator*(T const& lhs, any_vector_t<S, N> const& rhs)
 	return result;
 }
 
-template<typename T, typename S, size_t N, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+template<typename T, typename S, size_t N, typename std::enable_if_t<(is_simple_data<T> && is_simple_data<S>), int> = 0>
 auto operator*(any_row_vector_t<T, N> const& lhs, S const& rhs)
 {
 	any_row_vector_t<mul_result_t<T, S>, N> result;
@@ -550,7 +561,7 @@ auto operator*(any_row_vector_t<T, N> const& lhs, S const& rhs)
 	return result;
 }
 
-template<typename T, typename S, size_t N, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+template<typename T, typename S, size_t N, typename std::enable_if_t<(is_simple_data<T> && is_simple_data<S>), int> = 0>
 auto operator*(T const& lhs, any_row_vector_t<S, N> const& rhs)
 {
 	any_row_vector_t<mul_result_t<T, S>, N> result;
@@ -561,7 +572,7 @@ auto operator*(T const& lhs, any_row_vector_t<S, N> const& rhs)
 	return result;
 }
 
-template<typename T, typename S, size_t N, size_t M, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+template<typename T, typename S, size_t N, size_t M, typename std::enable_if_t<(is_simple_data<T> && is_simple_data<S>), int> = 0>
 auto operator*(any_matrix_t<T, N, M> const& lhs, S const& rhs)
 {
 	any_matrix_t<mul_result_t<T, S>, N, M> result;
@@ -575,7 +586,7 @@ auto operator*(any_matrix_t<T, N, M> const& lhs, S const& rhs)
 	return result;
 }
 
-template<typename T, typename S, size_t N, size_t M, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+template<typename T, typename S, size_t N, size_t M, typename std::enable_if_t<(is_simple_data<T> && is_simple_data<S>), int> = 0>
 auto operator*(T const& lhs, any_matrix_t<S, N, M> const& rhs)
 {
 	any_matrix_t<mul_result_t<T, S>, N, M> result;
@@ -589,7 +600,7 @@ auto operator*(T const& lhs, any_matrix_t<S, N, M> const& rhs)
 	return result;
 }
 
-template<typename T, typename S, size_t L, size_t M, size_t N, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+template<typename T, typename S, size_t L, size_t M, size_t N, typename std::enable_if_t<(is_simple_data<T> && is_simple_data<S>), int> = 0>
 auto operator*(any_matrix_t<T, L, M> const& lhs, any_matrix_t<S, M, N> const& rhs)
 {
 	any_matrix_t<mul_result_t<T, S>, L, N> result;
@@ -609,7 +620,7 @@ auto operator*(any_matrix_t<T, L, M> const& lhs, any_matrix_t<S, M, N> const& rh
 }
 
 
-template<typename T, typename S, size_t N, typename std::enable_if_t<(is_non_vector<T>&& is_non_vector<S>), int> = 0>
+template<typename T, typename S, size_t N, typename std::enable_if_t<(is_simple_data<T>&& is_simple_data<S>), int> = 0>
 auto operator/(any_vector_t<T, N> const& lhs, S const& rhs)
 {
 	any_vector_t<div_result_t<T, S>, N> result;
@@ -622,7 +633,7 @@ auto operator/(any_vector_t<T, N> const& lhs, S const& rhs)
 
 
 
-template<typename T, typename S, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+template<typename T, typename S, typename std::enable_if_t<(is_simple_data<T> && is_simple_data<S>), int> = 0>
 auto operator+(any_vector_t<T, 1> const& lhs, S const& rhs)
 {
 	any_vector_t<add_result_t<T, S>, 1> result;
@@ -630,7 +641,7 @@ auto operator+(any_vector_t<T, 1> const& lhs, S const& rhs)
 	return result;
 }
 
-template<typename T, typename S, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+template<typename T, typename S, typename std::enable_if_t<(is_simple_data<T> && is_simple_data<S>), int> = 0>
 auto operator+(T const& lhs, any_vector_t<S, 1> const& rhs)
 {
 	any_vector_t<add_result_t<T, S>, 1> result;
@@ -638,7 +649,7 @@ auto operator+(T const& lhs, any_vector_t<S, 1> const& rhs)
 	return result;
 }
 
-template<typename T, typename S, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+template<typename T, typename S, typename std::enable_if_t<(is_simple_data<T> && is_simple_data<S>), int> = 0>
 auto operator+(any_row_vector_t<T, 1> const& lhs, S const& rhs)
 {
 	any_row_vector_t<add_result_t<T, S>, 1> result;
@@ -646,7 +657,7 @@ auto operator+(any_row_vector_t<T, 1> const& lhs, S const& rhs)
 	return result;
 }
 
-template<typename T, typename S, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+template<typename T, typename S, typename std::enable_if_t<(is_simple_data<T> && is_simple_data<S>), int> = 0>
 auto operator+(T const& lhs, any_row_vector_t<S, 1> const& rhs)
 {
 	any_row_vector_t<add_result_t<T, S>, 1> result;
@@ -654,7 +665,7 @@ auto operator+(T const& lhs, any_row_vector_t<S, 1> const& rhs)
 	return result;
 }
 
-template<typename T, typename S, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+template<typename T, typename S, typename std::enable_if_t<(is_simple_data<T> && is_simple_data<S>), int> = 0>
 auto operator-(any_vector_t<T, 1> const& lhs, S const& rhs)
 {
 	any_vector_t<add_result_t<T, S>, 1> result;
@@ -662,7 +673,7 @@ auto operator-(any_vector_t<T, 1> const& lhs, S const& rhs)
 	return result;
 }
 
-template<typename T, typename S, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+template<typename T, typename S, typename std::enable_if_t<(is_simple_data<T> && is_simple_data<S>), int> = 0>
 auto operator-(T const& lhs, any_vector_t<S, 1> const& rhs)
 {
 	any_vector_t<add_result_t<T, S>, 1> result;
@@ -670,7 +681,7 @@ auto operator-(T const& lhs, any_vector_t<S, 1> const& rhs)
 	return result;
 }
 
-template<typename T, typename S, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+template<typename T, typename S, typename std::enable_if_t<(is_simple_data<T> && is_simple_data<S>), int> = 0>
 auto operator-(any_row_vector_t<T, 1> const& lhs, S const& rhs)
 {
 	any_row_vector_t<add_result_t<T, S>, 1> result;
@@ -678,7 +689,7 @@ auto operator-(any_row_vector_t<T, 1> const& lhs, S const& rhs)
 	return result;
 }
 
-template<typename T, typename S, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+template<typename T, typename S, typename std::enable_if_t<(is_simple_data<T> && is_simple_data<S>), int> = 0>
 auto operator-(T const& lhs, any_row_vector_t<S, 1> const& rhs)
 {
 	any_row_vector_t<add_result_t<T, S>, 1> result;
@@ -687,7 +698,7 @@ auto operator-(T const& lhs, any_row_vector_t<S, 1> const& rhs)
 }
 
 
-template<typename T, typename S, size_t N, size_t M, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+template<typename T, typename S, size_t N, size_t M, typename std::enable_if_t<(is_simple_data<T> && is_simple_data<S>), int> = 0>
 auto operator+(any_matrix_t<T, N, M> const& lhs, any_matrix_t<S, N, M> const& rhs)
 {
 	any_matrix_t<add_result_t<T, S>, N, M> result;
@@ -698,7 +709,7 @@ auto operator+(any_matrix_t<T, N, M> const& lhs, any_matrix_t<S, N, M> const& rh
 	return result;
 }
 
-template<typename T, typename S, size_t N, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
+template<typename T, typename S, size_t N, typename std::enable_if_t<(is_simple_data<T> && is_simple_data<S>), int> = 0>
 auto operator+(any_vector_t<T, N> const& lhs, any_vector_t<S, N> const& rhs)
 {
 	any_vector_t<add_result_t<T, S>, N> result;
@@ -709,7 +720,7 @@ auto operator+(any_vector_t<T, N> const& lhs, any_vector_t<S, N> const& rhs)
 	return result;
 }
 
-template<typename T, typename S, size_t N, size_t M, typename std::enable_if_t<(is_non_vector<T>&& is_non_vector<S>), int> = 0>
+template<typename T, typename S, size_t N, size_t M, typename std::enable_if_t<(is_simple_data<T>&& is_simple_data<S>), int> = 0>
 auto operator-(any_matrix_t<T, N, M> const& lhs, any_matrix_t<S, N, M> const& rhs)
 {
 	any_matrix_t<sub_result_t<T, S>, N, M> result;
@@ -720,7 +731,7 @@ auto operator-(any_matrix_t<T, N, M> const& lhs, any_matrix_t<S, N, M> const& rh
 	return result;
 }
 
-template<typename T, typename S, size_t N, typename std::enable_if_t<(is_non_vector<T>&& is_non_vector<S>), int> = 0>
+template<typename T, typename S, size_t N, typename std::enable_if_t<(is_simple_data<T>&& is_simple_data<S>), int> = 0>
 auto operator-(any_vector_t<T, N> const& lhs, any_vector_t<S, N> const& rhs)
 {
 	any_vector_t<sub_result_t<T, S>, N> result;
@@ -1096,7 +1107,6 @@ namespace symphas::lib
 		return seq_join(std::integer_sequence<T, Ys..., Qs...>{}, seqs...);
 	}
 
-
 	template<typename T, T... Ys>
 	constexpr auto seq_neg(std::integer_sequence<T, Ys...>)
 	{
@@ -1290,12 +1300,42 @@ namespace symphas::lib
 		using type = decltype(seq_join(std::declval<Seq>(), std::declval<Seqs>()...));
 	};
 
+	//! The index sequence result type of joining multiple sequences.
+	template<>
+	struct seq_join_result<types_list<>>
+	{
+		using type = std::index_sequence<>;
+	};
+
 	//! The index sequence result type of adding multiple sequences.
 	template<typename Seq, typename... Seqs>
 	struct seq_add_result
 	{
 		using type = decltype(seq_add(std::declval<Seq>(), std::declval<Seqs>()...));
 	};
+
+	//! The index sequence result type of adding a value to the sequence.
+	template<size_t N, typename Seq>
+	struct seq_offset_result;
+
+	//! The index sequence result type of adding a value to the sequence.
+	template<size_t N, size_t... Is>
+	struct seq_offset_result<N, std::index_sequence<Is...>>
+	{
+		using type = std::index_sequence<(N + Is)...>;
+	};
+
+	//! The index sequence result type of adding multiple sequences.
+	template<typename Seq>
+	struct seq_from_to_result;
+
+	//! The index sequence result type of adding multiple sequences.
+	template<size_t I0, size_t J0>
+	struct seq_from_to_result<std::index_sequence<I0, J0>>
+	{
+		using type = typename seq_offset_result<I0, std::make_index_sequence<J0 - I0>>::type;
+	};
+
 
 	//! The index sequence result type of adding multiple sequences.
 	template<typename Seq, typename... Seqs>
@@ -1304,11 +1344,41 @@ namespace symphas::lib
 		using type = decltype(seq_sub(std::declval<Seq>(), std::declval<Seqs>()...));
 	};
 
-	//! The index sequence result type of adding multiple sequences.
+	//! The index sequence result type of filtering multiple sequences.
+	/*!
+	 * The first sequence that is given has the values removed from it that are found in the
+	 * other sequences.
+	 */
 	template<typename... Seqs>
-	struct filter_seq_result
+	struct filter_seq_result;
+
+	//! The index sequence result type of filtering multiple sequences.
+	template<typename T, T... Is>
+	struct filter_seq_result<std::integer_sequence<T, Is...>>
 	{
-		using type = decltype(filter_seq(std::declval<Seqs>()...));
+		using type = std::integer_sequence<T, Is...>;
+	};
+
+	template<typename T, T I0, T... Fs>
+	struct test_ne
+	{
+		static const bool value = ((I0 != Fs) && ...);
+	};
+
+	//! The index sequence result type of filtering multiple sequences.
+	template<typename T, T I0, T... Is, T... Fs>
+	struct filter_seq_result<std::integer_sequence<T, I0, Is...>, std::integer_sequence<T, Fs...>>
+	{
+		using type = typename seq_join_result<
+			std::conditional_t<test_ne<T, I0, Fs...>::value, std::integer_sequence<T, I0>, std::integer_sequence<T>>,
+			std::conditional_t<test_ne<T, Is, Fs...>::value, std::integer_sequence<T, Is>, std::integer_sequence<T>>...>::type;
+	};
+
+	//! The index sequence result type of filtering multiple sequences.
+	template<typename Seq0, typename Seq1, typename Seq2, typename... Seqs>
+	struct filter_seq_result<Seq0, Seq1, Seq2, Seqs...>
+	{
+		using type = typename filter_seq_result<typename filter_seq_result<Seq0, Seq1>::type, Seq2, Seqs...>::type;
 	};
 
 	//! The index sequence result type of intersecting multiple sequences.
@@ -1325,6 +1395,12 @@ namespace symphas::lib
 	//! Alias for the addition result of multiple sequences.
 	template<typename... Seqs>
 	using seq_add_t = typename seq_add_result<Seqs...>::type;
+
+	template<size_t N, typename Seq>
+	using seq_offset_t = typename seq_offset_result<N, Seq>::type;
+
+	template<typename Seq>
+	using seq_from_to_t = typename seq_from_to_result<Seq>::type;
 
 	//! Alias for the subtraction result of multiple sequences.
 	template<typename... Seqs>
@@ -1385,6 +1461,20 @@ namespace symphas::lib
 	{
 		static const T value = seq_index_value<N - 1, std::integer_sequence<T, Is...>>::value;
 	};
+
+
+	template<typename Pick, typename From>
+	struct select_seq_impl;
+
+	template<typename T, size_t... Is, size_t... Ns>
+	struct select_seq_impl<std::index_sequence<Is...>, std::integer_sequence<T, Ns...>>
+	{
+		using type = std::integer_sequence<T, seq_index_value<Is, std::integer_sequence<T, Ns...>>::value...>;
+	};
+
+	template<typename Pick, typename From>
+	using select_seq = typename select_seq_impl<Pick, From>::type;
+
 
 	//! Create a sequence made of a single value.
 	/*!
@@ -1608,10 +1698,16 @@ namespace symphas::lib
 		using type = types_list<T>;
 	};
 
+	template<>
+	struct expand_types_list_impl<types_list<>>
+	{
+		using type = types_list<>;
+	};
+
 	template<typename T>
 	struct expand_types_list_impl<types_list<T>>
 	{
-		using type = types_list<T>;
+		using type = typename expand_types_list_impl<T>::type;
 	};
 
 	template<typename... T1s, typename... T2s>
@@ -1647,7 +1743,90 @@ namespace symphas::lib
 	template<typename... Ts>
 	using expand_types_list = typename expand_types_list_impl<Ts...>::type;
 
+	template<typename Seq0, typename Seq1>
+	struct make_seq_pairs;
 
+	template<size_t... Is, size_t... Js>
+	struct make_seq_pairs<std::index_sequence<Is...>, std::index_sequence<Js...>>
+	{
+		using type = expand_types_list<std::conditional_t<(Is < Js), std::index_sequence<Is, Js>, types_list<>>...>;
+	};
+
+	template<size_t N, typename... Seqs>
+	struct seq_skip_indices_impl;
+
+	template<size_t N>
+	struct seq_skip_indices_impl<N, std::make_index_sequence<N>>
+	{
+		using type = std::index_sequence<>;
+	};
+
+	template<>
+	struct seq_skip_indices_impl<0, std::index_sequence<0>>
+	{
+		using type = std::index_sequence<>;
+	};
+
+	template<size_t N>
+	struct seq_skip_indices_impl<N, std::index_sequence<N - 1>>
+	{
+		using type = std::make_index_sequence<N - 1>;
+	};
+
+	template<size_t N>
+	struct seq_skip_indices_impl<N, std::index_sequence<>>
+	{
+		using type = std::make_index_sequence<N>;
+	};
+
+	template<size_t N>
+	struct seq_skip_indices_impl<N, std::index_sequence<0>>
+	{
+		using type = seq_offset_t<1, std::make_index_sequence<N - 1>>;
+	};
+
+	template<size_t N, size_t I0>
+	struct seq_skip_indices_impl<N, std::index_sequence<I0>>
+	{
+		using type = seq_join_t<std::make_index_sequence<I0>, seq_offset_t<I0 + 1, std::make_index_sequence<N - I0 - 1>>>;
+	};
+
+	template<size_t N, size_t I0, size_t J0>
+	struct seq_skip_indices_impl<N, types_list<std::index_sequence<I0, J0>>>
+	{
+		using type = seq_join_t<seq_from_to_t<std::index_sequence<I0, J0>>>;
+	};
+
+	template<size_t N, typename Seq0, typename Seq1, typename... Seqs>
+	struct seq_skip_indices_impl<N, Seq0, Seq1, Seqs...>
+	{
+		using type = seq_join_t<seq_from_to_t<Seq0>, seq_from_to_t<Seq1>, seq_from_to_t<Seqs>...>;
+	};
+
+	template<size_t N, typename Seq0, typename Seq1, typename... Seqs>
+	struct seq_skip_indices_impl<N, types_list<Seq0, Seq1, Seqs...>>
+	{
+		using type = typename seq_skip_indices_impl<N, Seq0, Seq1, Seqs...>::type;
+	};
+
+	template<size_t N>
+	struct seq_skip_indices_impl<N, types_list<>>
+	{
+		using type = std::index_sequence<>;
+	};
+
+
+	template<size_t N, size_t I0, size_t I1, size_t... Is>
+	struct seq_skip_indices_impl<N, std::index_sequence<I0, I1, Is...>>
+	{
+		using type = typename seq_skip_indices_impl<N, 
+			typename make_seq_pairs<
+				std::index_sequence<0, I0 + 1, I1 + 1, (Is + 1)...>, 
+				std::index_sequence<I0, I1, Is..., N>>::type>::type;
+	};
+
+	template<size_t N, typename Seq>
+	using seq_skip_indices = typename seq_skip_indices_impl<N, Seq>::type;
 
 	template<size_t N, typename T>
 	struct list_repeating_type
@@ -1671,89 +1850,280 @@ namespace symphas::lib
 	template<size_t N, typename T>
 	using list_repeating_type_t = typename list_repeating_type<N, T>::type;
 
+
+
+	template<size_t I, typename Seq0>
+	struct seq_ge_impl;
+
+	template<size_t I, typename T, T... Ns>
+	struct seq_ge_impl<I, std::integer_sequence<T, Ns...>>
+	{
+		using type = std::conditional_t<
+			(sizeof...(Ns) <= I),
+			std::integer_sequence<T>,
+			symphas::lib::select_seq<seq_offset_t<I, std::make_index_sequence<fixed_min<sizeof...(Ns) - I, sizeof...(Ns)>>>, std::integer_sequence<T, Ns...>>
+		>;
+	};
+
+	template<size_t I, typename Seq0>
+	using seq_ge_t = typename seq_ge_impl<I, Seq0>::type;
+
+	template<size_t I, typename Seq0>
+	struct seq_lt_impl;
+
+	template<size_t I, typename T, T... Ns>
+	struct seq_lt_impl<I, std::integer_sequence<T, Ns...>>
+	{
+		using type = symphas::lib::select_seq<std::make_index_sequence<fixed_min<I, sizeof...(Ns)>>, std::integer_sequence<T, Ns...>>;
+	};
+
+	template<size_t I, typename Seq0>
+	using seq_lt_t = typename seq_lt_impl<I, Seq0>::type;
+
+
+	template<typename T, T N, typename... Seqs>
+	struct find_index_lt;
+
+	// find the largest index of the sequence that is smaller than N
+	template<typename T, T N, size_t I0>
+	struct find_index_lt<T, N, std::integer_sequence<T, I0>>
+	{
+		static const size_t value = (I0 < N) ? 0 : -1;
+	};
+
+	// find the largest index of the sequence that is smaller than N
+	template<typename T, T N, size_t I0, size_t I1, size_t... Is>
+	struct find_index_lt<T, N, std::integer_sequence<T, I0, I1, Is...>>
+	{
+		static const size_t value = 
+			(seq_index_value<sizeof...(Is) / 2 + 1, std::integer_sequence<T, I0, I1, Is...>>::value <= N)
+				? sizeof...(Is) / 2 + 1 + find_index_lt<T, N, seq_ge_t<sizeof...(Is) / 2 + 1, std::integer_sequence<T, I0, I1, Is...>>>::value
+				: find_index_lt<T, N, seq_lt_t<sizeof...(Is) / 2 + 1, std::integer_sequence<T, I0, I1, Is...>>>::value;
+	};
+
+	template<typename T, T N, typename... Seqs>
+	struct find_index_ge;
+
+	// find the largest index of the sequence that is smaller than N
+	template<typename T, T N, size_t I0>
+	struct find_index_ge<T, N, std::integer_sequence<T, I0>>
+	{
+		static const size_t value = (I0 >= N) ? 0 : 1;
+	};
+
+	// find the largest index of the sequence that is smaller than N
+	template<typename T, T N, size_t I0, size_t I1, size_t... Is>
+	struct find_index_ge<T, N, std::integer_sequence<T, I0, I1, Is...>>
+	{
+		static const size_t value =
+			(seq_index_value<sizeof...(Is) / 2, std::integer_sequence<T, I0, I1, Is...>>::value < N)
+			? sizeof...(Is) / 2 + 1 + find_index_ge<T, N, seq_ge_t<sizeof...(Is) / 2 + 1, std::integer_sequence<T, I0, I1, Is...>>>::value
+			: find_index_ge<T, N, seq_lt_t<sizeof...(Is) / 2 + 1, std::integer_sequence<T, I0, I1, Is...>>>::value;
+	};
+
+
+	template<typename T, T I, typename Seq0>
+	struct seq_before_impl;
+
+	template<typename T, T I, T... Ns>
+	struct seq_before_impl<T, I, std::integer_sequence<T, Ns...>>
+	{
+		using type = symphas::lib::select_seq<
+			std::make_index_sequence<find_index_lt<T, I, std::integer_sequence<T, Ns...>>::value + 1>,
+			std::integer_sequence<T, Ns...>>;
+	};
+
+	template<typename T, T I, typename Seq0>
+	using seq_before_t = typename seq_before_impl<T, I, Seq0>::type;
+
+
+	template<typename T, T I, typename Seq0>
+	struct seq_after_at_impl;
+
+	template<typename T, T I, T... Ns>
+	struct seq_after_at_impl<T, I, std::integer_sequence<T, Ns...>>
+	{
+	protected:
+
+		static const size_t N = find_index_ge<T, I, std::integer_sequence<T, Ns...>>::value;
+
+	public:
+
+		using type = symphas::lib::select_seq<
+			seq_offset_t<N, std::make_index_sequence<sizeof...(Ns) - N>>, 
+			std::integer_sequence<T, Ns...>>;
+	};
+
+	template<typename T, T I, typename Seq0>
+	using seq_after_at_t = typename seq_after_at_impl<T, I, Seq0>::type;
+
+
+
+	template<bool, typename Seq0, typename Seq1>
+	struct select_merge_sort_seq_impl;
+
+	template<typename Seq0, typename Seq1>
+	struct merge_sort_seq_impl;
+
+	template<size_t N0, size_t... Ns>
+	struct merge_sort_seq_impl<std::index_sequence<N0, Ns...>, std::index_sequence<>>
+	{
+		using type = std::index_sequence<N0, Ns...>;
+	};
+
+	template<size_t M0, size_t... Ms>
+	struct merge_sort_seq_impl<std::index_sequence<>, std::index_sequence<M0, Ms...>>
+	{
+		using type = std::index_sequence<M0, Ms...>;
+	};
+
+	template<size_t N0, size_t... Ns, size_t M0, size_t... Ms>
+	struct merge_sort_seq_impl<std::index_sequence<N0, Ns...>, std::index_sequence<M0, Ms...>>
+	{
+		using type = typename select_merge_sort_seq_impl<(N0 < M0), std::index_sequence<N0, Ns...>, std::index_sequence<M0, Ms...>>::type;
+	};
+
+
+	template<size_t N0, size_t... Ns, size_t M0, size_t... Ms>
+	struct select_merge_sort_seq_impl<true, std::index_sequence<N0, Ns...>, std::index_sequence<M0, Ms...>>
+	{
+		using type = typename merge_sort_seq_impl<
+			seq_join_t<seq_before_t<size_t, M0, std::index_sequence<N0, Ns...>>, std::index_sequence<M0>, seq_after_at_t<size_t, M0, std::index_sequence<N0, Ns...>>>,
+			std::index_sequence<Ms...>>::type;
+	};
+
+	template<size_t N0, size_t... Ns, size_t M0, size_t... Ms>
+	struct select_merge_sort_seq_impl<false, std::index_sequence<N0, Ns...>, std::index_sequence<M0, Ms...>>
+	{
+		using type = typename merge_sort_seq_impl<
+			seq_join_t<seq_before_t<size_t, N0, std::index_sequence<M0, Ms...>>, std::index_sequence<N0>, seq_after_at_t<size_t, N0, std::index_sequence<M0, Ms...>>>,
+			std::index_sequence<Ns...>>::type;
+	};
+
+	template<size_t N0, size_t... Ns, size_t... Ms>
+	struct select_merge_sort_seq_impl<false, std::index_sequence<N0, Ns...>, std::index_sequence<N0, Ms...>>
+	{
+		using type = typename merge_sort_seq_impl<
+			std::index_sequence<N0, N0, Ns...>,
+			std::index_sequence<Ms...>>::type;
+	};
+
+	template<typename Seq0, typename Seq1>
+	using merge_sort_seq = typename merge_sort_seq_impl<Seq0, Seq1>::type;
+
+	template<typename Seq>
+	struct sort_seq_impl;
+
+	template<>
+	struct sort_seq_impl<std::index_sequence<>>
+	{
+		using type = std::index_sequence<>;
+	};
+
+	template<size_t N0>
+	struct sort_seq_impl<std::index_sequence<N0>>
+	{
+		using type = std::index_sequence<N0>;
+	};
+
+
+	template<size_t N0, size_t N1, size_t... Ns>
+	struct sort_seq_impl<std::index_sequence<N0, N1, Ns...>>
+	{
+		using type = merge_sort_seq<
+			typename sort_seq_impl<seq_ge_t<sizeof...(Ns) / 2 + 1, std::index_sequence<N0, N1, Ns...>>>::type,
+			typename sort_seq_impl<seq_lt_t<sizeof...(Ns) / 2 + 1, std::index_sequence<N0, N1, Ns...>>>::type>;
+	};
+
+	template<typename Seq0>
+	using sort_seq = typename sort_seq_impl<Seq0>::type;
+
+
 	//! Collect and count like types from a tuple list.
 	/*!
 	 * Give the list of types, the list is made unique and number of times
 	 * each type appears in the list is repeated.
 	 */
 	template<typename... Gs>
-	struct cc_like_types;
+	struct filter_types_impl;
 
-	namespace
+	template<typename... G0s>
+	struct filter_types_impl<types_list<G0s...>>
 	{
-
-		template<typename G>
-		struct cc_like_types_apply
-		{
-			using type = G;
-			using count = std::index_sequence<1>;
-			using discard = types_list<>;
-		};
-
-		template<typename G0>
-		struct cc_like_types_apply<types_list<G0>>
-		{
-			using type = types_list<G0>;
-			using count = std::index_sequence<1>;
-			using discard = types_list<>;
-		};
-
-		template<typename G0, typename... Gs>
-		struct cc_like_types_apply<types_list<G0, G0, Gs...>>
-		{
-		protected:
-			using cft0 = cc_like_types_apply<types_list<G0, Gs...>>;
-
-		public:
-			using type = typename cft0::type;
-			using count = seq_add_t<std::index_sequence<1>, typename cft0::count>;
-			using discard = typename cft0::discard;
-		};
-
-		template<typename G0, typename G1, typename... Gs>
-		struct cc_like_types_apply<types_list<G0, G1, Gs...>>
-		{
-		protected:
-			using cft0 = cc_like_types_apply<types_list<G0, Gs...>>;
-
-		public:
-			using type = typename cft0::type;
-			using count = typename cft0::count;
-			using discard = expand_types_list<types_list<G1>, typename cft0::discard>;
-		};
-	}
-
-	template<>
-	struct cc_like_types<types_list<>>
-	{
-		using type = types_list<>;
-		using count = std::index_sequence<>;
+		using type = types_list<G0s...>;
 	};
 
-	template<typename G0, typename... Gs>
-	struct cc_like_types<types_list<G0, Gs...>>
+	template<typename... G0s>
+	struct filter_types_impl<types_list<G0s...>, types_list<>>
+	{
+		using type = types_list<G0s...>;
+	};
+
+	template<bool... flags, typename... G0s>
+	struct filter_types_impl<types_list<G0s...>, std::integer_sequence<bool, flags...>>
+	{
+		using type = expand_types_list<std::conditional_t<flags, types_list<G0s>, types_list<>>...>;
+	};
+
+	template<typename... G0s, typename G1, typename... G1s>
+	struct filter_types_impl<types_list<G0s...>, types_list<G1, G1s...>>
 	{
 	protected:
 
-		using cc0 = cc_like_types_apply<types_list<G0, Gs...>>;
-		using cc1 = cc_like_types<typename cc0::discard>;
+		using filter_mask = std::integer_sequence<bool, !std::is_same<G1, G0s>::value...>;
+		using filtered_1 = typename filter_types_impl<types_list<G0s...>, filter_mask>::type;
 
 	public:
 
-		using type = expand_types_list<typename cc0::type, typename cc1::type>;
+		using type = typename filter_types_impl<filtered_1, types_list<G1s...>>::type;
 
-		using count = seq_join_t<
-			typename cc0::count,
-			typename cc1::count>;
+	};
+
+	template<typename... G0s, typename... G1s, typename... Rest>
+	struct filter_types_impl<types_list<G0s...>, types_list<G1s...>, Rest...>
+	{
+		using type = typename filter_types_impl<
+			typename filter_types_impl<types_list<G0s...>, types_list<G1s...>>::type,
+			Rest...>::type;
+
 	};
 
 	template<typename... Gs>
-	struct cc_like_types
+	using filter_types = typename filter_types_impl<Gs...>::type;
+
+
+	template<typename... Gs>
+	struct cc_like_types;
+
+	template<>
+	struct cc_like_types<>
 	{
-		using type = typename cc_like_types<types_list<Gs...>>::type;
-		using count = typename cc_like_types<types_list<Gs...>>::count;
+		using type = types_list<>;
+		using count_seq = std::index_sequence<>;
 	};
 
+	template<typename G0, typename... Gs>
+	struct cc_like_types<G0, Gs...>
+	{
+	protected:
+
+		using filtered = symphas::lib::filter_types<types_list<G0, Gs...>, types_list<G0>>;
+		using like_types_rest = cc_like_types<filtered>;
+		static const size_t count = (((std::is_same<G0, Gs>::value) ? 1 : 0) + ... + 1);
+
+	public:
+
+		using type = expand_types_list<G0, typename like_types_rest::type>;
+		using count_seq = seq_join_t<std::index_sequence<count>, typename like_types_rest::count_seq>;
+	};
+
+
+	template<typename... Gs>
+	struct cc_like_types<types_list<Gs...>>
+	{
+		using type = typename cc_like_types<Gs...>::type;
+		using count_seq = typename cc_like_types<Gs...>::count_seq;
+	};
 
 	//! Returns the unique list of types from the list.
 	/*!
@@ -1798,19 +2168,6 @@ namespace symphas::lib
 		auto get_seq_from_tuple(std::tuple<std::integer_sequence<T, Ns>...> const&)
 		{
 			return std::integer_sequence<T, Ns...>{};
-		}
-
-
-		template<size_t I, typename T, T... Ns, size_t... Is>
-		auto get_seq_ge(std::tuple<std::integer_sequence<T, Ns>...> const& ts, std::index_sequence<Is...>)
-		{
-			return get_seq_from_tuple(get_tuple_ge<I>(ts, std::index_sequence<Is...>{}));
-		}
-
-		template<typename T, T... Ns, T... Is>
-		auto get_seq_lt(std::tuple<std::integer_sequence<T, Ns>...> const& ts, std::integer_sequence<T, Is...>)
-		{
-			return get_seq_from_tuple(get_tuple_lt(ts, std::integer_sequence<T, Is...>{}));
 		}
 
 
@@ -2113,6 +2470,8 @@ namespace symphas::lib
 		}
 	}
 
+	template<typename T>
+	struct unroll_types_list {};
 
 	//! Return the index of the given type in the type list.
 	/*!
@@ -2124,8 +2483,8 @@ namespace symphas::lib
 	 * \tparam S0 The next type in the type list to compare.
 	 * \tparam Ss... The remaining types in the list.
 	 */
-	template<typename Type, size_t N, typename S0, typename ...Ss>
-	constexpr int nth_index_of_type = index_of_type_impl<Type, N, S0, Ss...>(std::make_index_sequence<sizeof...(Ss) + 1>{});
+	template<typename Type, size_t N, typename ...Ss>
+	constexpr int nth_index_of_type = index_of_type_impl<Type, N, Ss...>(std::make_index_sequence<sizeof...(Ss)>{});
 
 	//! Return the index of the given type in the type list.
 	/*!
@@ -2136,8 +2495,14 @@ namespace symphas::lib
 	 * \tparam S0 The next type in the type list to compare.
 	 * \tparam Ss... The remaining types in the list.
 	 */
-	template<typename Type, typename S0, typename ...Ss>
-	constexpr int index_of_type = nth_index_of_type<Type, 0, S0, Ss...>;
+	template<typename Type, typename ...Ss>
+	constexpr int index_of_type = nth_index_of_type<Type, 0, Ss...>;
+
+	template<typename Type>
+	constexpr int index_of_type<Type> = -1;
+
+	template<typename Type, Type N, Type... Is>
+	constexpr int index_of_value = index_of_type<std::integer_sequence<Type, N>, std::integer_sequence<Type, Is>...>;
 
 	template<typename Type, size_t N, typename S0, typename ...Ss>
 	constexpr int nth_index_of_type<Type, N, types_list<S0, Ss...>> = nth_index_of_type<Type, N, S0, Ss...>;
@@ -2145,13 +2510,19 @@ namespace symphas::lib
 	template<typename Type, typename S0, typename ...Ss>
 	constexpr int index_of_type<Type, types_list<S0, Ss...>> = index_of_type<Type, S0, Ss...>;
 
+	template<typename Type, typename S0, typename ...Ss>
+	constexpr int index_of_type<Type, unroll_types_list<types_list<S0, Ss...>>> = index_of_type<Type, S0, Ss...>;
 
 
-	template<typename T>
-	struct unroll_types_list {};
 
 	template<size_t I, typename... Ts>
 	struct type_at_index_impl;
+
+	//template<>
+	//struct type_at_index_impl<0, types_list<>>
+	//{
+	//	using type = void;
+	//};
 
 	template<typename T0>
 	struct type_at_index_impl<0, T0>
@@ -2169,6 +2540,12 @@ namespace symphas::lib
 	struct type_at_index_impl<I, T0, Ts...>
 	{
 		using type = typename type_at_index_impl<I - 1, Ts...>::type;
+	};
+
+	template<>
+	struct type_at_index_impl<0, unroll_types_list<types_list<>>>
+	{
+		using type = void;
 	};
 
 	template<typename T0, typename... Ts>
@@ -2213,6 +2590,44 @@ namespace symphas::lib
 
 	template<size_t I, typename... Ts>
 	using types_after_at_index = typename types_after_at_index_impl<I, Ts...>::type;
+
+
+	template<typename Seq, typename... Ts>
+	struct select_types_impl;
+
+	template<size_t... Is, typename... Ts>
+	struct select_types_impl<std::index_sequence<Is...>, Ts...>
+	{
+		using type = types_list<type_at_index<Is, Ts...>...>;
+	};
+
+	template<size_t... Is, typename... Ts>
+	struct select_types_impl<std::index_sequence<Is...>, unroll_types_list<types_list<Ts...>>>
+	{
+		using type = types_list<type_at_index<Is, Ts...>...>;
+	};
+	
+
+	template<typename Seq, typename... Ts>
+	using select_types = typename select_types_impl<Seq, Ts...>::type;
+
+	template<typename Seq, typename... Ts>
+	struct filter_types_on_index_impl;
+
+	template<size_t... Is, typename... Ts>
+	struct filter_types_on_index_impl<std::index_sequence<Is...>, Ts...>
+	{
+		using type = select_types<symphas::lib::filter_seq_t<std::make_index_sequence<sizeof...(Ts)>, std::index_sequence<Is...>>, Ts...>;
+	};
+
+	template<size_t... Is, typename... Ts>
+	struct filter_types_on_index_impl<std::index_sequence<Is...>, unroll_types_list<types_list<Ts...>>>
+	{
+		using type = select_types<symphas::lib::filter_seq_t<std::make_index_sequence<sizeof...(Ts)>, std::index_sequence<Is...>>, Ts...>;
+	};
+
+	template<typename Seq, typename... Ts>
+	using filter_types_on_index = typename filter_types_on_index_impl<Seq, Ts...>::type;
 
 
 	template<size_t I, typename T, typename... Ts>
@@ -2935,20 +3350,20 @@ namespace symphas::lib
 	template<size_t I, typename T, T... Ns>
 	auto get_seq_ge(std::integer_sequence<T, Ns...> const& seq)
 	{
-		if constexpr (sizeof...(Ns) < I)
+		if constexpr (sizeof...(Ns) <= I)
 		{
 			return std::integer_sequence<T>{};
 		}
 		else
 		{
-			return get_seq_ge<I>(std::tuple<std::integer_sequence<T, Ns>...>{}, std::make_index_sequence<sizeof...(Ns) - I>{});
+			return symphas::lib::select_seq<seq_offset_t<I, std::make_index_sequence<sizeof...(Ns) - I>>, std::integer_sequence<T, Ns...>>{};
 		}
 	}
 
 	template<size_t I, typename T, T... Ns>
 	auto get_seq_lt(std::integer_sequence<T, Ns...> const& seq)
 	{
-		return get_seq_lt(std::tuple<std::integer_sequence<T, Ns>...>{}, std::integer_sequence<T, I>{});
+		return symphas::lib::select_seq<std::make_index_sequence<I>, std::integer_sequence<T, Ns...>>{};
 	}
 
 	template<typename... Ts>
