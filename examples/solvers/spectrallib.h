@@ -482,7 +482,7 @@ namespace solver_sp
 
 	template<size_t Z0, size_t D, typename... S, typename B, typename Dd, typename V, typename E, typename Sp>
 	auto construct_nonlinear(std::tuple<S...> const& systems, OpExpression<B> const& bop,
-		OpFuncDerivative<Dd, V, E, Sp> const& e, double const* h, const len_type* dims);
+		OpDerivative<Dd, V, E, Sp> const& e, double const* h, const len_type* dims);
 	template<size_t Z0, size_t D, typename... S, typename B, size_t O, typename V, typename Sp>
 	auto construct_nonlinear(std::tuple<S...> const& systems, OpExpression<B> const& bop,
 		OpOperatorDerivative<O, V, Sp> const& e, double const* h, const len_type* dims);
@@ -502,6 +502,9 @@ namespace solver_sp
 	template<size_t Z0, size_t D, typename... S, typename B, typename... Es>
 	auto construct_nonlinear(std::tuple<S...> const& systems, OpExpression<B> const& bop,
 		OpAdd<Es...> const& e, double const* h, const len_type* dims);
+	template<size_t Z0, size_t D, typename... S, typename B, expr::exp_key_t X, typename V, typename E>
+	auto construct_nonlinear(std::tuple<S...> const& systems, OpExpression<B> const& bop,
+		OpPow<X, V, E> const& e, double const* h, const len_type* dims);
 	template<size_t Z0, size_t D, typename... S, typename B, typename E1, typename E2>
 	auto construct_nonlinear(std::tuple<S...> const& systems, OpExpression<B> const& bop,
 		OpBinaryMul<E1, E2> const& e, double const* h, const len_type* dims);
@@ -526,12 +529,12 @@ namespace solver_sp
 
 	template<size_t Z0, size_t D, typename... S, typename B, typename Dd, typename V, typename E, typename Sp>
 	auto construct_nonlinear(std::tuple<S...> const& systems, OpExpression<B> const& bop,
-		OpFuncDerivative<Dd, V, E, Sp> const& e, double const* h, const len_type* dims)
+		OpDerivative<Dd, V, E, Sp> const& e, double const* h, const len_type* dims)
 	{
 		using vt = variable_type<std::tuple_element_t<Z0, std::tuple<S...>>>;
 
-		constexpr Axis axis = OpFuncDerivative<Dd, V, E, Sp>::axis;
-		constexpr size_t order = OpFuncDerivative<Dd, V, E, Sp>::order;
+		constexpr Axis axis = OpDerivative<Dd, V, E, Sp>::axis;
+		constexpr size_t order = OpDerivative<Dd, V, E, Sp>::order;
 
 		auto [op, en] = expr::split::separate_operator(e);
 		auto B_expression = (*static_cast<B const*>(&bop)) * expr::transform::to_ft<D>(op, h, dims);
@@ -543,7 +546,7 @@ namespace solver_sp
 
 	template<size_t Z0, size_t D, typename... S, typename B, typename V, typename E1, typename E2>
 	auto construct_nonlinear(std::tuple<S...> const& systems, OpExpression<B> const& bop, 
-		OpFuncConvolution<V, E1, E2> const& e, double const* h, const len_type* dims)
+		OpConvolution<V, E1, E2> const& e, double const* h, const len_type* dims)
 	{
 		return expr::coeff(e) * construct_nonlinear<Z0, D>(systems, *static_cast<B const*>(&bop), e.a, h, dims)
 			* construct_nonlinear<Z0, D>(systems, OpIdentity{}, *static_cast<B const*>(&bop), e.b, h, dims);
@@ -551,7 +554,7 @@ namespace solver_sp
 
 	template<size_t Z0, size_t D, typename... S, typename B, typename V, typename E>
 	auto construct_nonlinear(std::tuple<S...> const& systems, OpExpression<B> const& bop, 
-		OpFuncConvolution<V, GaussianSmoothing<D>, E> const& e, double const* h, const len_type* dims)
+		OpConvolution<V, GaussianSmoothing<D>, E> const& e, double const* h, const len_type* dims)
 	{
 		return expr::coeff(e) * expr::transform::to_ft<D>(e.smoother, h, dims)
 			* construct_nonlinear<Z0, D>(systems, *static_cast<B const*>(&bop), expr::get_enclosed_expression(e), h, dims);
@@ -625,8 +628,6 @@ namespace solver_sp
 	{
 		return construct_nonlinear_adds<Z0, D>(systems, *static_cast<B const*>(&bop), e, h, dims, std::make_index_sequence<sizeof...(Es)>{});
 	}
-
-
 
 	template<size_t Z0, size_t D, typename... S, typename B, typename E1, typename E2>
 	auto construct_nonlinear(std::tuple<S...> const& systems, OpExpression<B> const& bop, 
@@ -702,11 +703,11 @@ namespace solver_sp
 	template<size_t Z, typename A1, typename A2, typename E>
 	auto get_l_op(OpCombination<A1, A2, E> const& e, double const* h);
 	template<size_t Z, typename Dd, typename V, typename E, typename Sp>
-	auto get_l_op(OpFuncDerivative<Dd, V, E, Sp> const& e, double const* h);
+	auto get_l_op(OpDerivative<Dd, V, E, Sp> const& e, double const* h);
 	template<size_t Z, typename V, typename E1, typename E2>
-	auto get_l_op(OpFuncConvolution<V, E1, E2> const& e, double const* h);
+	auto get_l_op(OpConvolution<V, E1, E2> const& e, double const* h);
 	template<size_t Z, typename V, size_t D, typename E>
-	auto get_l_op(OpFuncConvolution<V, GaussianSmoothing<D>, E> const& e, double const* h);
+	auto get_l_op(OpConvolution<V, GaussianSmoothing<D>, E> const& e, double const* h);
 
 	template<size_t Z, typename E>
 	constexpr bool l_op_compatible = expr::vars<E>::template only_id<Z>();
@@ -814,14 +815,14 @@ namespace solver_sp
 	}
 
 	template<size_t Z, typename Dd, typename V, typename E, typename Sp>
-	auto get_l_op(OpFuncDerivative<Dd, V, E, Sp> const& e, double const* h)
+	auto get_l_op(OpDerivative<Dd, V, E, Sp> const& e, double const* h)
 	{
 		constexpr size_t D = expr::grid_dim<E>::dimension;
 		len_type dims[D];
 		expr::fill_data_dimensions(e, dims);
 
-		constexpr size_t order = OpFuncDerivative<Dd, V, E, Sp>::order;
-		constexpr Axis axis = OpFuncDerivative<Dd, V, E, Sp>::axis;
+		constexpr size_t order = OpDerivative<Dd, V, E, Sp>::order;
+		constexpr Axis axis = OpDerivative<Dd, V, E, Sp>::axis;
 
 		static_assert(order > 0);
 
