@@ -49,6 +49,8 @@
 
  /*!
   * \defgroup initial Initial Conditions and File Loading
+  * Initial conditions for a system are quite flexible; they can be defined from an algorithm, a file or even a symbolic expression.
+  * 
   * \section Overview
   * 
   * Initial conditions can be either taken from the pool of built-in algorithms,
@@ -72,7 +74,7 @@
   * |`CIRCLE`| 			Value are assigned to be the shape of a circle.| `RANDOM`, `A`, `A+RANDOM` |
   * |`HEXAGONAL`| 		Values are assigned into circles arranged in a hexagonal pattern.| `RANDOM` |
   * |`CUBIC`| 			Values are assigned into circles arranged in a cubic pattern.| `RANDOM` |
-  * |`SQUARE`|			Values are assigned to be the shape of a square.| `RANDOM`, `A`, `A+RANDOM` |
+  * |\ref initsquare |			Values are assigned to be the shape of a square.| `RANDOM`, `A`, `A+RANDOM` |
   * |`SQUARESEEDS`| 		Values are put into randomly arranged squares.| `RANDOM`, `A`, `A+RANDOM`, `B`, `B+RANDOM`  |
   * |`CIRCLESEEDS`|		Values are put into randomly arranged circles.| `RANDOM`, `A`, `A+RANDOM`, `B`, `B+RANDOM` |
   * |`FILE`| 			Values are read in from a file.| *None* |
@@ -634,8 +636,11 @@ namespace symphas::internal
 /***************************************************************************
 **SQUARE INITIAL CONDITIONS************************************************/
 
-//! Generate a square centered at the halfway point of the dimensions.
 /*!
+ * \addtogroup initial
+ * \subsection initsquare Square
+ * Generate a square centered at the halfway point of the dimensions.
+ * 
  * The side lengths of the square will be scaled with respect to the
  * dimensions of the system. A rectangular system will contain
  * a rectangle in the middle.
