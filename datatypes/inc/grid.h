@@ -808,7 +808,7 @@ public:
 
 protected:
 
-	Grid() : Grid(nullptr) {}
+	constexpr Grid() : Grid(nullptr) {}
 
 };
 
@@ -889,7 +889,7 @@ public:
 
 protected:
 
-	Grid() : Grid(nullptr) {}
+	constexpr Grid() : Grid(nullptr) {}
 
 };
 
@@ -974,9 +974,9 @@ public:
 protected:
 
 #ifdef MULTITHREAD
-	BoundaryGrid() : Grid<T, D>(), inners{ nullptr }, len_inner{ 0 } {}
+	constexpr BoundaryGrid() : Grid<T, D>(), inners{ nullptr }, len_inner{ 0 } {}
 #else
-	BoundaryGrid() : Grid<T, D>() {}
+	constexpr BoundaryGrid() : Grid<T, D>() {}
 #endif
 
 };
@@ -1046,9 +1046,9 @@ public:
 protected:
 
 #ifdef MULTITHREAD
-	BoundaryGrid() : Grid<T, 3>(), inners{ nullptr }, len_inner{ 0 } {}
+	constexpr BoundaryGrid() : Grid<T, 3>(), inners{ nullptr }, len_inner{ 0 } {}
 #else
-	BoundaryGrid() : Grid<T, 3>() {}
+	constexpr BoundaryGrid() : Grid<T, 3>() {}
 #endif
 
 };
@@ -1111,9 +1111,9 @@ public:
 protected:
 
 #ifdef MULTITHREAD
-	BoundaryGrid() : Grid<T, 2>(), inners{ nullptr }, len_inner{ 0 } {}
+	constexpr BoundaryGrid() : Grid<T, 2>(), inners{ nullptr }, len_inner{ 0 } {}
 #else
-	BoundaryGrid() : Grid<T, 2>() {}
+	constexpr BoundaryGrid() : Grid<T, 2>() {}
 #endif
 
 };
@@ -1173,9 +1173,9 @@ protected:
 
 
 #ifdef MULTITHREAD
-	BoundaryGrid() : Grid<T, 1>(), inners{ nullptr }, len_inner{ 0 } {}
+	constexpr BoundaryGrid() : Grid<T, 1>(), inners{ nullptr }, len_inner{ 0 } {}
 #else
-	BoundaryGrid() : Grid<T, 1>() {}
+	constexpr BoundaryGrid() : Grid<T, 1>() {}
 #endif
 
 };
