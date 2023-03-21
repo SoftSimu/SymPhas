@@ -162,6 +162,8 @@ struct model_select
 #undef ii
 #undef jj_
 #undef jj
+#undef kk_
+#undef kk
 
 #undef op_ii_
 #undef op_ii
@@ -192,6 +194,8 @@ struct model_select
 
 #undef POW
 #undef LENGTH
+
+#undef STATS
 
 #endif
 
