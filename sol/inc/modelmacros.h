@@ -188,7 +188,6 @@ constexpr model_count_index<MODEL_INDEX_NAME(PREFIX_NAME)> model_counter(model_c
  * the model type to the user defined function
  */
 
-//! \cond
 template<int N>
 struct model_call_wrapper
 {
@@ -254,7 +253,6 @@ struct model_call_wrapper<MODEL_INDEX_NAME(NAME)> \
 		return model_call_wrapper<MODEL_INDEX_NAME(NAME) - 1>::call<AppliedSolver>(dimension, name, std::forward<Ts>(args)...); \
 	} \
 };
-//! \endcond
 
 
 
@@ -601,7 +599,7 @@ PROVISIONAL_TRAIT_DEFINITION(__VA_ARGS__)
  * 
  * It is also possible to use the Gaussian kernel in the equations of motion,
  * which is a grid of the Fourier wavenumbers. See #Gaussian and 
- * OpFuncConvolution.
+ * OpConvolution.
  * 
  * Also, where the number 1 (i.e. the multiplicative identity) should be used
  * in an expression explicitly, it is recommended to use #one, to maximize
@@ -985,7 +983,7 @@ struct allowed_model_dimensions<void, D> \
  * 
  * \param N The `N`-th parameter/coefficient.
  */
-#define param(N) parent_type::template param<N - 1>()
+#define param(N) parent_type::param(N - 1)
 
 
 #define _nW(TYPE, ...) expr::make_noise<NoiseType::WHITE, TYPE, Dm>( \
@@ -1097,9 +1095,9 @@ struct allowed_model_dimensions<void, D> \
 #define DOUBLE_WELL_FE(U, ...) doublewell_fe(U, solver, __VA_ARGS__)
 #define CELLULAR_FE(U, ...) cellular_fe(U, solver, __VA_ARGS__)
 
-#define SUM(...) symphas::internal::index_conditions(__VA_ARGS__)
+#define SUM(...) symphas::internal::series_index_selection(parent_type::systems_tuple(), __VA_ARGS__)
 #define SUM_INDEX(I, P) (i_<I, P>{})
-#define SUM_VARIABLE(In, P) expr::symbols::make_sum_variable<P>(In)
+#define SUM_VARIABLE(In, P) expr::symbols::make_series_variable<P>(In)
 
 #define ii_(P) SUM_INDEX(0, P)
 #define ii ii_(0)
@@ -1126,6 +1124,9 @@ struct allowed_model_dimensions<void, D> \
 
 #define SYS_DIMS(N) parent_type::template system<N>().dims
 #define SYS_INTERVAL(N, AXIS) parent_type::template system<N>().get_info().intervals
+
+
+#define STATS ExpressionStats{}
 
  //! @}
 

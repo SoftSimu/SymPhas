@@ -28,32 +28,32 @@
 #include "model.h"
 #include "expressionaggregates.h"
 #include "provisionalsystemgroup.h"
-#include "expressionsubstitutables.h"
+#include "symboliceval.h"
 
 namespace expr
 {
 	namespace
 	{
 		template<Axis ax, typename G, typename Sp>
-		using grad_term_t = OpFuncDerivative<typename Solver<Sp>::template derivative<ax, 1>, OpIdentity, OpTerm<OpIdentity, G>, Sp>;
+		using grad_term_t = OpDerivative<typename Solver<Sp>::template derivative<ax, 1>, OpIdentity, OpTerm<OpIdentity, G>, Sp>;
 
 		template<typename E, typename Sp, typename G, Axis... axs, size_t... Is>
-		auto euler_lagrange_deriv(OpExpression<E> const& e, Sp const& solver, 
+		auto euler_lagrange_deriv(E const& e, Sp const& solver, 
 			symphas::lib::types_list<G, symphas::lib::axis_list<axs...>>,
 			std::index_sequence<Is...>)
 		{
 			return expr::apply_operators(
 				expr::make_operator_derivative<1>(solver) * (
 					expr::apply_operators(
-						expr::make_column_vector<Is, sizeof...(Is)>() * expr::make_derivative<1, grad_term_t<axs, G, Sp>>(*static_cast<E const*>(&e))) + ...));
+						expr::make_column_vector<Is, sizeof...(Is)>() * expr::make_derivative<1, grad_term_t<axs, G, Sp>>(e)) + ...));
 		}
 
 		template<typename G, typename E, typename Sp>
-		auto euler_lagrange_deriv(OpExpression<E> const& e, Sp const& solver)
+		auto euler_lagrange_deriv(E const& e, Sp const& solver)
 		{
 			constexpr size_t dimension = expr::grid_dim<G>::value;
 
-			return euler_lagrange_deriv(*static_cast<E const*>(&e), solver, 
+			return euler_lagrange_deriv(e, solver, 
 				symphas::lib::make_axis_list<dimension, G>(), std::make_index_sequence<dimension>{});
 		}
 	}
@@ -591,7 +591,7 @@ namespace symphas::internal
 		template<typename... U_Ds, typename... Us, typename... Fs, typename Sp>
 		auto operator()(std::tuple<U_Ds...> const& dops, std::tuple<Us...> const& ops, std::tuple<Fs...> const& dfes, Sp const& solver)
 		{
-			using df_v_types = typename select_v_<func_deriv_i<-1>, expr::op_types_t<E>>::type;
+			using df_v_types = typename select_v_i_<func_deriv_i<-1>, expr::op_types_t<E>>::type;
 
 			auto with_fes = substitute_for_dynamics<N>(df_v_types{}, e, dfes);
 			auto ev = substitute_ops(ops, with_fes);
@@ -642,8 +642,7 @@ namespace symphas::internal
 		special_dynamics<N0, I, E> const& dynamic, 
 		std::tuple<Us...> const& ops)
 	{
-		return special_dynamics(std::index_sequence<N>{}, I{})(
-			expr::expand_sum(dynamic.e, ops, std::make_index_sequence<sizeof...(Us)>{}));
+		return special_dynamics(std::index_sequence<N>{}, I{})(dynamic.e);
 	}
 
 	template<size_t N, size_t N0, typename I, DynamicType dynamic0, typename... Us>
@@ -656,21 +655,20 @@ namespace symphas::internal
 	}
 
 	template<size_t... Is, typename... Dyns, size_t N, typename E, typename... Us>
-	auto interpret_dynamics(std::index_sequence<Is...>, std::tuple<Dyns...> const& dl,
-		special_dynamics<N, void, E> const& dynamic, std::tuple<Us...> const& ops)
+	auto interpret_dynamics(std::index_sequence<Is...>, std::tuple<Dyns...> const& dynamics,
+		special_dynamics<N, void, E> const& dynamic0, std::tuple<Us...> const& ops)
 	{
 		return std::tuple_cat(
-			symphas::lib::get_tuple_lt<N>(dl),
-			std::make_tuple(special_dynamics(std::index_sequence<N>{})(
-				expr::expand_sum(dynamic.e, ops, std::make_index_sequence<sizeof...(Us)>{}))),
-			symphas::lib::get_tuple_ge<N + 1>(dl));
+			symphas::lib::get_tuple_lt<N>(dynamics),
+			std::make_tuple(special_dynamics(std::index_sequence<N>{})(dynamic0.e)),
+			symphas::lib::get_tuple_ge<N + 1>(dynamics));
 	}
 
 	template<size_t... Is, typename... Dyns, size_t N, typename I, typename E, typename... Us>
-	auto interpret_dynamics(std::index_sequence<Is...>, std::tuple<Dyns...> const& dl,
-		special_dynamics<N, I, E> const& dynamic, std::tuple<Us...> const& ops)
+	auto interpret_dynamics(std::index_sequence<Is...>, std::tuple<Dyns...> const& dynamics,
+		special_dynamics<N, I, E> const& dynamic0, std::tuple<Us...> const& ops)
 	{
-		return std::make_tuple(replace_dynamics_if_none(std::get<Is>(dl), dynamic, ops)...);
+		return std::make_tuple(replace_dynamics_if_none(std::get<Is>(dynamics), dynamic0, ops)...);
 	}
 
 
@@ -729,10 +727,9 @@ struct TraitEquation : parent_trait
 {
 	using parent_trait::parent_trait;
 	using parent_trait::solver;
-	using seq_t = std::make_index_sequence<model_num_parameters<parent_trait>::value>;
 
-
-
+	static const size_t Sn = model_num_parameters<parent_trait>::value;
+	using seq_t = std::make_index_sequence<Sn>;
 
 	template<size_t I>
 	auto op()
@@ -750,8 +747,7 @@ struct TraitEquation : parent_trait
 		return OpLHS(expr::as_variable<I>(parent_trait::template system<I>()));
 	}
 
-	template<size_t I>
-	auto param()
+	auto param(size_t I)
 	{
 		if (I < parent_trait::num_coeff)
 		{
@@ -761,6 +757,11 @@ struct TraitEquation : parent_trait
 		{
 			return expr::make_literal(DEFAULT_COEFF_VALUE);
 		}
+	}
+
+	auto param(size_t N, size_t I)
+	{
+		return param(N * Sn + I);
 	}
 
 	template<template<typename> typename other_enclosing_type, typename other_parent_trait>
@@ -775,11 +776,11 @@ struct TraitEquation : parent_trait
 		return *static_cast<model_base_t<parent_trait> const*>(this);
 	}
 
-	template<symphas::internal::DynamicType dynamic0, symphas::internal::DynamicType... dynamics,typename E>
+	template<symphas::internal::DynamicType dynamic0, symphas::internal::DynamicType... dynamics, typename E>
 	auto generate_equations(std::tuple<symphas::internal::dynamics_key_t<dynamic0>, symphas::internal::dynamics_key_t<dynamics>...>, OpExpression<E> const& e)
 	{
 		using dynamics_list = symphas::internal::dynamics_list<dynamic0, dynamics...>;
-		return generate_equations_apply(expand_sum(*static_cast<E const*>(&e), seq_t{}), seq_t{}, dynamics_list{});
+		return generate_equations_apply(*static_cast<E const*>(&e), seq_t{}, dynamics_list{});
 	}
 
 	template<typename... special_dynamics, typename E, size_t... Ns>
@@ -799,14 +800,16 @@ struct TraitEquation : parent_trait
 protected:
 
 	template<typename E, symphas::internal::DynamicType... dynamics>
-	auto generate_equations_apply(OpExpression<E> const& e,
+	auto generate_equations_apply(
+		OpExpression<E> const& e,
 		symphas::internal::dynamics_list<dynamics...> const& ed)
 	{
 		return generate_equations(std::make_tuple(symphas::internal::dynamics_key_t<dynamics>{}...), *static_cast<E const*>(&e));
 	}
 
 	template<typename E, size_t... Ns, typename... Is, typename... Es>
-	auto generate_equations_apply(OpExpression<E> const& e,
+	auto generate_equations_apply(
+		OpExpression<E> const& e,
 		std::tuple<symphas::internal::special_dynamics<Ns, Is, Es>...> const& ed)
 	{
 		auto dfes = generate_equations(
@@ -821,22 +824,17 @@ protected:
 	}
 
 	template<typename E, size_t... Ns, symphas::internal::DynamicType... dynamics>
-	auto generate_equations_apply(E const& fe, std::index_sequence<Ns...>, symphas::internal::dynamics_list<dynamics...>)
+	auto generate_equations_apply(
+		OpExpression<E> const& fe, 
+		std::index_sequence<Ns...>, 
+		symphas::internal::dynamics_list<dynamics...>)
 	{
 		return std::make_tuple(
 			symphas::internal::apply_dynamics<dynamics>{}(
-				dop<Ns>(), 
-				expr::euler_lagrange_apply(op<Ns>(), fe, solver), 
+				dop<Ns>(),
+				expr::euler_lagrange_apply(op<Ns>(), *static_cast<E const*>(&fe), solver),
 				solver)...);
 	}
-
-	template<typename E, typename... Us, size_t... Ns>
-	auto expand_sum(OpExpression<E> const& e, std::index_sequence<Ns...>)
-	{
-		return expr::expand_sum(*static_cast<E const*>(&e), std::make_tuple(op<Ns>()...), seq_t{});
-	}
-
-
 };
 
 
@@ -1040,3 +1038,125 @@ struct model_field_name<model_ ## MODEL_NAME::TraitEquationModel> \
 
 
 
+namespace symphas::internal
+{
+	template<typename S, typename... Xs>
+	struct series_index_selection;
+
+	template<typename, size_t N>
+	constexpr size_t ivalue = N;
+
+	template<typename... Ss, typename... Xs>
+	struct series_index_selection<std::tuple<Ss...>, Xs...>
+	{
+		series_index_selection(std::tuple<Ss...> const& systems, Xs... xs) : systems{ &const_cast<std::tuple<Ss...>&>(systems) }, limits{ xs... } {}
+
+		template<typename E, size_t... Ls, size_t... Ns>
+		auto substitute_systems(OpExpression<E> const& e, std::index_sequence<Ls...>, std::index_sequence<Ns...>)
+		{
+			return sum(*static_cast<E const*>(&e))
+				.template select<Ls...>(Xs{}...)
+				(std::make_tuple(Term(expr::as_variable<Ns>(std::get<Ns>(*systems).as_grid()))...));
+		}
+
+		template<typename E>
+		auto operator()(OpExpression<E> const& e)
+		{
+			return substitute_systems(
+				*static_cast<E const*>(&e), 
+				symphas::lib::seq_repeating_value_t<sizeof...(Xs), size_t, sizeof...(Ss)>{},
+				std::make_index_sequence<sizeof...(Ss)>{});
+		}
+
+
+		std::tuple<Ss...> *systems;
+		std::tuple<Xs...> limits;
+	};
+
+	template<typename... Ss, typename... Xs>
+	series_index_selection(std::tuple<Ss...>, Xs...) -> series_index_selection<std::tuple<Ss...>, Xs...>;
+}
+
+
+struct ExpressionStats
+{
+protected:
+
+	template<typename T, size_t D>
+	static auto max(any_vector_t<T, D> const& v1, any_vector_t<T, D> const& v2)
+	{
+		using std::max;
+		any_vector_t<T, D> vm;
+		for (iter_type i = 0; i < D; ++i)
+		{
+			vm[i] = max(v1[i], v2[i]);
+		}
+		return vm;
+	}
+
+	template<typename T, size_t D>
+	static auto min(any_vector_t<T, D> const& v1, any_vector_t<T, D> const& v2)
+	{
+		using std::min;
+		any_vector_t<T, D> vm;
+		for (iter_type i = 0; i < D; ++i)
+		{
+			vm[i] = min(v1[i], v2[i]);
+		}
+		return vm;
+	}
+
+public:
+
+	template<typename E>
+	auto mean(OpExpression<E> const& e) const
+	{
+		expr::eval_type_t<E> sum;
+		expr::result(OpVoid{}, sum);
+
+		auto sumop = expr::make_term(sum);
+		
+		len_type len = expr::data_length(*static_cast<E const*>(&e));
+		for (iter_type i = 0; i < len; ++i)
+		{
+			sum += (*static_cast<E const*>(&e)).eval(i);
+		}
+
+		sum *= (1. / len);
+		return expr::make_literal(sum);
+	}
+
+	template<typename E>
+	auto max(OpExpression<E> const& e) const
+	{
+		using std::max;
+
+		expr::eval_type_t<E> result;
+		expr::result((*static_cast<E const*>(&e)).eval(0), result);
+
+		len_type len = expr::data_length(*static_cast<E const*>(&e));
+		for (iter_type i = 1; i < len; ++i)
+		{
+			result = max((*static_cast<E const*>(&e)).eval(i), result);
+		}
+
+		return expr::make_literal(result);
+	}
+
+	template<typename E>
+	auto min(OpExpression<E> const& e) const
+	{
+		using std::max;
+
+		expr::eval_type_t<E> result;
+		expr::result((*static_cast<E const*>(&e)).eval(0), result);
+
+		len_type len = expr::data_length(*static_cast<E const*>(&e));
+		for (iter_type i = 1; i < len; ++i)
+		{
+			result = min((*static_cast<E const*>(&e)).eval(i), result);
+		}
+
+		return expr::make_literal(result);
+	}
+};
