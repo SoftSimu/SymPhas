@@ -161,6 +161,11 @@ namespace expr
 	auto pow(OpNegIdentity);
 
 
+	inline auto pow(expr::symbols::Symbol)
+	{
+		return expr::symbols::Symbol{};
+	}
+
 	namespace
 	{
 
@@ -403,6 +408,63 @@ namespace expr
 		return symphas::internal::make_function<f>::template get(std::forward<V>(v), std::forward<A>(a));
 	}
 
+	//! Create a function expression of another expression.
+	/*!
+	 * The function is applied to the given expression through an expression
+	 * that represents a function.
+	 *
+	 * \param v The coefficient to the function expression.
+	 * \param a The expression to which the function is applied.
+	 */
+	template<typename V, typename E, typename F, typename Arg0, typename... Args>
+	auto make_function(V const& v, OpExpression<E> const& e, std::string name, F f, std::tuple<Arg0, Args...> const& args)
+	{
+		return OpFunction<V, E, F, Arg0, Args...>(v, *static_cast<E const*>(&e), f, args);
+	}
+
+	//! Create a function expression of another expression.
+	/*!
+	 * The function is applied to the given expression through an expression
+	 * that represents a function.
+	 *
+	 * \param v The coefficient to the function expression.
+	 * \param a The expression to which the function is applied.
+	 */
+	template<typename V, typename E, typename F, typename Arg0, typename... Args>
+	auto make_function(OpExpression<E> const& e, std::string name, F f, std::tuple<Arg0, Args...> const& args)
+	{
+		return OpFunction<OpIdentity, E, F, Arg0, Args...>(OpIdentity{}, *static_cast<E const*>(&e), f, args);
+	}
+
+	//! Create a function expression of another expression.
+	/*!
+	 * The function is applied to the given expression through an expression
+	 * that represents a function.
+	 *
+	 * \param v The coefficient to the function expression.
+	 * \param a The expression to which the function is applied.
+	 */
+	template<typename V, typename E, typename F>
+	auto make_function(V const& v, OpExpression<E> const& e, std::string name, F f)
+	{
+		return OpFunction<V, E, F, void>(v, *static_cast<E const*>(&e), f);
+	}
+
+	//! Create a function expression of another expression.
+	/*!
+	 * The function is applied to the given expression through an expression
+	 * that represents a function.
+	 *
+	 * \param v The coefficient to the function expression.
+	 * \param a The expression to which the function is applied.
+	 */
+	template<typename V, typename E, typename F>
+	auto make_function(OpExpression<E> const& e, std::string name, F f)
+	{
+		return OpFunction<OpIdentity, E, F, void>(OpIdentity{}, *static_cast<E const*>(&e), f);
+	}
+
+
 }
 
 
@@ -421,9 +483,9 @@ namespace expr
  * \tparam E The type of the expression the function applies to.
  */
 template<auto f, typename V, typename E>
-struct OpFuncApply : OpExpression<OpFuncApply<f, V, E>>
+struct OpFunctionApply : OpExpression<OpFunctionApply<f, V, E>>
 {
-	OpFuncApply() : value{ V{} }, e{} {}
+	OpFunctionApply() : value{ V{} }, e{} {}
 
 	//! Create a new function expression, applied to an expression.
 	/*!
@@ -433,7 +495,7 @@ struct OpFuncApply : OpExpression<OpFuncApply<f, V, E>>
 	 * \param value The coefficient of the function expression.
 	 * \param e The expression on which the function is applied.
 	 */
-	OpFuncApply(V value, E const& e) : value{ value }, e{ e } {}
+	OpFunctionApply(V value, E const& e) : value{ value }, e{ e } {}
 
 	//! Create a new function expression, applied to an expression.
 	/*!
@@ -442,11 +504,18 @@ struct OpFuncApply : OpExpression<OpFuncApply<f, V, E>>
 	 *
 	 * \param e The expression on which the function is applied.
 	 */
-	OpFuncApply(E const& e) : value{ OpIdentity{} }, e{ e } {}
+	OpFunctionApply(E const& e) : value{ OpIdentity{} }, e{ e } {}
 
 	inline auto eval(iter_type n) const
 	{
-		return expr::eval(value) * f(e.eval(n));
+		if constexpr (std::is_same_v<expr::eval_type_t<E>, expr::symbols::Symbol>)
+		{
+			return expr::symbols::Symbol{};
+		}
+		else
+		{
+			return expr::eval(value) * f(e.eval(n));
+		}
 	}
 
 
@@ -498,14 +567,14 @@ struct OpFuncApply : OpExpression<OpFuncApply<f, V, E>>
 
 template<typename coeff_t, auto f2, typename V2, typename E2,
 	typename std::enable_if_t<(expr::is_coeff<coeff_t> && !expr::is_tensor<V2>), int> = 0>
-auto operator*(coeff_t const& value, OpFuncApply<f2, V2, E2> const& b)
+auto operator*(coeff_t const& value, OpFunctionApply<f2, V2, E2> const& b)
 {
 	return symphas::internal::make_function<f2>::template get(value * b.value, b.e);
 }
 
 template<typename coeff_t, typename tensor_t, auto f2, typename E2,
 	typename std::enable_if_t<(expr::is_coeff<coeff_t> && expr::is_tensor<tensor_t>), int> = 0>
-auto operator*(coeff_t const& value, OpFuncApply<f2, tensor_t, E2> const& b)
+auto operator*(coeff_t const& value, OpFunctionApply<f2, tensor_t, E2> const& b)
 {
 	return (value * b.value) * symphas::internal::make_function<f2>::template get(OpIdentity{}, b.e);
 }
@@ -528,14 +597,14 @@ namespace symphas::internal
 	template<typename V, typename E>
 	inline auto make_function<f>::get(V v, OpExpression<E> const& e)
 	{
-		return OpFuncApply<f, V, E>(v, *static_cast<E const*>(&e));
+		return OpFunctionApply<f, V, E>(v, *static_cast<E const*>(&e));
 	}
 
 	template<auto f>
 	template<typename V, typename coeff_t, typename>
 	inline auto make_function<f>::get(V v, coeff_t)
 	{
-		return expr::make_literal(OpFuncApply<f, V, coeff_t>(v, coeff_t{}).eval(0));
+		return expr::make_literal(OpFunctionApply<f, V, coeff_t>(v, coeff_t{}).eval(0));
 	}
 
 }
@@ -772,9 +841,9 @@ namespace expr
  * \tparam Args... The type of the remaining arguments given to the functor.
  */
 template<typename V, typename E, typename F, typename Arg0, typename... Args>
-struct OpFunc : OpExpression<OpFunc<V, E, F, Arg0, Args...>>
+struct OpFunction : OpExpression<OpFunction<V, E, F, Arg0, Args...>>
 {
-	OpFunc() : name{ "" }, value{ V{} }, e{}, f{}, tt{} {}
+	OpFunction() : name{ "" }, value{ V{} }, e{}, f{}, tt{} {}
 
 	//! Create a function of an expression.
 	/*!
@@ -789,7 +858,7 @@ struct OpFunc : OpExpression<OpFunc<V, E, F, Arg0, Args...>>
 	 * \param arg0 The first argument which is passed to the function.
 	 * \param args... The remaining arguments which are passed to the function.
 	 */
-	OpFunc(std::string name, V value, E const& e, F f, Arg0&& arg0, Args&&... args) :
+	OpFunction(std::string name, V value, E const& e, F f, Arg0&& arg0, Args&&... args) :
 		name{ name }, value{ value }, e{ e }, f{ f }, tt{ std::forward<Arg0>(arg0), std::forward<Args>(args)... } {}
 
 	//! Create a function of an expression.
@@ -804,7 +873,7 @@ struct OpFunc : OpExpression<OpFunc<V, E, F, Arg0, Args...>>
 	 * \param f The function pointer or functor object instance.
 	 * \param tt The list of arguments to the function.
 	 */
-	OpFunc(std::string name, V value, E const& e, F f, std::tuple<Arg0, Args...> const& tt) :
+	OpFunction(std::string name, V value, E const& e, F f, std::tuple<Arg0, Args...> const& tt) :
 		name{ name }, value{ value }, e{ e }, f{ f }, tt{ tt } {}
 
 	//! Create a function of an expression.
@@ -819,7 +888,7 @@ struct OpFunc : OpExpression<OpFunc<V, E, F, Arg0, Args...>>
 	 * \param arg0 The first argument which is passed to the function.
 	 * \param args... The remaining arguments which are passed to the function.
 	 */
-	OpFunc(V value, E const& e, F f, Arg0&& arg0, Args&&... args) :
+	OpFunction(V value, E const& e, F f, Arg0&& arg0, Args&&... args) :
 		name{ "?" }, value{ value }, e{ e }, f{ f }, tt{ std::forward<Arg0>(arg0), std::forward<Args>(args)... } {}
 
 	//! Create a function of an expression.
@@ -833,17 +902,17 @@ struct OpFunc : OpExpression<OpFunc<V, E, F, Arg0, Args...>>
 	 * \param f The function pointer or functor object instance.
 	 * \param tt The list of arguments to the function.
 	 */
-	OpFunc(V value, E const& e, F f, std::tuple<Arg0, Args...> const& tt) :
+	OpFunction(V value, E const& e, F f, std::tuple<Arg0, Args...> const& tt) :
 		name{ "?" }, value{ value }, e{ e }, f{ f }, tt{ tt } {}
 
 	inline auto eval(iter_type n) const
 	{
-		return expr::eval(value) * std::apply(f, std::tuple_cat(std::make_tuple(e, n), tt));
+		return expr::eval(value) * function_value(n, std::make_index_sequence<sizeof...(Args) + 1>{});
 	}
 
 	auto operator-() const
 	{
-		return OpFunc<decltype(-value), E, F, Arg0, Args...>(-value, e, f, tt);
+		return OpFunction<decltype(-value), E, F, Arg0, Args...>(-value, e, f, tt);
 	}
 
 	size_t print(FILE* out) const
@@ -870,18 +939,26 @@ struct OpFunc : OpExpression<OpFunc<V, E, F, Arg0, Args...>>
 			+ name.length() + SYEX_LAMBDA_FUNC_FMT_LEN;
 	}
 
-	friend auto const& expr::get_enclosed_expression(OpFunc<V, E, F, Arg0, Args...> const&);
-	friend auto& expr::get_enclosed_expression(OpFunc<V, E, F, Arg0, Args...>&);
-	friend auto const& expr::get_result_data(OpFunc<V, E, F, Arg0, Args...> const&);
-	friend auto& expr::get_result_data(OpFunc<V, E, F, Arg0, Args...>&);
-
-	V value;
+	friend auto const& expr::get_enclosed_expression(OpFunction<V, E, F, Arg0, Args...> const&);
+	friend auto& expr::get_enclosed_expression(OpFunction<V, E, F, Arg0, Args...>&);
 
 protected:
-	E e;							//!< Expression to which a function is applied.
+
+	template<size_t... Is>
+	auto function_value(iter_type n, std::index_sequence<Is...>) const
+	{
+		f(e.eval(n), std::get<Is>(tt)...);
+	}
+
+public:
+
+	V value;
 	F f;							//!< Functor which is applied to an expression.
 	std::tuple<Arg0, Args...> tt;	//!< Arguments to the function.
 	std::string name;				//!< Identifier of the function.
+
+protected:
+	E e;							//!< Expression to which a function is applied.
 };
 
 //! Expression representing the evaluation of a function.
@@ -899,10 +976,10 @@ protected:
  * \tparam F The function type or functor object type.
  */
 template<typename V, typename E, typename F>
-struct OpFunc<V, E, F, void> : OpExpression<OpFunc<V, E, F, void>>
+struct OpFunction<V, E, F, void> : OpExpression<OpFunction<V, E, F, void>>
 {
 
-	OpFunc() : name{ "" }, value{ V{} }, e{}, f{} {}
+	OpFunction() : name{ "" }, value{ V{} }, e{}, f{} {}
 
 	//! Create a function of an expression.
 	/*!
@@ -914,7 +991,7 @@ struct OpFunc<V, E, F, void> : OpExpression<OpFunc<V, E, F, void>>
 	 * \param e The expression to which the functor is applied.
 	 * \param f The function pointer or functor object instance.
 	 */
-	OpFunc(std::string name, V value, E const& e, F f) :
+	OpFunction(std::string name, V value, E const& e, F f) :
 		name{ name }, value{ value }, e{ e }, f{ f } {}
 
 	//! Create a function of an expression.
@@ -927,7 +1004,7 @@ struct OpFunc<V, E, F, void> : OpExpression<OpFunc<V, E, F, void>>
 	 * \param e The expression to which the functor is applied.
 	 * \param f The function pointer or functor object instance.
 	 */
-	OpFunc(V value, E const& e, F f) :
+	OpFunction(V value, E const& e, F f) :
 		name{ "?" }, value{ value }, e{ e }, f{ f } {}
 
 	inline auto eval(iter_type n) const
@@ -937,7 +1014,7 @@ struct OpFunc<V, E, F, void> : OpExpression<OpFunc<V, E, F, void>>
 
 	auto operator-() const
 	{
-		return OpFunc<decltype(-value), E, F, void>(name, -value, e, f);
+		return OpFunction<decltype(-value), E, F, void>(name, -value, e, f);
 	}
 
 #ifdef PRINTABLE_EQUATIONS
@@ -968,10 +1045,10 @@ struct OpFunc<V, E, F, void> : OpExpression<OpFunc<V, E, F, void>>
 
 #endif
 
-	friend auto const& expr::get_enclosed_expression(OpFunc<V, E, F, void> const&);
-	friend auto& expr::get_enclosed_expression(OpFunc<V, E, F, void>&);
-	friend auto const& expr::get_result_data(OpFunc<V, E, F, void> const&);
-	friend auto& expr::get_result_data(OpFunc<V, E, F, void>&);
+	friend auto const& expr::get_enclosed_expression(OpFunction<V, E, F, void> const&);
+	friend auto& expr::get_enclosed_expression(OpFunction<V, E, F, void>&);
+	friend auto const& expr::get_result_data(OpFunction<V, E, F, void> const&);
+	friend auto& expr::get_result_data(OpFunction<V, E, F, void>&);
 
 	V value;
 
@@ -984,60 +1061,60 @@ protected:
 
 
 template<typename V, typename E, typename F>
-OpFunc(std::string, V, E, F)->OpFunc<V, E, F, void>;
+OpFunction(std::string, V, E, F)->OpFunction<V, E, F, void>;
 template<typename V, typename E, typename F>
-OpFunc(V, E, F)->OpFunc<V, E, F, void>;
+OpFunction(V, E, F)->OpFunction<V, E, F, void>;
 template<typename V, typename E, typename F>
-OpFunc(std::string, OpLiteral<V>, E, F)->OpFunc<V, E, F, void>;
+OpFunction(std::string, OpLiteral<V>, E, F)->OpFunction<V, E, F, void>;
 template<typename V, typename E, typename F>
-OpFunc(OpLiteral<V>, E, F)->OpFunc<V, E, F, void>;
+OpFunction(OpLiteral<V>, E, F)->OpFunction<V, E, F, void>;
 template<typename V, typename E, typename F, typename... Args>
-OpFunc(std::string, OpLiteral<V>, E, F, std::tuple<Args...>)->OpFunc<V, E, F, Args...>;
+OpFunction(std::string, OpLiteral<V>, E, F, std::tuple<Args...>)->OpFunction<V, E, F, Args...>;
 template<typename V, typename E, typename F, typename... Args>
-OpFunc(OpLiteral<V>, E, F, std::tuple<Args...>)->OpFunc<V, E, F, Args...>;
+OpFunction(OpLiteral<V>, E, F, std::tuple<Args...>)->OpFunction<V, E, F, Args...>;
 
 
 
 template<typename coeff_t, typename V2, typename E2, typename F2, typename Arg, typename... Args,
 	typename std::enable_if_t<(expr::is_coeff<coeff_t> && !expr::is_tensor<V2>), int> = 0>
-auto operator*(coeff_t const& value, OpFunc<V2, E2, F2, Arg, Args...> const& b)
+auto operator*(coeff_t const& value, OpFunction<V2, E2, F2, Arg, Args...> const& b)
 {
-	return OpFunc(b.name, value * b.value, b.e, b.f, b.tt);
+	return OpFunction(b.name, value * b.value, b.e, b.f, b.tt);
 }
 
 template<typename coeff_t, typename tensor_t, typename E2, typename F2, typename Arg, typename... Args,
 	typename std::enable_if_t<(expr::is_coeff<coeff_t> && expr::is_tensor<tensor_t>), int> = 0>
-auto operator*(coeff_t const& value, OpFunc<tensor_t, E2, F2, Arg, Args...> const& b)
+auto operator*(coeff_t const& value, OpFunction<tensor_t, E2, F2, Arg, Args...> const& b)
 {
-	return (value * b.value) * OpFunc(b.name, OpIdentity{}, b.e, b.f, b.tt);
+	return (value * b.value) * OpFunction(b.name, OpIdentity{}, b.e, b.f, b.tt);
 }
 
 template<typename coeff_t, typename V2, typename E2, typename F2,
 	typename std::enable_if_t<(expr::is_coeff<coeff_t> && !expr::is_tensor<V2>), int> = 0>
-auto operator*(coeff_t const& value, OpFunc<V2, E2, F2, void> const& b)
+auto operator*(coeff_t const& value, OpFunction<V2, E2, F2, void> const& b)
 {
-	return OpFunc(b.name, value * b.value, b.e, b.f);
+	return OpFunction(b.name, value * b.value, b.e, b.f);
 }
 
 template<typename coeff_t, typename tensor_t, typename E2, typename F2,
 	typename std::enable_if_t<(expr::is_coeff<coeff_t> && expr::is_tensor<tensor_t>), int> = 0>
-auto operator*(coeff_t const& value, OpFunc<tensor_t, E2, F2, void> const& b)
+auto operator*(coeff_t const& value, OpFunction<tensor_t, E2, F2, void> const& b)
 {
-	return (value * b.value) * OpFunc(b.name, OpIdentity{}, b.e, b.f);
+	return (value * b.value) * OpFunction(b.name, OpIdentity{}, b.e, b.f);
 }
 
 
 
 template<typename V1, typename E1, typename F1, typename V2>
-auto operator*(OpFunc<V2, E1, F1, void> const& a, OpFunc<V2, E1, F1, void> const& b)
+auto operator*(OpFunction<V2, E1, F1, void> const& a, OpFunction<V2, E1, F1, void> const& b)
 {
-	return (a.value + b.value) * OpFunc(b.name, OpIdentity{}, a.e, a.f);
+	return (a.value + b.value) * OpFunction(b.name, OpIdentity{}, a.e, a.f);
 }
 
 template<typename V1, typename E1, typename F1, typename Arg, typename... Args, typename V2>
-auto operator*(OpFunc<V1, E1, F1, Arg, Args...> const& a, OpFunc<V2, E1, F1, Arg, Args...> const& b)
+auto operator*(OpFunction<V1, E1, F1, Arg, Args...> const& a, OpFunction<V2, E1, F1, Arg, Args...> const& b)
 {
-	return (a.value + b.value) * OpFunc(b.name, OpIdentity{}, b.e, b.f, b.tt);
+	return (a.value + b.value) * OpFunction(b.name, OpIdentity{}, b.e, b.f, b.tt);
 }
 
 

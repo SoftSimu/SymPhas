@@ -141,23 +141,22 @@ struct OpOperator : OpExpression<E>
 		return OpOperatorChain(cast(), *static_cast<E0 const*>(&e));
 	}
 
-
 	//! The addition of two operators creates a combination.
-	template<typename F>
+	template<typename F, std::enable_if_t<!std::is_same<F, E>::value, int> = 0>
 	auto operator+(OpOperator<F> const& b) const
 	{
 		return OpOperatorCombination(cast(), *static_cast<F const*>(&b));
 	}
 
 	//! Specialized behaviour adding an operator to a combination operator.
-	template<typename B1, typename B2>
+	template<typename B1, typename B2, std::enable_if_t<!std::is_same<OpOperatorCombination<B1, B2>, E>::value, int> = 0>
 	auto operator+(OpOperatorCombination<B1, B2> const& b) const
 	{
 		return OpOperatorCombination(b, cast());
 	}
 
 	//! Specialized behaviour adding an operator to a chain operator.
-	template<typename B1, typename B2>
+	template<typename B1, typename B2, std::enable_if_t<!std::is_same<OpOperatorChain<B1, B2>, E>::value, int> = 0>
 	auto operator+(OpOperatorChain<B1, B2> const& b) const
 	{
 		return OpOperatorCombination(b, cast());
@@ -165,26 +164,25 @@ struct OpOperator : OpExpression<E>
 
 
 	//! The subtraction of two operators creates a combination.
-	template<typename F>
+	template<typename F, std::enable_if_t<!std::is_same<F, E>::value, int> = 0>
 	auto operator-(OpOperator<F> const& b) const
 	{
 		return OpOperatorCombination(cast(), -*static_cast<F const*>(&b));
 	}
 
 	//! Specialized behaviour subtracting operator to a combination operator.
-	template<typename B1, typename B2>
+	template<typename B1, typename B2, std::enable_if_t<!std::is_same<OpOperatorCombination<B1, B2>, E>::value, int> = 0>
 	auto operator-(OpOperatorCombination<B1, B2> const& b) const
 	{
 		return OpOperatorCombination(-b, cast());
 	}
 
 	//! Specialized behaviour subtracting operator to a chain operator.
-	template<typename B1, typename B2>
+	template<typename B1, typename B2, std::enable_if_t<!std::is_same<OpOperatorChain<B1, B2>, E>::value, int> = 0>
 	auto operator-(OpOperatorChain<B1, B2> const& b) const
 	{
 		return OpOperatorCombination(-b, cast());
 	}
-
 
 	//! An operator applied to a combination creates a chain operator.
 	template<typename B1, typename B2>
@@ -224,6 +222,126 @@ auto operator*(OpOperator<E> const& e, coeff_t const& v)
 	return (*static_cast<E const*>(&e))(v);
 }
 
+
+//! The addition of two operators creates a combination.
+template<typename E>
+auto operator+(OpOperator<E> const& a, OpOperator<E> const& b)
+{
+	if constexpr (std::is_same<expr::symbols::Symbol, expr::eval_type_t<E>>::value)
+	{
+		return OpOperatorChain(OpIdentity{} + OpIdentity{}, *static_cast<E const*>(&b));
+	}
+	else
+	{
+		return OpOperatorCombination(cast(), *static_cast<E const*>(&b));
+	}
+}
+
+//! The addition of two operators creates a combination.
+template<typename E>
+auto operator-(OpOperator<E> const& a, OpOperator<E> const& b)
+{
+	if constexpr (std::is_same<expr::symbols::Symbol, expr::eval_type_t<E>>::value)
+	{
+		return OpVoid{};
+	}
+	else
+	{
+		return OpOperatorCombination(cast(), *static_cast<E const*>(&b));
+	}
+}
+
+//! The addition of two same operators adds their coefficients.
+template<typename coeff_t, typename E, std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator+(OpOperatorChain<coeff_t, E> const& a, OpOperator<E> const& b)
+{
+	if constexpr (std::is_same<expr::symbols::Symbol, expr::eval_type_t<E>>::value)
+	{
+		using coeff2_t = decltype(coeff_t{} + OpIdentity{});
+		if constexpr (std::is_same<coeff2_t, OpIdentity>::value)
+		{
+			return *static_cast<E const*>(&b);
+		}
+		else if constexpr (std::is_same<coeff2_t, OpVoid>::value)
+		{
+			return OpVoid{};
+		}
+		return OpOperatorChain(coeff2_t{}, *static_cast<E const*>(&b));
+	}
+	else
+	{
+		return OpOperatorCombination(a, *static_cast<E const*>(&b));
+	}
+}
+
+//! The addition of two same operators adds their coefficients.
+template<typename coeff_t, typename E, std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator+(OpOperator<E> const& a, OpOperatorChain<coeff_t, E> const& b)
+{
+	if constexpr (std::is_same<expr::symbols::Symbol, expr::eval_type_t<E>>::value)
+	{
+		using coeff2_t = decltype(OpIdentity{} + coeff_t{});
+		if constexpr (std::is_same<coeff2_t, OpIdentity>::value)
+		{
+			return *static_cast<E const*>(&b);
+		}
+		else if constexpr (std::is_same<coeff2_t, OpVoid>::value)
+		{
+			return OpVoid{};
+		}
+		return OpOperatorChain(coeff2_t{}, *static_cast<E const*>(&b));
+	}
+	else
+	{
+		return OpOperatorCombination(a, *static_cast<E const*>(&b));
+	}
+}
+
+//! The addition of two same operators adds their coefficients.
+template<typename coeff_t, typename E, std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator-(OpOperatorChain<coeff_t, E> const& a, OpOperator<E> const& b)
+{
+	if constexpr (std::is_same<expr::symbols::Symbol, expr::eval_type_t<E>>::value)
+	{
+		using coeff2_t = decltype(coeff_t{} - OpIdentity{});
+		if constexpr (std::is_same<coeff2_t, OpIdentity>::value)
+		{
+			return *static_cast<E const*>(&b);
+		}
+		else if constexpr (std::is_same<coeff2_t, OpVoid>::value)
+		{
+			return OpVoid{};
+		}
+		return OpOperatorChain(coeff2_t{}, *static_cast<E const*>(&b));
+	}
+	else
+	{
+		return OpOperatorCombination(a, *static_cast<E const*>(&b));
+	}
+}
+
+//! The addition of two same operators adds their coefficients.
+template<typename coeff_t, typename E, std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator-(OpOperator<E> const& a, OpOperatorChain<coeff_t, E> const& b)
+{
+	if constexpr (std::is_same<expr::symbols::Symbol, expr::eval_type_t<E>>::value)
+	{
+		using coeff2_t = decltype(OpIdentity{} - coeff_t{});
+		if constexpr (std::is_same<coeff2_t, OpIdentity>::value)
+		{
+			return *static_cast<E const*>(&b);
+		}
+		else if constexpr (std::is_same<coeff2_t, OpVoid>::value)
+		{
+			return OpVoid{};
+		}
+		return OpOperatorChain(coeff2_t{}, *static_cast<E const*>(&b));
+	}
+	else
+	{
+		return OpOperatorCombination(a, *static_cast<E const*>(&b));
+	}
+}
 
 
 
@@ -309,6 +427,35 @@ auto operator+(OpLiteral<T> const& a, OpOperator<A> const& b)
 //! Subtracting an operator from a constant creates a combination.
 template<typename T, typename A>
 auto operator-(OpLiteral<T> const& a, OpOperator<A> const& b)
+{
+	return OpOperatorCombination(a, -*static_cast<A const*>(&b));
+}
+
+
+template<typename A, typename T, typename I>
+auto operator+(OpOperator<A> const& a, OpCoeff<T, I> const& b)
+{
+	return OpOperatorCombination(*static_cast<A const*>(&a), b);
+}
+
+//! Subtracting a constant from an operator creates a combination.
+template<typename A, typename T, typename I>
+auto operator-(OpOperator<A> const& a, OpCoeff<T, I> const& b)
+{
+	return OpOperatorCombination(*static_cast<A const*>(&a), -b);
+}
+
+
+//! Adding an operator to a constant creates a combination.
+template<typename T, typename I, typename A>
+auto operator+(OpCoeff<T, I> const& a, OpOperator<A> const& b)
+{
+	return OpOperatorCombination(a, *static_cast<A const*>(&b));
+}
+
+//! Subtracting an operator from a constant creates a combination.
+template<typename T, typename I, typename A>
+auto operator-(OpCoeff<T, I> const& a, OpOperator<A> const& b)
 {
 	return OpOperatorCombination(a, -*static_cast<A const*>(&b));
 }
@@ -658,7 +805,14 @@ struct OpOperatorCombination : OpOperator<OpOperatorCombination<A1, A2>>
 	template<typename E>
 	auto apply(OpExpression<E> const& e) const
 	{
-		return OpCombination(*this, *static_cast<E const*>(&e));
+		if constexpr (std::is_same<expr::symbols::Symbol, expr::eval_type_t<E>>::value)
+		{
+			return OpOperatorChain(*this, *static_cast<E const*>(&e));
+		}
+		else
+		{
+			return OpCombination(*this, *static_cast<E const*>(&e));
+		}
 	}
 
 	
@@ -880,9 +1034,16 @@ struct OpOperatorChain : OpOperator<OpOperatorChain<A1, A2>>
 
 	//! Apply the chain operation to an expression.
 	template<typename E>
-	auto apply(OpExpression<E> const& a) const
+	auto apply(OpExpression<E> const& e) const
 	{
-		return OpChain(*this, *static_cast<E const*>(&a));
+		if constexpr (std::is_same<expr::symbols::Symbol, expr::eval_type_t<E>>::value)
+		{
+			return ::OpOperatorChain(*this, *static_cast<E const*>(&e));
+		}
+		else
+		{
+			return OpChain(*this, *static_cast<E const*>(&e));
+		}
 	}
 
 
@@ -923,6 +1084,33 @@ struct OpOperatorChain : OpOperator<OpOperatorChain<A1, A2>>
 	A2 g; //!< Operator which is applied first.
 };
 
+//! Overload with multiplication by zero.
+template<typename A>
+auto operator*(OpOperator<A> const& a, OpVoid)
+{
+	return OpVoid{};
+}
+
+//! Overload with multiplication by zero.
+template<typename A>
+auto operator*(OpVoid, OpOperator<A> const& a)
+{
+	return OpVoid{};
+}
+
+//! Apply the chain operation to zero.
+template<typename A1, typename A2>
+auto operator*(OpOperatorChain<A1, A2> const& chain, OpVoid)
+{
+	return OpVoid{};
+}
+
+//! Apply the chain operation to zero.
+template<typename A1, typename A2>
+auto operator*(OpVoid, OpOperatorChain<A1, A2> const& chain)
+{
+	return OpVoid{};
+}
 
 //! Apply the chain operation to an expression.
 template<typename A1, typename A2, typename E, typename std::enable_if_t<!expr::is_coeff<E>, int> = 0>
@@ -1091,7 +1279,195 @@ auto operator*(coeff_t const& value, OpChain<A1, A2, E> const& b)
 
 // *********************************************************************************************************************************
 
+namespace symphas::internal
+{
+#ifdef PRINTABLE_EQUATIONS
+	template<expr::exp_key_t X, typename E>
+	size_t pow_print(FILE* out, OpExpression<E> const& e)
+	{
+		size_t n = 0;
+		n += fprintf(out, SYEX_MUL_FMT_AB);
+		n += static_cast<E const*>(&e)->print(out);
+		n += fprintf(out, SYEX_MUL_FMT_BA);
 
+		n += fprintf(out, SYEX_POW_SEP_A);
+		if constexpr (expr::_Xk_t<X>::D == 1)
+		{
+			n += fprintf(out, "%u", expr::_Xk_t<X>::N);
+		}
+		else
+		{
+			n += fprintf(out, "%u" SYEX_POW_DIV_SEP "%u", expr::_Xk_t<X>::N, expr::_Xk_t<X>::D);
+		}
+		n += fprintf(out, SYEX_POW_SEP_B);
+		return n;
+	}
+
+	template<expr::exp_key_t X, typename E>
+	size_t pow_print(char* out, OpExpression<E> const& e)
+	{
+		size_t n = 0;
+		n += sprintf(out + n, SYEX_MUL_FMT_AB);
+		n += static_cast<E const*>(&e)->print(out);
+		n += sprintf(out + n, SYEX_MUL_FMT_BA);
+
+		n += sprintf(out + n, SYEX_POW_SEP_A);
+		if constexpr (expr::_Xk_t<X>::D == 1)
+		{
+			n += sprintf(out + n, "%u", expr::_Xk_t<X>::N);
+		}
+		else
+		{
+			n += sprintf(out + n, "%u" SYEX_POW_DIV_SEP "%u", expr::_Xk_t<X>::N, expr::_Xk_t<X>::D);
+		}
+		n += sprintf(out + n, SYEX_POW_SEP_B);
+		return n;
+	}
+#endif
+}
+
+
+//! Binary expression, the multiplication of two terms.
+template<expr::exp_key_t X, typename V, typename E>
+struct OpPow : OpExpression<OpPow<X, V, E>>
+{
+	OpPow(V const& value, E const& e) : value{ value }, e{ e } {}
+
+	OpPow() : value{ V{} }, e{ E{} } {}
+
+	inline auto eval(iter_type n) const
+	{
+		using std::pow;
+		using symphas::math::pow;
+		using expr::pow;
+
+		if constexpr (expr::_Xk_t<X>::D == 1 && !expr::_Xk_t<X>::sign)
+		{
+			return expr::eval(value) * pow<expr::_Xk_t<X>::N>(e.eval(n));
+		}
+		else
+		{
+			return expr::eval(value) * pow(e.eval(n), expr::_Xk<X>);
+		}
+	}
+
+	auto operator-() const;
+
+#ifdef PRINTABLE_EQUATIONS
+
+	size_t print(FILE* out) const
+	{
+		return symphas::internal::pow_print<X>(out, e);
+	}
+
+	size_t print(char* out) const
+	{
+		return symphas::internal::pow_print<X>(out, e);
+	}
+
+	size_t print_length() const
+	{
+		size_t n = STR_ARR_LEN(SYEX_POW_SEP_A SYEX_POW_SEP_B)
+			+ symphas::lib::num_digits<expr::_Xk_t<X>::N>()
+			+ e.print_length();
+
+		if constexpr (expr::_Xk_t<X>::D > 1)
+		{
+			n += symphas::lib::num_digits<expr::_Xk_t<X>::D>() + 1;
+		}
+
+		return n;
+	}
+
+#endif
+
+	friend auto const& expr::get_enclosed_expression(OpPow<X, V, E> const&);
+	friend auto& expr::get_enclosed_expression(OpPow<X, V, E>&);
+
+	V value;
+	E e;		//!< Expression that is the base of the power.
+
+};
+
+namespace expr
+{
+	//! Constructs the expression representing an expression to a power.
+	/*!
+	 * Directly constructs the exponent expression of an
+	 * expression without applying any rules.
+	 *
+	 * \param value The coefficient.
+	 * \param e The expression.
+	 */
+	template<expr::exp_key_t X, typename V, typename E>
+	auto make_pow(V const& value, E const& e)
+	{
+		if constexpr (X == expr::Xk<1>)
+		{
+			return e;
+		}
+		else
+		{
+			return OpPow<X, V, E>(value, e);
+		}
+	}
+
+	//! Constructs the expression representing an expression to a power.
+	/*!
+	 * Directly constructs the exponent expression of an
+	 * expression without applying any rules.
+	 *
+	 * \param value The coefficient.
+	 * \param e The expression.
+	 */
+	template<expr::exp_key_t X, typename E>
+	auto make_pow(E const& e)
+	{
+		return make_pow<X>(OpIdentity{}, e);
+	}
+
+	////! Specialization based on reevaluate(OpExpression<E> const&).
+	//template<expr::exp_key_t X, typename V, typename E>
+	//auto reevaluate(OpPow<X, V, E> const& e)
+	//{
+	//	constexpr auto N0 = expr::_Xk_t<X>::N;
+	//	constexpr auto D0 = expr::_Xk_t<X>::D;
+	//	auto p = expr::get_enclosed_expression(e);
+	//
+	//	constexpr expr::exp_key_t _X = (sign) ? N0 + D0 : (N0 < D0) ? D0 - N0 : N0 - D0;
+	//	constexpr expr::exp_key_t _sign = (sign) ? sign : (N0 < D0) ? true : false;
+	//	auto result = expr::coeff(e) * p * reevaluate(expr::make_pow<_X>(p));
+	//	
+	//	if constexpr (_sign)
+	//	{
+	//		return -result;
+	//	}
+	//	else
+	//	{
+	//		return result;
+	//	}
+	//}
+}
+
+template<typename coeff_t, expr::exp_key_t X, typename V, typename E,
+	typename std::enable_if_t<(expr::is_coeff<coeff_t> && !expr::is_tensor<V>), int> = 0>
+auto operator*(coeff_t const& value, OpPow<X, V, E> const& e)
+{
+	return expr::make_pow<X>(value * e.value, expr::get_enclosed_expression(e));
+}
+
+template<typename coeff_t, expr::exp_key_t X, typename tensor_t, typename E,
+	typename std::enable_if_t<(expr::is_coeff<coeff_t>&& expr::is_tensor<tensor_t>), int> = 0>
+auto operator*(coeff_t const& value, OpPow<X, tensor_t, E> const& e)
+{
+	return (value * e.value) * expr::make_pow<X>(expr::get_enclosed_expression(e));
+}
+
+template<expr::exp_key_t X, typename V, typename E>
+auto OpPow<X, V, E>::operator-() const
+{
+	return expr::make_pow<X>(-value, e);
+}
 
 
 
@@ -1116,7 +1492,7 @@ namespace symphas::internal
 		static auto get(V v, OpExpression<E> const& e);
 	};
 
-
+#ifdef PRINTABLE_EQUATIONS
 
 	template<typename G, typename V, typename E>
 	size_t print_map(OpMap<G, V, E> const& map, FILE* out)
@@ -1249,6 +1625,8 @@ namespace symphas::internal
 	{
 		return expr::coeff_print_length(map.value) + map.e.print_length() + SYEX_FT_OF_OP_FMT_LEN;
 	}
+
+#endif
 }
 
 namespace expr
@@ -1275,7 +1653,7 @@ namespace expr
  * transformation on the evaluated expression. Thus, also it needs to be 
  * updated before being evaluated.
  *
- * The primary difference between ::OpMap and ::OpFuncApply is that OpMap is more
+ * The primary difference between ::OpMap and ::OpFunctionApply is that OpMap is more
  * general and can deal with transformations over the whole grid, rather
  * than point-wise transformations which the function expression handles. 
  *
@@ -1364,7 +1742,7 @@ protected:
  * transformation on the evaluated expression. Thus, also it needs to be
  * updated before being evaluated.
  *
- * The primary difference between ::OpMap and ::OpFuncApply is that OpMap is more
+ * The primary difference between ::OpMap and ::OpFunctionApply is that OpMap is more
  * general and can deal with transformations over the whole grid, rather
  * than point-wise transformations which the function expression handles.
  *

@@ -63,18 +63,22 @@ namespace expr::prune
 
 		template<typename V, typename E>
 		void _update(OpExponential<V, E>& e);
-		template<typename V, typename E1, typename E2>
-		void _update(OpFuncConvolution<V, E1, E2>& e);
+		template<expr::exp_key_t X, typename V, typename E>
+		void _update(OpPow<X, V, E>& e);
 		template<typename V, typename E, typename F, typename... Args>
-		void _update(OpFunc<V, E, F, Args...>& e);
+		void _update(OpFunction<V, E, F, Args...>& e);
+		template<typename G, typename V, typename E>
+		void _update(OpMap<G, V, E>& e);
+		template<typename V, typename E1, typename E2>
+		void _update(OpConvolution<V, E1, E2>& e);
 		template<typename V, size_t D, typename E>
-		void _update(OpFuncConvolution<V, GaussianSmoothing<D>, E>& e);
+		void _update(OpConvolution<V, GaussianSmoothing<D>, E>& e);
 		template<typename V, size_t D, typename G>
-		void _update(OpFuncConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>& e);
+		void _update(OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>& e);
 		template<typename Dd, typename V, typename G, typename Sp>
-		void _update(OpFuncDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp>&);
+		void _update(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp>&);
 		template<typename Dd, typename V, typename E, typename Sp>
-		void _update(OpFuncDerivative<Dd, V, E, Sp>& e);
+		void _update(OpDerivative<Dd, V, E, Sp>& e);
 		template<typename... Es>
 		void _update(OpAdd<Es...>& e);
 		template<typename A1, typename A2>
@@ -83,10 +87,27 @@ namespace expr::prune
 		void _update(OpBinaryDiv<A1, A2>& e);
 		template<typename A1, typename A2, typename E>
 		void _update(OpCombination<A1, A2, E>& e);
+		template<typename A1, typename A2>
+		void _update(OpOperatorCombination<A1, A2>& e);
 		template<typename A1, typename A2, typename E>
 		void _update(OpChain<A1, A2, E>& e);
-		template<typename G, typename V, typename E>
-		void _update(OpMap<G, V, E>& e);
+		template<typename A1, typename A2>
+		void _update(OpOperatorChain<A1, A2>& e);
+
+		template<typename V, typename sub_t, typename E, typename... Ts>
+		void _update(OpSymbolicEval<V, sub_t, E, Ts...>& e);
+		template<typename E, typename... Ts>
+		void _update(SymbolicFunction<E, Ts...>& e);
+		//template<typename Op, typename E, typename Inds>
+		//void _update(SymbolicSeries<Op, E, Inds>& e);
+		//template<typename Op, typename... Ts, typename E, int... I0s, int... P0s,
+		//	typename... T1s, typename... T2s, typename... Is>
+		//void _update(SymbolicSeries<Op, Substitution<SymbolicDataArray<Ts>...>,
+		//	symphas::lib::types_list<E,
+		//		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
+		//		symphas::lib::types_list<expr::series_limits<T1s, T2s>...>,
+		//		symphas::lib::types_list<expr::symbols::v_id_type<Is>...>
+		//	>>& e);
 
 		template<typename V, typename... Gs, expr::exp_key_t... Xs>
 		void _update(OpTerms<V, Term<Gs, Xs>...>& e);
@@ -104,6 +125,8 @@ namespace expr::prune
 
 		template<NoiseType nt, typename T, size_t D>
 		void _update(NoiseData<nt, T, D>& e);
+		template<typename T>
+		void _update(SymbolicData<T>&);
 
 
 
@@ -113,8 +136,14 @@ namespace expr::prune
 			_update(expr::get_enclosed_expression(e));
 		}
 
+		template<expr::exp_key_t X, typename V, typename E>
+		void _update(OpPow<X, V, E>& e)
+		{
+			_update(expr::get_enclosed_expression(e));
+		}
+
 		template<typename V, typename E1, typename E2>
-		void _update(OpFuncConvolution<V, E1, E2>& e)
+		void _update(OpConvolution<V, E1, E2>& e)
 		{
 			_update(e.a);
 			_update(e.b);
@@ -122,40 +151,68 @@ namespace expr::prune
 		}
 
 		template<typename V, typename E, typename F, typename... Args>
-		void _update(OpFunc<V, E, F, Args...>& e)
+		void _update(OpFunction<V, E, F, Args...>& e)
 		{
 			_update(expr::get_enclosed_expression(e));
 		}
 
 		template<typename V, size_t D, typename E>
-		void _update(OpFuncConvolution<V, GaussianSmoothing<D>, E>& e)
+		void _update(OpConvolution<V, GaussianSmoothing<D>, E>& e)
 		{
 			_update(expr::get_enclosed_expression(e));
 			e.update();
 		}
 
 		template<typename V, size_t D, typename G>
-		void _update(OpFuncConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>& e)
+		void _update(OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>& e)
 		{
 			_update(expr::get_enclosed_expression(e));
 			e.update();
 		}
 
 
+		template<typename V, typename sub_t, typename E, typename... Ts>
+		void _update(OpSymbolicEval<V, sub_t, E, Ts...>& e)
+		{
+			e.update();
+			_update(e.f);
+		}
+
+		template<typename E, typename... Ts>
+		void _update(SymbolicFunction<E, Ts...>& e)
+		{
+			_update(e.e);
+		}
+
+		//template<typename Op, typename E, typename Inds>
+		//void _update(SymbolicSeries<Op, E, Inds>& e) {}
+
+		//template<typename Op, typename... Ts, typename E, int... I0s, int... P0s,
+		//	typename... T1s, typename... T2s, typename... Is>
+		//void _update(SymbolicSeries<Op, Substitution<SymbolicDataArray<Ts>...>,
+		//	symphas::lib::types_list<E,
+		//		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
+		//		symphas::lib::types_list<expr::series_limits<T1s, T2s>...>,
+		//		symphas::lib::types_list<expr::symbols::v_id_type<Is>...>
+		//	>>& e)
+		//{
+		//	//e.update();
+		//}
+
 		/* derivative pruning
 		 */
 
 		template<size_t O, typename V, typename E, typename G>
-		void _update(OpFuncDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G>>& e) {}
+		void _update(OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G>>& e) {}
 
 		template<typename Dd, typename V, typename G, typename Sp>
-		void _update(OpFuncDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp>& e) 
+		void _update(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp>& e) 
 		{
 			e.update();
 		}
 
 		template<typename Dd, typename V, typename E, typename Sp>
-		void _update(OpFuncDerivative<Dd, V, E, Sp>& e)
+		void _update(OpDerivative<Dd, V, E, Sp>& e)
 		{
 			e.update();
 		}
@@ -193,18 +250,35 @@ namespace expr::prune
 		/* operator pruning
 		 */
 
+		template<typename A1, typename A2>
+		void _update(OpOperatorCombination<A1, A2>& e)
+		{
+			_update(e.f);
+			_update(e.g);
+		}
+
 		template<typename A1, typename A2, typename E>
 		void _update(OpCombination<A1, A2, E>& e)
 		{
+			_update(e.combination);
 			if constexpr (expr::has_state<E>::value)
 			{
 				_update(expr::get_enclosed_expression(e));
 			}
 			e.update();
 		}
+
+		template<typename A1, typename A2>
+		void _update(OpOperatorChain<A1, A2>& e)
+		{
+			_update(e.f);
+			_update(e.g);
+		}
+
 		template<typename A1, typename A2, typename E>
 		void _update(OpChain<A1, A2, E>& e)
 		{
+			_update(e.combination);
 			if constexpr (expr::has_state<E>::value)
 			{
 				_update(expr::get_enclosed_expression(e));
@@ -219,11 +293,18 @@ namespace expr::prune
 			e.update();
 		}
 
+		template<typename G0, expr::exp_key_t X0, typename G1, expr::exp_key_t X1, typename... Gs, expr::exp_key_t... Xs>
+		void _update(OpTerms<Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...>& e)
+		{
+			_update(expr::get<0>(e));
+			_update(expr::terms_after_n<0>(e));
+		}
+
 		template<typename V, typename... Gs, expr::exp_key_t... Xs>
 		void _update(OpTerms<V, Term<Gs, Xs>...>& e)
 		{
 			_update(expr::get<0>(e));
-			_update(expr::terms_after_first(e));
+			_update(expr::terms_after_n<0>(e));
 		}
 
 		template<typename G, expr::exp_key_t X>
@@ -257,9 +338,15 @@ namespace expr::prune
 		}
 
 		template<NoiseType nt, typename T, size_t D>
-		void _update(NoiseData<nt, T, D>& e)
+		void _update(NoiseData<nt, T, D>& data)
 		{
-			e.update();
+			data.update();
+		}
+
+		template<typename T>
+		void _update(SymbolicData<T>& data)
+		{
+			_update(*data.data);
 		}
 	}
 
@@ -399,7 +486,7 @@ namespace expr
 	 */
 	template<typename Dd, typename V, typename E, typename Sp,
 		typename = std::enable_if_t<expr_has_deriv<E>::value, int>>
-	auto apply_operators(OpFuncDerivative<Dd, V, E, Sp> const& e);
+	auto apply_operators(OpDerivative<Dd, V, E, Sp> const& e);
 
 	//! Distribute operators so they are applied to individual expressions.
 	/*!
@@ -411,7 +498,7 @@ namespace expr
 	 * \param e The expression which is distributed.
 	 */
 	template<typename Dd1, typename Dd2, typename V1, typename V2, typename E, typename Sp>
-	auto apply_operators(OpFuncDerivative<Dd1, V1, OpFuncDerivative<Dd2, V2, E, Sp>, Sp> const& e);
+	auto apply_operators(OpDerivative<Dd1, V1, OpDerivative<Dd2, V2, E, Sp>, Sp> const& e);
 
 	//! Distribute operators so they are applied to individual expressions.
 	/*!
@@ -423,7 +510,7 @@ namespace expr
 	 * \param e The expression which is distributed.
 	 */
 	template<typename Dd, typename V, typename... Es, typename Sp>
-	auto apply_operators(OpFuncDerivative<Dd, V, OpAdd<Es...>, Sp> const& e);
+	auto apply_operators(OpDerivative<Dd, V, OpAdd<Es...>, Sp> const& e);
 
 	//! Distribute operators so they are applied to individual expressions.
 	/*!
@@ -465,131 +552,193 @@ namespace expr
 
 	//! Implementation of the division rule.
 	template<typename Dd, typename Sp, typename V, typename E1, typename E2,
-		typename std::enable_if_t<(OpFuncDerivative<Dd, V, OpBinaryMul<E1, E2>, Sp>::order > 0), int> = 0>
-		auto apply_operators(OpFuncDerivative<Dd, V, OpBinaryMul<E1, E2>, Sp> const& e);
+		typename std::enable_if_t<(OpDerivative<Dd, V, OpBinaryMul<E1, E2>, Sp>::order > 0), int> = 0>
+		auto apply_operators(OpDerivative<Dd, V, OpBinaryMul<E1, E2>, Sp> const& e);
 
 	 //! Implementation of the product rule.
 	template<typename Dd, typename Sp, typename V, typename E1, typename E2,
-		typename std::enable_if_t<(OpFuncDerivative<Dd, V, OpBinaryDiv<E1, E2>, Sp>::order > 0), int> = 0>
-	auto apply_operators(OpFuncDerivative<Dd, V, OpBinaryDiv<E1, E2>, Sp> const& e);
+		typename std::enable_if_t<(OpDerivative<Dd, V, OpBinaryDiv<E1, E2>, Sp>::order > 0), int> = 0>
+	auto apply_operators(OpDerivative<Dd, V, OpBinaryDiv<E1, E2>, Sp> const& e);
 
+	//! Specialization based on expr::grid_dim.
+	template<typename V, typename E, typename F>
+	auto apply_operators(OpFunction<V, E, F, void> const& e);
 
-	////! Implementation of the product rule.
+	//! Specialization based on expr::grid_dim.
+	template<typename V, typename E, typename F, typename Arg0, typename... Args>
+	auto apply_operators(OpFunction<V, E, F, Arg0, Args...> const& e);
+
+	//! Specialization based on expr::grid_dim.
+	template<auto f, typename V, typename E>
+	auto apply_operators(OpFunctionApply<f, V, E> const& e);
+
+	//! Implementation of the product rule for terms.
 	//template<typename Dd, typename Sp, typename V, typename V0, typename G0, expr::exp_key_t X0, typename G1, expr::exp_key_t X1, typename... Gs, expr::exp_key_t... Xs,
 	//	typename std::enable_if_t<(Dd::order > 0), int> = 0>
-	//auto apply_operators(OpFuncDerivative<Dd, V, OpTerms<V0, Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...>, Sp> const& e);
+	//auto apply_operators(OpDerivative<Dd, V, OpTerms<V0, Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...>, Sp> const& e);
 	
 	template<typename Dd, typename Sp, typename V, typename V0, typename E,
-		typename std::enable_if_t<(OpFuncDerivative<Dd, V, OpExponential<V0, E>, Sp>::order > 0), int> = 0>
-	auto apply_operators(OpFuncDerivative<Dd, V, OpExponential<V0, E>, Sp> const& e);
+		typename std::enable_if_t<(OpDerivative<Dd, V, OpExponential<V0, E>, Sp>::order > 0), int> = 0>
+	auto apply_operators(OpDerivative<Dd, V, OpExponential<V0, E>, Sp> const& e);
 
-	template<size_t O, typename V, typename V0, typename G0, expr::exp_key_t X0, typename GG,
+	template<size_t O, typename V, typename V0, int I0, int P0, expr::exp_key_t X0, typename GG>
+	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpTerms<V0, Term<expr::symbols::i_<I0, P0>, X0>>, SymbolicDerivative<GG>> const& e);
+
+	template<size_t O, typename V, typename V1, int I0, int P0, typename G1, typename... Gs,
+		expr::exp_key_t X0, expr::exp_key_t X1, expr::exp_key_t... Xs, typename GG>
+	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpTerms<V1, Term<expr::symbols::i_<I0, P0>, X0>, Term<G1, X1>, Term<Gs, Xs>...>, SymbolicDerivative<GG>> const& e);
+
+	template<size_t O, typename V, typename V0, int I0, int P0, expr::exp_key_t X0, size_t Z, typename GG,
+		size_t N = expr::_Xk_t<X0>::N, typename = std::enable_if_t<(O > 0 && N >= O), int>>
+	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpTerms<V0, Term<expr::symbols::v_id_type<expr::symbols::i_<I0, P0>>, X0>>, SymbolicDerivative<Variable<Z, GG>>> const& e);
+
+	template<size_t O, typename V, typename V0, typename G0, expr::exp_key_t X0, typename GG, 
 		size_t N = expr::factor_count_list<GG, Term<G0, X0>>::value,
 		typename = std::enable_if_t<(O > 0 && N >= O && !expr::is_expression<GG>), int>>
-	auto apply_operators(OpFuncDerivative<std::index_sequence<O>, V, OpTerms<V0, Term<G0, X0>>, SymbolicDerivative<GG>> const& e);
+	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpTerms<V0, Term<G0, X0>>, SymbolicDerivative<GG>> const& e);
 
-	template<size_t O, typename V, typename V1, typename G0, typename G1, typename... Gs,
-		expr::exp_key_t X0, expr::exp_key_t X1, expr::exp_key_t... Xs, typename GG,
-		size_t N = expr::factor_count_list<GG, Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...>::value,
-		typename = std::enable_if_t<(O > 0 && N >= O && !expr::is_expression<GG>), int>>
-	auto apply_operators(OpFuncDerivative<std::index_sequence<O>, V, OpTerms<V1, Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...>, SymbolicDerivative<GG>> const& e);
-	
-	template<size_t O, typename V, typename V1, typename... Gs, expr::exp_key_t... Xs, typename GG,
-		size_t N = expr::factor_count_list<GG, Term<Gs, Xs>...>::value, typename = std::enable_if_t<(O > 0 && N >= O), int>>
-	auto apply_operators(OpFuncDerivative<std::index_sequence<O>, V, OpTerms<V1, Term<Gs, Xs>...>, SymbolicDerivative<OpTerm<OpIdentity, GG>>> const& e);
+	template<size_t O, typename V, typename V0, typename G0, typename G1, typename... Gs,
+		expr::exp_key_t X0, expr::exp_key_t X1, expr::exp_key_t... Xs, typename GG>
+	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpTerms<V0, Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...>, SymbolicDerivative<GG>> const& e);
+
+	template<size_t O, typename V, typename V0, typename G0, expr::exp_key_t X0, typename GG>
+	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpTerms<V0, Term<G0, X0>>, SymbolicDerivative<OpTerm<OpIdentity, GG>>> const& e);
+
+	template<size_t O, typename V, typename V0, typename G0, typename G1, typename... Gs,
+		expr::exp_key_t X0, expr::exp_key_t X1, expr::exp_key_t... Xs, typename GG>
+	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpTerms<V0, Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...>, SymbolicDerivative<OpTerm<OpIdentity, GG>>> const& e);
 
 	template<size_t O, typename V0, auto f, typename V1, typename E, typename G0>
-	auto apply_operators(OpFuncDerivative<std::index_sequence<O>, V0, OpFuncApply<f, V1, E>, SymbolicDerivative<G0>> const& e);
+	auto apply_operators(OpDerivative<std::index_sequence<O>, V0, OpFunctionApply<f, V1, E>, SymbolicDerivative<G0>> const& e);
 
 	template<size_t O, typename V, typename... Es, typename G0>
-	auto apply_operators(OpFuncDerivative<std::index_sequence<O>, V, OpAdd<Es...>, SymbolicDerivative<G0>> const& e);
+	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpAdd<Es...>, SymbolicDerivative<G0>> const& e);
 
 	template<size_t O, typename G, typename V, typename E, typename std::enable_if_t<!expr_has_deriv<E>::value, int> = 0>
-	auto apply_operators(OpFuncDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G>> const& e)
+	auto apply_operators(OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G>> const& e)
 	{
 		return OpVoid{};
 	}
 
+	template<typename V, expr::exp_key_t X0, typename V0, typename E0, typename GG>
+	auto apply_operators(OpDerivative<std::index_sequence<1>, V, OpPow<X0, V0, E0>, SymbolicDerivative<GG>> const& e);
+
+	template<size_t O, typename V, expr::exp_key_t X0, typename V0, typename E0, typename GG>
+	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpPow<X0, V0, E0>, SymbolicDerivative<GG>> const& e);
+
+	template<expr::exp_key_t X, typename V, typename E>
+	auto apply_operators(OpPow<X, V, E> const& e);
 
 	template<size_t O, typename V, typename V1, typename E, typename Dd, typename Sp, 
-		typename = std::enable_if_t<!std::is_same<V1, OpIdentity>::value, int>>
-	auto apply_operators(OpFuncDerivative<std::index_sequence<O>, V, OpFuncDerivative<Dd, V1, E, Sp>, SymbolicDerivative<OpFuncDerivative<Dd, OpIdentity, E, Sp>>> const& e)
+		typename std::enable_if_t<!std::is_same<V1, OpIdentity>::value, int> = 0>
+	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpDerivative<Dd, V1, E, Sp>, SymbolicDerivative<OpDerivative<Dd, OpIdentity, E, Sp>>> const& e)
 	{
 		auto&& expr = expr::get_enclosed_expression(e);
-		return expr::make_literal(e.value * expr.value);
+		return expr::coeff(e) * expr::coeff(expr);
 	}
 
 	template<size_t O, typename V, typename V1, typename E, typename Dd, typename Sp, typename G0, 
-		typename = std::enable_if_t<!std::is_same<G0, OpFuncDerivative<Dd, V1, E, Sp>>::value, int>>
-	auto apply_operators(OpFuncDerivative<std::index_sequence<O>, V, OpFuncDerivative<Dd, V1, E, Sp>, SymbolicDerivative<G0>> const& e)
+		typename std::enable_if_t<!std::is_same<G0, OpDerivative<Dd, V1, E, Sp>>::value, int> = 0>
+	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpDerivative<Dd, V1, E, Sp>, SymbolicDerivative<G0>> const& e)
 	{
 		return OpVoid{};
 	}
 
 	template<size_t O1, typename V, size_t O2, typename V1, typename E, typename G00, typename G01,
-		typename = std::enable_if_t<!std::is_same<G01, OpFuncDerivative<std::index_sequence<O2>, V1, E, SymbolicDerivative<G00>>>::value, int>>
-	auto apply_operators(OpFuncDerivative<std::index_sequence<O1>, V, OpFuncDerivative<std::index_sequence<O2>, V1, E, SymbolicDerivative<G00>>, SymbolicDerivative<G01>> const& e)
+		typename = std::enable_if_t<!std::is_same<G01, OpDerivative<std::index_sequence<O2>, V1, E, SymbolicDerivative<G00>>>::value, int>>
+	auto apply_operators(OpDerivative<std::index_sequence<O1>, V, OpDerivative<std::index_sequence<O2>, V1, E, SymbolicDerivative<G00>>, SymbolicDerivative<G01>> const& e)
 	{
 		auto&& expr = expr::get_enclosed_expression(e);
 		auto&& d = expr::make_operator_derivative<O1, G01>(e.value);
 		return apply_operators(d * apply_operators(expr));
 	}
 
-	template<typename G, typename V, typename E>
-	auto apply_operators(OpFuncDerivative<std::index_sequence<0>, V, E, SymbolicDerivative<G>> const& e)
+	template<size_t O1, typename V, size_t O2, typename V1, typename E, typename G00>
+	auto apply_operators(OpDerivative<std::index_sequence<O1>, V, OpDerivative<std::index_sequence<O2>, V1, E, SymbolicDerivative<G00>>, SymbolicDerivative<G00>> const& e)
 	{
-		return expr::make_literal(e.value) * expr::get_enclosed_expression(e);
+		auto&& expr = expr::get_enclosed_expression(e);
+		auto deriv = expr::make_derivative<O1 + O2, G00>(expr::coeff(e) * expr::coeff(expr), expr::get_enclosed_expression(expr));
+		return apply_operators(deriv);
+	}
+
+	template<typename G, typename V, typename E>
+	auto apply_operators(OpDerivative<std::index_sequence<0>, V, E, SymbolicDerivative<G>> const& e)
+	{
+		return expr::coeff(e) * expr::get_enclosed_expression(e);
 	}
 
 
 	template<typename V, typename E>
-	auto apply_operators(OpFuncDerivative<std::index_sequence<1>, V, E, SymbolicDerivative<E>> const& e)
+	auto apply_operators(OpDerivative<std::index_sequence<1>, V, E, SymbolicDerivative<E>> const& e)
 	{
-		return expr::make_literal(e.value);
+		return expr::coeff(e);
 	}
 
 	//! Implementation of the product rule.
 	template<typename Dd, typename Sp, typename V, typename E1, typename E2,
-		typename std::enable_if_t<(OpFuncDerivative<Dd, V, OpBinaryMul<E1, E2>, Sp>::order > 0), int>>
-		auto apply_operators(OpFuncDerivative<Dd, V, OpBinaryMul<E1, E2>, Sp> const& e)
+		typename std::enable_if_t<(OpDerivative<Dd, V, OpBinaryMul<E1, E2>, Sp>::order > 0), int>>
+	auto apply_operators(OpDerivative<Dd, V, OpBinaryMul<E1, E2>, Sp> const& e)
 	{
 		auto&& expr = expr::get_enclosed_expression(e);
 		auto lhs = apply_operators(expr::make_derivative<Dd>(expr.a, e.solver)) * expr.b;
 		auto rhs = expr.a * apply_operators(expr::make_derivative<Dd>(expr.b, e.solver));
-		return expr::make_literal(e.value) * (lhs + rhs);
+		return expr::coeff(e) * (lhs + rhs);
 	}
+
 	//! Implementation of the quotient rule.
 	template<typename Dd, typename Sp, typename V, typename E1, typename E2, 
-		typename std::enable_if_t<(OpFuncDerivative<Dd, V, OpBinaryDiv<E1, E2>, Sp>::order > 0), int>>
-	auto apply_operators(OpFuncDerivative<Dd, V, OpBinaryDiv<E1, E2>, Sp> const& e)
+		typename std::enable_if_t<(OpDerivative<Dd, V, OpBinaryDiv<E1, E2>, Sp>::order > 0), int>>
+	auto apply_operators(OpDerivative<Dd, V, OpBinaryDiv<E1, E2>, Sp> const& e)
 	{
 		auto&& expr = expr::get_enclosed_expression(e);
 		auto lhs = apply_operators(expr::make_derivative<Dd>(expr.a, e.solver)) * expr.b;
 		auto rhs = expr.a * apply_operators(expr::make_derivative<Dd>(expr.b, e.solver));
-		return expr::make_literal(e.value) * (lhs - rhs) / (expr.b * expr.b);
+		return expr::coeff(e) * (lhs - rhs) / (expr.b * expr.b);
 	}
-	
-	/*
-	//! Implementation of the product rule.
-	template<typename Dd, typename Sp, typename V, typename V0, typename G0, expr::exp_key_t X0, typename G1, expr::exp_key_t X1, typename... Gs, expr::exp_key_t... Xs,
-		typename std::enable_if_t<(OpFuncDerivative<Dd, V, OpTerms<V0, Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...>, Sp>::order > 0), int>>
-	auto apply_operators(OpFuncDerivative<Dd, V, OpTerms<V0, Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...>, Sp> const& e)
-	{
-		auto&& terms = expr::get_enclosed_expression(e);
-		auto coeff = expr::coeff(terms);
-		auto a = OpTerms(OpIdentity{}, expr::get<1>(terms));
-		auto b = OpTerms(OpIdentity{}, *static_cast<OpTerms<Term<G1, X1>, Term<Gs, Xs>...> const*>(&terms));
 
-		auto lhs = apply_operators(expr::make_derivative<Dd>(a, e.solver)) * b;
-		auto rhs = a * apply_operators(expr::make_derivative<Dd>(b, e.solver));
-		return (coeff * e.value) * (lhs + rhs);
-	}
+	//! Specialization based on expr::grid_dim.
+	template<typename V, typename E, typename F>
+	auto apply_operators(OpFunction<V, E, F, void> const& e)
+	{
+		return expr::make_function(expr::coeff(e), apply_operators(expr::get_enclosed_expression(e)), e.name, e.f);
+	};
+
+	//! Specialization based on expr::grid_dim.
+	template<typename V, typename E, typename F, typename Arg0, typename... Args>
+	auto apply_operators(OpFunction<V, E, F, Arg0, Args...> const& e)
+	{
+		return expr::make_function(expr::coeff(e), apply_operators(expr::get_enclosed_expression(e)), e.name, e.f, e.args);
+	};
+
+	//! Specialization based on expr::grid_dim.
+	template<auto f, typename V, typename E>
+	auto apply_operators(OpFunctionApply<f, V, E> const& e)
+	{
+		return expr::make_function<f>(expr::coeff(e), apply_operators(expr::get_enclosed_expression(e)));
+	};
+
 
 	//! Implementation of the product rule for terms.
+	//template<typename Dd, typename Sp, typename V, typename V0, typename G0, expr::exp_key_t X0, typename G1, expr::exp_key_t X1, typename... Gs, expr::exp_key_t... Xs,
+	//	typename std::enable_if_t<(OpDerivative<Dd, V, OpTerms<V0, Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...>, Sp>::order > 0), int>>
+	//auto apply_operators(OpDerivative<Dd, V, OpTerms<V0, Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...>, Sp> const& e)
+	//{
+	//	auto&& terms = expr::get_enclosed_expression(e);
+	//	auto coeff = expr::coeff(terms);
+	//	auto a = OpTerms(OpIdentity{}, expr::get<1>(terms));
+	//	auto b = OpTerms(OpIdentity{}, *static_cast<OpTerms<Term<G1, X1>, Term<Gs, Xs>...> const*>(&terms));
+	//
+	//	auto lhs = apply_operators(expr::make_derivative<Dd>(a, e.solver)) * b;
+	//	auto rhs = a * apply_operators(expr::make_derivative<Dd>(b, e.solver));
+	//	return (coeff * e.value) * (lhs + rhs);
+	//}
+
+	/*
+	//! Implementation of the product rule for terms.
 	template<typename Dd, typename Sp, typename V, typename V0, typename G0, expr::exp_key_t X0,
-		typename std::enable_if_t<(OpFuncDerivative<Dd, V, OpTerms<V0, Term<G0, X0>>, Sp>::order > 0 
+		typename std::enable_if_t<(OpDerivative<Dd, V, OpTerms<V0, Term<G0, X0>>, Sp>::order > 0 
 			&& (expr::Xk_t<X0>::N > expr::Xk_t<X0>::D && !expr::Xk_t<X0>::sign)), int>>
-	auto apply_operators(OpFuncDerivative<Dd, V, OpTerms<V0, Term<G0, X0>>, Sp> const& e)
+	auto apply_operators(OpDerivative<Dd, V, OpTerms<V0, Term<G0, X0>>, Sp> const& e)
 	{
 		auto&& term = expr::get_enclosed_expression(e);
 
@@ -609,11 +758,12 @@ namespace expr
 	}*/
 
 	template<typename Dd, typename Sp, typename V, typename V0, typename E,
-		typename std::enable_if_t<(OpFuncDerivative<Dd, V, OpExponential<V0, E>, Sp>::order > 0), int>>
-	auto apply_operators(OpFuncDerivative<Dd, V, OpExponential<V0, E>, Sp> const& e)
+		typename std::enable_if_t<(OpDerivative<Dd, V, OpExponential<V0, E>, Sp>::order > 0), int>>
+	auto apply_operators(OpDerivative<Dd, V, OpExponential<V0, E>, Sp> const& e)
 	{
 		auto&& expr = expr::get_enclosed_expression(e);
-		return e * apply_operators(expr::make_derivative<Dd>(expr, e.solver));
+		auto&& pow = expr::get_enclosed_expression(expr);
+		return expr::coeff(e) * expr * apply_operators(expr::make_derivative<Dd>(pow, e.solver));
 	}
 
 
@@ -893,10 +1043,10 @@ namespace expr
 	}
 
 	template<typename Dd1, typename Dd2, typename V1, typename V2, typename E, typename Sp>
-	auto apply_operators(OpFuncDerivative<Dd1, V1, OpFuncDerivative<Dd2, V2, E, Sp>, Sp> const& e)
+	auto apply_operators(OpDerivative<Dd1, V1, OpDerivative<Dd2, V2, E, Sp>, Sp> const& e)
 	{
-		using d1t = OpFuncDerivative<Dd1, V1, OpFuncDerivative<Dd2, V2, E, Sp>, Sp>;
-		using d2t = OpFuncDerivative<Dd2, V2, E, Sp>;
+		using d1t = OpDerivative<Dd1, V1, OpDerivative<Dd2, V2, E, Sp>, Sp>;
+		using d2t = OpDerivative<Dd2, V2, E, Sp>;
 
 		constexpr size_t D = expr::grid_dim<d1t>::value;
 
@@ -933,82 +1083,6 @@ namespace expr
 					* break_up_derivative<order2 - (order2 % 2)>(e.solver, symphas::lib::make_axis_list<D>());
 				return apply_operators((dd1 * dd2) * enclosed);
 			}
-
-		//	// if they are both directional (a derivative of 1 is always directional)
-		//	if constexpr (Dd1::is_directional && Dd2::is_directional)
-		//	{
-		//		if constexpr (Dd1::axis != Dd2::axis)
-		//		{
-		//			return expr::make_operator_mixed_derivative<Dd1::axis, order1, Dd2::axis, order2>(e.solver)(enclosed);
-		//		}
-		//		else
-		//		{
-		//			return expr::make_operator_directional_derivative<Dd1::axis, order1 + order2>(e.solver)(enclosed);
-		//		}
-		//	}
-		//	else if constexpr (Dd1::is_directional)
-		//	{
-		//		if constexpr (order2 % 2 == 1)
-		//		{
-		//			return (expr::make_operator_directional_derivative<Dd1::axis, order1>(e.solver) *
-		//				expr::make_operator_directional_derivative<Dd2::axis, 1>(e.solver) *
-		//				break_up_derivative<order2 - 1>(e.solver, symphas::lib::make_axis_list<D>()))(enclosed);
-		//		}
-		//		else // order 2 even
-		//		{
-		//			if constexpr (order1 == 1)
-		//			{
-		//				return expr::make_derivative<Dd1::axis, order1 + order2>(enclosed, e.solver);
-		//			}
-		//			else
-		//			{
-		//				return (expr::make_operator_directional_derivative<Dd1::axis, order1>(e.solver) *
-		//					break_up_derivative<order2>(e.solver, symphas::lib::make_axis_list<D>()))(enclosed);
-		//			}
-		//		}
-		//	}
-		//	else if constexpr (Dd2::is_directional)
-		//	{
-		//		if constexpr (order1 % 2 == 1)
-		//		{
-		//			return (expr::make_operator_directional_derivative<Dd2::axis, order2>(e.solver) *
-		//				expr::make_operator_directional_derivative<Dd1::axis, 1>(e.solver) *
-		//				break_up_derivative<order1 - 1>(e.solver, symphas::lib::make_axis_list<D>()))(enclosed);
-		//		}
-		//		else // order 2 even
-		//		{
-		//			if constexpr (order2 == 1)
-		//			{
-		//				return expr::make_derivative<Dd2::axis, order2 + order1>(enclosed, e.solver);
-		//			}
-		//			else
-		//			{
-		//				return (expr::make_operator_directional_derivative<Dd2::axis, order2>(e.solver) *
-		//					break_up_derivative<order1>(e.solver, symphas::lib::make_axis_list<D>()))(enclosed);
-		//			}
-		//		}
-		//	}
-		//	else
-		//	{
-		//		if constexpr (order1 % 2 == 0 && order2 % 2 == 0)
-		//		{
-		//			return expr::make_derivative<Dd1::axis, order1 + order2>(enclosed, e.solver);
-		//		}
-		//		else if constexpr (order1 % 2 == 1)
-		//		{
-		//			return expr::make_derivative<Dd1::axis, order1 + order2>(enclosed, e.solver);
-		//		}
-		//		else if constexpr (order2 % 2 == 1)
-		//		{
-		//			return expr::make_derivative<Dd2::axis, order1 + order2>(enclosed, e.solver);
-		//		}
-		//		else
-		//		{
-		//			return (expr::make_operator_directional_derivative<Dd1::axis, 1>(e.solver) *
-		//				expr::make_operator_directional_derivative<Dd2::axis, 1>(e.solver) *
-		//				break_up_derivative<order1 + order2 - 2>(e.solver, symphas::lib::make_axis_list<D>()))(enclosed);
-		//		}
-		//	}
 		}
 		else
 		{
@@ -1016,24 +1090,73 @@ namespace expr
 		}
 	}
 
-	template<typename Dd, typename V, typename E, typename Sp, typename>
-	auto apply_operators(OpFuncDerivative<Dd, V, E, Sp> const& e)
+	namespace
 	{
-		return apply_operators(expr::make_derivative<Dd>(apply_operators(expr::coeff(e) * expr::get_enclosed_expression(e)), e.solver));
+		template<size_t O, typename V, typename E, typename GG, typename E0>
+		auto apply_operators_deriv(
+			OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<GG>> const& d,
+			OpExpression<E0> const& e)
+		{
+			return apply_operators(expr::make_derivative<O, GG>(*static_cast<E0 const*>(&e)));
+		}
+
+		template<size_t O, typename V, typename E, typename GG, typename A1, typename A2, typename E0>
+		auto apply_operators_deriv(
+			OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<GG>> const& d,
+			OpCombination<A1, A2, E0> const& e)
+		{
+			return apply_operators(expr::make_derivative<O, GG>(e.combination.f(e.e)))
+				+ apply_operators(expr::make_derivative<O, GG>(e.combination.g(e.e)));
+		}
+
+		template<size_t O, typename V, typename E, typename GG, typename E0>
+		auto apply_operators_deriv(
+			OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<GG>> const& d,
+			OpOperator<E0> const& e)
+		{
+			return OpVoid{};
+		}
+		
+
+		//template<typename Dd, typename V, typename E, typename Sp, typename E0>
+		//auto apply_operators_deriv(OpDerivative<Dd, V, E, Sp> const& d, OpOperator<E0> const& e)
+		//{
+		//	return apply_operators(expr::make_derivative<Dd>(*static_cast<E0 const*>(&e), d.solver));
+		//}
+
+		template<typename Dd, typename V, typename E, typename Sp, typename E0,
+			typename std::enable_if_t<expr_has_deriv<E>::value, int> = 0>
+		auto apply_operators_deriv(OpDerivative<Dd, V, E, Sp> const& d, OpExpression<E0> const& e)
+		{
+			return apply_operators(expr::make_derivative<Dd>(*static_cast<E0 const*>(&e), d.solver));
+		}
+
+		template<typename Dd, typename V, typename E, typename Sp, typename E0, 
+			typename std::enable_if_t<!expr_has_deriv<E>::value, int> = 0>
+		auto apply_operators_deriv(OpDerivative<Dd, V, E, Sp> const& d, OpExpression<E0> const& e)
+		{
+			return expr::make_derivative<Dd>(*static_cast<E0 const*>(&e), d.solver);
+		}
+	}
+
+	template<typename Dd, typename V, typename E, typename Sp, typename>
+	auto apply_operators(OpDerivative<Dd, V, E, Sp> const& e)
+	{
+		return apply_operators_deriv(e, apply_operators(expr::coeff(e) * expr::get_enclosed_expression(e)));
 	}
 
 	template<typename Dd, typename V, typename... Es, typename Sp>
-	auto apply_operators(OpFuncDerivative<Dd, V, OpAdd<Es...>, Sp> const& e)
+	auto apply_operators(OpDerivative<Dd, V, OpAdd<Es...>, Sp> const& e)
 	{
 		auto&& add = expr::get_enclosed_expression(e);
-		return e.value * apply_operators_adds<Dd>(e.solver, add, std::make_index_sequence<sizeof...(Es)>{});
+		return expr::coeff(e) * apply_operators_adds<Dd>(e.solver, add, std::make_index_sequence<sizeof...(Es)>{});
 	}
 
 	template<size_t O, typename V, typename... Es, typename G0>
-	auto apply_operators(OpFuncDerivative<std::index_sequence<O>, V, OpAdd<Es...>, SymbolicDerivative<G0>> const& e)
+	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpAdd<Es...>, SymbolicDerivative<G0>> const& e)
 	{
 		auto&& add = expr::get_enclosed_expression(e);
-		return e.value * apply_operators_adds<O>(SymbolicDerivative<G0>{}, add, std::make_index_sequence<sizeof...(Es)>{});
+		return expr::coeff(e) * apply_operators_adds<O>(SymbolicDerivative<G0>{}, add, std::make_index_sequence<sizeof...(Es)>{});
 	}
 
 	template<typename... Es>
@@ -1044,6 +1167,12 @@ namespace expr
 
 	namespace
 	{
+		template<typename E1, typename E2>
+		auto apply_operators_mul(OpOperator<E1> const& a, OpOperator<E2> const& b)
+		{
+			return expr::make_mul((*static_cast<E1 const*>(&a)), (*static_cast<E2 const*>(&b)));
+		}
+
 		template<typename E1, typename E2>
 		auto apply_operators_mul(OpOperator<E1> const& a, OpExpression<E2> const& b)
 		{
@@ -1069,6 +1198,30 @@ namespace expr
 	{
 		return apply_operators(e.a) / apply_operators(e.b);
 	}
+
+	template<size_t O, typename V, size_t Z, typename GG, typename V0, typename E, typename... Ts,
+		int... I0s, int... P0s, typename A, typename B, typename C>
+	auto apply_operators(
+		OpDerivative<std::index_sequence<O>, V, OpSum<V0, E,
+			Substitution<SymbolicDataArray<Ts>...>,
+			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, C>, SymbolicDerivative<Variable<Z, GG>>> const& e);
+
+	template<size_t O, typename V, size_t Z, int I0, int P0, typename V0, typename E, typename... Ts,
+		int... I0s, int... P0s, typename A, typename B, typename C>
+	auto apply_operators(
+		OpDerivative<std::index_sequence<O>, V, OpSum<V0, E,
+			Substitution<SymbolicDataArray<Ts>...>,
+			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, C>,
+			SymbolicDerivative<expr::symbols::v_id_type<expr::symbols::i_<I0, P0>>>> const& e);
+
+	template<size_t O, typename V, typename V0, typename E, typename... Ts,
+		int... I0s, int... P0s, typename A, typename B, typename C, typename GG>
+	auto apply_operators(
+		OpDerivative<std::index_sequence<O>, V, OpSum<V0, E,
+		Substitution<SymbolicDataArray<Ts>...>,
+		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, C>, SymbolicDerivative<GG>> const& e);
+
+
 }
 
 // ******************************************************************************************
@@ -1139,7 +1292,7 @@ namespace symphas::internal
 		auto operator()(OpExpression<E> const& e)
 		{
 			expr::prune::update(*const_cast<E*>(static_cast<E const*>(&e)));
-			Block<T> result(expr::data_len(*static_cast<E const*>(&e)));
+			Block<T> result(expr::data_length(*static_cast<E const*>(&e)));
 			expr::result(*static_cast<E const*>(&e), result.values, result.len);
 			return result;
 		}
@@ -1227,6 +1380,31 @@ namespace expr::transform
 	{
 		return expr::transform::to_grid(es, std::make_index_sequence<sizeof...(Es)>{});
 	}
+
+
+	//! Remove the terms for which the base_data has a match in the given list.
+	template<typename G0, expr::exp_key_t X0, typename... Gs, expr::exp_key_t... Xs, typename... Is>
+	auto filter_from_term(OpTerms<Term<G0, X0>, Term<Gs, Xs>...> const& e, symphas::lib::types_list<Is...>)
+	{
+		if constexpr ((std::is_same<expr::base_data_t<G0>, Is>::value || ... || false))
+		{
+			return filter_from_term(expr::terms_after_first(e), symphas::lib::types_list<Is...>{});
+		}
+		else
+		{
+			return expr::make_term(expr::get<1>(e))
+				* filter_from_term(expr::terms_after_first(e), symphas::lib::types_list<Is...>{});
+		}
+	}
+
+	//! Remove the terms for which the base_data has a match in the given list.
+	template<typename V, typename G0, expr::exp_key_t X0, typename... Gs, expr::exp_key_t... Xs, typename... Is>
+	auto filter_from_term(OpTerms<V, Term<G0, X0>, Term<Gs, Xs>...> const& e, symphas::lib::types_list<Is...>)
+	{
+		return expr::coeff(e) * filter_from_term(expr::terms_after_first(e), symphas::lib::types_list<Is...>{});
+	}
+
+
 
 	//! Converts the expression to Fourier space.
 	/*!
@@ -1317,7 +1495,7 @@ namespace expr::transform
 	 * \tparam D The real space dimension.
 	 */
 	template<size_t D, typename V, typename E1, typename E2>
-	auto to_ft(OpFuncConvolution<V, E1, E2> const& e, double const* h, const len_type* dims);
+	auto to_ft(OpConvolution<V, E1, E2> const& e, double const* h, const len_type* dims);
 
 	//! Converts the expression to Fourier space.
 	/*!
@@ -1330,7 +1508,7 @@ namespace expr::transform
 	 * \tparam D The real space dimension.
 	 */
 	template<size_t D, typename V, typename E>
-	auto to_ft(OpFuncConvolution<V, GaussianSmoothing<D>, E> const& e, double const* h, const len_type* dims);
+	auto to_ft(OpConvolution<V, GaussianSmoothing<D>, E> const& e, double const* h, const len_type* dims);
 
 	//! Converts the expression to Fourier space.
 	/*!
@@ -1422,7 +1600,7 @@ namespace expr::transform
 	 * \tparam D The real space dimension.
 	 */
 	template<size_t D, typename Dd, typename V, typename E, typename Sp>
-	auto to_ft(OpFuncDerivative<Dd, V, E, Sp> const& e, double const* h, const len_type* dims);
+	auto to_ft(OpDerivative<Dd, V, E, Sp> const& e, double const* h, const len_type* dims);
 
 	//! Converts the expression to Fourier space.
 	/*!
@@ -1437,6 +1615,47 @@ namespace expr::transform
 	template<size_t D>
 	auto to_ft(GaussianSmoothing<D> const& e, double const*, const len_type* dims);
 
+	//! Converts the expression to Fourier space.
+	/*!
+	 * Convert the given expression to the Fourier space equivalent.
+	 *
+	 * \param e The given expression.
+	 * \param h The spatial discretization of real space.
+	 * \param dims The dimensions of real space.
+	 *
+	 * \tparam D The real space dimension.
+	 */
+	template<size_t D, typename V, typename sub_t, typename E, typename... Ts>
+	auto to_ft(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e, double const* h, const len_type* dims);
+
+	//! Converts the expression to Fourier space.
+	/*!
+	 * Convert the given expression to the Fourier space equivalent.
+	 *
+	 * \param e The given expression.
+	 * \param h The spatial discretization of real space.
+	 * \param dims The dimensions of real space.
+	 *
+	 * \tparam D The real space dimension.
+	 */
+	template<size_t D, typename V, typename sub_t, typename E, typename... Ts>
+	auto to_ft(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e, double const* h, const len_type* dims);
+
+	//! Converts the expression to Fourier space.
+	/*!
+	 * Convert the given expression to the Fourier space equivalent.
+	 *
+	 * \param e The given expression.
+	 * \param h The spatial discretization of real space.
+	 * \param dims The dimensions of real space.
+	 *
+	 * \tparam D The real space dimension.
+	 */
+	template<size_t D, typename V, typename E, typename... Ts, int... I0s, int... P0s,
+		typename A, typename... As, typename B, typename C>
+	auto to_ft(OpSum<V, E, Substitution<SymbolicDataArray<Ts>...>, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
+			SymbolicFunction<A, As...>, B, C> const& series,
+		double const* h, const len_type* dims);
 
 	//! Converts the expression to Fourier space.
 	/*!
@@ -1572,7 +1791,7 @@ namespace expr::transform
 	}
 
 	template<size_t D, typename V, typename E1, typename E2>
-	auto to_ft(OpFuncConvolution<V, E1, E2> const& e, double const* h, const len_type* dims)
+	auto to_ft(OpConvolution<V, E1, E2> const& e, double const* h, const len_type* dims)
 	{
 		return expr::coeff(e) * to_ft<D>(e.a, h, dims) * to_ft<D>(e.b, h, dims);
 	}
@@ -1594,8 +1813,26 @@ namespace expr::transform
 #endif
 	}
 
+	template<size_t D, typename V, typename sub_t, typename E, typename... Ts>
+	auto to_ft(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e, double const* h, const len_type* dims)
+	{
+		auto ft = to_ft<D>(e.f.e, h, dims);
+		auto f = (expr::function_of(Ts{}...) = ft);
+		return symphas::internal::make_symbolic_eval(expr::coeff(e), e.data, f);
+	}
+
+	template<size_t D, typename V, typename E, typename... Ts, int... I0s, int... P0s,
+		typename A, typename... As, typename B, typename C>
+	auto to_ft(OpSum<V, E, Substitution<SymbolicDataArray<Ts>...>, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
+			SymbolicFunction<A, As...>, B, C> const& series,
+		double const* h, const len_type* dims)
+	{
+		auto ft = to_ft<D>(series.data.e, h, dims);
+		return expr::coeff(series) * expr::recreate_series(ft, series.data);
+	}
+
 	template<size_t D, typename V, typename E>
-	auto to_ft(OpFuncConvolution<V, GaussianSmoothing<D>, E> const& e, double const* h, const len_type* dims)
+	auto to_ft(OpConvolution<V, GaussianSmoothing<D>, E> const& e, double const* h, const len_type* dims)
 	{
 		return expr::coeff(e) * to_ft<D>(e.smoother, h, dims) * to_ft<D>(expr::get_enclosed_expression(e), h, dims);
 	}
@@ -1665,10 +1902,10 @@ namespace expr::transform
 	}
 
 	template<size_t D, typename Dd, typename V, typename E, typename Sp>
-	auto to_ft(OpFuncDerivative<Dd, V, E, Sp> const& e, double const* h, const len_type* dims)
+	auto to_ft(OpDerivative<Dd, V, E, Sp> const& e, double const* h, const len_type* dims)
 	{
-		constexpr Axis axis = OpFuncDerivative<Dd, V, E, Sp>::axis;
-		constexpr size_t order = OpFuncDerivative<Dd, V, E, Sp>::order;
+		constexpr Axis axis = OpDerivative<Dd, V, E, Sp>::axis;
+		constexpr size_t order = OpDerivative<Dd, V, E, Sp>::order;
 
 
 		if constexpr (Dd::is_directional)
@@ -1701,7 +1938,6 @@ namespace expr::transform
 
 
 	// **************************************************************************************
-
 
 	/* algorithm that takes the id of a variable and swaps all instances of the variable a
 	 * different grid
@@ -1847,7 +2083,7 @@ namespace expr::transform
 	 * \tparam Z The index of the variable to change.
 	 */
 	template<size_t Z, typename V, typename E1, typename E2, typename G_F>
-	auto swap_grid(OpFuncConvolution<V, E1, E2> const& e, G_F&& g);
+	auto swap_grid(OpConvolution<V, E1, E2> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
 	/*!
@@ -1861,7 +2097,7 @@ namespace expr::transform
 	 * \tparam Z The index of the variable to change.
 	 */
 	template<size_t Z, typename V, size_t D, typename E, typename G_F>
-	auto swap_grid(OpFuncConvolution<V, GaussianSmoothing<D>, E> const& e, G_F&& g);
+	auto swap_grid(OpConvolution<V, GaussianSmoothing<D>, E> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
 	/*!
@@ -1875,8 +2111,49 @@ namespace expr::transform
 	 * \tparam Z The index of the variable to change.
 	 */
 	template<size_t Z, typename Dd, typename V, typename E, typename Sp, typename G_F>
-	auto swap_grid(OpFuncDerivative<Dd, V, E, Sp> const& e, G_F&& g);
+	auto swap_grid(OpDerivative<Dd, V, E, Sp> const& e, G_F&& g);
 
+	//! Swap a data term in the expression.
+	/*!
+	 * Swaps the instance of the variable term which matches the given index
+	 * for a different term or expression. If the term is not found, the
+	 * expression is returned unchanged.
+	 *
+	 * \param e The expression to search for the term to swap.
+	 * \param g The element which will replace the variable.
+	 *
+	 * \tparam Z The index of the variable to change.
+	 */
+	template<size_t Z, size_t O, typename V, typename E, typename GG, typename G_F>
+	auto swap_grid(OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<GG>> const& e, G_F&& g);
+
+	//! Swap a data term in the expression.
+	/*!
+	 * Swaps the instance of the variable term which matches the given index
+	 * for a different term or expression. If the term is not found, the
+	 * expression is returned unchanged.
+	 *
+	 * \param e The expression to search for the term to swap.
+	 * \param g The element which will replace the variable.
+	 *
+	 * \tparam Z The index of the variable to change.
+	 */
+	template<size_t Z, typename G, typename V, typename E, typename G_F>
+	auto swap_grid(OpMap<G, V, E> const& e, G_F&& g);
+
+	//! Swap a data term in the expression.
+	/*!
+	 * Swaps the instance of the variable term which matches the given index
+	 * for a different term or expression. If the term is not found, the
+	 * expression is returned unchanged.
+	 *
+	 * \param e The expression to search for the term to swap.
+	 * \param g The element which will replace the variable.
+	 *
+	 * \tparam Z The index of the variable to change.
+	 */
+	template<size_t Z, expr::exp_key_t X, typename V, typename E, typename G_F>
+	auto swap_grid(OpPow<X, V, E> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
 	/*!
@@ -1890,7 +2167,7 @@ namespace expr::transform
 	 * \tparam Z The index of the variable to change.
 	 */
 	template<size_t Z, typename V, typename E, typename F, typename Arg0, typename... Args, typename G_F>
-	auto swap_grid(OpFunc<V, E, F, Arg0, Args...> const& e, G_F&& g);
+	auto swap_grid(OpFunction<V, E, F, Arg0, Args...> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
 	/*!
@@ -1904,8 +2181,10 @@ namespace expr::transform
 	 * \tparam Z The index of the variable to change.
 	 */
 	template<size_t Z, auto f, typename V, typename E, typename G_F>
-	auto swap_grid(OpFuncApply<f, V, E> const& e, G_F&& g);
+	auto swap_grid(OpFunctionApply<f, V, E> const& e, G_F&& g);
 
+	template<size_t Z, typename V, typename sub_t, typename E, typename... Ts, typename G_F>
+	auto swap_grid(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e, G_F&& g);
 
 	namespace
 	{
@@ -1937,7 +2216,14 @@ namespace expr::transform
 		{
 			if constexpr (!expr::is_expression<G_F>)
 			{
-				return sift_term(expr::coeff(a), expr::get<Ns>(a)..., Term(std::forward<G_F>(g), expr::get<Ms>(a)...));
+				if constexpr (is_simple_data<G_F>)
+				{
+					return sift_term(sift_term(g), expr::get<Ns>(a)..., expr::get<Ms>(a)...);
+				}
+				else
+				{
+					return sift_term(OpIdentity{}, expr::get<Ns>(a)..., Term(std::forward<G_F>(g)), expr::get<Ms>(a)...);
+				}
 			}
 			else
 			{
@@ -1945,20 +2231,20 @@ namespace expr::transform
 				{
 					if constexpr (_Xk_t<X>::N == 1)
 					{
-						return sift_term(expr::coeff(a), expr::get<Ns>(a)...) 
+						return sift_term(OpIdentity{}, expr::get<Ns>(a)...)
 							* std::forward<G_F>(g) 
 							* sift_term(OpIdentity{}, expr::get<Ms>(a)...);
 					}
 					else
 					{
-						return sift_term(expr::coeff(a), expr::get<Ns>(a)...)
+						return sift_term(OpIdentity{}, expr::get<Ns>(a)...)
 							* expr::pow<_Xk_t<X>::N>(std::forward<G_F>(g)) 
 							* sift_term(OpIdentity{}, expr::get<Ms>(a)...);
 					}
 				}
 				else
 				{
-					return sift_term(expr::coeff(a), expr::get<Ns>(a)...)
+					return sift_term(OpIdentity{}, expr::get<Ns>(a)...)
 						* expr::exp(
 							((_Xk_t<X>::sign) ? OpNegIdentity{} : OpIdentity{}) * expr::make_fraction<_Xk_t<X>::N, _Xk_t<X>::D>()
 							* expr::log(std::forward<G_F>(g)))
@@ -1967,7 +2253,6 @@ namespace expr::transform
 
 			}
 		}
-
 
 		template<typename V, typename... Gs, exp_key_t... Xs, size_t... Is, bool... fs, typename G_F>
 		decltype(auto) swap_terms(OpTerms<V, Term<Gs, Xs>...> const& e, std::index_sequence<Is...>, std::integer_sequence<bool, fs...>, G_F&& g)
@@ -2020,7 +2305,7 @@ namespace expr::transform
 	decltype(auto) swap_grid(OpTerms<V, Term<Gs, Xs>...> const& e, G_F&& g)
 	{
 		using mask_t = std::integer_sequence<bool, (expr::factor_count<Variable<Z>, Gs>::value > 0)...>;
-		return swap_terms(e, std::make_index_sequence<sizeof...(Gs)>{}, mask_t{}, std::forward<G_F>(g));
+		return expr::coeff(e) * swap_terms(e, std::make_index_sequence<sizeof...(Gs)>{}, mask_t{}, std::forward<G_F>(g));
 	}
 
 	template<size_t Z, typename... Es, typename G_F>
@@ -2042,7 +2327,7 @@ namespace expr::transform
 	}
 
 	template<size_t Z, typename V, typename E1, typename E2, typename G_F>
-	auto swap_grid(OpFuncConvolution<V, E1, E2> const& e, G_F&& g)
+	auto swap_grid(OpConvolution<V, E1, E2> const& e, G_F&& g)
 	{
 		return expr::make_convolution(
 			e.value,
@@ -2051,7 +2336,7 @@ namespace expr::transform
 	}
 
 	template<size_t Z, typename V, size_t D, typename E, typename G_F>
-	auto swap_grid(OpFuncConvolution<V, GaussianSmoothing<D>, E> const& e, G_F&& g)
+	auto swap_grid(OpConvolution<V, GaussianSmoothing<D>, E> const& e, G_F&& g)
 	{
 		return expr::make_convolution(
 			e.value, 
@@ -2084,25 +2369,133 @@ namespace expr::transform
 	}
 
 	template<size_t Z, typename Dd, typename V, typename E, typename Sp, typename G_F>
-	auto swap_grid(OpFuncDerivative<Dd, V, E, Sp> const& e, G_F&& g)
+	auto swap_grid(OpDerivative<Dd, V, E, Sp> const& e, G_F&& g)
 	{
-		constexpr size_t order = OpFuncDerivative<Dd, V, E, Sp>::order;
-		constexpr Axis axis = OpFuncDerivative<Dd, V, E, Sp>::axis;
+		constexpr size_t order = OpDerivative<Dd, V, E, Sp>::order;
+		constexpr Axis axis = OpDerivative<Dd, V, E, Sp>::axis;
 		return symphas::internal::nth_derivative_apply<axis, order, Sp>::template get(
 			e.value, swap_grid<Z>(expr::get_enclosed_expression(e), std::forward<G_F>(g)), e.solver);
 	}
 
-	template<size_t Z, typename V, typename E, typename F, typename Arg0, typename... Args, typename G_F>
-	auto swap_grid(OpFunc<V, E, F, Arg0, Args...> const& e, G_F&& g)
+	template<size_t Z, size_t O, typename V, typename E, typename GG, typename G_F>
+	auto swap_grid(OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<GG>> const& e, G_F&& g)
 	{
-		return OpFunc(e.name, e.value, swap_grid<Z>(e.e, std::forward<G_F>(g)), e.f, e.tt);
+		return expr::make_derivative<O, GG>(e.value, swap_grid<Z>(expr::get_enclosed_expression(e), std::forward<G_F>(g)));;
+	}
+
+	template<size_t Z, typename G, typename V, typename E, typename G_F>
+	auto swap_grid(OpMap<G, V, E> const& e, G_F&& g)
+	{
+		auto eg = swap_grid<Z>(e.e, std::forward<G_F>(g));
+		return OpMap<G, V, decltype(eg)>(e.value, eg);
+	}
+
+	template<size_t Z, expr::exp_key_t X, typename V, typename E, typename G_F>
+	auto swap_grid(OpPow<X, V, E> const& e, G_F&& g)
+	{
+		return expr::make_pow<X>(expr::coeff(e), swap_grid<Z>(expr::get_enclosed_expression(e), std::forward<G_F>(g)));
+	}
+
+	template<size_t Z, typename V, typename E, typename F, typename Arg0, typename... Args, typename G_F>
+	auto swap_grid(OpFunction<V, E, F, Arg0, Args...> const& e, G_F&& g)
+	{
+		return OpFunction(e.name, e.value, swap_grid<Z>(expr::get_enclosed_expression(e), std::forward<G_F>(g)), e.f, e.tt);
 	}
 
 	template<size_t Z, auto f, typename V, typename E, typename G_F>
-	auto swap_grid(OpFuncApply<f, V, E> const& e, G_F&& g)
+	auto swap_grid(OpFunctionApply<f, V, E> const& e, G_F&& g)
 	{
         auto eg = swap_grid<Z>(e.e, std::forward<G_F>(g));
-		return OpFuncApply<f, V, decltype(eg)>(e.value, eg);
+		return OpFunctionApply<f, V, decltype(eg)>(e.value, eg);
+	}
+
+	namespace
+	{
+
+		template<size_t Z, typename E, typename... Ts, size_t... ArgNs, size_t... ArgMs, typename G_F>
+		auto swap_grid_symbolic(SymbolicFunction<E, Variable<ArgNs, Ts>...> const& e, std::index_sequence<ArgMs...>, G_F&& g)
+		{
+			auto tmpl = (expr::template_of(Variable<ArgNs>{}...) = e.e);
+			auto swapped = swap_grid<Z>(tmpl(Variable<ArgMs, Ts>{}...), std::forward<G_F>(g));
+			return (expr::function_of(Variable<ArgMs, Ts>{}...) = swapped);
+		}
+
+		template<size_t Z, typename E, typename... Ts, typename G_F>
+		auto swap_grid_symbolic(SymbolicFunction<E, Ts...> const& e, G_F&& g)
+		{
+			using var_g = decltype(expr::get_independent_variables(std::forward<G_F>(g)));
+			using seq_t = std::make_index_sequence<sizeof...(Ts) + 2>;
+			using seq_filt_t = symphas::lib::filter_seq_t<seq_t, std::index_sequence<Z>, var_g>;
+			using seq_cut_t = symphas::lib::seq_lt_t<sizeof...(Ts), seq_filt_t>;
+			return swap_grid_symbolic<Z>(e, seq_cut_t{}, std::forward<G_F>(g));
+		}
+
+		template<size_t Z, typename T, typename G_F>
+		auto swap_grid_symbolic(SymbolicData<T> const& e, G_F&& g)
+		{
+			return e;
+		}
+
+		template<size_t Z, typename T, typename G_F>
+		auto swap_grid_symbolic(SymbolicDataArray<T> const& e, G_F&& g)
+		{
+			return e;
+		}
+
+
+		template<bool flag, typename A, typename B>
+		decltype(auto) switch_tuple_element(A&& a, B&& b)
+		{
+			if constexpr (flag)
+			{
+				return std::forward<A>(a);
+			}
+			else
+			{
+				return std::forward<B>(b);
+			}
+		}
+
+		template<typename... Ts, bool... Bs, size_t... Is, typename G_F>
+		auto swap_symbolic_data_array(SymbolicDataArray<std::tuple<Term<Ts>...>> const& e,
+			std::integer_sequence<bool, Bs...>, std::index_sequence<Is...>, G_F&& g)
+		{
+			auto data = e.get_data_tuple();
+			return std::make_tuple(switch_tuple_element<Bs>(std::forward<G_F>(g), std::get<Is>(data))...);
+		}
+
+		template<size_t Z, size_t... Zs, typename... Ts, typename G_F>
+		auto swap_grid_symbolic(SymbolicDataArray<std::tuple<Term<Variable<Zs, Ts>>...>> const& e, G_F&& g)
+		{
+			using mask_seq = std::integer_sequence<bool, (Z == Zs)...>;
+			return SymbolicDataArray(swap_symbolic_data_array(e, mask_seq{}, std::make_index_sequence<sizeof...(Ts)>{}, std::forward<G_F>(g)));
+		}
+
+		template<size_t Z, typename... Ts, size_t... Is, typename G_F>
+		auto swap_grid_symbolic(Substitution<Ts...> const& e, std::index_sequence<Is...>, G_F&& g)
+		{
+			return Substitution(swap_grid_symbolic<Z>(std::get<Is>(e), std::forward<G_F>(g))...);
+		}
+
+		template<size_t Z, typename... Ts, typename G_F>
+		auto swap_grid_symbolic(Substitution<Ts...> const& e, G_F&& g)
+		{
+			return swap_grid_symbolic<Z>(e, std::make_index_sequence<sizeof...(Ts)>{}, std::forward<G_F>(g));
+		}
+
+		template<size_t Z, typename Op, typename... Ts, typename C, typename G_F>
+		auto swap_grid_symbolic(SymbolicSeries<Op, Substitution<Ts...>, C> const& e, G_F&& g)
+		{
+			return swap_grid_symbolic<Z>(e.substitution, std::forward<G_F>(g));
+		}
+	}
+
+	template<size_t Z, typename V, typename sub_t, typename E, typename... Ts, typename G_F>
+	auto swap_grid(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e, G_F&& g)
+	{
+		auto data = swap_grid_symbolic<Z>(e.data, std::forward<G_F>(g));
+		auto f = swap_grid_symbolic<Z>(e.f, std::forward<G_F>(g));
+		return symphas::internal::make_symbolic_eval(e.value, data, f);
 	}
 
 	template<size_t Z0, size_t Z1, size_t... Zs, typename E, typename G_F>
@@ -2116,7 +2509,6 @@ namespace expr::transform
 	{
 		return swap_grid<Z1, Zs...>(swap_grid<Z0>(*static_cast<E const*>(&e), std::forward<G_F0>(g0)), std::forward<G_F1>(g1), std::forward<G_Fs>(gs)...);
 	}
-
 
 
 	/* A development of the previous algorithm which will swap the opvariable
@@ -2167,11 +2559,11 @@ namespace expr::transform
 	 * \param v The term which is swapped.
 	 * \param g The element which will replace the variable.
 	 *
-	 * 	param Sg The type of the grid to match for the swap.
+	 * \param Sg The type of the grid to match for the swap.
 	 */
-	template<typename Sg, typename T, typename G, typename G_F, 
-		typename std::enable_if_t<(expr::is_same_base<Sg, G> && !expr::is_expression<G_F>), int> = 0>
-	decltype(auto) swap_grid(OpTerm<T, G> const& v, G_F&& g);
+	//template<typename Sg, typename T, typename G, typename G_F, 
+	//	typename std::enable_if_t<(expr::is_same_base<Sg, G> && !expr::is_expression<G_F>), int> = 0>
+	//decltype(auto) swap_grid(OpTerm<T, G> const& v, G_F&& g);
 
 	//! Swap a data term in the expression.
 	/*!
@@ -2182,7 +2574,7 @@ namespace expr::transform
 	 * \param v The term which is swapped.
 	 * \param g The element which will replace the variable.
 	 *
-	 * 	param Sg The type of the grid to match for the swap.
+	 *\param Sg The type of the grid to match for the swap.
 	 */
 	template<typename Sg, typename V, typename... Gs, exp_key_t... Xs, typename G_F>
 	decltype(auto) swap_grid(OpTerms<V, Term<Gs, Xs>...> const& e, G_F&& g);
@@ -2196,7 +2588,7 @@ namespace expr::transform
 	 * \param e The expression to search for the term to swap.
 	 * \param g The element which will replace the variable.
 	 *
-	 * 	param Sg The type of the grid to match for the swap.
+	 * \param Sg The type of the grid to match for the swap.
 	 */
 	template<typename Sg, typename... Es, typename G_F>
 	auto swap_grid(OpAdd<Es...> const& e, G_F&& g);
@@ -2210,7 +2602,7 @@ namespace expr::transform
 	 * \param e The expression to search for the term to swap.
 	 * \param g The element which will replace the variable.
 	 *
-	 * 	param Sg The type of the grid to match for the swap.
+	 * \param Sg The type of the grid to match for the swap.
 	 */
 	template<typename Sg, typename E1, typename E2, typename G_F>
 	auto swap_grid(OpBinaryMul<E1, E2> const& e, G_F&& g);
@@ -2224,7 +2616,7 @@ namespace expr::transform
 	 * \param e The expression to search for the term to swap.
 	 * \param g The element which will replace the variable.
 	 *
-	 * 	param Sg The type of the grid to match for the swap.
+	 * \param Sg The type of the grid to match for the swap.
 	 */
 	template<typename Sg, typename E1, typename E2, typename G_F>
 	auto swap_grid(OpBinaryDiv<E1, E2> const& e, G_F&& g);
@@ -2238,7 +2630,7 @@ namespace expr::transform
 	 * \param e The expression to search for the term to swap.
 	 * \param g The element which will replace the variable.
 	 *
-	 * 	param Sg The type of the grid to match for the swap.
+	 * \param Sg The type of the grid to match for the swap.
 	 */
 	template<typename Sg, typename A1, typename A2, typename G_F>
 	auto swap_grid(OpOperatorCombination<A1, A2> const& e, G_F&& g);
@@ -2252,7 +2644,7 @@ namespace expr::transform
 	 * \param e The expression to search for the term to swap.
 	 * \param g The element which will replace the variable.
 	 *
-	 * 	param Sg The type of the grid to match for the swap.
+	 * \param Sg The type of the grid to match for the swap.
 	 */
 	template<typename Sg, typename A1, typename A2, typename E, typename G_F>
 	auto swap_grid(OpCombination<A1, A2, E> const& e, G_F&& g);
@@ -2266,7 +2658,7 @@ namespace expr::transform
 	 * \param e The expression to search for the term to swap.
 	 * \param g The element which will replace the variable.
 	 *
-	 * 	param Sg The type of the grid to match for the swap.
+	 * \param Sg The type of the grid to match for the swap.
 	 */
 	template<typename Sg, typename A1, typename A2, typename G_F>
 	auto swap_grid(OpOperatorChain<A1, A2> const& e, G_F&& g);
@@ -2280,7 +2672,7 @@ namespace expr::transform
 	 * \param e The expression to search for the term to swap.
 	 * \param g The element which will replace the variable.
 	 *
-	 * 	param Sg The type of the grid to match for the swap.
+	 * \param Sg The type of the grid to match for the swap.
 	 */
 	template<typename Sg, typename A1, typename A2, typename E, typename G_F>
 	auto swap_grid(OpChain<A1, A2, E> const& e, G_F&& g);
@@ -2294,10 +2686,10 @@ namespace expr::transform
 	 * \param e The expression to search for the term to swap.
 	 * \param g The element which will replace the variable.
 	 *
-	 * 	param Sg The type of the grid to match for the swap.
+	 * \param Sg The type of the grid to match for the swap.
 	 */
 	template<typename Sg, typename V, typename E1, typename E2, typename G_F>
-	auto swap_grid(OpFuncConvolution<V, E1, E2> const& e, G_F&& g);
+	auto swap_grid(OpConvolution<V, E1, E2> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
 	/*!
@@ -2308,10 +2700,10 @@ namespace expr::transform
 	 * \param e The expression to search for the term to swap.
 	 * \param g The element which will replace the variable.
 	 *
-	 * 	param Sg The type of the grid to match for the swap.
+	 * \param Sg The type of the grid to match for the swap.
 	 */
 	template<typename Sg, typename V, size_t D, typename E, typename G_F>
-	auto swap_grid(OpFuncConvolution<V, GaussianSmoothing<D>, E> const& e, G_F&& g);
+	auto swap_grid(OpConvolution<V, GaussianSmoothing<D>, E> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
 	/*!
@@ -2322,11 +2714,10 @@ namespace expr::transform
 	 * \param e The expression to search for the term to swap.
 	 * \param g The element which will replace the variable.
 	 *
-	 * 	param Sg The type of the grid to match for the swap.
+	 * \param Sg The type of the grid to match for the swap.
 	 */
 	template<typename Sg, typename Dd, typename V, typename E, typename Sp, typename G_F>
-	auto swap_grid(OpFuncDerivative<Dd, V, E, Sp> const& e, G_F&& g);
-
+	auto swap_grid(OpDerivative<Dd, V, E, Sp> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
 	/*!
@@ -2337,11 +2728,52 @@ namespace expr::transform
 	 * \param e The expression to search for the term to swap.
 	 * \param g The element which will replace the variable.
 	 *
-	 * 	param Sg The type of the grid to match for the swap.
+	 * \param Sg The type of the grid to match for the swap.
+	 */
+	template<typename Sg, size_t O, typename V, typename E, typename GG, typename G_F>
+	auto swap_grid(OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<GG>> const& e, G_F&& g);
+
+	//! Swap a data term in the expression.
+	/*!
+	 * Swaps the instance of the variable term which matches the data type
+	 * for a different term or expression. If the term is not found, the
+	 * expression is returned unchanged.
+	 *
+	 * \param e The expression to search for the term to swap.
+	 * \param g The element which will replace the variable.
+	 *
+	 * \param Sg The type of the grid to match for the swap.
+	 */
+	template<typename Sg, typename G, typename V, typename E, typename G_F>
+	auto swap_grid(OpMap<G, V, E> const& e, G_F&& g);
+
+	//! Swap a data term in the expression.
+	/*!
+	 * Swaps the instance of the variable term which matches the data type
+	 * for a different term or expression. If the term is not found, the
+	 * expression is returned unchanged.
+	 *
+	 * \param e The expression to search for the term to swap.
+	 * \param g The element which will replace the variable.
+	 *
+	 * \param Sg The type of the grid to match for the swap.
+	 */
+	template<typename Sg, expr::exp_key_t X, typename V, typename E, typename G_F>
+	auto swap_grid(OpPow<X, V, E> const& e, G_F&& g);
+
+	//! Swap a data term in the expression.
+	/*!
+	 * Swaps the instance of the variable term which matches the data type
+	 * for a different term or expression. If the term is not found, the
+	 * expression is returned unchanged.
+	 *
+	 * \param e The expression to search for the term to swap.
+	 * \param g The element which will replace the variable.
+	 *
+	 * \param Sg The type of the grid to match for the swap.
 	 */
 	template<typename Sg, typename V, typename E, typename F, typename Arg0, typename... Args, typename G_F>
-	auto swap_grid(OpFunc<V, E, F, Arg0, Args...> const& e, G_F&& g);
-
+	auto swap_grid(OpFunction<V, E, F, Arg0, Args...> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
 	/*!
@@ -2352,17 +2784,182 @@ namespace expr::transform
 	 * \param e The expression to search for the term to swap.
 	 * \param g The element which will replace the variable.
 	 *
-	 * 	param Sg The type of the grid to match for the swap.
+	 * \param Sg The type of the grid to match for the swap.
+	 */
+	template<typename Sg, typename V, typename sub_t, typename E, typename... Ts, typename G_F>
+	auto swap_grid(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e, G_F&& g);
+
+	//! Swap a data term in the expression.
+	/*!
+	 * Swaps the instance of the variable term which matches the data type
+	 * for a different term or expression. If the term is not found, the
+	 * expression is returned unchanged.
+	 *
+	 * \param e The expression to search for the term to swap.
+	 * \param g The element which will replace the variable.
+	 *
+	 * \param Sg The type of the grid to match for the swap.
 	 */
 	template<typename Sg, auto f, typename V, typename E, typename G_F>
-	auto swap_grid(OpFuncApply<f, V, E> const& e, G_F&& g);
+	auto swap_grid(OpFunctionApply<f, V, E> const& e, G_F&& g);
+
+	//! Swap a data term in the expression.
+	/*!
+	 * Swaps the instance of the variable term which matches the data type
+	 * for a different term or expression. If the term is not found, the
+	 * expression is returned unchanged.
+	 *
+	 * \param e The expression to search for the term to swap.
+	 * \param g The element which will replace the variable.
+	 *
+	 * \param Sg The type of the grid to match for the swap.
+	 */
+	template<typename Sg, typename T, typename I, typename G_F>
+	auto swap_grid(OpCoeff<T, I> const&, G_F&& g);
+
+
+	namespace
+	{
+		template<typename T, typename I>
+		auto handle_coeff_swap(OpCoeff<T, I> const& coeff, OpCoeff<void, void> const& swap)
+		{
+			return coeff[swap.i];
+		}
+
+		template<typename T, typename I, typename E>
+		auto handle_coeff_swap(OpCoeff<T, I> const& coeff, E const& swap)
+		{
+			return swap;
+		}
+	}
+
+	template<typename Sg, typename T, typename I, typename G_F>
+	auto swap_grid(OpCoeff<T, I> const& coeff, G_F&& g)
+	{
+		if constexpr (expr::factor_count<Sg, OpCoeff<T, I>>::value > 0)
+		{
+			return handle_coeff_swap(coeff, std::forward<G_F>(g));
+		}
+		else
+		{
+			return coeff;
+		}
+	}
+
+	namespace
+	{
+
+		template<typename... As, typename... Bs, exp_key_t X, typename C, typename... Sgs, size_t... Is, typename... G_Fs>
+		auto handle_case(Term<SymbolicCase<symphas::lib::types_list<As, Bs>...>, X> const& term, 
+			SymbolicCaseSwap<C, symphas::lib::types_list<Sgs...>>, std::tuple<G_Fs...> const& gs, std::index_sequence<Is...>)
+		{
+			constexpr int N = symphas::lib::index_of_type<C, As...>;
+			if constexpr (N >= 0)
+			{
+				auto subbed_case = swap_grid<Sgs...>(std::get<size_t(N)>(term.data().cases), std::get<Is>(gs)...);
+				return expr::make_pow<X>(subbed_case);
+			}
+			else
+			{
+				return expr::make_term(term);
+			}
+		}
+
+		template<typename V, typename... Gs, exp_key_t... Xs, typename C, typename... Sgs, size_t... Is, typename... G_Fs>
+		auto handle_cases(OpTerms<V, Term<Gs, Xs>...> const& e, SymbolicCaseSwap<C, symphas::lib::types_list<Sgs...>>, 
+			std::index_sequence<Is...>, std::tuple<G_Fs...> const& gs)
+		{
+			return std::make_tuple(
+				handle_case(
+					expr::get<Is + 1>(e), 
+					SymbolicCaseSwap<C, symphas::lib::types_list<Sgs...>>{}, 
+					gs,
+					std::make_index_sequence<sizeof...(G_Fs)>{})...);
+		}
+
+		template<typename V, typename... Gs, exp_key_t... Xs, typename... Ts, size_t I0, size_t... I0s>
+		auto recombine_terms(OpTerms<V, Term<Gs, Xs>...> const& e, std::index_sequence<I0, I0s...>, std::tuple<Ts...> const& subbed, std::index_sequence<>);
+		template<typename V, typename... Gs, exp_key_t... Xs, typename... Ts, size_t I1, size_t... I1s>
+		auto recombine_terms(OpTerms<V, Term<Gs, Xs>...> const& e, std::index_sequence<>, std::tuple<Ts...> const& subbed, std::index_sequence<I1, I1s...>);
+		template<typename V, typename... Gs, exp_key_t... Xs, typename... Ts>
+		auto recombine_terms(OpTerms<V, Term<Gs, Xs>...> const& e, std::index_sequence<>, std::tuple<Ts...> const& subbed, std::index_sequence<>);
+		template<typename V, typename... Gs, exp_key_t... Xs, typename... Ts, size_t I0, size_t... I0s, size_t I1, size_t... I1s>
+		auto recombine_terms(OpTerms<V, Term<Gs, Xs>...> const& e, std::index_sequence<I0, I0s...>, std::tuple<Ts...> const& subbed, std::index_sequence<I1, I1s...>);
+
+		template<typename V, typename... Gs, exp_key_t... Xs, typename... Ts, size_t I0, size_t... I0s>
+		auto recombine_terms(OpTerms<V, Term<Gs, Xs>...> const& e, std::index_sequence<I0, I0s...>, std::tuple<Ts...> const& subbed, std::index_sequence<>)
+		{
+			return expr::get<I0 + 1>(e) * recombine_terms(e, std::index_sequence<I0s...>{}, subbed, std::index_sequence<>{});
+		}
+
+		template<typename V, typename... Gs, exp_key_t... Xs, typename... Ts, size_t I1, size_t... I1s>
+		auto recombine_terms(OpTerms<V, Term<Gs, Xs>...> const& e, std::index_sequence<>, std::tuple<Ts...> const& subbed, std::index_sequence<I1, I1s...>)
+		{
+			return std::get<I1>(subbed) * recombine_terms(e, std::index_sequence<>{}, subbed, std::index_sequence<I1s...>{});
+		}
+
+		template<typename V, typename... Gs, exp_key_t... Xs, typename... Ts>
+		auto recombine_terms(OpTerms<V, Term<Gs, Xs>...> const& e, std::index_sequence<>, std::tuple<Ts...> const& subbed, std::index_sequence<>)
+		{
+			return OpIdentity{};
+		}
+
+		template<typename V, typename... Gs, exp_key_t... Xs, typename... Ts, size_t I0, size_t... I0s, size_t I1, size_t... I1s>
+		auto recombine_terms(OpTerms<V, Term<Gs, Xs>...> const& e, std::index_sequence<I0, I0s...>, std::tuple<Ts...> const& subbed, std::index_sequence<I1, I1s...>)
+		{
+			if constexpr (I0 < I1)
+			{
+				return expr::get<I0 + 1>(e) * recombine_terms(e, std::index_sequence<I0s...>{}, subbed, std::index_sequence<I1, I1s...>{});
+			}
+			else
+			{
+				return std::get<I1>(subbed) * recombine_terms(e, std::index_sequence<I0, I0s...>{}, subbed, std::index_sequence<I1s...>{});
+			}
+		}
+
+		template<typename V, typename... Gs, exp_key_t... Xs, typename C, typename... Sgs, size_t... Is, bool... fs, typename... G_Fs>
+		decltype(auto) swap_terms_case(OpTerms<V, Term<Gs, Xs>...> const& e, SymbolicCaseSwap<C, symphas::lib::types_list<Sgs...>>,
+			std::index_sequence<Is...>, std::integer_sequence<bool, fs...>, std::tuple<G_Fs...> const& gs)
+		{
+			using ::symphas::lib::seq_join_t;
+
+			using swap_seq_t = seq_join_t<
+				std::index_sequence<>,
+				std::conditional_t<
+					fs,
+					std::index_sequence<Is>,
+					std::index_sequence<>>...
+				>;
+
+			if constexpr (swap_seq_t::size() > 0)
+			{
+
+				auto subbed_cases = handle_cases(e, SymbolicCaseSwap<C, symphas::lib::types_list<Sgs...>>{}, swap_seq_t{}, gs);
+				return recombine_terms(e, symphas::lib::filter_seq_t<std::make_index_sequence<sizeof...(Gs)>, swap_seq_t>{}, subbed_cases, swap_seq_t{});
+			}
+			else
+			{
+				return e;
+			}
+		}
+	}
 
 
 	template<typename Sg, typename V, typename... Gs, exp_key_t... Xs, typename G_F>
 	decltype(auto) swap_grid(OpTerms<V, Term<Gs, Xs>...> const& e, G_F&& g)
 	{
-		using mask_t = std::integer_sequence<bool, (expr::factor_count<Sg, Gs>::value > 0)...>;
-		return swap_terms(e, std::make_index_sequence<sizeof...(Gs)>{}, mask_t{}, std::forward<G_F>(g));
+		if constexpr (expr::factor_count<SymbolicCaseSwap<void>, Sg>::value > 0)
+		{
+			using mask_t = std::integer_sequence<bool, (expr::factor_count<Sg, Gs>::value > 0)...>;
+			auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
+			return c * swap_terms_case(e, Sg{}, std::make_index_sequence<sizeof...(Gs)>{}, mask_t{}, std::forward<G_F>(g));
+		}
+		else
+		{
+			using mask_t = std::integer_sequence<bool, (expr::factor_count<Sg, Gs>::value > 0)...>;
+			auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
+			return c * swap_terms(e, std::make_index_sequence<sizeof...(Gs)>{}, mask_t{}, std::forward<G_F>(g));
+		}
 	}
 
 	namespace
@@ -2393,19 +2990,19 @@ namespace expr::transform
 	}
 
 	template<typename Sg, typename V, typename E1, typename E2, typename G_F>
-	auto swap_grid(OpFuncConvolution<V, E1, E2> const& e, G_F&& g)
+	auto swap_grid(OpConvolution<V, E1, E2> const& e, G_F&& g)
 	{
-		return expr::make_convolution(
-			e.value,
+		auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
+		return c * expr::make_convolution(
 			swap_grid<Sg>(e.a, std::forward<G_F>(g)),
 			swap_grid<Sg>(e.b, std::forward<G_F>(g)));
 	}
 
 	template<typename Sg, typename V, size_t D, typename E, typename G_F>
-	auto swap_grid(OpFuncConvolution<V, GaussianSmoothing<D>, E> const& e, G_F&& g)
+	auto swap_grid(OpConvolution<V, GaussianSmoothing<D>, E> const& e, G_F&& g)
 	{
-		return expr::make_convolution(
-			e.value,
+		auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
+		return c * expr::make_convolution(
 			swap_grid<Sg>(expr::get_enclosed_expression(e), std::forward<G_F>(g)),
 			e.smoother);
 	}
@@ -2435,25 +3032,118 @@ namespace expr::transform
 	}
 
 	template<typename Sg, typename Dd, typename V, typename E, typename Sp, typename G_F>
-	auto swap_grid(OpFuncDerivative<Dd, V, E, Sp> const& e, G_F&& g)
+	auto swap_grid(OpDerivative<Dd, V, E, Sp> const& e, G_F&& g)
 	{
-		constexpr size_t order = OpFuncDerivative<Dd, V, E, Sp>::order;
-		constexpr Axis axis = OpFuncDerivative<Dd, V, E, Sp>::axis;
-		return symphas::internal::nth_derivative_apply<axis, order, Sp>::template get(
-			e.value, swap_grid<Sp>(expr::get_enclosed_expression(e), std::forward<G_F>(g)), e.solver);;
+		constexpr size_t order = OpDerivative<Dd, V, E, Sp>::order;
+		constexpr Axis axis = OpDerivative<Dd, V, E, Sp>::axis;
+		auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
+		return c * symphas::internal::nth_derivative_apply<axis, order, Sp>::template get(
+			swap_grid<Sg>(expr::get_enclosed_expression(e), std::forward<G_F>(g)), e.solver);;
+	}
+
+	template<typename Sg, size_t O, typename V, typename E, typename GG, typename G_F>
+	auto swap_grid(OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<GG>> const& e, G_F&& g)
+	{
+		auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
+		return c * expr::make_derivative<O, GG>(swap_grid<Sg>(expr::get_enclosed_expression(e), std::forward<G_F>(g)));;
+	}
+
+	template<typename Sg, typename G, typename V, typename E, typename G_F>
+	auto swap_grid(OpMap<G, V, E> const& e, G_F&& g)
+	{
+		auto eg = swap_grid<Sg>(e.e, std::forward<G_F>(g));
+		auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
+		return c * OpMap<G, OpIdentity, decltype(eg)>(OpIdentity{}, eg);
+	}
+
+	template<typename Sg, expr::exp_key_t X, typename V, typename E, typename G_F>
+	auto swap_grid(OpPow<X, V, E> const& e, G_F&& g)
+	{
+		auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
+		return c * expr::make_pow<X>(swap_grid<Sg>(expr::get_enclosed_expression(e), std::forward<G_F>(g)));
 	}
 
 	template<typename Sg, typename V, typename E, typename F, typename Arg0, typename... Args, typename G_F>
-	auto swap_grid(OpFunc<V, E, F, Arg0, Args...> const& e, G_F&& g)
+	auto swap_grid(OpFunction<V, E, F, Arg0, Args...> const& e, G_F&& g)
 	{
-		return OpFunc(e.name, e.value, swap_grid<Sg>(e.e, std::forward<G_F>(g)), e.f, e.tt);
+		auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
+		return c * ::OpFunction(e.name, OpIdentity{}, swap_grid<Sg>(e.e, std::forward<G_F>(g)), e.f, e.tt);
 	}
 
 	template<typename Sg, auto f, typename V, typename E, typename G_F>
-	auto swap_grid(OpFuncApply<f, V, E> const& e, G_F&& g)
+	auto swap_grid(OpFunctionApply<f, V, E> const& e, G_F&& g)
 	{
-        auto eg = swap_grid<Sg>(e.e, std::forward<G_F>(g));
-		return OpFuncApply<f, V, decltype(eg)>(e.value, eg);
+		auto eg = swap_grid<Sg>(e.e, std::forward<G_F>(g));
+		auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
+		return c * OpFunctionApply<f, OpIdentity, decltype(eg)>(OpIdentity{}, eg);
+	}
+
+
+	namespace
+	{
+		template<typename Sg, typename E, typename... Ts, size_t... ArgNs, size_t... ArgMs, typename G_F>
+		auto swap_grid_symbolic(SymbolicFunction<E, Variable<ArgNs, Ts>...> const& e, std::index_sequence<ArgMs...>, G_F&& g)
+		{
+			auto tmpl = (expr::template_of(Variable<ArgNs>{}...) = e.e);
+			auto swapped = swap_grid<Sg>(tmpl(Variable<ArgMs, Ts>{}...), std::forward<G_F>(g));
+			return (expr::function_of(Variable<ArgMs, Ts>{}...) = swapped);
+		}
+
+		template<typename Sg, typename E, typename... Ts, typename G_F>
+		auto swap_grid_symbolic(SymbolicFunction<E, Ts...> const& e, G_F&& g)
+		{
+			using var_g = decltype(expr::get_independent_variables(std::forward<G_F>(g)));
+			using seq_t = std::make_index_sequence<sizeof...(Ts) + 1>;
+			using seq_filt_t = symphas::lib::filter_seq_t<seq_t, var_g>;
+			using seq_cut_t = symphas::lib::seq_lt_t<sizeof...(Ts), seq_filt_t>;
+			return swap_grid_symbolic<Sg>(e, seq_cut_t{}, std::forward<G_F>(g));
+		}
+
+		template<typename Sg, typename T, typename G_F>
+		auto swap_grid_symbolic(SymbolicData<T> const& e, G_F&& g)
+		{
+			return e;
+		}
+
+		template<typename Sg, typename T, typename G_F>
+		auto swap_grid_symbolic(SymbolicDataArray<T> const& e, G_F&& g)
+		{
+			return e;
+		}
+
+		template<typename Sg, typename... Ts, typename G_F>
+		auto swap_grid_symbolic(SymbolicDataArray<std::tuple<Term<Ts>...>> const& e, G_F&& g)
+		{
+			using mask_seq = std::integer_sequence<bool, (expr::factor_count<OpTerm<OpIdentity, Ts>, Sg>::value > 0)...>;
+			return SymbolicDataArray(swap_symbolic_data_array(e, mask_seq{}, std::make_index_sequence<sizeof...(Ts)>{}, std::forward<G_F>(g)));
+		}
+
+		template<typename Sg, typename... Ts, size_t... Is, typename G_F>
+		auto swap_grid_symbolic(Substitution<Ts...> const& e, std::index_sequence<Is...>, G_F&& g)
+		{
+			return Substitution(swap_grid_symbolic<Sg>(std::get<Is>(e), std::forward<G_F>(g))...);
+		}
+
+		template<typename Sg, typename... Ts, typename G_F>
+		auto swap_grid_symbolic(Substitution<Ts...> const& e, G_F&& g)
+		{
+			return swap_grid_symbolic<Sg>(e, std::make_index_sequence<sizeof...(Ts)>{}, std::forward<G_F>(g));
+		}
+
+		template<typename Sg, typename Op, typename... Ts, typename C, typename G_F>
+		auto swap_grid_symbolic(SymbolicSeries<Op, Substitution<Ts...>, C> const& e, G_F&& g)
+		{
+			return swap_grid_symbolic<Sg>(e.substitution, std::forward<G_F>(g));
+		}
+	}
+
+	template<typename Sg, typename V, typename sub_t, typename E, typename... Ts, typename G_F>
+	auto swap_grid(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e, G_F&& g)
+	{
+		auto data = swap_grid_symbolic<Sg>(e.data, std::forward<G_F>(g));
+		auto f = swap_grid_symbolic<Sg>(e.f, std::forward<G_F>(g));
+		auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
+		return c * symphas::internal::make_symbolic_eval(data, f);
 	}
 
 	template<typename Sg0, typename Sg1, typename... Sgs, typename E, typename G_F>
@@ -2481,6 +3171,13 @@ namespace expr::transform
 		return swap_grid<VectorComponent<ax, Sg>>(*static_cast<E const*>(&e), std::forward<G_F>(g));
 	}
 
+
+	template<typename... Sgs, typename C, typename E, typename... G_Fs>
+	auto swap_grid(SymbolicCaseSwap<C>, OpExpression<E> const& e, G_Fs&&... gs)
+	{
+		return swap_grid<SymbolicCaseSwap<C, symphas::lib::types_list<Sgs...>>>
+			(*static_cast<E const*>(&e), std::make_tuple(std::forward<G_Fs>(gs)...));
+	}
 
 }
 
@@ -2588,7 +3285,7 @@ namespace expr::split
 	 * \param e The expression which is split.
 	 */
 	template<typename Dd, typename V, typename E, typename Sp>
-	auto by_linear(OpFuncDerivative<Dd, V, E, Sp> const& e);
+	auto by_linear(OpDerivative<Dd, V, E, Sp> const& e);
 
 	//! Split all linear variables from nonlinear variables.
 	/*!
@@ -2614,17 +3311,6 @@ namespace expr::split
 	template<typename A1, typename A2, typename E>
 	auto by_linear(OpChain<A1, A2, E> const& e);
 
-	//! Split all linear variables from nonlinear variables.
-	/*!
-	 * Using the available predicates to determine linearity/nonlinearity of
-	 * subexpressions, a primary expression `E` is expanded into `L` and `NL`, where
-	 * `E = L + NL`. The `L` part is totally linear, consistent with the predicate
-	 * for linearity. Similarly, the `NL` part is nonlinear.
-	 *
-	 * \param e The expression which is split.
-	 */
-	template<typename E>
-	auto by_linear(OpExpression<E> const& e);
 
 	//! Split all linear variables from nonlinear variables.
 	/*!
@@ -2648,7 +3334,22 @@ namespace expr::split
 	 * \param e The expression which is split.
 	 */
 	template<typename V, typename E1, typename E2>
-	auto by_linear(OpFuncConvolution<V, E1, E2> const& e);
+	auto by_linear(OpConvolution<V, E1, E2> const& e);
+
+	//! Split all linear variables from nonlinear variables.
+	/*!
+	 * Using the available predicates to determine linearity/nonlinearity of
+	 * subexpressions, a primary expression `E` is expanded into `L` and `NL`, where
+	 * `E = L + NL`. The `L` part is totally linear, consistent with the predicate
+	 * for linearity. Similarly, the `NL` part is nonlinear.
+	 *
+	 * \param e The expression which is split.
+	 */
+	template<typename E>
+	auto by_linear(OpExpression<E> const& e)
+	{
+		return pack_right(*static_cast<E const*>(&e));
+	}
 
 	//! Split all linear variables from nonlinear variables.
 	/*!
@@ -2674,34 +3375,76 @@ namespace expr::split
 	template<typename A, typename B>
 	auto by_linear(OpBinaryDiv<A, B> const& e);
 
+	//! Split all linear variables from nonlinear variables.
+	/*!
+	 * Using the available predicates to determine linearity/nonlinearity of
+	 * subexpressions, a primary expression `E` is expanded into `L` and `NL`, where
+	 * `E = L + NL`. The `L` part is totally linear, consistent with the predicate
+	 * for linearity. Similarly, the `NL` part is nonlinear.
+	 *
+	 * \param e The expression which is split.
+	 */
+	template<typename G, typename V, typename E>
+	auto by_linear(OpMap<G, V, E> const& e);
+
+	//! Split all linear variables from nonlinear variables.
+	/*!
+	 * Using the available predicates to determine linearity/nonlinearity of
+	 * subexpressions, a primary expression `E` is expanded into `L` and `NL`, where
+	 * `E = L + NL`. The `L` part is totally linear, consistent with the predicate
+	 * for linearity. Similarly, the `NL` part is nonlinear.
+	 *
+	 * \param e The expression which is split.
+	 */
+	template<typename V, typename sub_t, typename E, typename... Ts>
+	auto by_linear(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e);
+
+	//! Split all linear variables from nonlinear variables.
+	/*!
+	 * Using the available predicates to determine linearity/nonlinearity of
+	 * subexpressions, a primary expression `E` is expanded into `L` and `NL`, where
+	 * `E = L + NL`. The `L` part is totally linear, consistent with the predicate
+	 * for linearity. Similarly, the `NL` part is nonlinear.
+	 *
+	 * \param e The expression which is split.
+	 */
+	template<typename V, typename E, typename... Ts, int... I0s, int... P0s,
+		typename A, typename... As, typename B, typename C>
+	auto by_linear(OpSum<V, E,
+		Substitution<SymbolicDataArray<Ts>...>,
+		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
+		SymbolicFunction<A, As...>, B, C> const& series);
+
+
+
 	// derivative
 	namespace
 	{
 
 		template<typename Dd, typename V, typename E, typename T,
 			typename std::enable_if_t<(expression_predicate<E>::linear), int> = 0>
-		auto by_linear_derivative(OpFuncDerivative<Dd, V, E, T> const& e)
+		auto by_linear_derivative(OpDerivative<Dd, V, E, T> const& e)
 		{
 			return pack_left(e);
 		}
 
 		template<typename Dd, typename V, typename E, typename T,
 			typename std::enable_if_t<(!expression_predicate<E>::linear && expression_predicate<E>::combination), int> = 0>
-		auto by_linear_derivative(OpFuncDerivative<Dd, V, E, T> const& e)
+		auto by_linear_derivative(OpDerivative<Dd, V, E, T> const& e)
 		{
 			return expr::split::by_linear(expr::apply_operators(e));
 		}
 
 		template<typename Dd, typename V, typename E, typename T,
 			typename std::enable_if_t<(!expression_predicate<E>::linear && !expression_predicate<E>::combination), int> = 0>
-		auto by_linear_derivative(OpFuncDerivative<Dd, V, E, T> const& e)
+		auto by_linear_derivative(OpDerivative<Dd, V, E, T> const& e)
 		{
 			return pack_right(e);
 		}
 	}
 
 	template<typename Dd, typename V, typename E, typename Sp>
-	auto by_linear(OpFuncDerivative<Dd, V, E, Sp> const& e)
+	auto by_linear(OpDerivative<Dd, V, E, Sp> const& e)
 	{
 		return by_linear_derivative(e);
 	}
@@ -2724,7 +3467,15 @@ namespace expr::split
 				&& (!expression_predicate<E>::nonlinear && expression_predicate<E>::combination)), int> = 0>
 		auto by_linear_combination(OpCombination<A1, A2, E> const& e)
 		{
-			return expr::split::by_linear(expr::apply_operators(e));
+			if constexpr (expr::is_linear<A1>::value && expr::is_linear<A2>::value)
+			{
+				auto [l, r] = expr::split::by_linear(expr::get_enclosed_expression(e));
+				return std::make_pair(e.combination * l, e.combination * r);
+			}
+			else
+			{
+				return pack_right(e);
+			}
 		}
 
 		template<typename A1, typename A2, typename E,
@@ -2759,7 +3510,15 @@ namespace expr::split
 				&& expression_predicate<E>::combination), int> = 0>
 		auto by_linear_chain(OpChain<A1, A2, E> const& e)
 		{
-			return expr::split::by_linear(expr::apply_operators(e));
+			if constexpr (expr::is_linear<A1>::value && expr::is_linear<A2>::value)
+			{
+				auto [l, r] = expr::split::by_linear(expr::get_enclosed_expression(e));
+				return std::make_pair(e.combination * l, e.combination * r);
+			}
+			else
+			{
+				return pack_right(e);
+			}
 		}
 
 		template<typename A1, typename A2, typename E,
@@ -2783,15 +3542,15 @@ namespace expr::split
 	{
 
 		template<typename V, typename E1, typename E2,
-			typename std::enable_if_t<expression_predicate<OpFuncConvolution<V, E1, E2>>::linear, int> = 0>
-		auto by_linear_convolution(OpFuncConvolution<V, E1, E2> const& e)
+			typename std::enable_if_t<expression_predicate<OpConvolution<V, E1, E2>>::linear, int> = 0>
+		auto by_linear_convolution(OpConvolution<V, E1, E2> const& e)
 		{
 			return pack_left(e);
 		}
 
 		template<typename V, typename E1, typename E2,
-			typename std::enable_if_t<!expression_predicate<OpFuncConvolution<V, E1, E2>>::linear, int> = 0>
-		auto by_linear_convolution(OpFuncConvolution<V, E1, E2> const& e)
+			typename std::enable_if_t<!expression_predicate<OpConvolution<V, E1, E2>>::linear, int> = 0>
+		auto by_linear_convolution(OpConvolution<V, E1, E2> const& e)
 		{
 			return pack_right(e);
 		}
@@ -2799,17 +3558,35 @@ namespace expr::split
 	}
 
 	template<typename V, typename E1, typename E2>
-	auto by_linear(OpFuncConvolution<V, E1, E2> const& e)
+	auto by_linear(OpConvolution<V, E1, E2> const& e)
 	{
 		return by_linear_convolution(e);
 	}
 
 	// handling general expressions (recursion termination) and binary operations (recursive)
 
-	template<typename T, typename G>
-	auto by_linear(OpTerm<T, G> const& e)
+	template<typename V, typename G>
+	auto by_linear(OpTerm<V, G> const& e)
 	{
 		return pack_left(e);
+	}
+
+
+	template<typename V, typename... Gs, expr::exp_key_t... Xs>
+	auto by_linear(OpTerms<V, Term<Gs, Xs>...> const& e)
+	{
+		using index_list_t = typename symphas::internal::select_unique_i_<expr::op_types_t<OpTerms<V, Term<Gs, Xs>...>>>::type;
+		using term_list_t = symphas::lib::filter_types<symphas::lib::types_list<Gs...>, index_list_t>;
+
+		constexpr int N = sum_factors<OpTerms<V, Term<Gs, Xs>...>, term_list_t>::value;
+		if constexpr (N == 1)
+		{
+			return pack_left(e);
+		}
+		else
+		{
+			return pack_right(e);
+		}
 	}
 
 	namespace
@@ -2857,7 +3634,7 @@ namespace expr::split
 		template<typename E>
 		auto get_linear_term(OpExpression<E> const& e)
 		{
-			auto [l, _] = expr::split::by_linear(*static_cast<E const*>(&e));
+			auto&& [l, _] = expr::split::by_linear(*static_cast<E const*>(&e));
 			return std::make_tuple(l);
 		}
 
@@ -2945,10 +3722,47 @@ namespace expr::split
 		return std::make_pair(l, e - l);
 	}
 
-	template<typename E>
-	auto by_linear(OpExpression<E> const& e)
+
+
+	template<typename G, typename V, typename E>
+	auto by_linear(OpMap<G, V, E> const& e)
 	{
-		return pack_right(*static_cast<E const*>(&e));
+		if constexpr (expr::is_combination<OpMap<G, V, E>>::value)
+		{
+			auto [l, r] = by_linear(expr::get_enclosed_expression(e));
+			auto lm = expr::make_map<G>(expr::coeff(e) * l);
+			auto rm = expr::make_map<G>(expr::coeff(e) * r);
+			return std::make_pair(lm, rm);
+		}
+		else
+		{
+			return pack_right(e);
+		}
+	}
+
+
+	template<typename V, typename sub_t, typename E, typename... Ts>
+	auto by_linear(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e)
+	{
+		auto&& [l, nl] = by_linear(e.f.e);
+		auto fl = (expr::function_of(Ts{}...) = l);
+		auto fnl = (expr::function_of(Ts{}...) = nl);
+		return std::make_pair(
+			symphas::internal::make_symbolic_eval(expr::coeff(e), e.data, fl), 
+			symphas::internal::make_symbolic_eval(expr::coeff(e), e.data, fnl));
+	}
+
+	template<typename V, typename E, typename... Ts, int... I0s, int... P0s, 
+		typename A, typename... As, typename B, typename C>
+	auto by_linear(OpSum<V, E, 
+		Substitution<SymbolicDataArray<Ts>...>, 
+		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, 
+		SymbolicFunction<A, As...>, B, C> const& series)
+	{
+		auto&& [l, nl] = by_linear(series.data.e);
+		return std::make_pair(
+			expr::coeff(series) * expr::recreate_series(l, series.data),
+			expr::coeff(series) * expr::recreate_series(nl, series.data));
 	}
 
 	// **************************************************************************************
@@ -3032,7 +3846,7 @@ namespace expr::split
 	 * \tparam Z The index of the variable to separate.
 	 */
 	template<size_t Z, typename Dd, typename V, typename E, typename Sp>
-	auto separate_var(OpFuncDerivative<Dd, V, E, Sp> const& e);
+	auto separate_var(OpDerivative<Dd, V, E, Sp> const& e);
 
 	//! Separates the expressions based on existence of the variable index.
 	/*!
@@ -3050,7 +3864,7 @@ namespace expr::split
 	 * \tparam Z The index of the variable to separate.
 	 */
 	template<size_t Z, typename Dd, typename V, typename G, typename Sp>
-	auto separate_var(OpFuncDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> const& e);
+	auto separate_var(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> const& e);
 
 	//! Separates the expressions based on existence of the variable index.
 	/*!
@@ -3104,7 +3918,7 @@ namespace expr::split
 	 * \tparam Z The index of the variable to separate.
 	 */
 	template<size_t Z, typename V, typename E1, typename E2>
-	auto separate_var(OpFuncConvolution<V, E1, E2> const& e);
+	auto separate_var(OpConvolution<V, E1, E2> const& e);
 
 	//! Separates the expressions based on existence of the variable index.
 	/*!
@@ -3122,7 +3936,25 @@ namespace expr::split
 	 * \tparam Z The index of the variable to separate.
 	 */
 	template<size_t Z, typename V, size_t D, typename E>
-	auto separate_var(OpFuncConvolution<V, GaussianSmoothing<D>, E> const& e);
+	auto separate_var(OpConvolution<V, GaussianSmoothing<D>, E> const& e);
+
+	//! Separates the expressions based on existence of the variable index.
+	/*!
+	 * Separates terms of the expression based on whether the term contains
+	 * only variable terms of the prescribed index. It will form two
+	 * expressions, `A` and `B`, such that `A` is an expression containing
+	 * only terms of variable index `Z`, and `B` is everything else, which
+	 * may also contain variables of index `Z`. If a term can't be separated
+	 * by subtracting or adding, then it will not be separated and
+	 * remain in the expression `B`. An example would be multiplying
+	 * the variable index `Z` by another variable with a different index.
+	 *
+	 * \param e The expression which is split.
+	 *
+	 * \tparam Z The index of the variable to separate.
+	 */
+	template<size_t Z, typename G, typename V, typename E>
+	auto separate_var(OpMap<G, V, E> const& e);
 
 	//! Separates the expressions based on existence of the variable index.
 	/*!
@@ -3140,8 +3972,7 @@ namespace expr::split
 	 * \tparam Z The index of the variable to separate.
 	 */
 	template<size_t Z, auto f, typename V, typename E>
-	auto separate_var(OpFuncApply<f, V, E> const& e);
-
+	auto separate_var(OpFunctionApply<f, V, E> const& e);
 
 	//! Separates the expressions based on existence of the variable index.
 	/*!
@@ -3159,7 +3990,7 @@ namespace expr::split
 	 * \tparam Z The index of the variable to separate.
 	 */
 	template<size_t Z, typename V, typename E, typename F, typename Arg0, typename... Args>
-	auto separate_var(OpFunc<V, E, F, Arg0, Args...> const& e);
+	auto separate_var(OpFunction<V, E, F, Arg0, Args...> const& e);
 
 
 	//
@@ -3187,7 +4018,7 @@ namespace expr::split
 		template<size_t Z, typename E>
 		constexpr bool svcg_pred = (expr::vars<E>::template only_id<Z>());
 		template<size_t Z, typename E1, typename E2>
-		constexpr bool svm_pred = (expr::vars<E1>::template only_id<Z>() && expr::vars<E2>::template only_id<Z>());
+		constexpr bool svm_pred = svc_pred<Z, E1, E2>;
 		template<size_t Z, typename E1, typename E2>
 		constexpr bool svd_pred = (!expr::vars<E1>::template only_id<Z>() && expr::vars<E2>::template only_id<Z>() && !svm_pred<Z, E1, E2>);
 		template<size_t Z, typename E>
@@ -3201,26 +4032,28 @@ namespace expr::split
 
 	}
 
+
+
 	namespace
 	{
 
 		template<size_t Z, typename V, typename E1, typename E2,
 			typename std::enable_if_t<svc_pred<Z, E1, E2>, int> = 0>
-			auto separate_var_convolution(OpFuncConvolution<V, E1, E2> const& e)
+			auto separate_var_convolution(OpConvolution<V, E1, E2> const& e)
 		{
 			return pack_left(e);
 		}
 
 		template<size_t Z, typename V, typename E1, typename E2,
 			typename std::enable_if_t<!svc_pred<Z, E1, E2>, int> = 0>
-			auto separate_var_convolution(OpFuncConvolution<V, E1, E2> const& e)
+			auto separate_var_convolution(OpConvolution<V, E1, E2> const& e)
 		{
 			return pack_right(e);
 		}
 	}
 
 	template<size_t Z, typename V, typename E1, typename E2>
-	auto separate_var(OpFuncConvolution<V, E1, E2> const& e)
+	auto separate_var(OpConvolution<V, E1, E2> const& e)
 	{
 		return separate_var_convolution<Z>(e);
 	}
@@ -3230,21 +4063,21 @@ namespace expr::split
 	{
 		template<size_t Z, typename V, size_t D, typename E,
 			typename std::enable_if_t<svcg_pred<Z, E>, int> = 0>
-			auto separate_var_convolution_g(OpFuncConvolution<V, GaussianSmoothing<D>, E> const& e)
+			auto separate_var_convolution_g(OpConvolution<V, GaussianSmoothing<D>, E> const& e)
 		{
 			return pack_left(e);
 		}
 
 		template<size_t Z, typename V, size_t D, typename E,
 			typename std::enable_if_t<!svcg_pred<Z, E>, int> = 0>
-			auto separate_var_convolution_g(OpFuncConvolution<V, GaussianSmoothing<D>, E> const& e)
+			auto separate_var_convolution_g(OpConvolution<V, GaussianSmoothing<D>, E> const& e)
 		{
 			return pack_right(e);
 		}
 	}
 
 	template<size_t Z, typename V, size_t D, typename E>
-	auto separate_var(OpFuncConvolution<V, GaussianSmoothing<D>, E> const& e)
+	auto separate_var(OpConvolution<V, GaussianSmoothing<D>, E> const& e)
 	{
 		return separate_var_convolution_g<Z>(e);
 	}
@@ -3323,7 +4156,7 @@ namespace expr::split
 	{
 		template<size_t Z, typename Dd, typename V, typename E, typename T,
 			typename std::enable_if_t<svd_pred_1<Z, E>, int> = 0>
-		auto separate_var_derivative(OpFuncDerivative<Dd, V, E, T> const& e)
+		auto separate_var_derivative(OpDerivative<Dd, V, E, T> const& e)
 		{
 			return pack_left(e);
 		}
@@ -3331,7 +4164,7 @@ namespace expr::split
 
 		template<size_t Z, typename Dd, typename V, typename E, typename T,
 			typename std::enable_if_t<(!svd_pred_1<Z, E>&& svd_pred_2<Z, E>), int> = 0>
-		auto separate_var_derivative(OpFuncDerivative<Dd, V, E, T> const& e)
+		auto separate_var_derivative(OpDerivative<Dd, V, E, T> const& e)
 		{
 			return separate_var<Z>(expr::apply_operators(e));
 
@@ -3339,14 +4172,14 @@ namespace expr::split
 
 		template<size_t Z, typename Dd, typename V, typename E, typename T,
 			typename std::enable_if_t<!(svd_pred_1<Z, E> || svd_pred_2<Z, E>), int> = 0>
-		auto separate_var_derivative(OpFuncDerivative<Dd, V, E, T> const& e)
+		auto separate_var_derivative(OpDerivative<Dd, V, E, T> const& e)
 		{
 			return pack_right(e);
 		}
 	}
 
 	template<size_t Z, typename Dd, typename V, typename E, typename Sp>
-	auto separate_var(OpFuncDerivative<Dd, V, E, Sp> const& e)
+	auto separate_var(OpDerivative<Dd, V, E, Sp> const& e)
 	{
 		return separate_var_derivative<Z>(e);
 	}
@@ -3357,21 +4190,21 @@ namespace expr::split
 	{
 		template<size_t Z, typename Dd, typename V, typename G, typename T,
 			typename std::enable_if_t<svd_pred_1<Z, G>, int> = 0>
-		auto separate_var_derivative_lop(OpFuncDerivative<Dd, V, OpTerm<OpIdentity, G>, T> const& e)
+		auto separate_var_derivative_lop(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, T> const& e)
 		{
 			return pack_left(e);
 		}
 
 		template<size_t Z, typename Dd, typename V, typename G, typename T,
 			typename std::enable_if_t<!svd_pred_1<Z, G>, int> = 0>
-		auto separate_var_derivative_lop(OpFuncDerivative<Dd, V, OpTerm<OpIdentity, G>, T> const& e)
+		auto separate_var_derivative_lop(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, T> const& e)
 		{
 			return pack_right(e);
 		}
 	}
 
 	template<size_t Z, typename Dd, typename V, typename G, typename Sp>
-	auto separate_var(OpFuncDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> const& e)
+	auto separate_var(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> const& e)
 	{
 		return separate_var_derivative_lop<Z>(e);
 	}
@@ -3439,51 +4272,66 @@ namespace expr::split
 		return separate_var_combination<Z>(e);
 	}
 
-
-	namespace
+	template<size_t Z, typename G, typename V, typename E>
+	auto separate_var(OpMap<G, V, E> const& e)
 	{
-		template<size_t Z, auto f, typename V, typename E,
-			typename std::enable_if_t<svcg_pred<Z, E>, int> = 0>
-			auto separate_var_function_apply(OpFuncApply<f, V, E> const& e)
+		if constexpr (expr::is_combination<OpMap<G, V, E>>::value)
+		{
+			auto [l, r] = separate_var<Z>(expr::get_enclosed_expression(e));
+			auto lm = expr::make_map<G>(expr::coeff(e) * l);
+			auto rm = expr::make_map<G>(expr::coeff(e) * r);
+			return std::make_pair(lm, rm);
+		}
+		else
+		{
+			if constexpr (svcg_pred<Z, E>)
+			{
+				return pack_left(e);
+			}
+			else
+			{
+				return pack_right(e);
+			}
+		}
+	}
+
+	template<size_t Z, expr::exp_key_t X, typename V, typename E>
+	auto separate_var(OpPow<X, V, E> const& e)
+	{
+		if constexpr (svcg_pred<Z, E>)
 		{
 			return pack_left(e);
 		}
-
-		template<size_t Z, auto f, typename V, typename E,
-			typename std::enable_if_t<!svcg_pred<Z, E>, int> = 0>
-			auto separate_var_function_apply(OpFuncApply<f, V, E> const& e)
+		else
 		{
 			return pack_right(e);
 		}
 	}
 
 	template<size_t Z, auto f, typename V, typename E>
-	auto separate_var(OpFuncApply<f, V, E> const& e)
+	auto separate_var(OpFunctionApply<f, V, E> const& e)
 	{
-		return separate_var_function_apply<Z>(e);
-	}
-
-	namespace
-	{
-		template<size_t Z, typename V, typename E, typename F, typename Arg0, typename... Args,
-			typename std::enable_if_t<svcg_pred<Z, E>, int> = 0>
-		auto separate_var_function(OpFunc<V, E, F, Arg0, Args...> const& e)
+		if constexpr (svcg_pred<Z, E>)
 		{
 			return pack_left(e);
 		}
-
-		template<size_t Z, typename V, typename E, typename F, typename Arg0, typename... Args,
-			typename std::enable_if_t<!svcg_pred<Z, E>, int> = 0>
-		auto separate_var_function(OpFunc<V, E, F, Arg0, Args...> const& e)
+		else
 		{
 			return pack_right(e);
 		}
 	}
 
 	template<size_t Z, typename V, typename E, typename F, typename Arg0, typename... Args>
-	auto separate_var(OpFunc<V, E, F, Arg0, Args...> const& e)
+	auto separate_var(OpFunction<V, E, F, Arg0, Args...> const& e)
 	{
-		return separate_var_function<Z>(e);
+		if constexpr (svcg_pred<Z, E>)
+		{
+			return pack_left(e);
+		}
+		else
+		{
+			return pack_right(e);
+		}
 	}
 
 
@@ -3617,9 +4465,9 @@ namespace expr::split
 	//}
 
 	//template<Axis ax, size_t OD, typename Dd, typename V, typename E, typename Sp,
-	//	size_t O = OpFuncDerivative<Dd, V, E, Sp>::order,
+	//	size_t O = OpDerivative<Dd, V, E, Sp>::order,
 	//	typename std::enable_if<(O == OD), int>::type = 0>
-	//auto factor_deriv(OpFuncDerivative<Dd, V, E, Sp> const& e)
+	//auto factor_deriv(OpDerivative<Dd, V, E, Sp> const& e)
 	//{
 	//	if constexpr (O % 2 == 0)
 	//	{
@@ -3632,9 +4480,9 @@ namespace expr::split
 	//}
 
 	//template<Axis ax, size_t OD, typename Dd, typename V, typename E, typename Sp,
-	//	size_t O = OpFuncDerivative<Dd, V, E, Sp>::order,
+	//	size_t O = OpDerivative<Dd, V, E, Sp>::order,
 	//	typename std::enable_if_t<(O != OD), int>::type = 0>
-	//auto factor_deriv(OpFuncDerivative<Dd, V, E, Sp> const& e)
+	//auto factor_deriv(OpDerivative<Dd, V, E, Sp> const& e)
 	//{
 	//	return std::make_pair(expr::make_operator_derivative<OD>(e.solver), expr::make_operator_derivative<O - OD>(e.value, e.solver) * expr::get_enclosed_expression(e));
 	//}
@@ -3782,10 +4630,10 @@ namespace expr::split
 	 * to E.
 	 */
 	template<typename Dd, typename V, typename E, typename Sp, size_t R = expr::eval_type<E>::rank>
-	auto separate_operator(OpFuncDerivative<Dd, V, E, Sp> const& e)
+	auto separate_operator(OpDerivative<Dd, V, E, Sp> const& e)
 	{
-		constexpr size_t order = OpFuncDerivative<Dd, V, E, Sp>::order;
-		constexpr Axis axis = OpFuncDerivative<Dd, V, E, Sp>::axis;
+		constexpr size_t order = OpDerivative<Dd, V, E, Sp>::order;
+		constexpr Axis axis = OpDerivative<Dd, V, E, Sp>::axis;
 		
 		
 		if constexpr (Dd::is_directional)
@@ -3916,7 +4764,7 @@ namespace expr::split
 			template<typename T, typename G, typename std::enable_if<(expr::factor_count<C, G>::value > 0), int>::type = 0>
 				auto operator()(OpTerm<T, G> const& e)
 			{
-				return std::make_pair(OpTerm<OpIdentity, G>(e.data), expr::make_literal(e.value));
+				return std::make_pair(OpTerm<OpIdentity, G>(e.data), expr::coeff(e));
 			}
 
 			template<typename T, typename G, typename std::enable_if<(expr::factor_count<C, G>::value == 0), int>::type = 0>
@@ -3932,7 +4780,7 @@ namespace expr::split
 			template<typename T, typename G>
 			auto operator()(OpTerm<T, Variable<Z, G>> const& e)
 			{
-				return std::make_pair(OpTerm<OpIdentity, Variable<Z, G>>(e.data), expr::make_literal(e.value));
+				return std::make_pair(OpTerm<OpIdentity, Variable<Z, G>>(e.data), expr::coeff(e));
 			}
 
 			template<typename T, typename G>
@@ -4479,44 +5327,44 @@ namespace expr
 
 			auto operator()(symphas::internal::wrap_f<func_cos<E>>, E const& e)
 			{
-				return -OpFuncApply<func_sin<E>, OpIdentity, E>(e) *
+				return -OpFunctionApply<func_sin<E>, OpIdentity, E>(e) *
 					apply_operators(expr::make_derivative<1, G0>(e));
 			}
 
 			auto operator()(symphas::internal::wrap_f<func_sin<E>>, E const& e)
 			{
-				return OpFuncApply<func_cos<E>, OpIdentity, E>(e) *
+				return OpFunctionApply<func_cos<E>, OpIdentity, E>(e) *
 					apply_operators(expr::make_derivative<1, G0>(e));
 			}
 
 			auto operator()(symphas::internal::wrap_f<func_tan<E>>, E const& e)
 			{
-				return OpFuncApply<func_sec<E>, OpIdentity, E>(e) * OpFuncApply<func_sec<E>, OpIdentity, E>(e) *
+				return OpFunctionApply<func_sec<E>, OpIdentity, E>(e) * OpFunctionApply<func_sec<E>, OpIdentity, E>(e) *
 					apply_operators(expr::make_derivative<1, G0>(e));
 			}
 
 			auto operator()(symphas::internal::wrap_f<func_csc<E>>, E const& e)
 			{
-				return -OpFuncApply<func_cot<E>, OpIdentity, E>(e) * OpFuncApply<func_csc<E>, OpIdentity, E>(e) *
+				return -OpFunctionApply<func_cot<E>, OpIdentity, E>(e) * OpFunctionApply<func_csc<E>, OpIdentity, E>(e) *
 					apply_operators(expr::make_derivative<1, G0>(e));
 			}
 
 			auto operator()(symphas::internal::wrap_f<func_sec<E>>, E const& e)
 			{
-				return OpFuncApply<func_tan<E>, OpIdentity, E>(e) * OpFuncApply<func_sec<E>, OpIdentity, E>(e) *
+				return OpFunctionApply<func_tan<E>, OpIdentity, E>(e) * OpFunctionApply<func_sec<E>, OpIdentity, E>(e) *
 					apply_operators(expr::make_derivative<1, G0>(e));
 			}
 
 			auto operator()(symphas::internal::wrap_f<func_cot<E>>, E const& e)
 			{
-				return -OpFuncApply<func_csc<E>, OpIdentity, E>(e) * OpFuncApply<func_csc<E>, OpIdentity, E>(e) *
+				return -OpFunctionApply<func_csc<E>, OpIdentity, E>(e) * OpFunctionApply<func_csc<E>, OpIdentity, E>(e) *
 					apply_operators(expr::make_derivative<1, G0>(e));
 			}
 
 			auto operator()(symphas::internal::wrap_f<func_sqrt<E>>, E const& e)
 			{
 				return expr::make_fraction<1, 2>() *
-					expr::inverse(OpFuncApply<func_sqrt<E>, OpIdentity, E>(e)) *
+					expr::inverse(OpFunctionApply<func_sqrt<E>, OpIdentity, E>(e)) *
 					apply_operators(expr::make_derivative<1, G0>(e));
 			}
 
@@ -4528,41 +5376,364 @@ namespace expr
 	}
 
 
-
 	template<size_t O, typename V0, auto f, typename V1, typename E, typename G0>
-	auto apply_operators(OpFuncDerivative<std::index_sequence<O>, V0, OpFuncApply<f, V1, E>, SymbolicDerivative<G0>> const& e)
+	auto apply_operators(OpDerivative<std::index_sequence<O>, V0, OpFunctionApply<f, V1, E>, SymbolicDerivative<G0>> const& e)
 	{
 		auto&& function = expr::get_enclosed_expression(e);
 		auto&& expr = expr::get_enclosed_expression(function);
 
 		return apply_operators(
 			expr::make_derivative<O - 1, G0>(
-				expr::make_literal(e.value) * expr::make_literal(function.value),
+				expr::coeff(e) * expr::coeff(function),
 				derivative_apply<G0, E>{}(symphas::internal::wrap_f<f>{}, expr)
 				));
 	}
 
+	template<size_t O, typename V, typename V0, int I0, int P0, expr::exp_key_t X0, typename GG>
+	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpTerms<V0, Term<expr::symbols::i_<I0, P0>, X0>>, SymbolicDerivative<GG>> const& e)
+	{
+		return OpVoid{};
+	}
 
-	template<size_t O, typename V, typename V1, typename... Gs, expr::exp_key_t... Xs, typename GG, size_t N, typename>
-	auto apply_operators(OpFuncDerivative<std::index_sequence<O>, V, OpTerms<V1, Term<Gs, Xs>...>, SymbolicDerivative<OpTerm<OpIdentity, GG>>> const& e)
+	template<size_t O, typename V, typename V1, int I0, int P0, typename G1, typename... Gs,
+		expr::exp_key_t X0, expr::exp_key_t X1, expr::exp_key_t... Xs, typename GG>
+	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpTerms<V1, Term<expr::symbols::i_<I0, P0>, X0>, Term<G1, X1>, Term<Gs, Xs>...>, SymbolicDerivative<GG>> const& e)
+	{
+		auto&& terms = expr::get_enclosed_expression(e);
+		auto coeff = expr::coeff(terms);
+		auto a = OpTerms(OpIdentity{}, expr::get<1>(terms));
+		auto b = expr::terms_after_n<1>(terms);// OpTerms(OpIdentity{}, *static_cast<OpTerms<Term<G1, X1>, Term<Gs, Xs>...> const*>(&terms));
+
+		return (coeff * expr::coeff(e) * a) * expr::apply_operators(expr::make_derivative<O, GG>(expr::make_term(b)));
+	}
+
+	template<size_t O, typename V, typename V0, int I0, int P0, expr::exp_key_t X0, size_t Z, typename GG, size_t N, typename>
+	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpTerms<V0, Term<expr::symbols::v_id_type<expr::symbols::i_<I0, P0>>, X0>>, SymbolicDerivative<Variable<Z, GG>>> const& e)
+	{
+		using factor_t = expr::symbols::v_id_type<expr::symbols::i_<I0, P0>>;
+		auto f = expr::split::factor<O, factor_t>(expr::get_enclosed_expression(e));
+
+		SymbolicCase c(expr::symbols::i_<I0, P0>{} = Variable<Z, GG>{}, f.second, OpVoid{});
+
+		return expr::factorial<N, N - O>() * expr::coeff(e) * expr::make_term(c);
+	}
+
+	template<size_t O, typename V, typename V0, typename G0, expr::exp_key_t X0, typename GG, size_t N, typename>
+	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpTerms<V0, Term<G0, X0>>, SymbolicDerivative<GG>> const& e)
 	{
 		auto f = expr::split::factor<O, GG>(expr::get_enclosed_expression(e));
-		return expr::factorial<N, N - O>() * expr::make_literal(e.value) * f.second;
+		return expr::factorial<N, N - O>() * expr::coeff(e) * f.second;
+	}
+
+	template<size_t O, typename V, typename V0, typename G0, typename G1, typename... Gs,
+		expr::exp_key_t X0, expr::exp_key_t X1, expr::exp_key_t... Xs, typename GG>
+	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpTerms<V0, Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...>, SymbolicDerivative<GG>> const& e)
+	{
+		auto&& terms = expr::get_enclosed_expression(e);
+		auto coeff = expr::coeff(terms);
+		auto a = OpTerms(OpIdentity{}, expr::get<1>(terms));
+		auto b = expr::terms_after_n<1>(terms);
+
+		auto lhs = apply_operators(expr::make_derivative<O, GG>(a)) * expr::make_term(b);
+		auto rhs = a * apply_operators(expr::make_derivative<O, GG>(expr::make_term(b)));
+		return (coeff * expr::coeff(e)) * (lhs + rhs);
+
+		//auto f = expr::split::factor<O, GG>(expr::get_enclosed_expression(e));
+		//return expr::factorial<N, N - O>() * expr::make_literal(e.value) * f.second;
+	}
+
+
+	template<size_t O, typename V, typename V0, typename G0, expr::exp_key_t X0, typename GG>
+	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpTerms<V0, Term<G0, X0>>, SymbolicDerivative<OpTerm<OpIdentity, GG>>> const& e)
+	{
+		return apply_operators(expr::make_derivative<O, GG>(expr::coeff(e), expr::get_enclosed_expression(e), SymbolicDerivative<GG>{}));
+	}
+
+	template<size_t O, typename V, typename V0, typename G0, typename G1, typename... Gs,
+		expr::exp_key_t X0, expr::exp_key_t X1, expr::exp_key_t... Xs, typename GG>
+	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpTerms<V0, Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...>, SymbolicDerivative<OpTerm<OpIdentity, GG>>> const& e)
+	{
+		return apply_operators(expr::make_derivative<O, GG>(expr::coeff(e), expr::get_enclosed_expression(e), SymbolicDerivative<GG>{}));
 	}
 	
-	template<size_t O, typename V, typename V0, typename G0, expr::exp_key_t X0, typename GG, size_t N, typename>
-	auto apply_operators(OpFuncDerivative<std::index_sequence<O>, V, OpTerms<V0, Term<G0, X0>>, SymbolicDerivative<GG>> const& e)
+
+	template<typename V, expr::exp_key_t X0, typename V0, typename E0, typename GG>
+	auto apply_operators(OpDerivative<std::index_sequence<1>, V, OpPow<X0, V0, E0>, SymbolicDerivative<GG>> const& e)
 	{
-		auto f = expr::split::factor<O, GG>(expr::get_enclosed_expression(e));
-		return expr::factorial<N, N - O>() * expr::make_literal(e.value) * f.second;
+		auto p = apply_operators(expr::get_enclosed_expression(expr::get_enclosed_expression(e)));
+
+		constexpr size_t N0 = expr::_Xk_t<X0>::N;
+		constexpr size_t D0 = expr::_Xk_t<X0>::D;
+		constexpr bool sign = expr::_Xk_t<X0>::sign;
+		
+		constexpr expr::exp_key_t _X = (sign) ? N0 + D0 : (N0 < D0) ? D0 - N0 : N0 - D0;
+		constexpr expr::exp_key_t _sign = (sign) ? sign : (N0 < D0) ? true : false;
+
+		auto result = expr::make_fraction<N0, D0>() * apply_operators(expr::make_pow<_X>(p)) 
+			* apply_operators(expr::make_derivative<1, GG>(p));
+		
+		if constexpr (sign)
+		{
+			return -result;
+		}
+		else
+		{
+			return result;
+		}
 	}
 
-	template<size_t O, typename V, typename V1, typename G0, typename G1, typename... Gs,
-		expr::exp_key_t X0, expr::exp_key_t X1, expr::exp_key_t... Xs, typename GG, size_t N, typename>
-	auto apply_operators(OpFuncDerivative<std::index_sequence<O>, V, OpTerms<V1, Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...>, SymbolicDerivative<GG>> const& e)
+	template<size_t O, typename V, expr::exp_key_t X0, typename V0, typename E0, typename GG>
+	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpPow<X0, V0, E0>, SymbolicDerivative<GG>> const& e)
 	{
-		auto f = expr::split::factor<O, GG>(expr::get_enclosed_expression(e));
-		return expr::factorial<N, N - O>() * expr::make_literal(e.value) * f.second;
+		return apply_operators(expr::make_derivative<O - 1, GG>(
+			apply_operators(expr::make_derivative<1, GG>(expr::get_enclosed_expression(e)))));
+	}
+
+	template<expr::exp_key_t X, typename V, typename E>
+	auto apply_operators(OpPow<X, V, E> const& e)
+	{
+		auto p = apply_operators(expr::get_enclosed_expression(e));
+		if constexpr (expr::_Xk<X> > 1)
+		{
+			constexpr size_t N0 = expr::_Xk_t<X>::N;
+			constexpr size_t D0 = expr::_Xk_t<X>::D;
+			constexpr bool sign = expr::_Xk_t<X>::sign;
+
+			return apply_operators(expr::make_pow<expr::Xk<N0 - D0, D0, sign>>(p)) * p;
+		}
+		else
+		{
+			return expr::make_pow<X>(p);
+		}
+	}
+
+
+	namespace
+	{
+
+		template<typename... Ts>
+		struct filter_for_case;
+
+		template<typename... Seqs, typename... Ts>
+		struct filter_for_case<symphas::lib::types_list<Seqs...>, symphas::lib::types_list<Ts...>>
+		{
+			using type = symphas::lib::types_list<Ts...>;
+		};
+
+		template<typename... Seqs, typename... Ts, typename G0, typename... Gs>
+		struct filter_for_case<symphas::lib::types_list<Seqs...>, symphas::lib::types_list<Ts...>, G0, Gs...>
+		{
+			using type = typename filter_for_case<symphas::lib::types_list<Ts...>, Gs...>::type;
+		};
+
+		template<typename... Seqs, typename... Ts, int I0, int P0, size_t Z0, typename G0, typename L, typename R, typename... Gs>
+		struct filter_for_case<
+			std::integer_sequence<int, -1>,
+			symphas::lib::types_list<Seqs...>, symphas::lib::types_list<Ts...>,
+			SymbolicTernaryCase<expr::symbols::i_<I0, P0>, Variable<Z0, G0>, L, R>, Gs...>
+		{
+			using type = typename filter_for_case<
+				symphas::lib::types_list<Seqs..., expr::symbols::i_<I0, P0>>,
+				symphas::lib::types_list<Ts..., SymbolicTernaryCase<expr::symbols::i_<I0, P0>, Variable<Z0, G0>, L, R>>, Gs...>::type;
+		};
+
+		template<int I, typename... Seqs, typename... Ts, int I0, int P0, size_t Z0, typename G0, typename L, typename R, typename... Gs>
+		struct filter_for_case<
+			std::integer_sequence<int, I>,
+			symphas::lib::types_list<Seqs...>, symphas::lib::types_list<Ts...>,
+			SymbolicTernaryCase<expr::symbols::i_<I0, P0>, Variable<Z0, G0>, L, R>, Gs...>
+		{
+			static const size_t N = size_t(I);
+			using type_N = symphas::lib::type_at_index<N, Ts...>;
+			
+			using type_combined = symphas::lib::expand_types_list<type_N, SymbolicTernaryCase<expr::symbols::i_<I0, P0>, Variable<Z0, G0>, L, R>>;
+			using seq_combined = symphas::lib::expand_types_list<symphas::lib::types_before_index<N, Seqs...>, expr::symbols::i_<I0, P0>, symphas::lib::types_after_at_index<N + 1, Seqs...>>;
+
+			using type = typename filter_for_case<
+				seq_combined,
+				symphas::lib::expand_types_list<symphas::lib::types_before_index<N, Ts...>, symphas::lib::types_list<type_combined>, symphas::lib::types_after_at_index<N + 1, Ts...>>,
+				Gs...>::type;
+		};
+
+		template<typename... Seqs, typename... Ts, int I0, int P0, size_t Z0, typename G0, typename L, typename R, typename... Gs>
+		struct filter_for_case<
+			symphas::lib::types_list<Seqs...>, symphas::lib::types_list<Ts...>, 
+			SymbolicTernaryCase<expr::symbols::i_<I0, P0>, Variable<Z0, G0>, L, R>, Gs...>
+		{
+			static const int ind = symphas::lib::index_of_type<expr::symbols::i_<I0, P0>, Seqs...>;
+
+			using type = typename filter_for_case<
+				std::integer_sequence<int, ind>,
+				symphas::lib::types_list<Seqs...>,
+				symphas::lib::types_list<Ts...>, SymbolicTernaryCase<expr::symbols::i_<I0, P0>, Variable<Z0, G0>, L, R>, Gs...>::type;
+		};
+
+		template<typename... Seqs, typename... Ts, typename... Gs>
+		struct filter_for_case<symphas::lib::types_list<Seqs...>, symphas::lib::types_list<Ts...>, symphas::lib::types_list<Gs...>>
+		{
+			using type = typename filter_for_case<symphas::lib::types_list<Ts...>, Gs...>::type;
+		};
+
+		template<typename... Gs>
+		struct filter_for_case<symphas::lib::types_list<Gs...>>
+		{
+			using type = typename filter_for_case<symphas::lib::types_list<>, symphas::lib::types_list<>, Gs...>::type;
+		};
+
+		template<size_t N0, typename T>
+		struct pos_in_substitution;
+		template<size_t N0, size_t... Ns, typename... Gs>
+		struct pos_in_substitution<N0, SymbolicDataArray<std::tuple<Term<Variable<Ns, Gs>>...>>>
+		{
+			static const int value = symphas::lib::index_of_value<size_t, N0, Ns...>;
+			using type = typename SymbolicDataArray<std::tuple<Term<Variable<Ns, Gs>>...>>::T;
+		};
+
+
+		template<size_t Z0, size_t N0, typename... Ts>
+		auto get_arg(Substitution<Ts...> const& substitution)
+		{
+			return expr::make_term<Z0>(
+				*(std::get<N0>(substitution)
+					.data[pos_in_substitution<Z0, symphas::lib::type_at_index<N0, Ts...>>::value].data));
+		}
+
+		template<size_t Z0, typename... Ts, size_t... Ns>
+		auto get_args(Substitution<Ts...> const& substitution, std::index_sequence<Ns...>)
+		{
+			return std::make_tuple(
+				expr::make_term<Z0>(
+					*(std::get<Ns>(substitution)
+						.data[pos_in_substitution<Z0, symphas::lib::type_at_index<Ns, Ts...>>::value].data))...);
+		}
+
+		template<typename E, typename... Ts, int... I0s, int... P0s, typename B, typename C,
+			typename E0, int I0, int P0, size_t Z0, typename G0, typename... Ls, typename... Rs>
+		auto apply_operators_sum(
+			SymbolicSum<E, Substitution<Ts...>, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, B, C> const& series,
+			OpExpression<E0> const& applied,
+			symphas::lib::types_list<SymbolicTernaryCase<expr::symbols::i_<I0, P0>, Variable<Z0, G0>, Ls, Rs>...>)
+		{
+			constexpr int ind_N = symphas::lib::index_of_value<int, I0, I0s...>;
+			using pos_t = pos_in_substitution<Z0, symphas::lib::type_at_index<size_t(ind_N), Ts...>>;
+			constexpr int arg_N = pos_t::value;
+
+			using v_type = expr::symbols::v_<expr::symbols::i_<I0, P0>>;
+
+			auto arg = get_arg<Z0, size_t(ind_N)>(series.substitution);
+
+			auto left = expr::transform::swap_grid<v_type>
+				(SymbolicCase(expr::symbols::i_<I0, P0>{} = Variable<Z0, G0>{}), *static_cast<E0 const*>(&applied), arg);
+			auto right = expr::transform::swap_grid<v_type>
+				(SymbolicCase(expr::symbols::i_<I0, P0>{} != Variable<Z0, G0>{}), *static_cast<E0 const*>(&applied), arg);
+
+			auto series_left = expr::recreate_series(expr::symbols::i_<I0, 0>{} = expr::val<arg_N>, left, series);
+			auto series_right = OpVoid{};// expr::recreate_series(expr::symbols::i_<I0, 0>{} != expr::val<arg_N>, expr_right, series);
+			return series_left + series_right;
+		}
+
+		template<typename E, typename T, typename Seq, typename B, typename C, typename E0>
+		auto apply_operators_sum(
+			SymbolicSum<E, T, Seq, B, C> const& series,
+			OpExpression<E0> const& applied,
+			symphas::lib::types_list<>)
+		{
+			return *static_cast<E0 const*>(&applied);
+		}
+
+		template<typename E, typename T, typename Seq, typename B, typename C,
+			typename E0, typename... Cs, typename... Rest>
+		auto apply_operators_sum(
+			SymbolicSum<E, T, Seq, B, C> const& series,
+			OpExpression<E0> const& applied,
+			symphas::lib::types_list<symphas::lib::types_list<Cs...>, Rest...>)
+		{
+			return (apply_operators_sum(series, *static_cast<E0 const*>(&applied), symphas::lib::types_list<Cs...>{})
+				+ ... + apply_operators_sum(series, *static_cast<E0 const*>(&applied), Rest{}));
+		}
+
+		template<typename E, typename T, typename Seq, typename B, typename C, typename E0>
+		auto apply_operators_sum(
+			SymbolicSum<E, T, Seq, B, C> const& series,
+			OpExpression<E0> const& applied)
+		{
+			using ops_t = typename filter_for_case<expr::op_types_t<E0>>::type;
+			return apply_operators_sum(series, *static_cast<E0 const*>(&applied), ops_t{});
+		}
+
+
+		template<typename... Vs, size_t O, typename V, typename V0, typename E, typename... Ts,
+			int... I0s, int... P0s, typename A, typename B, typename C, typename GG, typename... GGs, typename... Gs, size_t... Ns>
+		auto apply_operators_sum_multiple(
+			OpDerivative<std::index_sequence<O>, V, OpSum<V0, E,
+				Substitution<SymbolicDataArray<Ts>...>,
+				symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, C>, SymbolicDerivative<GG>> const& e,
+			symphas::lib::types_list<GGs...>,
+			std::tuple<Gs...> const& args, std::index_sequence<Ns...>)
+		{
+			auto sum = expr::get_enclosed_expression(e);
+			auto expr = sum.data.substitute_placeholders(sum.f);
+			return expr::coeff(e) * (
+				expr::transform::swap_grid<Vs>(apply_operators_sum(sum.data, apply_operators(expr::make_derivative<O, GGs>(expr))), std::get<Ns>(args))
+					+ ...);
+		}
+	}
+
+	template<size_t O, typename V, size_t Z, typename GG, typename V0, typename E, typename... Ts,
+		int... I0s, int... P0s, typename A, typename B, typename... Vs>
+	auto apply_operators(
+		OpDerivative<std::index_sequence<O>, V, OpSum<V0, E,
+			Substitution<SymbolicDataArray<Ts>...>,
+			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, symphas::lib::types_list<Vs...>>, SymbolicDerivative<Variable<Z, GG>>> const& e)
+	{
+		auto sum = expr::get_enclosed_expression(e);
+		return expr::coeff(e) * apply_operators_sum(sum.data, apply_operators(expr::make_derivative<O, Variable<Z, GG>>(sum.data.e)));
+	}
+
+	template<size_t O, typename V, size_t Z, int I0, int P0, typename V0, typename E, typename... Ts,
+		int... I0s, int... P0s, typename A, typename B, typename C>
+	auto apply_operators(
+		OpDerivative<std::index_sequence<O>, V, OpSum<V0, E,
+			Substitution<SymbolicDataArray<Ts>...>,
+			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, C>, 
+		SymbolicDerivative<expr::symbols::v_id_type<expr::symbols::i_<I0, P0>>>> const& e)
+	{
+		auto sum = expr::get_enclosed_expression(e);
+		return expr::coeff(e) * apply_operators_sum(sum.data, apply_operators(expr::make_derivative<O, expr::symbols::v_id_type<expr::symbols::i_<I0, P0>>>(sum.data.e)));
+	}
+
+	template<size_t O, typename V, typename V0, typename E, typename... Ts,
+		int... I0s, int... P0s, typename A, typename B, typename... Vs, typename GG>
+	auto apply_operators(
+		OpDerivative<std::index_sequence<O>, V, OpSum<V0, E,
+			Substitution<SymbolicDataArray<Ts>...>,
+			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, symphas::lib::types_list<Vs...>>, SymbolicDerivative<GG>> const& e)
+	{
+		auto sum = expr::get_enclosed_expression(e);
+		if constexpr (expr::is_expression<GG>)
+		{
+			using vs_seq = vars_in_ops_t<op_types_t<GG>>;
+			constexpr size_t L = vs_seq::size();
+
+			// if multiple variables are in the expression with respect to differentiate
+			if constexpr (L > 1)
+			{
+				return OpVoid{};
+			}
+			else
+			{
+				//return OpVoid{};
+				constexpr size_t Z0 = symphas::lib::seq_index_value<0, vs_seq>::value;
+				auto dvs = symphas::lib::types_list<
+					decltype(expr::transform::swap_grid<Z0>(std::declval<GG>(), expr::symbols::v_id_type<expr::symbols::i_<I0s, P0s>>{}))...>{};
+				auto args = get_args<Z0>(sum.data.substitution, std::make_index_sequence<sizeof...(Ts)>{});
+				return apply_operators_sum_multiple<expr::symbols::v_id_type<expr::symbols::i_<I0s, P0s>>...>(e, dvs, args, std::make_index_sequence<sizeof...(Ts)>{});
+			}
+		}
+		else
+		{
+			return OpVoid{};
+		}
 	}
 
 }
@@ -4574,6 +5745,8 @@ namespace symphas::internal
 {
 	template<size_t I, typename T>
 	using itype = T;
+	template<typename I, typename T>
+	using ttype = T;
 
 	template<typename E1, typename E2, size_t... Rs, size_t R = sizeof...(Rs)>
 	auto dot_tensor_components(OpExpression<E1> const& a, OpExpression<E2> const& b, std::index_sequence<Rs...>)
@@ -4852,7 +6025,7 @@ namespace expr
 
 template<typename E1, typename E2,
 	typename std::enable_if_t<(expr::eval_type<E1>::rank > 0 && expr::eval_type<E2>::rank > 0), int> = 0>
-	auto operator*(OpExpression<E1> const& a, OpExpression<E2> const& b)
+auto operator*(OpExpression<E1> const& a, OpExpression<E2> const& b)
 {
 	return expr::dot(*static_cast<const E1*>(&a), *static_cast<const E2*>(&b));
 }
@@ -4867,8 +6040,8 @@ template<typename V0, typename... G0s, expr::exp_key_t... X0s, typename V1,
 		&& ((symphas::lib::index_of_type<G0s, G1s...> >= 0) && ...)
 		&& ((symphas::lib::index_of_type<G1s, G0s...> >= 0) && ...)
 		), int>>
-	auto operator+(OpBinaryMul<OpTerms<V0, Term<G0s, X0s>...>, OpFuncDerivative<Dd, V1, E, Sp>> const& a,
-		OpBinaryMul<OpTerms<W0, Term<G1s, X1s>...>, OpFuncDerivative<Dd, W1, E, Sp>> const& b)
+auto operator+(OpBinaryMul<OpTerms<V0, Term<G0s, X0s>...>, OpDerivative<Dd, V1, E, Sp>> const& a,
+	OpBinaryMul<OpTerms<W0, Term<G1s, X1s>...>, OpDerivative<Dd, W1, E, Sp>> const& b)
 {
 	return (expr::coeff(b.a) * expr::coeff(b.b) + expr::coeff(a.a) * expr::coeff(a.b))
 		* (OpTerms<OpIdentity, Term<G0s, X0s>...>(OpIdentity{}, expr::terms_after_first(a.a)) * expr::make_derivative<Dd>(expr::get_enclosed_expression(a.b), a.b.solver));
@@ -4884,8 +6057,8 @@ template<typename V0, typename... G0s, expr::exp_key_t... X0s, typename V1,
 		&& ((symphas::lib::index_of_type<G0s, G1s...> >= 0) && ...)
 		&& ((symphas::lib::index_of_type<G1s, G0s...> >= 0) && ...)
 		), int>>
-	auto operator-(OpBinaryMul<OpTerms<V0, Term<G0s, X0s>...>, OpFuncDerivative<Dd, V1, E, Sp>> const& a,
-		OpBinaryMul<OpTerms<W0, Term<G1s, X1s>...>, OpFuncDerivative<Dd, W1, E, Sp>> const& b)
+auto operator-(OpBinaryMul<OpTerms<V0, Term<G0s, X0s>...>, OpDerivative<Dd, V1, E, Sp>> const& a,
+	OpBinaryMul<OpTerms<W0, Term<G1s, X1s>...>, OpDerivative<Dd, W1, E, Sp>> const& b)
 {
 	return (expr::coeff(b.a) * expr::coeff(b.b) - expr::coeff(a.a) * expr::coeff(a.b))
 		* (OpTerms<OpIdentity, Term<G0s, X0s>...>(OpIdentity{}, expr::terms_after_first(a.a)) * expr::make_derivative<Dd>(expr::get_enclosed_expression(a.b), a.b.solver));

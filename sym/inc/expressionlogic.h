@@ -28,6 +28,7 @@
 #pragma once
 
 #include "expressionlib.h"
+#include "symbolicprototypes.h"
 
 
 /*!
@@ -388,7 +389,7 @@ using TYPE = OpTerm<OpIdentity, TYPE ## _symbol>; } \
 DEFINE_SYMBOL_ID((), (expr::symbols::TYPE ## _symbol), return #TYPE) \
 DEFINE_BASE_TYPE((), (expr::symbols:: TYPE), expr::symbols::TYPE ## _symbol) \
 ALLOW_COMBINATION((), (expr::symbols::TYPE ## _symbol)) \
-DEFINE_BASE_DATA((), (expr::symbols::TYPE ## _symbol), expr::symbols::Symbol{}, expr::symbols::Symbol{})
+//DEFINE_BASE_DATA((), (expr::symbols::TYPE ## _symbol), expr::symbols::Symbol{}, expr::symbols::Symbol{})
 
 
 // **************************************************************************************
@@ -501,6 +502,42 @@ namespace expr
 			return *(&data + n);
 		}
 
+		template<typename T>
+		static auto& get(T& data)
+		{
+			return data;
+		}
+
+		static const auto& get(A const& data, iter_type n)
+		{
+			return data;
+		}
+
+		static const auto& get(A const& data)
+		{
+			return data;
+		}
+
+		static auto& get(A& data, iter_type n)
+		{
+			return data;
+		}
+
+		static auto& get(A& data)
+		{
+			return data;
+		}
+
+		static const auto& get(A* data, iter_type n)
+		{
+			return data[n];
+		}
+
+		static const auto& get(A* data)
+		{
+			return data;
+		}
+
 	};
 
 	//! Helper for accessing data encapsulated by different types.
@@ -581,28 +618,6 @@ namespace expr
 		static auto& get(MultiBlock<N, T>& data)
 		{
 			return data;
-		}
-	};
-
-	//! Specialization based on expr::BaseData.
-	template<size_t N>
-	struct BaseData<Variable<N>>
-	{
-		static auto get(Variable<N> const& data, iter_type n)
-		{
-			return OpVoid{}.eval();
-		}
-		static auto get(Variable<N> const& data)
-		{
-			return OpVoid{};
-		}
-		static auto get(Variable<N>& data, iter_type n)
-		{
-			return OpVoid{}.eval();
-		}
-		static auto get(Variable<N>& data)
-		{
-			return OpVoid{};
 		}
 	};
 
@@ -699,7 +714,6 @@ namespace expr
 	template<Axis ax, typename G>
 	struct BaseData<VectorComponent<ax, G>>
 	{
-
 		template<typename T>
 		static auto const& get_index(T const& data, iter_type n)
 		{
@@ -731,14 +745,210 @@ namespace expr
 		}
 	};
 
+	template<typename T>
+	struct BaseData<OpLiteral<T>>
+	{
+		static T get(T data, iter_type n)
+		{
+			return data;
+		}
+		static T get(T data)
+		{
+			return data;
+		}
+	};
+
+	template<typename T>
+	struct BaseData<OpCoeff<T, SymbolicData<int>>>
+	{
+		static T get(OpCoeff<T, SymbolicData<int>> data, iter_type n)
+		{
+			return data.eval();
+		}
+		static T get(OpCoeff<T, SymbolicData<int>> data)
+		{
+			return data.eval();
+		}
+	};
+	
+	template<typename T, typename I>
+	struct BaseData<OpCoeff<T, I>>
+	{
+		static T get(OpCoeff<T, I> data, iter_type n)
+		{
+			return T{};
+		}
+		static T get(OpCoeff<T, I> data)
+		{
+			return T{};
+		}
+	};
 
 	//! Specialization based on expr::BaseData.
 	template<typename A>
 	struct BaseData<A&> : BaseData<A> {};
 	template<typename A>
 	struct BaseData<NamedData<A>> : BaseData<A> {};
-	template<typename A>
-	struct BaseData<OpLiteral<A>> : BaseData<A> {};
+
+
+
+
+
+
+	template<typename G>
+	struct construct_result_data;
+
+	template<typename T, size_t D>
+	struct construct_result_data<Grid<T, D>>
+	{
+
+	protected:
+
+		template<typename G0>
+		grid::dim_list get_dimensions(std::tuple<G0> const& data) const
+		{
+			return expr::data_dimensions(std::get<0>(data));
+		}
+
+		template<typename G0, typename G1, typename... Gs>
+		grid::dim_list get_dimensions(std::tuple<G0, G1, Gs...> const& data) const
+		{
+			auto dims0 = expr::data_dimensions(std::get<0>(data));
+			if (dims0)
+			{
+				return grid::dim_list(dims0, D);
+			}
+			else
+			{
+				return get_dimensions(symphas::lib::get_tuple_ge<1>(data));
+			}
+		}
+
+	public:
+
+		template<typename G0, typename... Gs>
+		Grid<T, D> operator()(std::tuple<G0, Gs...> const& data) const
+		{
+			return { get_dimensions(data) };
+		}
+	};
+
+
+	template<typename T>
+	struct construct_result_data<Block<T>>
+	{
+	protected:
+
+		template<typename G0>
+		len_type get_length(std::tuple<G0> const& data) const
+		{
+			return expr::data_length(std::get<0>(data));
+		}
+
+		template<typename G0, typename G1, typename... Gs>
+		len_type get_length(std::tuple<G0, G1, Gs...> const& data) const
+		{
+			auto len0 = expr::data_length(std::get<0>(data));
+			if (len0 > 0)
+			{
+				return len0;
+			}
+			else
+			{
+				return get_length(symphas::lib::get_tuple_ge<1>(data));
+			}
+		}
+
+	public:
+
+		template<typename G0, typename... Gs>
+		Block<T> operator()(std::tuple<G0, Gs...> const& data) const
+		{
+			return { get_length(data) };
+		}
+	};
+
+	template<size_t N, typename T>
+	struct construct_result_data<MultiBlock<N, T>>
+	{
+	protected:
+
+		template<typename G0>
+		len_type get_length(std::tuple<G0> const& data) const
+		{
+			return expr::data_length(std::get<0>(data));
+		}
+
+		template<typename G0, typename G1, typename... Gs>
+		len_type get_length(std::tuple<G0, G1, Gs...> const& data) const
+		{
+			auto len0 = expr::data_length(std::get<0>(data));
+			if (len0 > 0)
+			{
+				return len0;
+			}
+			else
+			{
+				return get_length(symphas::lib::get_tuple_ge<1>(data));
+			}
+		}
+
+	public:
+
+		template<typename G0, typename... Gs>
+		MultiBlock<N, T> operator()(std::tuple<G0, Gs...> const& data) const
+		{
+			return { get_length(data) };
+		}
+	};
+
+
+	//template<typename T, size_t D>
+	//struct construct_result_data<BoundaryGrid<T, D>> : construct_result_data<Grid<T, D>>
+	//{
+	//	using parent_type = construct_result_data<Grid<T, D>>;
+
+	//	template<typename G0, typename... Gs>
+	//	BoundaryGrid<T, D> operator()(std::tuple<G0, Gs...> const& data) const
+	//	{
+	//		return parent_type::operator()(data);
+	//	}
+	//};
+
+	template<typename G>
+	struct construct_result_data
+	{
+	protected:
+
+		struct any_construct
+		{
+			template<typename E>
+			G operator()(E&& data) const
+			{
+				return G{};
+			}
+		};
+
+		template<size_t N, typename T>
+		construct_result_data<MultiBlock<N, T>> get_constructor(MultiBlock<N, T>) const { return {}; }
+		template<typename T, size_t D>
+		construct_result_data<Grid<T, D>> get_constructor(Grid<T, D>) const { return {}; }
+		template<typename T, size_t D>
+		construct_result_data<MultiBlock<D, T>> get_constructor(Grid<any_vector_t<T, D>, D>) const { return {}; }
+		template<typename T>
+		construct_result_data<Block<T>> get_constructor(Block<T>) const { return {}; }
+		
+		any_construct get_constructor(...) const { return {}; }
+
+	public:
+
+		template<typename E>
+		G operator()(E&& data) const
+		{
+			return decltype(get_constructor(std::declval<G>())){}(std::forward<E>(data));
+		}
+	};
+
 }
 
 DEFINE_BASE_DATA((typename T, size_t D), (Grid<T, D>), (T)data[n], data)
@@ -876,6 +1086,10 @@ namespace expr
 	//! Gives the sum of factor_count applied with each `G`.
 	template<typename C, typename G0, typename... Gs>
 	struct factor_count_list;
+
+
+	template<typename E, typename List>
+	struct sum_factors;
 
 	//! Number of times an enumerated factor `A` appears in `E1` and `E2`.
 	template<typename A, typename E1, typename E2>
@@ -1023,15 +1237,40 @@ namespace expr
 
 
 	//! Specialization based on expr::BaseData.
+	template<>
+	struct BaseData<expr::symbols::Symbol>
+	{
+		static auto get(expr::symbols::Symbol data, iter_type n)
+		{
+			return expr::symbols::Symbol{};
+		}
+
+		static auto get(expr::symbols::Symbol data)
+		{
+			return expr::symbols::Symbol{};
+		}
+	};
+
+	//! Specialization based on expr::BaseData.
 	template<typename T>
 	struct BaseData<symphas::ref<T>>
 	{
-		static decltype(auto) get(symphas::ref<T> data, iter_type n)
+		static decltype(auto) get(symphas::ref<T> const& data, iter_type n)
 		{
 			return BaseData<T>::get(data.get(), n);
 		}
 
-		static decltype(auto) get(symphas::ref<T> data)
+		static decltype(auto) get(symphas::ref<T> const& data)
+		{
+			return BaseData<T>::get(data.get());
+		}
+
+		static decltype(auto) get(symphas::ref<T>& data, iter_type n)
+		{
+			return BaseData<T>::get(data.get(), n);
+		}
+
+		static decltype(auto) get(symphas::ref<T>& data)
 		{
 			return BaseData<T>::get(data.get());
 		}
@@ -1058,7 +1297,54 @@ namespace expr
 			return BaseData<T>::get(data);
 		}
 	};
+
+	//! Specialization based on BaseData.
+	template<typename T>
+	struct BaseData<SymbolicData<T>>
+	{
+		static decltype(auto) get(SymbolicData<T> const& data, iter_type n)
+		{
+			return BaseData<T>::get(*data.data, n);
+		}
+		static decltype(auto) get(SymbolicData<T> const& data)
+		{
+			return BaseData<T>::get(*data.data);
+		}
+		static decltype(auto) get(SymbolicData<T>& data, iter_type n)
+		{
+			return BaseData<T>::get(*data.data, n);
+		}
+		static decltype(auto) get(SymbolicData<T>& data)
+		{
+			return BaseData<T>::get(*data.data);
+		}
+	};
+
+	//! Specialization based on BaseData.
+	template<typename G>
+	struct BaseData<SymbolicData<OpTerm<OpIdentity, G>>>
+	{
+		using T = OpTerm<OpIdentity, G>;
+
+		static decltype(auto) get(SymbolicData<T> const& data, iter_type n)
+		{
+			return BaseData<G>::get(expr::get<1>(data.data), n);
+		}
+		static decltype(auto) get(SymbolicData<T> const& data)
+		{
+			return BaseData<G>::get(expr::get<1>(data.data));
+		}
+		static decltype(auto) get(SymbolicData<T>& data, iter_type n)
+		{
+			return BaseData<G>::get(expr::get<1>(data.data), n);
+		}
+		static decltype(auto) get(SymbolicData<T>& data)
+		{
+			return BaseData<G>::get(expr::get<1>(data.data));
+		}
+	};
 }
+
 
 
 //! Specialization based on expr::base_data_type.
@@ -1109,6 +1395,14 @@ struct expr::factor_count<OpTerm<OpIdentity, C>, G>
 {
 	static const size_t value = expr::factor_count<C, G>::value;
 };
+
+//! Specialization based on expr::factor_count;
+template<typename C, typename G>
+struct expr::factor_count<OpTerm<OpIdentity, C>, OpTerm<OpIdentity, G>>
+{
+	static const size_t value = expr::factor_count<C, G>::value;
+};
+
 
 //! Specialization based on expr::factor_count;
 template<typename C, typename G>
@@ -1182,6 +1476,19 @@ struct expr::factor_count<Variable<Y, G>, Variable<Z, G>>
 	static const size_t value = (Y == Z) ? 1 : 0;
 };
 
+template<typename T, typename I>
+struct expr::factor_count<OpCoeff<void, I>, OpCoeff<T, I>>
+{
+	static const size_t value = 1;
+};
+
+
+
+namespace symphas::internal
+{
+	struct exclusive_swap {};
+}
+
 //! Specialization based on expr::factor_count;
 template<size_t Y, size_t Z, typename G>
 struct expr::factor_count<Variable<Y>, Variable<Z, G>>
@@ -1224,7 +1531,33 @@ struct expr::factor_count<Variable<Y, VectorComponent<ax0, G>>, Variable<Z, F>>
 	static const size_t value = 0;
 };
 
+//! Specialization based on expr::factor_count;
+template<size_t Y, size_t Z>
+struct expr::factor_count<Variable<Y, symphas::internal::exclusive_swap>, Variable<Z>>
+{
+	static const size_t value = expr::factor_count<Variable<Y>, Variable<Z>>::value;
+};
 
+//! Specialization based on expr::factor_count;
+template<typename... T1s, typename... T2s>
+struct expr::factor_count<SymbolicCase<T1s...>, SymbolicCase<T2s...>>
+{
+	static const size_t value = 0;
+};
+
+//! Specialization based on expr::factor_count;
+template<typename C, typename T, typename... As, typename... Bs>
+struct expr::factor_count<SymbolicCaseSwap<C, T>, SymbolicCase<symphas::lib::types_list<As, Bs>...>>
+{
+	static const size_t value = ((std::is_same<C, As>::value || ...)) ? 1 : 0;
+};
+
+//! Specialization based on expr::factor_count;
+template<typename C, typename T>
+struct expr::factor_count<SymbolicCaseSwap<void>, SymbolicCaseSwap<C, T>>
+{
+	static const size_t value = 1;
+};
 
 template<typename C, typename G0, typename... Gs>
 struct expr::factor_count_list
@@ -1250,6 +1583,12 @@ template<size_t Y, typename G>
 struct expr::factor_count_index
 {
 	static const size_t value = expr::factor_count<Variable<Y>, G>::value;
+};
+
+template<typename V, typename... Gs, expr::exp_key_t... Xs, typename... Fs>
+struct expr::sum_factors<OpTerms<V, Term<Gs, Xs>...>, symphas::lib::types_list<Fs...>>
+{
+	static const int value = (expr::factor_count_list<Fs, Term<Gs, Xs>...>::value + ... + 0);
 };
 
 

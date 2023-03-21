@@ -688,14 +688,24 @@ namespace expr
 ALLOW_COMBINATION((size_t D, Axis ax), (GridAxis<D, ax>))
 
 
-DEFINE_SYMBOL_ID((), (GridAxis<1, Axis::X>), return "x")
-DEFINE_SYMBOL_ID((), (GridAxis<2, Axis::X>), return "x")
-DEFINE_SYMBOL_ID((), (GridAxis<2, Axis::Y>), return "y")
-DEFINE_SYMBOL_ID((), (GridAxis<3, Axis::X>), return "x")
-DEFINE_SYMBOL_ID((), (GridAxis<3, Axis::Y>), return "y")
-DEFINE_SYMBOL_ID((), (GridAxis<3, Axis::Z>), return "z")
+#ifdef LATEX_PLOT
 
-DEFINE_SYMBOL_ID((), (TimeValue), return "t")
+#define STR_AXIS(C) "$" #C "$"
+
+#else
+
+#define STR_AXIS(C) #C
+
+#endif
+
+DEFINE_SYMBOL_ID((), (GridAxis<1, Axis::X>), return STR_AXIS(x))
+DEFINE_SYMBOL_ID((), (GridAxis<2, Axis::X>), return STR_AXIS(x))
+DEFINE_SYMBOL_ID((), (GridAxis<2, Axis::Y>), return STR_AXIS(y))
+DEFINE_SYMBOL_ID((), (GridAxis<3, Axis::X>), return STR_AXIS(x))
+DEFINE_SYMBOL_ID((), (GridAxis<3, Axis::Y>), return STR_AXIS(y))
+DEFINE_SYMBOL_ID((), (GridAxis<3, Axis::Z>), return STR_AXIS(z))
+
+DEFINE_SYMBOL_ID((), (TimeValue), return STR_AXIS(t))
 
 //! \endcond
 

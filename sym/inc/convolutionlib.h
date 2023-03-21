@@ -127,8 +127,8 @@ struct GaussianSmoothing : OpExpression<GaussianSmoothing<D>>
 		return g;
 	}
 
-	template<typename T, size_t U1>
-	friend auto operator*(OpLiteral<T> const& a, GaussianSmoothing<U1> const& b);
+	template<typename coeff_t, typename T, size_t U1, std::enable_if_t<expr::is_coeff<coeff_t>, int>>
+	friend auto operator*(coeff_t const& a, GaussianSmoothing<U1> const& b);
 
 	Grid<scalar_t, D> data;
 
@@ -159,24 +159,12 @@ protected:
 
 
 
-template<typename T, size_t D>
-auto operator*(OpLiteral<T> const& a, GaussianSmoothing<D> const& b)
+template<typename coeff_t, typename T, size_t U1, std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator*(coeff_t const& a, GaussianSmoothing<U1> const& b)
 {
-	GaussianSmoothing<D> scaled(b);
-	scaled.scale(a.value);
+	GaussianSmoothing<U1> scaled(b);
+	scaled.scale(expr::eval(a));
 	return scaled;
-}
-
-template<size_t N, size_t D, size_t U1>
-auto operator*(OpFractionLiteral<N, D>, GaussianSmoothing<D> const& b)
-{
-	return expr::make_literal(OpFractionLiteral<N, D>{}.eval()) * b;
-}
-
-template<size_t N, size_t D, size_t U1>
-auto operator*(OpNegFractionLiteral<N, D>, GaussianSmoothing<D> const& b)
-{
-	return expr::make_literal(OpNegFractionLiteral<N, D>{}.eval()) * b;
 }
 
 

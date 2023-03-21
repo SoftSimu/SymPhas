@@ -31,9 +31,11 @@
 
 #include "grid.h"
 #include "gridfunctions.h"
+#include "gridpair.h"
 #include "expressioniterator.h"
 #include "dataiterator.h"
 #include "indexseqhelpers.h"
+#include "symbolicprototypes.h"
 
 #ifdef EXECUTION_HEADER_AVAILABLE
 #include <execution>
@@ -370,6 +372,9 @@ namespace expr
 	template<size_t N, size_t D>
 	constexpr auto make_fraction();
 
+	template<size_t N, size_t D>
+	constexpr auto frac = make_fraction<N, D>();
+
 	//! Constructs an integer as a fraction type.
 	/*!
 	 * Constructs a compile time constant integer as a fraction type. This is a wrapper
@@ -379,10 +384,13 @@ namespace expr
 	template<int I>
 	constexpr auto make_integer();
 
+	template<int I>
+	constexpr auto val = make_integer<I>();
+
 	//! Construct a tensor entry, which acts as a coefficient.
 	/*!
 	 * The first half of the given values represent the position of the
-	 * value in the tensor, and the last half represent the rank of the tensor. 
+	 * value in the tensor, and the last half represent the rank of the tensor.
 	 */
 	template<size_t N0, size_t N1, size_t... Ns, typename T>
 	constexpr auto make_tensor(T const& v);
@@ -423,6 +431,29 @@ namespace expr
 
 	template<size_t R, size_t R0 = 0>
 	auto make_filled_row_vector();
+
+	//! Constructs the expression representing an expression to a power.
+	/*!
+	 * Directly constructs the exponent expression of an
+	 * expression without applying any rules.
+	 *
+	 * \param value The coefficient.
+	 * \param e The expression.
+	 */
+	template<expr::exp_key_t X, typename V, typename E>
+	auto make_pow(V const& value, E const& e);
+
+	//! Constructs the expression representing an expression to a power.
+	/*!
+	 * Directly constructs the exponent expression of an
+	 * expression without applying any rules.
+	 *
+	 * \param value The coefficient.
+	 * \param e The expression.
+	 */
+	template<expr::exp_key_t X, typename E>
+	auto make_pow(E const& e);
+
 
 	//! Returns the given data in a wrapper imitating a Grid with specified dimensions.
 	/*!
@@ -595,6 +626,12 @@ namespace symphas::internal
 		using type = char;
 	};
 
+	template<typename T, typename I>
+	struct coeff_neg_trait<OpCoeff<T, I>>
+	{
+		using type = char;
+	};
+
 
 	template <typename E> static auto test_coeff_neg(decltype(E::value))
 		-> typename coeff_neg_trait<decltype(E::value)>::type;
@@ -706,6 +743,12 @@ namespace expr
 	template<typename T>
 	constexpr bool is_literal<OpLiteral<T>> = true;
 
+	template<typename E>
+	constexpr bool is_arr_coeff = false;
+
+	template<typename T, typename I>
+	constexpr bool is_arr_coeff<OpCoeff<T, I>> = true;
+
 	//! True if the given type has the base type expr::symbols::Symbol.
 	template<typename E>
 	constexpr bool is_symbol = symphas::internal::test_is_symbol<E>::value;
@@ -724,7 +767,7 @@ namespace expr
 
 	template<typename E>
 	constexpr bool is_coeff =
-		(is_fraction<E> || is_identity<E> || is_tensor<E> || is_literal<E>) && !std::is_same<E, OpVoid>::value;
+		(is_fraction<E> || is_identity<E> || is_tensor<E> || is_literal<E> || is_arr_coeff<E>) && !std::is_same<E, OpVoid>::value;
 
 	template<typename... Es>
 	constexpr bool is_coeff<OpAdd<Es...>> = (is_coeff<Es> && ...);
@@ -848,6 +891,12 @@ namespace expr
 			return {};
 		}
 
+		template<typename T>
+		static constexpr auto _infer_dimension(SymbolicData<T>)
+		{
+			return std::index_sequence<grid_dim<T>::value>{};
+		}
+
 		template<Axis ax, typename G>
 		static constexpr auto _infer_dimension(VectorComponent<ax, G>)
 		{
@@ -913,14 +962,14 @@ namespace expr
 	 * the resulting type here is the full grid.
 	 */
 	template<typename E>
-	struct grid_type;
+	struct storage_type;
 	template<typename E>
-	using grid_type_t = typename grid_type<E>::type;
+	using storage_t = typename storage_type<E>::type;
 
 	template<typename G>
-	struct parent_grid_type;
+	struct parent_storage_type;
 	template<typename E>
-	using parent_grid_t = typename parent_grid_type<E>::type;
+	using parent_storage_t = typename parent_storage_type<E>::type;
 
 	//! Checks whether the expression manages data to be updated.
 	/*!
@@ -1045,9 +1094,9 @@ namespace expr
 	};
 
 	template<typename Dd, typename V, typename Sp, typename E>
-	struct derivative_order<OpFuncDerivative<Dd, V, Sp, E>>
+	struct derivative_order<OpDerivative<Dd, V, Sp, E>>
 	{
-		const static size_t value = OpFuncDerivative<Dd, V, Sp, E>::order;
+		const static size_t value = OpDerivative<Dd, V, Sp, E>::order;
 	};
 
 	template<typename E1, typename E2>
@@ -1080,6 +1129,11 @@ namespace expr
 	template<typename E>
 	struct expression_predicate;
 
+
+	template<size_t N, typename V, typename... Gs, expr::exp_key_t... Xs>
+	const auto& get(OpTerms<V, Term<Gs, Xs>...> const& e);
+	template<size_t N, typename V, typename... Gs, expr::exp_key_t... Xs>
+	auto& get(OpTerms<V, Term<Gs, Xs>...>& e);
 
 	template<size_t N, typename... Es>
 	const auto& get(OpAdd<Es...> const& e);
@@ -1118,6 +1172,9 @@ namespace expr
 		return e.a * e.b;
 	}
 
+	//! Specialization based on reevaluate(OpExpression<E> const&).
+	template<expr::exp_key_t X, typename V, typename E>
+	auto reevaluate(OpPow<X, V, E> const& e);
 
 	//! Specialization based on reevaluate(OpExpression<E> const&).
 	template<typename E1, typename E2>
@@ -1233,12 +1290,44 @@ struct expr::grid_dim<Variable<Z, G>>
 	static const size_t value = dimension;
 };
 
+//! Get the expression that the OpConvolution applies to.
+template<typename T>
+struct expr::grid_dim<SymbolicData<T>>
+{
+	static const size_t dimension = expr::grid_dim<T>::dimension;
+	static const size_t value = dimension;
+};
+
+//! Get the expression that the OpConvolution applies to.
+template<typename T>
+struct expr::grid_dim<SymbolicDataArray<T>>
+{
+	static const size_t dimension = expr::grid_dim<T>::dimension;
+	static const size_t value = dimension;
+};
+
+//! Get the expression that the OpConvolution applies to.
+template<typename... Ts>
+struct expr::grid_dim<SymbolicDataArray<std::tuple<Term<Ts>...>>>
+{
+	static const size_t dimension = fixed_max<expr::grid_dim<Ts>::dimension...>;
+	static const size_t value = dimension;
+};
+
 //! Specialization based on expr::grid_dim.
 template<typename T>
 struct expr::grid_dim<OpLiteral<T>>
 {
 	static const size_t dimension = expr::grid_dim<T>::dimension;
 	static const size_t value = dimension;
+};
+
+//! Specialization based on expr::grid_dim.
+template<typename T, typename I>
+struct expr::grid_dim<OpCoeff<T, I>>
+{
+	static const size_t dimension = expr::grid_dim<OpLiteral<T>>::dimension;
+	static const size_t value = expr::grid_dim<OpLiteral<T>>::value;
 };
 
 //! Specialization based on expr::grid_dim.
@@ -1286,7 +1375,7 @@ public:
 
 //! Specialization based on expr::grid_dim.
 template<typename V, typename E1, typename E2>
-struct expr::grid_dim<OpFuncConvolution<V, E1, E2>>
+struct expr::grid_dim<OpConvolution<V, E1, E2>>
 {
 protected:
 	static const size_t Ad = expr::grid_dim<E1>::dimension;
@@ -1314,8 +1403,32 @@ struct expr::grid_dim<OpMap<G, V, E>>
 };
 
 //! Specialization based on expr::grid_dim.
+template<typename V, typename E, typename F, typename Arg0, typename... Args>
+struct expr::grid_dim<OpFunction<V, E, F, Arg0, Args...>>
+{
+	static const size_t dimension = expr::grid_dim<E>::dimension;
+	static const size_t value = dimension;
+};
+
+//! Specialization based on expr::grid_dim.
+template<auto f, typename V, typename E>
+struct expr::grid_dim<OpFunctionApply<f, V, E>>
+{
+	static const size_t dimension = expr::grid_dim<E>::dimension;
+	static const size_t value = dimension;
+};
+
+//! Get the expression that the OpConvolution applies to.
+template<typename V, typename sub_t, typename E, typename... Ts>
+struct expr::grid_dim<OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>>>
+{
+	static const size_t dimension = expr::grid_dim<E>::dimension;
+	static const size_t value = dimension;
+};
+
+//! Specialization based on expr::grid_dim.
 template<typename Dd, typename V, typename E, typename Sp>
-struct expr::grid_dim<OpFuncDerivative<Dd, V, E, Sp>>
+struct expr::grid_dim<OpDerivative<Dd, V, E, Sp>>
 {
 	static const size_t dimension = expr::grid_dim<E>::dimension;
 	static const size_t value = dimension;
@@ -1345,6 +1458,15 @@ struct expr::grid_dim<OpExponential<V, E>>
 	static const size_t value = dimension;
 };
 
+//! Specialization based on expr::grid_dim.
+template<expr::exp_key_t X, typename V, typename E>
+struct expr::grid_dim<OpPow<X, V, E>>
+{
+	static const size_t dimension = expr::grid_dim<E>::dimension;
+	static const size_t value = dimension;
+};
+
+
 
 
 // *******************************************************************************
@@ -1366,9 +1488,38 @@ struct expr::op_types<E&>
 
 //! Specialization based on expr::op_types.
 template<typename E>
+struct expr::op_types<E&&>
+{
+	using type = typename expr::op_types<E>::type;
+};
+
+//! Specialization based on expr::op_types.
+template<typename E>
 struct expr::op_types<OpExpression<E>>
 {
 	using type = typename expr::op_types<E>::type;
+};
+
+
+//! Get the expression that the OpConvolution applies to.
+template<typename T>
+struct expr::op_types<SymbolicData<T>>
+{
+	using type = typename symphas::lib::types_list<T>;
+};
+
+//! Get the expression that the OpConvolution applies to.
+template<typename T>
+struct expr::op_types<SymbolicDataArray<T>>
+{
+	using type = typename symphas::lib::types_list<T>;
+};
+
+//! Get the expression that the OpConvolution applies to.
+template<typename... Ts>
+struct expr::op_types<SymbolicDataArray<std::tuple<Term<Ts>...>>>
+{
+	using type = typename symphas::lib::combine_types_unique<Ts...>::type;
 };
 
 //! Specialization based on expr::op_types.
@@ -1382,7 +1533,7 @@ struct expr::op_types<OpTerms<V, Term<Gs, Xs>...>>
 template<typename G0, expr::exp_key_t X0, typename... Gs, expr::exp_key_t... Xs>
 struct expr::op_types<OpTerms<Term<G0, X0>, Term<Gs, Xs>...>>
 {
-	using type = typename symphas::lib::types_list<G0, Gs...>;
+	using type = typename symphas::lib::combine_types_unique<G0, Gs...>;
 };
 
 //! Specialization based on expr::op_types.
@@ -1418,7 +1569,7 @@ public:
 
 //! Specialization based on expr::op_types.
 template<typename V, typename E1, typename E2>
-struct expr::op_types<OpFuncConvolution<V, E1, E2>>
+struct expr::op_types<OpConvolution<V, E1, E2>>
 {
 protected:
 	using At = typename expr::op_types<E1>::type;
@@ -1442,9 +1593,42 @@ struct expr::op_types<OpMap<G, V, E>>
 	using type = typename expr::op_types<E>::type;
 };
 
+//! Specialization based on expr::grid_dim.
+template<typename V, typename E, typename F, typename Arg0, typename... Args>
+struct expr::op_types<OpFunction<V, E, F, Arg0, Args...>>
+{
+	using type = typename expr::op_types<E>::type;
+};
+
+//! Specialization based on expr::grid_dim.
+template<auto f, typename V, typename E>
+struct expr::op_types<OpFunctionApply<f, V, E>>
+{
+	using type = typename expr::op_types<E>::type;
+};
+
+//! Get the expression that the OpConvolution applies to.
+template<typename V, typename sub_t, typename E, typename... Ts>
+struct expr::op_types<OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>>>
+{
+	using type = typename expr::op_types<E>::type;
+};
+
+//! Get the expression that the OpConvolution applies to.
+template<typename V, typename E, typename... Ts, typename Seq, typename A, typename B, typename C>
+struct expr::op_types<OpSum<V, E, Substitution<SymbolicDataArray<Ts>...>, Seq, A, B, C>>
+{
+protected:
+	using At = typename expr::op_types<E>::type;
+	using Bt = typename symphas::lib::expand_types_list<typename expr::op_types<SymbolicDataArray<Ts>>::type...>;
+
+public:
+	using type = typename symphas::lib::combine_types_unique<At, Bt>::type;
+};
+
 //! Specialization based on expr::op_types.
 template<typename Dd, typename V, typename E, typename Sp>
-struct expr::op_types<OpFuncDerivative<Dd, V, E, Sp>>
+struct expr::op_types<OpDerivative<Dd, V, E, Sp>>
 {
 	using type = typename expr::op_types<E>::type;
 };
@@ -1504,6 +1688,14 @@ struct expr::op_types<OpExponential<V, E>>
 	using type = typename expr::op_types<E>::type;
 };
 
+//! Specialization based on expr::op_types.
+template<expr::exp_key_t X, typename V, typename E>
+struct expr::op_types<OpPow<X, V, E>>
+{
+	using type = typename expr::op_types<E>::type;
+};
+
+
 // *******************************************************************************
 
 
@@ -1533,34 +1725,37 @@ namespace symphas::internal
 	 * to void.
 	 */
 	template<typename G>
-	struct get_first_grid_type
+	struct get_first_storage_type
 	{
 		using type = void;
 	};
 
 	//! Specialization based on get_first_type.
 	template<template<typename, size_t> typename G, typename T, size_t D, typename... Gs>
-	struct get_first_grid_type<symphas::lib::types_list<G<T, D>, Gs...>>
+	struct get_first_storage_type<symphas::lib::types_list<G<T, D>, Gs...>>
 	{
 		using type = G<T, D>;
 	};
 
 	//! Specialization based on get_first_type.
 	template<typename G0, typename... Gs>
-	struct get_first_grid_type<symphas::lib::types_list<G0, Gs...>>
+	struct get_first_storage_type<symphas::lib::types_list<G0, Gs...>>
 	{
-		using type = typename get_first_grid_type<symphas::lib::types_list<Gs...>>::type;
+		using type = typename get_first_storage_type<symphas::lib::types_list<Gs...>>::type;
 	};
 }
 
 
 //! Return the type of the grid in the expression as a complete grid.
 template<typename E>
-struct expr::grid_type
+struct expr::storage_type
 {
 	using data_t = symphas::lib::type_at_index<0, symphas::lib::unroll_types_list<expr::term_types_t<E>>>;
-	using grid_t = typename symphas::internal::get_first_grid_type<expr::term_types_t<E>>::type;
-	using check_t = std::conditional_t<std::is_same<grid_t, void>::value, data_t, grid_t>;
+	using storage_t = typename symphas::internal::get_first_storage_type<expr::term_types_t<E>>::type;
+	using check_t = std::conditional_t<
+		std::is_same<storage_t, void>::value, 
+			std::conditional_t<std::is_same<data_t, void>::value, OpIdentity, data_t>, 
+			storage_t>;
 
 	template<template<typename, size_t> typename enc_type>
 	struct grid_class_wrap 
@@ -1575,6 +1770,12 @@ struct expr::grid_type
 		using type = Block<expr::eval_type_t<E>>;
 	};
 
+	template<typename T>
+	struct type_wrap
+	{
+		using type = T;
+	};
+
 	template<template<typename, size_t> typename G, typename T, size_t D>
 	static grid_class_wrap<G> _pack_grid(G<T, D>)
 	{
@@ -1585,6 +1786,12 @@ struct expr::grid_type
 	static grid_class_wrap<Grid> _pack_grid(GridData<T, D> const& g)
 	{
 		return {};
+	}
+
+	template<typename T>
+	static auto _pack_grid(SymbolicData<T> const& g)
+	{
+		return _pack_grid(*g.data);
 	}
 
 	template<Axis ax, size_t N, typename T>
@@ -1599,12 +1806,12 @@ struct expr::grid_type
 		return {};
 	}
 
-	static block_class_wrap _pack_grid(expr::symbols::Symbol)
+	static type_wrap<expr::symbols::Symbol> _pack_grid(expr::symbols::Symbol)
 	{
 		return {};
 	}
 
-	static block_class_wrap _pack_grid(...)
+	static type_wrap<expr::eval_type_t<E>> _pack_grid(...)
 	{
 		return {};
 	}
@@ -1617,11 +1824,12 @@ struct expr::grid_type
 
 
 public:
-	using type = typename std::invoke_result_t<decltype(&expr::grid_type<E>::pack_grid), check_t>::type;
+	using type = typename std::invoke_result_t<decltype(&expr::storage_type<E>::pack_grid), check_t>::type;
 };
 
+
 template<typename G>
-struct expr::parent_grid_type
+struct expr::parent_storage_type
 {
 protected:
 
@@ -1644,34 +1852,34 @@ protected:
 
 public:
 
-	using type = std::invoke_result_t<decltype(&expr::parent_grid_type<G>::cast_grid)>;
+	using type = std::invoke_result_t<decltype(&expr::parent_storage_type<G>::cast_grid)>;
 
 
 };
 
 //! Specialization based on expr::has_state.
 template<typename V, typename E1, typename E2>
-struct expr::has_state<OpFuncConvolution<V, E1, E2>>
+struct expr::has_state<OpConvolution<V, E1, E2>>
 {
 	static const bool value = true;
 };
 
 //! Specialization based on expr::has_state.
 template<typename Dd, typename V, typename E, typename Sp>
-struct expr::has_state<OpFuncDerivative<Dd, V, E, Sp>>
+struct expr::has_state<OpDerivative<Dd, V, E, Sp>>
 {
 	static const bool value = true;
 };
 
 //! Specialization based on expr::has_state.
 template<typename Dd, typename V, typename G, typename Sp>
-struct expr::has_state<OpFuncDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp>>
+struct expr::has_state<OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp>>
 {
 	static const bool value = false;
 };
 
 template<size_t O, typename V, typename E, typename G0>
-struct expr::has_state<OpFuncDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G0>>>
+struct expr::has_state<OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G0>>>
 {
 	static const bool value = false;
 };
@@ -1683,9 +1891,36 @@ struct expr::has_state<OpMap<G, V, E>>
 	static const bool value = true;
 };
 
+//! Specialization based on expr::grid_dim.
+template<typename V, typename E, typename F, typename Arg0, typename... Args>
+struct expr::has_state<OpFunction<V, E, F, Arg0, Args...>>
+{
+	static const bool value = expr::has_state<E>::value;
+};
+
+//! Specialization based on expr::grid_dim.
+template<auto f, typename V, typename E>
+struct expr::has_state<OpFunctionApply<f, V, E>>
+{
+	static const bool value = expr::has_state<E>::value;
+};
+
+//! Get the expression that the OpConvolution applies to.
+template<typename V, typename sub_t, typename E, typename... Ts>
+struct expr::has_state<OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>>>
+{
+	static const bool value = expr::has_state<E>::value;
+};
+
 //! Specialization based on expr::has_state.
 template<typename V, typename E>
 struct expr::has_state<OpExponential<V, E>>
+{
+	static const bool value = expr::has_state<E>::value;
+};
+
+template<expr::exp_key_t X, typename V, typename E>
+struct expr::has_state<OpPow<X, V, E>>
 {
 	static const bool value = expr::has_state<E>::value;
 };
@@ -1725,21 +1960,6 @@ struct expr::has_state<OpBinaryDiv<E1, E2>>
 	static const bool value = expr::has_state<E1>::value || expr::has_state<E2>::value;
 };
 
-
-//! Specialization based on expr::has_state.
-template<typename V, typename E, typename F, typename... Args>
-struct expr::has_state<OpFunc<V, E, F, Args...>>
-{
-	static const bool value = expr::has_state<E>::value;
-};
-
-//! Specialization based on expr::has_state.
-template<auto f, typename V, typename E>
-struct expr::has_state<OpFuncApply<f, V, E>>
-{
-	static const bool value = expr::has_state<E>::value;
-};
-
 //! Specialization based on expr::has_state.
 template<typename... Rs>
 struct expr::has_state<symphas::lib::types_list<Rs...>>
@@ -1766,6 +1986,13 @@ struct expr::is_operator_like<OpExpression<E>>
 //! Specialization based on expr::is_operator_like.
 template<typename T>
 struct expr::is_operator_like<OpLiteral<T>>
+{
+	static const bool value = true;
+};
+
+//! Specialization based on expr::is_operator_like.
+template<typename T, typename I>
+struct expr::is_operator_like<OpCoeff<T, I>>
 {
 	static const bool value = true;
 };
@@ -1826,7 +2053,7 @@ struct expr::is_operator_like<OpOperatorMixedDerivative<V, Sp, Os...>>
 
 //! Specialization based on expr::is_linear.
 template<typename Dd, typename V, typename E, typename Sp>
-struct expr::is_operator_like<OpFuncDerivative<Dd, V, E, Sp>>
+struct expr::is_operator_like<OpDerivative<Dd, V, E, Sp>>
 {
 	static const bool value = true;
 };
@@ -1866,6 +2093,14 @@ struct expr::is_operator_like<OpAdd<Es...>>
 	static const bool value = (expr::is_operator_like<Es>::value && ...);
 };
 
+//! Get the expression that the OpConvolution applies to.
+template<typename V, typename sub_t, typename E, typename... Ts>
+struct expr::is_operator_like<OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>>>
+{
+	static const bool value = expr::is_operator_like<E>::value;
+};
+
+
 // *******************************************************************************
 
 
@@ -1878,6 +2113,13 @@ struct expr::is_linear<OpExpression<E>>
 //! Specialization based on expr::is_linear.
 template<typename T>
 struct expr::is_linear<OpLiteral<T>>
+{
+	static const bool value = true;
+};
+
+//! Specialization based on expr::is_linear.
+template<typename T, typename I>
+struct expr::is_linear<OpCoeff<T, I>>
 {
 	static const bool value = true;
 };
@@ -1919,14 +2161,14 @@ struct expr::is_linear<GaussianSmoothing<D>>
 
 //! Specialization based on expr::is_linear.
 template<typename Dd, typename V, typename G, typename Sp>
-struct expr::is_linear<OpFuncDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp>>
+struct expr::is_linear<OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp>>
 {
 	static const bool value = true;
 };
 
 //! Specialization based on expr::is_linear.
 template<typename Dd, typename V, typename E, typename Sp>
-struct expr::is_linear<OpFuncDerivative<Dd, V, E, Sp>>
+struct expr::is_linear<OpDerivative<Dd, V, E, Sp>>
 {
 	static const bool value = expr::is_linear<E>::value;
 };
@@ -1952,7 +2194,7 @@ struct expr::is_linear<OpOperatorMixedDerivative<V, Sp, Os...>>
 
 //! Specialization based on expr::is_linear.
 template<typename V, typename E1, typename E2>
-struct expr::is_linear<OpFuncConvolution<V, E1, E2>>
+struct expr::is_linear<OpConvolution<V, E1, E2>>
 {
 	static const bool value = expr::is_linear<E1>::value && expr::is_linear<E2>::value;
 };
@@ -1999,6 +2241,14 @@ struct expr::is_linear<OpAdd<Es...>>
 	static const bool value = (expr::is_linear<Es>::value && ...);
 };
 
+//! Get the expression that the OpConvolution applies to.
+template<typename V, typename sub_t, typename E, typename... Ts>
+struct expr::is_linear<OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>>>
+{
+	static const bool value = expr::is_operator_like<E>::value;
+};
+
+
 
 // *******************************************************************************
 
@@ -2042,6 +2292,42 @@ struct expr::is_combination<OpChain<A1, A2, E>>
 	static const bool value = expr::is_combination<A1>::value || expr::is_combination<A2>::value || expr::is_combination<E>::value;
 };
 
+template<typename V, typename E, typename T, typename Seq, typename A, typename B, typename C>
+struct expr::is_combination<OpSum<V, E, T, Seq, A, B, C>>
+{
+	static const bool value = true;
+};
+
+template<typename V, typename E>
+struct expr::is_combination<OpMap<void, V, E>>
+{
+	static const bool value = true;
+};
+
+template<typename V, typename E>
+struct expr::is_combination<OpMap<symphas::internal::STHC, V, E>>
+{
+	static const bool value = true;
+};
+
+template<typename V, typename E>
+struct expr::is_combination<OpMap<symphas::internal::HCTS, V, E>>
+{
+	static const bool value = true;
+};
+
+template<typename S, typename T, size_t D, typename V, typename E>
+struct expr::is_combination<OpMap<MapGridFourier<S, T, D>, V, E>>
+{
+	static const bool value = true;
+};
+
+template<typename S, typename T, size_t D, typename V, typename E>
+struct expr::is_combination<OpMap<MapGridInverseFourier<S, T, D>, V, E>>
+{
+	static const bool value = true;
+};
+
 
 //! Specialization based on expr::expression_predicate.
 template<typename E>
@@ -2059,9 +2345,14 @@ struct expr::is_directional_derivative<OpOperatorDirectionalDerivative<ax, O, V,
 	static const bool value = true;
 };
 
+template<typename V, typename Sp, size_t... Os>
+struct expr::is_directional_derivative<OpOperatorMixedDerivative<V, Sp, Os...>>
+{
+	static const bool value = true;
+};
 
 template<typename Dd, typename V, typename E, typename Sp>
-struct expr::is_directional_derivative<OpFuncDerivative<Dd, V, E, Sp>>
+struct expr::is_directional_derivative<OpDerivative<Dd, V, E, Sp>>
 {
 	static const bool value = expr::is_directional_derivative<Dd>::value;
 };
@@ -2178,6 +2469,90 @@ struct expr::vars<VectorComponent<ax, G>>
 };
 
 //! Specialization based on expr::vars.
+template<typename T>
+struct expr::vars<SymbolicData<T>>
+{
+	static constexpr auto get_ids()
+	{
+		return expr::vars<T>::get_ids();
+	}
+
+	template<size_t Y>
+	static constexpr bool has_id()
+	{
+		return expr::vars<T>::template has_id<Y>();
+	}
+
+	template<size_t Y>
+	static constexpr auto only_id()
+	{
+		return expr::vars<T>::template only_id<Y>();
+	}
+
+	template<size_t Y>
+	static constexpr auto each_id()
+	{
+		return expr::vars<T>::template each_id<Y>();
+	}
+};
+
+//! Specialization based on expr::vars.
+template<typename T>
+struct expr::vars<SymbolicDataArray<T>>
+{
+	static constexpr auto get_ids()
+	{
+		return expr::vars<T>::get_ids();
+	}
+
+	template<size_t Y>
+	static constexpr bool has_id()
+	{
+		return expr::vars<T>::template has_id<Y>();
+	}
+
+	template<size_t Y>
+	static constexpr auto only_id()
+	{
+		return expr::vars<T>::template only_id<Y>();
+	}
+
+	template<size_t Y>
+	static constexpr auto each_id()
+	{
+		return expr::vars<T>::template each_id<Y>();
+	}
+};
+
+//! Specialization based on expr::vars.
+template<typename... Ts>
+struct expr::vars<SymbolicDataArray<std::tuple<Term<Ts>...>>>
+{
+	static constexpr auto get_ids()
+	{
+		return symphas::lib::fold_unique_ids(symphas::lib::seq_join(expr::vars<Ts>::get_ids()...));
+	}
+
+	template<size_t Y>
+	static constexpr bool has_id()
+	{
+		return ((expr::vars<Ts>::template has_id<Y>() || ...));
+	}
+
+	template<size_t Y>
+	static constexpr auto only_id()
+	{
+		return ((expr::vars<Ts>::template has_id<Y>() && ...));
+	}
+
+	template<size_t Y>
+	static constexpr auto each_id()
+	{
+		return ((expr::vars<Ts>::template each_id<Y>() && ...));
+	}
+};
+
+//! Specialization based on expr::vars.
 template<typename V, typename... Gs, expr::exp_key_t... Xs>
 struct expr::vars<OpTerms<V, Term<Gs, Xs>...>>
 {
@@ -2207,7 +2582,7 @@ struct expr::vars<OpTerms<V, Term<Gs, Xs>...>>
 
 //! Specialization based on expr::vars.
 template<auto f, typename V, typename E>
-struct expr::vars<OpFuncApply<f, V, E>>
+struct expr::vars<OpFunctionApply<f, V, E>>
 {
 	static constexpr auto get_ids()
 	{
@@ -2236,7 +2611,7 @@ struct expr::vars<OpFuncApply<f, V, E>>
 
 //! Specialization based on expr::vars.
 template<typename V, typename E, typename F, typename Arg0, typename... Args>
-struct expr::vars<OpFunc<V, E, F, Arg0, Args...>>
+struct expr::vars<OpFunction<V, E, F, Arg0, Args...>>
 {
 	static constexpr auto get_ids()
 	{
@@ -2261,6 +2636,64 @@ struct expr::vars<OpFunc<V, E, F, Arg0, Args...>>
 		return expr::vars<E>::template each_id<Y>();
 	}
 };
+
+//! Specialization based on expr::vars.
+template<typename V, typename sub_t, typename E, typename... Ts>
+struct expr::vars<OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>>>
+{
+	static constexpr auto get_ids()
+	{
+		return expr::vars<E>::get_ids();
+	}
+
+	template<size_t Y>
+	static constexpr bool has_id()
+	{
+		return expr::vars<E>::template has_id<Y>();
+	}
+
+	template<size_t Y>
+	static constexpr auto only_id()
+	{
+		return expr::vars<E>::template only_id<Y>();
+	}
+
+	template<size_t Y>
+	static constexpr auto each_id()
+	{
+		return expr::vars<E>::template each_id<Y>();
+	}
+};
+
+//! Specialization based on expr::vars.
+template<typename V, typename E, typename... Ts, typename Seq, typename A, typename B, typename C>
+struct expr::vars<OpSum<V, E, Substitution<SymbolicDataArray<Ts>...>, Seq, A, B, C>>
+{
+	static constexpr auto get_ids()
+	{
+		return symphas::lib::fold_unique_ids(symphas::lib::seq_join(
+			expr::vars<E>::get_ids(), expr::vars<SymbolicDataArray<Ts>>::get_ids()...));
+	}
+
+	template<size_t Y>
+	static constexpr bool has_id()
+	{
+		return (expr::vars<SymbolicDataArray<Ts>>::template has_id<Y>() || ... || expr::vars<E>::template has_id<Y>());
+	}
+
+	template<size_t Y>
+	static constexpr auto only_id()
+	{
+		return (expr::vars<SymbolicDataArray<Ts>>::template only_id<Y>() && ... && expr::vars<E>::template only_id<Y>());
+	}
+
+	template<size_t Y>
+	static constexpr auto each_id()
+	{
+		return (expr::vars<SymbolicDataArray<Ts>>::template each_id<Y>() && ... && expr::vars<E>::template each_id<Y>());
+	}
+};
+
 
 //! Specialization based on expr::vars.
 template<typename G, typename V, typename E>
@@ -2292,7 +2725,7 @@ struct expr::vars<OpMap<G, V, E>>
 
 //! Specialization based on expr::vars.
 template<typename Dd, typename V, typename E, typename Sp>
-struct expr::vars<OpFuncDerivative<Dd, V, E, Sp>>
+struct expr::vars<OpDerivative<Dd, V, E, Sp>>
 {
 	static constexpr auto get_ids()
 	{
@@ -2379,7 +2812,7 @@ struct expr::vars<OpCombination<A1, A2, E>>
 
 //! Specialization based on expr::vars.
 template<typename V, typename E1, typename E2>
-struct expr::vars<OpFuncConvolution<V, E1, E2>>
+struct expr::vars<OpConvolution<V, E1, E2>>
 {
 	static constexpr auto get_ids()
 	{
@@ -2407,7 +2840,63 @@ struct expr::vars<OpFuncConvolution<V, E1, E2>>
 
 //! Specialization based on expr::vars.
 template<typename V, size_t D, typename E>
-struct expr::vars<OpFuncConvolution<V, GaussianSmoothing<D>, E>>
+struct expr::vars<OpConvolution<V, GaussianSmoothing<D>, E>>
+{
+	static constexpr auto get_ids()
+	{
+		return expr::vars<E>::get_ids();
+	}
+
+	template<size_t Y>
+	static constexpr bool has_id()
+	{
+		return expr::vars<E>::template has_id<Y>();
+	}
+
+	template<size_t Y>
+	static constexpr auto only_id()
+	{
+		return expr::vars<E>::template only_id<Y>();
+	}
+
+	template<size_t Y>
+	static constexpr auto each_id()
+	{
+		return expr::vars<E>::template each_id<Y>();
+	}
+};
+
+//! Specialization based on expr::vars.
+template<typename V, typename E>
+struct expr::vars<OpExponential<V, E>>
+{
+	static constexpr auto get_ids()
+	{
+		return expr::vars<E>::get_ids();
+	}
+
+	template<size_t Y>
+	static constexpr bool has_id()
+	{
+		return expr::vars<E>::template has_id<Y>();
+	}
+
+	template<size_t Y>
+	static constexpr auto only_id()
+	{
+		return expr::vars<E>::template only_id<Y>();
+	}
+
+	template<size_t Y>
+	static constexpr auto each_id()
+	{
+		return expr::vars<E>::template each_id<Y>();
+	}
+};
+
+//! Specialization based on expr::vars.
+template<expr::exp_key_t X, typename V, typename E>
+struct expr::vars<OpPow<X, V, E>>
 {
 	static constexpr auto get_ids()
 	{
@@ -2602,10 +3091,10 @@ struct expr::derivative_index<L, OpOperatorMixedDerivative<V, Sp, Os...>>
 
 //! Specialization based on expr::derivative_index.
 template<size_t L, typename Dd, typename V, typename E, typename Sp>
-struct expr::derivative_index<L, OpFuncDerivative<Dd, V, E, Sp>>
+struct expr::derivative_index<L, OpDerivative<Dd, V, E, Sp>>
 {
 protected:
-	static const size_t raw_value = expr::derivative_index_raw<OpFuncDerivative<Dd, V, E, Sp>::order>::value;
+	static const size_t raw_value = expr::derivative_index_raw<OpDerivative<Dd, V, E, Sp>::order>::value;
 
 public:
 	static const size_t value = raw_value;
@@ -2705,6 +3194,11 @@ struct OpIdentity : OpExpression<OpIdentity>
 
 	auto operator-() const;
 
+	operator int() const
+	{
+		return int(eval());
+	}
+
 };
 
 //! Negative of the multiplicative identity.
@@ -2739,6 +3233,11 @@ struct OpNegIdentity : OpExpression<OpNegIdentity>
 
 	auto operator-() const;
 
+	operator int() const
+	{
+		return int(eval());
+	}
+
 };
 
 inline auto OpIdentity::operator-() const
@@ -2771,48 +3270,6 @@ namespace expr
 // ******************************************************************************************
 
 
-namespace symphas::internal
-{
-
-	using expr::exp_key_t;
-
-	inline constexpr size_t xS = sizeof(exp_key_t) * 8;			//<! Size of the exponent key.
-	inline constexpr unsigned int xsm = (1ul << (xS - 1));		//<! Mask of the sign bit.
-	inline constexpr unsigned int xam = (~0ul >> (xS >> 1));	//<! Mask of the numerator value.
-	inline constexpr unsigned int xbm = ~(xam | xsm);			//<! Mask of the denominator value.
-
-	template<exp_key_t a, exp_key_t b, bool sign>
-	struct exp_compute_key
-	{
-	protected:
-
-		static const exp_key_t GCD = GCD_of<a, b>;
-
-	public:
-
-		static const exp_key_t N = a / GCD;
-		static const exp_key_t D = b / GCD;
-
-		static const exp_key_t value =
-			((sign) ? xsm : 0ul) |
-			(N & xam) |
-			(((D - 1) << (xS >> 1ul)) & xbm);
-	};
-
-	template<exp_key_t v>
-	struct exp_compute_key<v, 0, false>
-	{
-
-		static const exp_key_t N = (v & xam);
-		static const exp_key_t D = ((v & xbm) >> (xS >> 1ul)) + 1;
-		static const bool sign = (v & xsm) >> (xS - 1);
-
-
-		static constexpr double value = (double(N) / D) * ((sign) ? -1 : 1);
-		using type = exp_compute_key<N, D, sign>;
-	};
-
-}
 
 namespace expr
 {
@@ -2846,8 +3303,8 @@ namespace expr
 		return expr::make_literal(e.term);
 	}
 
-	template<typename G0, exp_key_t X0, typename... Gs, exp_key_t... Xs>
-	auto coeff(OpTerms<Term<G0, X0>, Term<Gs, Xs>...> const& e) = delete;
+	template<typename G0, exp_key_t X0, typename G1, exp_key_t X1, typename... Gs, exp_key_t... Xs>
+	auto coeff(OpTerms<Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...> const& e) = delete;
 
 	template<typename A, typename B>
 	constexpr auto coeff(OpBinaryMul<A, B> const& e)
@@ -3014,7 +3471,6 @@ public:
 
 
 
-
 // ******************************************************************************************
 
 /*
@@ -3029,9 +3485,10 @@ namespace expr
 	template<typename E, typename assign_type>
 	void result_interior(OpExpression<E> const& e, assign_type&& data, iter_type* inners, len_type len = 0)
 	{
+		auto& e0 = *static_cast<const E*>(&e);
 		if (!len)
 		{
-			len = expr::data_len(*static_cast<E const*>(&e));
+			len = expr::data_length(*static_cast<E const*>(&e));
 		}
 
 		symphas::internal::data_iterator it(std::forward<assign_type>(data));
@@ -3121,7 +3578,7 @@ namespace expr
 	{
 		if (!len)
 		{
-			len = expr::data_len(*static_cast<E const*>(&e));
+			len = expr::data_length(*static_cast<E const*>(&e));
 		}
 
 		symphas::internal::data_iterator it(std::forward<assign_type>(data));
@@ -3181,7 +3638,7 @@ namespace expr
 	{
 		if (!len)
 		{
-			len = expr::data_len(*static_cast<E const*>(&e));
+			len = expr::data_length(*static_cast<E const*>(&e));
 		}
 
 		symphas::internal::data_iterator it(std::forward<assign_type>(data));
@@ -3201,4 +3658,98 @@ namespace expr
 	}
 }
 
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//  library functions for symbolic expressions
+//
+//
+//
+//
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+namespace expr
+{
+
+	namespace symbols
+	{
+
+		//! Substitutable variable for use in templates.
+		/*!
+		 * Object used as an enumerated argument for templates.
+		 *
+		 * Templates can be created without specifying an argument list, and
+		 * the created template object will count the given expr::symbols::arg types used in the
+		 * expression to understand how many arguments can be passed. When expressions are
+		 * substituted in the template in order to expand it, their order in the template
+		 * substitution list (the paramters to the `operator()` method of the template object)
+		 * will be matched in order of increasing index of the argument objects used to construct
+		 * the template expression.
+		 */
+		template<size_t N, typename T = expr::symbols::Symbol>
+		using arg_t = OpTerm<OpIdentity, Variable<N, T>>;
+
+	}
+
+	namespace
+	{
+		template<size_t... Ns>
+		struct SymbolicTemplateDef;
+		template<typename... Gs>
+		struct SymbolicTemplateDefSwap;
+		template<typename... Gs>
+		struct SymbolicFunctionDef;
+
+		template<size_t... Ns>
+		constexpr bool all_ne = true;
+		template<size_t N0, size_t N1>
+		constexpr bool all_ne<N0, N1> = N0 != N1;
+		template<size_t N0, size_t N1, size_t N2, size_t... Ns>
+		constexpr bool all_ne<N0, N1, N2, Ns...> = (N0 != N1) ? all_ne<N0, N2, Ns...> && all_ne<N1, N2, Ns...> : false;
+
+		template<typename... Ts>
+		constexpr bool all_different = true;
+		template<typename T0, typename T1>
+		constexpr bool all_different<T0, T1> = !std::is_same_v<T0, T1>;
+		template<typename T0, typename T1, typename T2, typename... Ts>
+		constexpr bool all_different<T0, T1, T2, Ts...> = (!std::is_same_v<T0, T1>) ? all_different<T0, T2, Ts...> && all_different<T1, T2, Ts...> : false;
+
+	}
+
+	//! Create a template that can create an expression by substituting parameters to placeholders.
+	/*!
+	 * Expression templates are essentially patterns that other expressions are substituted into, in
+	 * order to build another expression.
+	 *
+	 * These templates can be created without specifying an argument list, and
+	 * the created function object will count the given expr::symbols::arg_t types used in the
+	 * expression to understand how many arguments can be passed. When expressions are
+	 * substituted in the function in order to expand it, their order in the function
+	 * substitution list (the paramters to the `operator()` method of the function object)
+	 * will be matched in order of increasing index of the argument objects used to construct
+	 * the function expression.
+	 */
+	template<typename... Ts>
+	decltype(auto) template_of(Ts&&... ts);
+
+	//! Define a symbolic function using the given argument types.
+	/*!
+	 * Functions are objects that substitute given data into their arguments so that the
+	 * enclosed expression can be evaluated with any data that is swapped on the fly. See
+	 * SymbolicFunction.
+	 *
+	 * Functions can be created without specifying an argument list, and
+	 * the created function object will not take any arguments as placeholders. When expressions 
+	 * are substituted in the function in order to expand it, their order in the function
+	 * substitution list (the paramters to the `operator()` method of the function object)
+	 * will be matched in order of increasing index of the argument objects used to construct
+	 * the function expression.
+	 */
+	template<typename... Ts>
+	decltype(auto) function_of(Ts&&... ts);
+
+
+}
 

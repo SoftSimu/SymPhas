@@ -632,11 +632,11 @@ namespace symphas::internal
 			auto buffer = set_var_string(var);
 			if constexpr (O == 1)
 			{
-				return fprintf(out, SYEX_DIRECTIONAL_DERIV_1_WITH_OTHER_FMT(ax, buffer));
+				return fprintf(out, SYEX_DIRECTIONAL_DERIV_1_WITH_OTHER_FMT(Axis::NONE, buffer));
 			}
 			else
 			{
-				return fprintf(out, SYEX_DIRECTIONAL_DERIV_WITH_OTHER_FMT(O, ax, buffer));
+				return fprintf(out, SYEX_DIRECTIONAL_DERIV_WITH_OTHER_FMT(O, Axis::NONE, buffer));
 			}
 		}
 

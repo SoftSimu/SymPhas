@@ -31,12 +31,14 @@
 #include "expressionlogic.h"
 #include "expressionaggregates.h"
 
+#include "symbolicdata.h"
+
 // ******************************************************************************************
 
 
 /*
  *
- * Multiplcation between basic values, particularly identities.
+ * Multiplication between basic values, particularly identities.
  *
  ******************************************************************************/
 
@@ -286,7 +288,312 @@ auto operator*(OpLiteral<T> const& a, OpNegIdentity)
 	return -a;
 }
 
+template<typename T1, typename I, typename T2>
+auto operator+(OpCoeff<T1, I> const& a, OpLiteral<T2> const& b)
+{
+	OpCoeff<add_result_t<T1, T2>, I> result(a);
+	for (iter_type i = 0; i < a.len; ++i)
+	{
+		result.data[i] += b;
+	}
+	return result;
+}
 
+template<typename T1, typename I, typename T2>
+auto operator-(OpCoeff<T1, I> const& a, OpLiteral<T2> const& b)
+{
+	OpCoeff<sub_result_t<T1, T2>, I> result(a);
+	for (iter_type i = 0; i < a.len; ++i)
+	{
+		result.data[i] -= b;
+	}
+	return result;
+}
+
+template<typename T1, typename I, typename T2>
+auto operator*(OpCoeff<T1, I> const& a, OpLiteral<T2> const& b)
+{
+	OpCoeff<mul_result_t<T1, T2>, I> result(a);
+	for (iter_type i = 0; i < a.len; ++i)
+	{
+		result.data[i] *= b;
+	}
+	return result;
+}
+
+template<typename T1, typename I, typename T2>
+auto operator/(OpCoeff<T1, I> const& a, OpLiteral<T2> const& b)
+{
+	OpCoeff<div_result_t<T1, T2>, I> result(a);
+	for (iter_type i = 0; i < a.len; ++i)
+	{
+		a.data[i] /= b;
+	}
+	return result;
+}
+
+template<typename T, typename I, typename coeff_t, std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator+(OpCoeff<T, I> const& a, coeff_t const& b)
+{
+	OpCoeff<T, I> result(a);
+	for (iter_type i = 0; i < a.len; ++i)
+	{
+		result.data[i] += b;
+	}
+}
+
+template<typename T, typename I, typename coeff_t, std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator-(OpCoeff<T, I> const& a, coeff_t const& b)
+{
+	OpCoeff<T, I> result(a);
+	for (iter_type i = 0; i < a.len; ++i)
+	{
+		result.data[i] -= b;
+	}
+	return result;
+}
+
+template<typename T, typename I, typename coeff_t, std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator*(OpCoeff<T, I> const& a, coeff_t const& b)
+{
+	OpCoeff<T, I> result(a);
+	for (iter_type i = 0; i < a.len; ++i)
+	{
+		result.data[i] *= b;
+	}
+	return result;
+}
+
+template<typename T, typename I, typename coeff_t, std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator/(OpCoeff<T, I> const& a, coeff_t const& b)
+{
+	OpCoeff<T, I> result(a);
+	for (iter_type i = 0; i < a.len; ++i)
+	{
+		a.data[i] /= b;
+	}
+	return result;
+}
+
+template<typename T, typename I, typename coeff_t, std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator+(coeff_t const& a, OpCoeff<T, I> const& b)
+{
+	OpCoeff<T, I> result(b);
+	for (iter_type i = 0; i < b.len; ++i)
+	{
+		result.data[i] = a + result.data[i];
+	}
+	return result;
+}
+
+template<typename T, typename I, typename coeff_t, std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator-(coeff_t const& a, OpCoeff<T, I> const& b)
+{
+	OpCoeff<T, I> result(b);
+	for (iter_type i = 0; i < b.len; ++i)
+	{
+		result.data[i] = a - result.data[i];
+	}
+	return result;
+}
+
+template<typename T, typename I, typename coeff_t, std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator*(coeff_t const& a, OpCoeff<T, I> const& b)
+{
+	OpCoeff<T, I> result(b);
+	for (iter_type i = 0; i < b.len; ++i)
+	{
+		result.data[i] = a * result.data[i];
+	}
+	return result;
+}
+
+template<typename T, typename I, typename coeff_t, std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator/(coeff_t const& a, OpCoeff<T, I> const& b)
+{
+	OpCoeff<T, I> result(b);
+	for (iter_type i = 0; i < b.len; ++i)
+	{
+		result.data[i] = a / result.data[i];
+	}
+	return result;
+}
+
+template<typename T1, typename T2>
+auto operator+(OpCoeff<T1, void> const& a, OpCoeff<T2, void> const& b)
+{
+	OpCoeff<add_result_t<T1, T2>, void> result(a);
+	for (iter_type i = 0; i < a.len; ++i)
+	{
+		result.data[i] = a.data[i] + b.data[i];
+	}
+	return result;
+}
+
+template<typename T1, typename T2>
+auto operator-(OpCoeff<T1, void> const& a, OpCoeff<T2, void> const& b)
+{
+	OpCoeff<sub_result_t<T1, T2>, void> result(a);
+	for (iter_type i = 0; i < a.len; ++i)
+	{
+		result.data[i] = a.data[i] - b.data[i];
+	}
+	return result;
+}
+
+template<typename T1, typename T2>
+auto operator*(OpCoeff<T1, void> const& a, OpCoeff<T2, void> const& b)
+{
+	OpCoeff<mul_result_t<T1, T2>, void> result(a);
+	for (iter_type i = 0; i < a.len; ++i)
+	{
+		result.data[i] = a.data[i] * b.data[i];
+	}
+	return result;
+}
+
+template<typename T1, typename T2>
+auto operator/(OpCoeff<T1, void> const& a, OpCoeff<T2, void> const& b)
+{
+	OpCoeff<div_result_t<T1, T2>, void> result(a);
+	for (iter_type i = 0; i < a.len; ++i)
+	{
+		result.data[i] = a.data[i] / b.data[i];
+	}
+	return result;
+}
+
+template<typename T1, typename I, typename T2>
+auto operator+(OpCoeff<T1, I> const& a, OpCoeff<T2, void> const& b)
+{
+	OpCoeff<add_result_t<T1, T2>, I> result(a);
+	for (iter_type i = 0; i < a.len; ++i)
+	{
+		result.data[i] = a.data[i] + b.data[i];
+	}
+	return result;
+}
+
+template<typename T1, typename I, typename T2>
+auto operator-(OpCoeff<T1, I> const& a, OpCoeff<T2, void> const& b)
+{
+	OpCoeff<sub_result_t<T1, T2>, I> result(a);
+	for (iter_type i = 0; i < a.len; ++i)
+	{
+		result.data[i] = a.data[i] - b.data[i];
+	}
+	return result;
+}
+
+template<typename T1, typename I, typename T2>
+auto operator*(OpCoeff<T1, I> const& a, OpCoeff<T2, void> const& b)
+{
+	OpCoeff<mul_result_t<T1, T2>, I> result(a);
+	for (iter_type i = 0; i < a.len; ++i)
+	{
+		result.data[i] = a.data[i] * b.data[i];
+	}
+	return result;
+}
+
+template<typename T1, typename I, typename T2>
+auto operator/(OpCoeff<T1, I> const& a, OpCoeff<T2, void> const& b)
+{
+	OpCoeff<div_result_t<T1, T2>, I> result(a);
+	for (iter_type i = 0; i < a.len; ++i)
+	{
+		result.data[i] = a.data[i] / b.data[i];
+	}
+	return result;
+}
+
+template<typename T1, typename I, typename T2>
+auto operator+(OpCoeff<T1, void> const& a, OpCoeff<T2, I> const& b)
+{
+	OpCoeff<add_result_t<T1, T2>, I> result(b);
+	for (iter_type i = 0; i < b.len; ++i)
+	{
+		result.data[i] = a.data[i] + b.data[i];
+	}
+	return result;
+}
+
+template<typename T1, typename I, typename T2>
+auto operator-(OpCoeff<T1, void> const& a, OpCoeff<T2, I> const& b)
+{
+	OpCoeff<sub_result_t<T1, T2>, I> result(b);
+	for (iter_type i = 0; i < b.len; ++i)
+	{
+		result.data[i] = a.data[i] - b.data[i];
+	}
+	return result;
+}
+
+template<typename T1, typename I, typename T2>
+auto operator*(OpCoeff<T1, void> const& a, OpCoeff<T2, I> const& b)
+{
+	OpCoeff<mul_result_t<T1, T2>, I> result(b);
+	for (iter_type i = 0; i < b.len; ++i)
+	{
+		result.data[i] = a.data[i] * b.data[i];
+	}
+	return result;
+}
+
+template<typename T1, typename I, typename T2>
+auto operator/(OpCoeff<T1, void> const& a, OpCoeff<T2, I> const& b)
+{
+	OpCoeff<div_result_t<T1, T2>, I> result(b);
+	for (iter_type i = 0; i < b.len; ++i)
+	{
+		result.data[i] = a.data[i] / b.data[i];
+	}
+	return result;
+}
+
+template<typename T1, typename I, typename T2>
+auto operator+(OpCoeff<T1, I> const& a, OpCoeff<T2, I> const& b)
+{
+	OpCoeff<add_result_t<T1, T2>, I> result(b);
+	for (iter_type i = 0; i < b.len; ++i)
+	{
+		result.data[i] = a.data[i] + b.data[i];
+	}
+	return result;
+}
+
+template<typename T1, typename I, typename T2>
+auto operator-(OpCoeff<T1, I> const& a, OpCoeff<T2, I> const& b)
+{
+	OpCoeff<sub_result_t<T1, T2>, I> result(b);
+	for (iter_type i = 0; i < b.len; ++i)
+	{
+		result.data[i] = a.data[i] - b.data[i];
+	}
+	return result;
+}
+
+template<typename T1, typename I, typename T2>
+auto operator*(OpCoeff<T1, I> const& a, OpCoeff<T2, I> const& b)
+{
+	OpCoeff<mul_result_t<T1, T2>, I> result(b);
+	for (iter_type i = 0; i < b.len; ++i)
+	{
+		result.data[i] = a.data[i] * b.data[i];
+	}
+	return result;
+}
+
+template<typename T1, typename I, typename T2>
+auto operator/(OpCoeff<T1, I> const& a, OpCoeff<T2, I> const& b)
+{
+	OpCoeff<div_result_t<T1, T2>, I> result(b);
+	for (iter_type i = 0; i < b.len; ++i)
+	{
+		result.data[i] = a.data[i] / b.data[i];
+	}
+	return result;
+}
 
 //! Multiplication between the identity expression and anything.
 template<typename E>
@@ -511,6 +818,21 @@ namespace expr
 	auto inverse(OpTerms<V, Term<Gs, Xs>...> const& e)
 	{
 		return expr::make_div(expr::inverse(expr::coeff(e)), OpTerms(OpIdentity{}, expr::terms_after_first(e)));
+	}
+
+	//! Apply an inverse to an expression.
+	template<typename V, typename E>
+	auto inverse(OpExponential<V, E> const& e)
+	{
+		return exp(e.value, -expr::get_enclosed_expression(e));
+	}
+
+	//! Apply an inverse to an expression.
+	template<expr::exp_key_t X, typename V, typename E>
+	auto inverse(OpPow<X, V, E> const& e)
+	{
+		constexpr expr::exp_key_t Xx = Xk<_Xk_t<X>::N, _Xk_t<X>::D, !_Xk_t<X>::sign>;
+		return make_pow<Xx>(e.value, expr::get_enclosed_expression(e));
 	}
 
 	//template<typename T, size_t... Ns>
@@ -1047,14 +1369,14 @@ auto operator-(OpIdentity, OpLiteral<T> const b)
 template<typename T>
 auto operator-(OpLiteral<T> const a, OpNegIdentity)
 {
-	return expr::make_literal(a.value - OpIdentity{}.eval());
+	return expr::make_literal(a.value - OpNegIdentity{}.eval());
 }
 
 //! Subtraction between the identity expression and a primitive value.
 template<typename T>
 auto operator-(OpNegIdentity, OpLiteral<T> const b)
 {
-	return expr::make_literal(OpIdentity{}.eval() - b.value);
+	return expr::make_literal(OpNegIdentity{}.eval() - b.value);
 }
 	
 //! Addition between a primitive value and the identity expression.
@@ -1075,14 +1397,14 @@ auto operator+(OpIdentity, OpLiteral<T> const b)
 template<typename T>
 auto operator+(OpLiteral<T> const a, OpNegIdentity)
 {
-	return expr::make_literal(a.value + OpIdentity{}.eval());
+	return expr::make_literal(a.value + OpNegIdentity{}.eval());
 }
 
 //! Addition between the identity expression and a primitive value.
 template<typename T>
 auto operator+(OpNegIdentity, OpLiteral<T> const b)
 {
-	return expr::make_literal(OpIdentity{}.eval() + b.value);
+	return expr::make_literal(OpNegIdentity{}.eval() + b.value);
 }
 
 /*
@@ -1484,16 +1806,16 @@ namespace expr
 
 //! Addition of two variables with data that can be combined.
 template<typename A, typename B, typename Dd, typename G, typename Sp, typename std::enable_if<expr::is_combinable<G>, int>::type = 0>
-auto operator+(OpFuncDerivative<Dd, A, OpTerm<OpIdentity, G>, Sp> const& a, OpFuncDerivative<Dd, B, OpTerm<OpIdentity, G>, Sp> const& b)
+auto operator+(OpDerivative<Dd, A, OpTerm<OpIdentity, G>, Sp> const& a, OpDerivative<Dd, B, OpTerm<OpIdentity, G>, Sp> const& b)
 {
-	return (expr::coeff(a) + expr::coeff(b)) * OpFuncDerivative<Dd, OpIdentity, OpTerm<OpIdentity, G>, Sp>(OpIdentity{}, expr::get_enclosed_expression(a), a.solver);
+	return (expr::coeff(a) + expr::coeff(b)) * OpDerivative<Dd, OpIdentity, OpTerm<OpIdentity, G>, Sp>(OpIdentity{}, expr::get_enclosed_expression(a), a.solver);
 }
 
 //! Subtraction of two variables with data that can be combined.
 template<typename A, typename B, typename Dd, typename G, typename Sp, typename std::enable_if<expr::is_combinable<G>, int>::type = 0>
-auto operator-(OpFuncDerivative<Dd, A, OpTerm<OpIdentity, G>, Sp> const& a, OpFuncDerivative<Dd, B, OpTerm<OpIdentity, G>, Sp> const& b)
+auto operator-(OpDerivative<Dd, A, OpTerm<OpIdentity, G>, Sp> const& a, OpDerivative<Dd, B, OpTerm<OpIdentity, G>, Sp> const& b)
 {
-	return (expr::coeff(a) + expr::coeff(b)) * OpFuncDerivative<Dd, OpIdentity, OpTerm<OpIdentity, G>, Sp>(OpIdentity{}, expr::get_enclosed_expression(a), a.solver);
+	return (expr::coeff(a) + expr::coeff(b)) * OpDerivative<Dd, OpIdentity, OpTerm<OpIdentity, G>, Sp>(OpIdentity{}, expr::get_enclosed_expression(a), a.solver);
 }
 
 
@@ -1518,7 +1840,7 @@ auto operator-(OpFuncDerivative<Dd, A, OpTerm<OpIdentity, G>, Sp> const& a, OpFu
  */
 
 template<typename V1, typename V2, typename Dd, typename E, typename Sp>
-auto operator/(OpFuncDerivative<Dd, V1, E, Sp> const& a, OpFuncDerivative<Dd, V2, E, Sp> const& b)
+auto operator/(OpDerivative<Dd, V1, E, Sp> const& a, OpDerivative<Dd, V2, E, Sp> const& b)
 {
 	return expr::make_literal(a.value * expr::inverse(b.value));
 }
@@ -1536,30 +1858,59 @@ auto operator/(OpFuncDerivative<Dd, V1, E, Sp> const& a, OpFuncDerivative<Dd, V2
 
 namespace expr
 {
-	namespace
+	template<typename E0, typename... Es, size_t... Is>
+	auto pick_like_terms(symphas::lib::types_list<Es...>, std::index_sequence<Is...>)
 	{
-		template<typename E0, typename... Es, size_t... Is>
-		auto pick_like_terms(OpAdd<Es...> const&, std::index_sequence<Is...>)
-		{
-			using mask_t = std::integer_sequence<bool, !std::is_same<OpAdd<E0, Es>, add_result_t<E0, Es>>::value...>;
-			return std::make_pair(
-				symphas::lib::seq_join_t<std::index_sequence<>, std::conditional_t<symphas::lib::seq_index_value<Is, mask_t>::value, std::index_sequence<Is>, std::index_sequence<>>...>{},
-				symphas::lib::seq_join_t<std::index_sequence<>, std::conditional_t<!symphas::lib::seq_index_value<Is, mask_t>::value, std::index_sequence<Is>, std::index_sequence<>>...>{}
-			);
-		}
+		// True on the index if there is a like term. 
+		using mask_t = std::integer_sequence<bool, !std::is_same<OpAdd<E0, Es>, add_result_t<E0, Es>>::value...>;
 
-		template<typename E0, typename... Es, size_t... Is>
-		auto apply_add(E0 const& e0, OpAdd<Es...> const& e, std::index_sequence<Is...>)
-		{
-			return (e0 + ... + expr::get<Is>(e));
-		}
+		//return std::make_pair(
+		//	symphas::lib::seq_join_t<std::index_sequence<>, std::conditional_t<symphas::lib::seq_index_value<Is, mask_t>::value, std::index_sequence<Is>, std::index_sequence<>>...>{},
+		//	symphas::lib::seq_join_t<std::index_sequence<>, std::conditional_t<!symphas::lib::seq_index_value<Is, mask_t>::value, std::index_sequence<Is>, std::index_sequence<>>...>{}
+		//);
+		return symphas::lib::seq_join_t<std::index_sequence<>, std::conditional_t<symphas::lib::seq_index_value<Is, mask_t>::value, std::index_sequence<Is>, std::index_sequence<>>...>{};
+	}
 
-		template<typename... Seqs>
-		auto filter_rest(Seqs...)
-		{
-			return symphas::lib::intersect_seq_t<Seqs...>{};
-		}
+	template<size_t N0, typename... Es, size_t... Is>
+	auto pick_like_terms(symphas::lib::types_list<> const&, symphas::lib::types_list<Es...>, std::index_sequence<Is...>)
+	{
+		return symphas::lib::types_list<symphas::lib::types_list<>, symphas::lib::types_list<>>{};
+	}
 
+	// Returns a types list of sequences, such that for each sequence, its first entry represents the index from E0, E0s which
+	// matches with the entries from Es using the other entries of the sequence. Is... indexes Es... .
+	template<size_t N0, typename E0, typename... E0s, typename... Es, size_t... Is>
+	auto pick_like_terms(symphas::lib::types_list<E0, E0s...> const&, symphas::lib::types_list<Es...>, std::index_sequence<Is...>)
+	{
+		using namespace symphas::lib;
+		if constexpr (sizeof...(Es) == 0)
+		{
+			return types_list<types_list<>, types_list<>>{};
+		}
+		else
+		{
+			using match_seq = decltype(pick_like_terms<E0>(
+				types_list<Es...>{},
+				std::make_index_sequence<sizeof...(Es)>{}));
+
+			using seq_choose = seq_join_t<select_types<match_seq, std::index_sequence<Is>...>>;
+			using seq_next = filter_seq_t<std::index_sequence<Is...>, seq_choose>;
+
+			using rest_seq = decltype(pick_like_terms<N0 + 1>(
+				types_list<E0s...>{},
+				filter_types_on_index<match_seq, Es...>{},
+				seq_next{}));
+			
+			return types_list<
+				expand_types_list<std::index_sequence<N0>, type_at_index<0, unroll_types_list<rest_seq>>>,
+				expand_types_list<seq_choose, type_at_index<1, unroll_types_list<rest_seq>>>>{};
+		}
+	}
+
+	template<typename E0, typename... Es, size_t... Is>
+	auto apply_add(E0 const& e0, OpAdd<Es...> const& e, std::index_sequence<Is...>)
+	{
+		return (e0 + ... + expr::get<Is>(e));
 	}
 
 	template<typename... Es, size_t... Is>
@@ -1568,64 +1919,50 @@ namespace expr
 		return expr::make_add(-expr::get<Is>(e)...);
 	}
 
-	inline auto compile_add(OpAdd<> const& add)
-	{
-		return OpVoid{};
-	}
-
-	template<typename E0>
-	auto compile_add(OpAdd<E0> const& add)
-	{
-		return add.data;
-	}
-
-	template<typename E0, typename E1, typename... Es>
-	auto compile_add(OpAdd<E0, E1, Es...> const& add)
-	{
-		return add;
-	}
-
-	template<typename... Es, typename... E0s>
-	auto compile_add(OpAdd<Es...> const& pick, OpVoid e0, E0s&&... es);
-
-	template<typename... Es, typename E0, typename... E0s>
-	auto compile_add(OpAdd<Es...> const& add, E0 const& e0, E0s&&... es);
-
-	template<typename... Es, size_t... Is, typename... E0s>
-	auto compile_add(OpAdd<Es...> const& pick, std::index_sequence<Is...>, E0s&&... es);
-
-
-	template<typename... Es, typename E0, typename... E0s>
-	auto compile_add(OpAdd<Es...> const& add, E0 const& e0, E0s&&... es)
-	{
-		return compile_add(OpAdd(e0, add), std::forward<E0s>(es)...);
-	}
-
-	template<typename... Es, typename... E0s>
-	auto compile_add(OpAdd<Es...> const& pick, OpVoid e0, E0s&&... es)
-	{
-		return compile_add(pick, std::forward<E0s>(es)...);
-	}
-
 	template<typename... Es, size_t... Is, typename... E0s>
 	auto compile_add(OpAdd<Es...> const& pick, std::index_sequence<Is...>, E0s&&... es)
 	{
-		return compile_add(OpAdd(expr::get<Is>(pick)...), std::forward<E0s>(es)...);
+		if constexpr (sizeof...(Is) == sizeof...(Es))
+		{
+			return make_add(pick, std::forward<E0s>(es)...);
+		}
+		else
+		{
+			return make_add(expr::get<Is>(pick)..., std::forward<E0s>(es)...);
+		}
+	}
+
+	template<typename... Es, size_t N0, size_t N1, size_t... Ns, typename... E0s>
+	auto compile_add_remove(OpAdd<Es...> const& pick, std::index_sequence<N0, N1, Ns...>, E0s&&... es)
+	{
+		return compile_add(pick, symphas::lib::filter_seq_t<std::make_index_sequence<sizeof...(Es)>, std::index_sequence<N0, N1, Ns...>>{}, std::forward<E0s>(es)...);
+	}
+
+	template<typename... Es, size_t N0, typename... E0s>
+	auto compile_add_remove(OpAdd<Es...> const& pick, std::index_sequence<N0>, E0s&&... es)
+	{
+		return make_add(expr::terms_after_n<N0>(pick), expr::terms_before_n<N0>(pick), std::forward<E0s>(es)...);
+	}
+
+	template<typename... Es, typename... E0s>
+	auto compile_add_remove(OpAdd<Es...> const& pick, std::index_sequence<>, E0s&&... es)
+	{
+		return make_add(pick, std::forward<E0s>(es)...);
 	}
 
 
 	template<typename A, typename... Es>
 	auto add_one(A const& add, OpAdd<Es...> const& e)
 	{
-		auto [like_seq, rest_seq] = pick_like_terms<A>(e, std::make_index_sequence<sizeof...(Es)>{});
-		return compile_add(e, rest_seq, apply_add(add, e, like_seq));
+		auto like_seq = pick_like_terms<A>(symphas::lib::types_list<Es...>{}, std::make_index_sequence<sizeof...(Es)>{});
+		return compile_add_remove(e, like_seq, apply_add(add, e, like_seq));
 	}
 
 	template<typename B, typename... Es>
 	auto add_one(OpAdd<Es...> const& e, B const& add)
 	{
-		auto [like_seq, rest_seq] = pick_like_terms<B>(e, std::make_index_sequence<sizeof...(Es)>{});
-		return compile_add(e, rest_seq, apply_add(add, e, like_seq));
+		auto like_seq = pick_like_terms<B>(symphas::lib::types_list<Es...>{}, std::make_index_sequence<sizeof...(Es)>{});
+		return compile_add_remove(e, like_seq, apply_add(add, e, like_seq));
 	}
 
 
@@ -1644,7 +1981,7 @@ namespace expr
 	template<typename E0, typename E1, typename E2, typename... Es>
 	auto add_all(E0 const& e0, E1 const& e1, E2 const& e2, Es const& ...es)
 	{
-		return ((e0 + e1 + e2) + ... + es);
+		return (e0 + e1 + (e2 + ... + es));
 	}
 
 	template<typename E0, typename E1, typename... Es, size_t... Is>
@@ -1659,15 +1996,61 @@ namespace expr
 		return (expr::get<Is>(e) + ...);
 	}
 
-	template<typename... As, typename... E0s, size_t... Is>
-	auto add_group(OpAdd<As...> const& add, std::index_sequence<Is...>, OpAdd<E0s...> const& e)
+	template<typename... As, typename... E0s, size_t... Is, size_t... Js>
+	auto compile_add_group(
+		OpAdd<As...> const& add, std::index_sequence<Is...>,
+		OpAdd<E0s...> const& add0, std::index_sequence<Js...>)
+	{
+		if constexpr (sizeof...(Is) == sizeof...(As))
+		{
+			return expr::make_add(add, expr::get<Js>(add0)...);
+		}
+		else
+		{
+			return expr::make_add(expr::get<Is>(add)..., expr::get<Js>(add0)...);
+		}
+	}
+
+	template<typename... As, typename... E0s, size_t... Is, size_t... Js>
+	auto add_group_apply(
+		OpAdd<As...> const& add, std::index_sequence<Is...>,
+		OpAdd<E0s...> const& add0, std::index_sequence<Js...>,
+		std::index_sequence<>, symphas::lib::types_list<>)
+	{
+		using namespace symphas::lib;
+		return expr::make_add(add, add0);
+	}
+	
+	template<typename... As, typename... E0s, size_t... Is, size_t... Js, size_t P0, size_t... Ps, typename Seq0, typename... Seqs>
+	auto add_group_apply(
+		OpAdd<As...> const& add, std::index_sequence<Is...>, 
+		OpAdd<E0s...> const& add0, std::index_sequence<Js...>,
+		std::index_sequence<P0, Ps...>, symphas::lib::types_list<Seq0, Seqs...>)
 	{
 		using namespace symphas::lib;
 
-		using like_seq_t = types_list<decltype(pick_like_terms<As>(e, std::make_index_sequence<sizeof...(E0s)>{}))...>;
-		return compile_add(e, 
-			filter_rest(type_at_index<Is, unroll_types_list<like_seq_t>>{}.second...), 
-			apply_add(expr::get<Is>(add), e, type_at_index<Is, unroll_types_list<like_seq_t>>{}.first)...);
+		using unmatched_seq_a = seq_skip_indices<sizeof...(Is), std::index_sequence<P0, Ps...>>;
+		using unmatched_seq_b = seq_skip_indices<sizeof...(Js), sort_seq<seq_join_t<Seq0, Seqs...>>>;
+
+		return expr::make_add(
+			compile_add_group(add, unmatched_seq_a{}, add0, unmatched_seq_b{}),
+			(expr::get<P0>(add) + compile_add(add0, Seq0{})), (expr::get<Ps>(add) + compile_add(add0, Seqs{}))...);
+	}
+
+
+	template<typename... As, typename... E0s, size_t... Is>
+	auto add_group(OpAdd<As...> const& add, std::index_sequence<Is...>, OpAdd<E0s...> const& add0)
+	{
+		using namespace symphas::lib;
+
+		using match_terms_t = decltype(pick_like_terms<0>(types_list<As...>{}, types_list<E0s...>{}, std::make_index_sequence<sizeof...(E0s)>{}));
+		using pick_a = seq_join_t<type_at_index<0, unroll_types_list<match_terms_t>>>;
+		using match_b = type_at_index<1, unroll_types_list<match_terms_t>>;
+
+		return add_group_apply(
+			add, std::index_sequence<Is...>{},
+			add0, std::make_index_sequence<sizeof...(E0s)>{},
+			pick_a{}, match_b{});
 	}
 
 	template<typename... As, typename... E0s, typename T0, typename... Ts, size_t... Is>
@@ -1724,9 +2107,10 @@ namespace expr
 	}
 
 	template<typename... As, typename... E0s, typename T0, typename... Ts, size_t... Is>
-	auto add_group(OpAdd<As...> const& add, std::index_sequence<Is...>, OpAdd<E0s...> const& e0, T0&& e1, Ts&&... rest)
+	auto add_group(OpAdd<As...> const& add, std::index_sequence<Is...>, OpAdd<E0s...> const& add0, T0&& e1, Ts&&... rest)
 	{
-		return add_group(add_group(add, std::index_sequence<Is...>{}, e0), std::forward<T0>(e1), std::forward<Ts>(rest)...);
+
+		return add_group(add_group(add, std::index_sequence<Is...>{}, add0), std::forward<T0>(e1), std::forward<Ts>(rest)...);
 	}
 
 
@@ -1736,7 +2120,7 @@ namespace expr
 	auto distribute_adds(A0 const& a, OpAdd<Bs...> const& b, std::index_sequence<Js...>)
 	{
 		//return expr::make_add((a * expr::get<Js>(b))...);
-		return ((a * expr::get<Js>(b)) + ...);
+		return make_add((a * expr::get<Js>(b))...);
 	}
 
 	//! Distributing addition expression into a addition expression.
@@ -1753,7 +2137,7 @@ namespace expr
 	auto distribute_adds(OpAdd<As...> const& a, B0 const& b, std::index_sequence<Is...>)
 	{
 		//return expr::make_add((expr::get<Is>(a) * b)...);
-		return ((expr::get<Is>(a) * b) + ...);
+		return make_add((expr::get<Is>(a) * b)...);
 	}
 
 	//! Distributing addition expression into a addition expression.
@@ -2509,11 +2893,11 @@ auto operator+(OpExpression<E> const& a, OpBinaryDiv<B1, B2> const& b)
 	return ((*static_cast<E const*>(&a)) * b.b + b.a) / b.b;
 }
 
-template<typename A1, typename A2, typename A3, typename... Bs>
-auto operator-(OpBinaryDiv<OpBinaryDiv<A1, A2>, A3> const& a, OpAdd<Bs...> const& b)
-{
-	return expr::terms_after_first(a);
-}
+//template<typename A1, typename A2, typename A3, typename... Bs>
+//auto operator-(OpBinaryDiv<OpBinaryDiv<A1, A2>, A3> const& a, OpAdd<Bs...> const& b)
+//{
+//	return expr::terms_after_first(a);
+//}
 
 template<typename A1, typename A2, typename... Bs,
 	typename std::enable_if_t<(expr::eval_type<A1>::rank == 0 && expr::eval_type<OpAdd<Bs...>>::rank == 0), int> = 0>
@@ -2903,4 +3287,15 @@ auto operator*(expr::symbols::Symbol, OpTensor<T, Ns...> const&)
 {
 	return OpTensor<expr::symbols::Symbol, Ns...>{};
 }
+
+
+template<>
+struct expr::eval_type<int> : expr::eval_type<OpLiteral<int>> {};
+template<>
+struct expr::eval_type<scalar_t> : expr::eval_type<OpLiteral<scalar_t>> {};
+template<>
+struct expr::eval_type<complex_t> : expr::eval_type<OpLiteral<complex_t>> {};
+template<typename T, size_t D>
+struct expr::eval_type<any_vector_t<T, D>> : expr::eval_type<OpTensor<T, 0, D>> {};
+
 

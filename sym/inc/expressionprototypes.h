@@ -53,6 +53,48 @@ namespace symphas::internal
 	template<expr::exp_key_t a, expr::exp_key_t b = 1, bool sign = false>
 	struct exp_compute_key;
 
+
+
+	using expr::exp_key_t;
+
+	inline constexpr size_t xS = sizeof(exp_key_t) * 8;			//<! Size of the exponent key.
+	inline constexpr unsigned int xsm = (1ul << (xS - 1));		//<! Mask of the sign bit.
+	inline constexpr unsigned int xam = (~0ul >> (xS >> 1));	//<! Mask of the numerator value.
+	inline constexpr unsigned int xbm = ~(xam | xsm);			//<! Mask of the denominator value.
+
+	template<exp_key_t a, exp_key_t b, bool sign>
+	struct exp_compute_key
+	{
+	protected:
+
+		static const exp_key_t GCD = GCD_of<a, b>;
+
+	public:
+
+		static const exp_key_t N = a / GCD;
+		static const exp_key_t D = b / GCD;
+
+		static const exp_key_t value =
+			((sign) ? xsm : 0ul) |
+			(N & xam) |
+			(((D - 1) << (xS >> 1ul)) & xbm);
+	};
+
+	template<exp_key_t v>
+	struct exp_compute_key<v, 0, false>
+	{
+
+		static const exp_key_t N = (v & xam);
+		static const exp_key_t D = ((v & xbm) >> (xS >> 1ul)) + 1;
+		static const bool sign = (v & xsm) >> (xS - 1);
+
+
+		static constexpr double value = (double(N) / D) * ((sign) ? -1 : 1);
+		using type = exp_compute_key<N, D, sign>;
+	};
+
+
+
 	struct tensor_fold;
 	struct tensor_cast;
 
@@ -115,6 +157,12 @@ namespace expr
 			}
 
 			inline auto operator/(expr::symbols::Symbol)
+			{
+				return expr::symbols::Symbol{};
+			}
+			
+			template<typename E>
+			auto operator=(E)
 			{
 				return expr::symbols::Symbol{};
 			}
@@ -190,7 +238,6 @@ namespace expr
 }
 
 
-
 /*!
  * \defgroup Op Symbolic Algebra Objects
  * @{
@@ -203,6 +250,8 @@ struct OpNegIdentity;
 struct OpVoid;
 template<typename T>
 struct OpLiteral;
+template<typename T, typename I = void>
+struct OpCoeff;
 template<size_t N, size_t D>
 struct OpFractionLiteral;
 template<size_t N, size_t D>
@@ -223,13 +272,13 @@ template<typename E>
 struct OpOperator;
 
 
-template<size_t Z, typename G = OpVoid>
+template<size_t Z, typename G = expr::symbols::Symbol>
 struct Variable;
 template<typename G>
 struct NamedData;
 
 
-template<typename G, expr::exp_key_t X>
+template<typename G, expr::exp_key_t X = expr::Xk<1>>
 struct Term;
 template<typename... Ts>
 struct OpTerms;
@@ -241,7 +290,7 @@ using OpTerm = OpTerms<V, Term<G, 1>>;
 template<typename G>
 struct SymbolicDerivative;
 template<typename Dd, typename V, typename E, typename T>
-struct OpFuncDerivative;
+struct OpDerivative;
 template<size_t O, typename V, typename T>
 struct OpOperatorDerivative;
 template<Axis ax, size_t O, typename V, typename Sp>
@@ -250,7 +299,7 @@ template<typename V, typename Sp, size_t... Os>
 struct OpOperatorMixedDerivative;
 
 template<typename V, typename E1, typename E2>
-struct OpFuncConvolution;
+struct OpConvolution;
 template<size_t D>
 struct GaussianSmoothing;
 
@@ -266,14 +315,21 @@ template<typename E>
 struct OpOperator;
 template<typename V, typename E>
 struct OpExponential;
+template<expr::exp_key_t X, typename V, typename E>
+struct OpPow;
 template<typename G, typename V, typename E>
 struct OpMap;
 
 template<typename V, typename E, typename F, typename Arg, typename... Args>
-struct OpFunc;
+struct OpFunction;
 template<auto f, typename V, typename E>
-struct OpFuncApply;
+struct OpFunctionApply;
+template<typename V, typename sub_t, typename... Ts>
+struct OpSymbolicEval;
 
+
+template<typename T>
+struct SymbolicData;
 
 template<size_t D, Axis ax>
 struct GridAxis;
@@ -287,5 +343,6 @@ namespace expr::prune
 	template<typename E>
 	void update(OpExpression<E>& e);
 }
+
 
 

@@ -116,6 +116,18 @@ namespace symphas::internal
 	};
 
 
+	template<>
+	struct data_value_type<expr::symbols::Symbol>
+	{
+		using type = expr::symbols::Symbol;
+		using ref = expr::symbols::Symbol;
+
+		decltype(auto) operator()(expr::symbols::Symbol* data, iter_type n)
+		{
+			return expr::symbols::Symbol{};
+		}
+	};
+
 
 	//! An iterator used to evaluate an expression on its underlying data.
 	/*!
