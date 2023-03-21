@@ -93,7 +93,7 @@ namespace LookupTables
 	const int blue[]{ 20, 43, 222 };
 
 
-	auto RedBlue()
+	auto RedBlue(scalar_t minimum, scalar_t maximum)
 	{
 		// Map the scalar values in the image to colors with a lookup table:
 		vtkNew<vtkLookupTable> lookupTable;
@@ -104,14 +104,14 @@ namespace LookupTables
 		lookupTable->SetRampToLinear();
 
 		lookupTable->SetNumberOfTableValues(512);
-		lookupTable->SetTableRange(-1., 1.);
+		lookupTable->SetTableRange(minimum, maximum);
 		lookupTable->IndexedLookupOff();
 		lookupTable->Build();
 
 		return lookupTable;
 	}
 
-	auto OneTwoThree(const double one[3], const double two[2], const double three[3])
+	auto OneTwoThree(scalar_t minimum, scalar_t maximum, const double one[3], const double two[2], const double three[3])
 	{
 		vtkNew<vtkColorTransferFunction> colorFunction;
 		colorFunction->SetColorSpaceToRGB();
@@ -122,7 +122,7 @@ namespace LookupTables
 
 		vtkNew<vtkLookupTable> lookupTable;
 		lookupTable->SetNumberOfTableValues(512);
-		lookupTable->SetTableRange(-0.5, 0.5);
+		lookupTable->SetTableRange(minimum, maximum);
 		lookupTable->Build();
 
 		size_t num_colors = lookupTable->GetNumberOfTableValues();
@@ -136,28 +136,28 @@ namespace LookupTables
 		return lookupTable;
 	}
 
-	auto OneTwoThree(const int one[3], const int two[2], const int three[3])
+	auto OneTwoThree(scalar_t minimum, scalar_t maximum, const int one[3], const int two[2], const int three[3])
 	{
 		double one_d[]{ one[0] / 256., one[1] / 256., one[2] / 256. };
 		double two_d[]{ two[0] / 256., two[1] / 256., two[2] / 256. };
 		double three_d[]{ three[0] / 256., three[1] / 256., three[2] / 256. };
-		return OneTwoThree(one_d, two_d, three_d);
+		return OneTwoThree(minimum, maximum, one_d, two_d, three_d);
 	}
 
 
-	auto OneTwoThree(vtkColor3ub cone, vtkColor3ub ctwo, vtkColor3ub cthree)
+	auto OneTwoThree(scalar_t minimum, scalar_t maximum, vtkColor3ub cone, vtkColor3ub ctwo, vtkColor3ub cthree)
 	{
 		int one[]{ cone.GetRed(), cone.GetGreen(), cone.GetBlue() };
 		int two[]{ ctwo.GetRed(), ctwo.GetGreen(), ctwo.GetBlue() };
 		int three[]{ cthree.GetRed(), cthree.GetGreen(), cthree.GetBlue() };
-		return OneTwoThree(one, two, three);
+		return OneTwoThree(minimum, maximum, one, two, three);
 	}
 
-	auto RedPurpleBlue()
+	auto RedPurpleBlue(scalar_t minimum, scalar_t maximum)
 	{
-		return OneTwoThree(red, purple, blue);
+		return OneTwoThree(minimum, maximum, red, purple, blue);
 	}
-	auto ColorSeriesCopy(vtkColorSeries::ColorSchemes cs)
+	auto ColorSeriesCopy(scalar_t minimum, scalar_t maximum, vtkColorSeries::ColorSchemes cs)
 	{
 		vtkNew<vtkColorSeries> colorSeries;
 		colorSeries->SetColorScheme(cs);
@@ -181,7 +181,7 @@ namespace LookupTables
 
 		vtkNew<vtkLookupTable> lookupTable;
 		lookupTable->SetNumberOfTableValues(512);
-		lookupTable->SetTableRange(-0.5, 0.5);
+		lookupTable->SetTableRange(minimum, maximum);
 		lookupTable->Build();
 
 		size_t num_colors = lookupTable->GetNumberOfTableValues();
@@ -226,6 +226,20 @@ void ColourPlot2d::init(scalar_t* (&values), len_type* dims, iter_type& index, C
 	{
 		size_t len = grid::length<2>(dims);
 
+		scalar_t minimum = DBL_MAX, maximum = -DBL_MAX;
+		for (iter_type i = 0; i < dims[0] * dims[1]; ++i)
+		{
+			minimum = std::min(minimum, values[i]);
+			maximum = std::max(maximum, values[i]);
+		}
+		scalar_t range = maximum - minimum;
+		scalar_t average = range / 2 + minimum;
+		scalar_t colour_range = range;
+
+		minimum = average - colour_range / 2;
+		maximum = average + colour_range / 2;
+
+
 		vtkNew<vtkDoubleArray> scalars;
 		scalars->SetArray(values, len, 1);
 
@@ -257,7 +271,7 @@ void ColourPlot2d::init(scalar_t* (&values), len_type* dims, iter_type& index, C
 
 
 		vtkNew<vtkImageMapToColors> mapColors;
-		mapColors->SetLookupTable(LookupTables::RedBlue());
+		mapColors->SetLookupTable(LookupTables::RedBlue(minimum, maximum));
 		mapColors->SetInputConnection(imageImport->GetOutputPort());
 
 
@@ -274,9 +288,10 @@ void ColourPlot2d::init(scalar_t* (&values), len_type* dims, iter_type& index, C
 
 		vtkNew<vtkPolyDataMapper> mapper;
 		mapper->SetInputConnection(plane->GetOutputPort());
-		mapper->SetScalarRange(-.5, .5);
+
+		mapper->SetScalarRange(minimum, maximum);
 		//mapper->ScalarVisibilityOn();
-		mapper->SetLookupTable(LookupTables::RedBlue());
+		mapper->SetLookupTable(LookupTables::RedBlue(minimum, maximum));
 		//plotMapper->GetProperty()->SetInterpolationTypeToNearest();
 
 		vtkNew<vtkActor> plotActor;
