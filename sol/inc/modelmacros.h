@@ -987,10 +987,6 @@ struct allowed_model_dimensions<void, D> \
 
 
 #define _nW(TYPE, ...) parent_type::template make_noise<NoiseType::WHITE, TYPE>(__VA_ARGS__)
-//expr::make_noise<NoiseType::WHITE, TYPE, Dm>( \
-	parent_type::template system<0>().dims, \
-	parent_type::template system<0>().get_info().get_widths().get(), \
-	SINGLE_ARG(&solver.dt, __VA_ARGS__))
 
 // **************************************************************************************
 
