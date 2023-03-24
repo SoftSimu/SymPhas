@@ -143,7 +143,7 @@ namespace expr
 	constexpr exp_key_t _XXk_D = expr::_Xk_t<X1>::D * expr::_Xk_t<X2>::D;
 
 	template<exp_key_t X1, exp_key_t X2>
-	using XXk_t = Xk_t<expr::exp_key_t((_XXk_N<X1, X2> < 0) ? -_XXk_N<X1, X2> : _XXk_N<X1, X2>), _XXk_D<X1, X2>, (_XXk_N<X1, X2> < 0)>;
+	using XXk_t = Xk_t<_XXk_N<X1, X2>, _XXk_D<X1, X2>, (switch_XXk_N<X1, X2> < 0)>;
 
 	namespace symbols
 	{
