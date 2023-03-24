@@ -986,10 +986,11 @@ struct allowed_model_dimensions<void, D> \
 #define param(N) parent_type::param(N - 1)
 
 
-#define _nW(TYPE, ...) expr::make_noise<NoiseType::WHITE, TYPE, Dm>( \
+#define _nW(TYPE, ...) parent_type::template make_noise<NoiseType::WHITE, TYPE>(__VA_ARGS__)
+//expr::make_noise<NoiseType::WHITE, TYPE, Dm>( \
 	parent_type::template system<0>().dims, \
 	parent_type::template system<0>().get_info().get_widths().get(), \
-	&solver.dt, __VA_ARGS__)
+	SINGLE_ARG(&solver.dt, __VA_ARGS__))
 
 // **************************************************************************************
 

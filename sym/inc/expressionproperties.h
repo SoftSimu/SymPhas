@@ -809,7 +809,7 @@ namespace expr
 	template<typename E0, typename... Es>
 	grid::dim_list data_dimensions(OpAdd<E0, Es...> const& e)
 	{
-		auto dims = data_dimensions(e.data);
+		auto dims = data_dimensions(expr::get<0>(e));
 		return (dims.n > 0) ? dims : data_dimensions(expr::terms_after_first(e));
 	}
 

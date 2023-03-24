@@ -939,9 +939,6 @@ struct OpFunction : OpExpression<OpFunction<V, E, F, Arg0, Args...>>
 			+ name.length() + SYEX_LAMBDA_FUNC_FMT_LEN;
 	}
 
-	friend auto const& expr::get_enclosed_expression(OpFunction<V, E, F, Arg0, Args...> const&);
-	friend auto& expr::get_enclosed_expression(OpFunction<V, E, F, Arg0, Args...>&);
-
 protected:
 
 	template<size_t... Is>
@@ -956,8 +953,6 @@ public:
 	F f;							//!< Functor which is applied to an expression.
 	std::tuple<Arg0, Args...> tt;	//!< Arguments to the function.
 	std::string name;				//!< Identifier of the function.
-
-protected:
 	E e;							//!< Expression to which a function is applied.
 };
 
@@ -1045,15 +1040,7 @@ struct OpFunction<V, E, F, void> : OpExpression<OpFunction<V, E, F, void>>
 
 #endif
 
-	friend auto const& expr::get_enclosed_expression(OpFunction<V, E, F, void> const&);
-	friend auto& expr::get_enclosed_expression(OpFunction<V, E, F, void>&);
-	friend auto const& expr::get_result_data(OpFunction<V, E, F, void> const&);
-	friend auto& expr::get_result_data(OpFunction<V, E, F, void>&);
-
 	V value;
-
-protected:
-
 	E e;							//!< Expression to which a function is applied.
 	F f;							//!< Functor which is applied to an expression.
 	std::string name;				//!< Identifier of the function.

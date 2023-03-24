@@ -233,7 +233,7 @@ auto operator+(OpOperator<E> const& a, OpOperator<E> const& b)
 	}
 	else
 	{
-		return OpOperatorCombination(cast(), *static_cast<E const*>(&b));
+		return OpOperatorCombination(*static_cast<E const*>(&a), *static_cast<E const*>(&b));
 	}
 }
 
@@ -247,7 +247,7 @@ auto operator-(OpOperator<E> const& a, OpOperator<E> const& b)
 	}
 	else
 	{
-		return OpOperatorCombination(cast(), *static_cast<E const*>(&b));
+		return OpOperatorCombination(*static_cast<E const*>(&a), *static_cast<E const*>(&b));
 	}
 }
 
@@ -345,17 +345,17 @@ auto operator-(OpOperator<E> const& a, OpOperatorChain<coeff_t, E> const& b)
 
 
 
-template<typename E1, typename E2>
-auto operator+(OpOperator<E1> const& a, OpOperator<E2> const& b)
-{
-	return (*static_cast<E1 const*>(&a)).operator+(*static_cast<E2 const*>(&b));
-}
-
-template<typename E1, typename E2>
-auto operator-(OpOperator<E1> const& a, OpOperator<E2> const& b)
-{
-	return (*static_cast<E1 const*>(&a)).operator-(*static_cast<E2 const*>(&b));
-}
+//template<typename E1, typename E2>
+//auto operator+(OpOperator<E1> const& a, OpOperator<E2> const& b)
+//{
+//	return (*static_cast<E1 const*>(&a)).operator+(*static_cast<E2 const*>(&b));
+//}
+//
+//template<typename E1, typename E2>
+//auto operator-(OpOperator<E1> const& a, OpOperator<E2> const& b)
+//{
+//	return (*static_cast<E1 const*>(&a)).operator-(*static_cast<E2 const*>(&b));
+//}
 
 template<typename E1, typename E2>
 auto operator/(OpOperator<E1> const& a, OpOperator<E2> const& b)
@@ -957,9 +957,10 @@ public:
 
 #endif
 
-	friend auto const& expr::get_enclosed_expression(OpCombination<A1, A2, E> const&);
-	friend auto& expr::get_enclosed_expression(OpCombination<A1, A2, E>&);
-
+    template<typename A10, typename A20, typename E0>
+	friend auto const& expr::get_enclosed_expression(OpCombination<A10, A20, E0> const&);
+    template<typename A10, typename A20, typename E0>
+	friend auto& expr::get_enclosed_expression(OpCombination<A10, A20, E0>&);
 
 protected:
 
@@ -1242,8 +1243,10 @@ public:
 	}
 
 
-	friend auto const& expr::get_enclosed_expression(OpChain<A1, A2, E> const&);
-	friend auto& expr::get_enclosed_expression(OpChain<A1, A2, E>&);
+    template<typename A10, typename A20, typename E0>
+	friend auto const& expr::get_enclosed_expression(OpChain<A10, A20, E0> const&);
+    template<typename A10, typename A20, typename E0>
+	friend auto& expr::get_enclosed_expression(OpChain<A10, A20, E0>&);
 
 #endif
 
@@ -1381,8 +1384,10 @@ struct OpPow : OpExpression<OpPow<X, V, E>>
 
 #endif
 
-	friend auto const& expr::get_enclosed_expression(OpPow<X, V, E> const&);
-	friend auto& expr::get_enclosed_expression(OpPow<X, V, E>&);
+    template<expr::exp_key_t X0, typename V0, typename E0>
+	friend auto const& expr::get_enclosed_expression(OpPow<X0, V0, E0> const&);
+    template<expr::exp_key_t X0, typename V0, typename E0>
+	friend auto& expr::get_enclosed_expression(OpPow<X0, V0, E0>&);
 
 	V value;
 	E e;		//!< Expression that is the base of the power.
@@ -1723,8 +1728,10 @@ struct OpMap : OpExpression<OpMap<G, V, E>>
 
 #endif
 
-	friend auto const& expr::get_enclosed_expression(OpMap<G, V, E> const&);
-	friend auto& expr::get_enclosed_expression(OpMap<G, V, E>&);
+    template<typename G0, typename V0, typename E0>
+	friend auto const& expr::get_enclosed_expression(OpMap<G0, V0, E0> const&);
+    template<typename G0, typename V0, typename E0>
+	friend auto& expr::get_enclosed_expression(OpMap<G0, V0, E0>&);
 
 	V value;		//!< Coefficient of the map expression term.
 	E e;			//!< Expression to which this operator applies.
@@ -1811,8 +1818,10 @@ struct OpMap<void, V, E> : OpExpression<OpMap<void, V, E>>
 
 #endif
 
-	friend auto const& expr::get_enclosed_expression(OpMap<void, V, E> const&);
-	friend auto& expr::get_enclosed_expression(OpMap<void, V, E>&);
+    template<typename V0, typename E0>
+	friend auto const& expr::get_enclosed_expression(OpMap<void, V0, E0> const&);
+    template<typename V0, typename E0>
+	friend auto& expr::get_enclosed_expression(OpMap<void, V0, E0>&);
 
 	V value;		//!< Coefficient of the map expression term.
 	E e;			//!< Expression to which this operator applies.
@@ -2140,8 +2149,10 @@ struct OpMap<symphas::internal::HCTS, OpIdentity, E> : OpExpression<OpMap<sympha
 
 #endif
 
-	friend auto const& expr::get_enclosed_expression(OpMap<symphas::internal::HCTS, OpIdentity, E> const&);
-	friend auto& expr::get_enclosed_expression(OpMap<symphas::internal::HCTS, OpIdentity, E>&);
+    template<typename E0>
+	friend auto const& expr::get_enclosed_expression(OpMap<symphas::internal::HCTS, OpIdentity, E0> const&);
+    template<typename E0>
+	friend auto& expr::get_enclosed_expression(OpMap<symphas::internal::HCTS, OpIdentity, E0>&);
 
 	len_type dims[D];	//!< Dimensions of the expression.
 };
@@ -2252,8 +2263,10 @@ struct OpMap<symphas::internal::STHC, OpIdentity, E> : OpExpression<OpMap<sympha
 
 #endif
 
-	friend auto const& expr::get_enclosed_expression(OpMap<symphas::internal::HCTS, OpIdentity, E> const&);
-	friend auto& expr::get_enclosed_expression(OpMap<symphas::internal::HCTS, OpIdentity, E>&);
+    template<typename E0>
+	friend auto const& expr::get_enclosed_expression(OpMap<symphas::internal::HCTS, OpIdentity, E0> const&);
+    template<typename E0>
+	friend auto& expr::get_enclosed_expression(OpMap<symphas::internal::HCTS, OpIdentity, E0>&);
 
 	len_type dims[D];	//!< Dimensions of the expression.
 };

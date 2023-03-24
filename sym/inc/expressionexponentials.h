@@ -152,8 +152,6 @@ struct OpExponential : OpExpression<OpExponential<V, E>>
 	V value;						//!< Value multiplying the result of this convolution.
 	E e;							//!< The expression which is exponentiated.
 
-	friend auto const& expr::get_enclosed_expression(OpExponential<V, E> const&);
-	friend auto& expr::get_enclosed_expression(OpExponential<V, E>&);
 
 };
 

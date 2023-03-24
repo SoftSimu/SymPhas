@@ -727,6 +727,7 @@ struct TraitEquation : parent_trait
 {
 	using parent_trait::parent_trait;
 	using parent_trait::solver;
+	static const size_t Dm = model_dimension<parent_trait>::value;
 
 	static const size_t Sn = model_num_parameters<parent_trait>::value;
 	using seq_t = std::make_index_sequence<Sn>;
@@ -763,6 +764,27 @@ struct TraitEquation : parent_trait
 	{
 		return param(N * Sn + I);
 	}
+
+    template<NoiseType nt, typename T, typename... Ts>
+    auto make_noise(Ts&& ...args) const
+    {
+        return expr::make_noise<nt, T, Dm>(
+            parent_trait::template system<0>().dims,
+            parent_trait::template system<0>().get_info().get_widths().get(),
+            &solver.dt, std::forward<Ts>(args)...);
+    }
+
+    template<NoiseType nt, size_t Z, typename G, typename... Ts>
+    auto make_noise(OpTerm<OpIdentity, Variable<Z, G>>, Ts&& ...args) const
+    {
+        using T = model_field_t<parent_trait, Z>;
+        return expr::make_noise<nt, T, Dm>(
+            parent_trait::template system<0>().dims,
+            parent_trait::template system<0>().get_info().get_widths().get(),
+            &solver.dt, std::forward<Ts>(args)...);
+    }
+
+
 
 	template<template<typename> typename other_enclosing_type, typename other_parent_trait>
 	explicit operator other_enclosing_type<other_parent_trait>()

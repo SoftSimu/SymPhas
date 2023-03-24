@@ -347,7 +347,7 @@ namespace symphas::internal
 		ic_iterator(ic_iterator<T, D> const& other) :
 			ic_iterator(other.ax, other.values, *other.init, other.pos) {}
 		ic_iterator(ic_iterator<T, D>&& other) :
-			ic_iterator(other.ax, *other.init, other.pos) {}
+			ic_iterator(other.ax, other.values, *other.init, other.pos) {}
 		ic_iterator<T, D>& operator=(ic_iterator<T, D> other)
 		{
 			fill = other.fill;

@@ -1754,7 +1754,7 @@ struct expr::storage_type
 	using storage_t = typename symphas::internal::get_first_storage_type<expr::term_types_t<E>>::type;
 	using check_t = std::conditional_t<
 		std::is_same<storage_t, void>::value, 
-			std::conditional_t<std::is_same<data_t, void>::value, OpIdentity, data_t>, 
+			std::conditional_t<std::is_same<data_t, void>::value, expr::symbols::Symbol, data_t>, 
 			storage_t>;
 
 	template<template<typename, size_t> typename enc_type>
@@ -3351,12 +3351,8 @@ namespace expr
 
 // *******************************************************************************
 
-
-template<typename E>
-struct expr::eval_type
+namespace symphas::internal
 {
-
-protected:
 
 	template<typename E0>
 	struct test_eval
@@ -3364,11 +3360,20 @@ protected:
 		using type = decltype(std::declval<OpIdentity>() * std::declval<E0>());
 	};
 
-	template<>
-	struct test_eval<void>
-	{
-		using type = void;
-	};
+    template<>
+    struct test_eval<void>
+    {
+        using type = void;
+    };
+}
+
+
+template<typename E>
+struct expr::eval_type
+{
+
+protected:
+
 
 	template<typename T, size_t D>
 	static constexpr std::index_sequence<1> _get_rank_1(any_vector_t<T, D> const&)
@@ -3455,208 +3460,21 @@ protected:
 	}
 
 	using eval_t = std::invoke_result_t<decltype(&E::eval), E, iter_type>;
-
+        
 public:
 	
-	using type = typename test_eval<eval_t>::type;
+	using type = typename symphas::internal::test_eval<eval_t>::type;
 	static constexpr size_t rank = symphas::lib::seq_index_value<0, std::invoke_result_t<decltype(&eval_type<E>::get_rank<type>)>>::value;
 	
+protected:
+
+    static constexpr size_t rank_1 = symphas::lib::seq_index_value<0, std::invoke_result_t<decltype(&expr::eval_type<E>::get_rank_1<type>)>>::value;
+
+public:
+
 	template<size_t D>
-	static constexpr size_t rank_ = 0;
-	template<>
-	static constexpr size_t rank_<0> = rank;
-	template<>
-	static constexpr size_t rank_<1> = symphas::lib::seq_index_value<0, std::invoke_result_t<decltype(&eval_type<E>::get_rank_1<type>)>>::value;
+	static constexpr size_t rank_ = (D == 0) ? rank : (D == 1) ? rank_1 : 0;
 };
-
-
-
-// ******************************************************************************************
-
-/*
- * evaluate the expression in every index in the array
- */
-
-namespace expr
-{
-
-#ifdef MULTITHREAD
-
-	template<typename E, typename assign_type>
-	void result_interior(OpExpression<E> const& e, assign_type&& data, iter_type* inners, len_type len = 0)
-	{
-		auto& e0 = *static_cast<const E*>(&e);
-		if (!len)
-		{
-			len = expr::data_length(*static_cast<E const*>(&e));
-		}
-
-		symphas::internal::data_iterator it(std::forward<assign_type>(data));
-
-		std::for_each(
-#ifdef EXECUTION_HEADER_AVAILABLE
-			std::execution::par_unseq, 
-#endif
-			inners, inners + len, [&] (iter_type index) { it[index] = static_cast<const E*>(&e)->eval(index); });
-	}
-
-	template<typename T, size_t D, typename E>
-	void result_interior(OpExpression<E> const& e, Grid<T, D>& grid)
-	{
-		expr::result_interior(*static_cast<const E*>(&e), grid, grid::interior_indices_list<D>(grid.dims), grid::length_interior<D>(grid.dims));
-	}
-
-#else
-
-	//! Evaluate the expression into the interior of the array.
-	/*!
-	 * Evaluate and store the result of the expression on the interior values
-	 * of a grid logically represented by the given dimensions. The direct
-	 * array pointer is given. The expression must be of the same
-	 * dimensionality as the array.
-	 * 
-	 * \param e The expression which is evaluated into the array.
-	 * \param values The array which contains the result of the expression on
-	 * its interior values.
-	 * \param dim The logical dimensions of the grid that the expression is
-	 * evaluated over.
-	 */
-	template<typename E, typename assign_type>
-	void result_interior(OpExpression<E> const& e, assign_type&& data, len_type(&dim)[3])
-	{
-		symphas::internal::data_iterator it(std::forward<assign_type>(data));
-		ITER_GRID3(it[INDEX] = static_cast<const E*>(&e)->eval(INDEX), dim[0], dim[1], dim[2])
-	}
-
-	//! Specialization based on result_interior(OpExpression<E> const&, T*, len_type(&)[3]).
-	template<typename E, typename assign_type>
-	void result_interior(OpExpression<E> const& e, assign_type&& data, len_type(&dim)[2])
-	{
-		symphas::internal::data_iterator it(std::forward<assign_type>(data));
-		ITER_GRID2(it[INDEX] = static_cast<const E*>(&e)->eval(INDEX), dim[0], dim[1])
-	}
-
-	//! Specialization based on result_interior(OpExpression<E> const&, T*, len_type(&)[3]).
-	template<typename E, typename assign_type>
-	void result_interior(OpExpression<E> const& e, assign_type&& data, len_type(&dim)[1])
-	{
-		symphas::internal::data_iterator it(std::forward<assign_type>(data));
-		ITER_GRID1(it[INDEX] = static_cast<const E*>(&e)->eval(INDEX), dim[0])
-	}
-
-	//! Evaluate the expression into the interior of the array.
-	/*!
-	 * See result_interior(OpExpression<E> const&, T*, len_type(&)[3]).
-	 * Implementation based on parameter input of a Grid.
-	 * Given the grid, the interior values are initialized to the result of
-	 * the expression at each respective point.
-	 * 
-	 * \param e The expression which is evaluated into the array.
-	 * \param grid The grid that contains the result of the expression on its
-	 * interior values.
-	 */
-	template<typename E, typename T, size_t D>
-	void result_interior(OpExpression<E> const& e, Grid<T, D>& grid)
-	{
-		expr::result_interior(*static_cast<const E*>(&e), grid, grid.dims);
-	}
-
-#endif
-
-
-
-	//! Evaluate the expression into the underlying data member.
-	/*!
-	 * The expression must be iterable over the entire given length.
-	 * 
-	 * \param e Expression that is evaluated.
-	 * \param data The array containing the result of the expression.
-	 * \param len The number of elements in the array.
-	 */
-	template<typename E, typename assign_type>
-	void result(OpExpression<E> const& e, assign_type&& data, len_type len = 0)
-	{
-		if (!len)
-		{
-			len = expr::data_length(*static_cast<E const*>(&e));
-		}
-
-		symphas::internal::data_iterator it(std::forward<assign_type>(data));
-
-#if defined(EXECUTION_HEADER_AVAILABLE)
-		std::copy(std::execution::par, 
-			static_cast<const E*>(&e)->begin(), 
-			static_cast<const E*>(&e)->end(len), it);
-#else
-		for (iter_type i = 0; i < len; i++)
-		{
-			it[i] = static_cast<const E*>(&e)->eval(i);
-		}
-#endif
-	}
-	
-	//! See result(OpExpression<E> const&, T*, len_type).
-	/*!
-	 * The given expression is evaluated at every point of the grid and the
-	 * result stored in grid array.
-	 * 
-	 * \param e The expression which is evaluated.
-	 * \param grid The grid that contains the result of the expression.
-	 */
-	template<typename E, size_t D, typename T>
-	void result(OpExpression<E> const& e, Grid<T, D>& grid)
-	{
-		expr::result(*static_cast<const E*>(&e), grid, grid.len);
-	}
-
-	//! Specialization based on result(OpExpression<E> const&, Grid<T, D>&).
-	template<typename E, typename T>
-	void result(OpExpression<E> const& e, Block<T>& grid)
-	{
-		expr::result(*static_cast<const E*>(&e), grid, grid.len);
-	}
-
-	//! Specialization based on result(OpExpression<E> const&, Grid<T, D>&).
-	template<typename G, typename E>
-	void result(std::pair<G, E> const& r)
-	{
-		auto&& [grid, expression] = r;
-		expr::result(expression, grid);
-	}
-
-	//! Add the result of the expression into the underlying data member.
-	/*!
-	 * The expression is evaluated and the result is added to the existing
-	 * values in the data array.
-	 * 
-	 * \param e Expression that is evaluated.
-	 * \param data The array of data.
-	 * \param len The length of the array.
-	 */
-	template<typename E, typename assign_type>
-	void result_accumulate(OpExpression<E> const& e, assign_type&& data, len_type len = 0)
-	{
-		if (!len)
-		{
-			len = expr::data_length(*static_cast<E const*>(&e));
-		}
-
-		symphas::internal::data_iterator it(std::forward<assign_type>(data));
-
-#if defined(MULTITHREAD) && defined(EXECUTION_HEADER_AVAILABLE)
-		std::transform(std::execution::par_unseq, 
-			static_cast<const E*>(&e)->begin(), 
-			static_cast<const E*>(&e)->end(len), it, it,
-			[](auto expr_value, auto data_value) { return data_value + expr_value; });
-#else
-
-		for (iter_type i = 0; i < len; i++)
-		{
-			it[i] += static_cast<const E*>(&e)->eval(i);
-		}
-#endif
-	}
-}
 
 
 
@@ -3753,3 +3571,375 @@ namespace expr
 
 }
 
+
+
+namespace expr
+{
+	//! Get the expression that the OpMap applies to.
+	template<typename G, typename V, typename E>
+	auto const& get_enclosed_expression(OpMap<G, V, E> const& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpMap applies to.
+	template<typename E>
+	auto const& get_enclosed_expression(OpMap<symphas::internal::HCTS, OpIdentity, E> const& e)
+	{
+		return e.e;
+	}
+	//! Get the expression that the OpMap applies to.
+	template<typename E>
+	auto const& get_enclosed_expression(OpMap<symphas::internal::STHC, OpIdentity, E> const& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpMap applies to.
+	template<typename V, typename E>
+	auto const& get_enclosed_expression(OpMap<void, V, E> const& e)
+	{
+		return *static_cast<E const*>(&e);
+	}
+
+	//! Get the expression that the OpDerivative applies to.
+	template<typename Dd, typename V, typename G, typename Sp>
+	decltype(auto) get_enclosed_expression(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> const& e)
+	{
+		return OpTerm<OpIdentity, G>(OpIdentity{}, e.data);
+	}
+
+	//! Get the expression that the OpDerivative applies to.
+	template<size_t O, typename V, typename G, typename G0>
+	auto const& get_enclosed_expression(OpDerivative<std::index_sequence<O>, V, OpTerm<OpIdentity, G>, SymbolicDerivative<G0>> const& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpDerivative applies to.
+	template<size_t O, typename V, typename E, typename G0>
+	auto const& get_enclosed_expression(OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G0>> const& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpDerivative applies to.
+	template<typename Dd, typename V, typename E, typename Sp>
+	auto const& get_enclosed_expression(OpDerivative<Dd, V, E, Sp> const& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpChain applies to.
+	template<typename A1, typename A2, typename E>
+	auto const& get_enclosed_expression(OpChain<A1, A2, E> const& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpCombination applies to.
+	template<typename A1, typename A2, typename E>
+	auto const& get_enclosed_expression(OpCombination<A1, A2, E> const& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpFunction applies to.
+	template<typename V, typename E, typename F, typename Arg0, typename... Args>
+	auto const& get_enclosed_expression(OpFunction<V, E, F, Arg0, Args...> const& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpConvolution applies to.
+	template<auto f, typename V, typename E>
+	auto const& get_enclosed_expression(OpFunctionApply<f, V, E> const& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpConvolution applies to.
+	template<typename V, typename sub_t, typename E, typename... Ts>
+	const auto& get_enclosed_expression(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e)
+	{
+		return e.f.e;
+	}
+
+	//! Get the expression that the OpConvolution applies to.
+	template<typename V, size_t D, typename G>
+	decltype(auto) get_enclosed_expression(OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>> const& e)
+	{
+		return OpTerm<OpIdentity, G>(OpIdentity{}, e.data);
+	}
+
+
+
+	//! Get the expression that the OpConvolution applies to.
+	template<typename V, size_t D, typename E>
+	auto const& get_enclosed_expression(OpConvolution<V, GaussianSmoothing<D>, E> const& e)
+	{
+		return e.e;
+	}
+
+
+	//! Get the expression that the OpExponential applies to.
+	template<typename V, typename E>
+	auto const& get_enclosed_expression(OpExponential<V, E> const& e)
+	{
+		return e.e;
+	}
+
+	template<expr::exp_key_t X, typename V, typename E>
+	auto const& get_enclosed_expression(OpPow<X, V, E> const& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpMap applies to.
+	template<typename G, typename V, typename E>
+	auto& get_enclosed_expression(OpMap<G, V, E>& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpMap applies to.
+	template<typename E>
+	auto& get_enclosed_expression(OpMap<symphas::internal::HCTS, OpIdentity, E>& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpMap applies to.
+	template<typename E>
+	auto& get_enclosed_expression(OpMap<symphas::internal::STHC, OpIdentity, E>& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpMap applies to.
+	template<typename V, typename E>
+	auto& get_enclosed_expression(OpMap<void, V, E>& e)
+	{
+		return *static_cast<E*>(&e);
+	}
+
+	//! Get the expression that the OpDerivative applies to.
+	template<typename Dd, typename V, typename G, typename Sp>
+	decltype(auto) get_enclosed_expression(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp>& e)
+	{
+		return OpTerm<OpIdentity, G>(OpIdentity{}, e.data);
+	}
+
+	//! Get the expression that the OpDerivative applies to.
+	template<size_t O, typename V, typename G, typename G0>
+	auto& get_enclosed_expression(OpDerivative<std::index_sequence<O>, V, OpTerm<OpIdentity, G>, SymbolicDerivative<G0>>& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpDerivative applies to.
+	template<typename Dd, typename V, typename E, typename Sp>
+	auto& get_enclosed_expression(OpDerivative<Dd, V, E, Sp>& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpDerivative applies to.
+	template<size_t O, typename V, typename E, typename G0>
+	auto& get_enclosed_expression(OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G0>>& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpChain applies to.
+	template<typename A1, typename A2, typename E>
+	auto& get_enclosed_expression(OpChain<A1, A2, E>& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpCombination applies to.
+	template<typename A1, typename A2, typename E>
+	auto& get_enclosed_expression(OpCombination<A1, A2, E>& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpConvolution applies to.
+	template<typename V, typename E, typename F, typename Arg0, typename... Args>
+	auto& get_enclosed_expression(OpFunction<V, E, F, Arg0, Args...>& e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpConvolution applies to.
+	template<typename V, typename sub_t, typename E, typename... Ts>
+	auto& get_enclosed_expression(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>>& e)
+	{
+		return e.f.e;
+	}
+
+	//! Get the expression that the OpConvolution applies to.
+	template<typename V, size_t D, typename G>
+	decltype(auto) get_enclosed_expression(OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>& e)
+	{
+		return OpTerm<OpIdentity, G>(OpIdentity{}, e.data);
+	}
+
+	//! Get the expression that the OpConvolution applies to.
+	template<typename V, size_t D, typename E>
+	auto& get_enclosed_expression(OpConvolution<V, GaussianSmoothing<D>, E>& e)
+	{
+		return e.e;
+	}
+
+	template<expr::exp_key_t X, typename V, typename E>
+	auto& get_enclosed_expression(OpPow<X, V, E> &e)
+	{
+		return e.e;
+	}
+
+	//! Get the expression that the OpExponential applies to.
+	template<typename V, typename E>
+	auto& get_enclosed_expression(OpExponential<V, E>& e)
+	{
+		return e.e;
+	}
+
+
+	template<typename E>
+	auto& get_result_data(OpExpression<E>& e) = delete;
+
+	//! Get the grid storing the underlying data of the OpDerivative.
+	template<typename Dd, typename V, typename G, typename Sp>
+	auto& get_result_data(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp>& e) = delete;
+
+	//! Get the grid storing the underlying data of the OpDerivative.
+	template<typename Dd, typename V, typename E, typename Sp>
+	auto& get_result_data(OpDerivative<Dd, V, E, Sp>& e)
+	{
+		return e.grid;
+	}
+
+	//! Get the grid storing the underlying data of the OpDerivative.
+	template<size_t O, typename V, typename E, typename G0>
+	auto& get_result_data(OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G0>>&) = delete;
+
+
+	//! Get the grid storing the underlying data of the OpConvolution.
+	template<typename V, typename E1, typename E2>
+	auto& get_result_data(OpConvolution<V, E1, E2>& e)
+	{
+		return e.g0;
+	}
+
+	//! Get the grid storing the underlying data of the OpConvolution.
+	template<typename V, size_t D, typename G>
+	auto& get_result_data(OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>& e)
+	{
+		return e.g0;
+	}
+
+	//! Get the grid storing the underlying data of the OpConvolution.
+	template<typename V, size_t D, typename E>
+	auto& get_result_data(OpConvolution<V, GaussianSmoothing<D>, E>& e)
+	{
+		return e.g0;
+	}
+
+	//! Get the grid storing the underlying data of the OpDerivative.
+	template<typename Dd, typename V, typename E, typename Sp>
+	auto const& get_result_data(OpDerivative<Dd, V, E, Sp> const& e)
+	{
+		return e.grid;
+	}
+
+	//! Get the grid storing the underlying data of the OpDerivative.
+	template<typename Dd, typename V, typename G, typename Sp>
+	auto& get_result_data(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> const& e) = delete;
+
+	//! Get the grid storing the underlying data of the OpDerivative.
+	template<size_t O, typename V, typename E, typename G0>
+	auto const& get_result_data(OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G0>> const&) = delete;
+
+	//! Get the grid storing the underlying data of the OpExponential.
+	template<typename V, typename E>
+	auto const& get_result_data(OpExponential<V, E> const& e)
+	{
+		return e.data;
+	}
+
+	//! Get the grid storing the underlying data of the OpConvolution.
+	template<typename V, typename E1, typename E2>
+	auto const& get_result_data(OpConvolution<V, E1, E2> const& e)
+	{
+		return e.g0;
+	}
+
+	//! Get the grid storing the underlying data of the OpConvolution.
+	template<typename V, size_t D, typename G>
+	auto const& get_result_data(OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>> const& e)
+	{
+		return e.g0;
+	}
+
+	//! Get the grid storing the underlying data of the OpConvolution.
+	template<typename V, size_t D, typename E>
+	auto const& get_result_data(OpConvolution<V, GaussianSmoothing<D>, E> const& e)
+	{
+		return e.g0;
+	}
+
+
+
+
+
+	template<size_t N, typename V, typename... Gs, exp_key_t... Xs>
+	const auto& get(OpTerms<V, Term<Gs, Xs>...> const& e);
+	template<size_t N, typename V, typename... Gs, exp_key_t... Xs>
+	auto& get(OpTerms<V, Term<Gs, Xs>...>& e);
+
+	template<typename G0, exp_key_t X0>
+	const auto& terms_after_first(OpTerms<Term<G0, X0>> const& e);
+	template<typename G0, exp_key_t X0>
+	auto& terms_after_first(OpTerms<Term<G0, X0>>& e);
+	template<typename V, typename G0, exp_key_t X0, typename... Gs, exp_key_t... Xs>
+	decltype(auto) terms_after_first(OpTerms<V, Term<G0, X0>, Term<Gs, Xs>...> const& e);
+	template<typename V, typename G0, exp_key_t X0, typename... Gs, exp_key_t... Xs>
+	decltype(auto) terms_after_first(OpTerms<V, Term<G0, X0>, Term<Gs, Xs>...>& e);
+	template<typename V>
+	decltype(auto) terms_after_first(OpTerms<V> const& e);
+	template<typename V>
+	decltype(auto) terms_after_first(OpTerms<V>& e);
+	template<size_t N, typename V, typename... Gs, exp_key_t... Xs>
+	decltype(auto) terms_after_n(OpTerms<V, Term<Gs, Xs>...> const& e);
+	template<size_t N, typename V, typename... Gs, exp_key_t... Xs>
+	decltype(auto) terms_after_n(OpTerms<V, Term<Gs, Xs>...>& e);
+
+	template<size_t N, typename... Es>
+	const auto& get(OpAdd<Es...> const& e);
+	template<size_t N, typename... Es>
+	auto& get(OpAdd<Es...>& e);
+	template<size_t N, typename... Es>
+	decltype(auto) terms_before_n(OpAdd<Es...> const& e);
+	template<size_t N, typename... Es>
+	decltype(auto) terms_before_n(OpAdd<Es...>& e);
+
+	template<size_t N, typename... Es>
+	decltype(auto) terms_after_n(OpAdd<Es...> const& e);
+	template<size_t N, typename... Es>
+	decltype(auto) terms_after_n(OpAdd<Es...>& e);
+	template<typename E0, typename E1, typename E2, typename... Es>
+	const auto& terms_after_first(OpAdd<E0, E1, E2, Es...> const& e);
+	template<typename E0, typename E1>
+	const auto& terms_after_first(OpAdd<E0, E1> const& e);
+	template<typename E0, typename E1, typename E2, typename... Es>
+	auto& terms_after_first(OpAdd<E0, E1, E2, Es...>& e);
+	template<typename E0, typename E1>
+	auto& terms_after_first(OpAdd<E0, E1>& e);
+
+
+    template<typename T>
+    auto eval(T const& value);
+
+}

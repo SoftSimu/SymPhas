@@ -78,10 +78,6 @@ public:
 
 #endif
 
-
-	friend auto const& expr::get_enclosed_expression(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const&);
-	friend auto& expr::get_enclosed_expression(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>>&);
-
 };
 
 template<typename V, typename sub_t, typename E, typename... Ts>

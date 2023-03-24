@@ -823,7 +823,7 @@ struct SymbolicCase<
 {
 	using parent_type = expr::symbols::Symbol;
 
-	SymbolicCase(expr::symbols::index_eq_N<expr::symbols::i_<N0, P0>, N>, A, B) :
+	SymbolicCase(expr::symbols::index_eq_N<expr::symbols::i_<N0, P0>, N>, A left, B right) :
 		parent_type(), cases{ left, right } {}
 	SymbolicCase() : parent_type(), cases{} {}
 

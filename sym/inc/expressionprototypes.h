@@ -57,9 +57,9 @@ namespace symphas::internal
 
 	using expr::exp_key_t;
 
-	inline constexpr size_t xS = sizeof(exp_key_t) * 8;			//<! Size of the exponent key.
-	inline constexpr unsigned int xsm = (1ul << (xS - 1));		//<! Mask of the sign bit.
-	inline constexpr unsigned int xam = (~0ul >> (xS >> 1));	//<! Mask of the numerator value.
+	inline constexpr unsigned int xS = sizeof(exp_key_t) * 8;	//<! Size of the exponent key.
+	inline constexpr unsigned int xsm = (1u << (xS - 1u));	    //<! Mask of the sign bit.
+	inline constexpr unsigned int xam = (~0u >> (xS >> 1u));	//<! Mask of the numerator value.
 	inline constexpr unsigned int xbm = ~(xam | xsm);			//<! Mask of the denominator value.
 
 	template<exp_key_t a, exp_key_t b, bool sign>
@@ -121,16 +121,29 @@ namespace expr
 	constexpr auto _Xk = Xk<value, 0, false>;
 
 
+	template<bool sign1, bool sign2, exp_key_t X1, exp_key_t X2>
+	constexpr int compute_XXk_N = int(expr::_Xk_t<X1>::N * expr::_Xk_t<X2>::D + expr::_Xk_t<X2>::N * expr::_Xk_t<X1>::D);
 	template<exp_key_t X1, exp_key_t X2>
-	constexpr int compute_XXk_N =
-		((expr::_Xk_t<X1>::sign) ? -1 : 1) * int(expr::_Xk_t<X1>::N * expr::_Xk_t<X2>::D) +
-		((expr::_Xk_t<X2>::sign) ? -1 : 1) * int(expr::_Xk_t<X2>::N * expr::_Xk_t<X1>::D);
+	constexpr int compute_XXk_N<true, false, X1, X2> = int(expr::_Xk_t<X1>::N * expr::_Xk_t<X2>::D) - int(expr::_Xk_t<X2>::N * expr::_Xk_t<X1>::D);
+	template<exp_key_t X1, exp_key_t X2>
+	constexpr int compute_XXk_N<false, true, X1, X2> = int(expr::_Xk_t<X2>::N * expr::_Xk_t<X1>::D) - int(expr::_Xk_t<X1>::N * expr::_Xk_t<X2>::D);
+
+    template<exp_key_t X1, exp_key_t X2>
+    constexpr int switch_XXk_N = compute_XXk_N<_Xk_t<X1>::sign, _Xk_t<X2>::sign, X1, X2>;
+
+    template<bool flag, exp_key_t X1, exp_key_t X2>
+    constexpr exp_key_t abs_XXk_N = exp_key_t(switch_XXk_N<X1, X2>);
+    template<exp_key_t X1, exp_key_t X2>
+    constexpr exp_key_t abs_XXk_N<false, X1, X2> = exp_key_t(-switch_XXk_N<X1, X2>);
+
+    template<exp_key_t X1, exp_key_t X2>
+    constexpr exp_key_t _XXk_N = abs_XXk_N<(switch_XXk_N<X1, X2> >= 0), X1, X2>;
 
 	template<exp_key_t X1, exp_key_t X2>
-	constexpr int compute_XXk_D = expr::_Xk_t<X1>::D * expr::_Xk_t<X2>::D;
+	constexpr exp_key_t _XXk_D = expr::_Xk_t<X1>::D * expr::_Xk_t<X2>::D;
 
 	template<exp_key_t X1, exp_key_t X2>
-	using XXk_t = Xk_t<expr::exp_key_t((compute_XXk_N<X1, X2> < 0) ? -compute_XXk_N<X1, X2> : compute_XXk_N<X1, X2>), compute_XXk_D<X1, X2>, (compute_XXk_N<X1, X2> < 0)>;
+	using XXk_t = Xk_t<expr::exp_key_t((_XXk_N<X1, X2> < 0) ? -_XXk_N<X1, X2> : _XXk_N<X1, X2>), _XXk_D<X1, X2>, (_XXk_N<X1, X2> < 0)>;
 
 	namespace symbols
 	{
@@ -341,7 +354,8 @@ namespace expr::prune
 {
 
 	template<typename E>
-	void update(OpExpression<E>& e);
+	void update(E& e);
+
 }
 
 

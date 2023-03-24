@@ -303,8 +303,10 @@ public:
 	E2 b;						//!< Second expression in the convolution.
 
 
-	friend auto const& expr::get_result_data(OpConvolution<V, E1, E2> const&);
-	friend auto& expr::get_result_data(OpConvolution<V, E1, E2>&);
+    template<typename V0, typename E10, typename E20>
+	friend auto const& expr::get_result_data(OpConvolution<V0, E10, E20> const&);
+    template<typename V0, typename E10, typename E20>
+	friend auto& expr::get_result_data(OpConvolution<V0, E10, E20>&);
 
 
 	//! Update the convolution by computing the result into the stored grid. 
@@ -511,10 +513,14 @@ public:
 	E e;							//!< The expression to populate the first grid.
 	GaussianSmoothing<D> smoother;	//!< The smoothing kernel.
 
-	friend auto const& expr::get_enclosed_expression(OpConvolution<V, GaussianSmoothing<D>, E> const&);
-	friend auto& expr::get_enclosed_expression(OpConvolution<V, GaussianSmoothing<D>, E>&);
-	friend auto const& expr::get_result_data(OpConvolution<V, GaussianSmoothing<D>, E> const&);
-	friend auto& expr::get_result_data(OpConvolution<V, GaussianSmoothing<D>, E>&);
+    template<typename V0, size_t D0, typename E0>
+	friend auto const& expr::get_enclosed_expression(OpConvolution<V0, GaussianSmoothing<D0>, E0> const&);
+    template<typename V0, size_t D0, typename E0>
+	friend auto& expr::get_enclosed_expression(OpConvolution<V0, GaussianSmoothing<D0>, E0>&);
+    template<typename V0, size_t D0, typename E0>
+	friend auto const& expr::get_result_data(OpConvolution<V0, GaussianSmoothing<D0>, E0> const&);
+    template<typename V0, size_t D0, typename E0>
+	friend auto& expr::get_result_data(OpConvolution<V0, GaussianSmoothing<D0>, E0>&);
 
 
 	//! Update the convolution by computing the result into the stored grid. 
@@ -701,10 +707,14 @@ public:
 	V value;						//!< Value multiplying the result of this convolution.
 	GaussianSmoothing<D> smoother;	//!< The smoothing kernel.
 
-	friend decltype(auto) expr::get_enclosed_expression(OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>> const&);
-	friend decltype(auto) expr::get_enclosed_expression(OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>&);
-	friend auto const& expr::get_result_data(OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>> const&);
-	friend auto& expr::get_result_data(OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>&);
+    template<typename V0, size_t D0, typename G0>
+	friend decltype(auto) expr::get_enclosed_expression(OpConvolution<V0, GaussianSmoothing<D0>, OpTerm<OpIdentity, G0>> const&);
+    template<typename V0, size_t D0, typename G0>
+	friend decltype(auto) expr::get_enclosed_expression(OpConvolution<V0, GaussianSmoothing<D0>, OpTerm<OpIdentity, G0>>&);
+    template<typename V0, size_t D0, typename G0>
+	friend auto const& expr::get_result_data(OpConvolution<V0, GaussianSmoothing<D0>, OpTerm<OpIdentity, G0>> const&);
+    template<typename V0, size_t D0, typename G0>
+	friend auto& expr::get_result_data(OpConvolution<V0, GaussianSmoothing<D0>, OpTerm<OpIdentity, G0>>&);
 
 
 	void update()

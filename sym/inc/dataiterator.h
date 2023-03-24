@@ -27,7 +27,7 @@
 #pragma once
 
 #include "grid.h"
-#include "expressionlib.h"
+#include "expressionprototypes.h"
 
 
 
@@ -156,11 +156,11 @@ namespace symphas::internal
 		 * \param pos The index of the underlying data in the expression
 		 * which is the first index in the iterator.
 		 */
-		//data_iterator(difference_type pos = 0)
-		//	: e_ptr{ nullptr }, pos{ pos } {
-		//	printf("N%d\n", pos);
-		//	printf("N%p\n", e_ptr);
-		//}
+		data_iterator(difference_type pos = 0)
+			: e_ptr{ nullptr }, pos{ pos } {
+			printf("N%d\n", pos);
+			printf("N%p\n", e_ptr);
+		}
 
 		//! Create an iterator starting at the given position.
 		/*!

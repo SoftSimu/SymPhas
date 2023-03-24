@@ -552,261 +552,261 @@ struct PersistentSystemData<G<T, D>> : SystemData<G<T, D>>
 namespace symphas
 {
 
-	//! Representation of the problem parameters for a phase field model.
-	/*!
-	 * Represents all the information about a phase field problem. Contains data
-	 * about the intervals of the axes, all the boundary conditions, as well as
-	 * the initial conditions. It also has information about time interval, which
-	 * depending on the solver implementation, is used to initialize the solver.
-	 *
-	 * Each data of the problem parameters is stored as an array, and the order
-	 * of the elements in the array corresponds to the order of initialization
-	 * of the phase fields in a defined model. The corresponding order is how the
-	 * phase fields are initialized when passed to a model.
-	 *
-	 * The number of systems that the problem parameters manage is passed to the
-	 * constructor, and cannot be changed.
-	 */
-	struct problem_parameters_type
-	{
-	protected:
-
-		symphas::init_data_type* tdata;			//!< Data for the initial conditions of each system.
-		symphas::interval_data_type* vdata;		//!< Data for the intervals of each system.
-		symphas::b_data_type* bdata;			//!< Boundary data for each system.
-
-		//! Number of elements in the data arrays.
-		/*!
-		 * Number of elements in the data arrays which must match the number of
-		 * systems in the problem these parameters represent.
-		 */
-		size_t len;
-
-		double dt;								//!< The time discretization.
-
-		problem_parameters_type() : 
-			tdata{ nullptr }, vdata{ nullptr }, bdata{ nullptr }, 
-			len{ 0 }, dt{ 1.0 }, time{ TIME_INIT }, index{ params::start_index } {}
-
-	public:
-
-		double time;					//!< The current time.
-		iter_type index;				//!< The current index;
-
-
-		//! Initialize the problem parameters corresponding to \p len systems.
-		/*!
-		 * Initialize the problem parameters corresponding to \p len systems.
-		 *
-		 * \param len The number of systems that the problem parameters refer to.
-		 */
-		problem_parameters_type(const size_t len) : 
-			tdata{ new symphas::init_data_type[len] }, vdata{ new symphas::interval_data_type[len] }, bdata{ new symphas::b_data_type[len] },
-			len{ len }, dt{ 1.0 }, time{ TIME_INIT }, index{ params::start_index } {}
-
-		problem_parameters_type(problem_parameters_type const& other);
-
-		problem_parameters_type(problem_parameters_type&& other) noexcept : problem_parameters_type()
-		{
-			swap(*this, other);
-		}
-		problem_parameters_type& operator=(problem_parameters_type other)
-		{
-			swap(*this, other);
-			return *this;
-		}
-
-
-
-		//! Set the initial data of the problem parameters.
-		/*
-		 * Set the initial data of the problem parameters, to be applied to one
-		 * or more systems in a phase field problem initialization. If the
-		 * length of the given list is smaller than the number of systems
-		 * represented by this object, the remaining elements will be initialized
-		 * to the first of this list.
-		 *
-		 * \param tdata_set The list of initial data to apply. The i-th element
-		 * in the given list applies to the i-th phase field to the given phase
-		 * field problem.
-		 * \param n The length of the list.
-		 */
-		void set_initial_data(const symphas::init_data_type* tdata_set, size_t n);
-		inline void set_initial_data(const symphas::init_data_type* tdata_set)
-		{
-			set_initial_data(tdata_set, len - 1);
-		}
-		inline void set_initial_data(symphas::init_data_type const& tdata_set, iter_type i)
-		{
-			if (i < len)
-			{
-				tdata[i] = tdata_set;
-			}
-			else
-			{
-				throw std::out_of_range("given initial data element larger than list length\n");
-			}
-		}
-
-		//! Set the interval data of the problem parameters.
-		/*
-		 * Set the interval data of the problem parameters, to be applied to one
-		 * or more systems in a phase field problem initialization. The intervals
-		 * must match the system dimension. If the
-		 * length of the given list is smaller than the number of systems
-		 * represented by this object, the remaining elements will be initialized
-		 * to the first of this list.
-		 *
-		 * \param vdata_set The list of interval data to apply. The i-th element
-		 * in the given list applies to the i-th phase field to the given phase
-		 * field problem.
-		 * \param n The length of the list.
-		 */
-		void set_interval_data(const symphas::interval_data_type* vdata_set, size_t n);
-		inline void set_interval_data(const symphas::interval_data_type* vdata_set)
-		{
-			set_interval_data(vdata_set, len - 1);
-		}
-		inline void set_interval_data(symphas::interval_data_type const& vdata_set, iter_type i)
-		{
-			if (i < len)
-			{
-				vdata[i] = vdata_set;
-			}
-			else
-			{
-				throw std::out_of_range("given interval data element larger than list length\n");
-			}
-		}
-
-
-		//! Set the boundary data of the problem parameters.
-		/*
-		 * Set the boundary data of the problem parameters, to be applied to one
-		 * or more systems in a phase field problem initialization. The boundary
-		 * dimension must match the system dimension. If the
-		 * length of the given list is smaller than the number of systems
-		 * represented by this object, the remaining elements will be initialized
-		 * to the first of this list.
-		 *
-		 * \param bdata_set The list of boundary data to apply. The i-th element
-		 * in the given list applies to the i-th phase field to the given phase
-		 * field problem.
-		 * \param n The length of the list.
-		 */
-		void set_boundary_data(const symphas::b_data_type* bdata_set, size_t n);
-		inline void set_boundary_data(const symphas::b_data_type* bdata_set)
-		{
-			set_boundary_data(bdata_set, len - 1);
-		}
-		inline void set_boundary_data(symphas::b_data_type const& bdata_set, iter_type i)
-		{
-			if (i < len)
-			{
-				bdata[i] = bdata_set;
-			}
-			else
-			{
-				throw std::out_of_range("given boundary data element larger than list length\n");
-			}
-		}
-
-
-		//! Provide the time step used in the solution of the problem.
-		inline void set_time_step(double dt)
-		{
-			this->dt = dt;
-		}
-
-		//! Get the list of initial data.
-		inline const symphas::init_data_type* get_initial_data() const
-		{
-			return tdata;
-		}
-
-		//! Get the list of interval data.
-		inline const symphas::interval_data_type* get_interval_data() const
-		{
-			return vdata;
-		}
-
-		//! Get the list of boundary data.
-		inline const symphas::b_data_type* get_boundary_data() const
-		{
-			return bdata;
-		}
-
-		//! Get the length of the data elements.
-		inline const size_t length() const
-		{
-			return len;
-		}
-
-		//! Provide the time step used in the solution of the problem.
-		inline double get_time_step() const
-		{
-			return dt;
-		}
-
-		//! Get the dimension represented by the parameters.
-		/*!
-		 * Return the size of the given interval, which by is the first interval
-		 * by default. The size represents the dimension of the problem.
-		 */
-		inline const size_t get_dimension(iter_type i = 0) const
-		{
-			return vdata[i].size();
-		}
-
-
-		//! Sets interval length of all intervals data to the given dimensions. 
-		/*!
-		 * Modifies the length of each interval in the intervals data list so that
-		 * they correspond to the given dimensions. Each interval will still be
-		 * in the same spatial range, but the number of discrete points will be
-		 * made to match what is given. The order of the dimensions given
-		 * must correspond to \f$x\f$, \f$y\f$ and \f$z\f$.
-		 *
-		 * This can only be called once all problem_parameters_type::len systems
-		 * have been initialized, otherwise it will result in an error.
-		 *
-		 * \param dims The dimensions to which all systems are set.
-		 */
-		void equalize_discretization(const len_type* dims);
-
-		//! Sets interval length of all intervals data to that at the given index. 
-		/*!
-		 * See problem_parameters_type::equalize_discretization(). Takes the
-		 * intervals data from the list corresponding to index \p i and equalizes
-		 * all other intervals data to match its number of discrete points.
-		 *
-		 * \param i The index of the intervals data used to set the intervals of
-		 * all other intervals data elements.
-		 */
-		void equalize_discretization(iter_type i);
-
-		friend void swap(problem_parameters_type& first, problem_parameters_type& second);
-
-		void extend(size_t new_len)
-		{
-			if (new_len > len)
-			{
-				problem_parameters_type pp{ new_len };
-				pp.set_boundary_data(get_boundary_data(), len);
-				pp.set_initial_data(get_initial_data(), len);
-				pp.set_interval_data(get_interval_data(), len);
-				pp.set_time_step(dt);
-				pp.time = time;
-				pp.index = index;
-				swap(pp, *this);
-			}
-		}
-
-		~problem_parameters_type();
-
-	};
-
-
+    //! Representation of the problem parameters for a phase field model.
+    /*!
+     * Represents all the information about a phase field problem. Contains data
+     * about the intervals of the axes, all the boundary conditions, as well as
+     * the initial conditions. It also has information about time interval, which
+     * depending on the solver implementation, is used to initialize the solver.
+     *
+     * Each data of the problem parameters is stored as an array, and the order
+     * of the elements in the array corresponds to the order of initialization
+     * of the phase fields in a defined model. The corresponding order is how the
+     * phase fields are initialized when passed to a model.
+     *
+     * The number of systems that the problem parameters manage is passed to the
+     * constructor, and cannot be changed.
+     */
+    struct problem_parameters_type
+    {
+    protected:
+    
+        symphas::init_data_type* tdata;			//!< Data for the initial conditions of each system.
+        symphas::interval_data_type* vdata;		//!< Data for the intervals of each system.
+        symphas::b_data_type* bdata;			//!< Boundary data for each system.
+    
+        //! Number of elements in the data arrays.
+        /*!
+         * Number of elements in the data arrays which must match the number of
+         * systems in the problem these parameters represent.
+         */
+        size_t len;
+    
+        double dt;								//!< The time discretization.
+    
+        problem_parameters_type() : 
+            tdata{ nullptr }, vdata{ nullptr }, bdata{ nullptr }, 
+            len{ 0 }, dt{ 1.0 }, time{ TIME_INIT }, index{ params::start_index } {}
+    
+    public:
+    
+        double time;					//!< The current time.
+        iter_type index;				//!< The current index;
+    
+    
+        //! Initialize the problem parameters corresponding to \p len systems.
+        /*!
+            * Initialize the problem parameters corresponding to \p len systems.
+            *
+            * \param len The number of systems that the problem parameters refer to.
+            */
+        problem_parameters_type(const size_t len) : 
+            tdata{ new symphas::init_data_type[len] }, vdata{ new symphas::interval_data_type[len] }, bdata{ new symphas::b_data_type[len] },
+            len{ len }, dt{ 1.0 }, time{ TIME_INIT }, index{ params::start_index } {}
+    
+        problem_parameters_type(problem_parameters_type const& other);
+    
+        problem_parameters_type(problem_parameters_type&& other) noexcept : problem_parameters_type()
+        {
+            swap(*this, other);
+        }
+        problem_parameters_type& operator=(problem_parameters_type other)
+        {
+            swap(*this, other);
+            return *this;
+        }
+    
+    
+    
+        //! Set the initial data of the problem parameters.
+        /*
+            * Set the initial data of the problem parameters, to be applied to one
+            * or more systems in a phase field problem initialization. If the
+            * length of the given list is smaller than the number of systems
+            * represented by this object, the remaining elements will be initialized
+            * to the first of this list.
+            *
+            * \param tdata_set The list of initial data to apply. The i-th element
+            * in the given list applies to the i-th phase field to the given phase
+            * field problem.
+            * \param n The length of the list.
+            */
+        void set_initial_data(const symphas::init_data_type* tdata_set, size_t n);
+        inline void set_initial_data(const symphas::init_data_type* tdata_set)
+        {
+            set_initial_data(tdata_set, len - 1);
+        }
+        inline void set_initial_data(symphas::init_data_type const& tdata_set, iter_type i)
+        {
+            if (i < len)
+            {
+                tdata[i] = tdata_set;
+            }
+            else
+            {
+                throw std::out_of_range("given initial data element larger than list length\n");
+            }
+        }
+    
+        //! Set the interval data of the problem parameters.
+        /*
+         * Set the interval data of the problem parameters, to be applied to one
+         * or more systems in a phase field problem initialization. The intervals
+         * must match the system dimension. If the
+         * length of the given list is smaller than the number of systems
+         * represented by this object, the remaining elements will be initialized
+         * to the first of this list.
+         *
+         * \param vdata_set The list of interval data to apply. The i-th element
+         * in the given list applies to the i-th phase field to the given phase
+         * field problem.
+         * \param n The length of the list.
+         */
+        void set_interval_data(const symphas::interval_data_type* vdata_set, size_t n);
+        inline void set_interval_data(const symphas::interval_data_type* vdata_set)
+        {
+            set_interval_data(vdata_set, len - 1);
+        }
+        inline void set_interval_data(symphas::interval_data_type const& vdata_set, iter_type i)
+        {
+            if (i < len)
+            {
+                vdata[i] = vdata_set;
+            }
+            else
+            {
+                throw std::out_of_range("given interval data element larger than list length\n");
+            }
+        }
+    
+    
+        //! Set the boundary data of the problem parameters.
+        /*
+         * Set the boundary data of the problem parameters, to be applied to one
+         * or more systems in a phase field problem initialization. The boundary
+         * dimension must match the system dimension. If the
+         * length of the given list is smaller than the number of systems
+         * represented by this object, the remaining elements will be initialized
+         * to the first of this list.
+         *
+         * \param bdata_set The list of boundary data to apply. The i-th element
+         * in the given list applies to the i-th phase field to the given phase
+         * field problem.
+         * \param n The length of the list.
+         */
+        void set_boundary_data(const symphas::b_data_type* bdata_set, size_t n);
+        inline void set_boundary_data(const symphas::b_data_type* bdata_set)
+        {
+            set_boundary_data(bdata_set, len - 1);
+        }
+        inline void set_boundary_data(symphas::b_data_type const& bdata_set, iter_type i)
+        {
+            if (i < len)
+            {
+                bdata[i] = bdata_set;
+            }
+            else
+            {
+                throw std::out_of_range("given boundary data element larger than list length\n");
+            }
+        }
+    
+    
+        //! Provide the time step used in the solution of the problem.
+        inline void set_time_step(double dt)
+        {
+            this->dt = dt;
+        }
+    
+        //! Get the list of initial data.
+        inline const symphas::init_data_type* get_initial_data() const
+        {
+            return tdata;
+        }
+    
+        //! Get the list of interval data.
+        inline const symphas::interval_data_type* get_interval_data() const
+        {
+            return vdata;
+        }
+    
+        //! Get the list of boundary data.
+        inline const symphas::b_data_type* get_boundary_data() const
+        {
+            return bdata;
+        }
+    
+        //! Get the length of the data elements.
+        inline const size_t length() const
+        {
+            return len;
+        }
+    
+        //! Provide the time step used in the solution of the problem.
+        inline double get_time_step() const
+        {
+            return dt;
+        }
+    
+        //! Get the dimension represented by the parameters.
+        /*!
+         * Return the size of the given interval, which by is the first interval
+         * by default. The size represents the dimension of the problem.
+         */
+        inline const size_t get_dimension(iter_type i = 0) const
+        {
+            return vdata[i].size();
+        }
+    
+    
+        //! Sets interval length of all intervals data to the given dimensions. 
+        /*!
+         * Modifies the length of each interval in the intervals data list so that
+         * they correspond to the given dimensions. Each interval will still be
+         * in the same spatial range, but the number of discrete points will be
+         * made to match what is given. The order of the dimensions given
+         * must correspond to \f$x\f$, \f$y\f$ and \f$z\f$.
+         *
+         * This can only be called once all problem_parameters_type::len systems
+         * have been initialized, otherwise it will result in an error.
+         *
+         * \param dims The dimensions to which all systems are set.
+         */
+        void equalize_discretization(const len_type* dims);
+    
+        //! Sets interval length of all intervals data to that at the given index. 
+        /*!
+         * See problem_parameters_type::equalize_discretization(). Takes the
+         * intervals data from the list corresponding to index \p i and equalizes
+         * all other intervals data to match its number of discrete points.
+         *
+         * \param i The index of the intervals data used to set the intervals of
+         * all other intervals data elements.
+         */
+        void equalize_discretization(iter_type i);
+    
+        friend void swap(symphas::problem_parameters_type& first, symphas::problem_parameters_type& second);
+    
+        void extend(size_t new_len)
+        {
+            if (new_len > len)
+            {
+                problem_parameters_type pp{ new_len };
+                pp.set_boundary_data(get_boundary_data(), len);
+                pp.set_initial_data(get_initial_data(), len);
+                pp.set_interval_data(get_interval_data(), len);
+                pp.set_time_step(dt);
+                pp.time = time;
+                pp.index = index;
+                swap(pp, *this);
+            }
+        }
+    
+        ~problem_parameters_type();
+    
+    };
+    
+    void swap(problem_parameters_type& first, problem_parameters_type& second);
 }
 
 void swap(symphas::problem_parameters_type& first, symphas::problem_parameters_type& second);

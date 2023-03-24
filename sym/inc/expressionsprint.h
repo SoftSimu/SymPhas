@@ -266,6 +266,11 @@ static constexpr size_t print_length(wrap_f<&symphas::math:: F <typename expr::e
 namespace symphas::internal
 {
 
+    template<typename E>
+    auto set_var_string(OpExpression<E> const& var);
+    template<typename G>
+    auto set_var_string(G const& var);
+    
 	//! Generates an expression display string that use functions.
 	/*!
 	 * Uses expression template to avoid restating
@@ -479,11 +484,11 @@ namespace symphas::internal
 			{
 				if constexpr (O == 1)
 				{
-					return fprintf(out, SYEX_DIRECTIONAL_DERIV_1_FMT(ax));
+					return sprintf(out, SYEX_DIRECTIONAL_DERIV_1_FMT(ax));
 				}
 				else
 				{
-					return fprintf(out, SYEX_DIRECTIONAL_DERIV_FMT(O, ax));
+					return sprintf(out, SYEX_DIRECTIONAL_DERIV_FMT(O, ax));
 				}
 			}
 		}
@@ -612,10 +617,6 @@ namespace symphas::internal
 		}
 	};
 
-
-	template<typename G>
-	auto set_var_string(G const& var);
-
 	template<size_t O>
 	struct print_deriv<O, Axis::NONE, true>
 	{
@@ -638,6 +639,7 @@ namespace symphas::internal
 			{
 				return fprintf(out, SYEX_DIRECTIONAL_DERIV_WITH_OTHER_FMT(O, Axis::NONE, buffer));
 			}
+            delete[] buffer;
 		}
 
 		//! Print the derivative the given order to a file.
@@ -655,12 +657,13 @@ namespace symphas::internal
 			auto buffer = set_var_string(var);
 			if constexpr (O == 1)
 			{
-				return fprintf(out, SYEX_DIRECTIONAL_DERIV_1_VAR_WITH_OTHER_FMT(name, ax, buffer));
+				return fprintf(out, SYEX_DIRECTIONAL_DERIV_1_VAR_WITH_OTHER_FMT(name, Axis::NONE, buffer));
 			}
 			else
 			{
-				return fprintf(out, SYEX_DIRECTIONAL_DERIV_VAR_WITH_OTHER_FMT(name, O, ax, buffer));
+				return fprintf(out, SYEX_DIRECTIONAL_DERIV_VAR_WITH_OTHER_FMT(name, O, Axis::NONE, buffer));
 			}
+            delete[] buffer;
 		}
 
 
@@ -676,12 +679,13 @@ namespace symphas::internal
 			auto buffer = set_var_string(var);
 			if constexpr (O == 1)
 			{
-				return fprintf(out, SYEX_DIRECTIONAL_DERIV_1_WITH_OTHER_FMT(ax, buffer));
+				return fprintf(out, SYEX_DIRECTIONAL_DERIV_1_WITH_OTHER_FMT(Axis::NONE, buffer));
 			}
 			else
 			{
-				return fprintf(out, SYEX_DIRECTIONAL_DERIV_WITH_OTHER_FMT(O, ax, buffer));
+				return fprintf(out, SYEX_DIRECTIONAL_DERIV_WITH_OTHER_FMT(O, Axis::NONE, buffer));
 			}
+            delete[] buffer;
 		}
 
 		//! Print the derivative the given order to a string.
@@ -699,12 +703,13 @@ namespace symphas::internal
 			auto buffer = set_var_string(var);
 			if constexpr (O == 1)
 			{
-				return sprintf(out, SYEX_DIRECTIONAL_DERIV_1_VAR_WITH_OTHER_FMT(name, ax, buffer));
+				return sprintf(out, SYEX_DIRECTIONAL_DERIV_1_VAR_WITH_OTHER_FMT(name, Axis::NONE, buffer));
 			}
 			else
 			{
-				return sprintf(out, SYEX_DIRECTIONAL_DERIV_VAR_WITH_OTHER_FMT(name, O, ax, buffer));
+				return sprintf(out, SYEX_DIRECTIONAL_DERIV_VAR_WITH_OTHER_FMT(name, O, Axis::NONE, buffer));
 			}
+            delete[] buffer;
 		}
 
 		//! Get the print length of the derivative output string.
@@ -726,6 +731,7 @@ namespace symphas::internal
 			{
 				return SYEX_DIRECTIONAL_DERIV_LEN(O) + std::strlen(buffer);
 			}
+            delete[] buffer;
 		}
 
 		//! Get the print length of the derivative output string.
@@ -747,6 +753,7 @@ namespace symphas::internal
 			{
 				return SYEX_DIRECTIONAL_DERIV_VAR_LEN(name, O) + std::strlen(buffer);
 			}
+            delete[] buffer;
 		}
 
 	};
@@ -983,6 +990,110 @@ namespace expr
 	 */
 	template<typename V>
 	size_t coeff_print_length(V const& value);
+	template<typename T, size_t D>
+	size_t coeff_print_length(any_vector_t<T, D> const& value);
+
+	//! Print the length of the zero coefficient string.
+	/*!
+	 * Overload for the length of a coefficient equal to 0 (the additive
+	 * identity).
+	 * Prints the number of characters that will be used to print the
+	 * coefficient which is prepended to an expression.
+	 */
+	inline size_t coeff_print_length(OpVoid)
+	{
+		return STR_ARR_LEN(SYEX_COEFF_PRINT_FMT_SEP SYEX_ZERO_COEFF) - 1;
+	}
+
+	//! Print the length of the string for the coefficient equal to 1.
+	/*!
+	 * Overload for the length of a coefficient equal to 1 (the multiplicative
+	 * identity).
+	 * Prints the number of characters that will be used to print the
+	 * coefficient which is prepended to an expression.
+	 */
+	inline size_t coeff_print_length(OpIdentity)
+	{
+		return 0;
+	}
+
+	//! Print the length of the string for the coefficient equal to -1.
+	/*!
+	 * Overload for the length of a coefficient equal to 1 (the negative of the
+	 * multiplicative identity).
+	 * Prints the number of characters that will be used to print the
+	 * coefficient which is prepended to an expression.
+	 */
+	inline size_t coeff_print_length(OpNegIdentity)
+	{
+		return 1;
+	}
+	
+	template<size_t N, size_t D>
+	inline size_t coeff_print_length(OpFractionLiteral<N, D>)
+	{
+		return OpFractionLiteral<N, D>{}.print_length();
+	}
+
+	template<size_t N, size_t D>
+	inline size_t coeff_print_length(OpNegFractionLiteral<N, D>)
+	{
+		return OpNegFractionLiteral<N, D>{}.print_length();
+	}
+
+	template<typename T, size_t... Ns>
+	size_t coeff_print_length(OpTensor<T, Ns...> const& value)
+	{
+		//using n_seq = symphas::lib::seq_join_t<symphas::lib::types_after_at_index<sizeof...(Ns) / 2, std::index_sequence<Ns>...>>;
+		//return print_tensor_length(symphas::internal::tensor_cast::cast(value), n_seq{});
+		return 100;
+	}
+
+	template<typename... Ts>
+	size_t coeff_print_length(OpAdd<Ts...> const& value)
+	{
+		return coeff_print_length(value.eval());
+	}
+
+	template<typename T, size_t D>
+	size_t coeff_print_length(any_vector_t<T, D> const& value)
+	{
+		size_t n = 0;
+		n += STR_ARR_LEN(SYEX_VECTOR_FMT_A SYEX_VECTOR_FMT_B) 
+			+ (D - 1) * STR_ARR_LEN(SYEX_VECTOR_FMT_SEP);
+		for (iter_type i = 0; i < D; ++i)
+		{
+			n += coeff_print_length(value[i]);
+		}
+		return n;
+
+	}
+
+	template<typename V>
+	size_t coeff_print_length(V const& value)
+	{
+		if (value == V{})
+		{
+			return coeff_print_length(OpVoid{});
+		}
+		else
+		{
+			if (value == value * value)
+			{
+				return coeff_print_length(OpIdentity{});
+			}
+			else if (value == value * value * value)
+			{
+				return coeff_print_length(OpNegIdentity{});
+			}
+			else
+			{
+				size_t n = make_literal(value).print_length();
+				n += STR_ARR_LEN(SYEX_COEFF_PRINT_FMT_SEP) - 1;
+				return n;
+			}
+		}
+	}
 
 	template<typename T>
 	size_t print_tensor_entries_1(char* out, T const& value, size_t P0, size_t P1, size_t N, size_t M)
@@ -1056,6 +1167,8 @@ namespace expr
 	 */
 	template<typename V>
 	size_t print_with_coeff(char* out, const char* expr, V value);
+	template<typename T, size_t D>
+	size_t print_with_coeff(char* out, const char* expr, any_vector_t<T, D> const& value);
 
 	//! Prepends coefficient to an expression.
 	/*!
@@ -1101,21 +1214,21 @@ namespace expr
 		return n;
 	}
 
-
-	//! Prints only the coefficient and coefficient separator.
-	/*!
-	 * Specialization which only prints the coefficient, without an
-	 * appended expression. The appended expression is considered to be
-	 * an empty string. The format
-	 * of value changes depending on what it is.
-	 *
-	 * \param out The string to put the printed expression.
-	 * \param value The value of the coefficient.
-	 */
-	template<typename V>
-	size_t print_with_coeff(char* out, V value)
+	template<typename T, size_t... Ns>
+	size_t print_with_coeff(char* out, const char* expr, OpTensor<T, Ns...> const& value)
 	{
-		return print_with_coeff(out, "", value);
+		using p_seq = symphas::lib::seq_join_t<symphas::lib::types_before_index<sizeof...(Ns) / 2, std::index_sequence<Ns>...>>;
+		using n_seq = symphas::lib::seq_join_t<symphas::lib::types_after_at_index<sizeof...(Ns) / 2, std::index_sequence<Ns>...>>;
+		
+		size_t n = print_tensor(out, T(value), p_seq{}, n_seq{});
+		n += sprintf(out + n, "%s", expr);
+		return n;
+	}
+
+	template<typename... Ts>
+	size_t print_with_coeff(char* out, const char* expr, OpAdd<Ts...> const& value)
+	{
+		return print_with_coeff(out, expr, value.eval());
 	}
 
 	template<typename V>
@@ -1144,17 +1257,6 @@ namespace expr
 		}
 	}
 
-	template<typename T, size_t... Ns>
-	size_t print_with_coeff(char* out, const char* expr, OpTensor<T, Ns...> const& value)
-	{
-		using p_seq = symphas::lib::seq_join_t<symphas::lib::types_before_index<sizeof...(Ns) / 2, std::index_sequence<Ns>...>>;
-		using n_seq = symphas::lib::seq_join_t<symphas::lib::types_after_at_index<sizeof...(Ns) / 2, std::index_sequence<Ns>...>>;
-		
-		size_t n = print_tensor(out, symphas::internal::tensor_cast::cast(value), p_seq{}, n_seq{});
-		n += sprintf(out + n, "%s", expr);
-		return n;
-	}
-
 	template<typename T, size_t D>
 	size_t print_with_coeff(char* out, const char* expr, any_vector_t<T, D> const& value)
 	{
@@ -1172,10 +1274,20 @@ namespace expr
 		return n;
 	}
 
-	template<typename... Ts>
-	size_t print_with_coeff(char* out, const char* expr, OpAdd<Ts...> const& value)
+	//! Prints only the coefficient and coefficient separator.
+	/*!
+	 * Specialization which only prints the coefficient, without an
+	 * appended expression. The appended expression is considered to be
+	 * an empty string. The format
+	 * of value changes depending on what it is.
+	 *
+	 * \param out The string to put the printed expression.
+	 * \param value The value of the coefficient.
+	 */
+	template<typename V>
+	size_t print_with_coeff(char* out, V value)
 	{
-		return print_with_coeff(out, expr, value.eval());
+		return print_with_coeff(out, "", value);
 	}
 
 	//! Prepends coefficient to an expression.
@@ -1189,6 +1301,8 @@ namespace expr
 	 */
 	template<typename V>
 	size_t print_with_coeff(FILE* out, const char* expr, V const& value);
+	template<typename T, size_t D>
+	size_t print_with_coeff(FILE* out, const char* expr, any_vector_t<T, D> const& value);
 
 	//! Prepends coefficient to an expression.
 	/*!
@@ -1208,8 +1322,7 @@ namespace expr
 	 * Overload based on expr::print_with_coeff() when printing
 	 * to a file and the value is the negative identity.
 	 *
-	 * \param out The file to put the printed expression.
-	 * \param expr The expression which is printed.
+	 * \param out The file to put the printed expression.  * \param expr The expression which is printed.
 	 */
 	inline size_t print_with_coeff(FILE* out, const char* expr, OpNegIdentity)
 	{
@@ -1232,48 +1345,6 @@ namespace expr
 		n += OpNegFractionLiteral<N, D>{}.print(out);
 		n += fprintf(out, "%s", expr);
 		return n;
-	}
-
-	//! Prints only the coefficient and coefficient separator.
-	/*!
-	 * Specialization which only prints the coefficient, without an
-	 * appended expression.
-	 * Overload based on expr::print_with_coeff() when printing
-	 * to a file and the value is the negative identity.
-	 *
-	 * \param out The file to put the printed expression.
-	 * \param value The value of the coefficient.
-	 */
-	template<typename V>
-	size_t print_with_coeff(FILE* out, V const& value)
-	{
-		return print_with_coeff(out, "", value);
-	}
-
-	template<typename V>
-	size_t print_with_coeff(FILE* out, const char* expr, V const& value)
-	{
-		if (value == V{})
-		{
-			return fprintf(out, SYEX_COEFF_PRINT_FMT, SYEX_ZERO_COEFF, expr);
-		}
-		else
-		{
-			if (value == value * value)
-			{
-				return print_with_coeff(out, expr, OpIdentity{});
-			}
-			else if (value == value * value * value)
-			{
-				return print_with_coeff(out, expr, OpNegIdentity{});
-			}
-			else
-			{
-				size_t n = make_literal(value).print(out);
-				n += fprintf(out, SYEX_COEFF_PRINT_FMT_SEP "%s", expr);
-				return n;
-			}
-		}
 	}
 
 	template<typename T, size_t... Ns>
@@ -1310,109 +1381,49 @@ namespace expr
 		return n;
 	}
 
-	//! Print the length of the zero coefficient string.
-	/*!
-	 * Overload for the length of a coefficient equal to 0 (the additive
-	 * identity).
-	 * Prints the number of characters that will be used to print the
-	 * coefficient which is prepended to an expression.
-	 */
-	inline size_t coeff_print_length(OpVoid)
-	{
-		return STR_ARR_LEN(SYEX_COEFF_PRINT_FMT_SEP SYEX_ZERO_COEFF) - 1;
-	}
-
-	//! Print the length of the string for the coefficient equal to 1.
-	/*!
-	 * Overload for the length of a coefficient equal to 1 (the multiplicative
-	 * identity).
-	 * Prints the number of characters that will be used to print the
-	 * coefficient which is prepended to an expression.
-	 */
-	inline size_t coeff_print_length(OpIdentity)
-	{
-		return 0;
-	}
-
-	//! Print the length of the string for the coefficient equal to -1.
-	/*!
-	 * Overload for the length of a coefficient equal to 1 (the negative of the
-	 * multiplicative identity).
-	 * Prints the number of characters that will be used to print the
-	 * coefficient which is prepended to an expression.
-	 */
-	inline size_t coeff_print_length(OpNegIdentity)
-	{
-		return 1;
-	}
-	
-	template<size_t N, size_t D>
-	inline size_t coeff_print_length(OpFractionLiteral<N, D>)
-	{
-		return OpFractionLiteral<N, D>{}.print_length();
-	}
-
-	template<size_t N, size_t D>
-	inline size_t coeff_print_length(OpNegFractionLiteral<N, D>)
-	{
-		return OpNegFractionLiteral<N, D>{}.print_length();
-	}
-
 	template<typename V>
-	size_t coeff_print_length(V const& value)
+	size_t print_with_coeff(FILE* out, const char* expr, V const& value)
 	{
 		if (value == V{})
 		{
-			return coeff_print_length(OpVoid{});
+			return fprintf(out, SYEX_COEFF_PRINT_FMT, SYEX_ZERO_COEFF, expr);
 		}
 		else
 		{
 			if (value == value * value)
 			{
-				return coeff_print_length(OpIdentity{});
+				return print_with_coeff(out, expr, OpIdentity{});
 			}
 			else if (value == value * value * value)
 			{
-				return coeff_print_length(OpNegIdentity{});
+				return print_with_coeff(out, expr, OpNegIdentity{});
 			}
 			else
 			{
-				size_t n = make_literal(value).print_length();
-				n += STR_ARR_LEN(SYEX_COEFF_PRINT_FMT_SEP) - 1;
+				size_t n = make_literal(value).print(out);
+				n += fprintf(out, SYEX_COEFF_PRINT_FMT_SEP "%s", expr);
 				return n;
 			}
 		}
 	}
 
-	template<typename T, size_t... Ns>
-	size_t coeff_print_length(OpTensor<T, Ns...> const& value)
+	//! Prints only the coefficient and coefficient separator.
+	/*!
+	 * Specialization which only prints the coefficient, without an
+	 * appended expression.
+	 * Overload based on expr::print_with_coeff() when printing
+	 * to a file and the value is the negative identity.
+	 *
+	 * \param out The file to put the printed expression.
+	 * \param value The value of the coefficient.
+	 */
+	template<typename V>
+	size_t print_with_coeff(FILE* out, V const& value)
 	{
-		//using n_seq = symphas::lib::seq_join_t<symphas::lib::types_after_at_index<sizeof...(Ns) / 2, std::index_sequence<Ns>...>>;
-		//return print_tensor_length(symphas::internal::tensor_cast::cast(value), n_seq{});
-		return 100;
+		return print_with_coeff(out, "", value);
 	}
 
-	template<typename... Ts>
-	size_t coeff_print_length(OpAdd<Ts...> const& value)
-	{
-		return coeff_print_length(value.eval());
-	}
-
-	template<typename T, size_t D>
-	size_t coeff_print_length(any_vector_t<T, D> const& value)
-	{
-		size_t n = 0;
-		n += STR_ARR_LEN(SYEX_VECTOR_FMT_A SYEX_VECTOR_FMT_B) 
-			+ (D - 1) * STR_ARR_LEN(SYEX_VECTOR_FMT_SEP);
-		for (iter_type i = 0; i < D; ++i)
-		{
-			n += coeff_print_length(value[i]);
-		}
-		return n;
-
-	}
-
-
+    
 	namespace
 	{
 

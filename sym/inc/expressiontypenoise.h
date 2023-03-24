@@ -200,13 +200,14 @@ namespace expr
 
 		void update()
 		{
-			time += dt;
+			time += *dt;
 			if (time >= next_time)
 			{
 				std::random_device rd;
 				std::mt19937 gen(rd());
 				std::normal_distribution<> dis(NOISE_MEAN, NOISE_STD);
 
+			    scalar_t sq_corr = intensity * std::sqrt(*dt) / H;
 				for (iter_type i = 0; i < len; ++i)
 				{
 					values[i] = sq_corr * dis(gen);
@@ -388,13 +389,13 @@ namespace expr
 {
 
 	template<NoiseType nt, typename T, size_t D>
-	auto make_noise(const len_type* dimensions, const double* h, double *dt, double intensity = 1.0)
+	auto make_noise(const len_type* dimensions, const double* h, const double *dt, double intensity = 1.0)
 	{
-		return make_term(NoiseData<nt, T, D>(dimensions, h, dt, intensity));
+		return make_term(NoiseData<nt, T, D>(dimensions, h, const_cast<double*>(dt), intensity));
 	}
 
 	template<typename T, size_t D>
-	auto make_white_noise(const len_type* dimensions, const double* h, double *dt, double intensity = 1.0)
+	auto make_white_noise(const len_type* dimensions, const double* h, const double *dt, double intensity = 1.0)
 	{
 		return make_term(NoiseData<NoiseType::WHITE, T, D>(dimensions, h, dt, intensity));
 	}

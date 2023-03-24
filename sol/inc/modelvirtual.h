@@ -101,10 +101,10 @@ struct DataStepper
 		DataStepper<D> ds;
 		for (iter_type n = 0; n < pp.length(); ++n)
 		{
-			if (pp.get_initial_data()[n].in == Inside::CHECKPOINT
-				|| pp.get_initial_data()[n].in == Inside::FILE)
+			if (pp.get_initial_data()[n].at(Axis::NONE).in == Inside::CHECKPOINT
+				|| pp.get_initial_data()[n].at(Axis::NONE).in == Inside::FILE)
 			{
-				ds.data[n] = pp.get_initial_data()[n];
+				ds.data[n] = pp.get_initial_data()[n].at(Axis::NONE);
 			}
 			else
 			{

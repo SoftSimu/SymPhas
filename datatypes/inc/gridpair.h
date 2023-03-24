@@ -182,6 +182,7 @@ struct FourierGrid<S, any_vector_t<T, D>, D> : Grid<any_vector_t<T, D>, D>
 	using parent_type = Grid<any_vector_t<T, D>, D>;
 	using parent_type::values;
 	using parent_type::len;
+    using parent_type::dims;
 
 	//! Create a FourierGrid of the prescribed dimensions.
 	/*!
@@ -195,7 +196,7 @@ struct FourierGrid<S, any_vector_t<T, D>, D> : Grid<any_vector_t<T, D>, D>
 	{
 		for (iter_type i = 0; i < D; ++i)
 		{
-			p_in_out[i] = symphas::dft::new_fftw_plan<D, S, T>{}(values[i], values[i], dimensions);
+			p_in_out[i] = symphas::dft::new_fftw_plan<D, S, T>{}(values[i], values[i], dims);
 		}
 	}
 	FourierGrid(FourierGrid<S, T, D> const& other) :
@@ -204,7 +205,7 @@ struct FourierGrid<S, any_vector_t<T, D>, D> : Grid<any_vector_t<T, D>, D>
 	{
 		for (iter_type i = 0; i < D; ++i)
 		{
-			p_in_out[i] = symphas::dft::new_fftw_plan<D, S, T>{}(values[i], values[i], dimensions);
+			p_in_out[i] = symphas::dft::new_fftw_plan<D, S, T>{}(values[i], values[i], dims);
 		}
 	}
 
@@ -429,7 +430,7 @@ struct MapGridFourier<any_vector_t<S, D>, any_vector_t<T, D>, D, make_ft_helper>
 		len = src.len;
 		for (iter_type i = 0; i < D; ++i)
 		{
-			p_in_out[i] = make_ft_helper<D, S, T>{}(src.values[i], values[i], dimensions);
+			p_in_out[i] = make_ft_helper<D, S, T>{}(src.values[i], values[i], dims);
 		}
 	}
 
@@ -439,7 +440,7 @@ struct MapGridFourier<any_vector_t<S, D>, any_vector_t<T, D>, D, make_ft_helper>
 		len = src.len;
 		for (iter_type i = 0; i < D; ++i)
 		{
-			p_in_out[i] = make_ft_helper<D, S, T>{}(src.values[i], values[i], dimensions);
+			p_in_out[i] = make_ft_helper<D, S, T>{}(src.values[i], values[i], dims);
 		}
 	}
 

@@ -836,11 +836,14 @@ namespace symphas::internal
 	 * if it is associated with a variable of itself. I.e. given a symbol `S`, it is undefined
 	 * if its associated dictionary entry is `S, OpTerm<OpIdentity, S>`.
 	 */
-	template<typename T>
-	struct first_undefined_symbol;
+	template<typename M, typename T>
+	struct first_undefined_symbol
+    {
+		static const int value = -1;
+    };
 
 	template<typename Symbol0, typename... Symbols, typename E0, typename... Es>
-	struct first_undefined_symbol<types_list<std::pair<Symbol0, E0>, std::pair<Symbols, Es>...>>
+	struct first_undefined_symbol<void, types_list<std::pair<Symbol0, E0>, std::pair<Symbols, Es>...>>
 	{
 	protected:
 
@@ -903,16 +906,16 @@ namespace symphas::internal
 
 	public:
 
-		template<typename T>
-		static const int value = -1;
-
-		template<typename S0, typename... Ss>
-		static const int value<types_list<S0, Ss...>> = get_index<0, S0, Ss...>();
-
-		template<>
-		static const int value<void> = get_index_no_matching<0>();
+		static const int value = get_index_no_matching<0>();
 	};
 
+	template<typename S0, typename... Ss, typename Symbol0, typename... Symbols, typename E0, typename... Es>
+	struct first_undefined_symbol<types_list<S0, Ss...>, types_list<std::pair<Symbol0, E0>, std::pair<Symbols, Es>...>>
+        : first_undefined_symbol<void, types_list<std::pair<Symbol0, E0>, std::pair<Symbols, Es>...>>
+    {
+        using parent_type = first_undefined_symbol<void, types_list<std::pair<Symbol0, E0>, std::pair<Symbols, Es>...>>;
+		static const int value = parent_type::template get_index<0, S0, Ss...>();
+    };
 
 
 	//! Determines whether the dictionary is complete or not.
@@ -1804,7 +1807,7 @@ namespace symphas::internal
 		}
 	};
 
-	template<int N, typename Nt, typename Dt, size_t P>
+	template<int N, typename Nt, typename Dt, expr::exp_key_t P>
 	struct StencilCoeff<std::pair<
 		expr::symbols::internal::S1_symbol<N>,
 		OpBinaryDiv<Nt, OpTerms<Dt, Term<expr::symbols::h_symbol, P>>>>>
@@ -1840,7 +1843,7 @@ namespace symphas::internal
 		}
 	};
 
-	template<int N0, int N1, typename Nt, typename Dt, size_t P>
+	template<int N0, int N1, typename Nt, typename Dt, expr::exp_key_t P>
 	struct StencilCoeff<std::pair<
 		expr::symbols::internal::S2_symbol<N0, N1>,
 		OpBinaryDiv<Nt, OpTerms<Dt, Term<expr::symbols::h_symbol, P>>>>>
@@ -1875,7 +1878,7 @@ namespace symphas::internal
 		}
 	};
 
-	template<int N0, int N1, int N2, typename Nt, typename Dt, size_t P>
+	template<int N0, int N1, int N2, typename Nt, typename Dt, expr::exp_key_t P>
 	struct StencilCoeff<std::pair<
 		expr::symbols::internal::S3_symbol<N0, N1, N2>,
 		OpBinaryDiv<Nt, OpTerms<Dt, Term<expr::symbols::h_symbol, P>>>>>

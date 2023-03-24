@@ -819,10 +819,14 @@ struct OpDerivative : OpExpression<OpDerivative<Dd, V, E, Sp>>
 
 #endif
 	
-	friend auto const& expr::get_enclosed_expression(OpDerivative<Dd, V, E, Sp> const&);
-	friend auto& expr::get_enclosed_expression(OpDerivative<Dd, V, E, Sp>&);
-	friend auto const& expr::get_result_data(OpDerivative<Dd, V, E, Sp> const&);
-	friend auto& expr::get_result_data(OpDerivative<Dd, V, E, Sp>&);
+    template<typename Dd0, typename V0, typename E0, typename Sp0>
+	friend auto const& expr::get_enclosed_expression(OpDerivative<Dd0, V0, E0, Sp0> const&);
+    template<typename Dd0, typename V0, typename E0, typename Sp0>
+	friend auto& expr::get_enclosed_expression(OpDerivative<Dd0, V0, E0, Sp0>&);
+    template<typename Dd0, typename V0, typename E0, typename Sp0>
+	friend auto const& expr::get_result_data(OpDerivative<Dd0, V0, E0, Sp0> const&);
+    template<typename Dd0, typename V0, typename E0, typename Sp0>
+	friend auto& expr::get_result_data(OpDerivative<Dd0, V0, E0, Sp0>&);
 
 
 protected:
@@ -862,7 +866,7 @@ struct OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> : OpExpression<OpDerivativ
 	OpDerivative(V0 value, OpTerm<V1, G> const& e, solver_op_type<Sp> solver) : value{ expr::coeff(e) * value }, solver{ solver }, data{expr::data(e)} {}
 	OpDerivative(V value, G data, solver_op_type<Sp> solver) : value{ value }, solver{ solver }, data{ data } {}
 
-	OpDerivative() : V{ V{} }, solver{ Sp::make_solver(symphas::problem_parameters_type(1)) }, data{} {}
+	OpDerivative() : V{ V{} }, solver{ Sp::make_solver() }, data{} {}
 
 	inline auto eval(iter_type n) const
 	{
@@ -905,8 +909,10 @@ struct OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> : OpExpression<OpDerivativ
 
 #endif
 
-	friend decltype(auto) expr::get_enclosed_expression(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> const&);
-	friend decltype(auto) expr::get_enclosed_expression(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp>&);
+    template<typename Dd0, typename V0, typename G0, typename Sp0>
+	friend decltype(auto) expr::get_enclosed_expression(OpDerivative<Dd0, V0, OpTerm<OpIdentity, G0>, Sp0> const&);
+    template<typename Dd0, typename V0, typename G0, typename Sp0>
+	friend decltype(auto) expr::get_enclosed_expression(OpDerivative<Dd0, V0, OpTerm<OpIdentity, G0>, Sp0>&);
 
 public:
 
@@ -996,8 +1002,10 @@ struct OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G>> :
 
 #endif
 
-	friend auto const& expr::get_enclosed_expression(OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G>> const&);
-	friend auto& expr::get_enclosed_expression(OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G>>&);
+    template<size_t O0, typename V0, typename E0, typename G0>
+	friend auto const& expr::get_enclosed_expression(OpDerivative<std::index_sequence<O0>, V0, E0, SymbolicDerivative<G0>> const&);
+    template<size_t O0, typename V0, typename E0, typename G0>
+	friend auto& expr::get_enclosed_expression(OpDerivative<std::index_sequence<O0>, V0, E0, SymbolicDerivative<G0>>&);
 
 public:
 
@@ -1077,8 +1085,10 @@ struct OpDerivative<std::index_sequence<O>, V, OpTerm<OpIdentity, G1>, SymbolicD
 
 #endif
 
-	friend auto const& expr::get_enclosed_expression(OpDerivative<std::index_sequence<O>, V, OpTerm<OpIdentity, G1>, SymbolicDerivative<G2>> const&);
-	friend auto& expr::get_enclosed_expression(OpDerivative<std::index_sequence<O>, V, OpTerm<OpIdentity, G1>, SymbolicDerivative<G2>>&);
+    template<size_t O0, typename V0, typename G10, typename G20>
+	friend auto const& expr::get_enclosed_expression(OpDerivative<std::index_sequence<O0>, V0, OpTerm<OpIdentity, G10>, SymbolicDerivative<G20>> const&);
+    template<size_t O0, typename V0, typename G10, typename G20>
+	friend auto& expr::get_enclosed_expression(OpDerivative<std::index_sequence<O0>, V0, OpTerm<OpIdentity, G10>, SymbolicDerivative<G20>>&);
 
 public:
 
@@ -1446,25 +1456,26 @@ struct OpOperatorMixedDerivative : OpOperator<OpOperatorMixedDerivative<V, Sp, O
 	}
 
 #ifdef PRINTABLE_EQUATIONS
+    using print_type = decltype(symphas::internal::select_print_deriv<Sp>(typename Sp::template mixed_derivative<Os...>{}));
 
 	size_t print(FILE* out) const
 	{
 		size_t n = expr::print_with_coeff(out, value);
-		n += symphas::internal::print_mixed_deriv<Os...>::print(out);
+		n += print_type::print(out);
 		return n;
 	}
 
 	size_t print(char* out) const
 	{
 		size_t n = expr::print_with_coeff(out, value);
-		n += symphas::internal::print_mixed_deriv<Os...>::print(out + n);
+		n += print_type::print(out + n);
 		return n;
 	}
 
 
 	size_t print_length() const
 	{
-		return expr::coeff_print_length(value) + symphas::internal::print_mixed_deriv<Os...>::print_length();
+		return expr::coeff_print_length(value) + print_type::print_length();
 	}
 
 #endif

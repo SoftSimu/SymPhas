@@ -539,22 +539,24 @@ namespace expr
 }
 
 #ifdef PRINTABLE_EQUATIONS
+template<typename E>
+auto symphas::internal::set_var_string(OpExpression<E> const& var)
+{
+    char* buffer = new char[static_cast<E const*>(&var)->print_length() + 1];
+    static_cast<E const*>(&var)->print(buffer);
+    return buffer;
+}
 
 template<typename G>
 auto symphas::internal::set_var_string(G const& var)
 {
-
-	if constexpr (expr::is_expression<G>)
-	{
-		char* buffer = new char[var.print_length() + 1];
-		return std::make_unique<char[]>(buffer);
-	}
-	else
-	{
-		return expr::get_op_name(var);
-	}
+    char* name = expr::get_op_name(var);
+    char* buffer = new char[std::strlen(name) + 1];
+    std::strcpy(buffer, name);
+    return buffer;
 }
 #endif
+
 
 // *************************************************************************************
 
@@ -711,6 +713,16 @@ struct Term : G
 	template<size_t N0>
 	auto root() const;
 
+    Term<G, X> const& operator*(OpIdentity) const
+    {
+        return *this;
+    }
+
+    Term<G, X>& operator*(OpIdentity)
+    {
+        return *this;
+    }
+
 	auto& data()
 	{
 		return *static_cast<G*>(this);
@@ -729,7 +741,20 @@ struct Term<T*, X> : Term<symphas::ref<T>, X>
 	using parent_type::parent_type;
 
 	Term(T* data) : parent_type(symphas::ref<T>(*data)) {}
+
+    Term<T*, X> const& operator*(OpIdentity) const
+    {
+        return *this;
+    }
+
+    Term<T*, X>& operator*(OpIdentity)
+    {
+        return *this;
+    }
 };
+
+template<typename... Es>
+struct OpTermsList;
 
 namespace symphas::internal
 {
@@ -746,29 +771,52 @@ namespace symphas::internal
 	template<size_t N>
 	struct Nth_type_of_terms<N, OpTerms<>>
 	{
-		using type = OpIdentity;
+		using type = OpTermsList<>;
 	};
 
 	template<typename T0, typename... Ts>
 	struct Nth_type_of_terms<0, OpTerms<T0, Ts...>>
 	{
-		using type = OpTerms<T0, Ts...>;
+		using type = OpTermsList<T0, Ts...>;
 	};
 
 
 	template<typename cast_type>
-	struct cast_term
+	struct cast_term;
+
+	template<typename... T0s>
+    struct cast_term<OpTerms<T0s...>>
 	{
+        using cast_type = OpTerms<T0s...>;
+
+		template<typename... Ts>
+		static cast_type cast(OpTerms<Ts...> const& terms)
+		{
+			return *static_cast<OpTermsList<T0s...> const*>(&terms);
+		}
+
+		template<typename... Ts>
+		static cast_type cast(OpTerms<Ts...>& terms)
+		{
+			return *static_cast<OpTermsList<T0s...>*>(&terms);
+		}
+	};
+
+	template<typename... T0s>
+    struct cast_term<OpTermsList<T0s...>>
+	{
+        using cast_type = OpTermsList<T0s...>;
+
 		template<typename... Ts>
 		static cast_type const& cast(OpTerms<Ts...> const& terms)
 		{
-			return *static_cast<cast_type const*>(&terms);
+			return *static_cast<OpTermsList<T0s...> const*>(&terms);
 		}
 
 		template<typename... Ts>
 		static cast_type& cast(OpTerms<Ts...>& terms)
 		{
-			return *static_cast<cast_type*>(&terms);
+			return *static_cast<OpTermsList<T0s...>*>(&terms);
 		}
 	};
 
@@ -776,33 +824,17 @@ namespace symphas::internal
 	struct cast_term<symphas::lib::types_list<Term<Gs, Xs>...>>
 	{
 		template<typename V, typename... G0s, expr::exp_key_t... X0s>
-		static OpTerms<Term<Gs, Xs>...> const& cast(OpTerms<V, Term<G0s, X0s>...> const& terms)
+		static OpTerms<Term<Gs, Xs>...> cast(OpTerms<V, Term<G0s, X0s>...> const& terms)
 		{
-			return *static_cast<OpTerms<Term<Gs, Xs>...> const*>(&terms);
+			return *static_cast<OpTermsList<Term<Gs, Xs>...> const*>(&terms);
 		}
 
 		template<typename V, typename... G0s, expr::exp_key_t... X0s>
-		static OpTerms<Term<Gs, Xs>...>& cast(OpTerms<V, Term<G0s, X0s>...>& terms)
+		static OpTerms<Term<Gs, Xs>...> cast(OpTerms<V, Term<G0s, X0s>...>& terms)
 		{
-			return *static_cast<OpTerms<Term<Gs, Xs>...>*>(&terms);
+			return *static_cast<OpTermsList<Term<Gs, Xs>...>*>(&terms);
 		}
 	};
-
-	//template<>
-	//struct cast_term<void>
-	//{
-	//	template<typename... Es, size_t... Is>
-	//	static decltype(auto) cast(OpAdd<Es...> const& terms, std::index_sequence<Is...>)
-	//	{
-	//		return expr::make_add(expr::get<Is>(terms)...);
-	//	}
-
-	//	template<typename... Es, size_t... Is>
-	//	static decltype(auto) cast(OpAdd<Es...>& terms, std::index_sequence<Is...>)
-	//	{
-	//		return expr::make_add(expr::get<Is>(terms)...);
-	//	}
-	//};
 
 	template<typename estream, typename E>
 	size_t print_one_term(estream* out, E const& e)
@@ -841,69 +873,103 @@ Term(G)->Term<G, expr::Xk<1>>;
 template<typename G>
 Term(G*)->Term<symphas::ref<G*>, expr::Xk<1>>;
 
+
 namespace expr
 {
+	template<typename E>
+	constexpr bool is_term = false;
 
+	template<typename G, exp_key_t X>
+	constexpr bool is_term<Term<G, X>> = true;
+    
 	template<size_t N, typename V, typename... Gs, exp_key_t... Xs>
 	const auto& get(OpTerms<V, Term<Gs, Xs>...> const& e)
 	{
 		using Nth_type = typename symphas::internal::Nth_type_of_terms<N, OpTerms<V, Term<Gs, Xs>...>>::type;
-		return static_cast<Nth_type const*>(&e)->term;
+		return symphas::internal::cast_term<Nth_type>::cast(e).term;
 	}
 
 	template<size_t N, typename V, typename... Gs, exp_key_t... Xs>
 	auto& get(OpTerms<V, Term<Gs, Xs>...>& e)
 	{
 		using Nth_type = typename symphas::internal::Nth_type_of_terms<N, OpTerms<V, Term<Gs, Xs>...>>::type;
-		return static_cast<Nth_type*>(&e)->term;
+		return symphas::internal::cast_term<Nth_type>::cast(e).term;
 	}
 
-	template<typename G0, exp_key_t X0, typename G1, exp_key_t X1, typename... Gs, exp_key_t... Xs>
-	const auto& terms_after_first(OpTerms<Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...> const& e)
-	{
-		return *static_cast<OpTerms<Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...> const*>(&e);
-	}
+	//template<typename G0, exp_key_t X0, typename G1, exp_key_t X1, typename... Gs, exp_key_t... Xs>
+	//const auto& terms_after_first(OpTerms<Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...> const& e)
+	//{
+    //    using cast_to_t = OpTerms<Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...>;
+    //	//return symphas::internal::cast_term<Nth_type>::cast(e).term;
+    //    return e;
+    //    //*static_cast<OpTerms<Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...> const*>(&e);
+	//}
 
-	template<typename G0, exp_key_t X0, typename G1, exp_key_t X1, typename... Gs, exp_key_t... Xs>
-	auto& terms_after_first(OpTerms<Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...>& e)
-	{
-		return *static_cast<OpTerms<Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...>*>(&e);
-	}
+	//template<typename G0, exp_key_t X0, typename G1, exp_key_t X1, typename... Gs, exp_key_t... Xs>
+	//auto& terms_after_first(OpTerms<Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...>& e)
+	//{
+    //    return e;
+	//	//return *static_cast<OpTerms<Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...>*>(&e);
+	//}
 
 	template<typename G0, exp_key_t X0>
 	const auto& terms_after_first(OpTerms<Term<G0, X0>> const& e)
 	{
-		return *static_cast<OpTerms<Term<G0, X0>> const*>(&e);
+        return e;
+		//return *static_cast<OpTerms<Term<G0, X0>> const*>(&e);
 	}
 
 	template<typename G0, exp_key_t X0>
 	auto& terms_after_first(OpTerms<Term<G0, X0>>& e)
 	{
-		return *static_cast<OpTerms<Term<G0, X0>>*>(&e);
+        return e;
+		//return *static_cast<OpTerms<Term<G0, X0>>*>(&e);
 	}
 
 	template<typename V, typename G0, exp_key_t X0, typename... Gs, exp_key_t... Xs>
-	const auto& terms_after_first(OpTerms<V, Term<G0, X0>, Term<Gs, Xs>...> const& e)
+	decltype(auto) terms_after_first(OpTerms<V, Term<G0, X0>, Term<Gs, Xs>...> const& e)
 	{
-		return *static_cast<OpTerms<Term<G0, X0>, Term<Gs, Xs>...> const*>(&e);
+        if constexpr (is_term<V>)
+        {
+            return e;
+        }
+        else
+        {
+            using cast_to_t = OpTerms<Term<G0, X0>, Term<Gs, Xs>...>;
+    	    return symphas::internal::cast_term<cast_to_t>::cast(e);
+        }
+		//return *static_cast<OpTerms<Term<G0, X0>, Term<Gs, Xs>...> const*>(&e);
 	}
 
 	template<typename V, typename G0, exp_key_t X0, typename... Gs, exp_key_t... Xs>
-	auto& terms_after_first(OpTerms<V, Term<G0, X0>, Term<Gs, Xs>...>& e)
+	decltype(auto) terms_after_first(OpTerms<V, Term<G0, X0>, Term<Gs, Xs>...>& e)
 	{
-		return *static_cast<OpTerms<Term<G0, X0>, Term<Gs, Xs>...>*>(&e);
+        if constexpr (is_term<V>)
+        {
+            return e;
+        }
+        else
+        {
+            using cast_to_t = OpTerms<Term<G0, X0>, Term<Gs, Xs>...>;
+            return symphas::internal::cast_term<cast_to_t>::cast(e);
+        }
+		//return *static_cast<OpTerms<Term<G0, X0>, Term<Gs, Xs>...>*>(&e);
 	}
 
 	template<typename V>
-	const auto& terms_after_first(OpTerms<V> const& e)
+	decltype(auto) terms_after_first(OpTerms<V> const& e)
 	{
-		return *static_cast<OpTerms<> const*>(&e);
+        using cast_to_t = OpTerms<>;
+    	return symphas::internal::cast_term<cast_to_t>::cast(e);
+		//return *static_cast<OpTerms<> const*>(&e);
 	}
 
 	template<typename V>
-	auto& terms_after_first(OpTerms<V>& e)
+	decltype(auto) terms_after_first(OpTerms<V>& e)
 	{
-		return *static_cast<OpTerms<>*>(&e);
+        using cast_to_t = OpTerms<>;
+    	return symphas::internal::cast_term<cast_to_t>::cast(e);
+		//return *static_cast<OpTerms<>*>(&e);
 	}
 
 	template<size_t N, typename V, typename... Gs, exp_key_t... Xs>
@@ -945,20 +1011,29 @@ namespace expr
 	template<typename V, typename G, exp_key_t X>
 	const auto& data(OpTerms<V, Term<G, X>> const& e)
 	{
-		return static_cast<OpTerms<Term<G, X>> const*>(&e)->term.data();
+        if constexpr (is_term<V>)
+        {
+            return expr::get<0>(e).data();
+        }
+        else
+        {
+            return expr::get<1>(e).data();
+        }
 	}
 
 	template<typename V, typename G, exp_key_t X>
 	auto& data(OpTerms<V, Term<G, X>>& e)
 	{
-		return static_cast<OpTerms<Term<G, X>>*>(&e)->term.data();
+        if constexpr (is_term<V>)
+        {
+            return expr::get<0>(e).data();
+        }
+        else
+        {
+            return expr::get<1>(e).data();
+        }
 	}
 
-	template<typename E>
-	constexpr bool is_term = false;
-
-	template<typename G, exp_key_t X>
-	constexpr bool is_term<Term<G, X>> = true;
 }
 
 
@@ -1039,72 +1114,48 @@ auto Term<G, X>::root() const
 	}
 }
 
-template<>
-struct OpTerms<> : OpExpression<OpTerms<>>
+
+template<typename V, typename... Gs, expr::exp_key_t... Xs>
+struct OpTermsList<V, Term<Gs, Xs>...> : OpTermsList<Term<Gs, Xs>...>
 {
-	auto eval(iter_type n) const
+    using parent_type = OpTermsList<Term<Gs, Xs>...>;
+
+	OpTermsList() : parent_type(), term{ } {}
+	OpTermsList(V const& e, Term<Gs, Xs> const&... terms) : parent_type(terms...), term{ e } {}
+	OpTermsList(V const& e, OpTerms<Term<Gs, Xs>...> const& rest) : parent_type(rest), term{ e } {}
+    OpTermsList(OpTerms<V, Term<Gs, Xs>...> const& list) : 
+        parent_type(*static_cast<OpTermsList<Term<Gs, Xs>...> const*>(&list)), term{ list.term } {}
+    OpTermsList(OpTermsList<V, Term<Gs, Xs>...> const& list) : 
+        parent_type(*static_cast<OpTermsList<Term<Gs, Xs>...> const*>(&list)), term{ list.term } {}
+
+    template<typename G0, expr::exp_key_t X0>
+	auto _eval(Term<G0, X0> const& term0, iter_type n) const
+	{
+        return term0.eval(n) * parent_type::_eval(n);
+	}
+
+    template<typename V0>
+	auto _eval(V0 const& value, iter_type n) const
+	{
+		return expr::eval(value) * parent_type::_eval(n);
+	}
+
+	inline auto _eval(iter_type n) const
+	{
+		return _eval(term, n);
+	}
+
+    V term;
+};
+
+template<>
+struct OpTermsList<> 
+{
+	inline auto _eval(iter_type) const
 	{
 		return OpIdentity{};
 	}
-
-#ifdef PRINTABLE_EQUATIONS
-
-	size_t print(FILE* out) const
-	{
-		return 0;
-	}
-
-	size_t print(char* out) const
-	{
-		return 0;
-	}
-
-	size_t print_length() const
-	{
-		return 0;
-	}
-
-#endif
 };
-
-template<typename V, typename... Gs, expr::exp_key_t... Xs>
-struct OpExpression<OpTerms<V, Term<Gs, Xs>...>> : OpTerms<Term<Gs, Xs>...>
-{
-	using parent_type = OpTerms<Term<Gs, Xs>...>;
-	using parent_type::parent_type;
-	using E = OpTerms<V, Term<Gs, Xs>...>;
-
-	constexpr OpExpression() : parent_type() {}
-
-	OpExpression(OpTerms<Term<Gs, Xs>...> const& terms) : parent_type(terms) {}
-
-	auto operator()(iter_type n) const
-	{
-		return cast().eval(n);
-	}
-
-	template<typename E0>
-	auto operator()(OpExpression<E0> const& e) const
-	{
-		return cast() * (*static_cast<E0 const*>(&e));
-	}
-
-	auto& cast() const
-	{
-		return *static_cast<E const*>(this);
-	}
-
-	symphas::internal::expression_iterator<E> begin() const
-	{
-		return symphas::internal::expression_iterator<E>(cast());
-	}
-
-	symphas::internal::expression_iterator<E> end(len_type len) const
-	{
-		return symphas::internal::expression_iterator<E>(cast(), len);
-	}
-};
-
 
 //! A expression term equivalent to the product of two or more OpTerm.
 /*!
@@ -1118,60 +1169,49 @@ struct OpExpression<OpTerms<V, Term<Gs, Xs>...>> : OpTerms<Term<Gs, Xs>...>
  * \tparam Gs... The data types that the variable represents.
  */
 template<typename V, typename... Gs, expr::exp_key_t... Xs>
-struct OpTerms<V, Term<Gs, Xs>...> : OpExpression<OpTerms<V, Term<Gs, Xs>...>>
+struct OpTerms<V, Term<Gs, Xs>...> : OpExpression<OpTerms<V, Term<Gs, Xs>...>>, OpTermsList<V, Term<Gs, Xs>...>
 {
-	using parent_type = OpExpression<OpTerms<V, Term<Gs, Xs>...>>;
+	using parent_type = OpTermsList<V, Term<Gs, Xs>...>;
+    using parent_type::term;
 
-	constexpr OpTerms() : parent_type(), term{ V{} } {}
+	constexpr OpTerms() : parent_type() {}
 
 	OpTerms(V const& term0, Term<Gs, Xs> const&... terms) 
-		: parent_type(terms...), term{ term0 } {}
-	
+		: parent_type(term0, terms...) {}
 	OpTerms(V const& term0, OpTerms<Term<Gs, Xs>...> const& terms) 
-		: parent_type(terms), term{ term0 } {}
-	
+		: parent_type(term0, terms) {}
 	OpTerms(OpTerms<V, Term<Gs, Xs>...> const& terms) 
-		: parent_type(expr::terms_after_first(terms)), term{ terms.term } {}
-
-	template<typename E = V, typename std::enable_if_t<expr::is_term<E>, int> = 0>
-	auto _eval(iter_type n) const
-	{
-		return term.eval(n) * parent_type::eval(n);
-	}
-
-	template<typename E = V, typename std::enable_if_t<!expr::is_term<E>, int> = 0>
-	auto _eval(iter_type n) const
-	{
-		return expr::eval(term) * parent_type::eval(n);
-	}
-
-	inline auto eval(iter_type n) const
-	{
-		return _eval(n);
-	}
+		: parent_type(terms) {}
+	OpTerms(OpTermsList<V, Term<Gs, Xs>...> const& terms) 
+		: parent_type(terms) {}
 
 	template<typename E, size_t N = sizeof...(Gs), typename std::enable_if_t<(N == 1), int> = 0>
 	void operator=(OpExpression<E> const& e)
 	{
 		expr::result(
 			*static_cast<E const*>(&e),
-			static_cast<OpTerms<Term<Gs, Xs>...>*>(this)->term);
+			static_cast<OpTermsList<Term<Gs, Xs>...> const*>(this)->term);
 	}
-	
+
 	auto operator-() const;
+
+    auto eval(iter_type n = 0) const
+    {
+        return parent_type::_eval(n);
+    }
 
 #ifdef PRINTABLE_EQUATIONS
 
 	size_t print(FILE* out) const
 	{
 		size_t n = symphas::internal::print_one_term(out, term);
-		return n + parent_type::print(out);
+		return n + expr::terms_after_n<0>(*this).print(out);
 	}
 
 	size_t print(char* out) const
 	{
 		size_t n = symphas::internal::print_one_term(out, term);
-		return n + parent_type::print(out + n);
+		return n + expr::terms_after_n<0>(*this).print(out + n);
 	}
 
 	size_t print_length() const
@@ -1185,14 +1225,15 @@ struct OpTerms<V, Term<Gs, Xs>...> : OpExpression<OpTerms<V, Term<Gs, Xs>...>>
 		{
 			n += symphas::internal::print_length_one_term(expr::make_literal(term));
 		}
-		return n + parent_type::print_length();
+		return n + expr::terms_after_n<0>(*this).print_length();
 	}
 
 #endif
 
-	V term;
 };
 
+template<>
+struct OpTerms<> {};
 
 
 template<typename V, typename... Gs, expr::exp_key_t... Xs>
@@ -1209,7 +1250,7 @@ OpTerms(OpTerms<V, Term<Gs, Xs>...>, Term<G0, X0>)->OpTerms<V, Term<G0, X0>, Ter
 template<typename V, typename... Gs, expr::exp_key_t... Xs>
 auto OpTerms<V, Term<Gs, Xs>...>::operator-() const
 {
-	return ::OpTerms(-term, *static_cast<OpTerms<Term<Gs, Xs>...> const*>(this));
+    return ::OpTerms(-term, expr::terms_after_n<0>(*this));
 }
 
 
@@ -1286,14 +1327,14 @@ template<typename coeff_t, typename V, typename... Gs, expr::exp_key_t... Xs,
 		&& ((R > 1) ? R != expr::eval_type<coeff_t>::template rank_<1> : true)), int> = 0>
 auto operator*(coeff_t const& value, OpTerms<V, Term<Gs, Xs>...> const& b)
 {
-	return OpTerms(value * expr::coeff(b), *static_cast<OpTerms<Term<Gs, Xs>...> const*>(&b));
+	return OpTerms(value * expr::coeff(b), expr::terms_after_first(b));
 }
 
 template<typename coeff_t, typename tensor_t, typename... Gs, expr::exp_key_t... Xs,
 	typename std::enable_if_t<(expr::is_coeff<coeff_t> && expr::is_tensor<tensor_t>), int> = 0>
 auto operator*(coeff_t const& value, OpTerms<tensor_t, Term<Gs, Xs>...> const& b)
 {
-	return (value * expr::coeff(b)) * OpTerms(OpIdentity{}, *static_cast<OpTerms<Term<Gs, Xs>...> const*>(&b));
+	return (value * expr::coeff(b)) * OpTerms(OpIdentity{}, expr::terms_after_first(b));
 }
 
 template<typename T, typename V, typename... Gs, expr::exp_key_t... Xs,
@@ -1307,13 +1348,13 @@ auto operator*(OpTensor<T, N0, N1, N, D> const& tensor, OpTerms<V, Term<Gs, Xs>.
 	{
 		auto coeff = symphas::internal::tensor_cast::cast(tensor) * expr::coeff(b);
 		return coeff * symphas::internal::terms_make_component<ax>(
-			*static_cast<OpTerms<Term<Gs, Xs>...> const*>(&b), std::make_index_sequence<sizeof...(Gs)>{});
+			expr::terms_after_first(b), std::make_index_sequence<sizeof...(Gs)>{});
 	}
 	else
 	{
 		auto coeff = expr::make_tensor<N0, N>(symphas::internal::tensor_cast::cast(tensor)) * expr::coeff(b);
 		return coeff * symphas::internal::terms_make_component<ax>(
-			*static_cast<OpTerms<Term<Gs, Xs>...> const*>(&b), std::make_index_sequence<sizeof...(Gs)>{});
+			expr::terms_after_first(b), std::make_index_sequence<sizeof...(Gs)>{});
 	}
 
 }

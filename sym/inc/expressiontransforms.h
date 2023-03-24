@@ -36,6 +36,7 @@
 #include "expressiontypeincludes.h"
 #include "expressionfunctions.h"
 #include "expressionproperties.h"
+#include "expressionaggregates.h"
 
 namespace expr
 {
@@ -49,6 +50,8 @@ namespace expr
 
 namespace expr::prune
 {
+	template<typename E>
+	void update(E& e);
 
 	namespace
 	{
@@ -111,24 +114,24 @@ namespace expr::prune
 
 		template<typename V, typename... Gs, expr::exp_key_t... Xs>
 		void _update(OpTerms<V, Term<Gs, Xs>...>& e);
-		template<typename G, expr::exp_key_t X>
-		void _update(Term<G, X>& e);
-		template<size_t Z, typename G>
-		void _update(Variable<Z, G>& e);
-		template<typename G>
-		void _update(NamedData<G>& e);
-		template<Axis ax, typename G>
-		void _update(VectorComponent<ax, G>& e);
-		template<typename G>
-		void _update(symphas::ref<G>& e);
 
 
-		template<NoiseType nt, typename T, size_t D>
-		void _update(NoiseData<nt, T, D>& e);
-		template<typename T>
-		void _update(SymbolicData<T>&);
+        template<typename G, expr::exp_key_t X>
+        void _update(Term<G, X>& e);
+        template<size_t Z, typename G>
+        void _update(Variable<Z, G>& e);
+        template<typename G>
+        void _update(NamedData<G>& e);
+        template<Axis ax, typename G>
+        void _update(VectorComponent<ax, G>& e);
+        template<typename G>
+        void _update(symphas::ref<G>& e);
 
 
+        template<NoiseType nt, typename T, size_t D>
+        void _update(NoiseData<nt, T, D>& e);
+        template<typename T>
+        void _update(SymbolicData<T>&);
 
 		template<typename V, typename E>
 		void _update(OpExponential<V, E>& e)
@@ -307,47 +310,49 @@ namespace expr::prune
 			_update(expr::terms_after_n<0>(e));
 		}
 
-		template<typename G, expr::exp_key_t X>
-		void _update(Term<G, X>& e)
-		{
-			_update(e.data());
-		}
 
-		template<size_t Z, typename G>
-		void _update(Variable<Z, G>& e)
-		{
-			_update(*static_cast<G*>(&e));
-		}
+        template<typename G, expr::exp_key_t X>
+        void _update(Term<G, X>& e)
+        {
+            _update(e.data());
+        }
 
-		template<typename G>
-		void _update(NamedData<G>& e)
-		{
-			_update(*static_cast<G*>(&e));
-		}
+        template<size_t Z, typename G>
+        void _update(Variable<Z, G>& e)
+        {
+            _update(*static_cast<G*>(&e));
+        }
 
-		template<Axis ax, typename G>
-		void _update(VectorComponent<ax, G>& e)
-		{
-			_update(*static_cast<G*>(&e));
-		}
+        template<typename G>
+        void _update(NamedData<G>& e)
+        {
+            _update(*static_cast<G*>(&e));
+        }
 
-		template<typename G>
-		void _update(symphas::ref<G>& e)
-		{
-			_update(e.get());
-		}
+        template<Axis ax, typename G>
+        void _update(VectorComponent<ax, G>& e)
+        {
+            _update(*static_cast<G*>(&e));
+        }
 
-		template<NoiseType nt, typename T, size_t D>
-		void _update(NoiseData<nt, T, D>& data)
-		{
-			data.update();
-		}
+        template<typename G>
+        void _update(symphas::ref<G>& e)
+        {
+            _update(e.get());
+        }
 
-		template<typename T>
-		void _update(SymbolicData<T>& data)
-		{
-			_update(*data.data);
-		}
+        template<NoiseType nt, typename T, size_t D>
+        void _update(NoiseData<nt, T, D>& data)
+        {
+            data.update();
+        }
+
+        template<typename T>
+        void _update(SymbolicData<T>& data)
+        {
+            _update(*data.data);
+        }
+
 	}
 
 	//! Update underlying the given expression.
@@ -1340,7 +1345,7 @@ namespace expr::transform
 	template<typename T, typename G>
 	auto to_grid(OpTerm<T, G> const e)
 	{
-		return expr::BaseData<G>::get(expr::get<1>().data());
+		return expr::BaseData<G>::get(expr::get<1>(e).data());
 	}
 
 	//! Evaluating an identity or fraction as a grid returns just the value of the literal.

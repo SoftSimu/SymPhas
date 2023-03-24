@@ -28,7 +28,7 @@
 #pragma once
 
 #include "expressionlib.h"
-#include "symbolicprototypes.h"
+#include "expressionproperties.h"
 
 
 /*!

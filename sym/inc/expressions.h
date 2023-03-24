@@ -29,7 +29,8 @@
 #include <iostream>
 
 #include "expressionlib.h"
-
+#include "expressionproperties.h"
+#include "expressionsprint.h"
 
 
 // ******************************************************************************************
@@ -134,6 +135,195 @@
  * for values from expressions that are printed to the screen.
  */
 #define EXPR_VALUE_DISPLAY_PRECISION 3
+
+
+// ******************************************************************************************
+
+/*
+ * evaluate the expression in every index in the array
+ */
+
+namespace expr
+{
+
+#ifdef MULTITHREAD
+
+	template<typename E, typename assign_type>
+	void result_interior(OpExpression<E> const& e, assign_type&& data, iter_type* inners, len_type len = 0)
+	{
+		auto& e0 = *static_cast<const E*>(&e);
+		if (!len)
+		{
+			len = expr::data_length(*static_cast<E const*>(&e));
+		}
+
+		symphas::internal::data_iterator it(std::forward<assign_type>(data));
+
+		std::for_each(
+#ifdef EXECUTION_HEADER_AVAILABLE
+			std::execution::par_unseq, 
+#endif
+			inners, inners + len, [&] (iter_type index) { it[index] = static_cast<const E*>(&e)->eval(index); });
+	}
+
+	template<typename T, size_t D, typename E>
+	void result_interior(OpExpression<E> const& e, Grid<T, D>& grid)
+	{
+		expr::result_interior(*static_cast<const E*>(&e), grid, grid::interior_indices_list<D>(grid.dims), grid::length_interior<D>(grid.dims));
+	}
+
+#else
+
+	//! Evaluate the expression into the interior of the array.
+	/*!
+	 * Evaluate and store the result of the expression on the interior values
+	 * of a grid logically represented by the given dimensions. The direct
+	 * array pointer is given. The expression must be of the same
+	 * dimensionality as the array.
+	 * 
+	 * \param e The expression which is evaluated into the array.
+	 * \param values The array which contains the result of the expression on
+	 * its interior values.
+	 * \param dim The logical dimensions of the grid that the expression is
+	 * evaluated over.
+	 */
+	template<typename E, typename assign_type>
+	void result_interior(OpExpression<E> const& e, assign_type&& data, len_type(&dim)[3])
+	{
+		symphas::internal::data_iterator it(std::forward<assign_type>(data));
+		ITER_GRID3(it[INDEX] = static_cast<const E*>(&e)->eval(INDEX), dim[0], dim[1], dim[2])
+	}
+
+	//! Specialization based on result_interior(OpExpression<E> const&, T*, len_type(&)[3]).
+	template<typename E, typename assign_type>
+	void result_interior(OpExpression<E> const& e, assign_type&& data, len_type(&dim)[2])
+	{
+		symphas::internal::data_iterator it(std::forward<assign_type>(data));
+		ITER_GRID2(it[INDEX] = static_cast<const E*>(&e)->eval(INDEX), dim[0], dim[1])
+	}
+
+	//! Specialization based on result_interior(OpExpression<E> const&, T*, len_type(&)[3]).
+	template<typename E, typename assign_type>
+	void result_interior(OpExpression<E> const& e, assign_type&& data, len_type(&dim)[1])
+	{
+		symphas::internal::data_iterator it(std::forward<assign_type>(data));
+		ITER_GRID1(it[INDEX] = static_cast<const E*>(&e)->eval(INDEX), dim[0])
+	}
+
+	//! Evaluate the expression into the interior of the array.
+	/*!
+	 * See result_interior(OpExpression<E> const&, T*, len_type(&)[3]).
+	 * Implementation based on parameter input of a Grid.
+	 * Given the grid, the interior values are initialized to the result of
+	 * the expression at each respective point.
+	 * 
+	 * \param e The expression which is evaluated into the array.
+	 * \param grid The grid that contains the result of the expression on its
+	 * interior values.
+	 */
+	template<typename E, typename T, size_t D>
+	void result_interior(OpExpression<E> const& e, Grid<T, D>& grid)
+	{
+		expr::result_interior(*static_cast<const E*>(&e), grid, grid.dims);
+	}
+
+#endif
+
+	//! Evaluate the expression into the underlying data member.
+	/*!
+	 * The expression must be iterable over the entire given length.
+	 * 
+	 * \param e Expression that is evaluated.
+	 * \param data The array containing the result of the expression.
+	 * \param len The number of elements in the array.
+	 */
+	template<typename E, typename assign_type>
+	void result(OpExpression<E> const& e, assign_type&& data, len_type len = 0)
+	{
+		if (!len)
+		{
+			len = expr::data_length(*static_cast<E const*>(&e));
+		}
+
+		symphas::internal::data_iterator it(std::forward<assign_type>(data));
+
+#if defined(EXECUTION_HEADER_AVAILABLE)
+		std::copy(std::execution::par, 
+			static_cast<const E*>(&e)->begin(), 
+			static_cast<const E*>(&e)->end(len), it);
+#else
+		for (iter_type i = 0; i < len; i++)
+		{
+			it[i] = static_cast<const E*>(&e)->eval(i);
+		}
+#endif
+	}
+	
+	//! See result(OpExpression<E> const&, T*, len_type).
+	/*!
+	 * The given expression is evaluated at every point of the grid and the
+	 * result stored in grid array.
+	 * 
+	 * \param e The expression which is evaluated.
+	 * \param grid The grid that contains the result of the expression.
+	 */
+	template<typename E, size_t D, typename T>
+	void result(OpExpression<E> const& e, Grid<T, D>& grid)
+	{
+		expr::result(*static_cast<const E*>(&e), grid, grid.len);
+	}
+
+	//! Specialization based on result(OpExpression<E> const&, Grid<T, D>&).
+	template<typename E, typename T>
+	void result(OpExpression<E> const& e, Block<T>& grid)
+	{
+		expr::result(*static_cast<const E*>(&e), grid, grid.len);
+	}
+
+	//! Specialization based on result(OpExpression<E> const&, Grid<T, D>&).
+	template<typename G, typename E>
+	void result(std::pair<G, E> const& r)
+	{
+		auto&& [grid, expression] = r;
+		expr::result(expression, grid);
+	}
+
+	//! Add the result of the expression into the underlying data member.
+	/*!
+	 * The expression is evaluated and the result is added to the existing
+	 * values in the data array.
+	 * 
+	 * \param e Expression that is evaluated.
+	 * \param data The array of data.
+	 * \param len The length of the array.
+	 */
+	template<typename E, typename assign_type>
+	void result_accumulate(OpExpression<E> const& e, assign_type&& data, len_type len = 0)
+	{
+		if (!len)
+		{
+			len = expr::data_length(*static_cast<E const*>(&e));
+		}
+
+		symphas::internal::data_iterator it(std::forward<assign_type>(data));
+
+#if defined(MULTITHREAD) && defined(EXECUTION_HEADER_AVAILABLE)
+		std::transform(std::execution::par_unseq, 
+			static_cast<const E*>(&e)->begin(), 
+			static_cast<const E*>(&e)->end(len), it, it,
+			[](auto expr_value, auto data_value) { return data_value + expr_value; });
+#else
+
+		for (iter_type i = 0; i < len; i++)
+		{
+			it[i] += static_cast<const E*>(&e)->eval(i);
+		}
+#endif
+	}
+}
+
+
+
 
 namespace symphas::internal
 {
@@ -391,9 +581,15 @@ struct OpTensor : OpExpression<OpTensor<T, Ns...>>
 		return vector;
 	}
 
-	operator T const& () const = delete;
-	operator T& () = delete;
+	explicit operator T const& () const
+    {
+        return cast();
+    }
 
+	explicit operator T& ()
+    {
+        return cast();
+    }
 
 #ifdef PRINTABLE_EQUATIONS
 
@@ -556,6 +752,11 @@ struct OpLiteral : OpExpression<OpLiteral<T>>
 
 	template<typename S>
 	auto operator*(OpLiteral<S> const& other) const
+	{
+		return expr::make_literal(value * other.value);
+	}
+
+	auto operator*(OpLiteral<T> const& other) const
 	{
 		return expr::make_literal(value * other.value);
 	}
@@ -1345,6 +1546,8 @@ bool operator<(any_vector_t<T, D> const& value, S&&)
 	return false;
 }
 
+template<typename... Es>
+struct OpAddList;
 
 namespace symphas::internal
 {
@@ -1417,28 +1620,51 @@ namespace symphas::internal
 	template<size_t N>
 	struct Nth_type_of_add<N, OpAdd<>>
 	{
-		using type = OpAdd<>;
+		using type = OpAddList<>;
 	};
 
 	template<typename E0, typename... Es>
 	struct Nth_type_of_add<0, OpAdd<E0, Es...>>
 	{
-		using type = OpAdd<E0, Es...>;
+		using type = OpAddList<E0, Es...>;
 	};
 
 	template<typename cast_type>
-	struct cast_add
+	struct cast_add;
+
+	template<typename... E0s>
+	struct cast_add<OpAdd<E0s...>>
 	{
+        using cast_type = OpAdd<E0s...>;
+
 		template<typename... Es>
-		static cast_type const& cast(OpAdd<Es...> const& adds)
+		static cast_type cast(OpAdd<Es...> const& adds)
 		{
-			return *static_cast<cast_type const*>(&adds);
+			return *static_cast<OpAddList<E0s...> const*>(&adds);
+		}
+
+		template<typename... Es>
+		static cast_type cast(OpAdd<Es...>& adds)
+		{
+			return *static_cast<OpAddList<E0s...>*>(&adds);
+		}
+	};
+
+	template<typename... E0s>
+	struct cast_add<OpAddList<E0s...>>
+	{
+        using cast_type = OpAddList<E0s...>;
+
+		template<typename... Es>
+		static const cast_type& cast(OpAdd<Es...> const& adds)
+		{
+			return *static_cast<OpAddList<E0s...> const*>(&adds);
 		}
 
 		template<typename... Es>
 		static cast_type& cast(OpAdd<Es...>& adds)
 		{
-			return *static_cast<cast_type*>(&adds);
+			return *static_cast<OpAddList<E0s...>*>(&adds);
 		}
 	};
 
@@ -1446,15 +1672,15 @@ namespace symphas::internal
 	struct cast_add<symphas::lib::types_list<E0s...>>
 	{
 		template<typename... Es>
-		static OpAdd<E0s...> const& cast(OpAdd<Es...> const& adds)
+		static OpAdd<E0s...> cast(OpAdd<Es...> const& adds)
 		{
-			return *static_cast<OpAdd<E0s...> const*>(&adds);
+			return *static_cast<OpAddList<E0s...> const*>(&adds);
 		}
 
 		template<typename... Es>
-		static OpAdd<E0s...>& cast(OpAdd<Es...>& adds)
+		static OpAdd<E0s...> cast(OpAdd<Es...>& adds)
 		{
-			return *static_cast<OpAdd<E0s...>*>(&adds);
+			return *static_cast<OpAddList<E0s...>*>(&adds);
 		}
 	};
 
@@ -1483,14 +1709,14 @@ namespace expr
 	const auto& get(OpAdd<Es...> const& e)
 	{
 		using Nth_type = typename symphas::internal::Nth_type_of_add<N, OpAdd<Es...>>::type;
-		return symphas::internal::cast_add<Nth_type>::cast(e).data;
+		return symphas::internal::cast_add<Nth_type>::cast(e).term;
 	}
 
 	template<size_t N, typename... Es>
 	auto& get(OpAdd<Es...>& e)
 	{
 		using Nth_type = typename symphas::internal::Nth_type_of_add<N, OpAdd<Es...>>::type;
-		return symphas::internal::cast_add<Nth_type>::cast(e).data;
+		return symphas::internal::cast_add<Nth_type>::cast(e).term;
 	}
 
 	template<size_t N, typename... Es>
@@ -1534,7 +1760,7 @@ namespace expr
 		using ts = symphas::lib::types_after_at_index<N + 1, Es...>;
 		if constexpr (N + 1 == sizeof...(Es) - 1)
 		{
-			return symphas::internal::cast_add<ts>::cast(e).data;
+			return symphas::internal::cast_add<ts>::cast(e).term;
 		}
 		else if constexpr (N + 1 < sizeof...(Es))
 		{
@@ -1552,7 +1778,7 @@ namespace expr
 		using ts = symphas::lib::types_after_at_index<N + 1, Es...>;
 		if constexpr (N + 1 == sizeof...(Es) - 1)
 		{
-			return symphas::internal::cast_add<ts>::cast(e).data;
+			return symphas::internal::cast_add<ts>::cast(e).term;
 		}
 		else if constexpr (N + 1 < sizeof...(Es))
 		{
@@ -1567,92 +1793,66 @@ namespace expr
 	template<typename E0, typename E1, typename E2, typename... Es>
 	const auto& terms_after_first(OpAdd<E0, E1, E2, Es...> const& e)
 	{
-		return symphas::internal::cast_add<OpAdd<E1, E2, Es...>>::cast(e);
+		return symphas::internal::cast_add<OpAddList<E1, E2, Es...>>::cast(e);
 	}
 
 	template<typename E0, typename E1>
 	const auto& terms_after_first(OpAdd<E0, E1> const& e)
 	{
-		return symphas::internal::cast_add<OpAdd<E1>>::cast(e).data;
+		return symphas::internal::cast_add<OpAddList<E1>>::cast(e).term;
 	}
 
 	template<typename E0, typename E1, typename E2, typename... Es>
 	auto& terms_after_first(OpAdd<E0, E1, E2, Es...>& e)
 	{
-		return symphas::internal::cast_add<OpAdd<E1, E2, Es...>>::cast(e);
+		return symphas::internal::cast_add<OpAddList<E1, E2, Es...>>::cast(e);
 	}
 
 	template<typename E0, typename E1>
 	auto& terms_after_first(OpAdd<E0, E1>& e)
 	{
-		return symphas::internal::cast_add<OpAdd<E1>>::cast(e).data;
+		return symphas::internal::cast_add<OpAddList<E1>>::cast(e).term;
 	}
 }
 
-template<>
-struct OpAdd<> : OpExpression<OpAdd<>>
+
+template<typename E0, typename... Es>
+struct OpAddList<E0, Es...> : OpAddList<Es...>
 {
-	inline auto eval(iter_type) const
-	{
-		return OpVoid{};
-	}
+    using parent_type = OpAddList<Es...>;
 
-#ifdef PRINTABLE_EQUATIONS
+	OpAddList() : parent_type(), term{ } {}
+	OpAddList(E0 const& e, Es const&... es) : parent_type(es...), term{ e } {}
+	OpAddList(E0 const& e, OpAdd<Es...> const& rest) : parent_type(rest), term{ e } {}
+    OpAddList(OpAdd<E0, Es...> const& list) : 
+        parent_type(*static_cast<OpAddList<Es...> const*>(&list)), term{ list.term } {}
+    OpAddList(OpAddList<E0, Es...> const& list) : 
+        parent_type(*static_cast<OpAddList<Es...> const*>(&list)), term{ list.term } {}
 
-	inline int print_length() const
-	{
-		return -int(SYEX_BINARY_FMT_LEN);
-	}
+    auto _eval(iter_type n = 0) const
+    {
+        return term.eval(n) + parent_type::_eval(n);
+    }
 
 	bool coeff_sign() const
 	{
-		return false;
+		return (expr::coeff(term).eval() < 0);
 	}
 
-#endif
-	
+    E0 term;
 
+	template<typename cast_type>
+	friend struct symphas::internal::cast_add;
 };
 
-template<typename E0, typename... Es>
-struct OpExpression<OpAdd<E0, Es...>> : OpAdd<Es...>
+template<>
+struct OpAddList<> 
 {
-	using parent_type = OpAdd<Es...>;
-	using parent_type::parent_type;
-	using E = OpAdd<E0, Es...>;
-
-	explicit OpExpression(OpAdd<Es...> const& rest) : parent_type(rest) {}
-	explicit OpExpression(OpAdd<Es...>&& rest) noexcept : parent_type(std::move(rest)) {}
-
-	auto operator()(iter_type n) const
+	inline auto _eval(iter_type) const
 	{
-		return cast().eval(n);
+		return OpVoid{};
 	}
-
-	template<typename EE>
-	auto operator()(OpExpression<EE> const& e) const
-	{
-		return cast() * (*static_cast<EE const*>(&e));
-	}
-
-	symphas::internal::expression_iterator<E> begin() const
-	{
-		return symphas::internal::expression_iterator<E>(cast());
-	}
-
-	symphas::internal::expression_iterator<E> end(len_type len) const
-	{
-		return symphas::internal::expression_iterator<E>(cast(), len);
-	}
-
-	auto& cast() const
-	{
-		return *static_cast<E const*>(this);
-	}
-
 };
-
-// ******************************************************************************************
 
 //! Binary expression, the addition of two terms.
 /*!
@@ -1662,12 +1862,15 @@ struct OpExpression<OpAdd<E0, Es...>> : OpAdd<Es...>
  * \tparam E2 The type of the right hand side expression.
  */
 template<typename E0, typename... Es>
-struct OpAdd<E0, Es...> : OpExpression<OpAdd<E0, Es...>>
+struct OpAdd<E0, Es...> : OpExpression<OpAdd<E0, Es...>>, OpAddList<E0, Es...>
 {
 protected:
-	using parent_type = OpExpression<OpAdd<E0, Es...>>;
+	using parent_type = OpAddList<E0, Es...>;
 
 public:
+
+    using parent_type::term;
+    using parent_type::coeff_sign;
 
 	//! Create the binary addition expression between two expressions.
 	/*!
@@ -1676,19 +1879,20 @@ public:
 	 * \param a The expression on the left hand side of the addition operator.
 	 * \param b The expression on the right hand side of the addition operator.
 	 */
-	OpAdd(E0 const& e, Es const&... es) : parent_type(es...), data{ e } {}
-	OpAdd(E0 const& e, OpAdd<Es...> const& rest) : parent_type(rest), data{ e } {}
-	OpAdd(OpAdd<Es...> const& rest, E0 const& e) : parent_type(rest), data{ e } {}
-
+	OpAdd(E0 const& e, Es const&... es) : parent_type(e, es...) {}
+	OpAdd(E0 const& e, OpAdd<Es...> const& rest) : parent_type(e, rest) {}
+	OpAdd(OpAdd<Es...> const& rest, E0 const& e) : parent_type(e, rest) {}
+    OpAdd(OpAddList<E0, Es...> const& list) : parent_type(list) {}
+    
 	//template<typename data_type = E0, typename nested_type = OpAdd<Es...>,
 	//	typename = std::enable_if_t<(
 	//		std::is_default_constructible<data_type>::value &&
 	//		std::is_default_constructible<nested_type>::value), int>>
-	OpAdd() : parent_type(), data{} {}
+	OpAdd() : parent_type() {}
 
 	inline auto eval(iter_type n = 0) const
 	{
-		return (data.eval(n) + parent_type::eval(n));
+		return parent_type::_eval(n);
 	}
 
 	auto operator-() const;
@@ -1698,51 +1902,32 @@ public:
 
 	size_t print(FILE* out) const
 	{
-		size_t n = data.print(out);
+		size_t n = term.print(out);
 		return n + symphas::internal::binary_print(*this, out, std::make_index_sequence<sizeof...(Es)>{});
 	}
 
 	size_t print(char* out) const
 	{
-		size_t n = data.print(out);
+		size_t n = term.print(out);
 		return n + symphas::internal::binary_print(*this, out + n, std::make_index_sequence<sizeof...(Es)>{});
 	}
 
 	size_t print_length() const
 	{
-		size_t n = data.print_length() + SYEX_BINARY_FMT_LEN;
-		if (parent_type::coeff_sign())
+		size_t n = term.print_length() + SYEX_BINARY_FMT_LEN;
+		if (OpAddList<Es...>::coeff_sign())
 		{
 			n -= 1;
 		}
-		return n + parent_type::print_length();
+		return n + expr::terms_after_n<0>(*this).print_length();
 	}
-
-protected:
-
-	bool coeff_sign() const
-	{
-		return (expr::coeff(data).eval() < 0);
-	}
-
-public:
 
 #endif
 
-	E0 data;
-
-	//template<typename S = symphas::lib::type_at_index<sizeof...(Es), E0, Es...>, 
-	//	typename T = add_result_t<expr::eval_type_t<E0>, expr::eval_type_t<Es>...>,
-	//	typename std::enable_if_t<(expr::is_coeff<S> && expr::is_coeff<E0> && (expr::is_coeff<Es> && ...)), int> = 0>
-	//explicit operator decltype(T{})() const
-	//{
-	//	return eval(0);
-	//}
-
-	template<typename cast_type>
-	friend struct symphas::internal::cast_add;
-
 };
+
+template<>
+struct OpAdd<> {};
 
 template<typename E0, typename... Es>
 OpAdd(E0, OpAdd<Es...>)->OpAdd<E0, Es...>;
@@ -2243,333 +2428,6 @@ namespace expr
 	{
 		return OpVoid{};
 	}
-}
-
-
-
-
-namespace expr
-{
-	//! Get the expression that the OpMap applies to.
-	template<typename G, typename V, typename E>
-	auto const& get_enclosed_expression(OpMap<G, V, E> const& e)
-	{
-		return e.e;
-	}
-
-	//! Get the expression that the OpMap applies to.
-	template<typename E>
-	auto const& get_enclosed_expression(OpMap<symphas::internal::HCTS, OpIdentity, E> const& e)
-	{
-		return e.e;
-	}
-	//! Get the expression that the OpMap applies to.
-	template<typename E>
-	auto const& get_enclosed_expression(OpMap<symphas::internal::STHC, OpIdentity, E> const& e)
-	{
-		return e.e;
-	}
-
-	//! Get the expression that the OpMap applies to.
-	template<typename V, typename E>
-	auto const& get_enclosed_expression(OpMap<void, V, E> const& e)
-	{
-		return *static_cast<E const*>(&e);
-	}
-
-	//! Get the expression that the OpDerivative applies to.
-	template<typename Dd, typename V, typename G, typename Sp>
-	decltype(auto) get_enclosed_expression(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> const& e)
-	{
-		return OpTerm<OpIdentity, G>(OpIdentity{}, e.data);
-	}
-
-	//! Get the expression that the OpDerivative applies to.
-	template<size_t O, typename V, typename G, typename G0>
-	auto const& get_enclosed_expression(OpDerivative<std::index_sequence<O>, V, OpTerm<OpIdentity, G>, SymbolicDerivative<G0>> const& e)
-	{
-		return e.e;
-	}
-
-	//! Get the expression that the OpDerivative applies to.
-	template<size_t O, typename V, typename E, typename G0>
-	auto const& get_enclosed_expression(OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G0>> const& e)
-	{
-		return e.e;
-	}
-
-	//! Get the expression that the OpDerivative applies to.
-	template<typename Dd, typename V, typename E, typename Sp>
-	auto const& get_enclosed_expression(OpDerivative<Dd, V, E, Sp> const& e)
-	{
-		return e.e;
-	}
-
-	//! Get the expression that the OpChain applies to.
-	template<typename A1, typename A2, typename E>
-	auto const& get_enclosed_expression(OpChain<A1, A2, E> const& e)
-	{
-		return e.e;
-	}
-
-	//! Get the expression that the OpCombination applies to.
-	template<typename A1, typename A2, typename E>
-	auto const& get_enclosed_expression(OpCombination<A1, A2, E> const& e)
-	{
-		return e.e;
-	}
-
-	//! Get the expression that the OpFunction applies to.
-	template<typename V, typename E, typename F, typename Arg0, typename... Args>
-	auto const& get_enclosed_expression(OpFunction<V, E, F, Arg0, Args...> const& e)
-	{
-		return e.e;
-	}
-
-	//! Get the expression that the OpConvolution applies to.
-	template<auto f, typename V, typename E>
-	auto const& get_enclosed_expression(OpFunctionApply<f, V, E> const& e)
-	{
-		return e.e;
-	}
-
-	//! Get the expression that the OpConvolution applies to.
-	template<typename V, typename sub_t, typename E, typename... Ts>
-	const auto& get_enclosed_expression(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e)
-	{
-		return e.f.e;
-	}
-
-	//! Get the expression that the OpConvolution applies to.
-	template<typename V, size_t D, typename G>
-	decltype(auto) get_enclosed_expression(OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>> const& e)
-	{
-		return OpTerm<OpIdentity, G>(OpIdentity{}, e.data);
-	}
-
-	//! Get the expression that the OpConvolution applies to.
-	template<typename V, size_t D, typename E>
-	auto const& get_enclosed_expression(OpConvolution<V, GaussianSmoothing<D>, E> const& e)
-	{
-		return e.e;
-	}
-
-
-	//! Get the expression that the OpExponential applies to.
-	template<typename V, typename E>
-	auto const& get_enclosed_expression(OpExponential<V, E> const& e)
-	{
-		return e.e;
-	}
-
-	template<expr::exp_key_t X, typename V, typename E>
-	auto const& get_enclosed_expression(OpPow<X, V, E> const& e)
-	{
-		return e.e;
-	}
-
-	//! Get the expression that the OpMap applies to.
-	template<typename G, typename V, typename E>
-	auto& get_enclosed_expression(OpMap<G, V, E>& e)
-	{
-		return e.e;
-	}
-
-	//! Get the expression that the OpMap applies to.
-	template<typename E>
-	auto& get_enclosed_expression(OpMap<symphas::internal::HCTS, OpIdentity, E>& e)
-	{
-		return e.e;
-	}
-
-	//! Get the expression that the OpMap applies to.
-	template<typename E>
-	auto& get_enclosed_expression(OpMap<symphas::internal::STHC, OpIdentity, E>& e)
-	{
-		return e.e;
-	}
-
-	//! Get the expression that the OpMap applies to.
-	template<typename V, typename E>
-	auto& get_enclosed_expression(OpMap<void, V, E>& e)
-	{
-		return *static_cast<E*>(&e);
-	}
-
-	//! Get the expression that the OpDerivative applies to.
-	template<typename Dd, typename V, typename G, typename Sp>
-	decltype(auto) get_enclosed_expression(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp>& e)
-	{
-		return OpTerm<OpIdentity, G>(OpIdentity{}, e.data);
-	}
-
-	//! Get the expression that the OpDerivative applies to.
-	template<size_t O, typename V, typename G, typename G0>
-	auto& get_enclosed_expression(OpDerivative<std::index_sequence<O>, V, OpTerm<OpIdentity, G>, SymbolicDerivative<G0>>& e)
-	{
-		return e.e;
-	}
-
-	//! Get the expression that the OpDerivative applies to.
-	template<typename Dd, typename V, typename E, typename Sp>
-	auto& get_enclosed_expression(OpDerivative<Dd, V, E, Sp>& e)
-	{
-		return e.e;
-	}
-
-	//! Get the expression that the OpDerivative applies to.
-	template<size_t O, typename V, typename E, typename G0>
-	auto& get_enclosed_expression(OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G0>>& e)
-	{
-		return e.e;
-	}
-
-	//! Get the expression that the OpChain applies to.
-	template<typename A1, typename A2, typename E>
-	auto& get_enclosed_expression(OpChain<A1, A2, E>& e)
-	{
-		return e.e;
-	}
-
-	//! Get the expression that the OpCombination applies to.
-	template<typename A1, typename A2, typename E>
-	auto& get_enclosed_expression(OpCombination<A1, A2, E>& e)
-	{
-		return e.e;
-	}
-
-	//! Get the expression that the OpConvolution applies to.
-	template<typename V, typename E, typename F, typename Arg0, typename... Args>
-	auto& get_enclosed_expression(OpFunction<V, E, F, Arg0, Args...>& e)
-	{
-		return e.e;
-	}
-
-	//! Get the expression that the OpConvolution applies to.
-	template<auto f, typename V, typename E>
-	auto& get_enclosed_expression(OpFunctionApply<f, V, E>& e)
-	{
-		return e.e;
-	}
-
-	//! Get the expression that the OpConvolution applies to.
-	template<typename V, typename sub_t, typename E, typename... Ts>
-	auto& get_enclosed_expression(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>>& e)
-	{
-		return e.f.e;
-	}
-
-	//! Get the expression that the OpConvolution applies to.
-	template<typename V, size_t D, typename G>
-	decltype(auto) get_enclosed_expression(OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>& e)
-	{
-		return OpTerm<OpIdentity, G>(OpIdentity{}, e.data);
-	}
-
-	//! Get the expression that the OpConvolution applies to.
-	template<typename V, size_t D, typename E>
-	auto& get_enclosed_expression(OpConvolution<V, GaussianSmoothing<D>, E>& e)
-	{
-		return e.e;
-	}
-
-	template<expr::exp_key_t X, typename V, typename E>
-	auto& get_enclosed_expression(OpPow<X, V, E> &e)
-	{
-		return e.e;
-	}
-
-	//! Get the expression that the OpExponential applies to.
-	template<typename V, typename E>
-	auto& get_enclosed_expression(OpExponential<V, E>& e)
-	{
-		return e.e;
-	}
-
-
-	template<typename E>
-	auto& get_result_data(OpExpression<E>& e) = delete;
-
-	//! Get the grid storing the underlying data of the OpDerivative.
-	template<typename Dd, typename V, typename G, typename Sp>
-	auto& get_result_data(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp>& e) = delete;
-
-	//! Get the grid storing the underlying data of the OpDerivative.
-	template<typename Dd, typename V, typename E, typename Sp>
-	auto& get_result_data(OpDerivative<Dd, V, E, Sp>& e)
-	{
-		return e.grid;
-	}
-
-	//! Get the grid storing the underlying data of the OpDerivative.
-	template<size_t O, typename V, typename E, typename G0>
-	auto& get_result_data(OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G0>>&) = delete;
-
-
-	//! Get the grid storing the underlying data of the OpConvolution.
-	template<typename V, typename E1, typename E2>
-	auto& get_result_data(OpConvolution<V, E1, E2>& e)
-	{
-		return e.g0;
-	}
-
-	//! Get the grid storing the underlying data of the OpConvolution.
-	template<typename V, size_t D, typename G>
-	auto& get_result_data(OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>& e)
-	{
-		return e.g0;
-	}
-
-	//! Get the grid storing the underlying data of the OpConvolution.
-	template<typename V, size_t D, typename E>
-	auto& get_result_data(OpConvolution<V, GaussianSmoothing<D>, E>& e)
-	{
-		return e.g0;
-	}
-
-	//! Get the grid storing the underlying data of the OpDerivative.
-	template<typename Dd, typename V, typename E, typename Sp>
-	auto const& get_result_data(OpDerivative<Dd, V, E, Sp> const& e)
-	{
-		return e.grid;
-	}
-
-	//! Get the grid storing the underlying data of the OpDerivative.
-	template<typename Dd, typename V, typename G, typename Sp>
-	auto& get_result_data(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> const& e) = delete;
-
-	//! Get the grid storing the underlying data of the OpDerivative.
-	template<size_t O, typename V, typename E, typename G0>
-	auto const& get_result_data(OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G0>> const&) = delete;
-
-	//! Get the grid storing the underlying data of the OpExponential.
-	template<typename V, typename E>
-	auto const& get_result_data(OpExponential<V, E> const& e)
-	{
-		return e.data;
-	}
-
-	//! Get the grid storing the underlying data of the OpConvolution.
-	template<typename V, typename E1, typename E2>
-	auto const& get_result_data(OpConvolution<V, E1, E2> const& e)
-	{
-		return e.g0;
-	}
-
-	//! Get the grid storing the underlying data of the OpConvolution.
-	template<typename V, size_t D, typename G>
-	auto const& get_result_data(OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>> const& e)
-	{
-		return e.g0;
-	}
-
-	//! Get the grid storing the underlying data of the OpConvolution.
-	template<typename V, size_t D, typename E>
-	auto const& get_result_data(OpConvolution<V, GaussianSmoothing<D>, E> const& e)
-	{
-		return e.g0;
-	}
-
 }
 
 namespace expr

@@ -1570,7 +1570,7 @@ namespace grid
 #ifdef EXECUTION_HEADER_AVAILABLE
 			std::execution::par_unseq,
 #endif
-			in, in + grid.len,
+			in, in + out.len,
 			[&] (auto& e) {
 				size_t i = &e - in;
 				out(Axis::X)[i] = e[0];
@@ -1590,7 +1590,7 @@ namespace grid
 #ifdef EXECUTION_HEADER_AVAILABLE
 			std::execution::par_unseq,
 #endif
-			in, in + grid.len,
+			in, in + out.len,
 			[&] (auto& e) {
 				size_t i = &e - in;
 				out(Axis::X)[i] = e[0];
@@ -1678,7 +1678,7 @@ namespace grid
 		std::mt19937 gen(rd());
 		std::uniform_real_distribution<double> dist(min, max);
 
-		for (iter_type i = 0; i < D; ++i)
+		for (iter_type i = 0; i < N; ++i)
 		{
 			std::for_each(
 #ifdef EXECUTION_HEADER_AVAILABLE
@@ -1735,7 +1735,7 @@ namespace grid
 	template<typename T, size_t N>
 	void fill_n(MultiBlock<N, T>& grid, scalar_t min, scalar_t max)
 	{
-		for (iter_type i = 0; i < D; ++i)
+		for (iter_type i = 0; i < N; ++i)
 		{
 			std::for_each(
 #ifdef EXECUTION_HEADER_AVAILABLE

@@ -286,8 +286,7 @@ struct symphas::internal::solver_supported_type_match<solver_id_type_ ## SOLVER_
 #define NEW_SOLVER_WITH_STENCIL(NAME) \
 struct solver_id_type_ ## NAME; \
 template<typename stencil_t> \
-struct NAME : Solver<NAME<stencil_t>>, stencil_t \
-{ \
+struct NAME : Solver<NAME<stencil_t>>, stencil_t { \
 	using this_type = NAME<stencil_t>; \
 	using parent_type = Solver<this_type>; \
 	using parent_type::parent_type; \
@@ -310,8 +309,7 @@ struct NAME : Solver<NAME<stencil_t>>, stencil_t \
 
 #define NEW_SOLVER(NAME, ...) \
 struct solver_id_type_ ## NAME; \
-struct NAME : Solver<NAME>, NoStencil, __VA_ARGS__ \
-{ \
+struct NAME : Solver<NAME>, NoStencil { \
 	using parent_type = Solver<NAME>; \
 	using parent_type::generalized_derivative; \
 	using parent_type::laplacian; \

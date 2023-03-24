@@ -143,9 +143,8 @@ void symphas::swap(symphas::problem_parameters_type& first, symphas::problem_par
 
 void swap(symphas::problem_parameters_type& first, symphas::problem_parameters_type& second)
 {
-	symphas::swap(first, second);
+    symphas::swap(first, second);
 }
-
 
 
 

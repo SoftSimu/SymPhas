@@ -2857,7 +2857,7 @@ template<typename V1, typename... G1s, expr::exp_key_t... X1s, typename V2, type
 	typename std::enable_if<expr::can_combine<Term<G1s, X1s>...>::template with<Term<G2s, X2s>...>, int>::type = 0>
 auto operator+(OpTerms<V1, Term<G1s, X1s>...> const& a, OpTerms<V2, Term<G2s, X2s>...> const& b)
 {
-	return (a.term + b.term) * OpTerms(OpIdentity{}, *static_cast<OpTerms<Term<G1s, X1s>...> const*>(&a));
+	return (a.term + b.term) * OpTerms(OpIdentity{}, symphas::internal::cast_term<OpTerms<Term<G1s, X1s>...>>::cast(a));
 }
 
 //! Addition of two multi variables with data that can be combined.
@@ -2865,7 +2865,7 @@ template<typename V1, typename... G1s, expr::exp_key_t... X1s, typename V2, type
 	typename std::enable_if<expr::can_combine<Term<G1s, X1s>...>::template with<Term<G2s, X2s>...>, int>::type = 0>
 auto operator-(OpTerms<V1, Term<G1s, X1s>...> const& a, OpTerms<V2, Term<G2s, X2s>...> const& b)
 {
-	return (a.term - b.term) * OpTerms(OpIdentity{}, *static_cast<OpTerms<Term<G1s, X1s>...> const*>(&a));
+	return (a.term - b.term) * OpTerms(OpIdentity{}, symphas::internal::cast_term<OpTerms<Term<G1s, X1s>...>>::cast(a));
 }
 
 // ******************************************************************************************

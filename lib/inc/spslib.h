@@ -1755,12 +1755,6 @@ namespace symphas::lib
 	template<size_t N, typename... Seqs>
 	struct seq_skip_indices_impl;
 
-	template<size_t N>
-	struct seq_skip_indices_impl<N, std::make_index_sequence<N>>
-	{
-		using type = std::index_sequence<>;
-	};
-
 	template<>
 	struct seq_skip_indices_impl<0, std::index_sequence<0>>
 	{
@@ -1819,10 +1813,13 @@ namespace symphas::lib
 	template<size_t N, size_t I0, size_t I1, size_t... Is>
 	struct seq_skip_indices_impl<N, std::index_sequence<I0, I1, Is...>>
 	{
-		using type = typename seq_skip_indices_impl<N, 
-			typename make_seq_pairs<
-				std::index_sequence<0, I0 + 1, I1 + 1, (Is + 1)...>, 
-				std::index_sequence<I0, I1, Is..., N>>::type>::type;
+        using type = std::conditional_t<
+            std::is_same<std::make_index_sequence<N>, std::index_sequence<I0, I1, Is...>>::value,
+            std::index_sequence<>, 
+            typename seq_skip_indices_impl<N, 
+                typename make_seq_pairs<
+                    std::index_sequence<0, I0 + 1, I1 + 1, (Is + 1)...>, 
+                    std::index_sequence<I0, I1, Is..., N>>::type>::type>;
 	};
 
 	template<size_t N, typename Seq>
