@@ -1204,27 +1204,22 @@ namespace expr
 		return apply_operators(e.a) / apply_operators(e.b);
 	}
 
-	template<size_t O, typename V, size_t Z, typename GG, typename V0, typename E, typename... Ts,
-		int... I0s, int... P0s, typename A, typename B, typename C>
-	auto apply_operators(
-		OpDerivative<std::index_sequence<O>, V, OpSum<V0, E,
-			Substitution<SymbolicDataArray<Ts>...>,
-			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, C>, SymbolicDerivative<Variable<Z, GG>>> const& e);
-
 	template<size_t O, typename V, size_t Z, int I0, int P0, typename V0, typename E, typename... Ts,
-		int... I0s, int... P0s, typename A, typename B, typename C>
+		int... I0s, int... P0s, typename A, typename B, typename... Vs>
 	auto apply_operators(
 		OpDerivative<std::index_sequence<O>, V, OpSum<V0, E,
 			Substitution<SymbolicDataArray<Ts>...>,
-			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, C>,
+			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, 
+            A, B, symphas::lib::types_list<Vs...>>,
 			SymbolicDerivative<expr::symbols::v_id_type<expr::symbols::i_<I0, P0>>>> const& e);
 
 	template<size_t O, typename V, typename V0, typename E, typename... Ts,
-		int... I0s, int... P0s, typename A, typename B, typename C, typename GG>
+		int... I0s, int... P0s, typename A, typename B, typename... Vs, typename GG>
 	auto apply_operators(
 		OpDerivative<std::index_sequence<O>, V, OpSum<V0, E,
 		Substitution<SymbolicDataArray<Ts>...>,
-		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, C>, SymbolicDerivative<GG>> const& e);
+		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, 
+        A, B, symphas::lib::types_list<Vs...>>, SymbolicDerivative<GG>> const& e);
 
 
 }
@@ -2819,37 +2814,22 @@ namespace expr::transform
 	 *
 	 * \param Sg The type of the grid to match for the swap.
 	 */
+	template<typename... Sgs, typename C, typename E, typename... G_Fs>
+	auto swap_grid(SymbolicCaseSwap<C>, OpExpression<E> const& e, G_Fs&&... gs);
+
+	//! Swap a data term in the expression.
+	/*!
+	 * Swaps the instance of the variable term which matches the data type
+	 * for a different term or expression. If the term is not found, the
+	 * expression is returned unchanged.
+	 *
+	 * \param e The expression to search for the term to swap.
+	 * \param g The element which will replace the variable.
+	 *
+	 * \param Sg The type of the grid to match for the swap.
+	 */
 	template<typename Sg, typename T, typename I, typename G_F>
 	auto swap_grid(OpCoeff<T, I> const&, G_F&& g);
-
-
-	namespace
-	{
-		template<typename T, typename I>
-		auto handle_coeff_swap(OpCoeff<T, I> const& coeff, OpCoeff<void, void> const& swap)
-		{
-			return coeff[swap.i];
-		}
-
-		template<typename T, typename I, typename E>
-		auto handle_coeff_swap(OpCoeff<T, I> const& coeff, E const& swap)
-		{
-			return swap;
-		}
-	}
-
-	template<typename Sg, typename T, typename I, typename G_F>
-	auto swap_grid(OpCoeff<T, I> const& coeff, G_F&& g)
-	{
-		if constexpr (expr::factor_count<Sg, OpCoeff<T, I>>::value > 0)
-		{
-			return handle_coeff_swap(coeff, std::forward<G_F>(g));
-		}
-		else
-		{
-			return coeff;
-		}
-	}
 
 	namespace
 	{
@@ -3151,6 +3131,42 @@ namespace expr::transform
 		return c * symphas::internal::make_symbolic_eval(data, f);
 	}
 
+	template<typename... Sgs, typename C, typename E, typename... G_Fs>
+	auto swap_grid(SymbolicCaseSwap<C>, OpExpression<E> const& e, G_Fs&&... gs)
+	{
+		return swap_grid<SymbolicCaseSwap<C, symphas::lib::types_list<Sgs...>>>
+			(*static_cast<E const*>(&e), std::make_tuple(std::forward<G_Fs>(gs)...));
+	}
+
+	namespace
+	{
+		template<typename T, typename I>
+		auto handle_coeff_swap(OpCoeff<T, I> const& coeff, OpCoeff<void, void> const& swap)
+		{
+			return coeff[swap.i];
+		}
+
+		template<typename T, typename I, typename E>
+		auto handle_coeff_swap(OpCoeff<T, I> const& coeff, E const& swap)
+		{
+			return swap;
+		}
+	}
+
+	template<typename Sg, typename T, typename I, typename G_F>
+	auto swap_grid(OpCoeff<T, I> const& coeff, G_F&& g)
+	{
+		if constexpr (expr::factor_count<Sg, OpCoeff<T, I>>::value > 0)
+		{
+			return handle_coeff_swap(coeff, std::forward<G_F>(g));
+		}
+		else
+		{
+			return coeff;
+		}
+	}
+
+
 	template<typename Sg0, typename Sg1, typename... Sgs, typename E, typename G_F>
 	auto swap_grid(OpExpression<E> const& e, G_F&& g)
 	{
@@ -3162,7 +3178,6 @@ namespace expr::transform
 	{
 		return swap_grid<Sg1, Sgs...>(swap_grid<Sg0>(*static_cast<E const*>(&e), std::forward<G_F0>(g0)), std::forward<G_F1>(g1), std::forward<G_Fs>(gs)...);
 	}
-
 
 	template<Axis ax, size_t Z, typename E, typename G_F>
 	auto swap_grid(OpExpression<E> const& e, G_F&& g)
@@ -3176,13 +3191,6 @@ namespace expr::transform
 		return swap_grid<VectorComponent<ax, Sg>>(*static_cast<E const*>(&e), std::forward<G_F>(g));
 	}
 
-
-	template<typename... Sgs, typename C, typename E, typename... G_Fs>
-	auto swap_grid(SymbolicCaseSwap<C>, OpExpression<E> const& e, G_Fs&&... gs)
-	{
-		return swap_grid<SymbolicCaseSwap<C, symphas::lib::types_list<Sgs...>>>
-			(*static_cast<E const*>(&e), std::make_tuple(std::forward<G_Fs>(gs)...));
-	}
 
 }
 
@@ -5668,43 +5676,73 @@ namespace expr
 
 
 		template<typename... Vs, size_t O, typename V, typename V0, typename E, typename... Ts,
-			int... I0s, int... P0s, typename A, typename B, typename C, typename GG, typename... GGs, typename... Gs, size_t... Ns>
+			int... I0s, int... P0s, typename A, typename B, typename C, typename... GGs, typename... Gs, size_t... Ns>
 		auto apply_operators_sum_multiple(
-			OpDerivative<std::index_sequence<O>, V, OpSum<V0, E,
+			std::index_sequence<O>, V const& coeff,
+            OpSum<V0, E,
 				Substitution<SymbolicDataArray<Ts>...>,
-				symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, C>, SymbolicDerivative<GG>> const& e,
+				symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, C> const& sum,
 			symphas::lib::types_list<GGs...>,
 			std::tuple<Gs...> const& args, std::index_sequence<Ns...>)
 		{
-			auto sum = expr::get_enclosed_expression(e);
 			auto expr = sum.data.substitute_placeholders(sum.f);
-			return expr::coeff(e) * (
+			return coeff * (
 				expr::transform::swap_grid<Vs>(apply_operators_sum(sum.data, apply_operators(expr::make_derivative<O, GGs>(expr))), std::get<Ns>(args))
 					+ ...);
 		}
-	}
 
-	template<size_t O, typename V, size_t Z, typename GG, typename V0, typename E, typename... Ts,
-		int... I0s, int... P0s, typename A, typename B, typename... Vs>
-	auto apply_operators(
-		OpDerivative<std::index_sequence<O>, V, OpSum<V0, E,
-			Substitution<SymbolicDataArray<Ts>...>,
-			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, symphas::lib::types_list<Vs...>>, SymbolicDerivative<Variable<Z, GG>>> const& e)
-	{
-		auto sum = expr::get_enclosed_expression(e);
-		return expr::coeff(e) * apply_operators_sum(sum.data, apply_operators(expr::make_derivative<O, Variable<Z, GG>>(sum.data.e)));
-	}
+        template<size_t O, typename V, typename V0, typename E, typename... Ts,
+            int... I0s, int... P0s, typename A, typename B, typename... Vs, size_t Z, typename GG>
+        auto apply_operators_sum(
+            std::index_sequence<O>, V const& coeff, 
+            OpSum<V0, E,
+                Substitution<SymbolicDataArray<Ts>...>,
+                symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, 
+                A, B, symphas::lib::types_list<Vs...>> const& sum, 
+            SymbolicDerivative<Variable<Z, GG>>)
+        {
+            return coeff * apply_operators_sum(sum.data, apply_operators(expr::make_derivative<O, Variable<Z, GG>>(sum.data.e)));
+        }
 
-	template<size_t O, typename V, size_t Z, int I0, int P0, typename V0, typename E, typename... Ts,
-		int... I0s, int... P0s, typename A, typename B, typename C>
-	auto apply_operators(
-		OpDerivative<std::index_sequence<O>, V, OpSum<V0, E,
-			Substitution<SymbolicDataArray<Ts>...>,
-			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, C>, 
-		SymbolicDerivative<expr::symbols::v_id_type<expr::symbols::i_<I0, P0>>>> const& e)
-	{
-		auto sum = expr::get_enclosed_expression(e);
-		return expr::coeff(e) * apply_operators_sum(sum.data, apply_operators(expr::make_derivative<O, expr::symbols::v_id_type<expr::symbols::i_<I0, P0>>>(sum.data.e)));
+        template<size_t O, typename V, typename V0, typename E, typename... Ts,
+            int... I0s, int... P0s, typename A, typename B, typename... Vs, typename GG,
+            std::enable_if_t<!expr::is_id_variable<GG>, int> = 0>
+        auto apply_operators_sum(
+            std::index_sequence<O>, V const& coeff, 
+            OpSum<V0, E,
+                Substitution<SymbolicDataArray<Ts>...>,
+                symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, 
+                A, B, symphas::lib::types_list<Vs...>> const& sum, 
+            SymbolicDerivative<GG>)
+        {
+            if constexpr (expr::is_expression<GG>)
+            {
+                using vs_seq = vars_in_ops_t<op_types_t<GG>>;
+                constexpr size_t L = vs_seq::size();
+
+                // if multiple variables are in the expression with respect to differentiate
+                if constexpr (L > 1)
+                {
+                    return OpVoid{};
+                }
+                else
+                {
+                    //return OpVoid{};
+                    constexpr size_t Z0 = symphas::lib::seq_index_value<0, vs_seq>::value;
+                    auto dvs = symphas::lib::types_list<
+                        decltype(expr::transform::swap_grid<Z0>(std::declval<GG>(), expr::symbols::v_id_type<expr::symbols::i_<I0s, P0s>>{}))...>{};
+                    auto args = get_args<Z0>(sum.data.substitution, std::make_index_sequence<sizeof...(Ts)>{});
+                    return apply_operators_sum_multiple<expr::symbols::v_id_type<expr::symbols::i_<I0s, P0s>>...>(
+                            std::index_sequence<O>{}, coeff, sum, dvs, args, std::make_index_sequence<sizeof...(Ts)>{});
+                }
+            }
+            else
+            {
+                return OpVoid{};
+            }
+        }
+
+
 	}
 
 	template<size_t O, typename V, typename V0, typename E, typename... Ts,
@@ -5712,35 +5750,24 @@ namespace expr
 	auto apply_operators(
 		OpDerivative<std::index_sequence<O>, V, OpSum<V0, E,
 			Substitution<SymbolicDataArray<Ts>...>,
-			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, symphas::lib::types_list<Vs...>>, SymbolicDerivative<GG>> const& e)
+			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, 
+            A, B, symphas::lib::types_list<Vs...>>, SymbolicDerivative<GG>> const& e)
+	{
+        return apply_operators_sum(std::index_sequence<O>{}, expr::coeff(e), expr::get_enclosed_expression(e), SymbolicDerivative<GG>{});
+    }
+
+	template<size_t O, typename V, size_t Z, int I0, int P0, typename V0, typename E, typename... Ts,
+		int... I0s, int... P0s, typename A, typename B, typename... Vs>
+	auto apply_operators(
+		OpDerivative<std::index_sequence<O>, V, OpSum<V0, E,
+			Substitution<SymbolicDataArray<Ts>...>,
+			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, 
+            A, B, symphas::lib::types_list<Vs...>>, 
+		SymbolicDerivative<expr::symbols::v_id_type<expr::symbols::i_<I0, P0>>>> const& e)
 	{
 		auto sum = expr::get_enclosed_expression(e);
-		if constexpr (expr::is_expression<GG>)
-		{
-			using vs_seq = vars_in_ops_t<op_types_t<GG>>;
-			constexpr size_t L = vs_seq::size();
-
-			// if multiple variables are in the expression with respect to differentiate
-			if constexpr (L > 1)
-			{
-				return OpVoid{};
-			}
-			else
-			{
-				//return OpVoid{};
-				constexpr size_t Z0 = symphas::lib::seq_index_value<0, vs_seq>::value;
-				auto dvs = symphas::lib::types_list<
-					decltype(expr::transform::swap_grid<Z0>(std::declval<GG>(), expr::symbols::v_id_type<expr::symbols::i_<I0s, P0s>>{}))...>{};
-				auto args = get_args<Z0>(sum.data.substitution, std::make_index_sequence<sizeof...(Ts)>{});
-				return apply_operators_sum_multiple<expr::symbols::v_id_type<expr::symbols::i_<I0s, P0s>>...>(e, dvs, args, std::make_index_sequence<sizeof...(Ts)>{});
-			}
-		}
-		else
-		{
-			return OpVoid{};
-		}
+		return expr::coeff(e) * apply_operators_sum(sum.data, apply_operators(expr::make_derivative<O, expr::symbols::v_id_type<expr::symbols::i_<I0, P0>>>(sum.data.e)));
 	}
-
 }
 
 

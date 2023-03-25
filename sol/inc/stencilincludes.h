@@ -81,6 +81,7 @@ namespace symphas::internal
 		//! Construct a new stencil from the system dimensions and \f$h\f$.
 		StencilBase1d2h(const len_type* dims, double h) : parent_type(dims, h),
 			divh2{ divh * divh }, divh3{ divh * divh2 }, divh4{ divh2 * divh2 } {}
+        StencilBase1d2h() = default;
 
 		double divh2, divh3, divh4;
 
@@ -102,6 +103,7 @@ namespace symphas::internal
 		//! Construct a new stencil from the system dimensions and \f$h\f$.
 		StencilBase2d2h(const len_type* dims, double h) : parent_type(dims, h),
 			divh2{ divh * divh }, divh3{ divh * divh2 }, divh4{ divh2 * divh2 } {}
+        StencilBase2d2h() = default;
 
 		double divh2, divh3, divh4;
 
@@ -123,6 +125,7 @@ namespace symphas::internal
 		//! Construct a new stencil from the system dimensions and \f$h\f$.
 		StencilBase3d2h(const len_type* dims, double h) : parent_type(dims, h),
 			divh2{ divh * divh }, divh3{ divh * divh2 }, divh4{ divh2 * divh2 } {}
+        StencilBase3d2h() = default;
 
 		double divh2, divh3, divh4;
 
@@ -164,6 +167,7 @@ namespace symphas::internal
 		//! Construct a new stencil from the system dimensions and \f$h\f$.
 		StencilBase2d4h(const len_type* dims, double h) : parent_type(dims, h),
 			divh2{ divh * divh }, divh3{ divh * divh2 }, divh4{ divh2 * divh2 } {}
+        StencilBase2d4h() = default;
 
 		double divh2, divh3, divh4;
 

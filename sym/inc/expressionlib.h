@@ -772,6 +772,13 @@ namespace expr
 	template<typename... Es>
 	constexpr bool is_coeff<OpAdd<Es...>> = (is_coeff<Es> && ...);
 
+    
+    template<typename T>
+    constexpr bool is_id_variable = false;
+
+    template<size_t Z, typename G>
+    constexpr bool is_id_variable<Variable<Z, G>> = true;
+
 	using symphas::internal::test_coeff_attribute;
 	using symphas::internal::test_coeff_neg;
 
@@ -1307,12 +1314,12 @@ struct expr::grid_dim<SymbolicDataArray<T>>
 };
 
 //! Get the expression that the OpConvolution applies to.
-template<typename... Ts>
-struct expr::grid_dim<SymbolicDataArray<std::tuple<Term<Ts>...>>>
-{
-	static const size_t dimension = fixed_max<expr::grid_dim<Ts>::dimension...>;
-	static const size_t value = dimension;
-};
+// template<typename... Ts>
+// struct expr::grid_dim<SymbolicDataArray<std::tuple<Term<Ts>...>>>
+// {
+// 	static const size_t dimension = fixed_max<expr::grid_dim<Ts>::dimension...>;
+// 	static const size_t value = dimension;
+// };
 
 //! Specialization based on expr::grid_dim.
 template<typename T>

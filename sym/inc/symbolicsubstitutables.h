@@ -246,24 +246,45 @@ public:
 };
 
 
+
+//! A function into which data can be substituted and be automatically evaluated.
+/*!
+ * A symbolic function for values to be substituted and be automatically evaluated. The evaluation
+ * automatically determines the evaluation type and size of the evaluation grid or block.
+ *
+ * Symbolic templates are defined by using the function expr::template_of() in the following way:
+ *
+ *     auto func = (expr::function_of() = ...);
+ *
+ * The elipses, `...`, represent an expression containing #expr::arg terms that act as
+ * placeholders, and are where the substitutions of the data will take place.
+ * Also, arguments of type Variable<N, T> or of OpTerm type containing data can be passed to set
+ * the specific arguments and the order they will be substituted. The arguments must have some type
+ * associated with them so that the function can perform automatic simplifications/symbolic rules
+ * based on the data type. This can easily be achieved by using the expr::arg variables with
+ * the second template parameter defining the type, i.e.:
+ *
+ *     auto u = expr::arg<1, double>;
+ *     auto func = (expr::function_of(u) = u * u);
+ *
+ * Subsequently, by calling the initialized `func` variable with any type of data
+ * will be substituted in the pattern that was defined, i.e. `func(x, y)` will generate a new
+ * expression with `x` and `y` data substituted into the placeholders arg<0> and arg<1>.
+ *
+ * \tparam E The type of the expression function.
+ * \tparam Ts... The types of the variables of the function.
+ */
 template<typename E, size_t... ArgNs, typename... Ts>
-struct SymbolicFunction<SymbolicTemplate<E, ArgNs...>, Variable<ArgNs, Ts>...>
+struct SymbolicFunction<E, Variable<ArgNs, Ts>...>
 {
-	using this_type = SymbolicFunction<SymbolicTemplate<E, ArgNs...>, Variable<ArgNs, Ts>...>;
+	using this_type = SymbolicFunction<E, Variable<ArgNs, Ts>...>;
 	
 	SymbolicFunction() : data{} {}
-	SymbolicFunction(this_type const& other) : data{ other.data } {}
-	SymbolicFunction(this_type&& other) : data{}
-	{
-		swap(*this, other);
-	}
-
-	friend void swap(this_type& first, this_type& second)
-	{
-		using std::swap;
-		swap(first.data, second.data);
-	}
-
+	//SymbolicFunction(this_type const& other) : data{ other.data } {}
+	//SymbolicFunction(this_type&& other) : data{}
+	//{
+//		swap(*this, other);
+//	}
 
 protected:
 
@@ -343,67 +364,40 @@ public:
 	using type = SymbolicFunction<expr_type, Variable<ArgNs, Ts>...>;
 
 
-};
-
-//! A function into which data can be substituted and be automatically evaluated.
-/*!
- * A symbolic function for values to be substituted and be automatically evaluated. The evaluation
- * automatically determines the evaluation type and size of the evaluation grid or block.
- *
- * Symbolic templates are defined by using the function expr::template_of() in the following way:
- *
- *     auto func = (expr::function_of() = ...);
- *
- * The elipses, `...`, represent an expression containing #expr::arg terms that act as
- * placeholders, and are where the substitutions of the data will take place.
- * Also, arguments of type Variable<N, T> or of OpTerm type containing data can be passed to set
- * the specific arguments and the order they will be substituted. The arguments must have some type
- * associated with them so that the function can perform automatic simplifications/symbolic rules
- * based on the data type. This can easily be achieved by using the expr::arg variables with
- * the second template parameter defining the type, i.e.:
- *
- *     auto u = expr::arg<1, double>;
- *     auto func = (expr::function_of(u) = u * u);
- *
- * Subsequently, by calling the initialized `func` variable with any type of data
- * will be substituted in the pattern that was defined, i.e. `func(x, y)` will generate a new
- * expression with `x` and `y` data substituted into the placeholders arg<0> and arg<1>.
- *
- * \tparam E The type of the expression function.
- * \tparam Ts... The types of the variables of the function.
- */
-template<typename E, size_t... ArgNs, typename... Ts>
-struct SymbolicFunction<E, Variable<ArgNs, Ts>...> 
-	: SymbolicFunction<SymbolicTemplate<E, ArgNs...>, Variable<ArgNs, Ts>...>
-{
-	using parent_type = SymbolicFunction<SymbolicTemplate<E, ArgNs...>, Variable<ArgNs, Ts>...>;
-	using parent_type::data;
-	
-	using this_type = SymbolicFunction<E, Variable<ArgNs, Ts>...>;
+//};
+//template<typename E, size_t... ArgNs, typename... Ts>
+//struct SymbolicFunction<E, Variable<ArgNs, Ts>...> 
+//	: SymbolicFunction<SymbolicTemplate<E, ArgNs...>, Variable<ArgNs, Ts>...>
+//{
+//	using parent_type = SymbolicFunction<SymbolicTemplate<E, ArgNs...>, Variable<ArgNs, Ts>...>;
+//	using parent_type::data;
+//	
+	//using this_type = SymbolicFunction<E, Variable<ArgNs, Ts>...>;
 	using result_type = expr::storage_t<E>;
 
-	using type = typename parent_type::type;
+//	using type = typename parent_type::type;
 
 
-	SymbolicFunction() : parent_type(), e{} {}
+	//SymbolicFunction() : parent_type(), e{} {}
 
 	template<typename E0>
 	SymbolicFunction(SymbolicTemplate<E0, ArgNs...> const& tmpl) :
-		parent_type(), e{ parent_type::substitute_args(tmpl, std::make_index_sequence<sizeof...(Ts)>{}) }
+		e{ substitute_args(tmpl, std::make_index_sequence<sizeof...(Ts)>{}) }
 	{}
 
 	SymbolicFunction(SymbolicFunction<E, Variable<ArgNs, Ts>...> const& other) :
-		parent_type(other), e{ parent_type::substitute_args(other, std::make_index_sequence<sizeof...(Ts)>{}) }
+		e{ substitute_args(other, std::make_index_sequence<sizeof...(Ts)>{}) }
 	{}
 
 	SymbolicFunction(SymbolicFunction<E, Variable<ArgNs, Ts>...>&& other) :
-		parent_type(other), e{ parent_type::substitute_args(other, std::make_index_sequence<sizeof...(Ts)>{}) }
+		e{ substitute_args(other, std::make_index_sequence<sizeof...(Ts)>{}) }
 	{}
 
 	friend void swap(this_type& first, this_type& second)
 	{
 		using std::swap;
-		swap(static_cast<parent_type&>(first), static_cast<parent_type&>(second));
+		//swap(static_cast<parent_type&>(first), static_cast<parent_type&>(second));
+		swap(first.data, second.data);
 		swap(first.e, second.e);
 	}
 
@@ -620,9 +614,14 @@ namespace expr
 	{
 
 		template<typename E, size_t... ArgNs>
+		//auto get_substitutable_template(OpExpression<E> const& e, std::index_sequence<ArgNs...>)
 		SymbolicTemplate<E, ArgNs...> get_substitutable_template(OpExpression<E> const& e, std::index_sequence<ArgNs...>)
 		{
+            //return std::index_sequence<ArgNs...>{};
 			return { *static_cast<const E*>(&e) };
+            //auto ee = (expr::make_term<ArgNs>() + ...);
+            //return SymbolicTemplate<decltype(ee), ArgNs...>(ee);
+
 		}
 
 		//! Create a substitutable function.
@@ -791,7 +790,8 @@ namespace expr
 		 * The linear variables (with OpIdentity coefficients) are given as arguments of the function,
 		 * and they must be defined in terms of a ::Variable.
 		 */
-		template<size_t... Ns, typename... Gs, typename std::enable_if_t<all_ne<Ns...>, int> = 0>
+		template<size_t... Ns, typename... Gs, 
+            typename std::enable_if_t<(all_ne<Ns...> && (is_symbol<Gs> && ...)), int> = 0>
 		SymbolicTemplateDef<Ns...> template_of_apply(OpTerm<OpIdentity, Variable<Ns, Gs>> const&...) { return {}; }
 
 		//! Create a symbolic template where parameters are ::Variable types of given indices.
@@ -799,7 +799,8 @@ namespace expr
 		 * The linear variables (with OpIdentity coefficients) are given as arguments of the function,
 		 * and they must be defined in terms of a ::Variable.
 		 */
-		template<size_t... Ns, typename... Gs, typename std::enable_if_t<all_ne<Ns...>, int> = 0>
+		template<size_t... Ns, typename... Gs, 
+            typename std::enable_if_t<(all_ne<Ns...> && (is_symbol<Gs> && ...)), int> = 0>
 		SymbolicTemplateDef<Ns...> template_of_apply(Variable<Ns, Gs> const&...) { return {}; }
 
 		//! Create a function such that the parameters are expr::symbols::Symbol types.
@@ -808,7 +809,7 @@ namespace expr
 		 * symbols defined in the function argument list will be substituted.
 		 */
 		template<size_t... Ns, typename... symbol_ts,
-			typename std::enable_if_t<(is_symbol<symbol_ts> && ...), int> = 0>
+			typename std::enable_if_t<(all_different<symbol_ts...> && ((is_symbol<symbol_ts> && !is_id_variable<symbol_ts>) && ...)), int> = 0>
 		SymbolicTemplateDefSwap<symbol_ts...> template_of_apply(symbol_ts const&...) { return {}; }
 
 		//! Create a function such that the parameters are expr::symbols::Symbol types.
@@ -828,7 +829,7 @@ namespace expr
 			template<typename E>
 			auto get_function(SymbolicTemplate<E, N0, Ns...> const& tmpl)
 			{
-				using function_type = SymbolicFunction<SymbolicTemplate<E, N0, Ns...>, Variable<N0, G0>, Variable<Ns, Gs>...>;
+				using function_type = SymbolicFunction<E, Variable<N0, G0>, Variable<Ns, Gs>...>;
 				return typename function_type::type(tmpl);
 			}
 
@@ -862,7 +863,7 @@ namespace expr
 			template<typename E, size_t N0, size_t... Ns>
 			auto get_function(SymbolicTemplate<E, N0, Ns...> const& tmpl)
 			{
-				using function_type = SymbolicFunction<SymbolicTemplate<E, N0, Ns...>, Variable<N0, var_type>, Variable<Ns, var_type>...>;
+				using function_type = SymbolicFunction<E, Variable<N0, var_type>, Variable<Ns, var_type>...>;
 				return typename function_type::type(tmpl);
 			}
 
@@ -919,7 +920,8 @@ namespace expr
 		 * The linear variables (with OpIdentity coefficients) are given as arguments of the function,
 		 * and they must be defined in terms of a ::Variable.
 		 */
-		template<size_t... Ns, typename... Gs, typename std::enable_if_t<all_ne<Ns...>, int> = 0>
+		template<size_t... Ns, typename... Gs,
+            typename std::enable_if_t<(all_ne<Ns...> && !(is_symbol<Gs> || ...)), int> = 0>
 		SymbolicFunctionDef<Variable<Ns, Gs>...> function_of_apply(OpTerm<OpIdentity, Variable<Ns, Gs>> const&...) { return {}; }
 
 		//! Create a function such that the parameters are expr::symbols::Symbol types.
@@ -927,10 +929,12 @@ namespace expr
 		 * Linear variables of the associated function expression which have their data as one of the
 		 * symbols defined in the function argument list will be substituted.
 		 */
-		template<size_t... Ns, typename... Gs, typename std::enable_if_t<all_ne<Ns...>, int> = 0>
+		template<size_t... Ns, typename... Gs, 
+            typename std::enable_if_t<(all_ne<Ns...> && !(is_symbol<Gs> || ...)), int> = 0>
 		SymbolicFunctionDef<Variable<Ns, Gs>...> function_of_apply(Variable<Ns, Gs> const&...) { return {}; }
 
-		template<size_t... Ns, typename... Gs, typename std::enable_if_t<all_ne<Ns...>, int> = 0>
+		template<size_t... Ns, typename... Gs, 
+            typename std::enable_if_t<(all_ne<Ns...> && !(is_symbol<Gs> || ...)), int> = 0>
 		SymbolicFunctionDef<Variable<Ns, Gs>...> function_of_apply(symphas::lib::types_list<Variable<Ns, Gs>...>) { return {}; }
 
 		//! Create a function such that the parameters are expr::symbols::Symbol types.

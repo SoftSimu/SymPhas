@@ -185,7 +185,7 @@ namespace symphas::internal
 	};
 
 	template<typename E, int... I0s, int... P0s>
-	struct minor_index<E, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>>
+	struct minor_index<void, symphas::lib::types_list<E, expr::symbols::i_<I0s, P0s>...>>
 	{
 
 	protected:
@@ -201,7 +201,7 @@ namespace symphas::internal
 	};
 
 	template<int I0, int P0, int... I0s, int... P0s>
-	struct minor_index<expr::symbols::i_<I0, P0>, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>>
+	struct minor_index<void, symphas::lib::types_list<expr::symbols::i_<I0, P0>, expr::symbols::i_<I0s, P0s>...>>
 	{
 
 	public:
@@ -229,7 +229,8 @@ namespace symphas::internal
 			std::tuple<expr::series_limits<T1s, T2s>...> const& limits);
 
 	template<int... I0s, int... P0s, int I1, int P1, typename E,
-		typename T1, typename T2, typename... T1s, typename... T2s>
+		typename T1, typename T2, typename... T1s, typename... T2s,
+        typename = std::enable_if_t<!(std::is_same<T1, int>::value && expr::is_coeff<E>), int>>
 	auto propagate_lower_limit(
 		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
 		expr::symbols::i_<I1, P1>, E const& lower,
@@ -250,7 +251,8 @@ namespace symphas::internal
 			std::tuple<expr::series_limits<T1s, T2s>...> const& limits);
 
 	template<int... I0s, int... P0s, int I1, int P1, typename E,
-		typename T1, typename T2, typename... T1s, typename... T2s>
+		typename T1, typename T2, typename... T1s, typename... T2s,
+        typename = std::enable_if_t<!(std::is_same<T1, int>::value && expr::is_coeff<E>), int>>
 	auto propagate_upper_limit(
 		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
 		expr::symbols::i_<I1, P1>, E const& upper,
@@ -280,14 +282,14 @@ namespace symphas::internal
 	}
 
 	template<int... I0s, int... P0s, int I1, int P1, typename E,
-		typename T1, typename T2, typename... T1s, typename... T2s>
+		typename T1, typename T2, typename... T1s, typename... T2s, typename>
 	auto propagate_lower_limit(
 		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
 		expr::symbols::i_<I1, P1>, E const& lower,
 		expr::series_limits<T1, T2> const& limit0,
 		std::tuple<expr::series_limits<T1s, T2s>...> const& limits)
 	{
-		constexpr int N = minor_index<E, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>>::value;
+		constexpr int N = minor_index<void, symphas::lib::types_list<E, expr::symbols::i_<I0s, P0s>...>>::value;
 		constexpr int L = symphas::lib::index_of_value<int, I1, I0s...>;
 
 		if constexpr (N == L)
@@ -316,7 +318,7 @@ namespace symphas::internal
 		else
 		{
 
-			constexpr int L = minor_index<decltype(limit0._1), symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>>::value;
+			constexpr int L = minor_index<void, symphas::lib::types_list<decltype(limit0._1), expr::symbols::i_<I0s, P0s>...>>::value;
 			if constexpr (L >= 0)
 			{
 				using index_t = symphas::lib::type_at_index<size_t(L), expr::symbols::i_<I0s, P0s>...>;
@@ -354,7 +356,7 @@ namespace symphas::internal
 			expr::symbols::i_<I1, P1>{}, expr::make_literal(start + P0),
 			expr::series_limits(std::min(start + P0, end + 1), limit0._1), limits);
 
-		constexpr int L = minor_index<decltype(limit0._0), symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>>::value;
+		constexpr int L = minor_index<void, symphas::lib::types_list<decltype(limit0._0), expr::symbols::i_<I0s, P0s>...>>::value;
 		if constexpr (L >= 0)
 		{
 			using index_t = symphas::lib::type_at_index<size_t(L), expr::symbols::i_<I0s, P0s>...>;
@@ -388,14 +390,14 @@ namespace symphas::internal
 	}
 
 	template<int... I0s, int... P0s, int I1, int P1, typename E,
-		typename T1, typename T2, typename... T1s, typename... T2s>
+		typename T1, typename T2, typename... T1s, typename... T2s, typename>
 	auto propagate_upper_limit(
 		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
 		expr::symbols::i_<I1, P1>, E const& upper,
 		expr::series_limits<T1, T2> const& limit0,
 		std::tuple<expr::series_limits<T1s, T2s>...> const& limits)
 	{
-		constexpr int N = minor_index<E, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>>::value;
+		constexpr int N = minor_index<void, symphas::lib::types_list<E, expr::symbols::i_<I0s, P0s>...>>::value;
 		constexpr int L = symphas::lib::index_of_value<int, I1, I0s...>;
 
 		if constexpr (N == L)
@@ -423,7 +425,7 @@ namespace symphas::internal
 		}
 		else
 		{
-			constexpr int L = minor_index<decltype(limit0._0), symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>>::value;
+			constexpr int L = minor_index<void, symphas::lib::types_list<decltype(limit0._0), expr::symbols::i_<I0s, P0s>...>>::value;
 			if constexpr (L >= 0)
 			{
 				using index_t = symphas::lib::type_at_index<size_t(L), expr::symbols::i_<I0s, P0s>...>;
@@ -461,7 +463,7 @@ namespace symphas::internal
 			expr::symbols::i_<I1, P1>{}, expr::make_literal(start + P0),
 			expr::series_limits(limit0._0, std::min(start + P0, end)), limits);
 
-		constexpr int L = minor_index<decltype(limit0._1), symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>>::value;
+		constexpr int L = minor_index<void, symphas::lib::types_list<decltype(limit0._1), expr::symbols::i_<I0s, P0s>...>>::value;
 		if constexpr (L >= 0)
 		{
 			using index_t = symphas::lib::type_at_index<size_t(L), expr::symbols::i_<I0s, P0s>...>;

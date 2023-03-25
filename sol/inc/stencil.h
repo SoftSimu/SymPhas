@@ -364,6 +364,8 @@ struct GeneralizedStencil
 	len_type dims[DD];
 	double divh;
 
+    GeneralizedStencil() : dims{}, divh{ 0 } {}
+
 	GeneralizedStencil(const len_type* dims, double h) : divh{ 1. / h }
 	{
 		std::copy(dims, dims + DD, this->dims);

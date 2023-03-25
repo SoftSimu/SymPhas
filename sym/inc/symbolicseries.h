@@ -2993,7 +2993,7 @@ protected:
 	}
 
 	template<typename E0, typename... Ts>
-	SymbolicFunction<E0, symphas::lib::types_list<Ts...>> to_function(
+	SymbolicFunction<E0, symphas::lib::types_list<Ts...>> _to_function(
 		SymbolicFunction<E0, Ts...> const& f) const
 	{
 		return f;
@@ -3002,7 +3002,7 @@ protected:
 	template<typename... Ts>
 	auto to_function(Ts const&... args) const
 	{
-		return to_function(expr::function_of(expr::symbols::arg<Ns, Ts>...) = tmpl);
+		return _to_function(expr::function_of(expr::symbols::arg<Ns, Ts>...) = tmpl);
 	}
 
 	SymbolicTemplate<S, Ns...> tmpl;

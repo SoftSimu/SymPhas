@@ -1528,9 +1528,8 @@ namespace symphas::lib
 	namespace internal
 	{
 
-
 		template<typename Seq, typename... Seqs>
-		static size_t constexpr seq_len_product()
+		size_t constexpr seq_len_product()
 		{
 			if constexpr (sizeof...(Seqs) == 0)
 			{
@@ -1544,16 +1543,13 @@ namespace symphas::lib
 
 
 		template<typename T, size_t V>
-		static size_t constexpr get_value_from_seq(std::integer_sequence<T, V>)
+		size_t constexpr get_value_from_seq(std::integer_sequence<T, V>)
 		{
 			return V;
 		}
 
 		template<size_t N, typename T, T... Es, typename std::enable_if_t<(N < sizeof...(Es)), int> = 0>
-		static size_t constexpr seq_value(std::integer_sequence<T, Es...>)
-		{
-			return get_value_from_seq(std::tuple_element_t<N, std::tuple<std::integer_sequence<T, Es>...>>{});
-		}
+		size_t constexpr seq_value(std::integer_sequence<T, Es...>);
 
 
 		template<typename T>
@@ -1668,7 +1664,7 @@ namespace symphas::lib
 			template<size_t N, T E, T... Es, typename Seq, typename... Seqs, size_t L = seq_len_product<Seq, Seqs...>(), size_t N0 = N / L, size_t N1 = N - N0 * L>
 			static auto constexpr select(seq_t<E, Es...>, Seq, Seqs...)
 			{
-				return symphas::lib::seq_join(std::integer_sequence < T, seq_value<N0>(seq_t<E, Es...>{}) > {}, select<N1>(Seq{}, Seqs{}...));
+				return symphas::lib::seq_join(std::integer_sequence<T, seq_value<N0>(seq_t<E, Es...>{})>{}, select<N1>(Seq{}, Seqs{}...));
 			}
 		};
 	}
@@ -2697,6 +2693,11 @@ namespace symphas::lib
 
 	// **************************************************************************************
 
+    template<size_t N, typename T, T... Es, typename std::enable_if_t<(N < sizeof...(Es)), int>>
+    size_t constexpr internal::seq_value(std::integer_sequence<T, Es...>)
+    {
+        return get_value_from_seq(symphas::lib::type_at_index<N, std::integer_sequence<T, Es>...>{});
+    }
 
 	/*!
 	 * Generate the cross product or cross join of all the numeric elements in the
