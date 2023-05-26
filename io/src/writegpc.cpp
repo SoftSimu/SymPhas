@@ -42,9 +42,9 @@ void symphas::io::gp::col::save_grid_plotting(const scalar_t* grid, symphas::io:
 	double X0 = ginfo.INTERVAL_X0;
 	double p0[]{ X0, Y0, Z0 };
 
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
-	len_type L = ginfo.at(Axis::X).count();
+	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
+	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
+	len_type L = ginfo.at(Axis::X).get_count();
 
 	iter_type index = 0;
 	for (iter_type k = 0; k < N; k++)
@@ -80,9 +80,9 @@ void symphas::io::gp::col::save_grid_plotting(const complex_t* grid, symphas::io
 	double X0 = ginfo.INTERVAL_X0;
 	double p0[]{ X0, Y0, Z0 };
 
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
-	len_type L = ginfo.at(Axis::X).count();
+	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
+	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
+	len_type L = ginfo.at(Axis::X).get_count();
 
 	iter_type index = 0;
 	for (iter_type k = 0; k < N; k++)
@@ -119,9 +119,9 @@ void symphas::io::gp::col::save_grid_plotting(const double_arr2 *grid, symphas::
 	double X0 = ginfo.INTERVAL_X0;
 	double p0[]{ X0, Y0, Z0 };
 
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
-	len_type L = ginfo.at(Axis::X).count();
+	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
+	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
+	len_type L = ginfo.at(Axis::X).get_count();
 
 	iter_type index = 0;
 	for (iter_type k = 0; k < N; k++)
@@ -159,9 +159,9 @@ void symphas::io::gp::col::save_grid_plotting(const vector_t<3>* grid, symphas::
 	double X0 = ginfo.INTERVAL_X0;
 	double p0[]{ X0, Y0, Z0 };
 
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
-	len_type L = ginfo.at(Axis::X).count();
+	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
+	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
+	len_type L = ginfo.at(Axis::X).get_count();
 
 	iter_type index = 0;
 	for (iter_type k = 0; k < N; k++)
@@ -210,9 +210,9 @@ void symphas::io::gp::col::save_grid_plotting(const vector_t<2>* grid, symphas::
 	double X0 = ginfo.INTERVAL_X0;
 	double p0[]{ X0, Y0, Z0 };
 
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
-	len_type L = ginfo.at(Axis::X).count();
+	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
+	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
+	len_type L = ginfo.at(Axis::X).get_count();
 
 	iter_type index = 0;
 	for (iter_type k = 0; k < N; k++)
@@ -260,9 +260,9 @@ void symphas::io::gp::col::save_grid_plotting(const vector_t<1>* grid, symphas::
 	double X0 = ginfo.INTERVAL_X0;
 	double p0[]{ X0, Y0, Z0 };
 
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
-	len_type L = ginfo.at(Axis::X).count();
+	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
+	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
+	len_type L = ginfo.at(Axis::X).get_count();
 
 	iter_type index = 0;
 	for (iter_type k = 0; k < N; k++)
@@ -301,9 +301,9 @@ void symphas::io::gp::col::save_grid_plotting(const scalar_ptr_t(&grid)[3], symp
 	double X0 = ginfo.INTERVAL_X0;
 	double p0[]{ X0, Y0, Z0 };
 
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
-	len_type L = ginfo.at(Axis::X).count();
+	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
+	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
+	len_type L = ginfo.at(Axis::X).get_count();
 
 	iter_type index = 0;
 	for (iter_type k = 0; k < N; k++)
@@ -352,9 +352,9 @@ void symphas::io::gp::col::save_grid_plotting(const scalar_ptr_t(&grid)[2], symp
 	double X0 = ginfo.INTERVAL_X0;
 	double p0[]{ X0, Y0, Z0 };
 
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
-	len_type L = ginfo.at(Axis::X).count();
+	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
+	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
+	len_type L = ginfo.at(Axis::X).get_count();
 
 	iter_type index = 0;
 	for (iter_type k = 0; k < N; k++)
@@ -402,9 +402,9 @@ void symphas::io::gp::col::save_grid_plotting(const scalar_ptr_t(&grid)[1], symp
 	double X0 = ginfo.INTERVAL_X0;
 	double p0[]{ X0, Y0, Z0 };
 
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
-	len_type L = ginfo.at(Axis::X).count();
+	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
+	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
+	len_type L = ginfo.at(Axis::X).get_count();
 
 	iter_type index = 0;
 	for (iter_type k = 0; k < N; k++)

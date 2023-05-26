@@ -54,7 +54,7 @@ void print_xdr_header(int index, size_t id, symphas::grid_info const& ginfo, sym
 		int* dims = new int[dim];
 		for (iter_type i = 0; i < dim; ++i)
 		{
-			dims[i] = ginfo.at(symphas::index_to_axis(i)).count();
+			dims[i] = ginfo.at(symphas::index_to_axis(i)).get_count();
 		}
 		xdrfile_write_int(dims, dim, f);
 		delete[] dims;
@@ -116,11 +116,11 @@ void save_xdr(const vector_t<3>* grid, symphas::io::write_info winfo, symphas::g
 	XDRFILE* f = open_xdrgridf(winfo, is_checkpoint);
 	print_xdr_header(winfo.index, winfo.id, ginfo, winfo, f);
 
-	for (iter_type k = 0, ii = 0; k < ginfo.at(Axis::Z).count(); ++k)
+	for (iter_type k = 0, ii = 0; k < ginfo.at(Axis::Z).get_count(); ++k)
 	{
-		for (iter_type j = 0; j < ginfo.at(Axis::Y).count(); ++j)
+		for (iter_type j = 0; j < ginfo.at(Axis::Y).get_count(); ++j)
 		{
-			for (iter_type i = 0; i < ginfo.at(Axis::X).count(); ++i, ++ii)
+			for (iter_type i = 0; i < ginfo.at(Axis::X).get_count(); ++i, ++ii)
 			{
 				int d[3];
 				d[0] = static_cast<int>((grid[ii] * XDR_COORD_COMPRESSION).v[0]);
@@ -139,9 +139,9 @@ void save_xdr(const vector_t<2>* grid, symphas::io::write_info winfo, symphas::g
 	XDRFILE* f = open_xdrgridf(winfo, is_checkpoint);
 	print_xdr_header(winfo.index, winfo.id, ginfo, winfo, f);
 
-	for (iter_type j = 0, ii = 0; j < ginfo.at(Axis::Y).count(); ++j)
+	for (iter_type j = 0, ii = 0; j < ginfo.at(Axis::Y).get_count(); ++j)
 	{
-		for (iter_type i = 0; i < ginfo.at(Axis::X).count(); ++i, ++ii)
+		for (iter_type i = 0; i < ginfo.at(Axis::X).get_count(); ++i, ++ii)
 		{
 			int d[2];
 			d[0] = static_cast<int>((grid[ii] * XDR_COORD_COMPRESSION).v[0]);
@@ -158,7 +158,7 @@ void save_xdr(const vector_t<1>* grid, symphas::io::write_info winfo, symphas::g
 	XDRFILE* f = open_xdrgridf(winfo, is_checkpoint);
 	print_xdr_header(winfo.index, winfo.id, ginfo, winfo, f);
 
-	for (iter_type i = 0; i < ginfo.at(Axis::X).count(); ++i)
+	for (iter_type i = 0; i < ginfo.at(Axis::X).get_count(); ++i)
 	{
 		int d = static_cast<int>((grid[i] * XDR_COORD_COMPRESSION).v[0]);
 		xdrfile_write_int(&d, 1, f);
@@ -171,11 +171,11 @@ void save_xdr(const scalar_ptr_t(&grid)[3], symphas::io::write_info winfo, symph
 	XDRFILE* f = open_xdrgridf(winfo, is_checkpoint);
 	print_xdr_header(winfo.index, winfo.id, ginfo, winfo, f);
 
-	for (iter_type k = 0, ii = 0; k < ginfo.at(Axis::Z).count(); ++k)
+	for (iter_type k = 0, ii = 0; k < ginfo.at(Axis::Z).get_count(); ++k)
 	{
-		for (iter_type j = 0; j < ginfo.at(Axis::Y).count(); ++j)
+		for (iter_type j = 0; j < ginfo.at(Axis::Y).get_count(); ++j)
 		{
-			for (iter_type i = 0; i < ginfo.at(Axis::X).count(); ++i, ++ii)
+			for (iter_type i = 0; i < ginfo.at(Axis::X).get_count(); ++i, ++ii)
 			{
 				int d[3];
 				d[0] = static_cast<int>(grid[0][ii] * XDR_COORD_COMPRESSION);
@@ -194,9 +194,9 @@ void save_xdr(const scalar_ptr_t(&grid)[2], symphas::io::write_info winfo, symph
 	XDRFILE* f = open_xdrgridf(winfo, is_checkpoint);
 	print_xdr_header(winfo.index, winfo.id, ginfo, winfo, f);
 
-	for (iter_type j = 0, ii = 0; j < ginfo.at(Axis::Y).count(); ++j)
+	for (iter_type j = 0, ii = 0; j < ginfo.at(Axis::Y).get_count(); ++j)
 	{
-		for (iter_type i = 0; i < ginfo.at(Axis::X).count(); ++i, ++ii)
+		for (iter_type i = 0; i < ginfo.at(Axis::X).get_count(); ++i, ++ii)
 		{
 			int d[2];
 			d[0] = static_cast<int>(grid[0][ii] * XDR_COORD_COMPRESSION);
@@ -213,7 +213,7 @@ void save_xdr(const scalar_ptr_t(&grid)[1], symphas::io::write_info winfo, symph
 	XDRFILE* f = open_xdrgridf(winfo, is_checkpoint);
 	print_xdr_header(winfo.index, winfo.id, ginfo, winfo, f);
 
-	for (iter_type i = 0; i < ginfo.at(Axis::X).count(); ++i)
+	for (iter_type i = 0; i < ginfo.at(Axis::X).get_count(); ++i)
 	{
 		int d = static_cast<int>(grid[0][i] * XDR_COORD_COMPRESSION);
 		xdrfile_write_int(&d, 1, f);

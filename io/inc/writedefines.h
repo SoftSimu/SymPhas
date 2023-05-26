@@ -29,6 +29,18 @@
 #include "io.h"
 #include "plottername.h"
 
+namespace symphas::internal
+{
+	template<typename T>
+	struct field_array_t {};
+
+
+	template<typename T>
+	struct non_parameterized_type_impl;
+
+	template<typename T>
+	using non_parameterized_type = typename non_parameterized_type_impl<T>::type;
+}
 
 /* forward declaration of Model as required by the writing utility
  * in order to appropriately deal with the model information

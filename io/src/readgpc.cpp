@@ -28,9 +28,9 @@
 template<>
 void symphas::io::gp::col::read_block(scalar_t* grid, symphas::grid_info ginfo, FILE* f)
 {
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
-	len_type L = ginfo.at(Axis::X).count();
+	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
+	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
+	len_type L = ginfo.at(Axis::X).get_count();
 
 	for (iter_type k = 0; k < N; k++)
 	{
@@ -52,9 +52,9 @@ void symphas::io::gp::col::read_block(scalar_t* grid, symphas::grid_info ginfo, 
 template<>
 void symphas::io::gp::col::read_block(complex_t* grid, symphas::grid_info ginfo, FILE* f)
 {
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
-	len_type L = ginfo.at(Axis::X).count();
+	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
+	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
+	len_type L = ginfo.at(Axis::X).get_count();
 
 	for (iter_type k = 0; k < N; k++)
 	{
@@ -80,9 +80,9 @@ void symphas::io::gp::col::read_block(complex_t* grid, symphas::grid_info ginfo,
 template<>
 void symphas::io::gp::col::read_block(double_arr2*grid, symphas::grid_info ginfo, FILE* f)
 {
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
-	len_type L = ginfo.at(Axis::X).count();
+	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
+	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
+	len_type L = ginfo.at(Axis::X).get_count();
 
 	for (iter_type k = 0; k < N; k++)
 	{
@@ -104,9 +104,9 @@ void symphas::io::gp::col::read_block(double_arr2*grid, symphas::grid_info ginfo
 template<>
 void symphas::io::gp::col::read_block(vector_t<3>* grid, symphas::grid_info ginfo, FILE* f)
 {
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
-	len_type L = ginfo.at(Axis::X).count();
+	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
+	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
+	len_type L = ginfo.at(Axis::X).get_count();
 
 	for (iter_type k = 0; k < N; k++)
 	{
@@ -135,9 +135,9 @@ void symphas::io::gp::col::read_block(vector_t<3>* grid, symphas::grid_info ginf
 template<>
 void symphas::io::gp::col::read_block(vector_t<2>* grid, symphas::grid_info ginfo, FILE* f)
 {
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
-	len_type L = ginfo.at(Axis::X).count();
+	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
+	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
+	len_type L = ginfo.at(Axis::X).get_count();
 
 	for (iter_type k = 0; k < N; k++)
 	{
@@ -167,9 +167,9 @@ void symphas::io::gp::col::read_block(vector_t<2>* grid, symphas::grid_info ginf
 template<>
 void symphas::io::gp::col::read_block(vector_t<1>* grid, symphas::grid_info ginfo, FILE* f)
 {
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
-	len_type L = ginfo.at(Axis::X).count();
+	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
+	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
+	len_type L = ginfo.at(Axis::X).get_count();
 
 	for (iter_type k = 0; k < N; k++)
 	{
@@ -195,9 +195,9 @@ void symphas::io::gp::col::read_block(vector_t<1>* grid, symphas::grid_info ginf
 template<>
 void symphas::io::gp::col::read_block(scalar_ptr_t(&grid)[3], symphas::grid_info ginfo, FILE* f)
 {
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
-	len_type L = ginfo.at(Axis::X).count();
+	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
+	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
+	len_type L = ginfo.at(Axis::X).get_count();
 
 	for (iter_type k = 0; k < N; k++)
 	{
@@ -228,9 +228,9 @@ void symphas::io::gp::col::read_block(scalar_ptr_t(&grid)[3], symphas::grid_info
 template<>
 void symphas::io::gp::col::read_block(scalar_ptr_t(&grid)[2], symphas::grid_info ginfo, FILE* f)
 {
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
-	len_type L = ginfo.at(Axis::X).count();
+	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
+	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
+	len_type L = ginfo.at(Axis::X).get_count();
 
 	for (iter_type k = 0; k < N; k++)
 	{
@@ -261,9 +261,9 @@ void symphas::io::gp::col::read_block(scalar_ptr_t(&grid)[2], symphas::grid_info
 template<>
 void symphas::io::gp::col::read_block(scalar_ptr_t(&grid)[1], symphas::grid_info ginfo, FILE* f)
 {
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
-	len_type L = ginfo.at(Axis::X).count();
+	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
+	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
+	len_type L = ginfo.at(Axis::X).get_count();
 
 	for (iter_type k = 0; k < N; k++)
 	{

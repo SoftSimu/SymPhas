@@ -34,9 +34,9 @@ void symphas::io::csv::save_grid_plotting(const scalar_t* grid, symphas::io::wri
 
 	if (ginfo.dimension() > 1)
 	{
-		len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
-		len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
-		len_type L = ginfo.at(Axis::X).count();
+		len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
+		len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
+		len_type L = ginfo.at(Axis::X).get_count();
 
 		for (iter_type k = 0; k < N; k++)
 		{
@@ -58,7 +58,7 @@ void symphas::io::csv::save_grid_plotting(const scalar_t* grid, symphas::io::wri
 	}
 	else
 	{
-		len_type L = ginfo.at(Axis::X).count();
+		len_type L = ginfo.at(Axis::X).get_count();
 		for (iter_type i = 0; i < L; i++)
 		{
 			fprintf(f, "% 10lE", grid[i]);
@@ -79,9 +79,9 @@ void symphas::io::csv::save_grid_plotting(const complex_t* grid, symphas::io::wr
 
 	if (ginfo.dimension() > 1)
 	{
-		len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
-		len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
-		len_type L = ginfo.at(Axis::X).count();
+		len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
+		len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
+		len_type L = ginfo.at(Axis::X).get_count();
 
 		for (iter_type k = 0; k < N; k++)
 		{
@@ -103,7 +103,7 @@ void symphas::io::csv::save_grid_plotting(const complex_t* grid, symphas::io::wr
 	}
 	else
 	{
-		len_type L = ginfo.at(Axis::X).count();
+		len_type L = ginfo.at(Axis::X).get_count();
 		for (iter_type i = 0; i < L; i++)
 		{
 			fprintf(f, "\"% 10lE,%10lE\"", grid[i].real(), grid[i].imag());
@@ -123,9 +123,9 @@ void symphas::io::csv::save_grid_plotting(const double_arr2 *grid, symphas::io::
 
 	if (ginfo.dimension() > 1)
 	{
-		len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).count();
-		len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).count();
-		len_type L = ginfo.at(Axis::X).count();
+		len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
+		len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
+		len_type L = ginfo.at(Axis::X).get_count();
 
 		for (iter_type k = 0; k < N; k++)
 		{
@@ -147,7 +147,7 @@ void symphas::io::csv::save_grid_plotting(const double_arr2 *grid, symphas::io::
 	}
 	else
 	{
-		len_type L = ginfo.at(Axis::X).count();
+		len_type L = ginfo.at(Axis::X).get_count();
 		for (iter_type i = 0; i < L; i++)
 		{
 			fprintf(f, "\"% 10lE,%10lE\"", grid[i][0], grid[i][1]);
@@ -165,9 +165,9 @@ void symphas::io::csv::save_grid_plotting(const vector_t<3>* grid, symphas::io::
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 
-	len_type N = ginfo.at(Axis::Z).count();
-	len_type M = ginfo.at(Axis::Y).count();
-	len_type L = ginfo.at(Axis::X).count();
+	len_type N = ginfo.at(Axis::Z).get_count();
+	len_type M = ginfo.at(Axis::Y).get_count();
+	len_type L = ginfo.at(Axis::X).get_count();
 
 	for (iter_type k = 0; k < N; k++)
 	{
@@ -206,9 +206,9 @@ void symphas::io::csv::save_grid_plotting(const vector_t<2>* grid, symphas::io::
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 
-	len_type N = ginfo.at(Axis::Z).count();
-	len_type M = ginfo.at(Axis::Y).count();
-	len_type L = ginfo.at(Axis::X).count();
+	len_type N = ginfo.at(Axis::Z).get_count();
+	len_type M = ginfo.at(Axis::Y).get_count();
+	len_type L = ginfo.at(Axis::X).get_count();
 
 	for (iter_type k = 0; k < N; k++)
 	{
@@ -245,9 +245,9 @@ void symphas::io::csv::save_grid_plotting(const vector_t<1>* grid, symphas::io::
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 
-	len_type N = ginfo.at(Axis::Z).count();
-	len_type M = ginfo.at(Axis::Y).count();
-	len_type L = ginfo.at(Axis::X).count();
+	len_type N = ginfo.at(Axis::Z).get_count();
+	len_type M = ginfo.at(Axis::Y).get_count();
+	len_type L = ginfo.at(Axis::X).get_count();
 
 	for (iter_type k = 0; k < N; k++)
 	{
@@ -279,9 +279,9 @@ void symphas::io::csv::save_grid_plotting(const scalar_ptr_t(&grid)[3], symphas:
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 
-	len_type N = ginfo.at(Axis::Z).count();
-	len_type M = ginfo.at(Axis::Y).count();
-	len_type L = ginfo.at(Axis::X).count();
+	len_type N = ginfo.at(Axis::Z).get_count();
+	len_type M = ginfo.at(Axis::Y).get_count();
+	len_type L = ginfo.at(Axis::X).get_count();
 
 	for (iter_type k = 0; k < N; k++)
 	{
@@ -319,9 +319,9 @@ void symphas::io::csv::save_grid_plotting(const scalar_ptr_t(&grid)[2], symphas:
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 
-	len_type N = ginfo.at(Axis::Z).count();
-	len_type M = ginfo.at(Axis::Y).count();
-	len_type L = ginfo.at(Axis::X).count();
+	len_type N = ginfo.at(Axis::Z).get_count();
+	len_type M = ginfo.at(Axis::Y).get_count();
+	len_type L = ginfo.at(Axis::X).get_count();
 
 	for (iter_type k = 0; k < N; k++)
 	{
@@ -357,9 +357,9 @@ void symphas::io::csv::save_grid_plotting(const scalar_ptr_t(&grid)[1], symphas:
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
 
-	len_type N = ginfo.at(Axis::Z).count();
-	len_type M = ginfo.at(Axis::Y).count();
-	len_type L = ginfo.at(Axis::X).count();
+	len_type N = ginfo.at(Axis::Z).get_count();
+	len_type M = ginfo.at(Axis::Y).get_count();
+	len_type L = ginfo.at(Axis::X).get_count();
 
 	for (iter_type k = 0; k < N; k++)
 	{

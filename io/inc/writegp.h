@@ -61,7 +61,7 @@
 #define MULTI_ALIGN_KEY "Right" //!< Alignment of key (title) of subplots.
 
 
-#define MULTI_COLUMN_NUM(N) (((N) % 3 == 0) ? 3 : 2) //!< Number of columns in latex plot output.
+#define MULTI_COLUMN_NUM(N) ((N > 12) ? ((int)std::sqrt(N)) : (((N) % 3 == 0) ? 3 : 2)) //!< Number of columns in latex plot output.
 
 #define MULTI_OUTPUT_WIDTH symphas::io::gp::alignment::display_width 
 #define MULTI_MARGIN_RATIO symphas::io::gp::alignment::mmr 
@@ -395,55 +395,91 @@ R"~(
 	}
 
 	template<size_t D, typename S0>
-	inline void plot_fmt(const char* &) {}
+	struct plot_fmt
+	{
+		inline void operator()(const char*&) {}
+	};
+
+	template<size_t D, typename S0>
+	struct plot_fmt<D, symphas::internal::field_array_t<S0>>
+	{
+		inline void operator()(const char*& gnu_set)
+		{
+			plot_fmt<D, symphas::internal::non_parameterized_type<S0>> {}(gnu_set);
+		}
+	};
 
 	template<>
-	inline void plot_fmt<1, scalar_t>(const char*& gnu_set)
+	struct plot_fmt<1, scalar_t>
 	{
-		gnu_set = symphas::io::gp::gnu_1d;
-	}
+		inline void operator()(const char*& gnu_set)
+		{
+			gnu_set = symphas::io::gp::gnu_1d;
+		}
+	};
 
 	template<>
-	inline void plot_fmt<2, scalar_t>(const char* &gnu_set)
+	struct plot_fmt<2, scalar_t>
 	{
-		gnu_set = symphas::io::gp::gnu_s;
-	}
+		inline void operator()(const char*& gnu_set)
+		{
+			gnu_set = symphas::io::gp::gnu_s;
+		}
+	};
 
 	template<>
-	inline void plot_fmt<3, scalar_t>(const char*& gnu_set)
+	struct plot_fmt<3, scalar_t>
 	{
-		gnu_set = symphas::io::gp::gnu_s;
-	}
+		inline void operator()(const char*& gnu_set)
+		{
+			gnu_set = symphas::io::gp::gnu_s;
+		}
+	};
 
 	template<>
-	inline void plot_fmt<1, complex_t>(const char*& gnu_set)
+	struct plot_fmt<1, complex_t>
 	{
-		gnu_set = symphas::io::gp::gnu_1d;
-	}
+		inline void operator()(const char*& gnu_set)
+		{
+			gnu_set = symphas::io::gp::gnu_1d;
+		}
+	};
 
 	template<>
-	inline void plot_fmt<2, complex_t>(const char* &gnu_set)
+	struct plot_fmt<2, complex_t>
 	{
-		gnu_set = symphas::io::gp::gnu_s;
-	}
+		inline void operator()(const char*& gnu_set)
+		{
+			gnu_set = symphas::io::gp::gnu_s;
+		}
+	};
 
 	template<>
-	inline void plot_fmt<3, complex_t>(const char*& gnu_set)
+	struct plot_fmt<3, complex_t>
 	{
-		gnu_set = symphas::io::gp::gnu_s;
-	}
+		inline void operator()(const char*& gnu_set)
+		{
+			gnu_set = symphas::io::gp::gnu_s;
+		}
+	};
 
 	template<>
-	inline void plot_fmt<2, vector_t<2>>(const char* &gnu_set)
+	struct plot_fmt<2, vector_t<2>>
 	{
-		gnu_set = symphas::io::gp::gnu_2v;
-	}
+		inline void operator()(const char*& gnu_set)
+		{
+			gnu_set = symphas::io::gp::gnu_2v;
+		}
+	};
 
 	template<>
-	inline void plot_fmt<3, vector_t<3>>(const char* &gnu_set)
+	struct plot_fmt<3, vector_t<3>>
 	{
-		gnu_set = symphas::io::gp::gnu_3v;
-	}
+		inline void operator()(const char*& gnu_set)
+		{
+			gnu_set = symphas::io::gp::gnu_3v;
+		}
+	};
 
 
 
@@ -451,13 +487,13 @@ R"~(
 	template<size_t D, typename... S, size_t... Is>
 	void get_plot_fmt(const char* (*gnu_set), std::index_sequence<Is...>)
 	{
-		((..., plot_fmt<D, S>(gnu_set[Is])));
+		((..., plot_fmt<D, S>{}(gnu_set[Is])));
 	}
 	//! Get the string corresponding to the gnuplot input format for the data.
 	template<size_t D, typename... S>
 	void get_plot_fmt(const char* (*gnu_set))
 	{
-		get_plot_fmt<D, S...>(gnu_set, std::make_index_sequence<sizeof...(S)>{});
+		get_plot_fmt<D, symphas::internal::non_parameterized_type<S>...>(gnu_set, std::make_index_sequence<sizeof...(S)>{});
 	}
 
 
@@ -474,6 +510,38 @@ R"~(
 	 */
 	void print_gp_header(int index, size_t id, symphas::grid_info const& ginfo, symphas::io::write_info const& winfo, FILE* f);
 
+
+	template<size_t N, size_t D, typename Sp, typename S0, typename... S>
+	size_t get_system_offset(symphas::internal::field_array_t<S0>, Model<D, Sp, S...> const& model)
+	{
+		return model.len - (sizeof...(S) - (1 + N));
+	}
+
+	template<size_t N, size_t D, typename Sp, typename S0, typename... S>
+	size_t get_system_offset(S0, Model<D, Sp, S...> const& model)
+	{
+		return 1;
+	}
+
+	template<size_t D, typename Sp, typename... S, size_t... Is>
+	size_t get_system_id(size_t index, Model<D, Sp, S...> const& model, std::index_sequence<Is...>)
+	{
+		size_t offsets[sizeof...(Is)];
+		((offsets[Is] = get_system_offset<Is>(S{}, model)), ...);
+
+		size_t id = 0;
+		for (size_t i = 0; i < index; ++i)
+		{
+			id += offsets[i];
+		}
+		return id;
+	}
+
+	template<size_t D, typename Sp, typename... S>
+	size_t get_system_id(size_t index, Model<D, Sp, S...> const& model)
+	{
+		return get_system_id(index, model, std::make_index_sequence<sizeof...(S)>{});
+	}
 
 	/*
 	 * prints the plotting data file
@@ -533,7 +601,7 @@ R"~(
 				{
 					char display_title[BUFFER_LENGTH];
 					snprintf(display_title, sizeof(display_title) / sizeof(char), LATEX_SUBPLOT_KEY_FMT, index);
-					symphas::io::copy_data_file_name(DATA_DIR_RELATIVE_PLOT, index, id, DataFileType::SOLUTION_DATA, data_loc);
+					symphas::io::copy_data_file_name(DATA_DIR_RELATIVE_PLOT, index, get_system_id(id, model), DataFileType::SOLUTION_DATA, data_loc);
 
 
 					/* if this is the final save, print additional plot configuration to load the colorbar

@@ -82,7 +82,7 @@ symphas::grid_info symphas::io::xdr::read_header(XDRFILE* f, int* index)
 				}
 				return { nullptr, dim };
 			}
-			ginfo.at(symphas::index_to_axis(i)).set_interval_count(v[0], v[1], dims[i]);
+			ginfo.at(symphas::index_to_axis(i)).set_count(v[0], v[1], dims[i]);
 		}
 
 		delete[] dims;
@@ -126,11 +126,11 @@ void symphas::io::xdr::read_block(double_arr2 *grid, symphas::grid_info ginfo, X
 template<>
 void symphas::io::xdr::read_block(vector_t<3>* grid, symphas::grid_info ginfo, XDRFILE* f)
 {
-	for (iter_type k = 0, ii = 0; k < ginfo.at(Axis::Z).count(); ++k)
+	for (iter_type k = 0, ii = 0; k < ginfo.at(Axis::Z).get_count(); ++k)
 	{
-		for (iter_type j = 0; j < ginfo.at(Axis::Y).count(); ++j)
+		for (iter_type j = 0; j < ginfo.at(Axis::Y).get_count(); ++j)
 		{
-			for (iter_type i = 0; i < ginfo.at(Axis::X).count(); ++i, ++ii)
+			for (iter_type i = 0; i < ginfo.at(Axis::X).get_count(); ++i, ++ii)
 			{
 				int d[3];
 				xdrfile_read_int(d, 3, f);
@@ -146,9 +146,9 @@ void symphas::io::xdr::read_block(vector_t<3>* grid, symphas::grid_info ginfo, X
 template<>
 void symphas::io::xdr::read_block(vector_t<2>* grid, symphas::grid_info ginfo, XDRFILE* f)
 {
-	for (iter_type j = 0, ii = 0; j < ginfo.at(Axis::Y).count(); ++j)
+	for (iter_type j = 0, ii = 0; j < ginfo.at(Axis::Y).get_count(); ++j)
 	{
-		for (iter_type i = 0; i < ginfo.at(Axis::X).count(); ++i, ++ii)
+		for (iter_type i = 0; i < ginfo.at(Axis::X).get_count(); ++i, ++ii)
 		{
 			int d[2];
 			xdrfile_read_int(d, 2, f);
@@ -162,7 +162,7 @@ void symphas::io::xdr::read_block(vector_t<2>* grid, symphas::grid_info ginfo, X
 template<>
 void symphas::io::xdr::read_block(vector_t<1>* grid, symphas::grid_info ginfo, XDRFILE* f)
 {
-	for (iter_type i = 0; i < ginfo.at(Axis::X).count(); ++i)
+	for (iter_type i = 0; i < ginfo.at(Axis::X).get_count(); ++i)
 	{
 		int d;
 		xdrfile_write_int(&d, 1, f);
@@ -176,11 +176,11 @@ void symphas::io::xdr::read_block(vector_t<1>* grid, symphas::grid_info ginfo, X
 template<>
 void symphas::io::xdr::read_block(scalar_ptr_t(&grid)[3], symphas::grid_info ginfo, XDRFILE* f)
 {
-	for (iter_type k = 0, ii = 0; k < ginfo.at(Axis::Z).count(); ++k)
+	for (iter_type k = 0, ii = 0; k < ginfo.at(Axis::Z).get_count(); ++k)
 	{
-		for (iter_type j = 0; j < ginfo.at(Axis::Y).count(); ++j)
+		for (iter_type j = 0; j < ginfo.at(Axis::Y).get_count(); ++j)
 		{
-			for (iter_type i = 0; i < ginfo.at(Axis::X).count(); ++i, ++ii)
+			for (iter_type i = 0; i < ginfo.at(Axis::X).get_count(); ++i, ++ii)
 			{
 				int d[3];
 				xdrfile_read_int(d, 3, f);
@@ -195,9 +195,9 @@ void symphas::io::xdr::read_block(scalar_ptr_t(&grid)[3], symphas::grid_info gin
 template<>
 void symphas::io::xdr::read_block(scalar_ptr_t(&grid)[2], symphas::grid_info ginfo, XDRFILE* f)
 {
-	for (iter_type j = 0, ii = 0; j < ginfo.at(Axis::Y).count(); ++j)
+	for (iter_type j = 0, ii = 0; j < ginfo.at(Axis::Y).get_count(); ++j)
 	{
-		for (iter_type i = 0; i < ginfo.at(Axis::X).count(); ++i, ++ii)
+		for (iter_type i = 0; i < ginfo.at(Axis::X).get_count(); ++i, ++ii)
 		{
 			int d[2];
 			xdrfile_read_int(d, 2, f);
@@ -210,7 +210,7 @@ void symphas::io::xdr::read_block(scalar_ptr_t(&grid)[2], symphas::grid_info gin
 template<>
 void symphas::io::xdr::read_block(scalar_ptr_t(&grid)[1], symphas::grid_info ginfo, XDRFILE* f)
 {
-	for (iter_type i = 0; i < ginfo.at(Axis::X).count(); ++i)
+	for (iter_type i = 0; i < ginfo.at(Axis::X).get_count(); ++i)
 	{
 		int d;
 		xdrfile_write_int(&d, 1, f);
