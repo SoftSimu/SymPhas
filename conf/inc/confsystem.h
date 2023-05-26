@@ -276,7 +276,6 @@ protected:
 
 	double* coeff;								//!< The coefficients in the equations of motion.
 
-
 	symphas::interval_data_type* intervals;		//!< A list of the intervals of all the axes of the system.
 	symphas::b_data_type* bdata;				//!< A list of the boundary data corresponding to all sides of the system.
 	symphas::init_data_type* tdata;				//!< A list of the parameters required for generating the initial data.
@@ -287,6 +286,9 @@ protected:
 	size_t tdata_len;							//!< The number of initial condition elements provided.
 	size_t names_len;							//!< The number of phase field names provided.
 	size_t coeff_len;							//!< The number of coefficients provided.
+	size_t field_len;							//!< The number of fields to generate in the parameters.
+
+	char* modifiers;							//!< The coefficients in the equations of motion.
 
 private:
 
@@ -324,6 +326,7 @@ public:
 		delete[] title;
 		delete[] model;
 		delete[] coeff;
+		delete[] modifiers;
 
 		delete[] intervals;
 		delete[] bdata;
@@ -987,14 +990,25 @@ public:
 	 */
 	symphas::problem_parameters_type get_problem_parameters() const
 	{
-		size_t sys_len = std::max(intervals_len, std::max(bdata_len, tdata_len));
+		size_t sys_len = std::max({ intervals_len, bdata_len, tdata_len, field_len });
 		symphas::problem_parameters_type pp{ sys_len };
 
 		pp.set_boundary_data(bdata, bdata_len);
 		pp.set_initial_data(tdata, tdata_len);
 		pp.set_interval_data(intervals, intervals_len);
 		pp.set_time_step(dt);
+		pp.set_modifiers(modifiers);
 
+		size_t parameter_len = std::max({ intervals_len, bdata_len, tdata_len });
+		if (field_len > parameter_len)
+		{
+			for (iter_type i = parameter_len; i < field_len; --i)
+			{
+				pp.set_boundary_data(bdata[0], i);
+				pp.set_initial_data(tdata[0], i);
+				pp.set_interval_data(intervals[0], i);
+			}
+		}
 
 		return pp;
 	}

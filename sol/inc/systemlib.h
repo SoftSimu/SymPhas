@@ -270,15 +270,16 @@ struct SystemData<BoundaryGrid<T, D>> : BoundaryGrid<T, D>, SystemInfo
 		BoundaryGrid<T, D>{ grid::construct<::BoundaryGrid, T, D>(vdata) },
 		SystemInfo{ { vdata }, id }
 	{
-		for (iter_type i = 0; i < D; ++i)
+		if (!info.intervals.empty())
 		{
-			Axis ax = symphas::index_to_axis(i);
-			auto& interval = info.intervals.at(ax);
+			for (iter_type i = 0; i < D; ++i)
+			{
+				Axis ax = symphas::index_to_axis(i);
+				auto& interval = info.intervals.at(ax);
 
-			interval.set_interval_count(
-				interval.left(), 
-				interval.right(),
-				dims[i] - 2 * THICKNESS);
+				interval.set_count(
+					dims[i] - 2 * THICKNESS);
+			}
 		}
 	}
 
@@ -549,8 +550,16 @@ struct PersistentSystemData<G<T, D>> : SystemData<G<T, D>>
 // *************************************************************************************************
 
 
+
 namespace symphas
 {
+
+	enum ModelModifiers
+	{
+		PLOT_DEFAULT,
+		PLOT_MAX,
+		PLOT_MIN
+	};
 
     //! Representation of the problem parameters for a phase field model.
     /*!
@@ -583,10 +592,11 @@ namespace symphas
         size_t len;
     
         double dt;								//!< The time discretization.
+		size_t modifiers;						//!< A bit string of modifiers.
     
         problem_parameters_type() : 
             tdata{ nullptr }, vdata{ nullptr }, bdata{ nullptr }, 
-            len{ 0 }, dt{ 1.0 }, time{ TIME_INIT }, index{ params::start_index } {}
+            len{ 0 }, dt{ 1.0 }, modifiers{ 0 }, time{ TIME_INIT }, index{ params::start_index } {}
     
     public:
     
@@ -601,8 +611,11 @@ namespace symphas
             * \param len The number of systems that the problem parameters refer to.
             */
         problem_parameters_type(const size_t len) : 
-            tdata{ new symphas::init_data_type[len] }, vdata{ new symphas::interval_data_type[len] }, bdata{ new symphas::b_data_type[len] },
-            len{ len }, dt{ 1.0 }, time{ TIME_INIT }, index{ params::start_index } {}
+            tdata{ (len > 0) ? new symphas::init_data_type[len] : nullptr }, 
+			vdata{ (len > 0) ? new symphas::interval_data_type[len] : nullptr }, 
+			bdata{ (len > 0) ? new symphas::b_data_type[len] : nullptr },
+			len{ len }, dt{ 1.0 }, modifiers{ 0 },
+			time { TIME_INIT }, index{ params::start_index } {}
     
         problem_parameters_type(problem_parameters_type const& other);
     
@@ -615,8 +628,71 @@ namespace symphas
             swap(*this, other);
             return *this;
         }
-    
-    
+
+		void set_modifier(ModelModifiers m)
+		{
+			modifiers |= (1ull << static_cast<size_t>(m));
+		}
+
+		void unset_modifier(ModelModifiers m)
+		{
+			modifiers &= ~(1ull << static_cast<size_t>(m));
+		}
+
+		bool check_modifier(ModelModifiers m) const
+		{
+			return ((1ull << static_cast<size_t>(m)) & modifiers);
+		}
+
+		void set_modifiers(const char* str)
+		{
+			if (str)
+			{
+				int next = 0;
+				int end = std::strlen(str);
+				char buffer[BUFFER_LENGTH_R2];
+
+
+				std::map<std::string, ModelModifiers> map = {
+					{ "plot.default" , ModelModifiers::PLOT_MAX },
+					{ "plot.max" , ModelModifiers::PLOT_MAX },
+					{ "plot.min" , ModelModifiers::PLOT_MIN } };
+
+				while (next < end)
+				{
+					sscanf(str, "%s %n", buffer, &next);
+					for (auto [k, v] : map)
+					{
+						if (k == buffer)
+						{
+							set_modifier(v);
+						}
+					}
+				}
+			}
+		}
+
+		ModelModifiers get_modifier() const
+		{
+			if (modifiers == 0)
+			{
+				return ModelModifiers::PLOT_DEFAULT;
+			}
+			else
+			{
+				bool flag = false;
+				size_t value = modifiers;
+				int n = -1;
+
+				while (!flag)
+				{
+					flag = (value & 1ull);
+					value >>= 1ull;
+					n += 1;
+				}
+				return static_cast<ModelModifiers>(n);
+			}
+		}
     
         //! Set the initial data of the problem parameters.
         /*

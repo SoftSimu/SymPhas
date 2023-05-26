@@ -582,7 +582,7 @@ namespace symphas::internal
 
 			coeff_from_file(f, coeff, coeff_len);
 		}
-		else
+		else if (std::strlen(str) > 0)
 		{
 			size_t i = 0;
 			char* constant = std::strtok(constants, " ");
@@ -899,7 +899,9 @@ SystemConf::SystemConf() :
 	tdata_len{ 0 },
 	names_len{ 0 },
 	coeff_len{ 0 },
-	init_coeff_copied{ false } 
+	field_len{ 0 },
+	modifiers{ nullptr },
+	init_coeff_copied{ false }
 {}
 
 SystemConf::SystemConf(SystemConf const& other) : SystemConf()
@@ -926,6 +928,7 @@ SystemConf::SystemConf(SystemConf const& other) : SystemConf()
 	tdata_len = other.tdata_len;
 	names_len = other.names_len;
 	coeff_len = other.coeff_len;
+	field_len = other.field_len;
 
 	intervals = new symphas::interval_data_type[other.intervals_len];
 	bdata = new symphas::b_data_type[other.bdata_len];
@@ -933,6 +936,12 @@ SystemConf::SystemConf(SystemConf const& other) : SystemConf()
 	coeff = new double[other.coeff_len];
 	names = new char*[other.names_len];
 	dims = new len_type*[other.intervals_len];
+	
+	if (other.modifiers != nullptr)
+	{
+		modifiers = new char[std::strlen(other.modifiers) + 1];
+		std::strcpy(modifiers, other.modifiers);
+	}
 
 	std::copy(other.intervals, other.intervals + other.intervals_len, intervals);
 	std::copy(other.bdata, other.bdata + other.bdata_len, bdata);
@@ -1204,7 +1213,7 @@ void SystemConf::set_dimensions(size_t n)
 	{
 	case 1:
 	{
-		iter_type L = intervals[n].at(Axis::X).count();
+		iter_type L = intervals[n].at(Axis::X).get_count();
 
 		if (L < 1)
 		{
@@ -1218,8 +1227,8 @@ void SystemConf::set_dimensions(size_t n)
 	}
 	case 2:
 	{
-		iter_type L = intervals[n].at(Axis::X).count();
-		iter_type M = intervals[n].at(Axis::Y).count();
+		iter_type L = intervals[n].at(Axis::X).get_count();
+		iter_type M = intervals[n].at(Axis::Y).get_count();
 
 		if (L < 1 || M < 1)
 		{
@@ -1233,9 +1242,9 @@ void SystemConf::set_dimensions(size_t n)
 	}
 	case 3:
 	{
-		iter_type L = intervals[n].at(Axis::X).count();
-		iter_type M = intervals[n].at(Axis::Y).count();
-		iter_type N = intervals[n].at(Axis::Z).count();
+		iter_type L = intervals[n].at(Axis::X).get_count();
+		iter_type M = intervals[n].at(Axis::Y).get_count();
+		iter_type N = intervals[n].at(Axis::Z).get_count();
 
 		if (L < 1 || M < 1 || N < 1)
 		{
@@ -1864,7 +1873,7 @@ void SystemConf::parse_interval(const char* value, Axis ax, size_t n)
 			fprintf(SYMPHAS_WARN, "the grid points given by '%s' is not in the correct "
 				"format, expecting the number of grid points as `@ L`\n", value);
 		}
-		intervals[n][ax].set_interval_count(intervals[n][ax].width(), count);
+		intervals[n][ax].set_count_from_r(intervals[n][ax].width(), count, 0.0);
 	}
 	else
 	{
@@ -2067,7 +2076,25 @@ void SystemConf::parse_model_spec(const char* value, const char* dir)
 
 		if (model_end_pos > std::strlen(model))
 		{
-			symphas::internal::parse_coeff_list(value + model_end_pos, dir, coeff, coeff_len);
+			const char* iter = value + model_end_pos - 1;
+			while (*++iter != CONFIG_TITLE_PREFIX_C);
+
+			if (*iter == CONFIG_TITLE_PREFIX_C)
+			{
+				*type = '\0';
+				sscanf(iter + 1, "%zd %s", &field_len, type);
+				if (*type)
+				{
+					delete[] modifiers;
+					modifiers = new char[std::strlen(type) + 1];
+					std::strcpy(modifiers, type);
+				}
+			}
+
+
+			std::copy(value + model_end_pos, iter, type);
+			type[iter - (value + model_end_pos)] = '\0';
+			symphas::internal::parse_coeff_list(type, dir, coeff, coeff_len);
 		}
 		else
 		{

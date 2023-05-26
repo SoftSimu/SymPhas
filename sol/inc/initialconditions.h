@@ -2082,9 +2082,15 @@ struct InitialConditionsAlg<D, Inside::VORONOI> :
 //! Fills the system with equally sized semi-overlapping bubbles. 
 /*!
  * Fill the bubble with N points, where N is the first parameter of the initial conditions.
- * The second parameter of the initial conditions is the packing ratio. For high packing ratios,
- * the value may not be reached, but the algorithm will attempt to place as many bubbles
- * as possible.
+ * The second and third parameters are the interior and exterior values of the bubbles.
+ * The fourth parameter is the radius of the bubbles, computed based on the area of placing the all
+ * the bubbles. Typically, setting this value to 1 will mean that the desired number of bubbles
+ * cannot be placed.
+ * The fifth parameter is the packing ratio, which represents how tightly together the bubbles
+ * should be placed. When this value is zero, there is no overlap between bubbles. 
+ * For packing ratios close to zero,
+ * the final number of bubbles may not be reached, but the algorithm will attempt to 
+ * place as many bubbles as possible. 
  */
 template<size_t D>
 struct InitialConditionsAlg<D, Inside::BUBBLE> :
@@ -2639,13 +2645,13 @@ struct symphas::internal::tags_for_init_value<Inside::VORONOI>
 
 
 
-//! Generates values for a Voronoi Diagram with periodic boundaries. 
+//! Generates values for a bubble arrangement with periodic boundaries. 
 /*!
- * Given the number of Voronoi points as the first initial condition parameter,
+ * Given the number of bubbles as the first initial condition parameter,
  * this algorithm will generate a
  * corresponding number of random values in the uniform range between the
- * second and third initial conditions parameters for each crystal.
- * Each crystal will be periodic around the system.
+ * second and third initial conditions parameters for each arrangement.
+ * Each arrangement will be periodic around the system.
  *
  * This variation will apply periodic boundaries when determining the closest
  * point.
@@ -2662,7 +2668,7 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::VARA> :
 
 //! Fills the system with equally sized semi-overlapping bubbles. 
 /*!
- * If generating multiple fields, but the bubble crystal should have the exact same
+ * If generating multiple fields, but the bubble arrangement should have the exact same
  * parameters, then this variation will always return the same values.
  */
 template<size_t D>
@@ -2699,7 +2705,7 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED>
 
 //! Fills the system with equally sized semi-overlapping bubbles. 
 /*!
- * If generating multiple fields, but the bubble crystal should have the exact same
+ * If generating multiple fields, but the bubble arrangement should have the exact same
  * parameters, then this variation will always return the same values.
  *
  * This variation will apply periodic boundaries when determining the closest
@@ -2748,7 +2754,7 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::VARA, InsideTag::FIXED
 //! Fills the system with equally sized semi-overlapping bubbles. 
 /*!
  * Fill the bubble with N points, where N is the first parameter of the initial conditions.
- * The second parameter of the initial conditions is the packing ratio. For high packing ratios,
+ * The thid parameter of the initial conditions is the packing ratio. For high packing ratios,
  * the value may not be reached, but the algorithm will attempt to place as many bubbles
  * as possible.
  */
@@ -2805,9 +2811,9 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::RANDOM, InsideTag::FIX
 
 //! Fills the system with equally sized semi-overlapping bubbles. 
 /*!
- * If generating multiple fields, but the bubble should have the exact same
- * parameters, then this variation will always return the same crystal, but the values
- * of the crystal will be different.
+ * If generating multiple fields, but the bubble arrangement should have the exact same
+ * parameters, then this variation will always return the same arrangement, but the values
+ * of the arrangement will be different.
  *
  * This variation will apply periodic boundaries when determining the closest
  * point.
@@ -2834,11 +2840,11 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::RANDOM, InsideTag::FIX
 	using parent_type::parent_type;
 };
 
-//! Generates values for a Voronoi Diagram where the crystal always has the same shape. 
+//! Generates values for a bubble arrangement where the arrangement always has the same shape. 
 /*!
- * If generating multiple fields, but the bubble crystal should have the exact same
- * parameters, then this variation will always return the same crystal, but the values
- * of the crystal will be different.
+ * If generating multiple fields, but the bubble arrangement should have the exact same
+ * parameters, then this variation will always return the same arrangement, but the values
+ * of the arrangement will be different.
  */
 template<size_t D>
 struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB> :
@@ -2906,11 +2912,11 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::VARB, InsideTag::RANDO
 	using parent_type::parent_type;
 };
 
-//! Generates values for a Voronoi Diagram where the crystal always has the same shape. 
+//! Generates values for a bubble arrangement where the arrangement always has the same shape. 
 /*!
- * If generating multiple fields, but the bubble crystal should have the exact same
- * parameters, then this variation will always return the same crystal, but the values
- * of the crystal will be different.
+ * If generating multiple fields, but the bubble arrangement should have the exact same
+ * parameters, then this variation will always return the same arrangement, but the values
+ * of the arrangement will be different.
  *
  * This variation will apply periodic boundaries when determining the closest
  * point.
@@ -2956,14 +2962,11 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::RANDOM, InsideTag::FIX
 };
 
 
-//! Generates values for a Voronoi Diagram where the crystal always has the same shape. 
+//! Generates values for a bubble arrangement where the arrangement always has the same shape. 
 /*!
- * If generating multiple fields, but the bubble crystal should have the exact same
- * parameters, then this variation will always return the same crystal, but the values
- * of the crystal will be different.
- *
- * This variation will apply periodic boundaries when determining the closest
- * point.
+ * If generating multiple fields, but the bubble arrangement should have the exact same
+ * parameters, then this variation will always return the same arrangement, but the values
+ * of the arrangement will be different.
  */
 template<size_t D>
 struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC> :
@@ -2978,7 +2981,8 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::
 		len_type const* dims
 	) :
 		parent_type(init, vdata, dims),
-		N{ size_t(init.data.gp[0]) }, R{ symphas::internal::compute_bubble_R(vdata, init.data.gp[3], N) }
+		N{ size_t(init.data.gp[0]) }, R{ symphas::internal::compute_bubble_R(vdata, init.data.gp[3], N) },
+		select{ get_select() }
 	{
 		// The amount of overlap controls how close bubbles should be to each other.
 		// For high packing ratios, the overlap will be positive because bubble can be generated
@@ -3002,16 +3006,18 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::
 
 	scalar_t operator()(iter_type) const override;
 
+	auto get_select()
+	{
+		static int I = 0;
+		I %= N;
+		return I++;
+	}
 
 	auto get_values(symphas::init_entry_type const& init) const
 	{
-		static int I = 0;
-
 		double value_rng0[] = { init.data.gp[1] };
 		symphas::internal::RandomOffsets<scalar_t, 1> values1(N, value_rng0, 0);
-		values1.set_offset(I, init.data.gp[2]);
-
-		I += 1;
+		values1.set_offset(select, init.data.gp[2]);
 		return values1;
 	}
 
@@ -3019,6 +3025,7 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::
 	double R;
 	symphas::internal::RandomDeltas<D> offsets;					//!< Manages a list of random offsets.
 	symphas::internal::RandomOffsets<scalar_t, 1> values;		//!< Manages a list of random values.
+	int select;
 
 };
 
@@ -3032,11 +3039,11 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::RANDOM, InsideTag::FIX
 
 
 
-//! Generates values for a Voronoi Diagram where the crystal always has the same shape. 
+//! Generates values for a bubble arrangement where the arrangement always has the same shape. 
 /*!
- * If generating multiple fields, but the bubble crystal should have the exact same
- * parameters, then this variation will always return the same crystal, but the values
- * of the crystal will be different.
+ * If generating multiple fields, but the bubble arrangement should have the exact same
+ * parameters, then this variation will always return the same arrangement, but the values
+ * of the arrangement will be different.
  *
  * This variation will apply periodic boundaries when determining the closest
  * point.

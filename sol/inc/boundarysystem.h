@@ -91,9 +91,8 @@ protected:
 		{
 			for (auto& [_, interval] : vdata)
 			{
-				interval.set_interval_count(
-					interval.left(), interval.right(),
-					interval.count() + 2 * THICKNESS);
+				interval.set_count(
+					interval.get_count() + 2 * THICKNESS);
 			}
 		}
 		return vdata;
@@ -162,6 +161,7 @@ namespace expr
 }
 
 DEFINE_SYMBOL_ID((typename T, size_t D), (BoundaryGrid<T, D>), return data.values)
+DEFINE_BASE_DATA_INHERITED((template<typename, size_t> typename grid_t, typename T, size_t D), (PhaseFieldSystem<grid_t, T, D>), (grid_t<T, D>))
 
 
 
