@@ -151,7 +151,7 @@ namespace symphas::internal
 		len_type A = 1;
 		for (auto const& [key, value] : vdata)
 		{
-			A *= value.count();
+			A *= value.get_count();
 		}
 		return std::sqrt(A * coverage / (symphas::PI * N));
 	}

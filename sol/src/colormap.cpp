@@ -234,7 +234,7 @@ void ColourPlot2d::init(scalar_t* (&values), len_type* dims, iter_type& index, C
 		}
 		scalar_t range = maximum - minimum;
 		scalar_t average = range / 2 + minimum;
-		scalar_t colour_range = range;
+		scalar_t colour_range = std::max(0.25, range);
 
 		minimum = average - colour_range / 2;
 		maximum = average + colour_range / 2;

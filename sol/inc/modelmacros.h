@@ -36,7 +36,7 @@
 
 #include "modelpfc.h"
 #include "stencilincludes.h"
-#include "expressionfunctions.h"
+#include "expressiontypeincludes.h"
 
 
 //! Copy construct the model with a new solver.
@@ -411,6 +411,28 @@ public:
 #endif
 
 
+#define PARAMETERS_FROM_MODEL(PARAMETERIZED_TYPE, PARAMETERS) \
+template<typename M> struct symphas::internal::model_field_parameters<M, PARAMETERIZED_TYPE> : \
+	model_field_parameters<M, void>, parameterized_type<void, void> { \
+	using parent_trait = model_field_parameters<M, void>; \
+	using parent_type = parent_trait; \
+	model_field_parameters(M const& m) : parent_type{ m }, parameterized_type<void, void>{ SINGLE_ARG PARAMETERS } {} \
+}; \
+
+#define PARAMETERIZED_TYPE(NAME, TYPE, PARAMETERS) \
+namespace symphas::internal { namespace parameterized { struct type_ ## NAME ## _t; } } \
+PARAMETERS_FROM_MODEL(symphas::internal::parameterized::type_ ## NAME ## _t, (SINGLE_ARG PARAMETERS)) \
+template<> struct symphas::internal::parameterized_type<symphas::internal::parameterized::type_ ## NAME ## _t, TYPE> : \
+	symphas::internal::parameterized_type<void, void> { \
+	parameterized_type() : parameterized_type<void, void>() {} \
+	template<typename M> parameterized_type(M const& model) : \
+		parameterized_type<void, void>{ model_field_parameters<M, parameterized::type_ ## NAME ## _t>(model) } {} \
+}; \
+namespace symphas::internal { namespace parameterized { using NAME = symphas::internal::parameterized_type<type_ ## NAME ## _t, TYPE>; } } 
+
+
+
+
 
 // **************************************************************************************
 
@@ -462,8 +484,10 @@ public:
 namespace model_ ## NAME { \
 template<typename T, size_t D> struct allowed_model_dimensions { static const bool value = true; }; \
 EQUATION_TRAIT_FORWARD_DECL \
+using namespace symphas::internal; \
+using namespace symphas::internal::parameterized; \
 template<size_t Dm, typename Sp> \
-using OpTypes = typename symphas::internal::expand_types_to_model<Dm, Sp, SINGLE_ARG TYPES>::type; \
+using OpTypes = symphas::internal::expand_types_to_model_t<Dm, Sp, SINGLE_ARG TYPES>; \
 template<typename> struct using_provisional { template<size_t Dm, typename Sp> using type = typename OpTypes<Dm, Sp>::template Specialized<TraitEquationModel>; }; \
 	__VA_ARGS__ } \
 template<size_t Dm, typename Sp> \
@@ -633,8 +657,15 @@ EQUATION_TRAIT_DEFINITION(__VA_ARGS__)
 #define EVOLUTION(...) \
 EVOLUTION_PREAMBLE((), __VA_ARGS__)
 
+#define FREE_ENERGY_PREAMBLE(PREAMBLE, SELECTED_DYNAMICS, ...) \
+template<size_t Dm, typename Sp> \
+using SpecializedModel = typename using_provisional<void>::template type<Dm, Sp>; \
+EQUATION_TRAIT_PREAMBLE(SINGLE_ARG PREAMBLE) \
+EQUATION_FE_TRAIT_DEFINITION((SINGLE_ARG SELECTED_DYNAMICS), __VA_ARGS__)
+//EVOLUTION_PREAMBLE(SINGLE_ARG PREAMBLE, parent_type::template generate_equations(std::make_tuple(SINGLE_ARG SELECTED_DYNAMICS), __VA_ARGS__))
+
 #define FREE_ENERGY(SELECTED_DYNAMICS, ...) \
-EVOLUTION(parent_type::template generate_equations(std::make_tuple(SINGLE_ARG SELECTED_DYNAMICS), __VA_ARGS__))
+FREE_ENERGY_PREAMBLE((), (SINGLE_ARG SELECTED_DYNAMICS), __VA_ARGS__)
 
 
 #ifdef USING_MODEL_SELECTION
@@ -775,13 +806,11 @@ const static symphas::internal::DynamicType DEFAULT_DYNAMIC = decltype(TYPE)::va
 const static size_t DEFAULT_MODE_N = N;
 
 //! Indicates that a given field follows conserved EVOLUTION.
-#define CONSERVED symphas::internal::dynamics_list<symphas::internal::DynamicType::CONSERVED>{}
+#define CONSERVED symphas::internal::dynamics_key_t<symphas::internal::DynamicType::CONSERVED>{}
 
 //! Indicates that a given field follows non-conserved EVOLUTION.
-#define NONCONSERVED symphas::internal::dynamics_list<symphas::internal::DynamicType::NONCONSERVED>{}
+#define NONCONSERVED symphas::internal::dynamics_key_t<symphas::internal::DynamicType::NONCONSERVED>{}
 
-#define ALL_CONSERVED symphas::internal::all_dynamics_key_t<all_dynamics_t>{}
-#define ALL_NONCONSERVED symphas::lib::types_list<decltype(NONCONSERVED)>{}
 
 //! Modify the EVOLUTION of the given field.
 /*!
@@ -807,8 +836,10 @@ const static size_t DEFAULT_MODE_N = N;
  */
 #define MODE_OF(FIELD_N, N) template<> constexpr size_t PFCParameters::mode_val_apply<FIELD_N - 1>() { return N; }
 
-#define EQUATION_OF(FIELD_N) symphas::internal::special_dynamics(std::index_sequence<FIELD_N - 1>{})
-#define EQUATION_OF_EACH(In) symphas::internal::special_dynamics(In)
+#define EQUATION_OF(FIELD_N) symphas::internal::special_dynamics_select<decltype(FIELD_N)>{}.select<int(FIELD_N)>(FIELD_N)
+
+#define ALL_CONSERVED EQUATION_OF(expr::symbols::i_<0, 0>{})(CONSERVED)
+#define ALL_NONCONSERVED EQUATION_OF(expr::symbols::i_<0, 0>{})(NONCONSERVED)
 
 
 #ifdef USING_MODEL_SELECTION
@@ -847,16 +878,44 @@ struct allowed_model_dimensions<void, D> \
  * The order parameter will be of type ::scalar_t.
  */
 #define SCALAR scalar_t
+
 //! Complex value order parameter.
 /*!
  * The order parameter will be of type ::complex_t.
  */
 #define COMPLEX complex_t
+
 //! Vector valued order parameter of real elements.
 /*!
  * The order parameter will a vector type, specified by ::vector_t.
  */
 #define VECTOR vector_t<Dm>
+
+#define CONFIGURATION -1
+
+namespace symphas::internal
+{
+	template<int N, typename T>
+	struct model_repeating_type
+	{
+		using type = list_repeating_type_t<N, T>;
+	};
+
+	template<typename T>
+	struct model_repeating_type<CONFIGURATION, T>
+	{
+		using type = symphas::internal::field_array_t<T>;
+	};
+
+	template<int N, typename T>
+	using model_repeating_type_t = typename model_repeating_type<N, T>::type;
+}
+
+//! Multiple phase fields of the same type.
+/*!
+ * The given order parameter of `TYPE` will be repeated `N` times.
+ */
+#define MANY(TYPE, N) symphas::internal::model_repeating_type_t<N, TYPE>
 
  //! Multiple real valued order parameter.
  /*!
@@ -864,7 +923,7 @@ struct allowed_model_dimensions<void, D> \
   * will repeat the #SCALAR type `N` times, thereby creating `N` order parameters
   * of this type.
   */
-#define SCALARS(N) symphas::internal::list_repeating_type_t<N, SCALAR>
+#define SCALARS(N) MANY(SCALAR, N)
 
  //! Multiple real valued order parameter.
  /*!
@@ -872,7 +931,7 @@ struct allowed_model_dimensions<void, D> \
   * will repeat the #COMPLEX type `N` times, thereby creating `N` order parameters
   * of this type.
   */
-#define COMPLEXS(N) symphas::internal::list_repeating_type_t<N, COMPLEX>
+#define COMPLEXES(N) MANY(COMPLEX, N)
 
  //! Multiple real valued order parameter.
  /*!
@@ -880,9 +939,11 @@ struct allowed_model_dimensions<void, D> \
   * will repeat the #VECTOR type `N` times, thereby creating `N` order parameters
   * of this type.
   */
-#define VECTORS(N) symphas::internal::list_repeating_type_t<N, VECTOR>
+#define VECTORS(N) MANY(VECTOR, N)
 
- // **************************************************************************************
+
+
+// **************************************************************************************
 
 //! The `i`-th order parameter.
 /*!
@@ -985,14 +1046,60 @@ struct allowed_model_dimensions<void, D> \
  */
 #define param(N) parent_type::param(N - 1)
 
+//! Imposes a matrix shape with `N` columns to the coefficient array.
+/*!
+ * Allows accessing coefficients with an index, either with a number
+ * or a series index. This is generally for associating each field
+ * with a sequence of coefficients, which can change for each field.
+ * 
+ * \param N The number of columns, i.e. number of unique coefficients, 
+ * associated with each field.
+ */
+#define param_matrix(N) parent_type::template param_matrix<N>()
 
-#define _nW(TYPE, ...) parent_type::template make_noise<NoiseType::WHITE, TYPE>(__VA_ARGS__)
+#define diff_N(E, VAR, N) expr::make_symbolic_derivative<N>(E, VAR)
+#define diff(E, VAR) diff_N(E, VAR, 1)
+
+#define integral(E) expr::make_domain_integral(E, parent_type::template system<0>().get_info())
+
+#define _nW(TYPE, ...) parent_type::template make_noise<expr::NoiseType::WHITE, TYPE>(__VA_ARGS__)
+#define Poisson(INTENSITY) NoiseData<NoiseType::POISSON, scalar_t, Dm>(SYS_DIMS(0), INTENSITY)
+
+#define T(E) expr::transpose(E)
 
 // **************************************************************************************
 
-#define POW(N) expr::pow<N>
 
+//! Get the area of the system.
+#define AREA expr::make_literal(parent_type::template system<0>().get_info().area())
+
+//! Get the length of the interval along the given axis.
 #define LENGTH(AXIS) expr::make_literal(parent_type::template system<0>().get_info()[Axis::AXIS].length())
+
+//! Get the total number of fields of the model.
+#define NUM_FIELDS symphas::internal::num_fields_as_literal(*this)
+
+//! Get the dimensions of the system.
+#define SYS_DIMS(N) parent_type::template system<N>().dims
+
+//! Get the intervals of the system.
+#define SYS_INTERVAL(N, AXIS) parent_type::template system<N>().get_info().intervals
+
+//! Access statistics about the system, such as the mean.
+/*!
+ * Included statistics are: mean, max, min and sum.
+ */
+#define STATS ExpressionStats{}
+
+
+
+// **************************************************************************************
+
+#define SUM(...) symphas::internal::series_index_selection(names_t{}, parent_type::systems_tuple(), __VA_ARGS__)
+#define SUM_INDEX(I, P) (i_<I, P>{})
+#define SUM_VARIABLE(In, P) parent_type::op_i(In)
+#define ARRAY(I) symphas::internal::indexed_array(I)
+
 
 //! The modulus of the given expression.
 /*!
@@ -1033,7 +1140,7 @@ struct allowed_model_dimensions<void, D> \
 	parent_type::template system<0>().dims, 1.0, 1.0 }
 
 //! Gaussian with spatial width based on the i-th field.
-#define Gaussian_F(i) GaussianSmoothing<Dm>{ \
+#define Gaussian_n(i) GaussianSmoothing<Dm>{ \
 	parent_type::template system<i>().dims, \
 	parent_type::template system<i>().get_info().get_widths().get(), \
 	1.0, 1.0 }
@@ -1042,7 +1149,7 @@ struct allowed_model_dimensions<void, D> \
 #define smoothing(Z) expr::make_convolution(Gaussian, Z)
 
 //! Smoothing with Gaussian based on the spatial width of the i-th field.
-#define smoothing_F(i, Z) expr::make_convolution(Gaussian_F(i), Z)
+#define smoothing_n(i, Z) expr::make_convolution(Gaussian_F(i), Z)
 
 //! Use a number in an expression.
 /*!
@@ -1052,6 +1159,11 @@ struct allowed_model_dimensions<void, D> \
  * \param V The value of the number.
  */
 #define lit(V) expr::make_literal(V)
+
+//! Use an integer in an expression as a constant value.
+/*!
+ * The integer is generated as a compile-time constant value.
+ */
 #define integer(N) expr::make_integer<N>()
 
 //! The imaginary number for an expression.
@@ -1059,6 +1171,21 @@ struct allowed_model_dimensions<void, D> \
  * An imaginary number literal that can be used in an expression.
  */
 #define Ii lit(complex_t(0, 1))
+
+//! The unit vector, which can be defined with one or two (for 3D) angles.
+/*!
+ * The correct unit vector will be chosen according to the dimension. In two dimensions,
+ * only the first direction will be used, and in three, the second direction will be used.
+ * If only one direction is provided, then in 3D, the second direction is assumed to be 0.
+ */
+#define e(...) expr::make_unit_vector<Dm>(__VA_ARGS__)
+
+//! Apply the power N to an expression E.
+/*!
+ * Construct an expression representing an expression E to the power of the given value, N.
+ */
+#define power(E, N) expr::pow<N>(E)
+
 
 
 #define x expr::make_var<Axis::X, D>(SYS_DIMS(0), SYS_INTERVAL(0, X))
@@ -1084,6 +1211,7 @@ struct allowed_model_dimensions<void, D> \
 #define c15 param(15)	 //!< Coefficient at index 15 in the list of coefficients.
 #define c16 param(16)	 //!< Coefficient at index 16 in the list of coefficients.
 
+#define C(N) param_matrix(N)	//!< Initialization of a coefficient matrix.
 
 // free energy parameters
 
@@ -1091,10 +1219,6 @@ struct allowed_model_dimensions<void, D> \
 #define LANDAU_FE(U, ...) landau_fe(U, solver, __VA_ARGS__)
 #define DOUBLE_WELL_FE(U, ...) doublewell_fe(U, solver, __VA_ARGS__)
 #define CELLULAR_FE(U, ...) cellular_fe(U, solver, __VA_ARGS__)
-
-#define SUM(...) symphas::internal::series_index_selection(parent_type::systems_tuple(), __VA_ARGS__)
-#define SUM_INDEX(I, P) (i_<I, P>{})
-#define SUM_VARIABLE(In, P) expr::symbols::make_series_variable<P>(In)
 
 #define ii_(P) SUM_INDEX(0, P)
 #define ii ii_(0)
@@ -1112,18 +1236,12 @@ struct allowed_model_dimensions<void, D> \
 #define op_kk op_kk_(0)
 
 
-#define DF(N) symphas::internal::func_deriv_sub_var<N - 1>()
-#define DF_(In) symphas::internal::func_deriv_sub_var(In)
+#define DF(N) symphas::internal::dFE_var<N - 1>()
+#define DF_(In) symphas::internal::dFE_var(In)
 #define DF_ii DF_(ii_(0))
 #define DF_jj DF_(jj_(0))
 
  // **************************************************************************************
-
-#define SYS_DIMS(N) parent_type::template system<N>().dims
-#define SYS_INTERVAL(N, AXIS) parent_type::template system<N>().get_info().intervals
-
-
-#define STATS ExpressionStats{}
 
  //! @}
 

@@ -57,6 +57,7 @@ struct SolverSystemFD : BoundarySystem<T, D>
 	BoundaryGrid<T, D> dframe;		// the working grid for the solver
 	SolverSystemFD(symphas::init_data_type const& tdata, symphas::interval_data_type const& vdata, symphas::b_data_type const& bdata, size_t id = 0) :
 		BoundarySystem<T, D>(tdata, vdata, bdata, id), dframe{ dims } {}
+	SolverSystemFD() : BoundarySystem<T, D>(), dframe{ 0 } {}
 };
 
 
@@ -82,6 +83,7 @@ struct SolverSystemSpectral : System<T, D>
 
 	//! Create the phase field data for the spectral solver implementation.
 	SolverSystemSpectral(symphas::init_data_type const& tdata, symphas::interval_data_type const& vdata, symphas::b_data_type const& bdata, size_t id = 0) : System<T, D>(tdata, vdata, id) {}
+	SolverSystemSpectral() : System<T, D>() {}
 };
 
 //! The phase field system used by the spectral solver. 
@@ -157,7 +159,7 @@ struct SolverSystemSpectral<scalar_t, D> : System<scalar_t, D>
 
 		symphas::dft::fftw_execute(p);
 		symphas::dft::arrange_fftw_ipts<D>(reinterpret_cast<scalar_t*>(dframe), values, dims);
-		symphas::dft::scale(System<scalar_t, D>::as_grid());
+		scale(System<scalar_t, D>::as_grid());
 	}
 
 	friend void swap(SolverSystemSpectral<scalar_t, D>& first, SolverSystemSpectral<scalar_t, D>& second)
@@ -173,11 +175,12 @@ struct SolverSystemSpectral<scalar_t, D> : System<scalar_t, D>
 	}
 
 
+	SolverSystemSpectral() : System<scalar_t, D>(), transformed_len{ 0 }, frame_t{ nullptr }, dframe{ nullptr }, p{ 0 }, p_to_t{ 0 } {}
+
 	~SolverSystemSpectral();
 
 protected:
 
-	SolverSystemSpectral() : System<scalar_t, D>(), transformed_len{ 0 }, frame_t{ nullptr }, dframe{ nullptr }, p{ 0 }, p_to_t{ 0 } {}
 	fftw_plan p_to_t;
 
 
@@ -251,7 +254,7 @@ struct SolverSystemSpectral<complex_t, D> : System<complex_t, D>
 			std::execution::par,
 #endif
 			dframe, dframe + transformed_len, values);
-		symphas::dft::scale(*this);
+		grid::scale(*this);
 	}
 
 
@@ -267,12 +270,12 @@ struct SolverSystemSpectral<complex_t, D> : System<complex_t, D>
 		swap(first.p_to_t, second.p_to_t);
 	}
 
+	SolverSystemSpectral() : System<complex_t, D>(), transformed_len{ 0 }, frame_t{ nullptr }, dframe{ nullptr }, p{ 0 }, p_to_t{ 0 } {}
 
 	~SolverSystemSpectral();
 
 protected:
 
-	SolverSystemSpectral() : System<complex_t, D>(), transformed_len{ 0 }, frame_t{ nullptr }, dframe{ nullptr }, p{ 0 }, p_to_t{ 0 } {}
 	fftw_plan p_to_t;
 
 
@@ -362,7 +365,7 @@ struct SolverSystemSpectral<vector_t<D>, D> : System<vector_t<D>, D>
 			symphas::dft::fftw_execute(p[i]);
 			symphas::dft::arrange_fftw_ipts<D>(reinterpret_cast<scalar_t*>(dframe(ax)), axis(ax), dims);
 		}
-		symphas::dft::scale(System<base_type, D>::as_grid());
+		grid::scale(System<base_type, D>::as_grid());
 	}
 
 	friend void swap(SolverSystemSpectral<base_type, D>& first, SolverSystemSpectral<base_type, D>& second)
@@ -377,12 +380,12 @@ struct SolverSystemSpectral<vector_t<D>, D> : System<vector_t<D>, D>
 		swap(first.p_to_t, second.p_to_t);
 	}
 
+	SolverSystemSpectral() : System<base_type, D>(), transformed_len{ 0 }, frame_t{ 0 }, dframe{ 0 }, p{ 0 }, p_to_t{ 0 } {}
 
 	~SolverSystemSpectral();
 
 protected:
 
-	SolverSystemSpectral() : System<base_type, D>(), transformed_len{ 0 }, frame_t{ 0 }, dframe{ 0 }, p{ 0 }, p_to_t{ 0 } {}
 	fftw_plan p_to_t[D];
 
 
@@ -677,6 +680,9 @@ inline SolverSystemSpectral<vector_t<D>, D>::~SolverSystemSpectral()
 	}
 }
 
+
+DEFINE_BASE_DATA_INHERITED((typename T, size_t D), (SolverSystemFD<T, D>), (BoundarySystem<T, D>))
+DEFINE_BASE_DATA_INHERITED((typename T, size_t D), (SolverSystemSpectral<T, D>), (System<T, D>))
 
 
 

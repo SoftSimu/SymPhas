@@ -1989,18 +1989,20 @@ scalar_t voronoi_value_A_1(iter_type n, const len_type* dims, size_t N,
 	for (iter_type i = 0; i < N; ++i)
 	{
 		axis_1d_type v0{ offsets.get_delta(i) };
-		axis_1d_type v_l{ offsets.get_delta(i) - dm };
-		axis_1d_type v_r{ offsets.get_delta(i) + dm };
-
-		for (auto const& v : { v0, v_l, v_r })
-		{
+		axis_1d_type v{
+			v0 - dm * std::round(v0 / dm) };
+		//axis_1d_type v_l{ offsets.get_delta(i) - dm };
+		//axis_1d_type v_r{ offsets.get_delta(i) + dm };
+		//
+		//for (auto const& v : { v0, v_l, v_r })
+		//{
 			axis_coord_t d = symphas::lib::distance(p, v);
 			if (d < d0)
 			{
 				index = i;
 				d0 = d;
 			}
-		}
+		//}
 	}
 
 	return values.get_offset(index);
@@ -2033,25 +2035,29 @@ scalar_t voronoi_value_A_2(iter_type n, const len_type* dims, size_t N,
 	{
 		axis_2d_type v0{ offsets.get_delta(i)[0], offsets.get_delta(i)[1] };
 
-		axis_2d_type v_t{ v0[0], v0[1] + dm[1] };
-		axis_2d_type v_b{ v0[0], v0[1] - dm[1] };
-		axis_2d_type v_r{ v0[0] + dm[0], v0[1] };
-		axis_2d_type v_l{ v0[0] - dm[0], v0[1] };
+		axis_2d_type v{
+			v0[0] - dm[0] * std::round(v0[0] / dm[0]),
+			v0[1] - dm[1] * std::round(v0[1] / dm[1]) };
 
-		axis_2d_type v_tr{ v0[0] + dm[0], v0[1] + dm[1] };
-		axis_2d_type v_tl{ v0[0] - dm[0], v0[1] + dm[1] };
-		axis_2d_type v_br{ v0[0] + dm[0], v0[1] - dm[1] };
-		axis_2d_type v_bl{ v0[0] - dm[0], v0[1] - dm[1] };
-
-		for (auto const& v : { v0, v_t, v_b, v_r, v_l, v_tr, v_tl, v_br, v_bl })
-		{
+		//axis_2d_type v_t{ v0[0], v0[1] + dm[1] };
+		//axis_2d_type v_b{ v0[0], v0[1] - dm[1] };
+		//axis_2d_type v_r{ v0[0] + dm[0], v0[1] };
+		//axis_2d_type v_l{ v0[0] - dm[0], v0[1] };
+		//
+		//axis_2d_type v_tr{ v0[0] + dm[0], v0[1] + dm[1] };
+		//axis_2d_type v_tl{ v0[0] - dm[0], v0[1] + dm[1] };
+		//axis_2d_type v_br{ v0[0] + dm[0], v0[1] - dm[1] };
+		//axis_2d_type v_bl{ v0[0] - dm[0], v0[1] - dm[1] };
+		//
+		//for (auto const& v : { v0, v_t, v_b, v_r, v_l, v_tr, v_tl, v_br, v_bl })
+		//{
 			axis_coord_t d = symphas::lib::distance(p, v);
 			if (d < d0)
 			{
 				index = i;
 				d0 = d;
 			}
-		}
+		//}
 	}
 
 	return values.get_offset(index);
@@ -2086,50 +2092,55 @@ scalar_t voronoi_value_A_3(iter_type n, const len_type* dims, size_t N,
 	{
 		axis_3d_type v0{ offsets.get_delta(i)[0], offsets.get_delta(i)[1], offsets.get_delta(i)[2] };
 
-		axis_3d_type v_t{ v0[0], v0[1] + dm[1], v0[2] };
-		axis_3d_type v_b{ v0[0], v0[1] - dm[1], v0[2] };
-		axis_3d_type v_r{ v0[0] + dm[0], v0[1], v0[2] };
-		axis_3d_type v_l{ v0[0] - dm[0], v0[1], v0[2] };
-		axis_3d_type v_n{ v0[0], v0[1], v0[2] + dm[2] };
-		axis_3d_type v_f{ v0[0], v0[1], v0[2] - dm[2] };
+		axis_3d_type v{
+			v0[0] - dm[0] * std::round(v0[0] / dm[0]),
+			v0[1] - dm[1] * std::round(v0[1] / dm[1]),
+			v0[2] - dm[2] * std::round(v0[2] / dm[2]) };
 
-		axis_3d_type v_nr{ v0[0] + dm[0], v0[1], v0[2] + dm[2] };
-		axis_3d_type v_nl{ v0[0] - dm[0], v0[1], v0[2] + dm[2] };
-		axis_3d_type v_fr{ v0[0] + dm[0], v0[1], v0[2] - dm[2] };
-		axis_3d_type v_fl{ v0[0] - dm[0], v0[1], v0[2] - dm[2] };
-
-		axis_3d_type v_tr{ v0[0] + dm[0], v0[1] + dm[1], v0[2] };
-		axis_3d_type v_tl{ v0[0] - dm[0], v0[1] + dm[1], v0[2] };
-		axis_3d_type v_br{ v0[0] + dm[0], v0[1] - dm[1], v0[2] };
-		axis_3d_type v_bl{ v0[0] - dm[0], v0[1] - dm[1], v0[2] };
-
-		axis_3d_type v_nt{ v0[0], v0[1] + dm[1], v0[2] + dm[2] };
-		axis_3d_type v_nb{ v0[0], v0[1] - dm[1], v0[2] + dm[2] };
-		axis_3d_type v_ft{ v0[0], v0[1] + dm[1], v0[2] - dm[2] };
-		axis_3d_type v_fb{ v0[0], v0[1] - dm[1], v0[2] - dm[2] };
-
-		axis_3d_type v_ntr{ v0[0] + dm[0], v0[1] + dm[1], v0[2] + dm[2] };
-		axis_3d_type v_ntl{ v0[0] - dm[0], v0[1] + dm[1], v0[2] + dm[2] };
-		axis_3d_type v_nbr{ v0[0] + dm[0], v0[1] - dm[1], v0[2] + dm[2] };
-		axis_3d_type v_nbl{ v0[0] - dm[0], v0[1] - dm[1], v0[2] + dm[2] };
-
-		axis_3d_type v_ftr{ v0[0] + dm[0], v0[1] + dm[1], v0[2] - dm[2] };
-		axis_3d_type v_ftl{ v0[0] - dm[0], v0[1] + dm[1], v0[2] - dm[2] };
-		axis_3d_type v_fbr{ v0[0] + dm[0], v0[1] - dm[1], v0[2] - dm[2] };
-		axis_3d_type v_fbl{ v0[0] - dm[0], v0[1] - dm[1], v0[2] - dm[2] };
-
-		for (auto const& v : {
-			v0, v_n, v_f, v_t, v_b, v_r, v_l, v_tr, v_tl, v_br, v_bl,
-			v_fr, v_fl, v_nr, v_nl, v_ft, v_fb, v_nt, v_nb,
-			v_ntr, v_ntl, v_nbr, v_nbl, v_ftr, v_ftl, v_fbr, v_fbl })
-		{
+		//axis_3d_type v_t{ v0[0], v0[1] + dm[1], v0[2] };
+		//axis_3d_type v_b{ v0[0], v0[1] - dm[1], v0[2] };
+		//axis_3d_type v_r{ v0[0] + dm[0], v0[1], v0[2] };
+		//axis_3d_type v_l{ v0[0] - dm[0], v0[1], v0[2] };
+		//axis_3d_type v_n{ v0[0], v0[1], v0[2] + dm[2] };
+		//axis_3d_type v_f{ v0[0], v0[1], v0[2] - dm[2] };
+		//
+		//axis_3d_type v_nr{ v0[0] + dm[0], v0[1], v0[2] + dm[2] };
+		//axis_3d_type v_nl{ v0[0] - dm[0], v0[1], v0[2] + dm[2] };
+		//axis_3d_type v_fr{ v0[0] + dm[0], v0[1], v0[2] - dm[2] };
+		//axis_3d_type v_fl{ v0[0] - dm[0], v0[1], v0[2] - dm[2] };
+		//
+		//axis_3d_type v_tr{ v0[0] + dm[0], v0[1] + dm[1], v0[2] };
+		//axis_3d_type v_tl{ v0[0] - dm[0], v0[1] + dm[1], v0[2] };
+		//axis_3d_type v_br{ v0[0] + dm[0], v0[1] - dm[1], v0[2] };
+		//axis_3d_type v_bl{ v0[0] - dm[0], v0[1] - dm[1], v0[2] };
+		//
+		//axis_3d_type v_nt{ v0[0], v0[1] + dm[1], v0[2] + dm[2] };
+		//axis_3d_type v_nb{ v0[0], v0[1] - dm[1], v0[2] + dm[2] };
+		//axis_3d_type v_ft{ v0[0], v0[1] + dm[1], v0[2] - dm[2] };
+		//axis_3d_type v_fb{ v0[0], v0[1] - dm[1], v0[2] - dm[2] };
+		//
+		//axis_3d_type v_ntr{ v0[0] + dm[0], v0[1] + dm[1], v0[2] + dm[2] };
+		//axis_3d_type v_ntl{ v0[0] - dm[0], v0[1] + dm[1], v0[2] + dm[2] };
+		//axis_3d_type v_nbr{ v0[0] + dm[0], v0[1] - dm[1], v0[2] + dm[2] };
+		//axis_3d_type v_nbl{ v0[0] - dm[0], v0[1] - dm[1], v0[2] + dm[2] };
+		//
+		//axis_3d_type v_ftr{ v0[0] + dm[0], v0[1] + dm[1], v0[2] - dm[2] };
+		//axis_3d_type v_ftl{ v0[0] - dm[0], v0[1] + dm[1], v0[2] - dm[2] };
+		//axis_3d_type v_fbr{ v0[0] + dm[0], v0[1] - dm[1], v0[2] - dm[2] };
+		//axis_3d_type v_fbl{ v0[0] - dm[0], v0[1] - dm[1], v0[2] - dm[2] };
+		//
+		//for (auto const& v : {
+		//	v0, v_n, v_f, v_t, v_b, v_r, v_l, v_tr, v_tl, v_br, v_bl,
+		//	v_fr, v_fl, v_nr, v_nl, v_ft, v_fb, v_nt, v_nb,
+		//	v_ntr, v_ntl, v_nbr, v_nbl, v_ftr, v_ftl, v_fbr, v_fbl })
+		//{
 			axis_coord_t d = symphas::lib::distance(p, v);
 			if (d < d0)
 			{
 				index = i;
 				d0 = d;
 			}
-		}
+		//}
 	}
 
 	return values.get_offset(index);
@@ -2291,7 +2302,8 @@ scalar_t InitialConditionsAlg<3, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTa
 scalar_t bubble_value_1(iter_type n, const len_type* dims, size_t N, double R,
 	scalar_t default_value,
 	symphas::internal::RandomDeltas<1> const& offsets, 
-	symphas::internal::RandomOffsets<scalar_t, 1> const& values)
+	symphas::internal::RandomOffsets<scalar_t, 1> const& values,
+	int select = -1)
 {
 	int x = n;
 	axis_1d_type p{ static_cast<axis_coord_t>(x) };
@@ -2300,7 +2312,9 @@ scalar_t bubble_value_1(iter_type n, const len_type* dims, size_t N, double R,
 		axis_1d_type{
 			static_cast<axis_coord_t>(dims[0]) });
 
-	for (iter_type i = 0; i < offsets.size(); ++i)
+	int i_start = (select < 0) ? 0 : select;
+	int i_end = (select < 0) ? offsets.size() : select + 1;
+	for (iter_type i = i_start; i < i_end; ++i)
 	{
 		axis_1d_type v{ offsets.get_delta(i) };
 		axis_coord_t d = symphas::lib::distance(p, v);
@@ -2317,7 +2331,8 @@ scalar_t bubble_value_1(iter_type n, const len_type* dims, size_t N, double R,
 scalar_t bubble_value_2(iter_type n, const len_type* dims, size_t N, double R,
 	scalar_t default_value,
 	symphas::internal::RandomDeltas<2> const& offsets,
-	symphas::internal::RandomOffsets<scalar_t, 1> const& values)
+	symphas::internal::RandomOffsets<scalar_t, 1> const& values,
+	int select = -1)
 {
 	int x = n % dims[0];
 	int y = n / dims[0];
@@ -2326,7 +2341,9 @@ scalar_t bubble_value_2(iter_type n, const len_type* dims, size_t N, double R,
 		static_cast<axis_coord_t>(x),
 		static_cast<axis_coord_t>(y) };
 
-	for (iter_type i = 0; i < offsets.size(); ++i)
+	int i_start = (select < 0) ? 0 : select;
+	int i_end = (select < 0) ? offsets.size() : select + 1;
+	for (iter_type i = i_start; i < i_end; ++i)
 	{
 		axis_2d_type v{ offsets.get_delta(i)[0], offsets.get_delta(i)[1] };
 		axis_coord_t d = symphas::lib::distance(p, v);
@@ -2342,7 +2359,8 @@ scalar_t bubble_value_2(iter_type n, const len_type* dims, size_t N, double R,
 scalar_t bubble_value_3(iter_type n, const len_type* dims, size_t N, double R,
 	scalar_t default_value,
 	symphas::internal::RandomDeltas<3> const& offsets,
-	symphas::internal::RandomOffsets<scalar_t, 1> const& values)
+	symphas::internal::RandomOffsets<scalar_t, 1> const& values,
+	int select = -1)
 {
 	int x = n % dims[0];
 	int y = (n / dims[0]) % dims[1];
@@ -2360,7 +2378,9 @@ scalar_t bubble_value_3(iter_type n, const len_type* dims, size_t N, double R,
 
 	axis_coord_t d0 = symphas::lib::length(dm);
 
-	for (iter_type i = 0; i < offsets.size(); ++i)
+	int i_start = (select < 0) ? 0 : select;
+	int i_end = (select < 0) ? offsets.size() : select + 1;
+	for (iter_type i = i_start; i < i_end; ++i)
 	{
 		axis_3d_type v{ offsets.get_delta(i)[0], offsets.get_delta(i)[1], offsets.get_delta(i)[2] };
 		axis_coord_t d = symphas::lib::distance(p, v);
@@ -2378,7 +2398,8 @@ scalar_t bubble_value_3(iter_type n, const len_type* dims, size_t N, double R,
 scalar_t bubble_value_A_1(iter_type n, const len_type* dims, size_t N, double R,
 	scalar_t default_value,
 	symphas::internal::RandomDeltas<1> const& offsets,
-	symphas::internal::RandomOffsets<scalar_t, 1> const& values)
+	symphas::internal::RandomOffsets<scalar_t, 1> const& values,
+	int select = -1)
 {
 	int x = n;
 	axis_1d_type p{ static_cast<axis_coord_t>(x) };
@@ -2387,20 +2408,23 @@ scalar_t bubble_value_A_1(iter_type n, const len_type* dims, size_t N, double R,
 			static_cast<axis_coord_t>(dims[0]) };
 	axis_coord_t d0 = symphas::lib::length(dm * 2);
 
-	for (iter_type i = 0; i < offsets.size(); ++i)
+	int i_start = (select < 0) ? 0 : select;
+	int i_end = (select < 0) ? offsets.size() : select + 1;
+	for (iter_type i = i_start; i < i_end; ++i)
 	{
 		axis_1d_type v0{ offsets.get_delta(i) };
-		axis_1d_type v_l{ offsets.get_delta(i) - dm };
-		axis_1d_type v_r{ offsets.get_delta(i) + dm };
+		axis_1d_type v{ v0 - dm * std::round(v0 / dm) };
+		//axis_1d_type v_l{ offsets.get_delta(i) - dm };
+		//axis_1d_type v_r{ offsets.get_delta(i) + dm };
 
-		for (auto const& v : { v0, v_l, v_r })
-		{
+		//for (auto const& v : { v0, v_l, v_r })
+		//{
 			axis_coord_t d = symphas::lib::distance(p, v);
 			if (d < R)
 			{
 				return values.get_offset(i);
 			}
-		}
+		//}
 	}
 
 	return default_value;
@@ -2410,7 +2434,8 @@ scalar_t bubble_value_A_1(iter_type n, const len_type* dims, size_t N, double R,
 scalar_t bubble_value_A_2(iter_type n, const len_type* dims, size_t N, double R,
 	scalar_t default_value,
 	symphas::internal::RandomDeltas<2> const& offsets,
-	symphas::internal::RandomOffsets<scalar_t, 1> const& values)
+	symphas::internal::RandomOffsets<scalar_t, 1> const& values,
+	int select = -1)
 {
 
 	int x = n % dims[0];
@@ -2429,28 +2454,34 @@ scalar_t bubble_value_A_2(iter_type n, const len_type* dims, size_t N, double R,
 			dm[0] * 2,
 			dm[1] * 2 });
 
-	for (iter_type i = 0; i < offsets.size(); ++i)
+	int i_start = (select < 0) ? 0 : select;
+	int i_end = (select < 0) ? offsets.size() : select + 1;
+	for (iter_type i = i_start; i < i_end; ++i)
 	{
 		axis_2d_type v0{ offsets.get_delta(i)[0], offsets.get_delta(i)[1] };
+		axis_2d_type v{
+			v0[0] - dm[0] * std::round(v0[0] / dm[0]),
+			v0[1] - dm[1] * std::round(v0[1] / dm[1]) };
 
-		axis_2d_type v_t{ v0[0], v0[1] + dm[1] };
-		axis_2d_type v_b{ v0[0], v0[1] - dm[1] };
-		axis_2d_type v_r{ v0[0] + dm[0], v0[1] };
-		axis_2d_type v_l{ v0[0] - dm[0], v0[1] };
 
-		axis_2d_type v_tr{ v0[0] + dm[0], v0[1] + dm[1] };
-		axis_2d_type v_tl{ v0[0] - dm[0], v0[1] + dm[1] };
-		axis_2d_type v_br{ v0[0] + dm[0], v0[1] - dm[1] };
-		axis_2d_type v_bl{ v0[0] - dm[0], v0[1] - dm[1] };
+		//axis_2d_type v_t{ v0[0], v0[1] + dm[1] };
+		//axis_2d_type v_b{ v0[0], v0[1] - dm[1] };
+		//axis_2d_type v_r{ v0[0] + dm[0], v0[1] };
+		//axis_2d_type v_l{ v0[0] - dm[0], v0[1] };
+		//
+		//axis_2d_type v_tr{ v0[0] + dm[0], v0[1] + dm[1] };
+		//axis_2d_type v_tl{ v0[0] - dm[0], v0[1] + dm[1] };
+		//axis_2d_type v_br{ v0[0] + dm[0], v0[1] - dm[1] };
+		//axis_2d_type v_bl{ v0[0] - dm[0], v0[1] - dm[1] };
 
-		for (auto const& v : { v0, v_t, v_b, v_r, v_l, v_tr, v_tl, v_br, v_bl })
-		{
+		//for (auto const& v : { v0, v_t, v_b, v_r, v_l, v_tr, v_tl, v_br, v_bl })
+		//{
 			axis_coord_t d = symphas::lib::distance(p, v);
 			if (d < R)
 			{
 				return values.get_offset(i);
 			}
-		}
+		//}
 	}
 
 	return default_value;
@@ -2459,7 +2490,8 @@ scalar_t bubble_value_A_2(iter_type n, const len_type* dims, size_t N, double R,
 scalar_t bubble_value_A_3(iter_type n, const len_type* dims, size_t N, double R,
 	scalar_t default_value,
 	symphas::internal::RandomDeltas<3> const& offsets,
-	symphas::internal::RandomOffsets<scalar_t, 1> const& values)
+	symphas::internal::RandomOffsets<scalar_t, 1> const& values,
+	int select = -1)
 {
 	int x = n % dims[0];
 	int y = (n / dims[0]) % dims[1];
@@ -2481,53 +2513,60 @@ scalar_t bubble_value_A_3(iter_type n, const len_type* dims, size_t N, double R,
 			dm[1] * 16,
 			dm[2] * 16 });
 
-	for (iter_type i = 0; i < offsets.size(); ++i)
+	int i_start = (select < 0) ? 0 : select;
+	int i_end = (select < 0) ? offsets.size() : select + 1;
+	for (iter_type i = i_start; i < i_end; ++i)
 	{
 		axis_3d_type v0{ offsets.get_delta(i)[0], offsets.get_delta(i)[1], offsets.get_delta(i)[2] };
 
-		axis_3d_type v_t{ v0[0], v0[1] + dm[1], v0[2] };
-		axis_3d_type v_b{ v0[0], v0[1] - dm[1], v0[2] };
-		axis_3d_type v_r{ v0[0] + dm[0], v0[1], v0[2] };
-		axis_3d_type v_l{ v0[0] - dm[0], v0[1], v0[2] };
-		axis_3d_type v_n{ v0[0], v0[1], v0[2] + dm[2] };
-		axis_3d_type v_f{ v0[0], v0[1], v0[2] - dm[2] };
+		axis_3d_type v{
+			v0[0] - dm[0] * std::round(v0[0] / dm[0]),
+			v0[1] - dm[1] * std::round(v0[1] / dm[1]),
+			v0[2] - dm[2] * std::round(v0[2] / dm[2]) };
 
-		axis_3d_type v_nr{ v0[0] + dm[0], v0[1], v0[2] + dm[2] };
-		axis_3d_type v_nl{ v0[0] - dm[0], v0[1], v0[2] + dm[2] };
-		axis_3d_type v_fr{ v0[0] + dm[0], v0[1], v0[2] - dm[2] };
-		axis_3d_type v_fl{ v0[0] - dm[0], v0[1], v0[2] - dm[2] };
+		//axis_3d_type v_t{ v0[0], v0[1] + dm[1], v0[2] };
+		//axis_3d_type v_b{ v0[0], v0[1] - dm[1], v0[2] };
+		//axis_3d_type v_r{ v0[0] + dm[0], v0[1], v0[2] };
+		//axis_3d_type v_l{ v0[0] - dm[0], v0[1], v0[2] };
+		//axis_3d_type v_n{ v0[0], v0[1], v0[2] + dm[2] };
+		//axis_3d_type v_f{ v0[0], v0[1], v0[2] - dm[2] };
+		//
+		//axis_3d_type v_nr{ v0[0] + dm[0], v0[1], v0[2] + dm[2] };
+		//axis_3d_type v_nl{ v0[0] - dm[0], v0[1], v0[2] + dm[2] };
+		//axis_3d_type v_fr{ v0[0] + dm[0], v0[1], v0[2] - dm[2] };
+		//axis_3d_type v_fl{ v0[0] - dm[0], v0[1], v0[2] - dm[2] };
+		//
+		//axis_3d_type v_tr{ v0[0] + dm[0], v0[1] + dm[1], v0[2] };
+		//axis_3d_type v_tl{ v0[0] - dm[0], v0[1] + dm[1], v0[2] };
+		//axis_3d_type v_br{ v0[0] + dm[0], v0[1] - dm[1], v0[2] };
+		//axis_3d_type v_bl{ v0[0] - dm[0], v0[1] - dm[1], v0[2] };
+		//
+		//axis_3d_type v_nt{ v0[0], v0[1] + dm[1], v0[2] + dm[2] };
+		//axis_3d_type v_nb{ v0[0], v0[1] - dm[1], v0[2] + dm[2] };
+		//axis_3d_type v_ft{ v0[0], v0[1] + dm[1], v0[2] - dm[2] };
+		//axis_3d_type v_fb{ v0[0], v0[1] - dm[1], v0[2] - dm[2] };
+		//
+		//axis_3d_type v_ntr{ v0[0] + dm[0], v0[1] + dm[1], v0[2] + dm[2] };
+		//axis_3d_type v_ntl{ v0[0] - dm[0], v0[1] + dm[1], v0[2] + dm[2] };
+		//axis_3d_type v_nbr{ v0[0] + dm[0], v0[1] - dm[1], v0[2] + dm[2] };
+		//axis_3d_type v_nbl{ v0[0] - dm[0], v0[1] - dm[1], v0[2] + dm[2] };
+		//
+		//axis_3d_type v_ftr{ v0[0] + dm[0], v0[1] + dm[1], v0[2] - dm[2] };
+		//axis_3d_type v_ftl{ v0[0] - dm[0], v0[1] + dm[1], v0[2] - dm[2] };
+		//axis_3d_type v_fbr{ v0[0] + dm[0], v0[1] - dm[1], v0[2] - dm[2] };
+		//axis_3d_type v_fbl{ v0[0] - dm[0], v0[1] - dm[1], v0[2] - dm[2] };
 
-		axis_3d_type v_tr{ v0[0] + dm[0], v0[1] + dm[1], v0[2] };
-		axis_3d_type v_tl{ v0[0] - dm[0], v0[1] + dm[1], v0[2] };
-		axis_3d_type v_br{ v0[0] + dm[0], v0[1] - dm[1], v0[2] };
-		axis_3d_type v_bl{ v0[0] - dm[0], v0[1] - dm[1], v0[2] };
-
-		axis_3d_type v_nt{ v0[0], v0[1] + dm[1], v0[2] + dm[2] };
-		axis_3d_type v_nb{ v0[0], v0[1] - dm[1], v0[2] + dm[2] };
-		axis_3d_type v_ft{ v0[0], v0[1] + dm[1], v0[2] - dm[2] };
-		axis_3d_type v_fb{ v0[0], v0[1] - dm[1], v0[2] - dm[2] };
-
-		axis_3d_type v_ntr{ v0[0] + dm[0], v0[1] + dm[1], v0[2] + dm[2] };
-		axis_3d_type v_ntl{ v0[0] - dm[0], v0[1] + dm[1], v0[2] + dm[2] };
-		axis_3d_type v_nbr{ v0[0] + dm[0], v0[1] - dm[1], v0[2] + dm[2] };
-		axis_3d_type v_nbl{ v0[0] - dm[0], v0[1] - dm[1], v0[2] + dm[2] };
-
-		axis_3d_type v_ftr{ v0[0] + dm[0], v0[1] + dm[1], v0[2] - dm[2] };
-		axis_3d_type v_ftl{ v0[0] - dm[0], v0[1] + dm[1], v0[2] - dm[2] };
-		axis_3d_type v_fbr{ v0[0] + dm[0], v0[1] - dm[1], v0[2] - dm[2] };
-		axis_3d_type v_fbl{ v0[0] - dm[0], v0[1] - dm[1], v0[2] - dm[2] };
-
-		for (auto const& v : {
-			v0, v_n, v_f, v_t, v_b, v_r, v_l, v_tr, v_tl, v_br, v_bl,
-			v_fr, v_fl, v_nr, v_nl, v_ft, v_fb, v_nt, v_nb,
-			v_ntr, v_ntl, v_nbr, v_nbl, v_ftr, v_ftl, v_fbr, v_fbl })
-		{
+		//for (auto const& v : {
+		//	v0, v_n, v_f, v_t, v_b, v_r, v_l, v_tr, v_tl, v_br, v_bl,
+		//	v_fr, v_fl, v_nr, v_nl, v_ft, v_fb, v_nt, v_nb,
+		//	v_ntr, v_ntl, v_nbr, v_nbl, v_ftr, v_ftl, v_fbr, v_fbl })
+		//{
 			axis_coord_t d = symphas::lib::distance(p, v);
 			if (d < R)
 			{
 				return values.get_offset(i);
 			}
-		}
+		//}
 	}
 
 	return default_value;
@@ -2652,38 +2691,38 @@ scalar_t InitialConditionsAlg<3, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag
 template<>
 scalar_t InitialConditionsAlg<1, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>::operator()(iter_type n) const
 {
-	return bubble_value_1(n, dims, N, R, init.data.gp[1], offsets, values);
+	return bubble_value_1(n, dims, N, R, init.data.gp[1], offsets, values, select);
 }
 
 template<>
 scalar_t InitialConditionsAlg<2, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>::operator()(iter_type n) const
 {
-	return bubble_value_2(n, dims, N, R, init.data.gp[1], offsets, values);
+	return bubble_value_2(n, dims, N, R, init.data.gp[1], offsets, values, select);
 }
 
 template<>
 scalar_t InitialConditionsAlg<3, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>::operator()(iter_type n) const
 {
-	return bubble_value_3(n, dims, N, R, init.data.gp[1], offsets, values);
+	return bubble_value_3(n, dims, N, R, init.data.gp[1], offsets, values, select);
 }
 
 
 template<>
 scalar_t InitialConditionsAlg<1, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARC>::operator()(iter_type n) const
 {
-	return bubble_value_A_1(n, dims, N, R, init.data.gp[1], offsets, values);
+	return bubble_value_A_1(n, dims, N, R, init.data.gp[1], offsets, values, select);
 }
 
 template<>
 scalar_t InitialConditionsAlg<2, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARC>::operator()(iter_type n) const
 {
-	return bubble_value_A_2(n, dims, N, R, init.data.gp[1], offsets, values);
+	return bubble_value_A_2(n, dims, N, R, init.data.gp[1], offsets, values, select);
 }
 
 template<>
 scalar_t InitialConditionsAlg<3, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARC>::operator()(iter_type n) const
 {
-	return bubble_value_A_3(n, dims, N, R, init.data.gp[1], offsets, values);
+	return bubble_value_A_3(n, dims, N, R, init.data.gp[1], offsets, values, select);
 }
 
 

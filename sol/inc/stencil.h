@@ -247,6 +247,49 @@ struct Stencil
 	}
 
 
+	template<Axis ax, size_t O, typename T, size_t D>
+	auto applied_generalized_directional_derivative(GridSymbol<T, D> const& grid, iter_type n) const
+	{
+		return T{};
+	}
+
+	template<size_t... Os, typename T, size_t D>
+	auto applied_generalized_mixed_derivative(GridSymbol<T, D> const& grid, iter_type n) const
+	{
+		return T{};
+	}
+
+	template<Axis ax, size_t O, typename T, size_t D>
+	auto applied_generalized_derivative(GridSymbol<T, D> const& grid, iter_type n) const
+	{
+		return T{};
+	}
+
+	template<typename T, size_t D>
+	auto applied_laplacian(GridSymbol<T, D> const& grid, iter_type n) const
+	{
+		return T{};
+	}
+
+	template<typename T, size_t D>
+	auto applied_bilaplacian(GridSymbol<T, D> const& grid, iter_type n) const
+	{
+		return T{};
+	}
+
+	template<Axis ax, typename T, size_t D>
+	auto applied_gradlaplacian(GridSymbol<T, D> const& grid, iter_type n) const
+	{
+		return T{};
+	}
+
+	template<Axis ax, typename T, size_t D>
+	auto applied_gradient(GridSymbol<T, D> const& grid, iter_type n) const
+	{
+		return T{};
+	}
+
+
 	template<Axis ax, size_t O>
 	auto applied_generalized_directional_derivative(...) const
 	{
@@ -397,6 +440,11 @@ struct GeneralizedStencil
 	auto apply_directional(T* const v) const
 	{
 		len_type stride = (ax == Axis::Z) ? (dims[0] * dims[1]) : (ax == Axis::Y) ? dims[1] : 1;
+
+#ifdef DEBUG
+		static size_t n = expr::print_stencil(symphas::internal::GeneratedStencilApply<Stt>{ stride, divh });
+#endif
+
 		return symphas::internal::GeneratedStencilApply<Stt>{ stride, divh }(v);
 	}
 
@@ -414,6 +462,11 @@ struct GeneralizedStencil
 	{
 		len_type stride[DD];
 		symphas::set_stride<Axis::X>(stride, dims);
+
+#ifdef DEBUG
+		static size_t n = expr::print_stencil(symphas::internal::GeneratedStencilApply<Stt>{ stride, divh });
+#endif
+
 		return symphas::internal::GeneratedStencilApply<Stt>{ stride, divh }(v);
 	}
 
@@ -431,6 +484,10 @@ struct GeneralizedStencil
 	{
 		len_type stride[DD];
 		symphas::set_stride<Axis::X>(stride, dims);
+#ifdef DEBUG
+		static size_t n = expr::print_stencil(symphas::internal::GeneratedStencilApply<Stt>{ stride, divh });
+#endif
+
 		return symphas::internal::GeneratedStencilApply<Stt>{ stride, divh }(v);
 	}
 
@@ -447,6 +504,11 @@ struct GeneralizedStencil
 	{
 		len_type stride[DD];
 		symphas::set_stride<Axis::X>(stride, dims);
+
+#ifdef DEBUG
+		static size_t n = expr::print_stencil(symphas::internal::GeneratedStencilApply<Stt>{ stride, divh });
+#endif
+
 		return symphas::internal::GeneratedStencilApply<Stt>{ stride, divh }(v);
 	}
 };

@@ -98,9 +98,9 @@ void symphas::problem_parameters_type::equalize_discretization(const len_type* d
 		{
 			auto& interval = vdata[i].at(symphas::index_to_axis(n));
 
-			if (interval.count() != dims[n])
+			if (interval.get_count() != dims[n])
 			{
-				interval.set_interval_count(interval.right(), interval.left(), dims[n]);
+				interval.set_count(interval.right(), interval.left(), dims[n]);
 			}
 		}
 	}
@@ -113,7 +113,7 @@ void symphas::problem_parameters_type::equalize_discretization(iter_type i)
 
 	for (iter_type n = 0; n < dim; ++n)
 	{
-		dims[n] = vdata[i].at(symphas::index_to_axis(n)).count();
+		dims[n] = vdata[i].at(symphas::index_to_axis(n)).get_count();
 	}
 
 	equalize_discretization(dims);

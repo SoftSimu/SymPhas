@@ -276,7 +276,7 @@ protected:
 };
 
 template<template<size_t, typename> typename PFC, size_t D, typename Sp, typename... S>
-using GeneralizedPFCModel = typename symphas::internal::expand_types_to_model<D, Sp, S...>::type::
+using GeneralizedPFCModel = typename symphas::internal::expand_types_to_model_t<D, Sp, S...>::
 	template Specialized<symphas::internal::MakeEquation, ModelPFCEquation<PFC, D, Sp, S...>>;
 
 

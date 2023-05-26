@@ -27,70 +27,11 @@
 
 #pragma once
 
+#include "modelarray.h"
 
 //! \cond
 #define SN sizeof...(S)
 //! \endcond
-
-
-#include "solver.h"
-
-//! Used to obtain names of phase fields for a given model.
-/*!
- * Used for getting the name of the phase field at the given index, typically
- * for printing to output or for using the name in expressions.
- * 
- * Specialization of this class by model type is used to associate different
- * phase field names than the default ones. All models use default phase field
- * names unless specialized.
- */
-template<template<typename> typename M>
-struct model_field_name
-{
-	//! Returns the name of the \f$i\f$-th phase field.
-	/*!
-	 * Get the name of the phase field at the given index for the prescribed
-	 * model.
-	 * 
-	 * \param i The index of the phase field.
-	 */
-	const char* operator()(int i)
-	{
-		constexpr size_t MAX_NAME_COUNT = sizeof(ORDER_PARAMETER_NAMES) / sizeof(*ORDER_PARAMETER_NAMES);
-
-		if (i < MAX_NAME_COUNT)
-		{
-			return ORDER_PARAMETER_NAMES[i];
-		}
-		else
-		{
-			static size_t EXTRA_NAME_COUNT = 0;
-			static std::vector<char*> EXTRA_NAMES;
-
-			if (i - MAX_NAME_COUNT < EXTRA_NAME_COUNT)
-			{
-				return EXTRA_NAMES[i - MAX_NAME_COUNT];
-			}
-			else
-			{
-				char* name = new char[BUFFER_LENGTH];
-				snprintf(name, BUFFER_LENGTH, ORDER_PARAMETER_NAME_EXTRA_FMT, i);
-				EXTRA_NAMES.push_back(name);
-				return EXTRA_NAMES.back();
-			}
-		}
-	}
-};
-
-
-
-// *****************************************************************************************
-
-
-#ifdef VTK_ON
-#include "colormap.h"
-#include <thread>
-#endif
 
 
 
@@ -117,9 +58,12 @@ template<size_t D, typename Sp, typename... S>
 struct Model
 {
 
+	static_assert((symphas::internal::not_model_array_type<S> && ...));
+
 	//! The type of the system storing the phase fields, used by the solver.
 	template<typename Ty>
-	using SolverSystemApplied = typename symphas::solver_system_type<Sp>::template type<Ty, D>;
+	using SolverSystemApplied = typename symphas::solver_system_type<Sp>::
+		template type<symphas::internal::non_parameterized_type<Ty>, D>;
 
 
 protected:
@@ -142,7 +86,7 @@ public:
 	 * \tparam N The phase field index to get the type.
 	 */
 	template<size_t N>
-	using type_of_S = typename std::tuple_element<N, std::tuple<S...>>::type;
+	using type_of_S = symphas::lib::type_at_index<N, symphas::internal::non_parameterized_type<S>...>;
 
 
 	//! Create a new model.
@@ -321,7 +265,7 @@ public:
 	 * variable maintains the time value as a pointer to the time value managed
 	 * by the model.
 	 */
-	auto get_time_var()
+	auto get_time_var() const
 	{
 		return expr::make_term(TimeValue{ &time });
 	}
@@ -336,7 +280,7 @@ public:
 	template<typename S0>
 	static constexpr size_t num_fields()
 	{
-		return ((static_cast<size_t>(std::is_same<S0, S>::value) + ...));
+		return ((static_cast<size_t>(std::is_same<S0, symphas::internal::non_parameterized_type<S>>::value) + ...));
 	}
 
 	//! Get the number of fields of the given types.
@@ -351,7 +295,8 @@ public:
 	template<typename S0, typename S1, typename... Ss>
 	static constexpr size_t num_fields()
 	{
-		return ((static_cast<size_t>(std::is_same<S0, S>::value) + ...)) + num_fields<S1, Ss...>();
+		return ((static_cast<size_t>(std::is_same<S0, symphas::internal::non_parameterized_type<S>>::value) + ...)) 
+			+ num_fields<S1, Ss...>();
 	}
 
 
@@ -365,7 +310,7 @@ public:
 	 * \tparam I Chose the `I`-th appearance of the chosen type.
 	 */
 	template<typename Type, size_t I = 0>
-	static constexpr int index_of_type = symphas::lib::nth_index_of_type<Type, I, S...>;
+	static constexpr int index_of_type = symphas::lib::nth_index_of_type<Type, I, symphas::internal::non_parameterized_type<S>...>;
 
 	//! Execute a function for all fields of the given type.
 	/*!
@@ -615,8 +560,8 @@ public:
 	}
 
 protected:
-	std::tuple<SolverSystemApplied<S>...> _s;	//! Container managing pointers to phase field data.
-	Sp solver;									//! Solver for determining the phase field solution.
+	std::tuple<SolverSystemApplied<S>...> _s;	//!< Container managing pointers to phase field data.
+	Sp solver;									//!< Solver for determining the phase field solution.
 
 	//! Coefficients in the equations of motion.
 	/*!
@@ -715,7 +660,7 @@ protected:
 			Axis ax = symphas::index_to_axis(i);
 			auto& interval = intervals.at(ax);
 
-			interval.set_interval_count(
+			interval.set_count(
 				interval.left(),
 				interval.right(),
 				system.dims[i]);
@@ -801,9 +746,9 @@ protected:
 
 	template<size_t I, typename other_sys_type,
 		typename std::enable_if_t<!std::is_same<other_sys_type, std::tuple_element_t<I, std::tuple<SolverSystemApplied<S>...>>>::value, int> = 0>
-	SolverSystemApplied<std::tuple_element_t<I, std::tuple<S...>>> construct_system(other_sys_type const& system) const
+	SolverSystemApplied<symphas::lib::type_at_index<I, S...>> construct_system(other_sys_type const& system) const
 	{
-		using value_type = std::tuple_element_t<I, std::tuple<S...>>;
+		using value_type = symphas::lib::type_at_index<I, symphas::internal::non_parameterized_type<S>...>;
 
 		symphas::b_data_type boundaries{};
 		for (iter_type i = 0; i < D * 2; ++i)
@@ -814,7 +759,7 @@ protected:
 		bool extend_boundary = params::extend_boundary;
 		params::extend_boundary = true;
 
-		auto new_system = SolverSystemApplied<std::tuple_element_t<I, std::tuple<S...>>>(
+		auto new_system = SolverSystemApplied<symphas::lib::type_at_index<I, S...>>(
 			symphas::init_data_type{}, system.info.intervals, boundaries, system.id);
 
 		params::extend_boundary = extend_boundary;
@@ -830,9 +775,9 @@ protected:
 
 	template<size_t I, typename other_sys_type,
 		typename std::enable_if_t<std::is_same<other_sys_type, std::tuple_element_t<I, std::tuple<SolverSystemApplied<S>...>>>::value, int> = 0>
-	SolverSystemApplied<std::tuple_element_t<I, std::tuple<S...>>> construct_system(other_sys_type const& system) const
+	SolverSystemApplied<symphas::lib::type_at_index<I, S...>> construct_system(other_sys_type const& system) const
 	{
-		return SolverSystemApplied<std::tuple_element_t<I, std::tuple<S...>>>(system);
+		return SolverSystemApplied<symphas::lib::type_at_index<I, S...>>(system);
 	}
 
 	template<typename... Ss, size_t... Is>
@@ -1014,6 +959,12 @@ protected:
 		return count_wrap<sizeof...(S)>{};
 	}
 
+	template<size_t D, typename Sp, typename S, typename... Ts>
+	static constexpr auto _pack_count(ArrayModel<D, Sp, S, Ts...>*)
+	{
+		return count_wrap<0>{};
+	}
+
 	static constexpr auto pack_count(M* m)
 	{
 		return _pack_count(m);
@@ -1113,10 +1064,33 @@ struct model_field
 	using type = typename M::template type_of_S<N>;
 };
 
-template<typename M, size_t N>
+template<typename M, size_t N = 0>
 using model_field_t = typename model_field<M, N>::type;
 
+template<typename M>
+struct model_types
+{
 
+protected:
+
+	template<size_t D, typename Sp, typename... S>
+	static Model<D, Sp, S...> _get_type(Model<D, Sp, S...> m)
+	{
+		return symphas::lib::types_list<symphas::internal::non_parameterized_type<S>...>{};
+	}
+
+	static auto get_type(M m)
+	{
+		return symphas::lib::types_list<>{};
+	}
+
+public:
+
+	using type = typename std::invoke_result_t<decltype(&model_base<M>::get_type), M>;
+};
+
+template<typename M>
+using model_types_t = typename model_types<M>::type;
 
 
 #undef SN
