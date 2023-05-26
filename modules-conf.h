@@ -192,7 +192,7 @@ namespace symphas
 		template<typename M>
 		void write_plot_config(M const& model, const char* directory, SaveParams const& save)
 		{
-			size_t constexpr num_systems = model_num_parameters<M>::value;
+			size_t num_systems = symphas::model_num_fields(model);
 			char** names = new char*[num_systems];
 			size_t count = symphas::conf::config().name_count();
 
