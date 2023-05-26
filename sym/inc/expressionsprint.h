@@ -29,8 +29,15 @@
 
 #include <stdarg.h>
 
-#include "expressionlib.h"
+#include "expressionlogic.h"
 
+ //! \cond
+#ifdef EXPR_EXPORTS
+#define DLLEXPR DLLEXPORT
+#else
+#define DLLEXPR DLLIMPORT
+#endif
+//! \endcond
 
 template<typename Sp>
 struct Solver;
@@ -47,7 +54,7 @@ namespace symphas::internal
 namespace expr
 {
 
-	template<size_t N>
+	template<size_t N = 0>
 	struct expr_name_arr
 	{
 		char value[N];
@@ -58,11 +65,78 @@ namespace expr
 			return name;
 		}
 	};
+
+	template<>
+	struct expr_name_arr<0>
+	{
+		char* value;
+
+		expr_name_arr(len_type len = 0) : 
+			value{ (len > 0) ? new char[len] {} : nullptr } {}
+		expr_name_arr(expr_name_arr<0> const& other) : 
+			expr_name_arr((other.value != nullptr) ? std::strlen(other.value) : 0)
+		{
+			if (value != nullptr)
+			{
+				std::strcpy(value, other.value);
+			}
+		}
+
+		expr_name_arr(expr_name_arr<0>&& other) : expr_name_arr()
+		{
+			swap(*this, other);
+		}
+
+		expr_name_arr<0> operator=(expr_name_arr<0> other)
+		{
+			swap(*this, other);
+			return *this;
+		}
+
+		friend void swap(expr_name_arr<0>& first, expr_name_arr<0>& second)
+		{
+			using std::swap;
+			swap(first.value, second.value);
+		}
+
+		operator const char* () const
+		{
+			return value;
+		}
+
+		operator char* ()
+		{
+			return value;
+		}
+
+		char* new_str()
+		{
+			char* name = new char[std::strlen(value) + 1];
+			std::strcpy(name, value);
+			return name;
+		}
+
+		~expr_name_arr()
+		{
+			delete[] value;
+		}
+	};
+
+	expr_name_arr(len_type) -> expr_name_arr<0>;
+
 }
+
+
 
 #ifdef PRINTABLE_EQUATIONS
 
 //! \cond
+
+#define SYEX_BINARY_FMT "%s %s %s"
+#define SYEX_ADD_SEP " + "
+#define SYEX_SUB_SEP " - "
+#define SYEX_BINARY_FMT_LEN (sizeof(SYEX_ADD_SEP) / sizeof(char) - 1)
+
 
 #ifdef LATEX_PLOT
 #define SYEX_DERIV_APPLIED_EXPR_FMT_A "\\left("
@@ -82,16 +156,20 @@ namespace expr
 //! Display string of the derivative.
 #define SYEX_DIRECTIONAL_DERIV_VAR_STR(NAME, VALUE, AXIS) "\\frac{\\partial^{" VALUE "}" NAME "}{\\partial " AXIS "^{" VALUE "}}"
 #define SYEX_DIRECTIONAL_DERIV_STR(VALUE, AXIS) SYEX_DIRECTIONAL_DERIV_VAR_STR("", VALUE, AXIS)
-#define SYEX_DIRECTIONAL_DERIV_1_VAR_STR(NAME, AXIS) "\\frac{\\partial" NAME "}{\\partial " AXIS "}"
+#define SYEX_DIRECTIONAL_DERIV_1_VAR_STR(NAME, AXIS) "\\frac{\\partial " NAME "}{\\partial " AXIS "}"
 #define SYEX_DIRECTIONAL_DERIV_1_STR(AXIS) SYEX_DIRECTIONAL_DERIV_1_VAR_STR("", AXIS)
 #define SYEX_DERIV_STR(VALUE) "\\nabla^{" VALUE "}"
 #define SYEX_DERIV_STR_1 "\\vec{\\nabla}"
+#define SYEX_FUNCTIONAL_DERIV_1_VAR_STR(NAME, VAR) "\\frac{\\delta " NAME "}{\\delta " VAR "}"
+#define SYEX_FUNCTIONAL_DERIV_1_STR(VAR) SYEX_FUNCTIONAL_DERIV_1_VAR_STR("", VAR)
 #else
 //! Display string of the derivative.
 #define SYEX_DIRECTIONAL_DERIV_VAR_STR(NAME, VALUE, AXIS) "d" VALUE NAME "/d" AXIS VALUE
 #define SYEX_DIRECTIONAL_DERIV_STR(VALUE, AXIS) SYEX_DIRECTIONAL_DERIV_VAR_STR("", VALUE, AXIS)
 #define SYEX_DIRECTIONAL_DERIV_1_VAR_STR(NAME, AXIS) SYEX_DIRECTIONAL_DERIV_VAR_STR(NAME, "", AXIS)
 #define SYEX_DIRECTIONAL_DERIV_1_STR(AXIS) SYEX_DIRECTIONAL_DERIV_1_VAR_STR("", AXIS)
+#define SYEX_FUNCTIONAL_DERIV_VAR_STR(NAME, VAR) "{d}" NAME "/{d}" VAR
+#define SYEX_FUNCTIONAL_DERIV_STR(VAR) SYEX_FUNCTIONAL_DERIV_VAR_STR("", VAR)
 
 #ifdef ENABLE_UNICODE
 #define SYEX_DERIV_STR(VALUE) "▼^" VALUE ""
@@ -123,6 +201,11 @@ namespace expr
 #define SYEX_DIRECTIONAL_DERIV_1_FMT(AXIS) SYEX_DIRECTIONAL_DERIV_1_WITH_OTHER_FMT(AXIS, "?")
 #define SYEX_DIRECTIONAL_DERIV_1_LEN STR_ARR_LEN(SYEX_DIRECTIONAL_DERIV_1_STR("") + 1)
 
+#define SYEX_FUNCTIONAL_DERIV_VAR_FMT(NAME, VAR) SYEX_FUNCTIONAL_DERIV_VAR_STR("%s", "%s"), NAME, VAR
+#define SYEX_FUNCTIONAL_DERIV_VAR_LEN(NAME, VAR) (STR_ARR_LEN(SYEX_FUNCTIONAL_DERIV_VAR_STR("", "")) + std::strlen(NAME) + std::strlen(VAR))
+
+#define SYEX_FUNCTIONAL_DERIV_FMT(VAR) SYEX_FUNCTIONAL_DERIV_STR("%s"), VAR
+#define SYEX_FUNCTIONAL_DERIV_LEN(VAR) (STR_ARR_LEN(SYEX_FUNCTIONAL_DERIV_STR("")) + std::strlen(VAR))
 
 
 #define SYEX_DERIV_STR_FMT(ORDER) SYEX_DERIV_STR("%zd"), ORDER
@@ -134,10 +217,84 @@ namespace expr
 //! The separation string used to separate a description from an expression.
 
 
+#ifndef LATEX_PLOT
+#define SYEX_SUM_SYMBOL "Sum"
+#define SYEX_SUM_A "{"
+#define SYEX_SUM_B "}"
+#define SYEX_SUM_LIM_A "["
+#define SYEX_SUM_LIM_SEP ","
+#define SYEX_SUM_LIM_B "]"
+
+#define SYEX_SUM_LIM_COMPARE_A "("
+#define SYEX_SUM_LIM_COMPARE_B ")"
+#define SYEX_SUM_LIM_COMPARE_SEP ","
+
+#else
+#define SYEX_SUM_SYMBOL ""
+#define SYEX_SUM_A "\\left("
+#define SYEX_SUM_B "\\right)"
+#define SYEX_SUM_LIM_A "\\sum_{"
+#define SYEX_SUM_LIM_SEP "}^{"
+#define SYEX_SUM_LIM_B "}"
+
+#define SYEX_SUM_LIM_COMPARE_A SYEX_SUM_A
+#define SYEX_SUM_LIM_COMPARE_B SYEX_SUM_B
+#define SYEX_SUM_LIM_COMPARE_SEP ","
+#endif
+
+
+
+#ifndef LATEX_PLOT
+#define SYEX_INTEGRAL_SYMBOL "Int"
+#define SYEX_INTEGRAL_A "{"
+#define SYEX_INTEGRAL_B "}"
+#define SYEX_INTEGRAL_LIM_A "["
+#define SYEX_INTEGRAL_LIM_SEP ","
+#define SYEX_INTEGRAL_LIM_B "]"
+#define SYEX_INTEGRAL_DOMAIN_SYM "RxR"
+#define SYEX_INTEGRAL_INTEGRATION_SYM "dx"
+#else
+#define SYEX_INTEGRAL_SYMBOL ""
+#define SYEX_INTEGRAL_A "\\left["
+#define SYEX_INTEGRAL_B "\\right]"
+#define SYEX_INTEGRAL_LIM_A "\\int_{"
+#define SYEX_INTEGRAL_LIM_SEP "}^{"
+#define SYEX_INTEGRAL_LIM_B "}"
+#define SYEX_INTEGRAL_DOMAIN_SYM "\\Omega"
+#define SYEX_INTEGRAL_INTEGRATION_SYM "d\\vec{x}"
+#endif
+
+
 #ifdef LATEX_PLOT
 #define SYEX_EQN_SEP "\\rightarrow"
 #else
 #define SYEX_EQN_SEP "->"
+#endif
+
+
+#ifdef LATEX_PLOT
+
+#define SYEX_NOISE_TOKEN_POISSON "\\mathbf{P}"
+#define SYEX_NOISE_A SYEX_SUM_A
+#define SYEX_NOISE_B SYEX_SUM_B
+
+#define SYEX_ARRAY_A SYEX_INTEGRAL_A
+#define SYEX_ARRAY_B SYEX_INTEGRAL_B
+#define SYEX_ARRAY_SUBSCRIPT_A "_{"
+#define SYEX_ARRAY_SUBSCRIPT_B "}"
+
+#else
+
+#define SYEX_NOISE_TOKEN_POISSON "Pois"
+#define SYEX_NOISE_A SYEX_SUM_A
+#define SYEX_NOISE_B SYEX_SUM_B
+
+
+#define SYEX_ARRAY_A SYEX_INTEGRAL_A
+#define SYEX_ARRAY_B SYEX_INTEGRAL_B
+#define SYEX_ARRAY_SUBSCRIPT_A "["
+#define SYEX_ARRAY_SUBSCRIPT_B "]"
+
 #endif
 
 /* Definitions concerning printing new functions
@@ -630,16 +787,18 @@ namespace symphas::internal
 		template<typename G>
 		static size_t print(FILE* out, G const& var)
 		{
+			size_t n = 0;
 			auto buffer = set_var_string(var);
 			if constexpr (O == 1)
 			{
-				return fprintf(out, SYEX_DIRECTIONAL_DERIV_1_WITH_OTHER_FMT(Axis::NONE, buffer));
+				n += fprintf(out, SYEX_DIRECTIONAL_DERIV_1_WITH_OTHER_FMT(Axis::NONE, buffer));
 			}
 			else
 			{
-				return fprintf(out, SYEX_DIRECTIONAL_DERIV_WITH_OTHER_FMT(O, Axis::NONE, buffer));
+				n += fprintf(out, SYEX_DIRECTIONAL_DERIV_WITH_OTHER_FMT(O, Axis::NONE, buffer));
 			}
             delete[] buffer;
+			return n;
 		}
 
 		//! Print the derivative the given order to a file.
@@ -654,16 +813,18 @@ namespace symphas::internal
 		template<typename G>
 		static size_t print(FILE* out, const char* name, G const& var)
 		{
+			size_t n = 0;
 			auto buffer = set_var_string(var);
 			if constexpr (O == 1)
 			{
-				return fprintf(out, SYEX_DIRECTIONAL_DERIV_1_VAR_WITH_OTHER_FMT(name, Axis::NONE, buffer));
+				n += fprintf(out, SYEX_DIRECTIONAL_DERIV_1_VAR_WITH_OTHER_FMT(name, Axis::NONE, buffer));
 			}
 			else
 			{
-				return fprintf(out, SYEX_DIRECTIONAL_DERIV_VAR_WITH_OTHER_FMT(name, O, Axis::NONE, buffer));
+				n += fprintf(out, SYEX_DIRECTIONAL_DERIV_VAR_WITH_OTHER_FMT(name, O, Axis::NONE, buffer));
 			}
             delete[] buffer;
+			return n;
 		}
 
 
@@ -676,16 +837,18 @@ namespace symphas::internal
 		template<typename G>
 		static size_t print(char* out, G const& var)
 		{
+			size_t n = 0;
 			auto buffer = set_var_string(var);
 			if constexpr (O == 1)
 			{
-				return fprintf(out, SYEX_DIRECTIONAL_DERIV_1_WITH_OTHER_FMT(Axis::NONE, buffer));
+				n += fprintf(out, SYEX_DIRECTIONAL_DERIV_1_WITH_OTHER_FMT(Axis::NONE, buffer));
 			}
 			else
 			{
-				return fprintf(out, SYEX_DIRECTIONAL_DERIV_WITH_OTHER_FMT(O, Axis::NONE, buffer));
+				n += fprintf(out, SYEX_DIRECTIONAL_DERIV_WITH_OTHER_FMT(O, Axis::NONE, buffer));
 			}
             delete[] buffer;
+			return n;
 		}
 
 		//! Print the derivative the given order to a string.
@@ -700,16 +863,18 @@ namespace symphas::internal
 		template<typename G>
 		static size_t print(char* out, const char* name, G const& var)
 		{
+			size_t n = 0;
 			auto buffer = set_var_string(var);
 			if constexpr (O == 1)
 			{
-				return sprintf(out, SYEX_DIRECTIONAL_DERIV_1_VAR_WITH_OTHER_FMT(name, Axis::NONE, buffer));
+				n += sprintf(out, SYEX_DIRECTIONAL_DERIV_1_VAR_WITH_OTHER_FMT(name, Axis::NONE, buffer));
 			}
 			else
 			{
-				return sprintf(out, SYEX_DIRECTIONAL_DERIV_VAR_WITH_OTHER_FMT(name, O, Axis::NONE, buffer));
+				n += sprintf(out, SYEX_DIRECTIONAL_DERIV_VAR_WITH_OTHER_FMT(name, O, Axis::NONE, buffer));
 			}
             delete[] buffer;
+			return n;
 		}
 
 		//! Get the print length of the derivative output string.
@@ -722,16 +887,18 @@ namespace symphas::internal
 		template<typename G>
 		static size_t print_length(G const& var)
 		{
+			size_t n = 0;
 			auto buffer = set_var_string(var);
 			if constexpr (O == 1)
 			{
-				return SYEX_DIRECTIONAL_DERIV_1_LEN + std::strlen(buffer);
+				n += SYEX_DIRECTIONAL_DERIV_1_LEN + std::strlen(buffer);
 			}
 			else
 			{
-				return SYEX_DIRECTIONAL_DERIV_LEN(O) + std::strlen(buffer);
+				n += SYEX_DIRECTIONAL_DERIV_LEN(O) + std::strlen(buffer);
 			}
             delete[] buffer;
+			return n;
 		}
 
 		//! Get the print length of the derivative output string.
@@ -744,16 +911,18 @@ namespace symphas::internal
 		template<typename G>
 		static size_t print_length(const char* name, G const& var)
 		{
+			size_t n = 0;
 			auto buffer = set_var_string(var);
 			if constexpr (O == 1)
 			{
-				return SYEX_DIRECTIONAL_DERIV_1_VAR_LEN(name) + std::strlen(buffer);
+				n += SYEX_DIRECTIONAL_DERIV_1_VAR_LEN(name) + std::strlen(buffer);
 			}
 			else
 			{
-				return SYEX_DIRECTIONAL_DERIV_VAR_LEN(name, O) + std::strlen(buffer);
+				n += SYEX_DIRECTIONAL_DERIV_VAR_LEN(name, O) + std::strlen(buffer);
 			}
             delete[] buffer;
+			return n;
 		}
 
 	};
@@ -848,6 +1017,96 @@ namespace symphas::internal
 	};
 
 
+	template<typename G0>
+	struct print_functional_deriv
+	{
+		static const char* var_str()
+		{
+			return expr::get_op_name(G0{});
+		}
+
+		//! Print the derivative the given order to a file.
+		/*!
+		 * Print the derivative of the given order, and formatted using the order.
+		 *
+		 * \param out The file to which the derivative is printed.
+		 */
+		template<typename G>
+		static size_t print(FILE* out)
+		{
+			return fprintf(out, SYEX_FUNCTIONAL_DERIV_FMT(var_str()));
+		}
+
+		//! Print the derivative the given order to a file.
+		/*!
+		 * Print the derivative of the given order, and formatted using the order. A
+		 * name is also provided, which is the name of the variable to which the derivative
+		 * is applied.
+		 *
+		 * \param out The file to which the derivative is printed.
+		 * \param name A string that appears in the numerator after the partial symbol.
+		 */
+		template<typename G>
+		static size_t print(FILE* out, const char* name)
+		{
+			return fprintf(out, SYEX_FUNCTIONAL_DERIV_VAR_FMT(name, var_str()));
+		}
+
+
+		//! Print the derivative the given order to a string.
+		/*!
+		 * Print the derivative of the given order, and formatted using the order.
+		 *
+		 * \param out The string to which the derivative is printed.
+		 */
+		template<typename G>
+		static size_t print(char* out)
+		{
+			return fprintf(out, SYEX_FUNCTIONAL_DERIV_FMT(var_str()));
+		}
+
+		//! Print the derivative the given order to a string.
+		/*!
+		 * Print the derivative of the given order, and formatted using the order. A
+		 * name is also provided, which is the name of the variable to which the derivative
+		 * is applied.
+		 *
+		 * \param out The string to which the derivative is printed.
+		 * \param name A string that appears in the numerator after the partial symbol.
+		 */
+		template<typename G>
+		static size_t print(char* out, const char* name)
+		{
+			return sprintf(out, SYEX_FUNCTIONAL_DERIV_VAR_FMT(name, var_str()));
+		}
+
+		//! Get the print length of the derivative output string.
+		/*!
+		 * Returns the number of characters in the format string that is
+		 * printed to display the derivative. Only includes characters that
+		 * are printed as part of the format, and not substituted expression
+		 * strings.
+		 */
+		template<typename G>
+		static size_t print_length()
+		{
+			return SYEX_FUNCTIONAL_DERIV_LEN(var_str());
+		}
+
+		//! Get the print length of the derivative output string.
+		/*!
+		 * Returns the number of characters in the format string that is
+		 * printed to display the derivative. Only includes characters that
+		 * are printed as part of the format, and not substituted expression
+		 * strings.
+		 */
+		template<typename G>
+		static size_t print_length(const char* name)
+		{
+			return SYEX_FUNCTIONAL_DERIV_VAR_LEN(name, var_str());
+		}
+
+	};
 
 	template<size_t O>
 	auto select_print_deriv(std::index_sequence<O>)
@@ -880,6 +1139,12 @@ namespace symphas::internal
 		return print_mixed_deriv<Axis::X, O1, O2, O3>{};
 	}
 
+	template<typename G>
+	auto select_print_deriv(expr::variational_t<G>)
+	{
+		return print_functional_deriv<G>{};
+	}
+
 
 }
 
@@ -888,6 +1153,160 @@ namespace symphas::internal
 
 namespace expr
 {
+
+	DLLEXPR extern int NAME_PTR_POS;					//!< Current position in selecting name for arbitrary data pointers.
+	DLLEXPR extern std::vector<const void*> NAME_PTRS;	//!< List of all data pointers with names associated with them.
+	DLLEXPR extern std::vector<char*> MORE_NAMES;		//!< List of overflow names for data pointers.
+
+
+	//! Gets the string name associated with the data.
+	template<typename A>
+	const char* get_op_name(symphas::ref<A> const& a);
+
+	//! Gets the string name associated with the data.
+	template<typename T>
+	const char* get_op_name(T* ptr);
+
+
+	//! Gets the string name associated with the data.
+	template<>
+	inline const char* get_op_name(char* a)
+	{
+		return a;
+	}
+
+	//! Gets the string name associated with the data.
+	template<>
+	inline const char* get_op_name(const char* a)
+	{
+		return a;
+	}
+
+	//! Gets the string name associated with the data.
+	template<typename A>
+	const char* get_op_name(A const& a)
+	{
+		return get_op_name(expr::SymbolID<A>::get(a));
+	}
+
+	//! Gets the string name associated with the data.
+	template<typename A>
+	const char* get_op_name(symphas::ref<A> const& a)
+	{
+		return get_op_name(expr::SymbolID<A>::get(a));
+	}
+
+	//! Specialization based on SymbolID.
+	template<Axis ax, typename G>
+	const char* get_op_name(VectorComponent<ax, G> const& a)
+	{
+		static std::map<std::string, char*> map;
+		const char* name = get_op_name(SymbolID<G>::get(*static_cast<G const*>(&a)));
+
+		auto with_component = map.find(name);
+		if (with_component == map.end())
+		{
+			map[name] = new char[std::strlen(name) + 3];
+
+			std::strcpy(map[name], name);
+			map[name][std::strlen(name)] = '_';
+			map[name][std::strlen(name) + 1] = (ax == Axis::X) ? 'x' : (ax == Axis::Y) ? 'y' : (ax == Axis::Z) ? 'z' : '?';
+			map[name][std::strlen(name) + 2] = '\0';
+		}
+
+		return map[name];
+	};
+
+	//! Specialization based on SymbolID.
+	template<size_t Z, Axis ax, typename G>
+	const char* get_op_name(Variable<Z, VectorComponent<ax, G>> const& a)
+	{
+		return get_op_name(*static_cast<VectorComponent<ax, G> const*>(&a));
+	};
+
+	//! Gets the string name associated with the data.
+	template<size_t N>
+	const char* get_op_name(Variable<N> const& a)
+	{
+		static size_t NN = 0;
+		static char** names;
+		const char prefix[] = "var";
+		if (N >= NN)
+		{
+			char** new_names = new char* [N + 1];
+			for (iter_type i = 0; i < NN; ++i)
+			{
+				new_names[i] = new char[std::strlen(names[i]) + 1];
+				std::strcpy(new_names[i], names[i]);
+			}
+			for (size_t i = NN; i <= N; ++i)
+			{
+				new_names[i] = new char[STR_ARR_LEN(prefix) + symphas::lib::num_digits(N)];
+				sprintf(new_names[i], "%s%zd", prefix, N);
+			}
+			delete[] names;
+			names = new_names;
+			return names[N];
+		}
+		else
+		{
+			return names[N];
+		}
+	}
+
+	//! Gets the string name associated with the data.
+	template<typename T>
+	const char* get_op_name(T* ptr)
+	{
+		if (!ptr)
+		{
+			return "?";
+		}
+		else
+		{
+			const void* ptr_cmp = static_cast<const void*>(ptr);
+			constexpr size_t MAX_NAME_COUNT = sizeof(VARIABLE_NAMES) / sizeof(*VARIABLE_NAMES);
+
+			for (iter_type i = 0; i < NAME_PTR_POS; ++i)
+			{
+				if (NAME_PTRS[i] == ptr_cmp)
+				{
+					if (i < MAX_NAME_COUNT)
+					{
+						return VARIABLE_NAMES[i];
+					}
+					else
+					{
+						return MORE_NAMES[i - MAX_NAME_COUNT];
+					}
+				}
+			}
+			NAME_PTRS.push_back(ptr_cmp);
+
+			if (NAME_PTR_POS < MAX_NAME_COUNT)
+			{
+				return VARIABLE_NAMES[NAME_PTR_POS++];
+			}
+			else
+			{
+				char* name = new char[BUFFER_LENGTH_R4];
+				snprintf(name, BUFFER_LENGTH_R4, VARIABLE_NAME_EXTRA_FMT, NAME_PTR_POS);
+				MORE_NAMES.push_back(name);
+				return MORE_NAMES[NAME_PTR_POS++ - MAX_NAME_COUNT];
+			}
+		}
+	}
+
+
+	template<typename T>
+	auto get_fourier_name(T const& t)
+	{
+		char* name = expr::get_op_name(std::forward<T>(t));
+		return std::string(SYEX_FT_OF_OP_FMT_A) + std::string(name) + std::string(SYEX_FT_OF_OP_FMT_B);
+	}
+
+
+
 	//! Print a formatted expression.
 	/*!
 	 * The expression is printed to the log with the given description, which
@@ -992,6 +1411,8 @@ namespace expr
 	size_t coeff_print_length(V const& value);
 	template<typename T, size_t D>
 	size_t coeff_print_length(any_vector_t<T, D> const& value);
+	template<typename T, typename I>
+	size_t coeff_print_length(OpCoeff<T, I> const& value);
 
 	//! Print the length of the zero coefficient string.
 	/*!
@@ -1041,13 +1462,6 @@ namespace expr
 		return OpNegFractionLiteral<N, D>{}.print_length();
 	}
 
-	template<typename T, size_t... Ns>
-	size_t coeff_print_length(OpTensor<T, Ns...> const& value)
-	{
-		//using n_seq = symphas::lib::seq_join_t<symphas::lib::types_after_at_index<sizeof...(Ns) / 2, std::index_sequence<Ns>...>>;
-		//return print_tensor_length(symphas::internal::tensor_cast::cast(value), n_seq{});
-		return 100;
-	}
 
 	template<typename... Ts>
 	size_t coeff_print_length(OpAdd<Ts...> const& value)
@@ -1066,7 +1480,13 @@ namespace expr
 			n += coeff_print_length(value[i]);
 		}
 		return n;
+	}
 
+
+	template<typename T, typename I>
+	size_t coeff_print_length(OpCoeff<T, I> const& value)
+	{
+		return coeff_print_length(expr::make_literal(value.eval()));
 	}
 
 	template<typename V>
@@ -1128,32 +1548,105 @@ namespace expr
 		return n;
 	}
 
-	template<typename T, size_t P0, size_t P1, size_t N, size_t M>
-	size_t print_tensor(char* out, T const& value, std::index_sequence<P0, P1>, std::index_sequence<N, M>)
+	template<typename T>
+	size_t print_tensor_entries_1(FILE* out, T const& value, size_t P0, size_t P1, size_t N, size_t M)
+	{
+		size_t n = 0;
+		n += fprintf(out, SYEX_TENSOR_FMT_A);
+
+		for (size_t i = 0; i < N; ++i)
+		{
+			for (size_t j = 0; j < M; ++j)
+			{
+				if (i == P0 && j == P1)
+				{
+					n += make_literal(expr::eval(value)).print(out);
+				}
+				else
+				{
+					n += fprintf(out, SYEX_TENSOR_EMPTY_FMT);
+				}
+
+				if (j < M - 1)
+				{
+					n += fprintf(out, SYEX_TENSOR_ROW_SEP_FMT);
+				}
+			}
+			if (i < N - 1)
+			{
+				n += fprintf(out, SYEX_TENSOR_COLUMN_SEP_FMT);
+			}
+		}
+		n += fprintf(out, SYEX_TENSOR_FMT_B);
+		return n;
+	}
+
+
+	template<typename ostream_t, typename T, size_t P0, size_t P1, size_t N, size_t M>
+	size_t print_tensor(ostream_t* out, T const& value, std::index_sequence<P0, P1>, std::index_sequence<N, M>)
 	{
 		return print_tensor_entries_1(out, value, P0, P1, N, M);
 	}
 
-	template<typename T, size_t P0, size_t N>
-	size_t print_tensor(char* out, T const& value, std::index_sequence<P0>, std::index_sequence<N>)
+	template<typename ostream_t, typename T, size_t P0, size_t N>
+	size_t print_tensor(ostream_t* out, T const& value, std::index_sequence<P0>, std::index_sequence<N>)
 	{
 		return print_tensor_entries_1(out, value, P0, 0, N, 1);
 	}
 
-	template<typename T, size_t N, size_t M>
-	size_t print_tensor_length(T const& value, std::index_sequence<N, M>)
+	template<typename T>
+	size_t print_tensor_length_1(T const& value, size_t P0, size_t P1, size_t N, size_t M)
 	{
-		size_t n = make_literal(expr::eval(value)).print_length();
-		n += SYEX_TENSOR_FMT_LEN(N, M);
+		size_t n = 0;
+		n += STR_ARR_LEN(SYEX_TENSOR_FMT_A);
+
+		for (size_t i = 0; i < N; ++i)
+		{
+			for (size_t j = 0; j < M; ++j)
+			{
+				if (i == P0 && j == P1)
+				{
+					n += make_literal(expr::eval(value)).print_length();
+				}
+				else
+				{
+					n += STR_ARR_LEN(SYEX_TENSOR_EMPTY_FMT);
+				}
+
+				if (j < M - 1)
+				{
+					n += STR_ARR_LEN(SYEX_TENSOR_ROW_SEP_FMT);
+				}
+			}
+			if (i < N - 1)
+			{
+				n += STR_ARR_LEN(SYEX_TENSOR_COLUMN_SEP_FMT);
+			}
+		}
+		n += STR_ARR_LEN(SYEX_TENSOR_FMT_B);
 		return n;
 	}
 
-	template<typename T, size_t N>
-	size_t print_tensor_length(T const& value, std::index_sequence<N>)
+
+	template<typename T, size_t P0, size_t P1, size_t N, size_t M>
+	size_t print_tensor_length(T const& value, std::index_sequence<P0, P1>, std::index_sequence<N, M>)
 	{
-		size_t n = make_literal(expr::eval(value)).print_length();
-		n += SYEX_TENSOR_FMT_LEN(N, 1);
-		return n;
+		return print_tensor_length_1(value, P0, P1, N, M);
+	}
+
+	template<typename T, size_t P0, size_t N>
+	size_t print_tensor_length(T const& value, std::index_sequence<P0>, std::index_sequence<N>)
+	{
+		return print_tensor_length_1(value, P0, 0, N, 1);
+	}
+
+
+	template<typename T, size_t... Ns>
+	size_t coeff_print_length(OpTensor<T, Ns...> const& value)
+	{
+		using p_seq = symphas::lib::seq_join_t<symphas::lib::types_before_index<sizeof...(Ns) / 2, std::index_sequence<Ns>...>>;
+		using n_seq = symphas::lib::seq_join_t<symphas::lib::types_after_at_index<sizeof...(Ns) / 2, std::index_sequence<Ns>...>>;
+		return print_tensor_length(T(value), p_seq{}, n_seq{});
 	}
 
 	//! Prepends coefficient to an expression.
@@ -1169,6 +1662,8 @@ namespace expr
 	size_t print_with_coeff(char* out, const char* expr, V value);
 	template<typename T, size_t D>
 	size_t print_with_coeff(char* out, const char* expr, any_vector_t<T, D> const& value);
+	template<typename T, typename I>
+	size_t print_with_coeff(char* out, const char* expr, OpCoeff<T, I> const& value);
 
 	//! Prepends coefficient to an expression.
 	/*!
@@ -1274,6 +1769,12 @@ namespace expr
 		return n;
 	}
 
+	template<typename T, typename I>
+	size_t print_with_coeff(char* out, const char* expr, OpCoeff<T, I> const& value)
+	{
+		return print_with_coeff(out, expr, expr::make_literal(value.eval()));
+	}
+
 	//! Prints only the coefficient and coefficient separator.
 	/*!
 	 * Specialization which only prints the coefficient, without an
@@ -1303,6 +1804,8 @@ namespace expr
 	size_t print_with_coeff(FILE* out, const char* expr, V const& value);
 	template<typename T, size_t D>
 	size_t print_with_coeff(FILE* out, const char* expr, any_vector_t<T, D> const& value);
+	template<typename T, typename I>
+	size_t print_with_coeff(FILE* out, const char* expr, OpCoeff<T, I> const& value);
 
 	//! Prepends coefficient to an expression.
 	/*!
@@ -1350,12 +1853,19 @@ namespace expr
 	template<typename T, size_t... Ns>
 	size_t print_with_coeff(FILE* out, const char* expr, OpTensor<T, Ns...> const& value)
 	{
-		size_t len = coeff_print_length(value) + 1;
-		char* buffer = new char[len];
-		print_with_coeff(buffer, "", value);
-		size_t n = fprintf(out, "%s%s", buffer, expr);
-		delete[] buffer;
+		using p_seq = symphas::lib::seq_join_t<symphas::lib::types_before_index<sizeof...(Ns) / 2, std::index_sequence<Ns>...>>;
+		using n_seq = symphas::lib::seq_join_t<symphas::lib::types_after_at_index<sizeof...(Ns) / 2, std::index_sequence<Ns>...>>;
+
+		size_t n = print_tensor(out, T(value), p_seq{}, n_seq{});
+		n += fprintf(out, "%s", expr);
 		return n;
+
+		//size_t len = coeff_print_length(value) + 1;
+		//char* buffer = new char[len];
+		//print_with_coeff(buffer, "", value);
+		//size_t n = fprintf(out, "%s%s", buffer, expr);
+		//delete[] buffer;
+		//return n;
 	}
 
 	template<typename... Ts>
@@ -1405,6 +1915,12 @@ namespace expr
 				return n;
 			}
 		}
+	}
+
+	template<typename T, typename I>
+	size_t print_with_coeff(FILE* out, const char* expr, OpCoeff<T, I> const& value)
+	{
+		return print_with_coeff(out, expr, expr::make_literal(value.eval()));
 	}
 
 	//! Prints only the coefficient and coefficient separator.
@@ -1460,7 +1976,7 @@ namespace expr
 		size_t L1 = 0
 #endif
 		, size_t L2 = ((N < 0) ? 1 : 0), size_t L3 = symphas::lib::num_digits<NN>()>
-		expr_name_arr<L0 + L1 + L2 + L3 + 3> print_with_subscript(const char(&term)[L])
+	expr_name_arr<L0 + L1 + L2 + L3 + 3> print_with_subscript(const char(&term)[L])
 	{
 		expr_name_arr<L0 + L1 + L2 + L3 + 3> out;
 		for (iter_type i = 0; i < L0; ++i)
@@ -1486,6 +2002,39 @@ namespace expr
 
 		return out;
 	}
+	
+	template<size_t L, size_t L0 = L - 1,
+#ifdef LATEX_PLOT
+		size_t L1 = 1
+#else
+		size_t L1 = 0
+#endif
+		>
+	expr_name_arr<0> print_with_subscript(const char(&term)[L], const char* subscript)
+	{
+
+		size_t LL = std::strlen(subscript);
+		expr_name_arr out(L0 + L1 + LL + 3);
+		for (iter_type i = 0; i < L0; ++i)
+		{
+			out.value[i] = term[i];
+		}
+
+		if constexpr (L1)
+		{
+			out.value[L0] = '_';
+		}
+		out.value[L0 + L1] = '{';
+
+		std::strcat(out.value, subscript);
+
+		size_t LN = L0 + L1 + 1;
+
+		out.value[LN + LL] = '}';
+		out.value[LN + LL + 1] = '\0';
+
+		return out;
+	}
 
 	template<int N0, int... Ns, size_t L>
 	auto print_with_subscripts(const char(&term)[L])
@@ -1500,6 +2049,29 @@ namespace expr
 		}
 	}
 
+	template<typename E0, typename... Es>
+	auto print_list(E0&& e0, Es&&... es)
+	{
+		const char* names[]{ expr::get_op_name(std::forward<E0>(e0)), expr::get_op_name(std::forward<Es>(es))... };
+		len_type len = 0;
+		for (const char* name : names)
+		{
+			len += std::strlen(name) + 1;
+		}
+
+		expr_name_arr list_str(len);
+		for (const char* name : names)
+		{
+			std::strcpy(list_str, name);
+			if (name != names[sizeof...(Es)])
+			{
+				std::strcat(list_str, ",");
+			}
+		}
+
+		return list_str;
+	}
+
 	inline auto get_fourier_name(const char* name)
 	{
 		return std::string(SYEX_FT_OF_OP_FMT_A) + std::string(name) + std::string(SYEX_FT_OF_OP_FMT_B);
@@ -1512,6 +2084,473 @@ namespace expr
 		e.print(name);
 		return std::string(SYEX_FT_OF_EXPR_FMT_A) + std::string(name) + std::string(SYEX_FT_OF_EXPR_FMT_B);
 	}
+
+
+	template<typename T>
+	struct symbolic_eval_print
+	{
+		template<typename E>
+		size_t operator()(FILE* out, T const&, OpExpression<E> const& e)
+		{
+			return (*static_cast<E const*>(&e)).print(out);
+		}
+
+		template<typename E>
+		size_t operator()(char* out, T const&, OpExpression<E> const& e)
+		{
+			return (*static_cast<E const*>(&e)).print(out);
+		}
+
+		template<typename E>
+		size_t operator()(T const&, OpExpression<E> const& e)
+		{
+			return (*static_cast<E const*>(&e)).print_length();
+		}
+	};
+
+	template<expr::NoiseType nt>
+	struct noise_name_print;
+
+	template<>
+	struct noise_name_print<expr::NoiseType::POISSON>
+	{
+		auto operator()(FILE* out)
+		{
+			return fprintf(out, "%s", SYEX_NOISE_TOKEN_POISSON);
+		}
+
+		auto operator()(char* out)
+		{
+			return sprintf(out, "%s", SYEX_NOISE_TOKEN_POISSON);
+		}
+
+		auto operator()()
+		{
+			return STR_ARR_LEN(SYEX_NOISE_TOKEN_POISSON);
+		}
+	};
+
+	template<expr::NoiseType nt, typename T, size_t D>
+	struct symbolic_eval_print<NoiseData<nt, T, D>>
+	{
+		template<typename E>
+		size_t operator()(FILE* out, NoiseData<nt, T, D> const&, OpExpression<E> const& e)
+		{
+			size_t n = 0;
+			n += noise_name_print<nt>{}(out);
+			n += fprintf(out, "%s", SYEX_NOISE_A);
+			n += (*static_cast<E const*>(&e)).print(out);
+			n += fprintf(out, "%s", SYEX_NOISE_B);
+			return n;
+		}
+
+		template<typename E>
+		size_t operator()(char* out, NoiseData<nt, T, D> const&, OpExpression<E> const& e)
+		{
+			size_t n = 0;
+			n += noise_name_print<nt>{}(out + n);
+			n += sprintf(out + n, "%s", SYEX_NOISE_A);
+			n += (*static_cast<E const*>(&e)).print(out + n);
+			n += sprintf(out + n, "%s", SYEX_NOISE_B);
+			return n;
+		}
+
+		template<typename E>
+		size_t operator()(NoiseData<nt, T, D> const&, OpExpression<E> const& e)
+		{
+			return noise_name_print<nt>{}() + STR_ARR_LEN(SYEX_NOISE_A SYEX_NOISE_B)
+				+ (*static_cast<E const*>(&e)).print_length();
+		}
+	};
+
+
+	template<typename E0>
+	struct symbolic_eval_print<SymbolicListIndex<E0>>
+	{
+		template<typename E>
+		size_t operator()(FILE* out, SymbolicListIndex<E0> const& data, OpExpression<E> const& e)
+		{
+			size_t n = 0;
+			n += fprintf(out, "%s", SYEX_ARRAY_A);
+			n += (*static_cast<E const*>(&e)).print(out);
+			n += fprintf(out, "%s", SYEX_ARRAY_B SYEX_ARRAY_SUBSCRIPT_A);
+			n += data.e.print(out);
+			n += fprintf(out, "%s", SYEX_ARRAY_SUBSCRIPT_B);
+			return n;
+		}
+
+		template<typename E>
+		size_t operator()(char* out, SymbolicListIndex<E0> const& data, OpExpression<E> const& e)
+		{
+			size_t n = 0;
+			n += sprintf(out + n, "%s", SYEX_ARRAY_A);
+			n += (*static_cast<E const*>(&e)).print(out + n);
+			n += sprintf(out + n, "%s", SYEX_ARRAY_B SYEX_ARRAY_SUBSCRIPT_A);
+			n += data.e.print(out + n);
+			n += sprintf(out + n, "%s", SYEX_ARRAY_SUBSCRIPT_B);
+			return n;
+		}
+
+		template<typename E>
+		size_t operator()(SymbolicListIndex<E0> const& data, OpExpression<E> const& e)
+		{
+			return data.e.print_length() + (*static_cast<E const*>(&e)).print_length()
+				+ STR_ARR_LEN(SYEX_ARRAY_A SYEX_ARRAY_B SYEX_ARRAY_SUBSCRIPT_A SYEX_ARRAY_SUBSCRIPT_B);
+		}
+	};
+
+
+	template<typename sub_t, typename E, int... I0s, int... P0s, typename... T1s, typename... T2s, typename B>
+	struct symbolic_eval_print<
+		SymbolicSeries<expr::sum_op, sub_t,
+			symphas::lib::types_list<E, 
+				symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, 
+				symphas::lib::types_list<expr::series_limits<T1s, T2s>...>, 
+				B>>>
+	{
+		using sum_t = SymbolicSeries<expr::sum_op, sub_t,
+			symphas::lib::types_list<E, 
+				symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, 
+				symphas::lib::types_list<expr::series_limits<T1s, T2s>...>, 
+				B>>;
+
+		size_t print_limit(FILE* out, int l)
+		{
+			return fprintf(out, "%d", l);
+		}
+
+		template<typename E0>
+		size_t print_limit(FILE* out, OpExpression<E0> const& e)
+		{
+			return static_cast<E0 const*>(&e)->print(out);
+		}
+
+		template<typename V, int N, int P>
+		size_t print_limit(FILE* out, OpTerm<V, expr::symbols::i_<N, P>>)
+		{
+			if constexpr (P > 0)
+			{
+				return fprintf(out, "%s+%d", expr::get_op_name(expr::symbols::i_<N, 0>{}), P);
+			}
+			else if constexpr (P < 0)
+			{
+				return fprintf(out, "%s-%d", expr::get_op_name(expr::symbols::i_<N, 0>{}), -P);
+			}
+			else
+			{
+				return fprintf(out, "%s", expr::get_op_name(expr::symbols::i_<N, 0>{}));
+			}
+		}
+
+		template<typename... Es, size_t I0, size_t... Is>
+		size_t print_limit(FILE* out, OpAdd<Es...> const& e, std::index_sequence<I0, Is...>)
+		{
+			size_t n = 0;
+			n += print_limit(out, expr::get<I0>(e));
+
+			if constexpr (sizeof...(Is) > 0)
+			{
+				if (expr::eval(expr::coeff(expr::get<I0 + 1>(e))) >= 0)
+				{
+					n += symphas::internal::print_sep(out, SYEX_ADD_SEP);
+				}
+				n += print_limit(out, e, std::index_sequence<Is...>{});
+			}
+
+			return n;
+		}
+
+		template<typename... Es>
+		size_t print_limit(FILE* out, OpAdd<Es...> const& e)
+		{
+			return print_limit(out, e, std::make_index_sequence<sizeof...(Es)>{});
+		}
+
+		template<typename L, typename R>
+		size_t print_limit(FILE* out, std::pair<L, R> const& e)
+		{
+			size_t n = 0;
+			n += fprintf(out, "%s", SYEX_SUM_LIM_COMPARE_A);
+			n += print_limit(out, e.first);
+			n += fprintf(out, "%s", SYEX_SUM_LIM_COMPARE_SEP);
+			n += print_limit(out, e.second);
+			n += fprintf(out, "%s", SYEX_SUM_LIM_COMPARE_B);
+			return n;
+		}
+
+
+		size_t print_limit(char* out, int l)
+		{
+			return sprintf(out, "%d", l);
+		}
+
+		template<typename E0>
+		size_t print_limit(char* out, OpExpression<E0> const& e)
+		{
+			return static_cast<E0 const*>(&e)->print(out);
+		}
+
+		template<typename V, int N, int P>
+		size_t print_limit(char* out, OpTerm<V, expr::symbols::i_<N, P>>)
+		{
+			if constexpr (P > 0)
+			{
+				return sprintf(out, "%s+%d", expr::get_op_name(expr::symbols::i_<N, 0>{}), P);
+			}
+			else if constexpr (P < 0)
+			{
+				return sprintf(out, "%s-%d", expr::get_op_name(expr::symbols::i_<N, 0>{}), -P);
+			}
+			else
+			{
+				return sprintf(out, "%s", expr::get_op_name(expr::symbols::i_<N, 0>{}));
+			}
+		}
+
+		template<typename... Es>
+		size_t print_limit(char* out, OpAdd<Es...> const& e)
+		{
+			return print_limit(out, e, std::make_index_sequence<sizeof...(Es)>{});
+		}
+
+		template<typename... Es, size_t I0, size_t... Is>
+		size_t print_limit(char* out, OpAdd<Es...> const& e, std::index_sequence<I0, Is...>)
+		{
+			size_t n = 0;
+			n += print_limit(out, expr::get<I0>(e));
+
+			if constexpr (sizeof...(Is) > 0)
+			{
+				if (expr::eval(expr::coeff(expr::get<I0 + 1>(e))) >= 0)
+				{
+					n += symphas::internal::print_sep(out + n, SYEX_ADD_SEP);
+				}
+				n += print_limit(out + n, e, std::index_sequence<Is...>{});
+			}
+
+			return n;
+		}
+
+		template<typename L, typename R>
+		size_t print_limit(char* out, std::pair<L, R> const& e)
+		{
+			size_t n = 0;
+			n += sprintf(out + n, "%s", SYEX_SUM_LIM_COMPARE_A);
+			n += print_limit(out + n, e.first);
+			n += sprintf(out + n, "%s", SYEX_SUM_LIM_COMPARE_SEP);
+			n += print_limit(out + n, e.second);
+			n += sprintf(out + n, "%s", SYEX_SUM_LIM_COMPARE_B);
+			return n;
+		}
+
+		template<int N, int P, typename T1, typename T2>
+		size_t print_limit(expr::symbols::i_<N, P>, FILE* out, expr::series_limits<T1, T2> const& limit)
+		{
+			size_t n = 0;
+			n += fprintf(out, "%s%s=", SYEX_SUM_LIM_A, expr::get_op_name(expr::symbols::i_<N, P>{}));
+			n += print_limit(out, expr::limit_0(limit));
+			n += fprintf(out, "%s", SYEX_SUM_LIM_SEP);
+			n += print_limit(out, expr::limit_1(limit));
+			n += fprintf(out, "%s", SYEX_SUM_LIM_B);
+			return n;
+		}
+
+		template<int N, int P, typename T1, typename T2>
+		size_t print_limit(expr::symbols::i_<N, P>, char* out, expr::series_limits<T1, T2> const& limit)
+		{
+			size_t n = 0;
+			n += sprintf(out, "%s%s=", SYEX_SUM_LIM_A, expr::get_op_name(expr::symbols::i_<N, P>{}));
+			n += print_limit(out + n, expr::limit_0(limit));
+			n += sprintf(out + n, "%s", SYEX_SUM_LIM_SEP);
+			n += print_limit(out + n, expr::limit_1(limit));
+			n += sprintf(out + n, "%s", SYEX_SUM_LIM_B);
+			return n;
+		}
+
+		template<size_t... Ns>
+		size_t print_limits(FILE* out, std::tuple<expr::series_limits<T1s, T2s>...> const& limits, std::index_sequence<Ns...>)
+		{
+			return (print_limit(symphas::lib::type_at_index<Ns, expr::symbols::i_<I0s, P0s>...>{}, out, std::get<Ns>(limits)) + ...);
+		}
+
+		template<size_t... Ns>
+		size_t print_limits(char* out, std::tuple<expr::series_limits<T1s, T2s>...> const& limits, std::index_sequence<Ns...>)
+		{
+			size_t n = 0;
+			((n += print_limit(symphas::lib::type_at_index<Ns, expr::symbols::i_<I0s, P0s>...>{}, out + n, std::get<Ns>(limits))), ...);
+			return n;
+		}
+
+
+		size_t print_limit_length(int l)
+		{
+			return symphas::lib::num_digits(l) + ((l < 0) ? 1 : 0);
+		}
+
+		template<typename E0>
+		size_t print_limit_length(OpExpression<E0> const& e)
+		{
+			return static_cast<E0 const*>(&e)->print_length();
+		}
+
+		template<int N, int P>
+		size_t print_limit_length(expr::symbols::i_<N, P>)
+		{
+			size_t n = 0;
+			if constexpr (P > 0)
+			{	
+				n += std::strlen(expr::get_op_name(expr::symbols::i_<N, 0>{}));
+				n += 1 + symphas::lib::num_digits(P);
+			}
+			else if constexpr (P < 0)
+			{
+				n += std::strlen(expr::get_op_name(expr::symbols::i_<N, 0>{}));
+				n += 1 + symphas::lib::num_digits(-P);
+			}
+			else
+			{
+				n += std::strlen(expr::get_op_name(expr::symbols::i_<N, 0>{}));
+			}
+			return n;
+		}
+
+		template<int N, int P, typename T1, typename T2>
+		size_t print_limit_length(expr::symbols::i_<N, P>, expr::series_limits<T1, T2> const& limit)
+		{
+			size_t n = 0;
+			n += STR_ARR_LEN(SYEX_SUM_LIM_A SYEX_SUM_LIM_SEP SYEX_SUM_LIM_B);
+			n += 1 + std::strlen(expr::get_op_name(expr::symbols::i_<N, P>{}));
+			n += print_limit_length(limit._0);
+			n += print_limit_length(limit._1);
+			return n;
+		}
+
+		template<size_t... Ns>
+		size_t print_limits_length(std::tuple<expr::series_limits<T1s, T2s>...> const& limits, std::index_sequence<Ns...>)
+		{
+			size_t n = 0;
+			((n += print_limit_length(symphas::lib::type_at_index<Ns, expr::symbols::i_<I0s, P0s>...>{}, out + n, std::get<Ns>(limits))), ...);
+			return n;
+		}
+
+		template<typename E0>
+		size_t operator()(FILE* out, sum_t const& sum, OpExpression<E0> const& e)
+		{
+			size_t n = 0;
+			n += fprintf(out, SYEX_SUM_SYMBOL);
+			n += print_limits(out, sum.limits, std::make_index_sequence<sizeof...(I0s)>{});
+			n += fprintf(out, SYEX_SUM_A);
+			n += (*static_cast<E0 const*>(&e)).print(out);
+			n += fprintf(out, SYEX_SUM_B);
+			return n;
+		}
+
+		template<typename E0>
+		size_t operator()(char* out, sum_t const& sum, OpExpression<E0> const& e)
+		{
+			size_t n = 0;
+			n += sprintf(out, SYEX_SUM_SYMBOL);
+			n += print_limits(out + n, sum.limits, std::make_index_sequence<sizeof...(I0s)>{});
+			n += sprintf(out + n, SYEX_SUM_A);
+			n += (*static_cast<E0 const*>(&e)).print(out + n);
+			n += sprintf(out + n, SYEX_SUM_B);
+			return n;
+		}
+
+		template<typename E0>
+		size_t operator()(sum_t const& sum, OpExpression<E0> const& e)
+		{
+			size_t n = 0;
+			n += STR_ARR_LEN(SYEX_SUM_SYMBOL SYEX_SUM_A SYEX_SUM_B);
+			n += print_limits_length(sum.limits, std::make_index_sequence<sizeof...(I0s)>{});
+			n += (*static_cast<E const*>(&e)).print_length();
+			return n;
+		}
+	};
+
+	symbolic_eval_print()->symbolic_eval_print<void>;
+
+
+	template<typename T>
+	struct integral_print
+	{
+		template<typename E, typename T0>
+		size_t operator()(FILE* out, T const& domain, OpExpression<E> const& e)
+		{
+			size_t n = 0;
+			n += fprintf(out, SYEX_INTEGRAL_SYMBOL);
+			n += fprintf(out, SYEX_INTEGRAL_LIM_A "%s" SYEX_INTEGRAL_LIM_SEP "%s" SYEX_INTEGRAL_LIM_B, "", "");
+			n += fprintf(out, expr::get_op_name(domain));
+			n += fprintf(out, SYEX_INTEGRAL_A);
+			n += (*static_cast<E const*>(&e)).print(out);
+			n += fprintf(out, SYEX_INTEGRAL_B);
+			return n;
+		}
+
+		template<typename E>
+		size_t operator()(char* out, T const& domain, OpExpression<E> const& e)
+		{
+			size_t n = 0;
+			n += sprintf(out + n, SYEX_INTEGRAL_SYMBOL);
+			n += sprintf(out + n, SYEX_INTEGRAL_LIM_A "%s" SYEX_INTEGRAL_LIM_SEP "%s" SYEX_INTEGRAL_LIM_B, "", "");
+			n += fprintf(out, expr::get_op_name(domain));
+			n += sprintf(out + n, SYEX_INTEGRAL_A);
+			n += (*static_cast<E const*>(&e)).print(out + n);
+			n += sprintf(out + n, SYEX_INTEGRAL_B);
+			return n;
+		}
+
+		template<typename E>
+		size_t operator()(symphas::grid_info const&, OpExpression<E> const& e)
+		{
+			size_t n = 0;
+			n += STR_ARR_LEN(SYEX_INTEGRAL_SYMBOL SYEX_INTEGRAL_LIM_A SYEX_INTEGRAL_LIM_SEP SYEX_INTEGRAL_LIM_B
+				SYEX_INTEGRAL_DOMAIN_SYM SYEX_INTEGRAL_INTEGRATION_SYM SYEX_INTEGRAL_A SYEX_INTEGRAL_B);
+			n += (*static_cast<E const*>(&e)).print_length(out + n);
+			return n;
+		}
+	};
+
+	template<typename T>
+	struct integral_print<expr::variational_t<T>>
+	{
+		template<typename E>
+		size_t operator()(FILE* out, symphas::grid_info const&, OpExpression<E> const& e)
+		{
+			size_t n = 0;
+			n += fprintf(out, SYEX_INTEGRAL_SYMBOL);
+			n += fprintf(out, SYEX_INTEGRAL_LIM_A "%s" SYEX_INTEGRAL_LIM_SEP "%s" SYEX_INTEGRAL_LIM_B, SYEX_INTEGRAL_DOMAIN_SYM, "");
+			n += fprintf(out, SYEX_INTEGRAL_INTEGRATION_SYM);
+			n += fprintf(out, SYEX_INTEGRAL_A);
+			n += (*static_cast<E const*>(&e)).print(out);
+			n += fprintf(out, SYEX_INTEGRAL_B);
+			return n;
+		}
+
+		template<typename E>
+		size_t operator()(char* out, symphas::grid_info const&, OpExpression<E> const& e)
+		{
+			size_t n = 0;
+			n += sprintf(out + n, SYEX_INTEGRAL_SYMBOL);
+			n += sprintf(out + n, SYEX_INTEGRAL_LIM_A "%s" SYEX_INTEGRAL_LIM_SEP "%s" SYEX_INTEGRAL_LIM_B, SYEX_INTEGRAL_DOMAIN_SYM, "");
+			n += fprintf(out, SYEX_INTEGRAL_INTEGRATION_SYM);
+			n += sprintf(out + n, SYEX_INTEGRAL_A);
+			n += (*static_cast<E const*>(&e)).print(out + n);
+			n += sprintf(out + n, SYEX_INTEGRAL_B);
+			return n;
+		}
+
+		template<typename E>
+		size_t operator()(symphas::grid_info const&, OpExpression<E> const& e)
+		{
+			size_t n = 0;
+			n += STR_ARR_LEN(SYEX_INTEGRAL_SYMBOL SYEX_INTEGRAL_LIM_A SYEX_INTEGRAL_LIM_SEP SYEX_INTEGRAL_LIM_B
+				SYEX_INTEGRAL_DOMAIN_SYM SYEX_INTEGRAL_INTEGRATION_SYM SYEX_INTEGRAL_A SYEX_INTEGRAL_B);
+			n += (*static_cast<E const*>(&e)).print_length(out + n);
+			return n;
+		}
+	};
+
 }
 
 #undef SYEX_EQN_SEP

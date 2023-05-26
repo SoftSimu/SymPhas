@@ -31,7 +31,8 @@
 
 struct TimeValue
 {
-	TimeValue(double* time) : time{ time } {}
+	TimeValue() : time{ nullptr } {}
+	TimeValue(const double* time) : time{ time } {}
 
 	double get_time() const
 	{
@@ -39,7 +40,7 @@ struct TimeValue
 	}
 
 protected:
-	double* time;
+	const double* time;
 };
 
 template<size_t D, Axis ax>
@@ -67,7 +68,7 @@ struct GridAxis
 	{
 		std::copy(dims0, dims0 + D, this->dims0);
 		std::copy(dims, dims + D, this->dims);
-		v.set_interval_count(left, right, dims0[symphas::axis_to_index(ax)]);
+		v.set_count(left, right, dims0[symphas::axis_to_index(ax)]);
 
 		for (iter_type i = 0; i < D; ++i)
 		{
@@ -587,7 +588,7 @@ namespace expr
 	inline auto make_varx(len_type dims, symphas::interval_data_type const& vdata)
 	{
 		len_type dims_arr[]{ dims };
-		return make_var<Axis::X, 1>(symphas::grid_info{ vdata }.get_dims().get(), 
+		return make_var<Axis::X, 1>(symphas::grid_info{ vdata }.get_dims(), 
 			dims_arr, vdata.at(Axis::X).left(), vdata.at(Axis::X).right());
 	}
 
@@ -601,7 +602,7 @@ namespace expr
 	 */
 	inline auto make_varx(len_type const (&dims)[2], symphas::interval_data_type const& vdata)
 	{
-		return make_var<Axis::X, 2>(symphas::grid_info{ vdata }.get_dims().get(), 
+		return make_var<Axis::X, 2>(symphas::grid_info{ vdata }.get_dims(), 
 			dims, vdata.at(Axis::X).left(), vdata.at(Axis::X).right());
 	}
 
@@ -615,7 +616,7 @@ namespace expr
 	 */
 	inline auto make_varx(len_type const(&dims)[3], symphas::interval_data_type const& vdata)
 	{
-		return make_var<Axis::X, 3>(symphas::grid_info{ vdata }.get_dims().get(), 
+		return make_var<Axis::X, 3>(symphas::grid_info{ vdata }.get_dims(), 
 			dims, vdata.at(Axis::X).left(), vdata.at(Axis::X).right());
 	}
 
@@ -629,7 +630,7 @@ namespace expr
 	 */
 	inline auto make_vary(len_type const (&dims)[2], symphas::interval_data_type const& vdata)
 	{
-		return make_var<Axis::Y, 2>(symphas::grid_info{ vdata }.get_dims().get(), 
+		return make_var<Axis::Y, 2>(symphas::grid_info{ vdata }.get_dims(), 
 			dims, vdata.at(Axis::Y).left(), vdata.at(Axis::Y).right());
 	}
 
@@ -643,7 +644,7 @@ namespace expr
 	 */
 	inline auto make_vary(len_type const (&dims)[3], symphas::interval_data_type const& vdata)
 	{
-		return make_var<Axis::Y, 3>(symphas::grid_info{ vdata }.get_dims().get(), 
+		return make_var<Axis::Y, 3>(symphas::grid_info{ vdata }.get_dims(), 
 			dims, vdata.at(Axis::Y).left(), vdata.at(Axis::Y).right());
 	}
 
@@ -657,7 +658,7 @@ namespace expr
 	 */
 	inline auto make_varz(len_type const (&dims)[3], symphas::interval_data_type const& vdata)
 	{
-		return make_var<Axis::Z, 3>(symphas::grid_info{ vdata }.get_dims().get(), 
+		return make_var<Axis::Z, 3>(symphas::grid_info{ vdata }.get_dims(), 
 			dims, vdata.at(Axis::Z).left(), vdata.at(Axis::Z).right());
 	}
 
@@ -676,7 +677,7 @@ namespace expr
 	template<Axis ax, size_t D>
 	auto make_var(len_type const* dims, symphas::interval_data_type const& vdata)
 	{
-		return make_var<ax, D>(symphas::grid_info{ vdata }.get_dims().get(), 
+		return make_var<ax, D>(symphas::grid_info{ vdata }.get_dims(), 
 			dims, vdata.at(ax).left(), vdata.at(ax).right());
 	}
 
@@ -690,7 +691,7 @@ ALLOW_COMBINATION((size_t D, Axis ax), (GridAxis<D, ax>))
 
 #ifdef LATEX_PLOT
 
-#define STR_AXIS(C) "$" #C "$"
+#define STR_AXIS(C) #C 
 
 #else
 

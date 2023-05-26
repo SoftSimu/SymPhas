@@ -1929,12 +1929,12 @@ namespace symphas::internal
 	{
 		GeneratedStencilApply(...) {}
 
-		size_t print(char* out)
+		size_t print(char* out) const
 		{
 			return sprintf(out, "x");
 		}
 
-		size_t print(FILE* out)
+		size_t print(FILE* out) const
 		{
 			return fprintf(out, "x");
 		}
@@ -1950,12 +1950,12 @@ namespace symphas::internal
 		GeneratedStencilApply(len_type stride, double _h) : stride{ stride }, _h{ std::pow(_h, h_exponent) } {}
 
 		template<typename T>
-		auto operator()(T const* v)
+		auto operator()(T const* v) const
 		{
 			return _h * (StencilCoeff<std::pair<expr::symbols::internal::S1_symbol<Is>, Es>>{}(v, stride) + ...);
 		}
 
-		size_t print(char* out)
+		size_t print(char* out) const
 		{
 			size_t n = 0;
 			(((n += StencilCoeff<std::pair<expr::symbols::internal::S1_symbol<Is>, Es>>{}.print(out + n)),
@@ -1963,7 +1963,7 @@ namespace symphas::internal
 			return n;
 		}
 
-		size_t print(FILE* out)
+		size_t print(FILE* out) const
 		{
 			size_t n = 0;
 			(((n += StencilCoeff<std::pair<expr::symbols::internal::S1_symbol<Is>, Es>>{}.print(out)),
@@ -1976,7 +1976,7 @@ namespace symphas::internal
 	template<int Im, int Jm, int I>
 	void print_stencil(types_list<>)
 	{
-		printf("|\n");
+		return printf("|\n");
 	}
 
 	template<int Im, int Jm, int I, int I0, int J0, typename E0, int... Is, int... Js, typename... Es>
@@ -1984,10 +1984,12 @@ namespace symphas::internal
 	{
 		using entry_t = StencilCoeff<std::pair<expr::symbols::internal::S2_symbol<I0, J0>, E0>>;
 
+		size_t n = 0;
 		if constexpr (I0 < I && J0 != Jm)
 		{
-			printf("|\n");
-			print_stencil<Im, Jm, Im>(content);
+			n += printf("|\n");
+			n += print_stencil<Im, Jm, Im>(content);
+			return n;
 		}
 		else
 		{
@@ -1997,14 +1999,16 @@ namespace symphas::internal
 				size_t len = entry_t{}.print_length();
 				buffer = new char[len + 1];
 				entry_t{}.print(buffer);
-				printf("| %*s ", BOX_SPACING, buffer);
+				n += printf("| %*s ", BOX_SPACING, buffer);
 				delete[] buffer;
-				print_stencil<Im, Jm, I + 1>(types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...>{});
+				n += print_stencil<Im, Jm, I + 1>(types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...>{});
+				return n;
 			}
 			else
 			{
-				printf("| %*s ", BOX_SPACING, "");
-				print_stencil<Im, Jm, I + 1>(content);
+				n += printf("| %*s ", BOX_SPACING, "");
+				n += print_stencil<Im, Jm, I + 1>(content);
+				return n;
 			}
 		}
 	}
@@ -2012,13 +2016,13 @@ namespace symphas::internal
 	template<int... Is, int... Js, typename... Es>
 	void print_stencil(types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...> content)
 	{
-		print_stencil<fixed_min<Is...>, fixed_min<Js...>, fixed_min<Is...>>(content);
+		return print_stencil<fixed_min<Is...>, fixed_min<Js...>, fixed_min<Is...>>(content);
 	}
 
 	template<int... Is, int... Js, typename... Es>
 	void print_stencil(GeneratedStencilApply<types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...>>)
 	{
-		print_stencil(types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...>{});
+		return print_stencil(types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...>{});
 	}
 
 
@@ -2032,12 +2036,12 @@ namespace symphas::internal
 		GeneratedStencilApply(len_type const (&stride)[2], double _h) : stride{ stride[0], stride[1] }, _h{ std::pow(_h, h_exponent) } {}
 
 		template<typename T>
-		auto operator()(T const* v)
+		auto operator()(T const* v) const
 		{
 			return _h * (StencilCoeff<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>>{}(v, stride) + ...);
 		}
 
-		size_t print(char* out)
+		size_t print(char* out) const
 		{
 			size_t n = 0;
 			(((n += StencilCoeff<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>>{}.print(out + n)),
@@ -2045,7 +2049,7 @@ namespace symphas::internal
 			return n;
 		}
 
-		size_t print(FILE* out)
+		size_t print(FILE* out) const
 		{
 			size_t n = 0;
 			(((n += StencilCoeff<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>>{}.print(out)),
@@ -2064,12 +2068,12 @@ namespace symphas::internal
 		GeneratedStencilApply(len_type const (&stride)[3], double _h) : stride{ stride[0], stride[1], stride[2] }, _h{ std::pow(_h, h_exponent) } {}
 
 		template<typename T>
-		auto operator()(T const* v)
+		auto operator()(T const* v) const
 		{
 			return _h * (StencilCoeff<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>>{}(v, stride) + ...);
 		}
 
-		size_t print(char* out)
+		size_t print(char* out) const
 		{
 			size_t n = 0;
 			(((n += StencilCoeff<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>>{}.print(out + n)),
@@ -2077,7 +2081,7 @@ namespace symphas::internal
 			return n;
 		}
 
-		size_t print(FILE* out)
+		size_t print(FILE* out) const
 		{
 			size_t n = 0;
 			(((n += StencilCoeff<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>>{}.print(out)),
@@ -2085,6 +2089,27 @@ namespace symphas::internal
 			return n;
 		}
 	};
+}
+
+namespace expr
+{
+	template<typename Stt>
+	size_t print_stencil(GeneratedStencilApply<Stt> const& stencil)
+	{
+		size_t n = 0;
+		n += stencil.print(stdout);
+		n += printf("\n");
+		return n;
+	}
+
+	template<typename Stt>
+	size_t print_stencil(Stt const& stencil)
+	{
+		size_t n = 0;
+		n += symphas::internal::print_stencil(stencil);
+		n += printf("\n");
+		return n;
+	}
 }
 
 /*

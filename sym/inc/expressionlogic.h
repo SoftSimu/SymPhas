@@ -156,9 +156,10 @@ struct expr::BaseData<SINGLE_ARG TYPE> \
  * \param TYPE The type which is redirected to another base object
  * through the cast to \p REDIRECT_TEMPLATE.
  */
-#define DEFINE_BASE_DATA_REDIRECT(TYPENAME_TEMPLATES, REDIRECT_TEMPLATE, TYPE) \
-SYEX_IMPL_DEFINE_BASE_DATA((SINGLE_ARG TYPENAME_TEMPLATES), (SINGLE_ARG TYPE), decltype(auto), decltype(auto), \
-	(expr::BaseData<SINGLE_ARG REDIRECT_TEMPLATE>::get(data, n)), (expr::BaseData<SINGLE_ARG REDIRECT_TEMPLATE>::get(data)))
+#define DEFINE_BASE_DATA_REDIRECT(TEMPLATES, REDIRECT_TEMPLATE, TYPE) \
+SYEX_IMPL_DEFINE_BASE_DATA((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPE), decltype(auto), decltype(auto), \
+	(expr::BaseData<SINGLE_ARG REDIRECT_TEMPLATE>::get(data, n)), (expr::BaseData<SINGLE_ARG REDIRECT_TEMPLATE>::get(data))) \
+	template<SINGLE_ARG TEMPLATES> struct expr::original_data_type<SINGLE_ARG TYPE> { using type = typename expr::original_data_type<SINGLE_ARG REDIRECT_TEMPLATE>::type; };
 
 //! Define a new base data access method for an array.
 /*!
@@ -185,6 +186,33 @@ SYEX_IMPL_DEFINE_BASE_DATA((SINGLE_ARG TYPENAME_TEMPLATES), (SINGLE_ARG TYPE), d
  */
 #define DEFINE_BASE_DATA(TEMPLATES, TYPE, RETURN_ELEMENT, RETURN_DATA) \
 SYEX_IMPL_DEFINE_BASE_DATA((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPE), decltype(auto), decltype(auto), (RETURN_ELEMENT), (RETURN_DATA))
+
+
+//! Define a new base data access method for an array.
+/*!
+ * Use this for a new object which contains data and which should be used
+ * by the symbolic algebra functionality. By defining a expr::BaseData, a variable
+ * defined with this type can be evaluated and return a value.
+ *
+ * When writing a parameter for the \p RETURN_ELEMENT or \p RETURN_DATA arguments,
+ * the instance of type \p TYPE is named `data`. As can example, one can write:
+```
+	 DEFINE_BASE_DATA((typename T, size_t D), (Grid<T, D>), data[n], data)
+```
+ * which would define a new ::BaseData specialization for the Grid class (one already
+ * exists though), and get the element of the grid, and the grid itself.
+ *
+ * \param TEMPLATES Template arguments used by the type specialization. Wrapped
+ * in parentheses.
+ * \param TYPE The type that the expr::BaseData is specialized for.
+ * \param RETURN_ELEMENT A statement which will access an element
+ * of the specialized type instance, and placed after a `return` keyword
+ * in order for it to be returned.
+ * \param RETURN_DATA A statement which will return a data object, which can be
+ * the instance itself, or the instance cast to a different type.
+ */
+#define DEFINE_BASE_DATA_INHERITED(TEMPLATES, TYPE, PARENT_TYPE) \
+DEFINE_BASE_DATA_REDIRECT((SINGLE_ARG TEMPLATES), (SINGLE_ARG PARENT_TYPE), (SINGLE_ARG TYPE))
 
 //! Define a new base data access method for an array type.
 /*!
@@ -391,6 +419,18 @@ DEFINE_BASE_TYPE((), (expr::symbols:: TYPE), expr::symbols::TYPE ## _symbol) \
 ALLOW_COMBINATION((), (expr::symbols::TYPE ## _symbol)) \
 //DEFINE_BASE_DATA((), (expr::symbols::TYPE ## _symbol), expr::symbols::Symbol{}, expr::symbols::Symbol{})
 
+#define ADD_EXPR_TYPE_SYMBOL_TEMPLATE_WITH_ID(TYPE, TEMPLATES, TYPES, ID) \
+namespace expr::symbols { \
+template<SINGLE_ARG TEMPLATES> struct TYPE ## _symbol : Symbol {}; \
+template<SINGLE_ARG TEMPLATES> using TYPE = OpTerm<OpIdentity, TYPE ## _symbol<SINGLE_ARG TYPES>>; } \
+DEFINE_SYMBOL_ID(TEMPLATES, (expr::symbols::TYPE ## _symbol<SINGLE_ARG TYPES>), return ID) \
+DEFINE_BASE_TYPE(TEMPLATES, (expr::symbols:: TYPE<SINGLE_ARG TYPES>), expr::symbols::TYPE ## _symbol<SINGLE_ARG TYPES>) \
+ALLOW_COMBINATION(TEMPLATES, (expr::symbols::TYPE ## _symbol<SINGLE_ARG TYPES>)) \
+
+
+#define ADD_EXPR_TYPE_SYMBOL_TEMPLATE(TYPE, TEMPLATES, TYPES) \
+ADD_EXPR_TYPE_SYMBOL_TEMPLATE_WITH_ID(TYPE, (SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPES), #TYPE)
+
 
 // **************************************************************************************
 
@@ -439,9 +479,6 @@ namespace expr
  */
 
 
-DEFINE_SYMBOL_ID((typename A), (A*), return data)
-DEFINE_SYMBOL_ID((typename T, size_t D), (Grid<T, D>), return data.values)
-DEFINE_SYMBOL_ID((typename T, size_t D), (Grid<any_vector_t<T, D>, D>), return data.values[0])
 
 
 
@@ -487,7 +524,8 @@ namespace expr
 		template<typename T>
 		static const auto& get(T const& data, iter_type n)
 		{
-			return *(&data + n);
+			return data;
+			//return *(&data + n);
 		}
 
 		template<typename T>
@@ -499,7 +537,8 @@ namespace expr
 		template<typename T>
 		static auto& get(T& data, iter_type n)
 		{
-			return *(&data + n);
+			return data;
+			//return *(&data + n);
 		}
 
 		template<typename T>
@@ -662,6 +701,28 @@ namespace expr
 		static auto get(GridData<T, D>& data)
 		{
 			return BaseData<T*>::get(data);
+		}
+	};
+
+	//! Specialization based on expr::BaseData.
+	template<typename T, size_t D>
+	struct BaseData<GridSymbol<T, D>>
+	{
+		static decltype(auto) get(GridSymbol<T, D> const& data, iter_type n)
+		{
+			return BaseData<T>::get(data, n);
+		}
+		static decltype(auto) get(GridSymbol<T, D> const& data)
+		{
+			return BaseData<T>::get(data);
+		}
+		static decltype(auto) get(GridSymbol<T, D>& data, iter_type n)
+		{
+			return BaseData<T>::get(data, n);
+		}
+		static decltype(auto) get(GridSymbol<T, D>& data)
+		{
+			return BaseData<T>::get(data);
 		}
 	};
 
@@ -951,17 +1012,6 @@ namespace expr
 
 }
 
-DEFINE_BASE_DATA((typename T, size_t D), (Grid<T, D>), (T)data[n], data)
-DEFINE_BASE_DATA((typename T, size_t D), (BoundaryGrid<T, D>), (T)data[n], data)
-//DEFINE_BASE_DATA((template<typename, size_t> typename F, typename T, size_t D), (F<T, D>), data.as_grid()[n], data.as_grid())
-
-// *****************************************************************************
-
-
-
-DEFINE_SYMBOL_ID((typename G), (NamedData<G>), return data.name.c_str())
-
-
 namespace expr
 {
 
@@ -1167,6 +1217,9 @@ namespace expr
 	template<size_t Z, typename G>
 	constexpr bool is_combinable<Variable<Z, G>> = true;
 
+	//! Specialization based on expr::is_combinable.
+	template<typename T, size_t D>
+	constexpr bool is_combinable<GridSymbol<T, D>> = true;
 
 	//! Indicates whether a term is commutable (in multiplication).
 	/*!
@@ -1185,7 +1238,6 @@ namespace expr
 	constexpr bool has_identity = grid_has_identity<
 		typename base_data_type<G1>::type,
 		typename base_data_type<G2>::type, int>::value;
-
 
 
 	template<typename T>
@@ -1207,7 +1259,59 @@ namespace expr
 			return value;
 		}
 	}
+
+	template<typename T>
+	auto eval(T const& e, iter_type n)
+	{
+		if constexpr (expr::is_expression<T>)
+		{
+			return e.eval(n);
+		}
+		else
+		{
+			return eval(e);
+		}
+	}
+
+	/*
+	template<typename T, size_t... Ns>
+	auto eval(OpTensor<T, Ns...> const& tensor)
+	{
+		return tensor;
+	}*/
 }
+
+
+
+
+DEFINE_BASE_DATA((typename T, size_t D), (Grid<T, D>), (T)data[n], data)
+DEFINE_BASE_DATA((typename T, size_t D), (BoundaryGrid<T, D>), (T)data[n], data)
+//DEFINE_BASE_DATA((template<typename, size_t> typename F, typename T, size_t D), (F<T, D>), data.as_grid()[n], data.as_grid())
+
+
+// *****************************************************************************
+
+
+
+DEFINE_SYMBOL_ID((typename G), (NamedData<G>), return data.name)
+
+
+DEFINE_SYMBOL_ID((typename A), (A*), return data)
+DEFINE_SYMBOL_ID((typename T, size_t D), (Grid<T, D>), return data.values)
+DEFINE_SYMBOL_ID((typename T, size_t D), (Grid<any_vector_t<T, D>, D>), return data.values[0])
+
+
+
+ADD_EXPR_TYPE_SYMBOL_TEMPLATE_WITH_ID(placeholder_N_, (size_t N), (N), "N")
+namespace expr::symbols
+{
+	using placeholder_N = placeholder_N_<0>;
+	using placeholder_N_symbol = placeholder_N__symbol<0>;
+
+	template<size_t N>
+	using placeholder_N_symbol_ = placeholder_N__symbol<N>;
+}
+
 
 // ******************************************************************************************
 // Specializations of SymbolID and BaseData.
@@ -1235,6 +1339,25 @@ namespace expr
 		}
 	};
 
+	//! Specialization based on SymbolID.
+	template<typename G>
+	struct SymbolID<DynamicVariable<G>>
+	{
+		static decltype(auto) get(DynamicVariable<G> const& data)
+		{
+			return SymbolID<G>::get(data.get());
+		}
+	};
+
+	//! Specialization based on SymbolID.
+	template<typename G>
+	struct SymbolID<DynamicVariable<NamedData<G*>>>
+	{
+		static decltype(auto) get(DynamicVariable<NamedData<G*>> const& data)
+		{
+			return SymbolID<NamedData<G*>>::get(data.data);
+		}
+	};
 
 	//! Specialization based on expr::BaseData.
 	template<>
@@ -1295,6 +1418,50 @@ namespace expr
 		static decltype(auto) get(Variable<Z, T>& data)
 		{
 			return BaseData<T>::get(data);
+		}
+	};
+
+	//! Specialization based on BaseData.
+	template<typename T>
+	struct BaseData<DynamicVariable<T>>
+	{
+		static decltype(auto) get(DynamicVariable<T> const& data, iter_type n)
+		{
+			return BaseData<T>::get(data.get(), n);
+		}
+		static decltype(auto) get(DynamicVariable<T> const& data)
+		{
+			return BaseData<T>::get(data.get());
+		}
+		static decltype(auto) get(DynamicVariable<T>& data, iter_type n)
+		{
+			return BaseData<T>::get(data.get(), n);
+		}
+		static decltype(auto) get(DynamicVariable<T>& data)
+		{
+			return BaseData<T>::get(data.get());
+		}
+	};
+
+	//! Specialization based on BaseData.
+	template<typename T>
+	struct BaseData<DynamicVariable<NamedData<T*>>>
+	{
+		static decltype(auto) get(DynamicVariable<NamedData<T*>> const& data, iter_type n)
+		{
+			return BaseData<T>::get(data.get(), n);
+		}
+		static decltype(auto) get(DynamicVariable<NamedData<T*>> const& data)
+		{
+			return BaseData<T>::get(data.get());
+		}
+		static decltype(auto) get(DynamicVariable<NamedData<T*>>& data, iter_type n)
+		{
+			return BaseData<T>::get(data.get(), n);
+		}
+		static decltype(auto) get(DynamicVariable<NamedData<T*>>& data)
+		{
+			return BaseData<T>::get(data.get());
 		}
 	};
 
@@ -1362,6 +1529,13 @@ struct expr::base_data_type<Variable<Z, T>>
 };
 
 //! Specialization based on expr::base_data_type.
+template<typename T>
+struct expr::base_data_type<DynamicVariable<T>>
+{
+	using type = typename expr::base_data_type<T>::type;
+};
+
+//! Specialization based on expr::base_data_type.
 template<typename A>
 struct expr::base_data_type<const A>
 {
@@ -1373,6 +1547,13 @@ template<typename A>
 struct expr::base_data_type<A&>
 {
 	using type = typename expr::base_data_type<A>::type;
+};
+
+//! Specialization based on expr::base_data_type.
+template<typename T, size_t D>
+struct expr::base_data_type<GridSymbol<T, D>>
+{
+	using type = typename expr::base_data_type<T>::type;
 };
 
 
@@ -1477,17 +1658,84 @@ struct expr::factor_count<Variable<Y, G>, Variable<Z, G>>
 };
 
 template<typename T, typename I>
-struct expr::factor_count<OpCoeff<void, I>, OpCoeff<T, I>>
+struct expr::factor_count<OpCoeffSwap<I>, OpCoeff<T, I>>
 {
 	static const size_t value = 1;
 };
 
+template<typename T, int N, int P0, int P1>
+struct expr::factor_count<OpCoeffSwap<expr::symbols::i_<N, P0>>, OpCoeff<T, expr::symbols::i_<N, P1>>>
+{
+	static const size_t value = 1;
+};
+
+template<typename T, int N, int P>
+struct expr::factor_count<OpCoeffSwap<expr::symbols::i_<N, P>>, OpCoeff<T, expr::symbols::i_<N, P>>>
+{
+	static const size_t value = 1;
+};
+
+//
+//template<typename T, typename I>
+//struct expr::factor_count<I, OpCoeff<T, I>>
+//{
+//	static const size_t value = 1;
+//};
 
 
 namespace symphas::internal
 {
 	struct exclusive_swap {};
 }
+//
+////! Specialization based on expr::factor_count;
+//template<typename C, typename T, size_t D>
+//struct expr::factor_count<C, GridData<T, D>>
+//{
+//	static const size_t value = expr::factor_count<C, T>::value;
+//};
+
+//! Specialization based on expr::factor_count;
+template<typename C, typename T, size_t D>
+struct expr::factor_count<C, GridSymbol<T, D>>
+{
+	static const size_t value = expr::factor_count<C, T>::value;
+};
+
+//! Specialization based on expr::factor_count;
+template<typename C, typename T, size_t D>
+struct expr::factor_count<GridSymbol<C, D>, T>
+{
+	static const size_t value = expr::factor_count<C, T>::value;
+};
+
+//! Specialization based on expr::factor_count;
+template<typename C, typename T, size_t D0, size_t D1>
+struct expr::factor_count<GridSymbol<C, D0>, GridSymbol<T, D1>>
+{
+	static const size_t value = (D0 == D1) && (expr::factor_count<C, T>::value || std::is_same<C, T>::value);
+};
+
+//! Specialization based on expr::factor_count;
+template<typename C, typename T, size_t D>
+struct expr::factor_count<OpTerm<OpIdentity, C>, GridSymbol<T, D>>
+{
+	static const size_t value = expr::factor_count<C, T>::value;
+};
+
+//! Specialization based on expr::factor_count;
+template<typename C, typename T, size_t D, expr::exp_key_t X>
+struct expr::factor_count<GridSymbol<C, D>, Term<T, X>>
+{
+	static const size_t value = expr::factor_count<C, Term<T, X>>::value;
+};
+
+//! Specialization based on expr::factor_count;
+template<typename C, size_t D, typename V, typename... Gs, expr::exp_key_t... Xs>
+struct expr::factor_count<GridSymbol<C, D>, OpTerms<V, Term<Gs, Xs>...>>
+{
+	static const size_t value = expr::factor_count<C, OpTerms<V, Term<Gs, Xs>...>>::value;
+};
 
 //! Specialization based on expr::factor_count;
 template<size_t Y, size_t Z, typename G>
@@ -1550,6 +1798,13 @@ template<typename C, typename T, typename... As, typename... Bs>
 struct expr::factor_count<SymbolicCaseSwap<C, T>, SymbolicCase<symphas::lib::types_list<As, Bs>...>>
 {
 	static const size_t value = ((std::is_same<C, As>::value || ...)) ? 1 : 0;
+};
+
+//! Specialization based on expr::factor_count;
+template<typename... As, typename... Bs>
+struct expr::factor_count<SymbolicCaseSwap<>, SymbolicCase<symphas::lib::types_list<As, Bs>...>>
+{
+	static const size_t value = 1;
 };
 
 //! Specialization based on expr::factor_count;
@@ -1701,7 +1956,6 @@ namespace symphas::internal
 	struct construct_term;
 
 }
-
 
 
 

@@ -43,33 +43,466 @@
  * @{
  */
 
+namespace expr
+{
+
+	namespace symbols
+	{
+
+
+
+		template<int N, int P = 0>
+		using i_op_type = OpTerm<OpIdentity, i_<N, P>>;
+
+		template<typename I>
+		constexpr bool is_index = false;
+		template<int N, int P>
+		constexpr bool is_index<i_<N, P>> = true;
+		template<int N, int P>
+		constexpr bool is_index<i_op_type<N, P>> = true;
+
+
+
+		template<int N, int P>
+		struct i_ : Symbol
+		{
+			explicit constexpr operator int() 
+			{
+				return 0;
+			}
+
+			constexpr operator i_op_type<N, P>() const
+			{
+				return {};
+			}
+
+			auto operator-() const
+			{
+				return -i_op_type<N, P>{};
+			}
+
+			template<int M, int Q>
+			auto operator=(i_<M, Q>) const
+			{
+				return index_eq<i_<N, P>, i_<M, Q>>{};
+			}
+
+			auto operator=(OpVoid) const
+			{
+				return index_eq_N<i_<N, P>, 0>{};
+			}
+
+			auto operator=(OpIdentity) const
+			{
+				return index_eq_N<i_<N, P>, 1>{};
+			}
+
+			auto operator=(OpNegIdentity) const
+			{
+				return index_eq_N<i_<N, P>, -1>{};
+			}
+
+			template<size_t N0>
+			auto operator=(OpFractionLiteral<N0, 1>) const
+			{
+				return index_eq_N<i_<N, P>, N0>{};
+			}
+
+			template<size_t N0>
+			auto operator=(OpNegFractionLiteral<N0, 1>) const
+			{
+				return index_eq_N<i_<N, P>, -int(N0)>{};
+			}
+
+			auto operator!=(OpVoid) const
+			{
+				return index_neq_N<i_<N, P>, 0>{};
+			}
+
+			auto operator!=(OpIdentity) const
+			{
+				return index_neq_N<i_<N, P>, 1>{};
+			}
+
+			auto operator!=(OpNegIdentity) const
+			{
+				return index_neq_N<i_<N, P>, -1>{};
+			}
+
+			template<size_t N0>
+			auto operator!=(OpFractionLiteral<N0, 1>) const
+			{
+				return index_neq_N<i_<N, P>, N0>{};
+			}
+
+			template<size_t N0>
+			auto operator!=(OpNegFractionLiteral<N0, 1>) const
+			{
+				return index_neq_N<i_<N, P>, -int(N0)>{};
+			}
+
+			template<int M, int Q>
+			auto operator!=(i_<M, Q>) const
+			{
+				return index_neq<i_<N, P>, i_<M, Q>>{};
+			}
+
+			template<int N0, int P0, int M>
+			auto operator=(OpAdd<OpTerm<OpIdentity, expr::symbols::i_<N0, P0>>, OpFractionLiteral<M, 1>>) const
+			{
+				return index_eq<i_<N, P>, expr::symbols::i_<N0, P0 + M>>{};
+			}
+
+			template<int N0, int P0, int M>
+			auto operator=(OpAdd<OpTerm<OpIdentity, expr::symbols::i_<N0, P0>>, OpNegFractionLiteral<M, 1>>) const
+			{
+				return index_eq<i_<N, P>, expr::symbols::i_<N0, P0 - M>>{};
+			}
+
+			template<int N0, int P0>
+			auto operator=(OpAdd<OpTerm<OpIdentity, expr::symbols::i_<N0, P0>>, OpIdentity>) const
+			{
+				return index_eq<i_<N, P>, expr::symbols::i_<N0, P0 + 1>>{};
+			}
+
+			template<int N0, int P0>
+			auto operator=(OpAdd<OpTerm<OpIdentity, expr::symbols::i_<N0, P0>>, OpNegIdentity>) const
+			{
+				return index_eq<i_<N, P>, expr::symbols::i_<N0, P0 - 1>>{};
+			}
+
+			template<typename... E0s>
+			auto operator=(OpAdd<E0s...>) const
+			{
+				return index_eq<i_<N, P>, OpAdd<E0s...>>{};
+			}
+
+			template<int N0, int P0, int M>
+			auto operator!=(OpAdd<OpTerm<OpIdentity, expr::symbols::i_<N0, P0>>, OpFractionLiteral<M, 1>>) const
+			{
+				return index_neq<i_<N, P>, expr::symbols::i_<N0, P0 + M>>{};
+			}
+
+			template<int N0, int P0, int M>
+			auto operator!=(OpAdd<OpTerm<OpIdentity, expr::symbols::i_<N0, P0>>, OpNegFractionLiteral<M, 1>>) const
+			{
+				return index_neq<i_<N, P>, expr::symbols::i_<N0, P0 - M>>{};
+			}
+
+			template<int N0, int P0>
+			auto operator!=(OpAdd<OpTerm<OpIdentity, expr::symbols::i_<N0, P0>>, OpIdentity>) const
+			{
+				return index_neq<i_<N, P>, expr::symbols::i_<N0, P0 + 1>>{};
+			}
+
+			template<int N0, int P0>
+			auto operator!=(OpAdd<OpTerm<OpIdentity, expr::symbols::i_<N0, P0>>, OpNegIdentity>) const
+			{
+				return index_neq<i_<N, P>, expr::symbols::i_<N0, P0 - 1>>{};
+			}
+
+			template<typename... E0s>
+			auto operator!=(OpAdd<E0s...>) const
+			{
+				return index_neq<i_<N, P>, OpAdd<E0s...>>{};
+			}
+
+			template<typename E>
+			auto operator=(E) const
+			{
+				return index_eq<i_<N, P>, E>{};
+			}
+
+			template<typename E>
+			auto operator!=(E) const
+			{
+				return index_neq<i_<N, P>, E>{};
+			}
+
+
+
+			template<typename E>
+			auto operator>(E) const;
+			template<typename E>
+			auto operator>=(E) const;
+			template<typename E>
+			auto operator<(E) const;
+			template<typename E>
+			auto operator<=(E) const;
+
+		};
+
+
+		template<int N0, int P0, int... Ns, int... Ps>
+		struct v_id_type<i_<N0, P0>, i_<Ns, Ps>...> : Symbol {};
+
+		template<typename I0, typename... Is>
+		using v_ = OpTerm<OpIdentity, v_id_type<I0, Is...>>;
+
+
+
+		template<int P0, int N, int P>
+		auto make_series_variable(i_<N, P>)
+		{
+			return v_<i_<N, P0>>{};
+		}
+
+	}
+
+}
+
+
+template<int N, int P>
+template<typename E>
+auto expr::symbols::i_<N, P>::operator>=(E) const
+{
+	return this->operator=(E{});
+}
+
+template<int N, int P>
+template<typename E>
+auto expr::symbols::i_<N, P>::operator>(E) const
+{
+	return this->operator>(E{} + OpIdentity{});
+}
+
+template<int N, int P>
+template<typename E>
+auto expr::symbols::i_<N, P>::operator<=(E) const
+{
+	return this->operator=(OpIdentity{}) && this->operator=(E{});
+}
+
+template<int N, int P>
+template<typename E>
+auto expr::symbols::i_<N, P>::operator<(E) const
+{
+	return this->operator<=(E{} - OpIdentity{});
+}
+
+
+template<typename I0, typename T0, typename T1>
+auto operator&&(expr::symbols::index_eq<I0, T0>, expr::symbols::index_eq<I0, T1>)
+{
+	using namespace expr::symbols;
+	return symphas::lib::types_list<index_eq<I0, T0>, index_eq<I0, T1>>{};
+}
+
+template<typename I0, typename T0, int N1>
+auto operator&&(expr::symbols::index_eq<I0, T0>, expr::symbols::index_eq_N<I0, N1>)
+{
+	using namespace expr::symbols;
+	return symphas::lib::types_list<index_eq<I0, T0>, index_eq_N<I0, N1>>{};
+}
+
+template<typename I0, int N0, typename T1>
+auto operator&&(expr::symbols::index_eq_N<I0, N0>, expr::symbols::index_eq<I0, T1>)
+{
+	using namespace expr::symbols;
+	return symphas::lib::types_list<index_eq_N<I0, N0>, index_eq<I0, T1>>{};
+}
+
+template<typename I0, int N0, int N1>
+auto operator&&(expr::symbols::index_eq_N<I0, N0>, expr::symbols::index_eq_N<I0, N1>)
+{
+	using namespace expr::symbols;
+	return symphas::lib::types_list<index_eq_N<I0, N0>, index_eq_N<I0, N1>>{};
+}
+
+
+DEFINE_SYMBOL_ID((size_t N), (expr::symbols::arg_t<N>), static char* name = expr::print_with_subscript<N>("arg").new_str(); return name;)
+ALLOW_COMBINATION((size_t N), (expr::symbols::arg_t<N>))
+
+DEFINE_SYMBOL_ID((int N, int P), (expr::symbols::i_<N, P>), static char* name = expr::print_with_subscript<N>("i").new_str(); return name;)
+ALLOW_COMBINATION((int N, int P), (expr::symbols::i_<N, P>))
+DEFINE_BASE_DATA((int N, int P), (expr::symbols::i_<N, P>), expr::symbols::Symbol{}, expr::symbols::Symbol{})
+
+//DEFINE_SYMBOL_ID((int... Ns, int... Ps), (expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>), static char* name = expr::print_with_subscripts<Ns...>("v").new_str(); return name;)
+DEFINE_SYMBOL_ID((int... Ns, int... Ps),
+	(expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>),
+	static char* name = expr::print_with_subscript("v", expr::print_list(expr::symbols::i_<Ns, Ps>{}...)).new_str(); return name;)
+ALLOW_COMBINATION((int... Ns, int... Ps), (expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>))
+DEFINE_BASE_DATA((int... Ns, int... Ps), (expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>), expr::symbols::Symbol{}, expr::symbols::Symbol{})
+
+//! Specialization based on expr::base_data_type.
+template<int N0, int P0>
+struct expr::base_data_type<expr::symbols::i_<N0, P0>>
+{
+	using type = expr::symbols::i_<N0, P0>;
+};
+
+template<int N, int P, typename E>
+auto operator+(expr::symbols::i_<N, P>, E const& e)
+{
+	return expr::symbols::i_op_type<N, P>{} + e;
+}
+
+template<int N, int P, typename E>
+auto operator+(E const& e, expr::symbols::i_<N, P>)
+{
+	return e + expr::symbols::i_op_type<N, P>{};
+}
+
+template<int N0, int P0, int N1, int P1>
+auto operator+(expr::symbols::i_<N0, P0>, expr::symbols::i_<N1, P1>)
+{
+	return expr::symbols::i_op_type<N0, P0>{} + expr::symbols::i_op_type<N1, P1>{};
+}
+
+template<int N, int P, typename E>
+auto operator-(expr::symbols::i_<N, P>, E const& e)
+{
+	return expr::symbols::i_op_type<N, P>{} - e;
+}
+
+template<int N, int P, typename E>
+auto operator-(E const& e, expr::symbols::i_<N, P>)
+{
+	return e - expr::symbols::i_op_type<N, P>{};
+}
+
+template<int N0, int P0, int N1, int P1>
+auto operator-(expr::symbols::i_<N0, P0>, expr::symbols::i_<N1, P1>)
+{
+	return expr::symbols::i_op_type<N0, P0>{} - expr::symbols::i_op_type<N1, P1>{};
+}
+
+template<int N, int P, typename E>
+auto operator*(expr::symbols::i_<N, P>, E const& e)
+{
+	return expr::symbols::i_op_type<N, P>{} *e;
+}
+
+template<int N, int P, typename E>
+auto operator*(E const& e, expr::symbols::i_<N, P>)
+{
+	return e * expr::symbols::i_op_type<N, P>{};
+}
+
+template<int N0, int P0, int N1, int P1>
+auto operator*(expr::symbols::i_<N0, P0>, expr::symbols::i_<N1, P1>)
+{
+	return expr::symbols::i_op_type<N0, P0>{} * expr::symbols::i_op_type<N1, P1>{};
+}
+
+template<int N, int P, typename E>
+auto operator/(expr::symbols::i_<N, P>, E const& e)
+{
+	return expr::symbols::i_op_type<N, P>{} / e;
+}
+
+template<int N, int P, typename E>
+auto operator/(E const& e, expr::symbols::i_<N, P>)
+{
+	return e / expr::symbols::i_op_type<N, P>{};
+}
+
+template<int N0, int P0, int N1, int P1>
+auto operator/(expr::symbols::i_<N0, P0>, expr::symbols::i_<N1, P1>)
+{
+	return expr::symbols::i_op_type<N0, P0>{} / expr::symbols::i_op_type<N1, P1>{};
+}
+
+template<int N, int P>
+auto operator*(expr::symbols::i_<N, P>, OpIdentity)
+{
+	return expr::symbols::i_<N, P>{};
+}
+
+template<int N, int P>
+auto operator*(OpIdentity, expr::symbols::i_<N, P>)
+{
+	return expr::symbols::i_<N, P>{};
+}
+
+
+template<int N, int P>
+auto operator+(expr::symbols::i_<N, P>, OpVoid)
+{
+	return expr::symbols::i_op_type<N, P>{};
+}
+
+template<int N, int P>
+auto operator+(OpVoid, expr::symbols::i_<N, P>)
+{
+	return expr::symbols::i_op_type<N, P>{};
+}
+
+template<int N, int P>
+auto operator-(expr::symbols::i_<N, P>, OpVoid)
+{
+	return expr::symbols::i_op_type<N, P>{};
+}
+
+template<int N, int P>
+auto operator-(OpVoid, expr::symbols::i_<N, P>)
+{
+	return expr::symbols::i_op_type<N, P>{};
+}
+
+template<int N, int P>
+auto operator*(expr::symbols::i_<N, P>, OpVoid)
+{
+	return OpVoid{};
+}
+
+template<int N, int P>
+auto operator*(OpVoid, expr::symbols::i_<N, P>)
+{
+	return OpVoid{};
+}
+
+template<int N, int P>
+auto operator/(OpVoid, expr::symbols::i_<N, P>)
+{
+	return OpVoid{};
+}
+
+
+
 
 template<typename E0, typename... T0s>
 struct SymbolicFunctionArray
 {
 	using f_type = SymbolicFunction<E0, T0s...>;
+	using eval_type = std::invoke_result_t<decltype(&f_type::eval), f_type, iter_type>;
 
-	SymbolicFunctionArray(len_type len) : data{ new f_type*[len] }, len{ len }
+	SymbolicFunctionArray(len_type n = 0, len_type len = 0) :
+		data{ (len > 0) ? new f_type * [len] : nullptr },
+		offsets{ (len > 0) ? new iter_type * [len] {} : nullptr },
+		len{ len }, n{ n }
 	{
 		for (iter_type i = 0; i < len; ++i)
 		{
+			offsets[i] = new iter_type[n]{};
 			data[i] = nullptr;
 		}
 	}
 
 	void init(f_type const& f)
 	{
-		for (iter_type i = 0; i < len; ++i)
+		if (data != nullptr)
 		{
-			data[i] = new f_type(f);
+			if (data[0] == nullptr)
+			{
+				for (iter_type i = 0; i < len; ++i)
+				{
+					data[i] = new f_type(f);
+				}
+			}
 		}
 	}
 
-	SymbolicFunctionArray(SymbolicFunctionArray const& other) : data{ new f_type*[other.len] }, len{ other.len }
+	SymbolicFunctionArray(SymbolicFunctionArray const& other) :
+		data{ (other.len > 0) ? new f_type * [other.len] : nullptr },
+		offsets{ (other.len > 0) ? new iter_type * [other.len] : nullptr },
+		len{ other.len }, n{ other.n }
 	{
 		for (iter_type i = 0; i < len; ++i)
 		{
 			data[i] = (other.data[i] != nullptr) ? new f_type(*other.data[i]) : nullptr;
+			offsets[i] = new iter_type[n];
+			std::copy(other.offsets[i], other.offsets[i] + n, offsets[i]);
 		}
 	}
 
@@ -87,12 +520,24 @@ struct SymbolicFunctionArray
 	friend void swap(SymbolicFunctionArray<E0, T0s...>& first, SymbolicFunctionArray<E0, T0s...>& second)
 	{
 		std::swap(first.data, second.data);
+		std::swap(first.offsets, second.offsets);
 		std::swap(first.len, second.len);
+		std::swap(first.n, second.n);
 	}
 
 
-	auto operator[](iter_type i) const
+	const auto& operator[](iter_type i) const
 	{
+		return *data[i];
+	}
+
+	template<size_t N>
+	const auto& operator()(DynamicIndex(&index)[N], iter_type i) const
+	{
+		for (iter_type j = 0; j < n; ++j)
+		{
+			index[j] = offsets[i][j];
+		}
 		return *data[i];
 	}
 
@@ -109,12 +554,10 @@ struct SymbolicFunctionArray
 	}
 
 	f_type** data;
+	iter_type** offsets;
 	len_type len;
+	len_type n;
 
-
-protected:
-
-	SymbolicFunctionArray() : data{ nullptr }, len{ 0 } {}
 
 };
 
@@ -125,7 +568,7 @@ protected:
  * Data can be stored symbolically in an expression so that it can be conveniently updated
  * outside of the expression. In other cases, a set value be passed, which will be
  * copied into the SymbolicData object and managed locally.
- * 
+ *
  * In order to hold a copy, a reference to a data must be passed using std::ref().
  */
 template<typename T>
@@ -143,12 +586,12 @@ struct SymbolicData
 
 	SymbolicData(SymbolicData<T> const& other) :
 		data{ (other.is_local) ? new T(*other.data) : other.data }, is_local{ other.is_local } {}
-	
-	SymbolicData(SymbolicData<T>&& other) : SymbolicData() 
+
+	SymbolicData(SymbolicData<T>&& other) : SymbolicData()
 	{
 		swap(*this, other);
 	}
-	
+
 	SymbolicData<T> operator=(SymbolicData<T> other)
 	{
 		swap(*this, other);
@@ -240,7 +683,7 @@ struct SymbolicData
  * over multiple instances of a particular data, which can also be updated outside the expression.
  * In other cases, set values can be passed, which will be copied into the SymbolicDataArray
  * object and managed locally.
- * 
+ *
  * In order to hold a copy, a reference to a data must be passed using std::ref().
  */
 template<typename T>
@@ -256,7 +699,7 @@ struct SymbolicDataArray : SymbolicData<T>
 	SymbolicDataArray(len_type len) : parent_type(get_initialized_array(len), false), len{ len } {}
 
 	//! Takes a copy of the data and manages it locally within the SymbolicData.
-	SymbolicDataArray(T* data, len_type len, bool is_local = true) : 
+	SymbolicDataArray(T* data, len_type len, bool is_local = true) :
 		parent_type((is_local) ? get_initialized_array(len) : data, is_local), len{ len }
 	{
 		if (is_local)
@@ -290,6 +733,11 @@ struct SymbolicDataArray : SymbolicData<T>
 		using std::swap;
 		swap(static_cast<SymbolicData<T>&>(first), static_cast<SymbolicData<T>&>(second));
 		swap(first.len, second.len);
+	}
+
+	auto length() const
+	{
+		return len;
 	}
 
 protected:
@@ -403,21 +851,40 @@ public:
 	len_type len;
 };
 
+namespace symphas::internal
+{
+
+	template<typename T>
+	struct to_term_base_impl
+	{
+		using type = T;
+	};
+
+	template<typename T>
+	struct to_term_base_impl<Term<T>>
+	{
+		using type = T;
+	};
+
+	template<typename T>
+	using to_term_base = typename to_term_base_impl<T>::type;
+
+}
 
 template<typename... Ts>
-struct SymbolicDataArray<std::tuple<Term<Ts>...>>
+struct SymbolicDataArray<std::tuple<Ts...>>
 	: SymbolicDataArray<SymbolicData<expr::storage_t<OpAdd<OpTerm<OpIdentity, Ts>...>>>>
 {
-	using tuple_type = std::tuple<Term<Ts>...>;
-	using T = expr::storage_t<OpAdd<OpTerm<OpIdentity, Ts>...>>;
-	using parent_type = SymbolicDataArray<SymbolicData<T>>;
+	using tuple_type = std::tuple<Ts...>;
+	using storage_type = expr::storage_t<OpAdd<OpTerm<OpIdentity, Ts>...>>;
+	using parent_type = SymbolicDataArray<SymbolicData<storage_type>>;
 
 	using parent_type::parent_type;
 	using parent_type::is_local;
 	using parent_type::data;
 	using parent_type::len;
 
-	SymbolicDataArray(len_type len) : parent_type(sizeof...(Ts)) {}
+	SymbolicDataArray(len_type len = sizeof...(Ts)) : parent_type(len) {}
 
 	template<typename... T0s>
 	SymbolicDataArray(std::tuple<T0s...> const& list, len_type len = sizeof...(Ts)) : parent_type(len)
@@ -425,22 +892,30 @@ struct SymbolicDataArray<std::tuple<Term<Ts>...>>
 		set_data(list, std::make_index_sequence<sizeof...(Ts)>{});
 	}
 
+	template<size_t N, size_t Z>
+	auto set_data_1(Term<Variable<Z>> const& term)
+	{
+		data[N] = SymbolicData<storage_type>{};
+	}
+
 	template<size_t N, typename T0>
 	auto set_data_1(T0 const& term)
 	{
-		data[N] = SymbolicData<T>(&expr::BaseData<T0>::get(const_cast<T0&>(term)), false);
+		using type_n = symphas::lib::type_at_index<N, Ts...>;
+		data[N] = SymbolicData<storage_type>(&expr::BaseData<T0>::get(static_cast<type_n&>(const_cast<T0&>(term))), false);
 	}
 
 	template<size_t N, typename T0>
 	auto set_data_1(Term<T0> const& term)
 	{
-		data[N] = SymbolicData<T>(&expr::BaseData<T0>::get(const_cast<T0&>(term.data())), false);
+		using type_n = symphas::lib::type_at_index<N, Ts...>;
+		data[N] = SymbolicData<storage_type>(&expr::BaseData<T0>::get(static_cast<type_n&>(const_cast<T0&>(term.data()))), false);
 	}
 
 	template<typename... T0s, size_t... Is>
 	auto set_data(std::tuple<T0s...> const& list, std::index_sequence<Is...>)
 	{
-		(set_data_1<Is, Ts>(std::get<Is>(list)), ...);
+		(set_data_1<Is>(std::get<Is>(list)), ...);
 	}
 
 	template<typename... T0s>
@@ -451,7 +926,7 @@ struct SymbolicDataArray<std::tuple<Term<Ts>...>>
 
 	auto operator-() const
 	{
-		SymbolicData<T> rhs0;
+		SymbolicData<storage_type> rhs0;
 		auto expr = -expr::make_term(rhs0);
 
 		SymbolicDataArray<tuple_type> result;
@@ -466,7 +941,8 @@ struct SymbolicDataArray<std::tuple<Term<Ts>...>>
 	}
 
 	template<typename E, typename T0>
-	auto result(SymbolicDataArray<T0> const& other, SymbolicData<T> lhs, SymbolicData<T0> rhs, OpExpression<E> const& e) const
+	auto result(SymbolicDataArray<T0> const& other, SymbolicData<storage_type> lhs,
+		SymbolicData<T0> rhs, OpExpression<E> const& e) const
 	{
 		auto len0 = std::min(other.len, len);
 		SymbolicDataArray<expr::eval_type_t<E>> result(len0);
@@ -483,7 +959,7 @@ struct SymbolicDataArray<std::tuple<Term<Ts>...>>
 	template<size_t... Is>
 	auto get_data_tuple(std::index_sequence<Is...>) const
 	{
-		return std::make_tuple(Term<Ts>(*data[Is].data)...);
+		return std::make_tuple(Ts(*data[Is].data)...);
 	}
 
 	auto get_data_tuple() const
@@ -492,11 +968,159 @@ struct SymbolicDataArray<std::tuple<Term<Ts>...>>
 	}
 };
 
-template<typename T> struct to_term_base { using type = T; };
-template<typename T> struct to_term_base<Term<T>> { using type = T; };
+
+template<typename... Ts>
+struct SymbolicDataArray<std::tuple<NamedData<Ts>...>>
+	: SymbolicDataArray<NamedData<SymbolicData<expr::storage_t<OpAdd<OpTerm<OpIdentity, Ts>...>>>>>
+{
+	using tuple_type = std::tuple<Ts...>;
+	using storage_type = expr::storage_t<OpAdd<OpTerm<OpIdentity, Ts>...>>;
+	using parent_type = SymbolicDataArray<NamedData<SymbolicData<storage_type>>>;
+
+	using parent_type::parent_type;
+	using parent_type::is_local;
+	using parent_type::data;
+	using parent_type::len;
+
+	SymbolicDataArray(len_type len = sizeof...(Ts)) : parent_type(len)//, names{} 
+	{}
+
+	template<typename... T0s>
+	SymbolicDataArray(std::tuple<T0s...> const& list, len_type len = sizeof...(Ts)) : parent_type(len)//, names{}
+	{
+		//set_names(list, std::make_index_sequence<sizeof...(T0s)>{});
+		set_data(list, std::make_index_sequence<sizeof...(Ts)>{});
+	}
+
+
+	SymbolicDataArray(SymbolicDataArray<std::tuple<NamedData<Ts>...>> const& other) :
+		parent_type(other.len)//, names{} 
+	{
+		for (iter_type i = 0; i < len; ++i)
+		{
+			//names[i] = new char[std::strlen(other.names[i]) + 1];
+			//std::strcpy(names[i], other.names[i]);
+			data[i] = other.data[i];
+		}
+
+
+	}
+
+	SymbolicDataArray(SymbolicDataArray<std::tuple<NamedData<Ts>...>>&& other) noexcept : SymbolicDataArray()
+	{
+		swap(*this, other);
+	}
+
+	SymbolicDataArray<std::tuple<NamedData<Ts>...>> operator=(SymbolicDataArray<std::tuple<NamedData<Ts>...>> other)
+	{
+		swap(*this, other);
+		return *this;
+	}
+
+	friend void swap(SymbolicDataArray<std::tuple<NamedData<Ts>...>>& first,
+		SymbolicDataArray<std::tuple<NamedData<Ts>...>>& second)
+	{
+		using std::swap;
+		swap(static_cast<parent_type&>(first), static_cast<parent_type&>(second));
+		//swap(first.names, second.names);
+	}
+
+	template<size_t N, typename T0>
+	auto set_data_1(T0 const& term)
+	{
+		if constexpr (expr::clear_named_data<T0>::value)
+		{
+			data[N] = NamedData<SymbolicData<storage_type>>(
+				SymbolicData<storage_type>(&expr::BaseData<T0>::get(const_cast<T0&>(term)), false), term.name);
+		}
+		else
+		{
+			data[N] = NamedData<SymbolicData<storage_type>>(
+				SymbolicData<storage_type>(&expr::BaseData<T0>::get(const_cast<T0&>(term)), false), "");
+		}
+	}
+
+	template<size_t N, typename T0>
+	auto set_data_1(Term<T0> const& term)
+	{
+		if constexpr (expr::clear_named_data<T0>::value)
+		{
+			data[N] = NamedData<SymbolicData<storage_type>>(
+				SymbolicData<storage_type>(&expr::BaseData<T0>::get(const_cast<T0&>(term.data())), false), term.name);
+		}
+		else
+		{
+			data[N] = NamedData<SymbolicData<storage_type>>(
+				SymbolicData<storage_type>(&expr::BaseData<T0>::get(const_cast<T0&>(term.data())), false), "");
+		}
+	}
+
+	template<typename... T0s, size_t... Is>
+	auto set_data(std::tuple<T0s...> const& list, std::index_sequence<Is...>)
+	{
+		(set_data_1<Is>(std::get<Is>(list)), ...);
+	}
+
+	template<typename... T0s>
+	auto set_data(std::tuple<T0s...> const& list)
+	{
+		set_data(list, std::make_index_sequence<sizeof...(Ts)>{});
+	}
+
+	auto operator-() const
+	{
+		SymbolicData<storage_type> rhs0;
+		auto expr = -expr::make_term(rhs0);
+
+		SymbolicDataArray<tuple_type> result;
+
+		for (iter_type i = 0; i < len; ++i)
+		{
+			rhs0.set_data(data[i]);
+			expr::result(expr, result.data[i]);
+		}
+
+		return result;
+	}
+
+	template<typename E, typename T0>
+	auto result(SymbolicDataArray<T0> const& other, SymbolicData<storage_type> lhs,
+		SymbolicData<T0> rhs, OpExpression<E> const& e) const
+	{
+		auto len0 = std::min(other.len, len);
+		SymbolicDataArray<expr::eval_type_t<E>> result(len0);
+
+		for (iter_type i = 0; i < len0; ++i)
+		{
+			lhs.set_data(data[i]);
+			rhs.set_data(other.data[i]);
+			expr::result(*static_cast<E const*>(&e), result.data[i]);
+		}
+		return result;
+	}
+
+	template<size_t... Is>
+	auto get_data_tuple(std::index_sequence<Is...>) const
+	{
+		return std::make_tuple(Ts(*data[Is].data)...);
+	}
+
+	auto get_data_tuple() const
+	{
+		return get_data_tuple(std::make_index_sequence<sizeof...(Ts)>{});
+	}
+
+};
 
 template<typename... T0s>
-SymbolicDataArray(std::tuple<T0s...>) -> SymbolicDataArray<std::tuple<Term<typename to_term_base<T0s>::type>...>>;
+SymbolicDataArray(std::tuple<T0s...>) -> SymbolicDataArray<
+	std::conditional_t<
+	(!expr::clear_named_data<T0s>::value && ...),
+	std::tuple<symphas::internal::to_term_base<T0s>...>,
+	std::tuple<NamedData<symphas::internal::to_term_base<typename expr::clear_named_data<T0s>::type>>...>>>;
+//template<size_t... zs, typename... ts>
+//symbolicdataarray(std::tuple<term<variable<zs, nameddata<ts>>>...>) 
+//	-> symbolicdataarray<std::tuple<term<variable<zs, nameddata<ts>>>...>>;
 
 template<>
 struct SymbolicDataArray<expr::symbols::Symbol>
@@ -533,7 +1157,7 @@ struct SymbolicDataArray<expr::symbols::Symbol>
 
 
 template<typename T, typename T0>
-auto operator+(SymbolicDataArray<T> const& lhs, SymbolicDataArray<T0> const& rhs) 
+auto operator+(SymbolicDataArray<T> const& lhs, SymbolicDataArray<T0> const& rhs)
 {
 	SymbolicData<T> lhs0;
 	SymbolicData<T0> rhs0;
@@ -542,7 +1166,7 @@ auto operator+(SymbolicDataArray<T> const& lhs, SymbolicDataArray<T0> const& rhs
 }
 
 template<typename T, typename T0>
-auto operator-(SymbolicDataArray<T> const& lhs, SymbolicDataArray<T0> const& rhs) 
+auto operator-(SymbolicDataArray<T> const& lhs, SymbolicDataArray<T0> const& rhs)
 {
 	SymbolicData<T> lhs0;
 	SymbolicData<T0> rhs0;
@@ -551,7 +1175,7 @@ auto operator-(SymbolicDataArray<T> const& lhs, SymbolicDataArray<T0> const& rhs
 }
 
 template<typename T, typename T0>
-auto operator*(SymbolicDataArray<T> const& lhs, SymbolicDataArray<T0> const& rhs) 
+auto operator*(SymbolicDataArray<T> const& lhs, SymbolicDataArray<T0> const& rhs)
 {
 	SymbolicData<T> lhs0;
 	SymbolicData<T0> rhs0;
@@ -560,7 +1184,7 @@ auto operator*(SymbolicDataArray<T> const& lhs, SymbolicDataArray<T0> const& rhs
 }
 
 template<typename T, typename T0>
-auto operator/(SymbolicDataArray<T> const& lhs, SymbolicDataArray<T0> const& rhs) 
+auto operator/(SymbolicDataArray<T> const& lhs, SymbolicDataArray<T0> const& rhs)
 {
 	SymbolicData<T> lhs0;
 	SymbolicData<T0> rhs0;
@@ -809,438 +1433,18 @@ auto operator/(SymbolicDataArray<T> const&, SymbolicDataArray<expr::symbols::Sym
 namespace expr
 {
 
-	namespace symbols
+	template<typename T>
+	auto eval(SymbolicData<T> const& value)
 	{
-		namespace
-		{
-			template<typename T>
-			struct trait_arg_type
-			{
-				using type = std::conditional_t<is_simple_data<T>, OpLiteral<T>, T>;
-			};
-		}
-
-
-		//! A variable of argument type that can be directly used to define a symbolic construct.
-		template<size_t N, typename T = expr::symbols::Symbol>
-		inline arg_t<N, typename trait_arg_type<T>::type> arg;
-
-		inline arg_t<1, expr::symbols::Symbol> arg_1;
-		inline arg_t<2, expr::symbols::Symbol> arg_2;
-		inline arg_t<3, expr::symbols::Symbol> arg_3;
-		inline arg_t<4, expr::symbols::Symbol> arg_4;
-
-		template<typename T>
-		inline arg_t<1, typename trait_arg_type<T>::type> arg_1_;
-		template<typename T>
-		inline arg_t<2, typename trait_arg_type<T>::type> arg_2_;
-		template<typename T>
-		inline arg_t<3, typename trait_arg_type<T>::type> arg_3_;
-		template<typename T>
-		inline arg_t<4, typename trait_arg_type<T>::type> arg_4_;
-
-		
-
-		template<int N, int P = 0>
-		using i_op_type = OpTerm<OpIdentity, i_<N, P>>;
-
-		template<typename I>
-		constexpr bool is_index = false;
-		template<int N, int P>
-		constexpr bool is_index<i_<N, P>> = true;
-		template<int N, int P>
-		constexpr bool is_index<i_op_type<N, P>> = true;
-
-
-
-		template<int N, int P>
-		struct i_ : Symbol
-		{
-			constexpr operator i_op_type<N, P>() const
-			{
-				return {};
-			}
-
-			auto operator-() const
-			{
-				return -i_op_type<N, P>{};
-			}
-
-			template<int M, int Q>
-			auto operator=(i_<M, Q>) const
-			{
-				return index_eq<i_<N, P>, i_<M, Q>>{};
-			}
-
-			auto operator=(OpVoid) const
-			{
-				return index_eq_N<i_<N, P>, 0>{};
-			}
-
-			auto operator=(OpIdentity) const
-			{
-				return index_eq_N<i_<N, P>, 1>{};
-			}
-
-			auto operator=(OpNegIdentity) const
-			{
-				return index_eq_N<i_<N, P>, -1>{};
-			}
-
-			template<size_t N0>
-			auto operator=(OpFractionLiteral<N0, 1>) const
-			{
-				return index_eq_N<i_<N, P>, N0>{};
-			}
-
-			template<size_t N0>
-			auto operator=(OpNegFractionLiteral<N0, 1>) const
-			{
-				return index_eq_N<i_<N, P>, -int(N0)>{};
-			}
-
-			auto operator!=(OpVoid) const
-			{
-				return index_neq_N<i_<N, P>, 0>{};
-			}
-
-			auto operator!=(OpIdentity) const
-			{
-				return index_neq_N<i_<N, P>, 1>{};
-			}
-
-			auto operator!=(OpNegIdentity) const
-			{
-				return index_neq_N<i_<N, P>, -1>{};
-			}
-
-			template<size_t N0>
-			auto operator!=(OpFractionLiteral<N0, 1>) const
-			{
-				return index_neq_N<i_<N, P>, N0>{};
-			}
-
-			template<size_t N0>
-			auto operator!=(OpNegFractionLiteral<N0, 1>) const
-			{
-				return index_neq_N<i_<N, P>, -int(N0)>{};
-			}
-
-			template<int M, int Q>
-			auto operator!=(i_<M, Q>) const
-			{
-				return index_neq<i_<N, P>, i_<M, Q>>{};
-			}
-
-			template<int N0, int P0, int M>
-			auto operator=(OpAdd<OpTerm<OpIdentity, expr::symbols::i_<N0, P0>>, OpFractionLiteral<M, 1>>) const
-			{
-				return index_eq<i_<N, P>, expr::symbols::i_<N0, P0 + M>>{};
-			}
-
-			template<int N0, int P0, int M>
-			auto operator=(OpAdd<OpTerm<OpIdentity, expr::symbols::i_<N0, P0>>, OpNegFractionLiteral<M, 1>>) const
-			{
-				return index_eq<i_<N, P>, expr::symbols::i_<N0, P0 - M>>{};
-			}
-
-			template<int N0, int P0>
-			auto operator=(OpAdd<OpTerm<OpIdentity, expr::symbols::i_<N0, P0>>, OpIdentity>) const
-			{
-				return index_eq<i_<N, P>, expr::symbols::i_<N0, P0 + 1>>{};
-			}
-
-			template<int N0, int P0>
-			auto operator=(OpAdd<OpTerm<OpIdentity, expr::symbols::i_<N0, P0>>, OpNegIdentity>) const
-			{
-				return index_eq<i_<N, P>, expr::symbols::i_<N0, P0 - 1>>{};
-			}
-
-			template<typename... E0s>
-			auto operator=(OpAdd<E0s...>) const
-			{
-				return index_eq<i_<N, P>, OpAdd<E0s...>>{};
-			}
-
-			template<int N0, int P0, int M>
-			auto operator!=(OpAdd<OpTerm<OpIdentity, expr::symbols::i_<N0, P0>>, OpFractionLiteral<M, 1>>) const
-			{
-				return index_neq<i_<N, P>, expr::symbols::i_<N0, P0 + M>>{};
-			}
-
-			template<int N0, int P0, int M>
-			auto operator!=(OpAdd<OpTerm<OpIdentity, expr::symbols::i_<N0, P0>>, OpNegFractionLiteral<M, 1>>) const
-			{
-				return index_neq<i_<N, P>, expr::symbols::i_<N0, P0 - M>>{};
-			}
-
-			template<int N0, int P0>
-			auto operator!=(OpAdd<OpTerm<OpIdentity, expr::symbols::i_<N0, P0>>, OpIdentity>) const
-			{
-				return index_neq<i_<N, P>, expr::symbols::i_<N0, P0 + 1>>{};
-			}
-
-			template<int N0, int P0>
-			auto operator!=(OpAdd<OpTerm<OpIdentity, expr::symbols::i_<N0, P0>>, OpNegIdentity>) const
-			{
-				return index_neq<i_<N, P>, expr::symbols::i_<N0, P0 - 1>>{};
-			}
-
-			template<typename... E0s>
-			auto operator!=(OpAdd<E0s...>) const
-			{
-				return index_neq<i_<N, P>, OpAdd<E0s...>>{};
-			}
-
-			template<typename E>
-			auto operator=(E) const
-			{
-				return index_eq<i_<N, P>, E>{};
-			}
-
-			template<typename E>
-			auto operator!=(E) const
-			{
-				return index_neq<i_<N, P>, E>{};
-			}
-
-
-
-			template<typename E>
-			auto operator>(E) const;
-			template<typename E>
-			auto operator>=(E) const;
-			template<typename E>
-			auto operator<(E) const;
-			template<typename E>
-			auto operator<=(E) const;
-
-		};
-
-
-		template<int N0, int P0, int... Ns, int... Ps>
-		struct v_id_type<i_<N0, P0>, i_<Ns, Ps>...> : Symbol {};
-
-		template<typename I0, typename... Is>
-		using v_ = OpTerm<OpIdentity, v_id_type<I0, Is...>>;
-
-
-
-		template<int P0, int N, int P>
-		auto make_series_variable(i_<N, P>)
-		{
-			return v_<i_<N, P0>>{};
-		}
-
+		return expr::eval(*value.data);
 	}
 
+	template<typename T>
+	auto eval(SymbolicDataArray<T> const& value)
+	{
+		return expr::eval(*value.data);
+	}
 }
-
-
-template<int N, int P>
-template<typename E>
-auto expr::symbols::i_<N, P>::operator>=(E) const
-{
-	return this->operator=(E{});
-}
-
-template<int N, int P>
-template<typename E>
-auto expr::symbols::i_<N, P>::operator>(E) const
-{
-	return this->operator>(E{} + OpIdentity{});
-}
-
-template<int N, int P>
-template<typename E>
-auto expr::symbols::i_<N, P>::operator<=(E) const
-{
-	return this->operator=(OpIdentity{}) && this->operator=(E{});
-}
-
-template<int N, int P>
-template<typename E>
-auto expr::symbols::i_<N, P>::operator<(E) const
-{
-	return this->operator<=(E{} - OpIdentity{});
-}
-
-
-template<typename I0, typename T0, typename T1>
-auto operator&&(expr::symbols::index_eq<I0, T0>, expr::symbols::index_eq<I0, T1>)
-{
-	using namespace expr::symbols;
-	return symphas::lib::types_list<index_eq<I0, T0>, index_eq<I0, T1>>{};
-}
-
-template<typename I0, typename T0, int N1>
-auto operator&&(expr::symbols::index_eq<I0, T0>, expr::symbols::index_eq_N<I0, N1>)
-{
-	using namespace expr::symbols;
-	return symphas::lib::types_list<index_eq<I0, T0>, index_eq_N<I0, N1>>{};
-}
-
-template<typename I0, int N0, typename T1>
-auto operator&&(expr::symbols::index_eq_N<I0, N0>, expr::symbols::index_eq<I0, T1>)
-{
-	using namespace expr::symbols;
-	return symphas::lib::types_list<index_eq_N<I0, N0>, index_eq<I0, T1>>{};
-}
-
-template<typename I0, int N0, int N1>
-auto operator&&(expr::symbols::index_eq_N<I0, N0>, expr::symbols::index_eq_N<I0, N1>)
-{
-	using namespace expr::symbols;
-	return symphas::lib::types_list<index_eq_N<I0, N0>, index_eq_N<I0, N1>>{};
-}
-
-
-DEFINE_SYMBOL_ID((size_t N), (expr::symbols::arg_t<N>), static char* name = expr::print_with_subscript<N>("arg").new_str(); return name;)
-ALLOW_COMBINATION((size_t N), (expr::symbols::arg_t<N>))
-
-DEFINE_SYMBOL_ID((int N, int P), (expr::symbols::i_<N, P>), static char* name = expr::print_with_subscript<N>("i").new_str(); return name;)
-ALLOW_COMBINATION((int N, int P), (expr::symbols::i_<N, P>))
-DEFINE_BASE_DATA((int N, int P), (expr::symbols::i_<N, P>), expr::symbols::Symbol{}, expr::symbols::Symbol{})
-
-DEFINE_SYMBOL_ID((int... Ns, int... Ps), (expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>), static char* name = expr::print_with_subscripts<Ns...>("v").new_str(); return name;)
-ALLOW_COMBINATION((int... Ns, int... Ps), (expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>))
-DEFINE_BASE_DATA((int... Ns, int... Ps), (expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>), expr::symbols::Symbol{}, expr::symbols::Symbol{})
-
-//! Specialization based on expr::base_data_type.
-template<int N0, int P0>
-struct expr::base_data_type<expr::symbols::i_<N0, P0>>
-{
-	using type = expr::symbols::i_<N0, P0>;
-};
-
-template<int N, int P, typename E>
-auto operator+(expr::symbols::i_<N, P>, E const& e)
-{
-	return expr::symbols::i_op_type<N, P>{} + e;
-}
-
-template<int N, int P, typename E>
-auto operator+(E const& e, expr::symbols::i_<N, P>)
-{
-	return e + expr::symbols::i_op_type<N, P>{};
-}
-
-template<int N0, int P0, int N1, int P1>
-auto operator+(expr::symbols::i_<N0, P0>, expr::symbols::i_<N1, P1>)
-{
-	return expr::symbols::i_op_type<N0, P0>{} + expr::symbols::i_op_type<N1, P1>{};
-}
-
-template<int N, int P, typename E>
-auto operator-(expr::symbols::i_<N, P>, E const& e)
-{
-	return expr::symbols::i_op_type<N, P>{} - e;
-}
-
-template<int N, int P, typename E>
-auto operator-(E const& e, expr::symbols::i_<N, P>)
-{
-	return e - expr::symbols::i_op_type<N, P>{};
-}
-
-template<int N0, int P0, int N1, int P1>
-auto operator-(expr::symbols::i_<N0, P0>, expr::symbols::i_<N1, P1>)
-{
-	return expr::symbols::i_op_type<N0, P0>{} - expr::symbols::i_op_type<N1, P1>{};
-}
-
-template<int N, int P, typename E>
-auto operator*(expr::symbols::i_<N, P>, E const& e)
-{
-	return expr::symbols::i_op_type<N, P>{} *e;
-}
-
-template<int N, int P, typename E>
-auto operator*(E const& e, expr::symbols::i_<N, P>)
-{
-	return e * expr::symbols::i_op_type<N, P>{};
-}
-
-template<int N0, int P0, int N1, int P1>
-auto operator*(expr::symbols::i_<N0, P0>, expr::symbols::i_<N1, P1>)
-{
-	return expr::symbols::i_op_type<N0, P0>{} * expr::symbols::i_op_type<N1, P1>{};
-}
-
-template<int N, int P, typename E>
-auto operator/(expr::symbols::i_<N, P>, E const& e)
-{
-	return expr::symbols::i_op_type<N, P>{} / e;
-}
-
-template<int N, int P, typename E>
-auto operator/(E const& e, expr::symbols::i_<N, P>)
-{
-	return e / expr::symbols::i_op_type<N, P>{};
-}
-
-template<int N0, int P0, int N1, int P1>
-auto operator/(expr::symbols::i_<N0, P0>, expr::symbols::i_<N1, P1>)
-{
-	return expr::symbols::i_op_type<N0, P0>{} / expr::symbols::i_op_type<N1, P1>{};
-}
-
-template<int N, int P>
-auto operator*(expr::symbols::i_<N, P>, OpIdentity)
-{
-	return expr::symbols::i_<N, P>{};
-}
-
-template<int N, int P>
-auto operator*(OpIdentity, expr::symbols::i_<N, P>)
-{
-	return expr::symbols::i_<N, P>{};
-}
-
-
-template<int N, int P>
-auto operator+(expr::symbols::i_<N, P>, OpVoid)
-{
-	return expr::symbols::i_op_type<N, P>{};
-}
-
-template<int N, int P>
-auto operator+(OpVoid, expr::symbols::i_<N, P>)
-{
-	return expr::symbols::i_op_type<N, P>{};
-}
-
-template<int N, int P>
-auto operator-(expr::symbols::i_<N, P>, OpVoid)
-{
-	return expr::symbols::i_op_type<N, P>{};
-}
-
-template<int N, int P>
-auto operator-(OpVoid, expr::symbols::i_<N, P>)
-{
-	return expr::symbols::i_op_type<N, P>{};
-}
-
-template<int N, int P>
-auto operator*(expr::symbols::i_<N, P>, OpVoid)
-{
-	return OpVoid{};
-}
-
-template<int N, int P>
-auto operator*(OpVoid, expr::symbols::i_<N, P>)
-{
-	return OpVoid{};
-}
-
-template<int N, int P>
-auto operator/(OpVoid, expr::symbols::i_<N, P>)
-{
-	return OpVoid{};
-}
-
-
 
 
  //! @}
@@ -1283,6 +1487,12 @@ namespace symphas::internal
 				symphas::lib::types_list<Vs..., expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>>,
 				symphas::lib::types_list<Vs...>>,
 			symphas::lib::types_list<Rest...>>::type;
+	};
+
+	template<int N0, int P0, typename... Vs, int... Ns, int... Ps, size_t D, typename... Rest>
+	struct select_v_i_impl<expr::symbols::i_<N0, P0>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<GridSymbol<expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>, D>, Rest...>>
+	{
+		using type = typename select_v_i_impl<expr::symbols::i_<N0, P0>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>, Rest...>>::type;
 	};
 
 	template<int N0, int P0, typename... Vs, typename T, typename... Rest>
@@ -1328,6 +1538,12 @@ namespace symphas::internal
 			symphas::lib::types_list<Rest...>>::type;
 	};
 
+	template<int... N0s, int... P0s, typename... Vs, int... Ns, int... Ps, size_t D, typename... Rest>
+	struct select_v_nested_impl<symphas::lib::types_list<expr::symbols::i_<N0s, P0s>...>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<GridSymbol<expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>, D>, Rest...>>
+	{
+		using type = typename select_v_nested_impl<symphas::lib::types_list<expr::symbols::i_<N0s, P0s>...>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>, Rest...>>::type;
+	};
+
 	template<int... N0s, int... P0s, typename... Vs, typename T, typename... Rest>
 	struct select_v_nested_impl<symphas::lib::types_list<expr::symbols::i_<N0s, P0s>...>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<T, Rest...>>
 	{
@@ -1352,6 +1568,12 @@ namespace symphas::internal
 			symphas::lib::types_list<Rest...>>::type;
 	};
 
+	template<typename... Vs, typename I0, typename... Is, size_t D, typename... Rest>
+	struct select_v_impl<symphas::lib::types_list<Vs...>, symphas::lib::types_list<GridSymbol<expr::symbols::v_id_type<I0, Is...>, D>, Rest...>>
+	{
+		using type = typename select_v_impl<symphas::lib::types_list<Vs...>, symphas::lib::types_list<expr::symbols::v_id_type<I0, Is...>, Rest...>>::type;
+	};
+
 	template<typename... Vs, typename T, typename... Rest>
 	struct select_v_impl<symphas::lib::types_list<Vs...>, symphas::lib::types_list<T, Rest...>>
 	{
@@ -1372,123 +1594,193 @@ namespace symphas::internal
 
 
 	template<typename... Ts>
-	struct select_all_i_;
+	struct select_all_i_impl_;
 
 	template<int N, typename... Is>
-	struct select_all_i_<expr::symbols::i_<N, 0>, symphas::lib::types_list<Is...>, symphas::lib::types_list<>>
+	struct select_all_i_impl_<expr::symbols::i_<N, 0>, symphas::lib::types_list<Is...>, symphas::lib::types_list<>>
 	{
 		using type = symphas::lib::types_list<Is...>;
 	};
 
-	template<int N, typename... Is, int N0, int P0, typename... Rest>
-	struct select_all_i_<expr::symbols::i_<N, 0>, symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<N0, P0>>, Rest...>>
-	{
-		using type = typename select_all_i_<expr::symbols::i_<N, 0>,
-			symphas::lib::types_list<Is...>, symphas::lib::types_list<Rest...>>::type;
-	};
-
 	template<int N, typename... Is, int P0, typename... Rest>
-	struct select_all_i_<expr::symbols::i_<N, 0>, symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<N, P0>>, Rest...>>
+	struct select_all_i_impl_<expr::symbols::i_<N, 0>, symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<N, P0>>, Rest...>>
 	{
-		using type = typename select_all_i_<expr::symbols::i_<N, 0>,
+		using type = typename select_all_i_impl_<expr::symbols::i_<N, 0>,
 			symphas::lib::types_list<Is..., expr::symbols::i_<N, P0>>, symphas::lib::types_list<Rest...>>::type;
 	};
 
 	template<int N, typename... Is, int N0, int P0, typename... Rest>
-	struct select_all_i_<expr::symbols::i_<N, 0>, symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::i_<N0, P0>, Rest...>>
+	struct select_all_i_impl_<expr::symbols::i_<N, 0>, symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::i_<N0, P0>, Rest...>>
 	{
-		using type = typename select_all_i_<expr::symbols::i_<N, 0>,
+		using type = typename select_all_i_impl_<expr::symbols::i_<N, 0>,
 			symphas::lib::types_list<Is...>, symphas::lib::types_list<Rest...>>::type;
 	};
 
 	template<int N, typename... Is, int P0, typename... Rest>
-	struct select_all_i_<expr::symbols::i_<N, 0>, symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::i_<N, P0>, Rest...>>
+	struct select_all_i_impl_<expr::symbols::i_<N, 0>, symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::i_<N, P0>, Rest...>>
 	{
-		using type = typename select_all_i_<expr::symbols::i_<N, 0>,
+		using type = typename select_all_i_impl_<expr::symbols::i_<N, 0>,
 			symphas::lib::types_list<Is..., expr::symbols::i_<N, P0>>, symphas::lib::types_list<Rest...>>::type;
 	};
 
 	template<int N, typename... Is, typename Other, typename... Rest>
-	struct select_all_i_<expr::symbols::i_<N, 0>, symphas::lib::types_list<Is...>, symphas::lib::types_list<Other, Rest...>>
+	struct select_all_i_impl_<expr::symbols::i_<N, 0>, symphas::lib::types_list<Is...>, symphas::lib::types_list<Other, Rest...>>
 	{
-		using type = typename select_all_i_<expr::symbols::i_<N, 0>,
+		using type = typename select_all_i_impl_<expr::symbols::i_<N, 0>,
 			symphas::lib::types_list<Is...>, symphas::lib::types_list<Rest...>>::type;
 	};
 
 	template<int N, int P, typename... Vs>
-	struct select_all_i_<expr::symbols::i_<N, P>, symphas::lib::types_list<Vs...>>
+	struct select_all_i_impl_<expr::symbols::i_<N, P>, symphas::lib::types_list<Vs...>>
 	{
-		using type = typename select_all_i_<expr::symbols::i_<N, 0>,
+		using type = typename select_all_i_impl_<expr::symbols::i_<N, 0>,
 			symphas::lib::types_list<>, symphas::lib::types_list<Vs...>>::type;
 	};
 
+	template<int N0, int P0, int... Ns, int... Ps, typename... Vs>
+	struct select_all_i_impl_<symphas::lib::types_list<
+			expr::symbols::i_<N0, P0>, expr::symbols::i_<Ns, Ps>...>, 
+		symphas::lib::types_list<Vs...>>
+	{
+		using type = symphas::lib::expand_types_list<
+			typename select_all_i_impl_<expr::symbols::i_<N0, 0>, symphas::lib::types_list<>, symphas::lib::types_list<Vs...>>::type,
+			typename select_all_i_impl_<expr::symbols::i_<Ns, 0>, symphas::lib::types_list<>, symphas::lib::types_list<Vs...>>::type...
+			>;
+	};
+
+	template<typename I, typename T>
+	using select_all_i_ = typename select_all_i_impl_<I, T>::type;
+
+
+
 
 	template<typename... Ts>
-	struct select_unique_i_;
+	struct select_only_i_impl_;
 
-	template<typename... Is>
-	struct select_unique_i_<symphas::lib::types_list<Is...>, symphas::lib::types_list<>>
+	template<int N, typename... Is>
+	struct select_only_i_impl_<expr::symbols::i_<N, 0>, symphas::lib::types_list<Is...>, symphas::lib::types_list<>>
 	{
 		using type = symphas::lib::types_list<Is...>;
 	};
 
-	template<int N, int P, int M0, typename... Is, typename... Rest>
-	struct select_unique_i_<symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::index_neq_N<expr::symbols::i_<N, P>, M0>, Rest...>>
+	template<int N, typename... Is, int P0, typename... Rest>
+	struct select_only_i_impl_<expr::symbols::i_<N, 0>, symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::i_<N, P0>, Rest...>>
 	{
-		using type = typename select_unique_i_<
+		using type = typename select_only_i_impl_<expr::symbols::i_<N, 0>,
+			symphas::lib::types_list<Is..., expr::symbols::i_<N, P0>>, symphas::lib::types_list<Rest...>>::type;
+	};
+
+	template<int N, typename... Is, typename Other, typename... Rest>
+	struct select_only_i_impl_<expr::symbols::i_<N, 0>, symphas::lib::types_list<Is...>, symphas::lib::types_list<Other, Rest...>>
+	{
+		using type = typename select_only_i_impl_<expr::symbols::i_<N, 0>,
+			symphas::lib::types_list<Is...>, symphas::lib::types_list<Rest...>>::type;
+	};
+
+	template<int N, int P, typename... Vs>
+	struct select_only_i_impl_<expr::symbols::i_<N, P>, symphas::lib::types_list<Vs...>>
+	{
+		using type = typename select_only_i_impl_<expr::symbols::i_<N, 0>,
+			symphas::lib::types_list<>, symphas::lib::types_list<Vs...>>::type;
+	};
+
+	template<int N0, int P0, int... Ns, int... Ps, typename... Vs>
+	struct select_only_i_impl_<symphas::lib::types_list<
+		expr::symbols::i_<N0, P0>, expr::symbols::i_<Ns, Ps>...>,
+		symphas::lib::types_list<Vs...>>
+	{
+		using type = symphas::lib::expand_types_list<
+			typename select_only_i_impl_<expr::symbols::i_<N0, 0>, symphas::lib::types_list<>, symphas::lib::types_list<Vs...>>::type,
+			typename select_only_i_impl_<expr::symbols::i_<Ns, 0>, symphas::lib::types_list<>, symphas::lib::types_list<Vs...>>::type...
+		>;
+	};
+
+	template<typename I, typename T>
+	using select_only_i_ = typename select_only_i_impl_<I, T>::type;
+
+
+	template<typename... Ts>
+	struct select_unique_i_impl_;
+
+	template<int... Ns>
+	struct select_unique_i_impl_<std::integer_sequence<int, Ns...>>
+	{
+		using type = symphas::lib::types_list<expr::symbols::i_<Ns, 0>...>;
+	};
+
+	template<int... Ns>
+	struct select_unique_i_impl_<symphas::lib::types_list<expr::symbols::i_<Ns, 0>...>, symphas::lib::types_list<>>
+	{
+		using type = typename select_unique_i_impl_<symphas::lib::sorted_seq<std::integer_sequence<int, Ns...>>>::type;
+	};
+
+	template<int N, int P, int M0, typename... Is, typename... Rest>
+	struct select_unique_i_impl_<symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::index_neq_N<expr::symbols::i_<N, P>, M0>, Rest...>>
+	{
+		using type = typename select_unique_i_impl_<
 			symphas::lib::types_list<Is..., expr::symbols::i_<N, 0>>, symphas::lib::types_list<Rest...>>::type;
 	};
 
 	template<int N, int P, typename B, typename... Is, typename... Rest>
-	struct select_unique_i_<symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::index_neq<expr::symbols::i_<N, P>, B>, Rest...>>
+	struct select_unique_i_impl_<symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::index_neq<expr::symbols::i_<N, P>, B>, Rest...>>
 	{
-		using type = typename select_unique_i_<
+		using type = typename select_unique_i_impl_<
 			symphas::lib::types_list<Is..., expr::symbols::i_<N, 0>>, symphas::lib::types_list<B, Rest...>>::type;
 	};
 
 	template<int N, int P, int M0, typename... Is, typename... Rest>
-	struct select_unique_i_<symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::index_eq_N<expr::symbols::i_<N, P>, M0>, Rest...>>
+	struct select_unique_i_impl_<symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::index_eq_N<expr::symbols::i_<N, P>, M0>, Rest...>>
 	{
-		using type = typename select_unique_i_<
+		using type = typename select_unique_i_impl_<
 			symphas::lib::types_list<Is..., expr::symbols::i_<N, 0>>, symphas::lib::types_list<Rest...>>::type;
 	};
 
 	template<int N, int P, typename B, typename... Is, typename... Rest>
-	struct select_unique_i_<symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::index_eq<expr::symbols::i_<N, P>, B>, Rest...>>
+	struct select_unique_i_impl_<symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::index_eq<expr::symbols::i_<N, P>, B>, Rest...>>
 	{
-		using type = typename select_unique_i_<
+		using type = typename select_unique_i_impl_<
 			symphas::lib::types_list<Is..., expr::symbols::i_<N, 0>>, symphas::lib::types_list<B, Rest...>>::type;
 	};
 
 	template<typename A, typename B, typename... Is, typename... Rest>
-	struct select_unique_i_<symphas::lib::types_list<Is...>, symphas::lib::types_list<symphas::lib::types_list<A, B>, Rest...>>
+	struct select_unique_i_impl_<symphas::lib::types_list<Is...>, symphas::lib::types_list<symphas::lib::types_list<A, B>, Rest...>>
 	{
 		using type = symphas::lib::expand_types_list<
-			typename select_unique_i_<symphas::lib::types_list<>, symphas::lib::types_list<A>>::type,
-			typename select_unique_i_<
+			typename select_unique_i_impl_<symphas::lib::types_list<>, symphas::lib::types_list<A>>::type,
+			typename select_unique_i_impl_<
 			symphas::lib::types_list<Is...>, symphas::lib::types_list<B, Rest...>>::type>;
 	};
 
 	template<int N, int P, typename... Is, typename... Rest>
-	struct select_unique_i_<symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::i_<N, P>, Rest...>>
+	struct select_unique_i_impl_<symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::i_<N, P>, Rest...>>
 	{
-		using type = typename select_unique_i_<
+		using type = typename select_unique_i_impl_<
+			symphas::lib::types_list<Is..., expr::symbols::i_<N, 0>>, symphas::lib::types_list<Rest...>>::type;
+	};
+
+	template<int N, int P, typename... Is, typename... Rest>
+	struct select_unique_i_impl_<symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<N, P>>, Rest...>>
+	{
+		using type = typename select_unique_i_impl_<
 			symphas::lib::types_list<Is..., expr::symbols::i_<N, 0>>, symphas::lib::types_list<Rest...>>::type;
 	};
 
 	template<typename... Is, typename Other, typename... Rest>
-	struct select_unique_i_<symphas::lib::types_list<Is...>, symphas::lib::types_list<Other, Rest...>>
+	struct select_unique_i_impl_<symphas::lib::types_list<Is...>, symphas::lib::types_list<Other, Rest...>>
 	{
-		using type = typename select_unique_i_<
+		using type = typename select_unique_i_impl_<
 			symphas::lib::types_list<Is...>, symphas::lib::types_list<Rest...>>::type;
 	};
 
 	template<typename... Es>
-	struct select_unique_i_<symphas::lib::types_list<Es...>>
+	struct select_unique_i_impl_<symphas::lib::types_list<Es...>>
 	{
-		using type = typename symphas::lib::combine_types_unique<typename select_unique_i_<
+		using type = typename symphas::lib::combine_types_unique<typename select_unique_i_impl_<
 			symphas::lib::types_list<>, symphas::lib::types_list<Es...>>::type>::type;
 	};
+
+	template<typename T>
+	using select_unique_i_ = typename select_unique_i_impl_<T>::type;
 
 
 	template<typename... Is>

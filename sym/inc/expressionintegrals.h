@@ -27,7 +27,7 @@
 #pragma once
 
 #include "expressionsprint.h"
-
+#include "expressionproperties.h"
 
 
 namespace symphas::internal
@@ -39,20 +39,13 @@ namespace symphas::internal
 	 * construct convolution expressions. Wraps the template deduction necessary
 	 * to initialize a convolution expression.
 	 */
-	template<size_t Z>
 	struct make_integral
 	{
-		template<typename A, typename B>
-		static auto get(A&& a);
+		template<typename V, typename E, typename T>
+		static auto get(V const& v, OpExpression<E> const& e, T const& domain);
 
 		template<typename V, typename E>
-		static auto get(V const& v, OpExpression<E> const& e);
-
-		template<typename V, typename E>
-		static auto get(OpLiteral<V> const& v, E&& e)
-		{
-			return get(v.value, std::forward<E>(e));
-		}
+		static auto get(V const& v, OpExpression<E> const& e, symphas::grid_info const& domain);
 	};
 
 }
@@ -61,16 +54,40 @@ namespace symphas::internal
 
 namespace expr
 {
-	template<size_t Z, typename A>
-	auto make_integral(A&& a)
+	template<typename T, typename V, typename A>
+	auto make_integral(V&& v, A&& a, T&& domain)
 	{
-		return symphas::internal::make_integral<Z>::template get(std::forward<A>(a));
+		return symphas::internal::make_integral::get(std::forward<V>(v), std::forward<A>(a), std::forward<T>(domain));
+	}
+
+	template<typename A, typename T>
+	auto make_integral(A&& a, T&& domain)
+	{
+		return make_integral(OpIdentity{}, std::forward<A>(a), std::forward<T>(domain));
 	}
 
 	template<size_t Z, typename V, typename A>
 	auto make_integral(V&& v, A&& a)
 	{
-		return symphas::internal::make_integral<Z>::template get(std::forward<V>(v), std::forward<A>(a));
+		return make_integral(std::forward<V>(v), std::forward<A>(a), Variable<Z>{});
+	}
+
+	template<size_t Z, typename A>
+	auto make_integral(A&& a)
+	{
+		return make_integral(OpIdentity{}, std::forward<A>(a), Variable<Z>{});
+	}
+
+	template<typename V, typename A>
+	auto make_domain_integral(V&& v, A&& a, symphas::grid_info const& info)
+	{
+		return symphas::internal::make_integral::get(std::forward<V>(v), std::forward<A>(a), info);
+	}
+
+	template<typename A>
+	auto make_domain_integral(A&& a, symphas::grid_info const& info)
+	{
+		return make_domain_integral(OpIdentity{}, std::forward<A>(a), info);
 	}
 }
 
@@ -81,71 +98,283 @@ namespace expr
  * The variable of integration is chosen by the variable index specified
  * by the first template parameter.
  * 
- * \tparam Z The index of the variable of integration.
+ * \tparam T The index of the variable of integration.
  * \tparam V The type of the coefficient.
  * \tparam E The type of the expression which is being integrated.
  */
-template<size_t Z, typename V, typename E>
-struct OpFuncIntegral : OpExpression<OpFuncIntegral<Z, V, E>>
+template<typename V, typename E, typename T>
+struct OpIntegral : OpExpression<OpIntegral<V, E, T>>
 {
-	OpFuncIntegral() : e{}, value{ V{} } {}
+	using result_t = expr::eval_type_t<E>;
 
-	OpFuncIntegral(V value, E const& e) : e{ e }, value{ value } {}
+	OpIntegral() : value{ V{} }, domain{ T{} }, data{}, e{} {}
+	OpIntegral(V value, E const& e, T const& domain) : value{ value }, domain{ domain }, data{ result_t{} }, e{ e } {}
 
-	inline auto eval(iter_type n) const
+	inline auto eval(iter_type n = 0) const
 	{
-		return expr::eval(value) * OpVoid{};
+		return expr::eval(value) * expr::eval(data, n);
 	}
 
 	auto operator-() const
 	{
-		return make_integral::get(-value, e);
+		return symphas::internal::make_integral::get(-value, e, domain);
 	}
 
-	auto apply()
+	auto update()
 	{
+		auto len = expr::data_length(e);
+		if (len > 0)
+		{
+			expr::prune::update(e);
+			data = e.eval(0);
 
+#			pragma omp parallel for reduction (+:data)
+			for (iter_type i = 1; i < len; ++i)
+			{
+				data += e.eval(i);
+			}
+		}
 	}
 
 #ifdef PRINTABLE_EQUATIONS
 
 	size_t print(FILE* out) const
 	{
-		return expr::print_with_coeff(out, "", value);
+		return expr::integral_print<T>{}(out, domain, value * e);
 	}
 
 	size_t print(char* out) const
 	{
-		return expr::print_with_coeff(out, "", value);
+		return expr::integral_print<T>{}(out, domain, value * e);
 	}
 
 	size_t print_length() const
 	{
-		return expr::coeff_print_length(value);
+		return expr::integral_print<T>{}(domain, value * e);
 	}
 
 #endif
 
-	V value;							// value multiplying the result of this derivative
+	template<typename V0, typename E0, typename T0>
+	friend auto const& expr::get_enclosed_expression(OpIntegral<V0, E0, T0> const&);
+	template<typename V0, typename E0, typename T0>
+	friend auto& expr::get_enclosed_expression(OpIntegral<V0, E0, T0>&);
+	template<typename V0, typename E0, typename T0>
+	friend auto const& expr::get_result_data(OpIntegral<V0, E0, T0> const&);
+	template<typename V0, typename E0, typename T0>
+	friend auto& expr::get_result_data(OpIntegral<V0, E0, T0>&);
+
+
+	V value;						// value multiplying the result of this derivative
+	symphas::grid_info domain;		//!< Information about the domain of integration. 
 
 protected:
-	E e;								// expression object specifying grid values
 
+	result_t data;						//!< Grid storing the resulting values.
+	E e;								//!< expression object specifying grid values
 };
 
 
-template<typename coeff_t, typename V2, size_t Z2, typename E2,
-	typename std::enable_if_t<(expr::is_coeff<coeff_t> && !expr::is_tensor<V2>), int> = 0>
-auto operator*(coeff_t const& value, OpFuncIntegral<Z2, V2, E2> const& b)
+//! Represents the integration of an expression.
+/*!
+ * The variable of integration is chosen by the variable index specified
+ * by the first template parameter.
+ *
+ * \tparam T The index of the variable of integration.
+ * \tparam V The type of the coefficient.
+ * \tparam E The type of the expression which is being integrated.
+ */
+template<typename V, typename E, typename T>
+struct OpIntegral<V, E, expr::variational_t<T>> : OpExpression<OpIntegral<V, E, expr::variational_t<T>>>
 {
-	return expr::make_integral<Z2>(value * b.value, b.e);
+	using result_t = expr::eval_type_t<E>;
+
+	OpIntegral() : value{ V{} }, domain{ T{} }, data{}, e{} {}
+	OpIntegral(V value, E const& e, symphas::grid_info const& domain) 
+		: value{ value }, domain{ domain }, data{ result_t{} }, e{ e } {}
+
+	inline auto eval(iter_type n = 0) const
+	{
+		return expr::eval(value) * expr::eval(data, n);
+	}
+
+	auto operator-() const
+	{
+		return expr::make_domain_integral(-value, e, domain);
+	}
+
+	auto update()
+	{
+		auto len = expr::data_length(e);
+		if (len > 0)
+		{
+			expr::prune::update(e);
+
+			auto iter_data = expr::eval_iters(e);
+			iter_type* iters = iter_data.first;
+			len_type n = iter_data.second;
+
+			if (n > 0)
+			{
+				data = e.eval(iters[0]);
+
+#				pragma omp parallel for reduction (+:data)
+				for (iter_type i = 1; i < n; ++i)
+				{
+					data += e.eval(iters[i]);
+				}
+			}
+			else
+			{
+				data = e.eval(0);
+
+#				pragma omp parallel for reduction (+:data)
+				for (iter_type i = 1; i < len; ++i)
+				{
+					data += e.eval(i);
+				}
+			}
+
+			double r = 1;
+			for (auto width : domain.get_widths())
+			{
+				r *= width;
+			}
+			expr::result(expr::make_term(1. / r, data), data);
+		}
+	}
+
+#ifdef PRINTABLE_EQUATIONS
+
+	size_t print(FILE* out) const
+	{
+		return expr::integral_print<expr::variational_t<T>>{}(out, domain, value * e);
+	}
+
+	size_t print(char* out) const
+	{
+		return expr::integral_print<expr::variational_t<T>>{}(out, domain, value * e);
+	}
+
+	size_t print_length() const
+	{
+		return expr::integral_print<expr::variational_t<T>>{}(domain, value * e);
+	}
+
+#endif
+
+	template<typename V0, typename E0, typename T0>
+	friend auto const& expr::get_enclosed_expression(OpIntegral<V0, E0, T0> const&);
+	template<typename V0, typename E0, typename T0>
+	friend auto& expr::get_enclosed_expression(OpIntegral<V0, E0, T0>&);
+	template<typename V0, typename E0, typename T0>
+	friend auto const& expr::get_result_data(OpIntegral<V0, E0, T0> const&);
+	template<typename V0, typename E0, typename T0>
+	friend auto& expr::get_result_data(OpIntegral<V0, E0, T0>&);
+
+
+	V value;						// value multiplying the result of this derivative
+	symphas::grid_info domain;		//!< Information about the domain of integration. 
+
+protected:
+
+	result_t data;						//!< Grid storing the resulting values.
+	E e;								//!< expression object specifying grid values
+};
+
+
+//! Represents the integration of an expression.
+/*!
+ * The variable of integration is chosen by the variable index specified
+ * by the first template parameter.
+ *
+ * \tparam T The index of the variable of integration.
+ * \tparam V The type of the coefficient.
+ * \tparam E The type of the expression which is being integrated.
+ */
+template<typename V, typename E, typename T>
+struct OpIntegral<V, E, SymbolicDerivative<T>> : OpExpression<OpIntegral<V, E, SymbolicDerivative<T>>>
+{
+	OpIntegral() : e{}, value{ V{} }, domain{ SymbolicDerivative<T>{} } {}
+	OpIntegral(V value, E const& e, SymbolicDerivative<T> domain = SymbolicDerivative<T>{}) : e{ e }, value{ value } {}
+
+	inline auto eval(iter_type n = 0) const
+	{
+		return expr::symbols::Symbol{};
+	}
+
+	auto operator-() const
+	{
+		return symphas::internal::make_integral::get(-value, e, SymbolicDerivative<T>{});
+	}
+
+	auto update() {}
+
+#ifdef PRINTABLE_EQUATIONS
+
+	size_t print(FILE* out) const
+	{
+		return expr::integral_print<T>{}(out, domain, value * e);
+	}
+
+	size_t print(char* out) const
+	{
+		return expr::integral_print<T>{}(out, domain, value * e);
+	}
+
+	size_t print_length() const
+	{
+		return expr::integral_print<T>{}(domain, value * e);
+	}
+
+#endif
+
+	template<typename V0, typename E0, typename T0>
+	friend auto const& expr::get_enclosed_expression(OpIntegral<V0, E0, T0> const&);
+	template<typename V0, typename E0, typename T0>
+	friend auto& expr::get_enclosed_expression(OpIntegral<V0, E0, T0>&);
+
+	V value;							// value multiplying the result of this derivative
+	SymbolicDerivative<T> domain;
+
+protected:
+
+	//result_t data;					//!< Grid storing the resulting values.
+	E e;								//!< expression object specifying grid values
+};
+
+
+template<typename V, typename E, typename T>
+using OpDomainIntegral = OpIntegral<V, E, expr::variational_t<T>>;
+
+
+template<typename coeff_t, typename V2, typename E2, typename T2,
+	typename std::enable_if_t<(expr::is_coeff<coeff_t> && !expr::is_tensor<V2>), int> = 0>
+auto operator*(coeff_t const& value, OpIntegral<V2, E2, T2> const& b)
+{
+	return expr::make_integral(value * b.value, expr::get_enclosed_expression(b), b.domain);
 }
 
-template<typename coeff_t, typename tensor_t, size_t Z2, typename E2,
-	typename std::enable_if_t<(expr::is_coeff<coeff_t> && expr::is_tensor<tensor_t>), int> = 0>
-auto operator*(coeff_t const& value, OpFuncIntegral<Z2, tensor_t, E2> const& b)
+template<typename coeff_t, typename tensor_t, typename E2, typename T2,
+	typename std::enable_if_t<(expr::is_coeff<coeff_t>&& expr::is_tensor<tensor_t>), int> = 0>
+auto operator*(coeff_t const& value, OpIntegral<tensor_t, E2, T2> const& b)
 {
-	return (value * b.value) * expr::make_integral<Z2>(OpIdentity{}, b.e);
+	return (value * b.value) * expr::make_integral(OpIdentity{}, expr::get_enclosed_expression(b), b.domain);
+}
+
+
+template<typename coeff_t, typename V2, typename E2, typename T2,
+	typename std::enable_if_t<(expr::is_coeff<coeff_t> && !expr::is_tensor<V2>), int> = 0>
+auto operator*(coeff_t const& value, OpIntegral<V2, E2, expr::variational_t<T2>> const& b)
+{
+	return expr::make_domain_integral(value * b.value, expr::get_enclosed_expression(b), b.domain);
+}
+
+template<typename coeff_t, typename tensor_t, typename E2, typename T2,
+	typename std::enable_if_t<(expr::is_coeff<coeff_t> && expr::is_tensor<tensor_t>), int> = 0>
+auto operator*(coeff_t const& value, OpIntegral<tensor_t, E2, expr::variational_t<T2>> const& b)
+{
+	return (value * b.value) * expr::make_domain_integral(OpIdentity{}, expr::get_enclosed_expression(b), b.domain);
 }
 
 
@@ -153,21 +382,17 @@ auto operator*(coeff_t const& value, OpFuncIntegral<Z2, tensor_t, E2> const& b)
 
 namespace symphas::internal
 {
+	template<typename V, typename E, typename T>
+	inline auto make_integral::get(V const& v, OpExpression<E> const& e, T const& domain)
+	{
+		return OpIntegral<V, E, T>(v, *static_cast<E const*>(&e), domain);
+	}
 
-	template<size_t Z>
 	template<typename V, typename E>
-	inline auto make_integral<Z>::get(V const& v, OpExpression<E> const& e)
+	inline auto make_integral::get(V const& v, OpExpression<E> const& e, symphas::grid_info const& domain)
 	{
-		return OpFuncIntegral<Z, V, E>(v, *static_cast<E const*>(&e));
+		return OpIntegral<V, E, expr::variational_t<void>>(v, *static_cast<E const*>(&e), domain);
 	}
-
-	template<size_t Z>
-	template<typename A, typename B>
-	inline auto make_integral<Z>::get(A&& a)
-	{
-		return get(OpIdentity{}, std::forward<A>(a));
-	}
-
 }
 
 

@@ -66,6 +66,9 @@ namespace expr
 		template<size_t Z, typename G>
 		len_type data_len_data(Variable<Z, G> const& data);
 		//! Specialization based on expr::data_len_data().
+		template<size_t Z, typename G>
+		len_type data_len_data(Variable<Z, G> const& data);
+		//! Specialization based on expr::data_len_data().
 		template<Axis ax, typename G>
 		len_type data_len_data(VectorComponent<ax, G> const& data);
 		//! Specialization based on expr::data_len_data().
@@ -125,6 +128,13 @@ namespace expr
 		len_type data_len_data(Variable<Z, G> const& data)
 		{
 			return data_len_data(*static_cast<G const*>(&data));
+		}
+
+		//! Specialization based on expr::data_len_data().
+		template<typename G>
+		len_type data_len_data(DynamicVariable<G> const& data)
+		{
+			return data_len_data(data.get());
 		}
 
 		//! Specialization based on expr::data_len_data().
@@ -211,25 +221,28 @@ namespace expr
 			return data_dimensions_cast(data->data);
 		}
 
-		//! Specialization based on expr::data_len_data().
+		//! Specialization based on expr::data_dimensions_data().
 		template<typename G>
 		grid::dim_list data_dimensions_data(symphas::ref<G> const& data);
 		//! Specialization based on expr::data_dimensions_data().
 		template<typename G>
 		grid::dim_list data_dimensions_data(NamedData<G> const& data);
-		//! Specialization based on expr::data_len_data().
+		//! Specialization based on expr::data_dimensions_data().
 		template<size_t Z, typename G>
 		grid::dim_list data_dimensions_data(Variable<Z, G> const& data);
-		//! Specialization based on expr::data_len_data().
+		//! Specialization based on expr::data_dimensions_data().
+		template<typename G>
+		grid::dim_list data_dimensions_data(DynamicVariable<G> const& data);
+		//! Specialization based on expr::data_dimensions_data().
 		template<Axis ax, typename G>
 		grid::dim_list data_dimensions_data(VectorComponent<ax, G> const& data);
-		//! Specialization based on expr::data_len_data().
+		//! Specialization based on expr::data_dimensions_data().
 		template<typename T>
 		grid::dim_list data_dimensions_data(SymbolicData<T> const& data);
-		//! Specialization based on expr::data_len_data().
+		//! Specialization based on expr::data_dimensions_data().
 		template<typename T>
 		grid::dim_list data_dimensions_data(SymbolicDataArray<T> const& data);
-		//! Specialization based on expr::data_len_data().
+		//! Specialization based on expr::data_dimensions_data().
 		template<typename... Ts>
 		grid::dim_list data_dimensions_data(SymbolicTermArray<Ts...> const& data);
 
@@ -267,6 +280,13 @@ namespace expr
 		grid::dim_list data_dimensions_data(Variable<Z, G> const& data)
 		{
 			return data_dimensions_data(*static_cast<G const*>(&data));
+		}
+
+		//! Specialization based on expr::data_dimensions_data().
+		template<typename G>
+		grid::dim_list data_dimensions_data(DynamicVariable<G> const& data)
+		{
+			return data_dimensions_data(data.get());
 		}
 
 		//! Specialization based on expr::data_dimensions_data().
@@ -312,6 +332,133 @@ namespace expr
 			return data_dimensions_data(data, std::make_index_sequence<sizeof...(Ts)>{});
 		}
 
+
+
+		//! Obtains the eval_iters from the Block compatible instance.
+		template<typename T, size_t D>
+		std::pair<iter_type*, len_type> eval_iters_cast(BoundaryGrid<T, D> const* data)
+		{
+			return std::make_pair(data->inners, data->len_inner);
+		}
+
+
+		//! The eval_iters of a typical data object is 1.
+		inline std::pair<iter_type*, len_type> eval_iters_cast(...)
+		{
+			return std::make_pair(nullptr, 0);
+		}
+
+
+		//! Specialization based on expr::eval_iters_data().
+		template<typename G>
+		std::pair<iter_type*, len_type> eval_iters_data(symphas::ref<G> const& data);
+		//! Specialization based on expr::data_dimensions_data().
+		template<typename G>
+		std::pair<iter_type*, len_type> eval_iters_data(NamedData<G> const& data);
+		//! Specialization based on expr::eval_iters_data().
+		template<size_t Z, typename G>
+		std::pair<iter_type*, len_type> eval_iters_data(Variable<Z, G> const& data);
+		//! Specialization based on expr::eval_iters_data().
+		template<size_t Z, typename G>
+		std::pair<iter_type*, len_type> eval_iters_data(Variable<Z, G> const& data);
+		//! Specialization based on expr::eval_iters_data().
+		template<Axis ax, typename G>
+		std::pair<iter_type*, len_type> eval_iters_data(VectorComponent<ax, G> const& data);
+		//! Specialization based on expr::eval_iters_data().
+		template<typename T>
+		std::pair<iter_type*, len_type> eval_iters_data(SymbolicData<T> const& data);
+		//! Specialization based on expr::eval_iters_data().
+		template<typename T>
+		std::pair<iter_type*, len_type> eval_iters_data(SymbolicDataArray<T> const& data);
+		//! Specialization based on expr::eval_iters_data().
+		template<typename... Ts>
+		std::pair<iter_type*, len_type> eval_iters_data(SymbolicTermArray<Ts...> const& data);
+
+
+		//! Specialization based on expr::eval_iters_data().
+		template<typename... Ts>
+		std::pair<iter_type*, len_type> eval_iters_data(SymbolicTermArray<Ts...> const& data, std::index_sequence<>)
+		{
+			return nullptr;
+		}
+
+		//! Specialization based on expr::eval_iters_data().
+		template<typename... Ts, size_t I0, size_t... Is>
+		std::pair<iter_type*, len_type> eval_iters_data(SymbolicTermArray<Ts...> const& data, std::index_sequence<I0, Is...>)
+		{
+			auto [iters0, n0] = eval_iters_data(data.data[I0]);
+			return (n0 > 0) ? std::make_pair(iters0, n0) : eval_iters_data(data, std::index_sequence<Is...>{});
+		}
+
+		//! Determines the eval_iters of the data.
+		/*!
+		 * Determines the eval_iters by attempting to
+		 * implicitly cast the given type to a one compatible with getting
+		 * the eval_iters.
+		 */
+		template<typename T>
+		std::pair<iter_type*, len_type> eval_iters_data(T const& data)
+		{
+			return eval_iters_cast(&data);
+		}
+
+		//! Specialization based on expr::eval_iters_data().
+		template<typename G>
+		std::pair<iter_type*, len_type> eval_iters_data(symphas::ref<G> const& data)
+		{
+			return eval_iters_data(data.get());
+		}
+
+		//! Specialization based on expr::eval_iters_data().
+		template<typename G>
+		std::pair<iter_type*, len_type> eval_iters_data(NamedData<G> const& data)
+		{
+			return eval_iters_data(static_cast<G const&>(data));
+		}
+
+		//! Specialization based on expr::eval_iters_data().
+		template<size_t Z, typename G>
+		std::pair<iter_type*, len_type> eval_iters_data(Variable<Z, G> const& data)
+		{
+			return eval_iters_data(*static_cast<G const*>(&data));
+		}
+
+		//! Specialization based on expr::eval_iters_data().
+		template<typename G>
+		std::pair<iter_type*, len_type> eval_iters_data(DynamicVariable<G> const& data)
+		{
+			return eval_iters_data(data.get());
+		}
+
+		//! Specialization based on expr::eval_iters_data().
+		template<Axis ax, typename G>
+		std::pair<iter_type*, len_type> eval_iters_data(VectorComponent<ax, G> const& data)
+		{
+			return eval_iters_data(*static_cast<G const*>(&data));
+		}
+
+		//! Specialization based on expr::eval_iters_data().
+		template<typename T>
+		std::pair<iter_type*, len_type> eval_iters_data(SymbolicData<T> const& data)
+		{
+			return eval_iters_data(*data.data);
+		}
+
+		//! Specialization based on expr::eval_iters_data().
+		template<typename T>
+		std::pair<iter_type*, len_type> eval_iters_data(SymbolicDataArray<T> const& data)
+		{
+			return eval_iters_data(*data.data);
+		}
+
+		//! Specialization based on expr::eval_iters_data().
+		template<typename... Ts>
+		std::pair<iter_type*, len_type> eval_iters_data(SymbolicTermArray<Ts...> const& data)
+		{
+			return eval_iters_data(data, std::make_index_sequence<sizeof...(Ts)>{});
+		}
+
+
 	}
 
 
@@ -334,6 +481,9 @@ namespace expr
 	//! Specialization based on expr::data_list(E const&).
 	template<typename Dd, typename V, typename E, typename Sp>
 	auto data_list(OpDerivative<Dd, V, E, Sp> const& e);
+	//! Specialization based on expr::data_list(E const&).
+	template<typename V, typename E, typename T>
+	auto data_list(OpIntegral<V, E, T> const& e);
 	//! Specialization based on expr::data_list(E const&).
 	template<typename A1, typename A2, typename E>
 	auto data_list(OpCombination<A1, A2, E> const& e);
@@ -466,6 +616,12 @@ namespace expr
 
 	template<typename Dd, typename V, typename E, typename Sp>
 	auto data_list(OpDerivative<Dd, V, E, Sp> const& e)
+	{
+		return data_list(expr::get_enclosed_expression(e));
+	}
+
+	template<typename V, typename E, typename T>
+	auto data_list(OpIntegral<V, E, T> const& e)
 	{
 		return data_list(expr::get_enclosed_expression(e));
 	}
@@ -635,11 +791,17 @@ namespace expr
 	template<typename E>
 	grid::dim_list data_dimensions(OpExpression<E> const& e);
 	//! Specialization based on expr::data_dimensions(E const&).
-	template<typename V, typename... Gs, expr::exp_key_t... Xs>
+	template<typename... Gs, expr::exp_key_t... Xs>
+	grid::dim_list data_dimensions(OpTermsList<Term<Gs, Xs>...> const& e);
+		//! Specialization based on expr::data_dimensions(E const&).
+		template<typename V, typename... Gs, expr::exp_key_t... Xs>
 	grid::dim_list data_dimensions(OpTerms<V, Term<Gs, Xs>...> const& e);
 	//! Specialization based on expr::data_dimensions(E const&).
 	template<typename Dd, typename V, typename E, typename Sp>
 	grid::dim_list data_dimensions(OpDerivative<Dd, V, E, Sp> const& e);
+	//! Specialization based on expr::data_dimensions(E const&).
+	template<typename V, typename E, typename T>
+	grid::dim_list data_dimensions(OpIntegral<V, E, T> const& e);
 	//! Specialization based on expr::data_dimensions(E const&).
 	template<typename A1, typename A2, typename E>
 	grid::dim_list data_dimensions(OpCombination<A1, A2, E> const& e);
@@ -712,22 +874,35 @@ namespace expr
 		return data_dimensions(*static_cast<E const*>(&e));
 	}
 
+	template<typename... Gs, expr::exp_key_t... Xs>
+	grid::dim_list data_dimensions(OpTermsList<Term<Gs, Xs>...> const& e)
+	{
+		auto data_dimensions1 = data_dimensions(e.term.data());
+		return (data_dimensions1.n > 0) ? data_dimensions1 : data_dimensions(expr::terms_after_first(e));
+	}
+
 	template<typename V, typename... Gs, expr::exp_key_t... Xs>
 	grid::dim_list data_dimensions(OpTerms<V, Term<Gs, Xs>...> const& e)
 	{
 		if constexpr (expr::has_coeff<OpTerms<V, Term<Gs, Xs>...>>)
 		{
-			return data_dimensions(expr::terms_after_first(e));
+			return data_dimensions(*static_cast<OpTermsList<Term<Gs, Xs>...> const*>(&e));
 		}
 		else
 		{
 			auto data_dimensions1 = data_dimensions(e.term.data());
-			return (data_dimensions1.n > 0) ? data_dimensions1 : data_dimensions(expr::terms_after_first(e));
+			return (data_dimensions1.n > 0) ? data_dimensions1 : data_dimensions(*static_cast<OpTermsList<Term<Gs, Xs>...> const*>(&e));
 		}
 	}
 
 	template<typename Dd, typename V, typename E, typename Sp>
 	grid::dim_list data_dimensions(OpDerivative<Dd, V, E, Sp> const& e)
+	{
+		return data_dimensions(expr::get_enclosed_expression(e));
+	}
+
+	template<typename V, typename E, typename T>
+	grid::dim_list data_dimensions(OpIntegral<V, E, T> const& e)
 	{
 		return data_dimensions(expr::get_enclosed_expression(e));
 	}
@@ -856,11 +1031,17 @@ namespace expr
 	template<typename E>
 	len_type data_length(OpExpression<E> const& e);
 	//! Specialization based on expr::data_length(E const&).
+	template<typename... Gs, expr::exp_key_t... Xs>
+	len_type data_length(OpTermsList<Term<Gs, Xs>...> const& e);
+	//! Specialization based on expr::data_length(E const&).
 	template<typename V, typename... Gs, expr::exp_key_t... Xs>
 	len_type data_length(OpTerms<V, Term<Gs, Xs>...> const& e);
 	//! Specialization based on expr::data_length(E const&).
 	template<typename Dd, typename V, typename E, typename Sp>
 	len_type data_length(OpDerivative<Dd, V, E, Sp> const& e);
+	//! Specialization based on expr::data_length(E const&).
+	template<typename V, typename E, typename T>
+	len_type data_length(OpIntegral<V, E, T> const& e);
 	//! Specialization based on expr::data_length(E const&).
 	template<typename Dd, typename V, typename G, typename Sp>
 	len_type data_length(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> const& e);
@@ -928,7 +1109,7 @@ namespace expr
 	}
 
 	template<typename... Gs, expr::exp_key_t... Xs, size_t... Is>
-	len_type data_length(OpTerms<Term<Gs, Xs>...> const& e, std::index_sequence<Is...>)
+	len_type data_length(OpTermsList<Term<Gs, Xs>...> const& e, std::index_sequence<Is...>)
 	{
 		return std::max({ 1, data_len_data(expr::get<Is>(e).data())... });
 	}
@@ -944,17 +1125,23 @@ namespace expr
 	{
 		return data_length(*static_cast<E const*>(&e));
 	}
+	
+	template<typename... Gs, expr::exp_key_t... Xs>
+	len_type data_length(OpTermsList<Term<Gs, Xs>...> const& e)
+	{
+		return data_length(e, std::make_index_sequence<sizeof...(Gs)>{});
+	}
 
 	template<typename V, typename... Gs, expr::exp_key_t... Xs>
 	len_type data_length(OpTerms<V, Term<Gs, Xs>...> const& e)
 	{
 		if constexpr (expr::has_coeff<OpTerms<V, Term<Gs, Xs>...>>)
 		{
-			return data_length(expr::terms_after_first(e), std::make_index_sequence<sizeof...(Gs)>{});
+			return data_length(*static_cast<OpTermsList<Term<Gs, Xs>...> const*>(&e));
 		}
 		else
 		{
-			return data_length(e, std::make_index_sequence<sizeof...(Gs) + 1>{});
+			return data_length(*static_cast<OpTermsList<V, Term<Gs, Xs>...> const*>(&e));
 		}
 	}
 
@@ -966,6 +1153,12 @@ namespace expr
 
 	template<typename Dd, typename V, typename G, typename Sp>
 	len_type data_length(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> const& e)
+	{
+		return data_len_data(expr::get_enclosed_expression(e));
+	}
+
+	template<typename V, typename E, typename T>
+	len_type data_length(OpIntegral<V, E, T> const& e)
 	{
 		return data_len_data(expr::get_enclosed_expression(e));
 	}
@@ -1070,6 +1263,247 @@ namespace expr
 			data_length(*static_cast<const E1*>(&a)),
 			data_length(*static_cast<const E2*>(&b)));
 	}
+
+
+
+
+
+	//! Obtain the length of the data in the expression.
+	/*!
+	 * Return the data_len of the underlying data set.
+	 * This is particularly important for data sets which contain grids.
+	 * If the data set does not contain a grid, then a default data_len is
+	 * returned.
+	 */
+	template<typename E>
+	std::pair<iter_type*, len_type> eval_iters(E const& e);
+	//! Specialization based on expr::eval_iters(E const&).
+	template<typename E>
+	std::pair<iter_type*, len_type> eval_iters(OpExpression<E> const& e);
+	//! Specialization based on expr::eval_iters(E const&).
+	template<typename... Gs, expr::exp_key_t... Xs>
+	std::pair<iter_type*, len_type> eval_iters(OpTermsList<Term<Gs, Xs>...> const& e);
+	//! Specialization based on expr::eval_iters(E const&).
+	template<typename V, typename... Gs, expr::exp_key_t... Xs>
+	std::pair<iter_type*, len_type> eval_iters(OpTerms<V, Term<Gs, Xs>...> const& e);
+	//! Specialization based on expr::eval_iters(E const&).
+	template<typename Dd, typename V, typename E, typename Sp>
+	std::pair<iter_type*, len_type> eval_iters(OpDerivative<Dd, V, E, Sp> const& e);
+	//! Specialization based on expr::eval_iters(E const&).
+	template<typename V, typename E, typename T>
+	std::pair<iter_type*, len_type> eval_iters(OpIntegral<V, E, T> const& e);
+	//! Specialization based on expr::eval_iters(E const&).
+	template<typename Dd, typename V, typename G, typename Sp>
+	std::pair<iter_type*, len_type> eval_iters(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> const& e);
+	//! Specialization based on expr::eval_iters(E const&).
+	template<typename A1, typename A2, typename E>
+	std::pair<iter_type*, len_type> eval_iters(OpCombination<A1, A2, E> const& e);
+	//! Specialization based on expr::eval_iters(E const&).
+	template<typename A1, typename A2, typename E>
+	std::pair<iter_type*, len_type> eval_iters(OpChain<A1, A2, E> const& e);
+	//! Specialization based on expr::eval_iters(E const&).
+	template<typename V, typename E>
+	std::pair<iter_type*, len_type> eval_iters(OpExponential<V, E> const& e);
+	//! Specialization based on expr::eval_iters(E const&).
+	template<expr::exp_key_t X, typename V, typename E>
+	std::pair<iter_type*, len_type> eval_iters(OpPow<X, V, E> const& e);
+	//! Specialization based on expr::eval_iters(E const&).
+	template<auto f, typename V, typename E>
+	std::pair<iter_type*, len_type> eval_iters(OpFunctionApply<f, V, E> const& e);
+	//! Specialization based on expr::eval_iters(E const&).
+	template<typename V, typename E, typename F, typename Arg0, typename... Args>
+	std::pair<iter_type*, len_type> eval_iters(OpFunction<V, E, F, Arg0, Args...> const& e);
+	//! Specialization based on expr::eval_iters(E const&).
+	template<typename V, typename sub_t, typename E, typename... Ts>
+	std::pair<iter_type*, len_type> eval_iters(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e);
+	//! Specialization based on expr::eval_iters(E const&).
+	template<typename V, typename E, typename... Ts, int... I0s, int... P0s, typename E0, typename... T0s, typename B, typename C>
+	std::pair<iter_type*, len_type> eval_iters(OpSum<V, E, Substitution<SymbolicDataArray<Ts>...>,
+		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, SymbolicFunction<E0, T0s...>, B, C> const& e);
+	//! Specialization based on expr::eval_iters(E const&).
+	template<typename V, typename E1, typename E2>
+	std::pair<iter_type*, len_type> eval_iters(OpConvolution<V, E1, E2> const& e);
+	//! Specialization based on expr::eval_iters(E const&).
+	template<size_t D>
+	std::pair<iter_type*, len_type> eval_iters(GaussianSmoothing<D> const& e);
+	//! Specialization based on expr::eval_iters(E const&).
+	template<typename V, size_t D, typename E>
+	std::pair<iter_type*, len_type> eval_iters(OpConvolution<V, GaussianSmoothing<D>, E> const& e);
+	//! Specialization based on expr::eval_iters(E const&).
+	template<typename G, typename V, typename E>
+	std::pair<iter_type*, len_type> eval_iters(OpMap<G, V, E> const& e);
+	//! Specialization based on expr::eval_iters(E const&).
+	template<typename... Es>
+	std::pair<iter_type*, len_type> eval_iters(OpAdd<Es...> const& e);
+	//! Specialization based on expr::eval_iters(E const&).
+	template<typename E1, typename E2>
+	std::pair<iter_type*, len_type> eval_iters(OpBinaryMul<E1, E2> const& e);
+	//! Specialization based on expr::eval_iters(E const&).
+	template<typename E1, typename E2>
+	std::pair<iter_type*, len_type> eval_iters(OpBinaryDiv<E1, E2> const& e);
+
+
+	//! Obtain the length of the data in the expression.
+	/*!
+	 * Return the data_len of the underlying data set.
+	 * Chooses the appropriate expr::eval_iters() between two expressions.
+	 * This standardizes the choosing procedure for binary expressions.
+	 */
+	template<typename E1, typename E2>
+	std::pair<iter_type*, len_type> eval_iters(OpExpression<E1> const& a, OpExpression<E2> const& b);
+
+	template<typename E>
+	std::pair<iter_type*, len_type> eval_iters(E const& e)
+	{
+		return eval_iters_data(e);
+	}
+
+	template<typename E>
+	std::pair<iter_type*, len_type> eval_iters(OpExpression<E> const& e)
+	{
+		return eval_iters(*static_cast<E const*>(&e));
+	}
+
+	template<typename... Gs, expr::exp_key_t... Xs>
+	std::pair<iter_type*, len_type> eval_iters(OpTermsList<Term<Gs, Xs>...> const& e)
+	{
+		auto [iters0, n0] = eval_iters(e.term.data());
+		return (n0 > 0) ? std::make_pair(iters0, n0) : eval_iters(expr::terms_after_first(e));
+	}
+
+	template<typename V, typename... Gs, expr::exp_key_t... Xs>
+	std::pair<iter_type*, len_type> eval_iters(OpTerms<V, Term<Gs, Xs>...> const& e)
+	{
+		if constexpr (expr::has_coeff<OpTerms<V, Term<Gs, Xs>...>>)
+		{
+			return eval_iters(*static_cast<OpTermsList<Term<Gs, Xs>...> const*>(&e));
+		}
+		else
+		{
+			return eval_iters(*static_cast<OpTermsList<V, Term<Gs, Xs>...> const*>(&e));
+		}
+	}
+
+	template<typename Dd, typename V, typename E, typename Sp>
+	std::pair<iter_type*, len_type> eval_iters(OpDerivative<Dd, V, E, Sp> const& e)
+	{
+		return eval_iters_data(expr::get_result_data(e));
+	}
+
+	template<typename Dd, typename V, typename G, typename Sp>
+	std::pair<iter_type*, len_type> eval_iters(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> const& e)
+	{
+		return eval_iters_data(expr::get_enclosed_expression(e));
+	}
+
+	template<typename V, typename E, typename T>
+	std::pair<iter_type*, len_type> eval_iters(OpIntegral<V, E, T> const& e)
+	{
+		return eval_iters_data(expr::get_enclosed_expression(e));
+	}
+
+	template<typename A1, typename A2, typename E>
+	std::pair<iter_type*, len_type> eval_iters(OpCombination<A1, A2, E> const& e)
+	{
+		return eval_iters(e.e);
+	}
+
+	template<typename A1, typename A2, typename E>
+	std::pair<iter_type*, len_type> eval_iters(OpChain<A1, A2, E> const& e)
+	{
+		return eval_iters(e.e);
+	}
+
+	template<typename V, typename E>
+	std::pair<iter_type*, len_type> eval_iters(OpExponential<V, E> const& e)
+	{
+		return eval_iters(e.e);
+	}
+
+	template<expr::exp_key_t X, typename V, typename E>
+	std::pair<iter_type*, len_type> eval_iters(OpPow<X, V, E> const& e)
+	{
+		return eval_iters(expr::get_enclosed_expression(e));
+	}
+
+	template<auto f, typename V, typename E>
+	std::pair<iter_type*, len_type> eval_iters(OpFunctionApply<f, V, E> const& e)
+	{
+		return eval_iters(e.e);
+	}
+
+	template<typename V, typename E, typename F, typename Arg0, typename... Args>
+	std::pair<iter_type*, len_type> eval_iters(OpFunction<V, E, F, Arg0, Args...> const& e)
+	{
+		return eval_iters(e.e);
+	}
+
+	template<typename V, typename sub_t, typename E, typename... Ts>
+	std::pair<iter_type*, len_type> eval_iters(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e)
+	{
+		return eval_iters(expr::get_enclosed_expression(e));
+	}
+
+	template<typename V, typename E, typename... Ts, int... I0s, int... P0s, typename E0, typename... T0s, typename B, typename C>
+	std::pair<iter_type*, len_type> eval_iters(OpSum<V, E, Substitution<SymbolicDataArray<Ts>...>,
+		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, SymbolicFunction<E0, T0s...>, B, C> const& e)
+	{
+		auto [iters0, n0] = eval_iters(expr::get_enclosed_expression(e));
+		return (n0 > 0) ? std::make_pair(iters0, n0) : eval_iters(e.data.substitution);
+	}
+
+	template<typename V, typename E1, typename E2>
+	std::pair<iter_type*, len_type> eval_iters(OpConvolution<V, E1, E2> const& e)
+	{
+		return eval_iters(e.a, e.b);
+	}
+
+	template<typename V, size_t D, typename E>
+	std::pair<iter_type*, len_type> eval_iters(OpConvolution<V, GaussianSmoothing<D>, E> const& e)
+	{
+		return eval_iters(expr::get_enclosed_expression(e), e.smoother);
+	}
+
+	template<typename G, typename V, typename E>
+	std::pair<iter_type*, len_type> eval_iters(OpMap<G, V, E> const& e)
+	{
+		return eval_iters(expr::get_enclosed_expression(e));
+	}
+
+	template<size_t D>
+	std::pair<iter_type*, len_type> eval_iters(GaussianSmoothing<D> const& e)
+	{
+		return eval_iters_data(e.data);
+	}
+
+	template<typename... Es>
+	std::pair<iter_type*, len_type> eval_iters(OpAdd<Es...> const& e)
+	{
+		auto [iters0, n0] = eval_iters(expr::get<0>(e));
+		return (n0 > 0) ? std::make_pair(iters0, n0) : eval_iters(expr::terms_after_first(e));
+	}
+
+
+	template<typename E1, typename E2>
+	std::pair<iter_type*, len_type> eval_iters(OpBinaryMul<E1, E2> const& e)
+	{
+		return eval_iters(e.a, e.b);
+	}
+
+	template<typename E1, typename E2>
+	std::pair<iter_type*, len_type> eval_iters(OpBinaryDiv<E1, E2> const& e)
+	{
+		return eval_iters(e.a, e.b);
+	}
+
+	template<typename E1, typename E2>
+	std::pair<iter_type*, len_type> eval_iters(OpExpression<E1> const& a, OpExpression<E2> const& b)
+	{
+		auto [iters0, n0] = eval_iters(*static_cast<const E1*>(&a));
+		return (n0 > 0) ? std::make_pair(iters0, n0) : eval_iters(*static_cast<const E2*>(&b));
+	}
+
+
 
 
 	template<typename T>

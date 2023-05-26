@@ -32,7 +32,6 @@
 template<typename G>
 struct SymbolicDerivative
 {
-
 	template<Axis ax, size_t O, typename T>
 	decltype(auto) generalized_derivative(T&& e, iter_type n) const
 	{
@@ -69,6 +68,44 @@ struct SymbolicDerivative
 		return expr::symbols::Symbol{};
 	}
 };
+
+
+template<typename G>
+struct SymbolicDerivative<DynamicVariable<G>> : SymbolicDerivative<G>
+{
+	SymbolicDerivative() : index{} {}
+	SymbolicDerivative(DynamicIndex const& index) : index{ index } {}
+
+	DynamicIndex index;
+};
+
+template<typename G>
+struct SymbolicDerivative<expr::variational_t<DynamicVariable<G>>> : SymbolicDerivative<G>
+{
+	SymbolicDerivative() : index{} {}
+	SymbolicDerivative(DynamicIndex const& index) : index{ index } {}
+
+	DynamicIndex index;
+};
+
+template<typename G, size_t D>
+struct SymbolicDerivative<expr::variational_t<GridSymbol<G, D>>> : SymbolicDerivative<G>
+{
+	SymbolicDerivative() : index{} {}
+	SymbolicDerivative(DynamicIndex const& index) : index{ index } {}
+
+	DynamicIndex index;
+};
+
+template<typename G>
+using SymbolicFunctionalDerivative = SymbolicDerivative<expr::variational_t<G>>;
+
+template<typename G>
+SymbolicDerivative(DynamicVariable<G>) -> SymbolicDerivative<expr::variational_t<DynamicVariable<G>>>;
+
+
+template<typename V, typename E, typename G>
+using OpFunctionalDerivative = OpDerivative<std::index_sequence<1>, V, E, SymbolicFunctionalDerivative<G>>;
 
 //! \cond
 //! The solver type used by the derivative expression.
@@ -108,6 +145,9 @@ namespace symphas::internal
 
 		template<typename V, typename S, typename G, typename G0>
 		static auto get(V const& v, OpTerm<S, G> const& e, SymbolicDerivative<G0> s);
+
+		template<typename V, typename E, typename G0>
+		static auto get(V const& v, OpExpression<E> const& e, SymbolicDerivative<G0> s);
 
 
 		//! Constructs the derivative using a grid instead of an expression.
@@ -414,10 +454,10 @@ namespace expr
 	 * \tparam O The order of the derivative.
 	 * \tparam G The variable against which this expression is differentiated.
 	 */
-	template<size_t O, typename G, typename V, typename A>
-	auto make_derivative(V&& v, A&& a)
+	template<size_t O, typename G, typename A, typename B>
+	auto make_derivative(A&& a, B&& b)
 	{
-		return make_derivative<std::index_sequence<O>>(std::forward<V>(v), std::forward<A>(a), SymbolicDerivative<G>{});
+		return make_derivative<std::index_sequence<O>>(OpIdentity{}, std::forward<A>(a), SymbolicDerivative<G>(std::forward<B>(b)));
 	}
 
 	//! Create a symbolic derivative expression with the given term, of the given order.
@@ -452,6 +492,102 @@ namespace expr
 		return make_derivative<std::index_sequence<O>>(std::forward<V>(v), std::forward<A>(a), SymbolicDerivative<Variable<Z>>{});
 	}
 
+	template<size_t O, typename E, typename A>
+	auto make_symbolic_derivative(OpExpression<E> const& e, A const& symbol)
+	{
+		return expr::make_derivative<O, A>(*static_cast<E const*>(&e));
+	}
+
+	template<size_t O, typename E, size_t Z, typename G>
+	auto make_symbolic_derivative(OpExpression<E> const& e, OpTerm<OpIdentity, Variable<Z, G>> const& symbol)
+	{
+		return expr::make_derivative<O, Z>(*static_cast<E const*>(&e));
+	}
+
+	template<size_t Z, typename V, typename E>
+	auto make_functional_derivative(V const& value, OpExpression<E> const& e)
+	{
+		return OpFunctionalDerivative<V, E, Variable<Z>>(value, *static_cast<E const*>(&e));
+	}
+
+	template<size_t Z, typename E>
+	auto make_functional_derivative(E&& e)
+	{
+		return make_functional_derivative<Z>(OpIdentity{}, std::forward<E>(e));
+	}
+
+	template<typename V, typename E, size_t Z, typename G>
+	auto make_functional_derivative(V const& value, OpExpression<E> const& e, Variable<Z, G>)
+	{
+		return OpFunctionalDerivative<V, E, Variable<Z, G>>(value, *static_cast<E const*>(&e));
+	}
+
+	template<typename E, size_t Z, typename G>
+	auto make_functional_derivative(OpExpression<E> const& e, Variable<Z, G>)
+	{
+		return make_functional_derivative(OpIdentity{}, *static_cast<E const*>(&e), Variable<Z, G>{});
+	}
+
+	template<typename V, typename E, typename G>
+	auto make_functional_derivative(V const& value, OpExpression<E> const& e, DynamicVariable<G> const& symbol)
+	{
+		return OpFunctionalDerivative<V, E, DynamicVariable<G>>(value, *static_cast<E const*>(&e), symbol);
+	}
+
+	template<typename E, typename G>
+	auto make_functional_derivative(OpExpression<E> const& e, DynamicVariable<G> const& symbol)
+	{
+		return make_functional_derivative(OpIdentity{}, *static_cast<E const*>(&e), symbol);
+	}
+
+
+	template<typename V, typename E, typename G>
+	auto make_functional_derivative(V const& value, OpExpression<E> const& e, G const& symbol)
+	{
+		return OpFunctionalDerivative<V, E, G>(value, *static_cast<E const*>(&e));
+	}
+
+	template<typename E, typename G>
+	auto make_functional_derivative(OpExpression<E> const& e, G const& symbol)
+	{
+		return make_functional_derivative(OpIdentity{}, *static_cast<E const*>(&e), G{});
+	}
+
+	template<typename V, typename E, size_t Z, typename G>
+	auto make_functional_derivative(V const& value, OpExpression<E> const& e, OpTerm<OpIdentity, Variable<Z, G>> const& symbol)
+	{
+		return OpFunctionalDerivative<V, E, Variable<Z, G>>(value, *static_cast<E const*>(&e));
+	}
+
+	template<typename E, size_t Z, typename G>
+	auto make_functional_derivative(E&& e, OpTerm<OpIdentity, Variable<Z, G>> const& symbol)
+	{
+		return make_functional_derivative(OpIdentity{}, std::forward<E>(e), symbol);
+	}
+
+	template<typename V, typename E, typename G>
+	auto make_functional_derivative(V const& value, OpExpression<E> const& e, OpTerm<OpIdentity, DynamicVariable<G>> const& symbol)
+	{
+		return OpFunctionalDerivative<V, E, DynamicVariable<G>>(value, *static_cast<E const*>(&e), SymbolicDerivative(expr::get<1>(symbol).data()));
+	}
+
+	template<typename E, typename G>
+	auto make_functional_derivative(E&& e, OpTerm<OpIdentity, DynamicVariable<G>> const& symbol)
+	{
+		return make_functional_derivative(OpIdentity{}, std::forward<E>(e), symbol);
+	}
+
+	template<typename V, typename E, typename G>
+	auto make_functional_derivative(V const& value, OpExpression<E> const& e, OpTerm<OpIdentity, G> const& symbol)
+	{
+		return OpFunctionalDerivative<V, E, G>(value, *static_cast<E const*>(&e));
+	}
+
+	template<typename E, typename G>
+	auto make_functional_derivative(E&& e, OpTerm<OpIdentity, G> const& symbol)
+	{
+		return make_functional_derivative(OpIdentity{}, std::forward<E>(e), symbol);
+	}
 
 
 	//! Create a derivative operator.
@@ -721,10 +857,6 @@ namespace expr
 	}
 }
 
-
-template<typename E>
-using deriv_working_grid = typename expr::storage_type<E>::type;
-
 // *************************************************************************************
 
 
@@ -751,14 +883,14 @@ using deriv_working_grid = typename expr::storage_type<E>::type;
 template<typename Dd, typename V, typename E, typename Sp>
 struct OpDerivative : OpExpression<OpDerivative<Dd, V, E, Sp>>
 {
-	using result_grid = deriv_working_grid<E>;	
+	using result_grid = expr::storage_t<E>;
 
 	static const size_t order = Dd::order;		//!< The order of this derivative.
 	static const Axis axis = Dd::axis;			//!< The axis of this derivative.
 	static const bool is_directional = Dd::is_directional;	//!< Whether the derivative is directional.
 
 
-	OpDerivative() : grid{ 0 }, value { V{} }, e{}, solver{} {}
+	OpDerivative() : grid{ 0 }, value{ V{} }, solver{}, e{} {}
 
 	//! Generate a derivative of the given expression.
 	/*!
@@ -856,7 +988,7 @@ template<typename Dd, typename V, typename G, typename Sp>
 struct OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> : OpExpression<OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp>>, Dd
 {
 	using E = OpTerm<OpIdentity, G>;
-	using result_grid = deriv_working_grid<E>;
+	using result_grid = expr::storage_t<E>;
 
 	using Dd::order;
 	using Dd::axis;
@@ -866,7 +998,7 @@ struct OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> : OpExpression<OpDerivativ
 	OpDerivative(V0 value, OpTerm<V1, G> const& e, solver_op_type<Sp> solver) : value{ expr::coeff(e) * value }, solver{ solver }, data{expr::data(e)} {}
 	OpDerivative(V value, G data, solver_op_type<Sp> solver) : value{ value }, solver{ solver }, data{ data } {}
 
-	OpDerivative() : V{ V{} }, solver{ Sp::make_solver() }, data{} {}
+	OpDerivative() : value{ V{} }, solver{ Sp::make_solver() }, data{} {}
 
 	inline auto eval(iter_type n) const
 	{
@@ -955,11 +1087,11 @@ struct OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G>> :
 	 * to the given expression, where the order depends on the differentiation
 	 * object.
 	 */
-	OpDerivative(V value, E const& e, SymbolicDerivative<G>) :
-		value{ value }, solver{}, e{ e } {}
+	OpDerivative(V value, E const& e, SymbolicDerivative<G> const& solver) :
+		value{ value }, solver{ solver }, e{ e } {}
 
-	OpDerivative(E const& e, SymbolicDerivative<G>) :
-		value{ OpIdentity{} }, solver{}, e{ e } {}
+	OpDerivative(E const& e, SymbolicDerivative<G> const& solver) :
+		value{ OpIdentity{} }, solver{ solver }, e{ e } {}
 
 	inline auto eval(iter_type n = 0) const
 	{
@@ -1036,13 +1168,13 @@ struct OpDerivative<std::index_sequence<O>, V, OpTerm<OpIdentity, G1>, SymbolicD
 
 	static const size_t order = O; //!< The order of this derivative.
 
-	OpDerivative(V value, OpTerm<OpIdentity, G1> e, SymbolicDerivative<G2> solver) : value{ value }, solver{ solver }, e{ e } {}
+	OpDerivative(V value, OpTerm<OpIdentity, G1> e, SymbolicDerivative<G2> const& solver) : value{ value }, solver{ solver }, e{ e } {}
 	OpDerivative() : value{ V{} }, e{}, solver{} {}
 
 	template<typename V0, typename V1, typename std::enable_if_t<std::is_convertible<mul_result_t<V0, V1>, V>::value, int> = 0>
-	OpDerivative(V0 value, OpTerm<V1, G1> const& e, SymbolicDerivative<G2>) : value{ e.term * value }, solver{}, e{ e } {}
+	OpDerivative(V0 value, OpTerm<V1, G1> const& e, SymbolicDerivative<G2> const& solver) : value{ e.term * value }, solver{ solver }, e{ e } {}
 	
-	OpDerivative(V value, G1 data, SymbolicDerivative<G2>) : value{ value }, solver{}, e{ OpTerm<OpIdentity, G1>(OpIdentity{}, Term(data)) } {}
+	OpDerivative(V value, G1 data, SymbolicDerivative<G2> const& solver) : value{ value }, solver{ solver }, e{ OpTerm<OpIdentity, G1>(OpIdentity{}, Term(data)) } {}
 	
 	template<typename V0, typename V1, typename std::enable_if_t<std::is_convertible<mul_result_t<V0, V1>, V>::value, int> = 0>
 	OpDerivative(V0 value, OpTerm<V1, G1> const& e) : value{ e.value * value }, solver{}, e{ e } {}
@@ -1100,6 +1232,194 @@ protected:
 	E e;							//!< Expression object specifying grid values.
 
 };
+
+//! Symbolic derivative expression.
+/*!
+ * Represents the symbolic differentiation with respect to a variable defined by the
+ * template parameter `G`. This is a specialization of the base derivative object which applies
+ * a concrete solver to an expression. This object cannot evaluate any derivatives, and is only
+ * used to represent differentiation in order to perform symbolic differentiation of terms.
+ *
+ * \tparam O The order of the derivative.
+ * \tparam G Defines the variable against which the expression is differentiated. For example,
+ * this can be an std::index_sequence type.
+ * \tparam V Type of the coefficient.
+ * \tparam E Expression type that the derivative applies to.
+ */
+template<typename G, typename V, typename E>
+struct OpDerivative<std::index_sequence<1>, V, E, SymbolicFunctionalDerivative<G>> :
+	OpExpression<OpDerivative<std::index_sequence<1>, V, E, SymbolicFunctionalDerivative<G>>>
+{
+	static const size_t order = 1;			//!< The order of this derivative.
+
+	using solver_t = std::invoke_result_t<decltype(expr::get_solver<E>), E>;
+
+	OpDerivative() : value{ V{} }, solver{}, implicit_solver{}, e{} {}
+
+	//! Generate a derivative of the given expression.
+	/*!
+	 * Create a derivative expression representing applying a derivative
+	 * to the given expression, where the order depends on the differentiation
+	 * object.
+	 */
+	OpDerivative(V value, E const& e, SymbolicFunctionalDerivative<G> const& solver = SymbolicFunctionalDerivative<G>{}) :
+		value{ value }, solver{ solver }, implicit_solver{ expr::get_solver(e) }, e{ e } {}
+
+	OpDerivative(E const& e, SymbolicFunctionalDerivative<G> const& solver = SymbolicFunctionalDerivative<G>{}) :
+		value{ OpIdentity{} }, solver{ solver }, implicit_solver{ expr::get_solver(e) }, e{ e } {}
+
+	inline auto eval(iter_type n = 0) const
+	{
+		return value * expr::symbols::Symbol{};
+	}
+
+	auto operator-() const
+	{
+		return symphas::internal::make_derivative<std::index_sequence<1>>::get(-value, e, solver);
+	}
+
+#ifdef PRINTABLE_EQUATIONS
+	using print_type = decltype(symphas::internal::select_print_deriv(expr::variational_t<G>{}));
+
+	size_t print(FILE* out) const
+	{
+		size_t n = expr::print_with_coeff(out, value);
+		n += print_type::print(out);
+		n += fprintf(out, SYEX_DERIV_APPLIED_EXPR_FMT_A);
+		n += e.print(out);
+		n += fprintf(out, SYEX_DERIV_APPLIED_EXPR_FMT_B);
+		return n;
+	}
+
+	size_t print(char* out) const
+	{
+		size_t n = expr::print_with_coeff(out, value);
+		n += print_type::print(out + n);
+		n += sprintf(out + n, SYEX_DERIV_APPLIED_EXPR_FMT_A);
+		n += e.print(out + n);
+		n += sprintf(out + n, SYEX_DERIV_APPLIED_EXPR_FMT_B);
+		return n;
+	}
+
+	size_t print_length() const
+	{
+		return expr::coeff_print_length(value) + STR_ARR_LEN(SYEX_DERIV_APPLIED_EXPR_FMT_A SYEX_DERIV_APPLIED_EXPR_FMT_B) - 1
+			+ print_type::print_length() + e.print_length();
+	}
+
+#endif
+
+	template<size_t O0, typename V0, typename E0, typename G0>
+	friend auto const& expr::get_enclosed_expression(OpDerivative<std::index_sequence<O0>, V0, E0, SymbolicDerivative<G0>> const&);
+	template<size_t O0, typename V0, typename E0, typename G0>
+	friend auto& expr::get_enclosed_expression(OpDerivative<std::index_sequence<O0>, V0, E0, SymbolicDerivative<G0>>&);
+
+public:
+
+	V value;									//!< Value multiplying the result of this derivative.
+	SymbolicFunctionalDerivative<G> solver;		//!< Ensures this object is valid in the symbolic algebra.
+	solver_t implicit_solver;					//!< The implicit solver, derived from the given expression.
+
+protected:
+
+	E e;										//!< Expression object specifying grid values.
+
+};
+
+//! Symbolic derivative expression.
+/*!
+ * Represents the symbolic differentiation with respect to a variable defined by the
+ * template parameter `G`. This is a specialization of the base derivative object which applies
+ * a concrete solver to an expression. This object cannot evaluate any derivatives, and is only
+ * used to represent differentiation in order to perform symbolic differentiation of terms.
+ *
+ * \tparam O The order of the derivative.
+ * \tparam G Defines the variable against which the expression is differentiated. For example,
+ * this can be an std::index_sequence type.
+ * \tparam V Type of the coefficient.
+ * \tparam E Expression type that the derivative applies to.
+ */
+template<typename V, typename G1, typename G2>
+struct OpDerivative<std::index_sequence<1>, V, OpTerm<OpIdentity, G1>, SymbolicFunctionalDerivative<G2>> :
+	OpExpression<OpDerivative<std::index_sequence<1>, V, OpTerm<OpIdentity, G1>, SymbolicFunctionalDerivative<G2>>>
+{
+	using E = OpTerm<OpIdentity, G1>;
+	static const size_t order = 1;			//!< The order of this derivative.
+
+	using solver_t = std::invoke_result_t<decltype(expr::get_solver<E>), E>;
+
+	OpDerivative() : value{ V{} }, solver{}, implicit_solver{}, e{} {}
+
+	//! Generate a derivative of the given expression.
+	/*!
+	 * Create a derivative expression representing applying a derivative
+	 * to the given expression, where the order depends on the differentiation
+	 * object.
+	 */
+	OpDerivative(V value, E const& e, SymbolicFunctionalDerivative<G2> const& solver = SymbolicFunctionalDerivative<G2>{}) :
+		value{ value }, solver{ solver }, implicit_solver{ expr::get_solver(e) }, e{ e } {}
+
+	OpDerivative(E const& e, SymbolicFunctionalDerivative<G2> const& solver = SymbolicFunctionalDerivative<G2>{}) :
+		value{ OpIdentity{} }, solver{ solver }, implicit_solver{ expr::get_solver(e) }, e{ e } {}
+
+	inline auto eval(iter_type n = 0) const
+	{
+		return value * expr::symbols::Symbol{};
+	}
+
+	auto operator-() const
+	{
+		return symphas::internal::make_derivative<std::index_sequence<1>>::get(-value, e, solver);
+	}
+
+#ifdef PRINTABLE_EQUATIONS
+	using print_type = decltype(symphas::internal::select_print_deriv(expr::variational_t<G2>{}));
+
+	size_t print(FILE* out) const
+	{
+		size_t n = expr::print_with_coeff(out, value);
+		n += print_type::print(out);
+		n += fprintf(out, SYEX_DERIV_APPLIED_EXPR_FMT_A);
+		n += e.print(out);
+		n += fprintf(out, SYEX_DERIV_APPLIED_EXPR_FMT_B);
+		return n;
+	}
+
+	size_t print(char* out) const
+	{
+		size_t n = expr::print_with_coeff(out, value);
+		n += print_type::print(out + n);
+		n += sprintf(out + n, SYEX_DERIV_APPLIED_EXPR_FMT_A);
+		n += e.print(out + n);
+		n += sprintf(out + n, SYEX_DERIV_APPLIED_EXPR_FMT_B);
+		return n;
+	}
+
+	size_t print_length() const
+	{
+		return expr::coeff_print_length(value) + STR_ARR_LEN(SYEX_DERIV_APPLIED_EXPR_FMT_A SYEX_DERIV_APPLIED_EXPR_FMT_B) - 1
+			+ print_type::print_length() + e.print_length();
+	}
+
+#endif
+
+	template<size_t O0, typename V0, typename E0, typename G0>
+	friend auto const& expr::get_enclosed_expression(OpDerivative<std::index_sequence<O0>, V0, E0, SymbolicDerivative<G0>> const&);
+	template<size_t O0, typename V0, typename E0, typename G0>
+	friend auto& expr::get_enclosed_expression(OpDerivative<std::index_sequence<O0>, V0, E0, SymbolicDerivative<G0>>&);
+
+public:
+
+	V value;									//!< Value multiplying the result of this derivative.
+	SymbolicFunctionalDerivative<G2> solver;	//!< Ensures this object is valid in the symbolic algebra.
+	solver_t implicit_solver;					//!< The implicit solver, derived from the given expression.
+
+protected:
+
+	E e;										//!< Expression object specifying grid values.
+
+};
+
 
 /* multiplication of a derivative object by a literal
  */
@@ -1363,14 +1683,14 @@ struct OpOperatorDirectionalDerivative : OpOperator<OpOperatorDirectionalDerivat
 	 * Apply the generalized derivative to an expression to produce a
 	 * concrete derivative.
 	 */
-	template<typename E, typename std::enable_if_t<!expr::is_symbol<expr::eval_type_t<E>>, int> = 0>
+	template<typename E, typename std::enable_if_t<!(expr::is_symbol<expr::eval_type_t<E>> && expr::grid_dim<E>::value == 0), int> = 0>
 	auto _apply(OpExpression<E> const& e) const;
 
 	//! Apply to a Symbol.
 	/*!
 	 * Apply the generalized derivative to an expression to produce a Chain operator.
 	 */
-	template<typename E, typename std::enable_if_t<expr::is_symbol<expr::eval_type_t<E>>, int> = 0>
+	template<typename E, typename std::enable_if_t<(expr::is_symbol<expr::eval_type_t<E>> && expr::grid_dim<E>::value == 0), int> = 0>
 	auto _apply(OpExpression<E> const& e) const
 	{
 		return symphas::internal::nth_directional_derivative_apply<ax, O, Sp>::template get(value, *static_cast<E const*>(&e), solver);
@@ -1490,14 +1810,14 @@ protected:
 	 * Apply the generalized derivative to an expression to produce a
 	 * concrete derivative.
 	 */
-	template<typename E, typename std::enable_if_t<!expr::is_symbol<expr::eval_type_t<E>>, int> = 0>
+	template<typename E, typename std::enable_if_t<!(expr::is_symbol<expr::eval_type_t<E>> && expr::grid_dim<E>::value == 0), int> = 0>
 	auto _apply(OpExpression<E> const& e) const;
 
 	//! Apply to a Symbol.
 	/*!
 	 * Apply the generalized derivative to an expression to produce a Chain operator.
 	 */
-	template<typename E, typename std::enable_if_t<expr::is_symbol<expr::eval_type_t<E>>, int> = 0>
+	template<typename E, typename std::enable_if_t<(expr::is_symbol<expr::eval_type_t<E>> && expr::grid_dim<E>::value == 0), int> = 0>
 	auto _apply(OpExpression<E> const& e) const
 	{
 		return symphas::internal::nth_mixed_derivative_apply<Sp, Os...>::template get(value, *static_cast<E const*>(&e), solver);
@@ -1649,7 +1969,7 @@ auto operator+(
 	OpDerivative<Dd1, V, E, Sp> const& dop0,
 	OpDerivative<Dd2, V, E, Sp> const& dop1)
 {
-	return expr::make_operator_derivative<2>(dop0.solver) * expr::get_enclosed_expression(dop0);
+	return expr::make_operator_derivative<2>(expr::coeff(dop0), dop0.solver) * expr::get_enclosed_expression(dop0);
 }
 
 
@@ -1908,7 +2228,7 @@ namespace symphas::internal
 	template<size_t O, typename E, typename Sp>
 	auto apply_derivative_dot(OpExpression<E> const& e, solver_op_type<Sp> solver)
 	{
-		if constexpr (expr::is_symbol<expr::eval_type_t<E>>)
+		if constexpr (expr::is_symbol<expr::eval_type_t<E>> && expr::grid_dim<E>::value == 0)
 		{
 			return expr::make_mul(expr::make_operator_derivative<O>(solver), *static_cast<E const*>(&e));
 		}
@@ -1939,10 +2259,9 @@ namespace symphas::internal
 			typename std::enable_if_t<!(expr::is_coeff<E> || expr::is_identity<E>), int> = 0>
 		auto operator()(V const& v, OpExpression<E> const& e, solver_op_type<Sp> solver)
 		{
-			if constexpr (expr::is_symbol<expr::eval_type_t<E>>)
+			if constexpr (expr::is_symbol<expr::eval_type_t<E>> && expr::grid_dim<E>::value == 0)
 			{
-				return OpOperatorChain(
-					OpOperatorChain(v, expr::make_operator_derivative<O>(solver)),
+				return OpOperatorChain(expr::make_operator_derivative<O>(v, solver),
 					*static_cast<E const*>(&e));
 			}
 			else
@@ -2021,6 +2340,13 @@ namespace symphas::internal
 	{
 		auto coeff = v * expr::coeff(e);
 		return OpDerivative<Dd, decltype(coeff), OpTerm<OpIdentity, G>, SymbolicDerivative<G0>>(coeff, OpTerms(OpIdentity{}, expr::terms_after_first(e)), s);
+	}
+
+	template<typename Dd>
+	template<typename V, typename E, typename G0>
+	inline auto make_derivative<Dd>::get(V const& v, OpExpression<E> const& e, SymbolicDerivative<G0> s)
+	{
+		return OpDerivative<Dd, V, E, SymbolicDerivative<G0>>(v, *static_cast<E const*>(&e), s);
 	}
 
 	template<typename Dd>
@@ -2140,7 +2466,7 @@ auto OpOperatorDerivative<O, V, Sp>::_apply(OpExpression<E> const& e) const
 }
 
 template<Axis ax, size_t O, typename V, typename Sp>
-template<typename E, typename std::enable_if_t<!expr::is_symbol<expr::eval_type_t<E>>, int>>
+template<typename E, typename std::enable_if_t<!(expr::is_symbol<expr::eval_type_t<E>>&& expr::grid_dim<E>::value == 0), int>>
 auto OpOperatorDirectionalDerivative<ax, O, V, Sp>::_apply(OpExpression<E> const& e) const
 {
 	constexpr size_t R = expr::eval_type<E>::rank;
@@ -2148,7 +2474,7 @@ auto OpOperatorDirectionalDerivative<ax, O, V, Sp>::_apply(OpExpression<E> const
 }
 
 template<typename V, typename Sp, size_t... Os>
-template<typename E, typename std::enable_if_t<!expr::is_symbol<expr::eval_type_t<E>>, int>>
+template<typename E, typename std::enable_if_t<!(expr::is_symbol<expr::eval_type_t<E>> && expr::grid_dim<E>::value == 0), int>>
 auto OpOperatorMixedDerivative<V, Sp, Os...>::_apply(OpExpression<E> const& e) const
 {
 	constexpr size_t R = expr::eval_type<E>::rank;
@@ -2187,4 +2513,170 @@ namespace symphas::math
 	}
 
 }
+
+
+namespace expr
+{
+
+	template<typename E>
+	int _get_solver(OpExpression<E> const& e);
+	int _get_solver(OpAddList<> const& e);
+	template<typename E0, typename... Es>
+	auto _get_solver(OpAddList<E0, Es...> const& e);
+	template<typename... Es>
+	auto _get_solver(OpAdd<Es...> const& e);
+	template<typename A, typename B>
+	auto _get_solver(OpBinaryMul<A, B> const& e);
+	template<typename A, typename B>
+	auto _get_solver(OpBinaryDiv<A, B> const& e);
+	template<typename Dd, typename V, typename E, typename Sp>
+	auto _get_solver(OpDerivative<Dd, V, E, Sp> const& e);
+	template<size_t O, typename V, typename Sp>
+	auto _get_solver(OpOperatorDerivative<O, V, Sp> const& e);
+	template<Axis ax, size_t O, typename V, typename Sp>
+	auto _get_solver(OpOperatorDirectionalDerivative<ax, O, V, Sp> const& e);
+	template<typename V, typename Sp, size_t... Os>
+	auto _get_solver(OpOperatorMixedDerivative<V, Sp, Os...> const& e);
+	template<typename A1, typename A2>
+	auto _get_solver(OpOperatorChain<A1, A2> const& e);
+	template<typename A1, typename A2, typename E>
+	auto _get_solver(OpChain<A1, A2, E> const& e);
+	template<typename A1, typename A2>
+	auto _get_solver(OpOperatorCombination<A1, A2> const& e);
+	template<typename A1, typename A2, typename E>
+	auto _get_solver(OpCombination<A1, A2, E> const& e);
+	template<typename V, typename sub_t, typename F>
+	auto _get_solver(OpSymbolicEval<V, sub_t, F> const& e);
+	template<typename V, typename E, typename T>
+	auto _get_solver(OpIntegral<V, E, T> const& e);
+
+	template<typename Sp, typename E>
+	Sp const& _get_solver(Sp const& solver, OpExpression<E> const& e)
+	{
+		return solver;
+	}
+
+	template<typename E>
+	auto _get_solver(int, OpExpression<E> const& e)
+	{
+		return _get_solver(*static_cast<E const*>(&e));
+	}
+
+	template<typename Sp, typename... Es>
+	Sp const& _get_solver(Sp const& solver, OpAddList<Es...> const& e)
+	{
+		return solver;
+	}
+
+	template<typename... Es>
+	auto _get_solver(int, OpAddList<Es...> const& e)
+	{
+		return _get_solver(e);
+	}
+
+
+	template<typename E>
+	int _get_solver(OpExpression<E> const& e)
+	{
+		return 0;
+	}
+
+	inline int _get_solver(OpAddList<> const& e)
+	{
+		return 0;
+	}
+
+	template<typename E0, typename... Es>
+	auto _get_solver(OpAddList<E0, Es...> const& e)
+	{
+		auto e0 = expr::get<0>(e);
+		return _get_solver(_get_solver(e0), expr::terms_after_first(e));
+	}
+
+	template<typename... Es>
+	auto _get_solver(OpAdd<Es...> const& e)
+	{
+		return _get_solver(*static_cast<OpAddList<Es...> const*>(&e));
+	}
+
+	template<typename A, typename B>
+	auto _get_solver(OpBinaryMul<A, B> const& e)
+	{
+		return _get_solver(_get_solver(e.a), e.b);
+	}
+
+	template<typename A, typename B>
+	auto _get_solver(OpBinaryDiv<A, B> const& e)
+	{
+		return _get_solver(_get_solver(e.a), e.b);
+	}
+
+	template<typename Dd, typename V, typename E, typename Sp>
+	auto _get_solver(OpDerivative<Dd, V, E, Sp> const& e)
+	{
+		return _get_solver(e.solver, expr::get_enclosed_expression(e));
+	}
+
+	template<size_t O, typename V, typename Sp>
+	auto _get_solver(OpOperatorDerivative<O, V, Sp> const& e)
+	{
+		return e.solver;
+	}
+
+	template<Axis ax, size_t O, typename V, typename Sp>
+	auto _get_solver(OpOperatorDirectionalDerivative<ax, O, V, Sp> const& e)
+	{
+		return e.solver;
+	}
+
+	template<typename V, typename Sp, size_t... Os>
+	auto _get_solver(OpOperatorMixedDerivative<V, Sp, Os...> const& e)
+	{
+		return e.solver;
+	}
+
+	template<typename A1, typename A2>
+	auto _get_solver(OpOperatorChain<A1, A2> const& e)
+	{
+		return _get_solver(_get_solver(e.f), e.g);
+	}
+
+	template<typename A1, typename A2, typename E>
+	auto _get_solver(OpChain<A1, A2, E> const& e)
+	{
+		return _get_solver(_get_solver(e.combination), e.e);
+	}
+
+	template<typename A1, typename A2>
+	auto _get_solver(OpOperatorCombination<A1, A2> const& e)
+	{
+		return _get_solver(_get_solver(e.f), e.g);
+	}
+
+	template<typename A1, typename A2, typename E>
+	auto _get_solver(OpCombination<A1, A2, E> const& e)
+	{
+		return _get_solver(_get_solver(e.combination), e.e);
+	}
+
+	template<typename V, typename sub_t, typename F>
+	auto _get_solver(OpSymbolicEval<V, sub_t, F> const& e)
+	{
+		return _get_solver(e.f.e);
+	}
+
+	template<typename V, typename E, typename T>
+	auto _get_solver(OpIntegral<V, E, T> const& e)
+	{
+ 		return _get_solver(expr::get_enclosed_expression(e));
+	}
+
+	template<typename E>
+	auto get_solver(E const& e)
+	{
+		return _get_solver(e);
+	}
+}
+
+
 

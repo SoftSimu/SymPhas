@@ -1117,7 +1117,7 @@ auto operator*(OpVoid, OpOperatorChain<A1, A2> const& chain)
 template<typename A1, typename A2, typename E, typename std::enable_if_t<!expr::is_coeff<E>, int> = 0>
 auto operator*(OpOperatorChain<A1, A2> const& chain, E const& e)
 {
-	return chain.f(chain.g * e);
+	return OpOperatorChain(chain, e);//chain.f(chain.g * e);
 }
 
 //! Apply the chain operation to an expression.
@@ -1132,7 +1132,7 @@ auto operator*(OpOperatorChain<A1, A2> const& chain, coeff_t const& e)
 template<typename A1, typename A2, typename B>
 auto operator*(OpOperatorChain<A1, A2> const& a, OpOperator<B> const& b)
 {
-	return a.f(a.g * (*static_cast<B const*>(&b)));
+	return OpOperatorChain(a, b);// a.f(a.g * (*static_cast<B const*>(&b)));
 }
 
 //! Apply the chain operation to an expression.
@@ -1648,7 +1648,6 @@ namespace expr
 	{
 		return symphas::internal::make_map<G>::template get(*static_cast<E const*>(&e));
 	}
-
 }
 
 
@@ -1827,7 +1826,6 @@ struct OpMap<void, V, E> : OpExpression<OpMap<void, V, E>>
 	E e;			//!< Expression to which this operator applies.
 
 };
-
 
 
 template<>
@@ -2048,43 +2046,43 @@ namespace expr
 		}
 	};
 }
-
-template<typename E>
-struct OpExpression<OpMap<symphas::internal::HCTS, OpIdentity, E>> 
-{
-	using parent_type = OpMap<symphas::internal::HCTS, OpIdentity, E>;
-
-	explicit OpExpression(E const& rest) : e(rest) {}
-	explicit OpExpression(E&& rest) noexcept : e(std::move(rest)) {}
-
-	auto operator()(iter_type n) const
-	{
-		return cast().eval(n);
-	}
-
-	template<typename EE>
-	auto operator()(OpExpression<EE> const& e) const
-	{
-		return cast() * (*static_cast<EE const*>(&e));
-	}
-
-	symphas::internal::expression_iterator<parent_type> begin() const
-	{
-		return symphas::internal::expression_iterator<parent_type>(cast());
-	}
-
-	symphas::internal::expression_iterator<parent_type> end(len_type len) const
-	{
-		return symphas::internal::expression_iterator<parent_type>(cast(), len);
-	}
-
-	auto& cast() const
-	{
-		return *static_cast<parent_type const*>(this);
-	}
-
-	E e;
-};
+//
+//template<typename E>
+//struct OpExpression<OpMap<symphas::internal::HCTS, OpIdentity, E>> 
+//{
+//	using parent_type = OpMap<symphas::internal::HCTS, OpIdentity, E>;
+//
+//	explicit OpExpression(E const& rest) : e(rest) {}
+//	explicit OpExpression(E&& rest) noexcept : e(std::move(rest)) {}
+//
+//	auto operator()(iter_type n) const
+//	{
+//		return cast().eval(n);
+//	}
+//
+//	template<typename EE>
+//	auto operator()(OpExpression<EE> const& e) const
+//	{
+//		return cast() * (*static_cast<EE const*>(&e));
+//	}
+//
+//	symphas::internal::expression_iterator<parent_type> begin() const
+//	{
+//		return symphas::internal::expression_iterator<parent_type>(cast());
+//	}
+//
+//	symphas::internal::expression_iterator<parent_type> end(len_type len) const
+//	{
+//		return symphas::internal::expression_iterator<parent_type>(cast(), len);
+//	}
+//
+//	auto& cast() const
+//	{
+//		return *static_cast<parent_type const*>(this);
+//	}
+//
+//	E e;
+//};
 
 //! Rearranges a complex-valued expression determined using FFTW algorithms.
 /*!
@@ -2093,13 +2091,13 @@ struct OpExpression<OpMap<symphas::internal::HCTS, OpIdentity, E>>
 template<typename E>
 struct OpMap<symphas::internal::HCTS, OpIdentity, E> : OpExpression<OpMap<symphas::internal::HCTS, OpIdentity, E>>
 {
-	using parent_type = OpExpression<OpMap<symphas::internal::HCTS, OpIdentity, E>>;
-	using parent_type::e;
+	//using parent_type = OpExpression<OpMap<symphas::internal::HCTS, OpIdentity, E>>;
+	//using parent_type::e;
 
 	using result_type = expr::eval_type_t<E>;
 	static const size_t D = expr::grid_dim<E>::value;
 
-	OpMap() : parent_type{} {}
+	OpMap() : e{}, dims{} {}
 
 	//! Create a mapping expression.
 	/*!
@@ -2109,9 +2107,9 @@ struct OpMap<symphas::internal::HCTS, OpIdentity, E> : OpExpression<OpMap<sympha
 	 * \param value The coefficient of the mapping expression.
 	 * \param e The expression which is evaluated and mapped.
 	 */
-	OpMap(E const& e) : parent_type{ e }, dims{} 
+	OpMap(E const& e) : e{ e }, dims{} 
 	{
-		const len_type *dims_copy = expr::data_dimensions(e);
+		auto dims_copy = expr::data_dimensions(e);
 		for (iter_type i = 0; i < D; ++i)
 		{
 			dims[i] = dims_copy[i];
@@ -2154,46 +2152,47 @@ struct OpMap<symphas::internal::HCTS, OpIdentity, E> : OpExpression<OpMap<sympha
     template<typename E0>
 	friend auto& expr::get_enclosed_expression(OpMap<symphas::internal::HCTS, OpIdentity, E0>&);
 
+	E e;
 	len_type dims[D];	//!< Dimensions of the expression.
 };
 
-
-template<typename E>
-struct OpExpression<OpMap<symphas::internal::STHC, OpIdentity, E>> 
-{
-	using parent_type = OpMap<symphas::internal::STHC, OpIdentity, E>;
-
-	explicit OpExpression(E const& rest) : e(rest) {}
-	explicit OpExpression(E&& rest) noexcept : e(std::move(rest)) {}
-
-	auto operator()(iter_type n) const
-	{
-		return cast().eval(n);
-	}
-
-	template<typename EE>
-	auto operator()(OpExpression<EE> const& e) const
-	{
-		return cast() * (*static_cast<EE const*>(&e));
-	}
-
-	symphas::internal::expression_iterator<parent_type> begin() const
-	{
-		return symphas::internal::expression_iterator<parent_type>(cast());
-	}
-
-	symphas::internal::expression_iterator<parent_type> end(len_type len) const
-	{
-		return symphas::internal::expression_iterator<parent_type>(cast(), len);
-	}
-
-	auto& cast() const
-	{
-		return *static_cast<parent_type const*>(this);
-	}
-
-	E e;
-};
+//
+//template<typename E>
+//struct OpExpression<OpMap<symphas::internal::STHC, OpIdentity, E>> 
+//{
+//	using parent_type = OpMap<symphas::internal::STHC, OpIdentity, E>;
+//
+//	explicit OpExpression(E const& rest) : e(rest) {}
+//	explicit OpExpression(E&& rest) noexcept : e(std::move(rest)) {}
+//
+//	auto operator()(iter_type n) const
+//	{
+//		return cast().eval(n);
+//	}
+//
+//	template<typename EE>
+//	auto operator()(OpExpression<EE> const& e) const
+//	{
+//		return cast() * (*static_cast<EE const*>(&e));
+//	}
+//
+//	symphas::internal::expression_iterator<parent_type> begin() const
+//	{
+//		return symphas::internal::expression_iterator<parent_type>(cast());
+//	}
+//
+//	symphas::internal::expression_iterator<parent_type> end(len_type len) const
+//	{
+//		return symphas::internal::expression_iterator<parent_type>(cast(), len);
+//	}
+//
+//	auto& cast() const
+//	{
+//		return *static_cast<parent_type const*>(this);
+//	}
+//
+//	E e;
+//};
 
 
 //! Rearranges a complex-valued expression determined using FFTW algorithms.
@@ -2203,13 +2202,13 @@ struct OpExpression<OpMap<symphas::internal::STHC, OpIdentity, E>>
 template<typename E>
 struct OpMap<symphas::internal::STHC, OpIdentity, E> : OpExpression<OpMap<symphas::internal::STHC, OpIdentity, E>>
 {
-	using parent_type = OpExpression<OpMap<symphas::internal::STHC, OpIdentity, E>>;
-	using parent_type::e;
+	//using parent_type = OpExpression<OpMap<symphas::internal::STHC, OpIdentity, E>>;
+	//using parent_type::e;
 
 	using result_type = expr::eval_type_t<E>;
 	static const size_t D = expr::grid_dim<E>::value;
 
-	OpMap() : parent_type{} {}
+	OpMap() : e{}, dims{} {}
 
 	//! Create a mapping expression.
 	/*!
@@ -2219,9 +2218,9 @@ struct OpMap<symphas::internal::STHC, OpIdentity, E> : OpExpression<OpMap<sympha
 	 * \param value The coefficient of the mapping expression.
 	 * \param e The expression which is evaluated and mapped.
 	 */
-	OpMap(E const& e) : parent_type{ e }, dims{}
+	OpMap(E const& e) : e{ e }, dims{}
 	{
-		const len_type* dims_copy = expr::data_dimensions(e);
+		auto dims_copy = expr::data_dimensions(e);
 		for (iter_type i = 0; i < D; ++i)
 		{
 			dims[i] = dims_copy[i];
@@ -2268,6 +2267,7 @@ struct OpMap<symphas::internal::STHC, OpIdentity, E> : OpExpression<OpMap<sympha
     template<typename E0>
 	friend auto& expr::get_enclosed_expression(OpMap<symphas::internal::HCTS, OpIdentity, E0>&);
 
+	E e;
 	len_type dims[D];	//!< Dimensions of the expression.
 };
 
@@ -2303,7 +2303,84 @@ auto operator*(coeff_t const& value, OpMap<symphas::internal::STHC, OpIdentity, 
 }
 
 
+//! Rearranges a complex-valued expression determined using FFTW algorithms.
+/*!
+ * Rearranges a complex-valued expression determined using FFTW algorithms.
+ */
+template<Axis ax, typename V, typename E>
+struct OpMap<VectorComponent<ax>, V, E> : OpExpression<OpMap<VectorComponent<ax>, V, E>>
+{
+	OpMap() : e{} {}
 
+	//! Create a mapping expression to get the component of an N-d expression.
+	/*!
+	 * Create an expression which maps the given expression to get the
+	 * component of an N-d expression.
+	 *
+	 * \param value The coefficient of the mapping expression.
+	 * \param e The expression which is evaluated and mapped.
+	 */
+	OpMap(V const& value, E const& e) : value{ value }, e { e } {}
+
+	inline auto eval(iter_type n) const
+	{
+		return e.eval(n)[symphas::axis_to_index(ax)];
+	}
+
+	void update() {}
+
+	auto operator-() const
+	{
+		return expr::to_axis<ax>(-e);
+	}
+
+#ifdef PRINTABLE_EQUATIONS
+
+	size_t print(FILE* out) const
+	{
+		return e.print(out);
+	}
+
+	size_t print(char* out) const
+	{
+		return e.print(out);
+	}
+
+	size_t print_length() const
+	{
+		return e.print_length();
+	}
+
+#endif
+
+	V value;
+	E e;
+
+	template<typename E0>
+	friend auto const& expr::get_enclosed_expression(OpMap<symphas::internal::HCTS, OpIdentity, E0> const&);
+	template<typename E0>
+	friend auto& expr::get_enclosed_expression(OpMap<symphas::internal::HCTS, OpIdentity, E0>&);
+};
+
+
+
+
+namespace expr
+{
+
+	template<Axis ax, typename V, typename E>
+	auto to_axis(V const& value, OpExpression<E> const& e)
+	{
+		return OpMap<VectorComponent<ax>, V, E>(value, *static_cast<E const*>(&e));
+	}
+
+	template<Axis ax, typename E>
+	auto to_axis(OpExpression<E> const& e)
+	{
+		return to_axis<ax>(OpIdentity{}, *static_cast<E const*>(&e));;
+	}
+
+}
 
 
 

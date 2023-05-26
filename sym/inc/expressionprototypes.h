@@ -36,6 +36,8 @@
 namespace expr
 {
 	using exp_key_t = unsigned int;
+	template<typename G> struct variational_t {};
+
 }
 
 namespace symphas::internal
@@ -124,9 +126,11 @@ namespace expr
 	template<bool sign1, bool sign2, exp_key_t X1, exp_key_t X2>
 	constexpr int compute_XXk_N = int(expr::_Xk_t<X1>::N * expr::_Xk_t<X2>::D + expr::_Xk_t<X2>::N * expr::_Xk_t<X1>::D);
 	template<exp_key_t X1, exp_key_t X2>
-	constexpr int compute_XXk_N<true, false, X1, X2> = int(expr::_Xk_t<X1>::N * expr::_Xk_t<X2>::D) - int(expr::_Xk_t<X2>::N * expr::_Xk_t<X1>::D);
+	constexpr int compute_XXk_N<true, true, X1, X2> = -compute_XXk_N<false, false, X1, X2>;
 	template<exp_key_t X1, exp_key_t X2>
-	constexpr int compute_XXk_N<false, true, X1, X2> = int(expr::_Xk_t<X2>::N * expr::_Xk_t<X1>::D) - int(expr::_Xk_t<X1>::N * expr::_Xk_t<X2>::D);
+	constexpr int compute_XXk_N<false, true, X1, X2> = int(expr::_Xk_t<X1>::N * expr::_Xk_t<X2>::D) - int(expr::_Xk_t<X2>::N * expr::_Xk_t<X1>::D);
+	template<exp_key_t X1, exp_key_t X2>
+	constexpr int compute_XXk_N<true, false, X1, X2> = int(expr::_Xk_t<X2>::N * expr::_Xk_t<X1>::D) - int(expr::_Xk_t<X1>::N * expr::_Xk_t<X2>::D);
 
     template<exp_key_t X1, exp_key_t X2>
     constexpr int switch_XXk_N = compute_XXk_N<_Xk_t<X1>::sign, _Xk_t<X2>::sign, X1, X2>;
@@ -240,10 +244,13 @@ namespace expr
 			return expr::symbols::Symbol{};
 		}
 
+
+		template<typename T>
+		struct SymbolType {};
 	}
 
 	template<size_t N>
-	auto pow(symbols::Symbol)
+	auto pow(symbols::Symbol const&)
 	{
 		return symbols::Symbol{};
 	}
@@ -272,6 +279,8 @@ struct OpNegFractionLiteral;
 
 template<typename... Es>
 struct OpAdd;
+template<typename... Es>
+struct OpAddList;
 template<typename E1, typename E2>
 struct OpBinaryMul;
 template<typename E1, typename E2>
@@ -285,14 +294,25 @@ template<typename E>
 struct OpOperator;
 
 
+
+template<typename T, size_t D>
+struct GridData;
 template<size_t Z, typename G = expr::symbols::Symbol>
 struct Variable;
+template<typename G = expr::symbols::Symbol>
+struct DynamicVariable;
 template<typename G>
 struct NamedData;
+struct DynamicIndex;
+
+template<typename T, size_t D>
+using GridSymbol = GridData<expr::symbols::SymbolType<T>, D>;
 
 
 template<typename G, expr::exp_key_t X = expr::Xk<1>>
 struct Term;
+template<typename... Ts>
+struct OpTermsList;
 template<typename... Ts>
 struct OpTerms;
 template<typename V, typename G>
@@ -302,8 +322,10 @@ using OpTerm = OpTerms<V, Term<G, 1>>;
 
 template<typename G>
 struct SymbolicDerivative;
-template<typename Dd, typename V, typename E, typename T>
+template<typename Dd, typename V, typename E, typename Sp>
 struct OpDerivative;
+template<typename V, typename E, typename T>
+struct OpIntegral;
 template<size_t O, typename V, typename T>
 struct OpOperatorDerivative;
 template<Axis ax, size_t O, typename V, typename Sp>
@@ -348,6 +370,11 @@ template<size_t D, Axis ax>
 struct GridAxis;
 
 
+
+template<typename I>
+using OpCoeffSwap = OpCoeff<void, I>;
+
+
 //! @}
 
 namespace expr::prune
@@ -358,5 +385,27 @@ namespace expr::prune
 
 }
 
+namespace expr
+{
+
+	template<Axis ax, typename V, typename E>
+	auto to_axis(V const& value, OpExpression<E> const& e);
+	template<Axis ax, typename E>
+	auto to_axis(OpExpression<E> const& e);
+
+
+	enum class NoiseType
+	{
+		WHITE,
+		NONE,
+		DECAY_EXP,
+		DECAY_POLY,
+		POISSON
+	};
+
+}
+
+template<expr::NoiseType nt, typename T, size_t D>
+struct NoiseData;
 
 

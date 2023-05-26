@@ -70,36 +70,38 @@
 namespace expr
 {
 
-	template<typename Op, typename... Is, typename E, typename = std::enable_if_t<(
-			(std::is_convertible<Is, expr::symbols::Symbol>::value && ... && true)), int>>
+	template<typename Op, typename... Is, typename E, typename>
 	auto series(OpExpression<E> const& e);
 
-	template<typename Op, typename I0, typename... Is, int N, int P>
+	template<typename Op, typename... Is, int N, int P>
 	auto series(expr::symbols::i_<N, P> const& e)
 	{
-		return series<Op, I0, Is...>(expr::symbols::i_op_type<N, P>{});
+		return series<Op, Is...>(expr::symbols::i_op_type<N, P>{});
 	}
 
-	template<typename... Is, typename E, typename = std::enable_if_t<(
-			(std::is_convertible<Is, expr::symbols::Symbol>::value && ... && true)), int>>
+	template<typename... Is, typename E, typename>
 	auto sum(OpExpression<E> const& e);
 
-	template<typename I0, typename... Is, int N, int P>
+	template<typename... Is, int N, int P>
 	auto sum(expr::symbols::i_<N, P> const& e)
 	{
-		return sum<I0, Is...>(expr::symbols::i_op_type<N, P>{});
+		return sum<Is...>(expr::symbols::i_op_type<N, P>{});
 	}
 
-	template<typename... Is, typename E, typename = std::enable_if_t<(
-			(std::is_convertible<Is, expr::symbols::Symbol>::value && ... && true)), int>>
+	template<typename... Is, typename E, typename>
 	auto prod(OpExpression<E> const& e);
 
-	template<typename I0, typename... Is, int N, int P>
+	template<typename... Is, int N, int P>
 	auto prod(expr::symbols::i_<N, P> const& e)
 	{
-		return prod<I0, Is...>(expr::symbols::i_op_type<N, P>{});
+		return prod<Is...>(expr::symbols::i_op_type<N, P>{});
 	}
 
+
+	inline auto series_counter(int start, int end)
+	{
+		return DynamicIndex(std::move(start), start, end);
+	}
 }
 
 
@@ -327,188 +329,309 @@ namespace symphas::internal
 
 namespace expr
 {
-
+	/*
 	template<>
 	struct series_limits<int, int>
 	{
 		series_limits(int _0, int _1) : _0{ _0 }, _1{ _1 } {}
+		series_limits(OpVoid, int _1) : _0{ 0 }, _1{ _1 } {}
+		series_limits(int _0, OpVoid) : _0{ _0 }, _1{ 0 } {}
+		series_limits(OpVoid, OpVoid) : _0{ 0 }, _1{ 0 } {}
 		int _0;
 		int _1;
 	};
 
-	template<int N, int P>
-	struct series_limits<int, expr::symbols::i_<N, P>>
+	template<typename S>
+	struct series_limits<int, OpTerm<OpIdentity, S>>
 	{
-		series_limits(int _0, expr::symbols::i_<N, P>) : 
-			_0{ _0 }, _1{ expr::symbols::i_<N, P>{} }, _1c{ 1 } {}
+		series_limits(int _0, S const& _1) :
+			_0{ _0 }, _1{ _1 }, _1c{ 1 } {}
 
 		template<typename T>
-		series_limits(int _0, OpTerm<T, expr::symbols::i_<N, P>> const& term) : 
-			_0{ _0 }, _1{ expr::symbols::i_<N, P>{} }, _1c{ expr::coeff(term) } {}
-		
+		series_limits(int _0, OpTerm<T, S> const& term) :
+			_0{ _0 }, _1{ expr::get<1>(term).data() }, _1c{ expr::coeff(term) } {}
+
 		int _0;
-		expr::symbols::i_<N, P> _1;
+		S _1;
 		int _1c;
 	};
 
-	template<int N, int P>
-	struct series_limits<expr::symbols::i_<N, P>, int>
+	template<typename S>
+	struct series_limits<OpTerm<OpIdentity, S>, int>
 	{
-		series_limits(expr::symbols::i_<N, P>, int _1) : 
-			_0{ expr::symbols::i_<N, P>{} }, _0c{ 1 }, _1{ _1 } {}
+		series_limits(S const& _0, int _1) :
+			_0{ _0 }, _0c{ 1 }, _1{ _1 } {}
 
 		template<typename T>
-		series_limits(OpTerm<T, expr::symbols::i_<N, P>> const& term, int _1) :
-			_0{ expr::symbols::i_<N, P>{} }, _0c{ expr::coeff(term) }, _1{ _1 } {}
-		
-		expr::symbols::i_<N, P> _0;
+		series_limits(OpTerm<T, S> const& term, int _1) :
+			_0{ expr::get<1>(term).data() }, _0c{ expr::coeff(term) }, _1{ _1 } {}
+
+		S _0;
 		int _0c;
 		int _1;
+	};*/
+
+	template<typename E1, typename E2>
+	struct series_limits
+	{
+		series_limits() = default;
+
+		series_limits(E1 const& _0, E2 const& _1) :
+			_0{ _0 }, _1{ _1 } {}
+
+		E1 _0;
+		E2 _1;
 	};
 
-	template<int N0, int P0, int N1, int P1>
-	struct series_limits<expr::symbols::i_<N0, P0>, expr::symbols::i_<N1, P1>>
+	template<typename S0, typename S1>
+	struct series_limits<OpTerm<OpIdentity, S0>, OpTerm<OpIdentity, S1>>
 	{
-		series_limits(expr::symbols::i_<N0, P0>, expr::symbols::i_<N1, P1>) :
-			_0{ expr::symbols::i_<N0, P0>{} }, _0c{ 1 },
-			_1{ expr::symbols::i_<N1, P1>{} }, _1c{ 1 } {}
+		series_limits() = default;
 
-		template<typename T1, typename T2>
-		series_limits(OpTerm<T1, expr::symbols::i_<N0, P0>> const& term0,
-			OpTerm<T2, expr::symbols::i_<N1, P1>> const& term1) :
-			_0{ expr::symbols::i_<N0, P0>{} }, _0c{ expr::coeff(term0) },
-			_1{ expr::symbols::i_<N1, P1>{} }, _1c{ expr::coeff(term1) } {}
+		series_limits(S0 const& _0, S1 const& _1) :
+			_0{ _0 }, _0c{ 1 },
+			_1{ _1 }, _1c{ 1 } {}
 
-		template<typename T2>
-		series_limits(expr::symbols::i_<N0, P0>,
-			OpTerm<T2, expr::symbols::i_<N1, P1>> const& term1) :
-			_0{ expr::symbols::i_<N0, P0>{} }, _0c{ 1 },
-			_1{ expr::symbols::i_<N1, P1>{} }, _1c{ expr::coeff(term1) } {}
+		template<typename T0, typename T1>
+		series_limits(
+			OpTerm<T0, S0> const& term0,
+			OpTerm<T1, S1> const& term1) :
+			_0{ expr::get<1>(term0).data() }, _0c{ double(expr::coeff(term0)) },
+			_1{ expr::get<1>(term1).data() }, _1c{ double(expr::coeff(term1)) } {}
 
 		template<typename T1>
-		series_limits(OpTerm<T1, expr::symbols::i_<N0, P0>> const& term0,
-			expr::symbols::i_<N1, P1>) :
-			_0{ expr::symbols::i_<N0, P0>{} }, _0c{ expr::coeff(term0) },
-			_1{ expr::symbols::i_<N1, P1>{} }, _1c{ 1 } {}
+		series_limits(
+			S0 const& _0,
+			OpTerm<T1, S1> const& term1) :
+			_0{ _0 }, _0c{ 1 },
+			_1{ expr::get<1>(term1).data() }, _1c{ double(expr::coeff(term1)) } {}
 
-		expr::symbols::i_<N0, P0> _0;
-		int _0c;
-		expr::symbols::i_<N1, P1> _1;
-		int _1c;
+		template<typename T0>
+		series_limits(
+			OpTerm<T0, S0> const& term0,
+			S1 const& _1) :
+			_0{ expr::get<1>(term0).data() }, _0c{ double(expr::coeff(term0)) },
+			_1{ _1 }, _1c{ 1 } {}
+
+		S0 _0;
+		double _0c;
+		S1 _1;
+		double _1c;
 	};
 
-	template<typename... E0s>
-	struct series_limits<OpAdd<E0s...>, int>
-	{
-		series_limits(OpAdd<E0s...> _0, int _1) : _0{ _0 }, _1{ _1 } {}
-		OpAdd<E0s...> _0;
-		int _1;
-	};
 
-	template<typename... E1s>
-	struct series_limits<int, OpAdd<E1s...>>
+	template<typename E0, typename S>
+	struct series_limits<E0, OpTerm<OpIdentity, S>>
 	{
-		series_limits(int _0, OpAdd<E1s...> _1) : _0{ _0 }, _1{ _1 } {}
-		int _0;
-		OpAdd<E1s...> _1;
-	};
+		series_limits() = default;
 
-	template<typename... E0s, int N1, int P1>
-	struct series_limits<OpAdd<E0s...>, expr::symbols::i_<N1, P1>>
-	{
-		series_limits(OpAdd<E0s...> _0, expr::symbols::i_<N1, P1>) : 
-			_0{ _0 }, _1{ expr::symbols::i_<N1, P1>{} }, _1c{ 1 } {}
+		series_limits(E0 const& _0, S const& _1) :
+			_0{ _0 }, _1{ _1 }, _1c{ 1 } {}
 
 		template<typename T>
-		series_limits(OpAdd<E0s...> _0, OpTerm<T, expr::symbols::i_<N1, P1>> term) :
-			_0{ _0 }, _1{ expr::symbols::i_<N1, P1>{} }, _1c{ expr::coeff(term) } {}
+		series_limits(E0 const& _0, OpTerm<T, S> const& term) :
+			_0{ _0 }, _1{ expr::get<1>(term).data() }, _1c{ double(expr::coeff(term)) } {}
 
-		OpAdd<E0s...> _0;
-		expr::symbols::i_<N1, P1> _1;
-		int _1c;
+		E0 _0;
+		S _1;
+		double _1c;
 	};
 
-	template<int N0, int P0, typename... E1s>
-	struct series_limits<expr::symbols::i_<N0, P0>, OpAdd<E1s...>>
+	template<typename S, typename E1>
+	struct series_limits<OpTerm<OpIdentity, S>, E1>
 	{
-		series_limits(expr::symbols::i_<N0, P0>, OpAdd<E1s...> _1) : 
-			_0{ expr::symbols::i_<N0, P0>{} }, _0c{ 1 }, _1{ _1 } {}
+		series_limits() = default;
+
+		series_limits(S const& _0, E1 const& _1) :
+			_0{ _0 }, _0c{ 1 }, _1{ _1 } {}
 
 		template<typename T>
-		series_limits(OpTerm<T, expr::symbols::i_<N0, P0>> term, OpAdd<E1s...> _1) :
-			_0{ expr::symbols::i_<N0, P0>{} }, _0c{ expr::coeff(term) }, _1{_1} {}
+		series_limits(OpTerm<T, S> const& term, E1 const& _1) :
+			_0{ expr::get<1>(term).data() }, _0c{ double(expr::coeff(term)) }, _1{ _1 } {}
 
-		expr::symbols::i_<N0, P0> _0;
-		int _0c;
-		OpAdd<E1s...> _1;
-	};
-
-	template<typename... E0s, typename... E1s>
-	struct series_limits<OpAdd<E0s...>, OpAdd<E1s...>>
-	{
-		series_limits(OpAdd<E0s...> _0, OpAdd<E1s...> _1) : _0{ _0 }, _1{ _1 } {}
-		OpAdd<E0s...> _0;
-		OpAdd<E1s...> _1;
+		S _0;
+		double _0c;
+		E1 _1;
 	};
 
 
-	series_limits(int, int) -> series_limits<int, int>;
-	template<int N, int P>
-	series_limits(expr::symbols::i_<N, P>, int) -> series_limits<expr::symbols::i_<N, P>, int>;
-	template<int N, int P>
-	series_limits(int, expr::symbols::i_<N, P>) -> series_limits<int, expr::symbols::i_<N, P>>;
+
+	template<typename T, typename U, std::enable_if_t<(is_simple_data<U> && !is_simple_data<T>), int> = 0>
+	series_limits(T, U) -> series_limits<T, int>;
+	template<typename T, typename U, std::enable_if_t<(is_simple_data<U> && !is_simple_data<T>), int> = 0>
+	series_limits(U, T) -> series_limits<int, T>;
+	template<typename U1, typename U2, std::enable_if_t<(is_simple_data<U1> && is_simple_data<U2>), int> = 0>
+	series_limits(U1, U2)->series_limits<int, int>;
+	template<typename U, std::enable_if_t<is_simple_data<U>, int> = 0>
+	series_limits(U, U) -> series_limits<int, int>;
+
+	template<typename V, typename U, std::enable_if_t<is_simple_data<U>, int> = 0>
+	series_limits(U, OpLiteral<V>) -> series_limits<int, int>;
+	template<typename V, typename U, std::enable_if_t<is_simple_data<U>, int> = 0>
+	series_limits(OpLiteral<V>, U) -> series_limits<int, int>;
+
+	template<typename T, typename V, std::enable_if_t<!is_simple_data<T>, int> = 0>
+	series_limits(T, OpLiteral<V>) -> series_limits<T, int>;
+	template<typename T, typename V, std::enable_if_t<!is_simple_data<T>, int> = 0>
+	series_limits(OpLiteral<V>, T) -> series_limits<int, T>;
+	template<typename V0, typename V1>
+	series_limits(OpLiteral<V0>, OpLiteral<V1>) -> series_limits<int, int>;
+
+	template<typename T, typename S, typename V, std::enable_if_t<!is_simple_data<T>, int> = 0>
+	series_limits(OpTerm<V, S>, T) -> series_limits<OpTerm<OpIdentity, S>, T>;
+	template<typename T, typename S, typename V, std::enable_if_t<!is_simple_data<T>, int> = 0>
+	series_limits(T, OpTerm<V, S>) -> series_limits<T, OpTerm<OpIdentity, S>>;
+	template<typename T, typename S, typename V>
+	series_limits(OpTerm<T, S>, OpLiteral<V>) -> series_limits<OpTerm<OpIdentity, S>, int>;
+	template<typename T, typename S, typename V>
+	series_limits(OpLiteral<V>, OpTerm<T, S>) -> series_limits<int, OpTerm<OpIdentity, S>>;
+	template<typename T, typename S, typename U, std::enable_if_t<is_simple_data<U>, int> = 0>
+	series_limits(OpTerm<T, S>, U) -> series_limits<OpTerm<OpIdentity, S>, int>;
+	template<typename T, typename S, typename U, std::enable_if_t<is_simple_data<U>, int> = 0>
+	series_limits(U, OpTerm<T, S>) -> series_limits<int, OpTerm<OpIdentity, S>>;
+	template<typename T0, typename S0, typename T1, typename S1>
+	series_limits(OpTerm<T0, S0>, OpTerm<T1, S1>) -> series_limits<OpTerm<OpIdentity, S0>, OpTerm<OpIdentity, S1>>;
+	template<int N, int P, typename S, typename V>
+	series_limits(OpTerm<V, S>, expr::symbols::i_<N, P>) -> series_limits<OpTerm<OpIdentity, S>, OpTerm<OpIdentity, expr::symbols::i_<N, P>>>;
+	template<int N, int P, typename S, typename V>
+	series_limits(expr::symbols::i_<N, P>, OpTerm<V, S>) -> series_limits<OpTerm<OpIdentity, expr::symbols::i_<N, P>>, OpTerm<OpIdentity, S>>;
+
+
+
+
+	template<int N, int P, typename T, std::enable_if_t<!is_simple_data<T>, int> = 0>
+	series_limits(expr::symbols::i_<N, P>, T) -> series_limits<OpTerm<OpIdentity, expr::symbols::i_<N, P>>, T>;
+	template<int N, int P, typename T, std::enable_if_t<!is_simple_data<T>, int> = 0>
+	series_limits(T, expr::symbols::i_<N, P>) -> series_limits<T, OpTerm<OpIdentity, expr::symbols::i_<N, P>>>;
+	template<int N, int P, typename V>
+	series_limits(expr::symbols::i_<N, P>, OpLiteral<V>) -> series_limits<OpTerm<OpIdentity, expr::symbols::i_<N, P>>, int>;
+	template<int N, int P, typename V>
+	series_limits(OpLiteral<V>, expr::symbols::i_<N, P>) -> series_limits<int, OpTerm<OpIdentity, expr::symbols::i_<N, P>>>;
+	template<int N, int P, typename U, std::enable_if_t<is_simple_data<U>, int> = 0>
+	series_limits(expr::symbols::i_<N, P>, U) -> series_limits<OpTerm<OpIdentity, expr::symbols::i_<N, P>>, int>;
+	template<int N, int P, typename U, std::enable_if_t<is_simple_data<U>, int> = 0>
+	series_limits(U, expr::symbols::i_<N, P>) -> series_limits<int, OpTerm<OpIdentity, expr::symbols::i_<N, P>>>;
 	template<int N0, int P0, int N1, int P1>
-	series_limits(expr::symbols::i_<N0, P0>, expr::symbols::i_<N1, P1>) 
-		-> series_limits<expr::symbols::i_<N0, P0>, expr::symbols::i_<N1, P1>>;
-	template<typename... E0s, int N1, int P1>
-	series_limits(OpAdd<E0s...>, expr::symbols::i_<N1, P1>)
-		-> series_limits<OpAdd<E0s...>, expr::symbols::i_<N1, P1>>;
-	template<int N0, int P0, typename... E1s>
-	series_limits(expr::symbols::i_<N0, P0>, OpAdd<E1s...>)
-		-> series_limits<expr::symbols::i_<N0, P0>, OpAdd<E1s...>>;
-	template<typename... E0s>
-	series_limits(OpAdd<E0s...>, int)
-		-> series_limits<OpAdd<E0s...>, int>;
-	template<typename... E1s>
-	series_limits(int, OpAdd<E1s...>)
-		-> series_limits<int, OpAdd<E1s...>>;
-	template<typename... E0s, typename... E1s>
-	series_limits(OpAdd<E0s...>, OpAdd<E1s...>)
-		-> series_limits<OpAdd<E0s...>, OpAdd<E1s...>>;
-	
-	template<typename T2>
-	series_limits(OpIdentity, T2) -> series_limits<int, T2>;
-	template<typename T2>
-	series_limits(OpNegIdentity, T2) -> series_limits<int, T2>;
-	template<size_t N, typename T2>
+	series_limits(expr::symbols::i_<N0, P0>, expr::symbols::i_<N1, P1>)
+		-> series_limits<OpTerm<OpIdentity, expr::symbols::i_<N0, P0>>, OpTerm<OpIdentity, expr::symbols::i_<N1, P1>>>;
+
+	template<size_t N, typename T, std::enable_if_t<!is_simple_data<T>, int> = 0>
+	series_limits(expr::symbols::placeholder_N_symbol_<N>, T)
+		-> series_limits<OpTerm<OpIdentity, expr::symbols::placeholder_N_symbol_<N>>, T>;
+	template<size_t N, typename T, std::enable_if_t<!is_simple_data<T>, int> = 0>
+	series_limits(T, expr::symbols::placeholder_N_symbol_<N>)
+		-> series_limits<T, OpTerm<OpIdentity, expr::symbols::placeholder_N_symbol_<N>>>;
+	template<size_t N, typename V>
+	series_limits(expr::symbols::placeholder_N_symbol_<N>, OpLiteral<V>)
+		-> series_limits<OpTerm<OpIdentity, expr::symbols::placeholder_N_symbol_<N>>, int>;
+	template<size_t N, typename V>
+	series_limits(OpLiteral<V>, expr::symbols::placeholder_N_symbol_<N>)
+		-> series_limits<int, OpTerm<OpIdentity, expr::symbols::placeholder_N_symbol_<N>>>;
+	template<size_t N, typename U, std::enable_if_t<is_simple_data<U>, int> = 0>
+	series_limits(expr::symbols::placeholder_N_symbol_<N>, U)
+		-> series_limits<OpTerm<OpIdentity, expr::symbols::placeholder_N_symbol_<N>>, int>;
+	template<size_t N, typename U, std::enable_if_t<is_simple_data<U>, int> = 0>
+	series_limits(U, expr::symbols::placeholder_N_symbol_<N>)
+		-> series_limits<int, OpTerm<OpIdentity, expr::symbols::placeholder_N_symbol_<N>>>;
+	template<size_t N0, size_t N1>
+	series_limits(expr::symbols::placeholder_N_symbol_<N0>, expr::symbols::placeholder_N_symbol_<N1>)
+		-> series_limits<OpTerm<OpIdentity, expr::symbols::placeholder_N_symbol_<N0>>, OpTerm<OpIdentity, expr::symbols::placeholder_N_symbol_<N1>>>;
+
+
+	template<int N0, int P0, size_t N1>
+	series_limits(expr::symbols::i_<N0, P0>, expr::symbols::placeholder_N_symbol_<N1>)
+		-> series_limits<OpTerm<OpIdentity, expr::symbols::i_<N0, P0>>, OpTerm<OpIdentity, expr::symbols::placeholder_N_symbol_<N1>>>;
+	template<size_t N0, int N1, int P1>
+	series_limits(expr::symbols::placeholder_N_symbol_<N0>, expr::symbols::i_<N1, P1>)
+		-> series_limits<OpTerm<OpIdentity, expr::symbols::placeholder_N_symbol_<N0>>, OpTerm<OpIdentity, expr::symbols::i_<N1, P1>>>;
+
+
+	template<size_t N, typename T2, std::enable_if_t<!is_simple_data<T2>, int> = 0>
 	series_limits(OpFractionLiteral<N, 1>, T2) -> series_limits<int, T2>;
-	template<size_t N, typename T2>
-	series_limits(OpNegFractionLiteral<N, 1>, T2) -> series_limits<int, T2>;
-
-	template<typename T1>
-	series_limits(T1, OpIdentity) -> series_limits<T1, int>;
-	template<typename T1>
-	series_limits(T1, OpNegIdentity) -> series_limits<T1, int>;
-	template<size_t N, typename T1>
+	template<size_t N, typename U, std::enable_if_t<is_simple_data<U>, int> = 0>
+	series_limits(OpFractionLiteral<N, 1>, U) -> series_limits<int, int>;
+	template<size_t N, typename V>
+	series_limits(OpFractionLiteral<N, 1>, OpLiteral<V>) -> series_limits<int, int>;
+	template<typename T1, size_t N, std::enable_if_t<!is_simple_data<T1>, int> = 0>
 	series_limits(T1, OpFractionLiteral<N, 1>) -> series_limits<T1, int>;
-	template<size_t N, typename T1>
+	template<size_t N, typename U, std::enable_if_t<is_simple_data<U>, int> = 0>
+	series_limits(U, OpFractionLiteral<N, 1>) -> series_limits<int, int>;
+	template<size_t N, typename V>
+	series_limits(OpLiteral<V>, OpFractionLiteral<N, 1>) -> series_limits<int, int>;
+	template<size_t N, typename T2, std::enable_if_t<!is_simple_data<T2>, int> = 0>
+	series_limits(OpNegFractionLiteral<N, 1>, T2) -> series_limits<int, T2>;
+	template<size_t N, typename U, std::enable_if_t<is_simple_data<U>, int> = 0>
+	series_limits(OpNegFractionLiteral<N, 1>, U) -> series_limits<int, int>;
+	template<size_t N, typename V>
+	series_limits(OpNegFractionLiteral<N, 1>, OpLiteral<V>) -> series_limits<int, int>;
+	template<typename T1, size_t N, std::enable_if_t<!is_simple_data<T1>, int> = 0>
 	series_limits(T1, OpNegFractionLiteral<N, 1>) -> series_limits<T1, int>;
+	template<size_t N, typename U, std::enable_if_t<is_simple_data<U>, int> = 0>
+	series_limits(U, OpNegFractionLiteral<N, 1>) -> series_limits<int, int>;
+	template<size_t N, typename V>
+	series_limits(OpLiteral<V>, OpNegFractionLiteral<N, 1>) -> series_limits<int, int>;
+	template<typename T2, std::enable_if_t<!is_simple_data<T2>, int> = 0>
+	series_limits(OpIdentity, T2) -> series_limits<int, T2>;
+	template<typename U, std::enable_if_t<is_simple_data<U>, int> = 0>
+	series_limits(OpIdentity, U)->series_limits<int, int>;
+	template<typename V>
+	series_limits(OpIdentity, OpLiteral<V>) -> series_limits<int, int>;
+	template<typename T1, std::enable_if_t<!is_simple_data<T1>, int> = 0>
+	series_limits(T1, OpIdentity) -> series_limits<T1, int>;
+	template<typename U, std::enable_if_t<is_simple_data<U>, int> = 0>
+	series_limits(U, OpIdentity)->series_limits<int, int>;
+	template<typename V>
+	series_limits(OpLiteral<V>, OpIdentity) -> series_limits<int, int>;
+	template<typename T2, std::enable_if_t<!is_simple_data<T2>, int> = 0>
+	series_limits(OpNegIdentity, T2) -> series_limits<int, T2>;
+	template<typename U, std::enable_if_t<is_simple_data<U>, int> = 0>
+	series_limits(OpNegIdentity, U)->series_limits<int, int>;
+	template<typename V>
+	series_limits(OpNegIdentity, OpLiteral<V>) -> series_limits<int, int>;
+	template<typename T1, std::enable_if_t<!is_simple_data<T1>, int> = 0>
+	series_limits(T1, OpNegIdentity) -> series_limits<T1, int>;
+	template<typename U, std::enable_if_t<is_simple_data<U>, int> = 0>
+	series_limits(U, OpNegIdentity)->series_limits<int, int>;
+	template<typename V>
+	series_limits(OpLiteral<V>, OpNegIdentity) -> series_limits<int, int>;
+	template<typename T2, std::enable_if_t<!is_simple_data<T2>, int> = 0>
+	series_limits(OpVoid, T2) -> series_limits<int, T2>;
+	template<typename U, std::enable_if_t<is_simple_data<U>, int> = 0>
+	series_limits(OpVoid, U)->series_limits<int, int>;
+	template<typename V>
+	series_limits(OpVoid, OpLiteral<V>) -> series_limits<int, int>;
+	template<typename T1, std::enable_if_t<!is_simple_data<T1>, int> = 0>
+	series_limits(T1, OpVoid) -> series_limits<T1, int>;
+	template<typename U, std::enable_if_t<is_simple_data<U>, int> = 0>
+	series_limits(U, OpVoid)->series_limits<int, int>;
+	template<typename V>
+	series_limits(OpLiteral<V>, OpVoid) -> series_limits<int, int>;
 
-	template<typename T, int N0, int P0, typename T2>
-	series_limits(OpTerm<T, expr::symbols::i_<N0, P0>>, T2) -> series_limits<expr::symbols::i_<N0, P0>, T2>;
-	template<typename T, typename T1, int N1, int P1>
-	series_limits(T1, OpTerm<T, expr::symbols::i_<N1, P1>>) -> series_limits<T1, expr::symbols::i_<N1, P1>>;
-	template<typename T, int N0, int P0, typename... Es>
-	series_limits(OpTerm<T, expr::symbols::i_<N0, P0>>, OpAdd<Es...>) -> series_limits<expr::symbols::i_<N0, P0>, OpAdd<Es...>>;
-	template<typename T, typename... Es, int N1, int P1>
-	series_limits(OpAdd<Es...>, OpTerm<T, expr::symbols::i_<N1, P1>>) -> series_limits<OpAdd<Es...>, expr::symbols::i_<N1, P1>>;
-	template<typename T1, int N0, int P0, typename T2, int N1, int P1>
-	series_limits(OpTerm<T1, expr::symbols::i_<N0, P0>>, OpTerm<T2, expr::symbols::i_<N1, P1>>) 
-		-> series_limits<expr::symbols::i_<N0, P0>, expr::symbols::i_<N1, P1>>;
 
-	//template<typename T1, typename T2>
-	//series_limits(T1, T2) -> series_limits<int, int>;
 
+	template<typename T, typename V, typename G>
+	auto limit_0(expr::series_limits<OpTerm<V, G>, T> const& limit)
+	{
+		return limit._0c * limit._0;
+	}
+
+	template<typename T1, typename T2>
+	auto limit_0(expr::series_limits<T1, T2> const& limit)
+	{
+		return limit._0;
+	}
+
+	template<typename T, typename V, typename G>
+	auto limit_1(expr::series_limits<T, OpTerm<V, G>> const& limit)
+	{
+		return limit._1c * limit._1;
+	}
+
+	template<typename T1, typename T2>
+	auto limit_1(expr::series_limits<T1, T2> const& limit)
+	{
+		return limit._1;
+	}
 
 
 	//! Defines the limits of the series expansion.
@@ -527,12 +650,15 @@ namespace expr
 	template<int N0, int N1>
 	using series_limits_ntn = std::integer_sequence<int, N0, N1>;
 
+	//! Index between number and index.
 	template<int N0, typename I>
 	using series_limits_nti = symphas::lib::types_list<std::integer_sequence<int, N0>, I>;
 
+	//! Limit between index and number.
 	template<typename I, int N1>
 	using series_limits_itn = symphas::lib::types_list<I, std::integer_sequence<int, N1>>;
 
+	//! Limit between indices.
 	template<typename I0, typename I1>
 	using series_limits_iti = symphas::lib::types_list<I0, I1>;
 
@@ -553,6 +679,17 @@ namespace expr
 	template<typename S0, typename S1>
 	using series_limits_sts = symphas::lib::types_list<S0, S1>;
 
+	//! Indicates to go until the end of the list; computed when series is expanded.
+	template<typename I0>
+	using series_limits_ite = symphas::lib::types_list<I0, void>;
+
+	//! Indicates to go until the end of the list; computed when series is expanded.
+	template<int N0>
+	using series_limits_nte = symphas::lib::types_list<std::integer_sequence<int, N0>, void>;
+
+	//! Indicates to go until the end of the list; computed when series is expanded.
+	template<typename S>
+	using series_limits_ste = symphas::lib::types_list<S, void>;
 
 
 	template<int N, typename I, typename limits_t>
@@ -608,11 +745,11 @@ namespace expr
 
 
 	template<typename T>
-	constexpr int literal_value = T{};
+	inline constexpr int literal_value = T{};
 	template<>
-	constexpr int literal_value<OpIdentity> = 1;
+	inline constexpr int literal_value<OpIdentity> = 1;
 	template<>
-	constexpr int literal_value<OpNegIdentity> = -1;
+	inline constexpr int literal_value<OpNegIdentity> = -1;
 	template<size_t N>
 	constexpr int literal_value<OpFractionLiteral<N, 1>> = int(N);
 	template<size_t N>
@@ -893,29 +1030,87 @@ namespace symphas::internal
 	using namespace expr::symbols;
 	using namespace expr;
 
-	template<int N0, int N1>
-	auto parse_limit(series_limits_ntn<N0, N1>)
+	template<typename T>
+	len_type limit_length(T)
+	{
+		return T{};
+		//static_assert(false, "limits can only be inferred from constant length " 
+		//	"arrays or Substitution-type arguments");
+	}
+
+	template<typename G>
+	len_type limit_length(DynamicVariable<G> const& sub)
+	{
+		return sub.end() - sub.start() + 1;
+	}
+
+	template<typename V, typename G>
+	len_type limit_length(OpTerm<V, DynamicVariable<G>> const& sub)
+	{
+		auto const& [v, t] = sub;
+		return limit_length(t);
+	}
+
+	template<typename T, size_t N>
+	len_type limit_length(T (&)[N])
+	{
+		return N;
+	}
+
+	template<typename... Ts>
+	len_type limit_length(std::tuple<Ts...> const& sub)
+	{
+		return sizeof...(Ts);
+	}
+
+	template<typename T>
+	len_type limit_length(SymbolicDataArray<T> const& sub)
+	{
+		return sub.length();
+	}
+
+	template<int N0, int N1, typename sub_t>
+	auto parse_limit(series_limits_ntn<N0, N1>, sub_t&& sub)
 	{
 		return expr::series_limits(N0, N1);
 	}
 
-	template<int N0, typename I>
-	auto parse_limit(series_limits_nti<N0, I>)
+	template<int N0, typename I, typename sub_t>
+	auto parse_limit(series_limits_nti<N0, I>, sub_t&& sub)
 	{
 		return expr::series_limits(N0, I{});
 	}
 
-	template<typename I, int N1>
-	auto parse_limit(series_limits_itn<I, N1>)
+	template<typename I, int N1, typename sub_t>
+	auto parse_limit(series_limits_itn<I, N1>, sub_t&& sub)
 	{
 		return expr::series_limits(I{}, N1);
 	}
 
-	template<typename I0, typename I1>
-	auto parse_limit(series_limits_iti<I0, I1>)
+	template<typename I0, typename I1, typename sub_t>
+	auto parse_limit(series_limits_iti<I0, I1>, sub_t&& sub)
 	{
 		return expr::series_limits(I0{}, I1{});
 	}
+
+	template<int N0, typename sub_t>
+	auto parse_limit(series_limits_nte<N0>, sub_t&& sub)
+	{
+		return expr::series_limits(N0, limit_length(std::forward<sub_t>(sub)) + N0 - 1);
+	}
+
+	template<int N0, int P0, typename sub_t>
+	auto parse_limit(series_limits_ite<expr::symbols::i_<N0, P0>>, sub_t&& sub)
+	{
+		return expr::series_limits(expr::symbols::i_<N0, P0>{}, limit_length(std::forward<sub_t>(sub)));
+	}
+
+	template<typename S, typename sub_t>
+	auto parse_limit(series_limits_ste<S>, sub_t&& sub)
+	{
+		return expr::series_limits(S{}, limit_length(std::forward<sub_t>(sub)));
+	}
+
 
 	template<typename Seq, typename series_t, typename... Rest>
 	struct expand_series;
@@ -935,18 +1130,18 @@ namespace symphas::internal
 			expand_series<std::index_sequence<>, SymbolicSeries<Op, E, types_list<I0s...>>,
 			types_list<limit_ts...>, types_list<>>>;
 
-		template<typename... Us>
-		auto operator()(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto operator()(OpExpression<E> const& e, Ts&&... subs) const
 		{
 			return SymbolicSeries<Op, E, types_list<I0s...>>(*static_cast<E const*>(&e))
-				(parse_limit(limit_ts{})...)(std::forward<Us>(ops)...);
+				(parse_limit(limit_ts{}, std::forward<Ts>(subs))...)(std::forward<Ts>(subs)...);
 		}
 
-		template<typename... Us>
-		auto expand(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto expand(OpExpression<E> const& e, Ts&&... subs) const
 		{
 			return SymbolicSeries<Op, E, types_list<I0s...>>(*static_cast<E const*>(&e))
-				.template expand<limit_ts...>(std::forward<Us>(ops)...);
+				.template expand<limit_ts...>(std::forward<Ts>(subs)...);
 		}
 	};
 
@@ -959,27 +1154,32 @@ namespace symphas::internal
 		types_list<limit_ts...>,
 		types_list<index_neq<i_<I1, P1>, i_<I0, P0>>, Xs...>>
 	{
+		using second_limit_t = std::conditional_t<
+			(N0 > 0),
+			expr::series_limits_itn<i_<I0, P0 + 1>, N0>,
+			expr::series_limits_ite<i_<I0, P0 + 1>>>;
+
 		using first_t = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I1, P1>>>, 
 			types_list<limit_ts..., expr::series_limits_nti<1, i_<I0, P0 - 1>>>, types_list<Xs...>>;
 		using second_t = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I1, P1>>>,
-			types_list<limit_ts..., expr::series_limits_itn<i_<I0, P0 + 1>, N0>>, types_list<Xs...>>;
+			types_list<limit_ts..., second_limit_t>, types_list<Xs...>>;
 
 		using all_types = expand_types_list<typename first_t::all_types, typename second_t::all_types>;
 
-		template<typename... Us>
-		auto operator()(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto operator()(OpExpression<E> const& e, Ts&&... subs) const
 		{
 			return Op{}(
-				first_t{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...), 
-				second_t{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...));
+				first_t{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...), 
+				second_t{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...));
 		}
 
-		template<typename... Us>
-		auto expand(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto expand(OpExpression<E> const& e, Ts&&... subs) const
 		{
 			return Op{}.expand(
-				first_t{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...), 
-				second_t{}.expand(*static_cast<E const*>(&e), std::forward<Us>(ops)...));
+				first_t{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...), 
+				second_t{}.expand(*static_cast<E const*>(&e), std::forward<Ts>(subs)...));
 		}
 	};
 
@@ -991,21 +1191,26 @@ namespace symphas::internal
 		types_list<limit_ts...>,
 		types_list<index_eq<i_<I1, P1>, i_<I0, P0>>, Xs...>>
 	{
+		using second_limit_t = std::conditional_t<
+			(N0 > 0),
+			expr::series_limits_itn<i_<I0, P0>, N0>,
+			expr::series_limits_ite<i_<I0, P0>>>;
+
 		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I1, P1>>>, 
-			types_list<limit_ts..., expr::series_limits_itn<i_<I0, P0>, N0>>, types_list<Xs...>>;
+			types_list<limit_ts..., second_limit_t>, types_list<Xs...>>;
 
-		using all_types = expand_types_list<typename type::all_types>;
+		using all_types = typename type::all_types;
 
-		template<typename... Us>
-		auto operator()(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto operator()(OpExpression<E> const& e, Ts&&... subs) const
 		{
-			return type{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...);
+			return type{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...);
 		}
 
-		template<typename... Us>
-		auto expand(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto expand(OpExpression<E> const& e, Ts&&... subs) const
 		{
-			return type{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...);
+			return type{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...);
 		}
 	};
 
@@ -1018,27 +1223,32 @@ namespace symphas::internal
 		types_list<limit_ts...>,
 		types_list<index_neq_N<i_<I0, P0>, M0>, Xs...>>
 	{
+		using second_limit_t = std::conditional_t<
+			(N0 > 0),
+			expr::series_limits_ntn<M0 + 1, N0>,
+			expr::series_limits_nte<M0 + 1>>;
+
 		using first_t = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I0, P0>>>,
 			types_list<limit_ts..., expr::series_limits_ntn<1, M0 - 1>>, types_list<Xs...>>;
 		using second_t = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I0, P0>>>,
-			types_list<limit_ts..., expr::series_limits_ntn<M0 + 1, N0>>, types_list<Xs...>>;
+			types_list<limit_ts..., second_limit_t>, types_list<Xs...>>;
 
 		using all_types = expand_types_list<typename first_t::all_types, typename second_t::all_types>;
 
-		template<typename... Us>
-		auto operator()(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto operator()(OpExpression<E> const& e, Ts&&... subs) const
 		{
 			return Op{}(
-				first_t{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...),
-				second_t{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...));
+				first_t{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...),
+				second_t{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...));
 		}
 
-		template<typename... Us>
-		auto expand(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto expand(OpExpression<E> const& e, Ts&&... subs) const
 		{
 			return Op{}.expand(
-				first_t{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...),
-				second_t{}.expand(*static_cast<E const*>(&e), std::forward<Us>(ops)...));
+				first_t{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...),
+				second_t{}.expand(*static_cast<E const*>(&e), std::forward<Ts>(subs)...));
 		}
 	};
 
@@ -1050,21 +1260,26 @@ namespace symphas::internal
 		types_list<limit_ts...>,
 		types_list<index_eq_N<i_<I0, P0>, M0>, Xs...>>
 	{
+		using second_limit_t = std::conditional_t<
+			(N0 > 0),
+			expr::series_limits_ntn<M0, N0 + M0 - 1>,
+			expr::series_limits_nte<M0>>;
+
 		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I0, P0>>>,
-			types_list<limit_ts..., expr::series_limits_ntn<M0, N0 + M0 - 1>>, types_list<Xs...>>;
+			types_list<limit_ts..., second_limit_t>, types_list<Xs...>>;
 
-		using all_types = expand_types_list<typename type::all_types>;
+		using all_types = typename type::all_types;
 
-		template<typename... Us>
-		auto operator()(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto operator()(OpExpression<E> const& e, Ts&&... subs) const
 		{
-			return type{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...);
+			return type{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...);
 		}
 
-		template<typename... Us>
-		auto expand(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto expand(OpExpression<E> const& e, Ts&&... subs) const
 		{
-			return type{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...);
+			return type{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...);
 		}
 	};
 
@@ -1076,21 +1291,26 @@ namespace symphas::internal
 		types_list<limit_ts...>,
 		types_list<i_<I0, P0>, Xs...>>
 	{
+		using second_limit_t = std::conditional_t<
+			(N0 > 0),
+			expr::series_limits_ntn<1, N0>,
+			expr::series_limits_nte<1>>;
+
 		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I0, P0>>>,
-			types_list<limit_ts..., expr::series_limits_ntn<1, N0>>, types_list<Xs...>>;
+			types_list<limit_ts..., second_limit_t>, types_list<Xs...>>;
 
-		using all_types = expand_types_list<typename type::all_types>;
+		using all_types = typename type::all_types;
 
-		template<typename... Us>
-		auto operator()(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto operator()(OpExpression<E> const& e, Ts&&... subs) const
 		{
-			return type{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...);
+			return type{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...);
 		}
 
-		template<typename... Us>
-		auto expand(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto expand(OpExpression<E> const& e, Ts&&... subs) const
 		{
-			return type{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...);
+			return type{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...);
 		}
 	};
 
@@ -1102,21 +1322,26 @@ namespace symphas::internal
 		types_list<limit_ts...>,
 		types_list<index_eq<i_<I0, P0>, OpAdd<Es...>>, Xs...>>
 	{
+		using second_limit_t = std::conditional_t<
+			(N0 > 0),
+			expr::series_limits_stn<OpAdd<Es...>, N0>,
+			expr::series_limits_ste<OpAdd<Es...>>>;
+
 		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I0, P0>>>,
-			types_list<limit_ts..., expr::series_limits_stn<OpAdd<Es...>, N0>>, types_list<Xs...>>;
+			types_list<limit_ts..., second_limit_t>, types_list<Xs...>>;
 
-		using all_types = expand_types_list<typename type::all_types>;
+		using all_types = typename type::all_types;
 
-		template<typename... Us>
-		auto operator()(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto operator()(OpExpression<E> const& e, Ts&&... subs) const
 		{
-			return type{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...);
+			return type{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...);
 		}
 
-		template<typename... Us>
-		auto expand(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto expand(OpExpression<E> const& e, Ts&&... subs) const
 		{
-			return type{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...);
+			return type{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...);
 		}
 	};
 
@@ -1128,27 +1353,32 @@ namespace symphas::internal
 		types_list<limit_ts...>,
 		types_list<index_neq<i_<I0, P0>, OpAdd<Es...>>, Xs...>>
 	{
+		using second_limit_t = std::conditional_t<
+			(N0 > 0),
+			expr::series_limits_stn<OpAdd<OpIdentity, Es...>, N0>,
+			expr::series_limits_ste<OpAdd<OpIdentity, Es...>>>;
+
 		using first_t = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I0, P0>>>,
 			types_list<limit_ts..., expr::series_limits_nts<1, OpAdd<Es..., OpNegIdentity>>>, types_list<Xs...>>;
-		using second_t = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I0, P0>>>,
-			types_list<limit_ts..., expr::series_limits_stn<OpAdd<OpIdentity, Es...>, N0>>, types_list<Xs...>>;
+		using second_t = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I0, P0 + 1>>>,
+			types_list<limit_ts..., second_limit_t>, types_list<Xs...>>;
 
 		using all_types = expand_types_list<typename first_t::all_types, typename second_t::all_types>;
 
-		template<typename... Us>
-		auto operator()(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto operator()(OpExpression<E> const& e, Ts&&... subs) const
 		{
 			return Op{}(
-				first_t{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...),
-				second_t{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...));
+				first_t{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...),
+				second_t{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...));
 		}
 
-		template<typename... Us>
-		auto expand(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto expand(OpExpression<E> const& e, Ts&&... subs) const
 		{
 			return Op{}.expand(
-				first_t{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...),
-				second_t{}.expand(*static_cast<E const*>(&e), std::forward<Us>(ops)...));
+				first_t{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...),
+				second_t{}.expand(*static_cast<E const*>(&e), std::forward<Ts>(subs)...));
 		}
 	};
 
@@ -1163,18 +1393,18 @@ namespace symphas::internal
 		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I1, P1>>>,
 			types_list<limit_ts..., expr::series_limits_iti<i_<I00, P00>, i_<I01, P01>>>, types_list<Xs...>>;
 
-		using all_types = expand_types_list<typename type::all_types>;
+		using all_types = typename type::all_types;
 
-		template<typename... Us>
-		auto operator()(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto operator()(OpExpression<E> const& e, Ts&&... subs) const
 		{
-			return type{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...);
+			return type{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...);
 		}
 
-		template<typename... Us>
-		auto expand(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto expand(OpExpression<E> const& e, Ts&&... subs) const
 		{
-			return type{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...);
+			return type{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...);
 		}
 	};
 
@@ -1189,18 +1419,18 @@ namespace symphas::internal
 		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I1, P1>>>,
 			types_list<limit_ts..., expr::series_limits_itn<i_<I00, P00>, M1>>, types_list<Xs...>>;
 
-		using all_types = expand_types_list<typename type::all_types>;
+		using all_types = typename type::all_types;
 
-		template<typename... Us>
-		auto operator()(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto operator()(OpExpression<E> const& e, Ts&&... subs) const
 		{
-			return type{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...);
+			return type{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...);
 		}
 
-		template<typename... Us>
-		auto expand(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto expand(OpExpression<E> const& e, Ts&&... subs) const
 		{
-			return type{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...);
+			return type{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...);
 		}
 	};
 
@@ -1215,18 +1445,18 @@ namespace symphas::internal
 		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I1, P1>>>,
 			types_list<limit_ts..., expr::series_limits_nti<M0, i_<I01, P01>>>, types_list<Xs...>>;
 
-		using all_types = expand_types_list<typename type::all_types>;
+		using all_types = typename type::all_types;
 
-		template<typename... Us>
-		auto operator()(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto operator()(OpExpression<E> const& e, Ts&&... subs) const
 		{
-			return type{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...);
+			return type{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...);
 		}
 
-		template<typename... Us>
-		auto expand(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto expand(OpExpression<E> const& e, Ts&&... subs) const
 		{
-			return type{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...);
+			return type{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...);
 		}
 	};
 
@@ -1241,18 +1471,18 @@ namespace symphas::internal
 		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I1, P1>>>,
 			types_list<limit_ts..., expr::series_limits_ntn<M0, M1>>, types_list<Xs...>>;
 
-		using all_types = expand_types_list<typename type::all_types>;
+		using all_types = typename type::all_types;
 
-		template<typename... Us>
-		auto operator()(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto operator()(OpExpression<E> const& e, Ts&&... subs) const
 		{
-			return type{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...);
+			return type{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...);
 		}
 
-		template<typename... Us>
-		auto expand(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto expand(OpExpression<E> const& e, Ts&&... subs) const
 		{
-			return type{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...);
+			return type{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...);
 		}
 	};
 
@@ -1267,18 +1497,18 @@ namespace symphas::internal
 		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I1, P1>>>,
 			types_list<limit_ts..., expr::series_limits_sti<OpAdd<Es...>, i_<I01, P01>>>, types_list<Xs...>>;
 
-		using all_types = expand_types_list<typename type::all_types>;
+		using all_types = typename type::all_types;
 
-		template<typename... Us>
-		auto operator()(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto operator()(OpExpression<E> const& e, Ts&&... subs) const
 		{
-			return type{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...);
+			return type{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...);
 		}
 
-		template<typename... Us>
-		auto expand(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto expand(OpExpression<E> const& e, Ts&&... subs) const
 		{
-			return type{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...);
+			return type{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...);
 		}
 	};
 
@@ -1293,18 +1523,18 @@ namespace symphas::internal
 		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I1, P1>>>,
 			types_list<limit_ts..., expr::series_limits_its<i_<I00, P00>, OpAdd<Es...>>>, types_list<Xs...>>;
 
-		using all_types = expand_types_list<typename type::all_types>;
+		using all_types = typename type::all_types;
 
-		template<typename... Us>
-		auto operator()(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto operator()(OpExpression<E> const& e, Ts&&... subs) const
 		{
-			return type{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...);
+			return type{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...);
 		}
 
-		template<typename... Us>
-		auto expand(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto expand(OpExpression<E> const& e, Ts&&... subs) const
 		{
-			return type{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...);
+			return type{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...);
 		}
 	};
 
@@ -1319,18 +1549,18 @@ namespace symphas::internal
 		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I1, P1>>>,
 			types_list<limit_ts..., expr::series_limits_stn<OpAdd<Es...>, M1>>, types_list<Xs...>>;
 
-		using all_types = expand_types_list<typename type::all_types>;
+		using all_types = typename type::all_types;
 
-		template<typename... Us>
-		auto operator()(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto operator()(OpExpression<E> const& e, Ts&&... subs) const
 		{
-			return type{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...);
+			return type{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...);
 		}
 
-		template<typename... Us>
-		auto expand(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto expand(OpExpression<E> const& e, Ts&&... subs) const
 		{
-			return type{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...);
+			return type{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...);
 		}
 	};
 
@@ -1345,18 +1575,18 @@ namespace symphas::internal
 		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I1, P1>>>,
 			types_list<limit_ts..., expr::series_limits_nts<M0, OpAdd<Es...>>>, types_list<Xs...>>;
 
-		using all_types = expand_types_list<typename type::all_types>;
+		using all_types = typename type::all_types;
 
-		template<typename... Us>
-		auto operator()(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto operator()(OpExpression<E> const& e, Ts&&... subs) const
 		{
-			return type{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...);
+			return type{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...);
 		}
 
-		template<typename... Us>
-		auto expand(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto expand(OpExpression<E> const& e, Ts&&... subs) const
 		{
-			return type{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...);
+			return type{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...);
 		}
 	};
 
@@ -1371,18 +1601,18 @@ namespace symphas::internal
 		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I1, P1>>>,
 			types_list<limit_ts..., expr::series_limits_sts<OpAdd<E0s...>, OpAdd<E1s...>>>, types_list<Xs...>>;
 
-		using all_types = expand_types_list<typename type::all_types>;
+		using all_types = typename type::all_types;
 
-		template<typename... Us>
-		auto operator()(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto operator()(OpExpression<E> const& e, Ts&&... subs) const
 		{
-			return type{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...);
+			return type{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...);
 		}
 
-		template<typename... Us>
-		auto expand(OpExpression<E> const& e, Us&&... ops) const
+		template<typename... Ts>
+		auto expand(OpExpression<E> const& e, Ts&&... subs) const
 		{
-			return type{}(*static_cast<E const*>(&e), std::forward<Us>(ops)...);
+			return type{}(*static_cast<E const*>(&e), std::forward<Ts>(subs)...);
 		}
 	};
 
@@ -1390,67 +1620,73 @@ namespace symphas::internal
 
 
 	template<typename E, typename T1, typename T2>
-	auto normalize_indices(OpExpression<E> const& e, symphas::lib::types_list<>,
-		expr::series_limits<T1, T2> const& limit)
+	auto normalize_indices(OpExpression<E> const& e, DynamicIndex const& index, 
+		symphas::lib::types_list<>, expr::series_limits<T1, T2> const& limit)
 	{
 		return *static_cast<E const*>(&e);
 	}
 
 	template<typename E, int I0, int P00, int... P0s, typename T1, typename T2>
-	auto normalize_indices(OpExpression<E> const& e,
+	auto normalize_indices(OpExpression<E> const& e, DynamicIndex const& index,
 		symphas::lib::types_list<expr::symbols::i_<I0, P00>, expr::symbols::i_<I0, P0s>...>,
 		expr::series_limits<T1, T2> const& limit)
 	{
-		return expr::transform::swap_grid<expr::symbols::i_<I0, P00>, expr::symbols::i_<I0, P0s>...>(
+		auto e0 = expr::transform::swap_grid<expr::symbols::i_<I0, P00>, expr::symbols::i_<I0, P0s>...>(
 			*static_cast<E const*>(&e), 
 			(expr::symbols::i_<I0, 0>{} + expr::make_integer<P00>()), (expr::symbols::i_<I0, 0>{} + expr::make_integer<P0s>())...);
+		return expr::transform::swap_grid<OpCoeffSwap<expr::symbols::i_<I0, 0>>>(e0, index);
 	}
 
-	template<int P0, typename E>
-	auto normalize_placeholders(OpExpression<E> const& e, symphas::lib::types_list<>)
-	{
-		return *static_cast<E const*>(&e);
-	}
+	//template<int P0, typename E>
+	//auto normalize_placeholders(OpExpression<E> const& e, symphas::lib::types_list<>)
+	//{
+	//	return *static_cast<E const*>(&e);
+	//}
 
-	template<int P0, typename E, int I0, int P00, int... P0s>
-	auto normalize_placeholders(OpExpression<E> const& e,
-		symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<I0, P00>>, expr::symbols::v_id_type<expr::symbols::i_<I0, P0s>>...>)
-	{
-		return expr::transform::swap_grid<expr::symbols::v_id_type<expr::symbols::i_<I0, P00>>, expr::symbols::v_id_type<expr::symbols::i_<I0, P0s>>...>
-			(*static_cast<E const*>(&e), expr::symbols::v_id_type<expr::symbols::i_<I0, P00 + P0>>{}, expr::symbols::v_id_type<expr::symbols::i_<I0, P0s + P0>>{}...);
-	}
+	//template<int P0, typename E, int I0, int P00, int... P0s>
+	//auto normalize_placeholders(OpExpression<E> const& e,
+	//	symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<I0, P00>>, expr::symbols::v_id_type<expr::symbols::i_<I0, P0s>>...>)
+	//{
+	//	return expr::transform::swap_grid<expr::symbols::v_id_type<expr::symbols::i_<I0, P00>>, expr::symbols::v_id_type<expr::symbols::i_<I0, P0s>>...>
+	//		(*static_cast<E const*>(&e), expr::symbols::v_id_type<expr::symbols::i_<I0, P00 + P0>>{}, expr::symbols::v_id_type<expr::symbols::i_<I0, P0s + P0>>{}...);
+	//}
 
 	template<typename v_types, typename i_types, int I0, int P0, typename E, typename T1, typename T2>
-	auto normalize(OpExpression<E> const& e, expr::symbols::i_<I0, P0>, expr::series_limits<T1, T2> const& limit)
+	auto normalize(OpExpression<E> const& e, DynamicIndex *index, 
+		expr::symbols::i_<I0, P0>, expr::series_limits<T1, T2> const& limit)
 	{
-		return normalize_indices(normalize_placeholders<P0>(*static_cast<E const*>(&e), v_types{}), i_types{}, limit);
+		//return normalize_indices(normalize_placeholders<P0>(*static_cast<E const*>(&e), v_types{}), index, i_types{}, limit);
+		return normalize_indices(*static_cast<E const*>(&e), *index, i_types{}, limit);
 	}
 
 	template<typename v_types, typename E>
-	auto normalize(OpExpression<E> const& e, symphas::lib::types_list<>, std::tuple<> const& limits)
+	auto normalize(OpExpression<E> const& e, DynamicIndex* index, symphas::lib::types_list<>, std::tuple<> const& limits)
 	{
 		return *static_cast<E const*>(&e);
 	}
 
 	template<typename v_types, typename i_types0, typename... i_types, int I0, int P0, int... I0s, int... P0s, typename E, typename... T1s, typename... T2s>
-	auto normalize(OpExpression<E> const& e, symphas::lib::types_list<expr::symbols::i_<I0, P0>, expr::symbols::i_<I0s, P0s>...>,
+	auto normalize(OpExpression<E> const& e, DynamicIndex* index,
+		symphas::lib::types_list<expr::symbols::i_<I0, P0>, expr::symbols::i_<I0s, P0s>...>,
 		std::tuple<expr::series_limits<T1s, T2s>...> const& limits)
 	{
 		auto vs = select_v_i_<expr::symbols::i_<I0, 0>, v_types>{};
-		auto e0 = normalize_indices(normalize_placeholders<P0>(*static_cast<E const*>(&e), vs), i_types0{}, std::get<0>(limits));
-		return normalize<v_types, i_types...>(e0, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>{}, symphas::lib::get_tuple_ge<1>(limits));
+		//auto e0 = normalize_indices(normalize_placeholders<P0>(*static_cast<E const*>(&e), vs), i_types0{}, std::get<0>(limits));
+		auto e0 = normalize_indices(*static_cast<E const*>(&e), *index, i_types0{}, std::get<0>(limits));
+		return normalize<v_types, i_types...>(e0, index + 1, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>{}, symphas::lib::get_tuple_ge<1>(limits));
 	}
 
 	template<typename v_types, typename... i_types, int... I0s, int... P0s, typename E, typename... T1s, typename... T2s>
-	auto normalize(OpExpression<E> const& e, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, std::tuple<expr::series_limits<T1s, T2s>...> const& limits)
+	auto normalize(OpExpression<E> const& e, DynamicIndex* index, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, std::tuple<expr::series_limits<T1s, T2s>...> const& limits)
 	{
-		return normalize<v_types, i_types...>(*static_cast<E const*>(&e), symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>{}, limits);
+		return normalize<v_types, i_types...>(*static_cast<E const*>(&e), index, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>{}, limits);
 	}
 
 	template<typename Op, typename E, typename S, size_t... Ns, 
 		typename... T1s, typename... T2s, int... I0s, int... P0s, typename... Is>
 	auto construct_series(
 		OpExpression<E> const& e,
+		const DynamicIndex(&index)[sizeof...(I0s)],
 		SymbolicTemplate<S, Ns...> const& tmpl,
 		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
 		symphas::lib::types_list<expr::symbols::v_id_type<Is>...>,
@@ -1460,6 +1696,7 @@ namespace symphas::internal
 		typename... T1s, typename... T2s, int... I0s, int... P0s, typename... Is>
 	auto construct_series(
 		OpExpression<E> const& e,
+		const DynamicIndex(&index)[sizeof...(I0s)],
 		Substitution<SymbolicDataArray<Ts>...> const& substitution,
 		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
 		symphas::lib::types_list<expr::symbols::v_id_type<Is>...>,
@@ -1472,11 +1709,29 @@ namespace symphas::internal
 		std::tuple<expr::series_limits<T1s, T2s>...> limits,
 		expr::series_limits<int, T2> const& limit);
 
+	template<int... I0s, typename... T1s, typename... T2s, typename V, typename T2>
+	auto limit_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<OpBinaryMul<V, DynamicIndex>, T2> const& limit);
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T2>
+	auto limit_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<DynamicIndex, T2> const& limit);
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T2, typename G>
+	auto limit_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<OpTerm<OpIdentity, G>, T2> const& limit);
+
 	template<int... I0s, typename... T1s, typename... T2s, int I0, int P0, typename T2>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
 		std::tuple<expr::series_limits<T1s, T2s>...> limits,
-		expr::series_limits<expr::symbols::i_<I0, P0>, T2> const& limit);
+		expr::series_limits<OpTerm<OpIdentity, expr::symbols::i_<I0, P0>>, T2> const& limit);
 
 	template<int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2, size_t... Ns>
 	auto limit_start(
@@ -1490,17 +1745,41 @@ namespace symphas::internal
 		std::tuple<expr::series_limits<T1s, T2s>...> limits,
 		expr::series_limits<OpAdd<E0s...>, T2> const& limit);
 
+	template<int... I0s, typename... T1s, typename... T2s, typename T2, typename A, typename B>
+	auto limit_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<std::pair<A, B>, T2> const& limit);
+
 	template<int... I0s, typename... T1s, typename... T2s, typename T1>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
 		std::tuple<expr::series_limits<T1s, T2s>...> limits,
 		expr::series_limits<T1, int> const& limit);
 
+	template<int... I0s, typename... T1s, typename... T2s, typename V, typename T1>
+	auto limit_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, OpBinaryMul<V, DynamicIndex>> const& limit);
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T1>
+	auto limit_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, DynamicIndex> const& limit);
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename G>
+	auto limit_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, OpTerm<OpIdentity, G>> const& limit);
+
 	template<int... I0s, typename... T1s, typename... T2s, typename T1, int I1, int P1>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
 		std::tuple<expr::series_limits<T1s, T2s>...> limits,
-		expr::series_limits<T1, expr::symbols::i_<I1, P1>> const& limit);
+		expr::series_limits<T1, OpTerm<OpIdentity, expr::symbols::i_<I1, P1>>> const& limit);
 
 	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename... E0s, size_t... Ns>
 	auto limit_end(
@@ -1514,6 +1793,12 @@ namespace symphas::internal
 		std::tuple<expr::series_limits<T1s, T2s>...> limits,
 		expr::series_limits<T1, OpAdd<E0s...>> const& limit);
 
+	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename A, typename B>
+	auto limit_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, std::pair<A, B>> const& limit);
+
 	template<int... I0s, typename... T1s, typename... T2s, typename T2>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
@@ -1521,11 +1806,32 @@ namespace symphas::internal
 		expr::series_limits<int, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)]);
 
+	template<int... I0s, typename... T1s, typename... T2s, typename V, typename T2>
+	auto limit_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<OpBinaryMul<V, DynamicIndex>, T2> const& limit,
+		iter_type(&offsets)[sizeof...(I0s)]);
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T2>
+	auto limit_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<DynamicIndex, T2> const& limit,
+		iter_type(&offsets)[sizeof...(I0s)]);
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T2, typename G>
+	auto limit_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<OpTerm<OpIdentity, G>, T2> const& limit,
+		iter_type(&offsets)[sizeof...(I0s)]);
+
 	template<int... I0s, typename... T1s, typename... T2s, int I0, int P0, typename T2>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
 		std::tuple<expr::series_limits<T1s, T2s>...> limits,
-		expr::series_limits<expr::symbols::i_<I0, P0>, T2> const& limit,
+		expr::series_limits<OpTerm<OpIdentity, expr::symbols::i_<I0, P0>>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)]);
 
 	template<int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2, size_t... Ns>
@@ -1543,6 +1849,13 @@ namespace symphas::internal
 		expr::series_limits<OpAdd<E0s...>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)]);
 
+	template<int... I0s, typename... T1s, typename... T2s, typename T2, typename A, typename B>
+	auto limit_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<std::pair<A, B>, T2> const& limit,
+		iter_type(&offsets)[sizeof...(I0s)]);
+
 	template<int... I0s, typename... T1s, typename... T2s, typename T1>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
@@ -1550,11 +1863,32 @@ namespace symphas::internal
 		expr::series_limits<T1, int> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)]);
 
+	template<int... I0s, typename... T1s, typename... T2s, typename V, typename T1>
+	auto limit_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, OpBinaryMul<V, DynamicIndex>> const& limit,
+		iter_type(&offsets)[sizeof...(I0s)]);
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T1>
+	auto limit_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, DynamicIndex> const& limit,
+		iter_type(&offsets)[sizeof...(I0s)]);
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename G>
+	auto limit_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, OpTerm<OpIdentity, G>> const& limit,
+		iter_type(&offsets)[sizeof...(I0s)]);
+
 	template<int... I0s, typename... T1s, typename... T2s, typename T1, int I1, int P1>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
 		std::tuple<expr::series_limits<T1s, T2s>...> limits,
-		expr::series_limits<T1, expr::symbols::i_<I1, P1>> const& limit,
+		expr::series_limits<T1, OpTerm<OpIdentity, expr::symbols::i_<I1, P1>>> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)]);
 
 	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename... E0s, size_t... Ns>
@@ -1570,6 +1904,56 @@ namespace symphas::internal
 		std::integer_sequence<int, I0s...>,
 		std::tuple<expr::series_limits<T1s, T2s>...> limits,
 		expr::series_limits<T1, OpAdd<E0s...>> const& limit,
+		iter_type(&offsets)[sizeof...(I0s)]);
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename A, typename B>
+	auto limit_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, std::pair<A, B>> const& limit,
+		iter_type(&offsets)[sizeof...(I0s)]);
+
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T2>
+	auto compute_offset(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<int, T2> const& limit,
+		iter_type(&offsets)[sizeof...(I0s)]);
+
+	template<int... I0s, typename... T1s, typename... T2s, size_t N0, typename T2>
+	auto compute_offset(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<expr::symbols::placeholder_N_<N0>, T2> const& limit,
+		iter_type(&offsets)[sizeof...(I0s)]);
+
+	template<int... I0s, typename... T1s, typename... T2s, typename V, typename T2>
+	auto compute_offset(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<OpBinaryMul<V, DynamicIndex>, T2> const& limit,
+		iter_type(&offsets)[sizeof...(I0s)]);
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T2>
+	auto compute_offset(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<DynamicIndex, T2> const& limit,
+		iter_type(&offsets)[sizeof...(I0s)]);
+
+	template<int... I0s, typename... T1s, typename... T2s, typename G, typename T2>
+	auto compute_offset(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<OpTerm<OpIdentity, G>, T2> const& limit,
+		iter_type(&offsets)[sizeof...(I0s)]);
+
+	template<int... I0s, typename... T1s, typename... T2s, int I0, int P0, typename T2>
+	auto compute_offset(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<OpTerm<OpIdentity, expr::symbols::i_<I0, P0>>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)]);
 
 	template<int... I0s, typename... T1s, typename... T2s, typename... E0s, size_t... Ns, typename T2>
@@ -1587,8 +1971,55 @@ namespace symphas::internal
 		expr::series_limits<OpAdd<E0s...>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)]);
 
+	template<bool left_flag>
+	inline auto limit_side(expr::symbols::Symbol const&, expr::symbols::Symbol const&)
+	{
+		return "df";
+		//static_assert(false, "limits of a series must evaluate to an integer if a series is to be computed");
+	}
+
+	template<bool left_flag>
+	inline auto limit_side(expr::symbols::Symbol const&, int value)
+	{
+		return "df";
+		//static_assert(false, "limits of a series must evaluate to an integer if a series is to be computed");
+	}
+
+	template<bool left_flag>
+	inline auto limit_side(int value, expr::symbols::Symbol const&)
+	{
+		return "df";
+		//static_assert(false, "limits of a series must evaluate to an integer if a series is to be computed");
+	}
+
+	template<bool left_flag>
+	inline auto limit_side(int value1, int value2)
+	{
+		return (left_flag) ? std::max(value1, value2) : std::min(value1, value2);
+	}
+
+	template<bool left_flag, typename E1, typename E2>
+	inline auto limit_side(OpExpression<E1> const& left, OpExpression<E2> const& right)
+	{
+		return limit_side<left_flag>(expr::eval(*static_cast<E1 const*>(&left)), expr::eval(*static_cast<E2 const*>(&right)));
+	}
 
 
+	inline auto check_limit_range(expr::symbols::Symbol)
+	{
+		return 0;
+	}
+
+	inline auto check_limit_range(int range)
+	{
+		return range;
+	}
+
+	template<typename E>
+	auto check_limit_range(OpExpression<E> const& e)
+	{
+		return check_limit_range(static_cast<E const*>(&e)->eval());
+	}
 
 	template<int... I0s, typename... T1s, typename... T2s, typename T2>
 	auto limit_start(
@@ -1599,15 +2030,49 @@ namespace symphas::internal
 		return limit._0;
 	}
 
+	template<int... I0s, typename... T1s, typename... T2s, typename V, typename T2>
+	auto limit_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<OpBinaryMul<V, DynamicIndex>, T2> const& limit)
+	{
+		return limit._0.a.eval() * limit._0.b.start();
+	}
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T2>
+	auto limit_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<DynamicIndex, T2> const& limit)
+	{
+		return limit._0.start();
+	}
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T2, typename G>
+	auto limit_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<OpTerm<OpIdentity, G>, T2> const& limit)
+	{
+		return expr::eval(limit._0c) * expr::eval(limit._0);
+	}
+
 	template<int... I0s, typename... T1s, typename... T2s, int I0, int P0, typename T2>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
 		std::tuple<expr::series_limits<T1s, T2s>...> limits,
-		expr::series_limits<expr::symbols::i_<I0, P0>, T2> const& limit)
+		expr::series_limits<OpTerm<OpIdentity, expr::symbols::i_<I0, P0>>, T2> const& limit)
 	{
 		static const int N = symphas::lib::index_of_value<int, I0, I0s...>;
-		auto start = limit_start(std::integer_sequence<int, I0s...>{}, limits, std::get<size_t(N)>(limits));
-		return limit._0c * start + P0;
+		if constexpr (N < 0)
+		{
+			return 0;
+		}
+		else
+		{
+			auto start = limit_start(std::integer_sequence<int, I0s...>{}, limits, std::get<size_t(N)>(limits));
+			return limit._0c * start;
+		}
 	}
 
 	template<int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2, size_t... Ns>
@@ -1631,6 +2096,18 @@ namespace symphas::internal
 			limit, std::make_index_sequence<sizeof...(E0s)>{});
 	}
 
+	template<int... I0s, typename... T1s, typename... T2s, typename T2, typename A, typename B>
+	auto limit_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<std::pair<A, B>, T2> const& limit)
+	{
+		auto [a, b] = limit._0;
+		auto la = limit_start(std::integer_sequence<int, I0s...>{}, limits, expr::series_limits(a, limit._1));
+		auto lb = limit_start(std::integer_sequence<int, I0s...>{}, limits, expr::series_limits(b, limit._1));
+		return limit_side<false>(la, lb);
+	}
+
 	template<int... I0s, typename... T1s, typename... T2s, typename T1>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
@@ -1640,15 +2117,49 @@ namespace symphas::internal
 		return limit._1;
 	}
 
+	template<int... I0s, typename... T1s, typename... T2s, typename V, typename T1>
+	auto limit_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, OpBinaryMul<V, DynamicIndex>> const& limit)
+	{
+		return limit._1.a.eval() * limit._1.b.start();
+	}
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T1>
+	auto limit_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, DynamicIndex> const& limit)
+	{
+		return limit._1.start();
+	}
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename G>
+	auto limit_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, OpTerm<OpIdentity, G>> const& limit)
+	{
+		return expr::eval(limit._1c) * expr::eval(limit._1);
+	}
+
 	template<int... I0s, typename... T1s, typename... T2s, typename T1, int I1, int P1>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
 		std::tuple<expr::series_limits<T1s, T2s>...> limits,
-		expr::series_limits<T1, expr::symbols::i_<I1, P1>> const& limit)
+		expr::series_limits<T1, OpTerm<OpIdentity, expr::symbols::i_<I1, P1>>> const& limit)
 	{
 		static const int N = symphas::lib::index_of_value<int, I1, I0s...>;
-		auto end = limit_end(std::integer_sequence<int, I0s...>{}, limits, std::get<size_t(N)>(limits));
-		return limit._1c * end + P1;
+		if constexpr (N < 0)
+		{
+			return 0;
+		}
+		else
+		{
+			auto end = limit_end(std::integer_sequence<int, I0s...>{}, limits, std::get<size_t(N)>(limits));
+			return limit._1c * end;
+		}
 	}
 
 	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename... E0s, size_t... Ns>
@@ -1672,15 +2183,27 @@ namespace symphas::internal
 			limit, std::make_index_sequence<sizeof...(E0s)>{});
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename T2>
-	auto limit_range(
+	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename A, typename B>
+	auto limit_end(
 		std::integer_sequence<int, I0s...>,
 		std::tuple<expr::series_limits<T1s, T2s>...> limits,
-		expr::series_limits<T1, T2> const& limit)
+		expr::series_limits<T1, std::pair<A, B>> const& limit)
 	{
-		return (limit_end(std::integer_sequence<int, I0s...>{}, limits, limit)
-			- limit_start(std::integer_sequence<int, I0s...>{}, limits, limit) + 1);
+		auto [a, b] = limit._1;
+		auto la = limit_end(std::integer_sequence<int, I0s...>{}, limits, expr::series_limits(limit._0, a));
+		auto lb = limit_end(std::integer_sequence<int, I0s...>{}, limits, expr::series_limits(limit._0, b));
+		return limit_side<true>(la, lb);
 	}
+
+	//template<int... I0s, typename... T1s, typename... T2s, typename T1, typename T2>
+	//auto limit_range(
+	//	std::integer_sequence<int, I0s...>,
+	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	expr::series_limits<T1, T2> const& limit)
+	//{
+	//	return check_limit_range((limit_end(std::integer_sequence<int, I0s...>{}, limits, limit)
+	//		- limit_start(std::integer_sequence<int, I0s...>{}, limits, limit) + 1));
+	//}
 
 
 	template<int... I0s, typename... T1s, typename... T2s, typename T2>
@@ -1693,16 +2216,53 @@ namespace symphas::internal
 		return limit._0;
 	}
 
+	template<int... I0s, typename... T1s, typename... T2s, typename V, typename T2>
+	auto limit_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<OpBinaryMul<V, DynamicIndex>, T2> const& limit,
+		iter_type(&offsets)[sizeof...(I0s)])
+	{
+		return limit._0.a.eval() * limit._0.b.index();
+	}
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T2>
+	auto limit_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<DynamicIndex, T2> const& limit,
+		iter_type(&offsets)[sizeof...(I0s)])
+	{
+		return limit._0.index();
+	}
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T2, typename G>
+	auto limit_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<OpTerm<OpIdentity, G>, T2> const& limit,
+		iter_type(&offsets)[sizeof...(I0s)])
+	{
+		return expr::eval(limit._0c) * expr::eval(limit._0);
+	}
+
 	template<int... I0s, typename... T1s, typename... T2s, int I0, int P0, typename T2>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
 		std::tuple<expr::series_limits<T1s, T2s>...> limits,
-		expr::series_limits<expr::symbols::i_<I0, P0>, T2> const& limit,
+		expr::series_limits<OpTerm<OpIdentity, expr::symbols::i_<I0, P0>>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)])
 	{
 		static const int N = symphas::lib::index_of_value<int, I0, I0s...>;
-		auto start = limit_start(std::integer_sequence<int, I0s...>{}, limits, std::get<size_t(N)>(limits));
-		return limit._0c * (start + offsets[N]) + P0;
+		if constexpr (N < 0)
+		{
+			return limit._0c * P0;
+		}
+		else
+		{
+			auto start = limit_start(std::integer_sequence<int, I0s...>{}, limits, std::get<size_t(N)>(limits));
+			return limit._0c * (start + offsets[N] + P0);
+		}
 	}
 
 	template<int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2, size_t... Ns>
@@ -1729,6 +2289,19 @@ namespace symphas::internal
 			limit, offsets, std::make_index_sequence<sizeof...(E0s)>{});
 	}
 
+	template<int... I0s, typename... T1s, typename... T2s, typename T2, typename A, typename B>
+	auto limit_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<std::pair<A, B>, T2> const& limit,
+		iter_type(&offsets)[sizeof...(I0s)])
+	{
+		auto [a, b] = limit._0;
+		auto la = limit_start(std::integer_sequence<int, I0s...>{}, limits, expr::series_limits(a, limit._1), offsets);
+		auto lb = limit_start(std::integer_sequence<int, I0s...>{}, limits, expr::series_limits(b, limit._1), offsets);
+		return limit_side<true>(la, lb);
+	}
+
 	template<int... I0s, typename... T1s, typename... T2s, typename T1>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
@@ -1739,16 +2312,53 @@ namespace symphas::internal
 		return limit._1;
 	}
 
+	template<int... I0s, typename... T1s, typename... T2s, typename V, typename T1>
+	auto limit_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, OpBinaryMul<V, DynamicIndex>> const& limit,
+		iter_type(&offsets)[sizeof...(I0s)])
+	{
+		return limit._1.a.eval() * limit._1.b.index();
+	}
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T1>
+	auto limit_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, DynamicIndex> const& limit,
+		iter_type(&offsets)[sizeof...(I0s)])
+	{
+		return limit._1.index();
+	}
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename G>
+	auto limit_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, OpTerm<OpIdentity, G>> const& limit,
+		iter_type(&offsets)[sizeof...(I0s)])
+	{
+		return expr::eval(limit._1c) * expr::eval(limit._1);
+	}
+
 	template<int... I0s, typename... T1s, typename... T2s, typename T1, int I1, int P1>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
 		std::tuple<expr::series_limits<T1s, T2s>...> limits,
-		expr::series_limits<T1, expr::symbols::i_<I1, P1>> const& limit,
+		expr::series_limits<T1, OpTerm<OpIdentity, expr::symbols::i_<I1, P1>>> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)])
 	{
 		static const int N = symphas::lib::index_of_value<int, I1, I0s...>;
-		auto start = limit_start(std::integer_sequence<int, I0s...>{}, limits, std::get<size_t(N)>(limits));
-		return limit._1c * (start + offsets[N]) + P1;
+		if constexpr (N < 0)
+		{
+			return limit._1c * P1;
+		}
+		else
+		{
+			auto start = limit_start(std::integer_sequence<int, I0s...>{}, limits, std::get<size_t(N)>(limits));
+			return limit._1c * (start + offsets[N] + P1);
+		}
 	}
 
 	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename... E0s, size_t... Ns>
@@ -1774,6 +2384,18 @@ namespace symphas::internal
 			limit, offsets, std::make_index_sequence<sizeof...(E0s)>{});
 	}
 
+	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename A, typename B>
+	auto limit_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, std::pair<A, B>> const& limit,
+		iter_type(&offsets)[sizeof...(I0s)])
+	{
+		auto [a, b] = limit._1;
+		auto la = limit_end(std::integer_sequence<int, I0s...>{}, limits, expr::series_limits(limit._0, a), offsets);
+		auto lb = limit_end(std::integer_sequence<int, I0s...>{}, limits, expr::series_limits(limit._0, b), offsets);
+		return limit_side<false>(la, lb);
+	}
 
 	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename T2>
 	auto limit_range(
@@ -1782,9 +2404,449 @@ namespace symphas::internal
 		expr::series_limits<T1, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)])
 	{
-		return (limit_end(std::integer_sequence<int, I0s...>{}, limits, limit, offsets)
-			- limit_start(std::integer_sequence<int, I0s...>{}, limits, limit, offsets) + 1);
+		return check_limit_range((limit_end(std::integer_sequence<int, I0s...>{}, limits, limit, offsets)
+			- limit_start(std::integer_sequence<int, I0s...>{}, limits, limit, offsets) + 1));
 	}
+
+
+
+
+	template<bool left_flag>
+	inline auto limit_side_dimension(expr::symbols::Symbol const&, expr::symbols::Symbol const&)
+	{
+		return 0;
+	}
+
+	template<bool left_flag>
+	inline auto limit_side_dimension(expr::symbols::Symbol const&, int value)
+	{
+		return value;
+	}
+
+	template<bool left_flag>
+	inline auto limit_side_dimension(int value, expr::symbols::Symbol const&)
+	{
+		return value;
+	}
+
+	template<bool left_flag>
+	inline auto limit_side_dimension(int value1, int value2)
+	{
+		return (left_flag) ? std::max(value1, value2) : std::min(value1, value2);
+	}
+
+	template<bool left_flag, typename E1, typename E2>
+	inline auto limit_side_dimension(OpExpression<E1> const& left, OpExpression<E2> const& right)
+	{
+		return limit_side_dimension<left_flag>(expr::eval(*static_cast<E1 const*>(&left)), expr::eval(*static_cast<E2 const*>(&right)));
+	}
+
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename T2>
+	auto limit_dimension_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, T2> const& limit);
+	template<int... I0s, typename... T1s, typename... T2s, typename V, typename T2>
+	auto limit_dimension_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<OpBinaryMul<V, DynamicIndex>, T2> const& limit);
+	template<int... I0s, typename... T1s, typename... T2s, typename T2>
+	auto limit_dimension_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<DynamicIndex, T2> const& limit);
+	template<int... I0s, typename... T1s, typename... T2s, typename T2, typename G>
+	auto limit_dimension_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<OpTerm<OpIdentity, G>, T2> const& limit);
+	template<int... I0s, typename... T1s, typename... T2s, int I0, int P0, typename T2>
+	auto limit_dimension_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<OpTerm<OpIdentity, expr::symbols::i_<I0, P0>>, T2> const& limit);
+	template<int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2, size_t... Ns>
+	auto limit_dimension_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<OpAdd<E0s...>, T2> const& limit, std::index_sequence<Ns...>);
+	template<int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2>
+	auto limit_dimension_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<OpAdd<E0s...>, T2> const& limit);
+	template<int... I0s, typename... T1s, typename... T2s, typename T2, typename A, typename B>
+	auto limit_dimension_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<std::pair<A, B>, T2> const& limit);
+	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename T2>
+	auto limit_dimension_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, T2> const& limit);
+	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename V>
+	auto limit_dimension_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, OpBinaryMul<V, DynamicIndex>> const& limit);
+	template<int... I0s, typename... T1s, typename... T2s, typename T1>
+	auto limit_dimension_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, DynamicIndex> const& limit);
+	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename G>
+	auto limit_dimension_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, OpTerm<OpIdentity, G>> const& limit);
+	template<int... I0s, typename... T1s, typename... T2s, typename T1, int I1, int P1>
+	auto limit_dimension_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, OpTerm<OpIdentity, expr::symbols::i_<I1, P1>>> const& limit);
+	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename... E0s, size_t... Ns>
+	auto limit_dimension_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, OpAdd<E0s...>> const& limit, std::index_sequence<Ns...>);
+	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename... E0s>
+	auto limit_dimension_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, OpAdd<E0s...>> const& limit);
+	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename A, typename B>
+	auto limit_dimension_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, std::pair<A, B>> const& limit);
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename T2>
+	auto limit_dimension_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, T2> const& limit)
+	{
+		return limit._0;
+	}
+
+	template<int... I0s, typename... T1s, typename... T2s, typename V, typename T2>
+	auto limit_dimension_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<OpBinaryMul<V, DynamicIndex>, T2> const& limit)
+	{
+		return limit._0.a * expr::make_literal(limit._0.b.start());
+	}
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T2>
+	auto limit_dimension_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<DynamicIndex, T2> const& limit)
+	{
+		return expr::make_literal(limit._0.start());
+	}
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T2, typename G>
+	auto limit_dimension_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<OpTerm<OpIdentity, G>, T2> const& limit)
+	{
+		return expr::eval(limit._0c) * expr::eval(limit._0);
+	}
+
+	template<int... I0s, typename... T1s, typename... T2s, int I0, int P0, typename T2>
+	auto limit_dimension_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<OpTerm<OpIdentity, expr::symbols::i_<I0, P0>>, T2> const& limit)
+	{
+		static const int N = symphas::lib::index_of_value<int, I0, I0s...>;
+		if constexpr (N < 0)
+		{
+			return expr::make_literal(limit._0c) * val<P0>;
+		}
+		else
+		{
+			auto start = limit_dimension_start(std::integer_sequence<int, I0s...>{}, limits, std::get<size_t(N)>(limits));
+			return expr::make_literal(limit._0c) * (start + val<P0>);
+		}
+	}
+
+	template<int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2, size_t... Ns>
+	auto limit_dimension_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<OpAdd<E0s...>, T2> const& limit, std::index_sequence<Ns...>)
+	{
+		return (limit_dimension_start(std::integer_sequence<int, I0s...>{}, limits,
+			expr::series_limits(expr::get<Ns>(limit._0), expr::limit_1(limit)))
+			+ ...);
+	}
+
+	template<int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2>
+	auto limit_dimension_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<OpAdd<E0s...>, T2> const& limit)
+	{
+		return limit_dimension_start(std::integer_sequence<int, I0s...>{}, limits,
+			limit, std::make_index_sequence<sizeof...(E0s)>{});
+	}
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T2, typename A, typename B>
+	auto limit_dimension_start(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<std::pair<A, B>, T2> const& limit)
+	{
+		auto [a, b] = limit._0;
+		auto la = limit_dimension_start(std::integer_sequence<int, I0s...>{}, limits, expr::series_limits(a, expr::limit_1(limit)));
+		auto lb = limit_dimension_start(std::integer_sequence<int, I0s...>{}, limits, expr::series_limits(b, expr::limit_1(limit)));
+		return limit_side_dimension<false>(la, lb);
+	}
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename T2>
+	auto limit_dimension_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, T2> const& limit)
+	{
+		return limit._1;
+	}
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename V>
+	auto limit_dimension_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, OpBinaryMul<V, DynamicIndex>> const& limit)
+	{
+		return limit._1.a * expr::make_literal(limit._1.b.end());
+	}
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T1>
+	auto limit_dimension_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, DynamicIndex> const& limit)
+	{
+		return expr::make_literal(limit._1.end());
+	}
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename G>
+	auto limit_dimension_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, OpTerm<OpIdentity, G>> const& limit)
+	{
+		return expr::eval(limit._1c) * expr::eval(limit._1);
+	}
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T1, int I1, int P1>
+	auto limit_dimension_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, OpTerm<OpIdentity, expr::symbols::i_<I1, P1>>> const& limit)
+	{
+		static const int N = symphas::lib::index_of_value<int, I1, I0s...>;
+		if constexpr (N < 0)
+		{
+			return expr::make_literal(limit._1c) * val<P1>;
+		}
+		else
+		{
+			auto end = limit_dimension_end(std::integer_sequence<int, I0s...>{}, limits, std::get<size_t(N)>(limits));
+			return expr::make_literal(limit._1c) * (end + val<P1>);
+		}
+	}
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename... E0s, size_t... Ns>
+	auto limit_dimension_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, OpAdd<E0s...>> const& limit, std::index_sequence<Ns...>)
+	{
+		return (limit_dimension_end(std::integer_sequence<int, I0s...>{}, limits,
+			expr::series_limits(expr::limit_0(limit), expr::get<Ns>(expr::limit_1(limit))))
+			+ ...);
+	}
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename... E0s>
+	auto limit_dimension_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, OpAdd<E0s...>> const& limit)
+	{
+		return limit_dimension_end(std::integer_sequence<int, I0s...>{}, limits,
+			limit, std::make_index_sequence<sizeof...(E0s)>{});
+	}
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename A, typename B>
+	auto limit_dimension_end(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, std::pair<A, B>> const& limit)
+	{
+		auto [a, b] = limit._1;
+		auto la = limit_dimension_end(std::integer_sequence<int, I0s...>{}, limits, expr::series_limits(expr::limit_0(limit), a));
+		auto lb = limit_dimension_end(std::integer_sequence<int, I0s...>{}, limits, expr::series_limits(expr::limit_0(limit), b));
+		return limit_side_dimension<true>(expr::eval(la), expr::eval(lb));
+	}
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename T2>
+	auto limit_dimension(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, T2> const& limit)
+	{
+		return check_limit_range((limit_dimension_end(std::integer_sequence<int, I0s...>{}, limits, limit)
+			- limit_dimension_start(std::integer_sequence<int, I0s...>{}, limits, limit) + expr::symbols::one));
+	}
+
+
+
+	//template<size_t N, int... I0s, typename... T1s, typename... T2s, typename T2>
+	//auto limit_current(
+	//	std::integer_sequence<int, I0s...>,
+	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	expr::series_limits<int, T2> const& limit,
+	//	iter_type(&offsets)[sizeof...(I0s)]);
+	//template<size_t N, int... I0s, typename... T1s, typename... T2s, typename T2>
+	//auto limit_current(
+	//	std::integer_sequence<int, I0s...>,
+	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	expr::series_limits<DynamicIndex, T2> const& limit,
+	//	iter_type(&offsets)[sizeof...(I0s)]);
+	//template<size_t N, int... I0s, typename... T1s, typename... T2s, typename T2, typename G>
+	//auto limit_current(
+	//	std::integer_sequence<int, I0s...>,
+	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	expr::series_limits<OpTerm<OpIdentity, G>, T2> const& limit,
+	//	iter_type(&offsets)[sizeof...(I0s)]);
+	//template<size_t N, int... I0s, typename... T1s, typename... T2s, int I0, int P0, typename T2>
+	//auto limit_current(
+	//	std::integer_sequence<int, I0s...>,
+	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	expr::series_limits<OpTerm<OpIdentity, expr::symbols::i_<I0, P0>>, T2> const& limit,
+	//	iter_type(&offsets)[sizeof...(I0s)]);
+	//template<size_t N, int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2, size_t... Ns>
+	//auto limit_current(
+	//	std::integer_sequence<int, I0s...>,
+	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	expr::series_limits<OpAdd<E0s...>, T2> const& limit,
+	//	iter_type(&offsets)[sizeof...(I0s)],
+	//	std::index_sequence<Ns...>);
+	//template<size_t N, int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2>
+	//auto limit_current(
+	//	std::integer_sequence<int, I0s...>,
+	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	expr::series_limits<OpAdd<E0s...>, T2> const& limit,
+	//	iter_type(&offsets)[sizeof...(I0s)]);
+	//template<size_t N, int... I0s, typename... T1s, typename... T2s, typename T2, typename A, typename B>
+	//auto limit_current(
+	//	std::integer_sequence<int, I0s...>,
+	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	expr::series_limits<std::pair<A, B>, T2> const& limit,
+	//	iter_type(&offsets)[sizeof...(I0s)]);
+
+	//template<size_t N, int... I0s, typename... T1s, typename... T2s, typename T2>
+	//auto limit_current(
+	//	std::integer_sequence<int, I0s...>,
+	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	expr::series_limits<int, T2> const& limit,
+	//	iter_type(&offsets)[sizeof...(I0s)])
+	//{
+	//	return limit._0 + offsets[N];
+	//}
+
+	//template<size_t N, int... I0s, typename... T1s, typename... T2s, typename T2>
+	//auto limit_current(
+	//	std::integer_sequence<int, I0s...>,
+	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	expr::series_limits<DynamicIndex, T2> const& limit,
+	//	iter_type(&offsets)[sizeof...(I0s)])
+	//{
+	//	return limit._0.start() + offsets[N];
+	//}
+
+	//template<size_t N, int... I0s, typename... T1s, typename... T2s, typename T2, typename G>
+	//auto limit_current(
+	//	std::integer_sequence<int, I0s...>,
+	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	expr::series_limits<OpTerm<OpIdentity, G>, T2> const& limit,
+	//	iter_type(&offsets)[sizeof...(I0s)])
+	//{
+	//	return expr::make_term(limit._0c, limit._0).eval();
+	//}
+
+	//template<size_t N, int... I0s, typename... T1s, typename... T2s, int I0, int P0, typename T2>
+	//auto limit_current(
+	//	std::integer_sequence<int, I0s...>,
+	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	expr::series_limits<OpTerm<OpIdentity, expr::symbols::i_<I0, P0>>, T2> const& limit,
+	//	iter_type(&offsets)[sizeof...(I0s)])
+	//{
+	//	static const int M = symphas::lib::index_of_value<int, I0, I0s...>;
+	//	if constexpr (M < 0)
+	//	{
+	//		return offsets[N];
+	//	}
+	//	else
+	//	{
+	//		iter_type _offsets[sizeof...(I0s)]{};
+	//		std::copy(offsets, offsets + sizeof...(I0s), _offsets);
+	//		_offsets[M] = 0;
+
+	//		auto start = limit_current<M>(std::integer_sequence<int, I0s...>{}, limits, std::get<size_t(M)>(limits), offsets);
+	//		return limit._0c * start + offsets[N];
+	//	}
+	//}
+
+	//template<size_t N, int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2, size_t... Ns>
+	//auto limit_current(
+	//	std::integer_sequence<int, I0s...>,
+	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	expr::series_limits<OpAdd<E0s...>, T2> const& limit,
+	//	iter_type(&offsets)[sizeof...(I0s)],
+	//	std::index_sequence<Ns...>)
+	//{
+	//	iter_type _offsets[sizeof...(I0s)]{};
+	//	std::copy(offsets, offsets + sizeof...(I0s), _offsets);
+	//	_offsets[N] = 0;
+
+	//	return (limit_current<N>(std::integer_sequence<int, I0s...>{}, limits,
+	//		expr::series_limits(expr::get<Ns>(limit._0), limit._1), _offsets)
+	//		+ ...) + offsets[N];
+	//}
+
+	//template<size_t N, int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2>
+	//auto limit_current(
+	//	std::integer_sequence<int, I0s...>,
+	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	expr::series_limits<OpAdd<E0s...>, T2> const& limit,
+	//	iter_type(&offsets)[sizeof...(I0s)])
+	//{
+	//	return limit_current<N>(std::integer_sequence<int, I0s...>{}, limits,
+	//		limit, offsets, std::make_index_sequence<sizeof...(E0s)>{});
+	//}
+
+	//template<size_t N, int... I0s, typename... T1s, typename... T2s, typename T2, typename A, typename B>
+	//auto limit_current(
+	//	std::integer_sequence<int, I0s...>,
+	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	expr::series_limits<std::pair<A, B>, T2> const& limit,
+	//	iter_type(&offsets)[sizeof...(I0s)])
+	//{
+	//	auto [a, b] = limit._0;
+	//	auto la = limit_current<N>(std::integer_sequence<int, I0s...>{}, limits, expr::series_limits(a, limit._1));
+	//	auto lb = limit_current<N>(std::integer_sequence<int, I0s...>{}, limits, expr::series_limits(b, limit._1));
+	//	return limit_side<false>(la, lb);
+	//}
+
 
 
 	template<int... I0s, typename... T1s, typename... T2s, typename T2>
@@ -1797,15 +2859,62 @@ namespace symphas::internal
 		return 0;
 	}
 
+	template<int... I0s, typename... T1s, typename... T2s, size_t N0, typename T2>
+	auto compute_offset(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<expr::symbols::placeholder_N_<N0>, T2> const& limit,
+		iter_type(&offsets)[sizeof...(I0s)])
+	{
+		return 0;
+	}
+
+	template<int... I0s, typename... T1s, typename... T2s, typename V, typename T2>
+	auto compute_offset(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<OpBinaryMul<V, DynamicIndex>, T2> const& limit,
+		iter_type(&offsets)[sizeof...(I0s)])
+	{
+		return expr::limit_0(limit);// limit._0.a.eval()* limit._0.b.index();
+	}
+
+	template<int... I0s, typename... T1s, typename... T2s, typename T2>
+	auto compute_offset(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<DynamicIndex, T2> const& limit,
+		iter_type(&offsets)[sizeof...(I0s)])
+	{
+		return expr::limit_0(limit);//limit._0.index();
+	}
+
+	template<int... I0s, typename... T1s, typename... T2s, typename G, typename T2>
+	auto compute_offset(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<OpTerm<OpIdentity, G>, T2> const& limit,
+		iter_type(&offsets)[sizeof...(I0s)])
+	{
+		return 0;
+	}
+
 	template<int... I0s, typename... T1s, typename... T2s, int I0, int P0, typename T2>
 	auto compute_offset(
 		std::integer_sequence<int, I0s...>,
 		std::tuple<expr::series_limits<T1s, T2s>...> limits,
-		expr::series_limits<expr::symbols::i_<I0, P0>, T2> const& limit,
+		expr::series_limits<OpTerm<OpIdentity, expr::symbols::i_<I0, P0>>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)])
 	{
 		static const int N = symphas::lib::index_of_value<int, I0, I0s...>;
-		return offsets[N];
+		if constexpr (N < 0)
+		{
+			return limit._0c * P0;
+		}
+		else
+		{
+			return limit._0c * (offsets[N] + P0);
+		}
 	}
 
 	template<int... I0s, typename... T1s, typename... T2s, typename... E0s, size_t... Ns, typename T2>
@@ -1834,7 +2943,34 @@ namespace symphas::internal
 			limit, offsets, std::make_index_sequence<sizeof...(E0s)>{});
 	}
 
+	template<int... I0s, typename... T1s, typename... T2s, typename A, typename B, typename T2>
+	auto compute_offset(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<std::pair<A, B>, T2> const& limit,
+		iter_type(&offsets)[sizeof...(I0s)])
+	{
+		auto [a, b] = expr::limit_0(limit);
+		auto offset0 = compute_offset(
+			std::integer_sequence<int, I0s...>{}, limits, 
+			expr::series_limits(a, expr::limit_1(limit)), offsets);
+		auto offset1 = compute_offset(
+			std::integer_sequence<int, I0s...>{}, limits, 
+			expr::series_limits(b, expr::limit_1(limit)), offsets);
+		return limit_side<true>(expr::eval(offset0), expr::eval(offset1));
+	}
 
+	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename T2>
+	auto compute_offset(
+		std::integer_sequence<int, I0s...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		expr::series_limits<T1, T2> const& limit)
+	{
+		len_type offsets[sizeof...(I0s)]{};
+		return compute_offset(
+			std::integer_sequence<int, I0s...>{}, limits,
+			limit, offsets);
+	}
 
 
 
@@ -1850,6 +2986,15 @@ namespace symphas::internal
 	template<int N, typename G, int I0, int P0, size_t L>
 	auto select_data_of_index(
 		SymbolicDataArray<G> const& substitution0,
+		expr::symbols::v_id_type<expr::symbols::i_<I0, P0>>,
+		iter_type(&offsets)[L])
+	{
+		return std::make_tuple(NamedData(SymbolicData(&(substitution0.data[P0 + offsets[N]]), false), ""));
+	}
+
+	template<int N, typename G, int I0, int P0, size_t L>
+	auto select_data_of_index(
+		SymbolicDataArray<NamedData<G>> const& substitution0,
 		expr::symbols::v_id_type<expr::symbols::i_<I0, P0>>,
 		iter_type(&offsets)[L])
 	{
@@ -1886,6 +3031,14 @@ namespace symphas::internal
 			offsets);
 	}
 
+
+	template<int N, typename... Gs, int I0, int P0>
+	auto select_data_of_index(
+		SymbolicDataArray<std::tuple<Gs...>> const& substitution0,
+		expr::symbols::v_id_type<expr::symbols::i_<I0, P0>>)
+	{
+		return std::make_tuple(expr::symbols::v_id_type<expr::symbols::i_<I0, P0>>{});
+	}
 
 	template<int N, typename G, int I0, int P0>
 	auto select_data_of_index(
@@ -1934,21 +3087,10 @@ namespace symphas::internal
 	template<size_t... Ms, size_t N>
 	auto args_for_indices(
 		iter_type(&offsets)[N],
-		iter_type(&starts)[N],
+		iter_type(&values)[N],
 		std::index_sequence<Ms...>)
 	{
-		return std::make_tuple((offsets[Ms] + starts[Ms])...);
-	}
-
-	template<typename... T0s, int... I0s, int... P0s, int... I00s, int... P00s>
-	auto args_for_placeholders(
-		Substitution<SymbolicDataArray<T0s>...> const& substitution,
-		symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<I00s, P00s>>...>,
-		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>)
-	{
-		return std::tuple_cat(
-			select_data_of_index<symphas::lib::index_of_value<int, I00s, I0s...>>
-			(substitution, expr::symbols::v_id_type<expr::symbols::i_<I00s, P00s>>{})...);
+		return std::make_tuple((values[Ms])...);
 	}
 
 	template<typename... T0s, int... I0s, int... P0s, int... I00s, int... P00s>
@@ -1963,18 +3105,29 @@ namespace symphas::internal
 			(substitution, expr::symbols::v_id_type<expr::symbols::i_<I00s, P00s>>{}, offsets)...);
 	}
 
+	template<size_t D, int I0, int P0>
+	auto as_grid_data(std::tuple<expr::symbols::v_id_type<expr::symbols::i_<I0, P0>>> const&)
+	{
+		return GridSymbol<expr::symbols::v_id_type<expr::symbols::i_<I0, P0>>, D>{};
+	}
 
-	template<typename... T0s, typename... Is, int... I0s, int... P0s>
+	template<size_t D, typename T0>
+	auto as_grid_data(std::tuple<T0> const& data)
+	{
+		return std::get<0>(data);
+	}
+
+	template<typename... T0s, int... I00s, int... P00s, size_t... Ds, int... I0s, int... P0s>
 	auto placeholder_list(
 		Substitution<SymbolicDataArray<T0s>...> const& substitution,
-		symphas::lib::types_list<expr::symbols::v_id_type<Is>...>,
+		symphas::lib::types_list<GridSymbol<expr::symbols::v_id_type<expr::symbols::i_<I00s, P00s>>, Ds>...>,
 		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>)
 	{
-		using v_id_types = symphas::lib::types_list<expr::symbols::v_id_type<Is>...>;
 		using id_types = symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>;
 
 		return std::tuple_cat(
-			args_for_placeholders(substitution, v_id_types{}, id_types{}),
+			std::make_tuple(as_grid_data<Ds>(select_data_of_index<symphas::lib::index_of_value<int, I00s, I0s...>>
+				(substitution, expr::symbols::v_id_type<expr::symbols::i_<I00s, P00s>>{}))...),
 			args_for_indices(id_types{}));
 	}
 
@@ -2010,14 +3163,14 @@ namespace symphas::internal
 		symphas::lib::types_list<expr::symbols::v_id_type<Is>...>,
 		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
 		iter_type(&offsets)[sizeof...(I0s)],
-		iter_type(&starts)[sizeof...(I0s)])
+		iter_type(&values)[sizeof...(I0s)])
 	{
 		using v_id_types = symphas::lib::types_list<expr::symbols::v_id_type<Is>...>;
 		using id_types = symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>;
 
 		return std::tuple_cat(
 			args_for_placeholders(substitution, v_id_types{}, id_types{}, offsets),
-			args_for_indices(offsets, starts, std::make_index_sequence<sizeof...(I0s)>{}));
+			args_for_indices(offsets, values, std::make_index_sequence<sizeof...(I0s)>{}));
 	}
 
 	template<typename E0, typename... T0s>
@@ -2047,9 +3200,11 @@ namespace symphas::internal
 		{
 			using id_types = symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>;
 			using all_var_types = typename expr::op_types<E>::type;
-			using v_id_types = symphas::internal::select_v_<all_var_types>;
+			using v_id_types = symphas::lib::expand_types_list<
+				symphas::internal::select_v_i_<expr::symbols::i_<I0s, P0s>, all_var_types>...>;
 
-			auto tmpl = series.get_template(limits, v_id_types{});
+			DynamicIndex index[sizeof...(I0s)];
+			auto tmpl = series.get_template(&index[0], limits, v_id_types{});
 			auto args = expanded_arg_list(substitution, v_id_types{}, id_types{});
 			return _get_function_list(tmpl, args);
 		}
@@ -2069,6 +3224,7 @@ namespace symphas::internal
 template<typename Op, int I0, int P0>
 struct SymbolicSeries<Op, OpVoid, symphas::lib::types_list<expr::symbols::i_<I0, P0>>>
 {
+	SymbolicSeries() = default;
 	SymbolicSeries(OpVoid) {}
 
 	template<typename... Ts>
@@ -2103,7 +3259,7 @@ struct SymbolicSeries<Op, E, symphas::lib::types_list<expr::symbols::i_<I0, P0>>
 protected:
 
 	using v_types = symphas::internal::select_v_i_<expr::symbols::i_<I0, P0>, expr::op_types_t<E>>;
-	using all_indices_of_id = typename symphas::internal::select_all_i_<expr::symbols::i_<I0, P0>, expr::op_types_t<E>>::type;
+	using all_indices_of_id = symphas::internal::select_all_i_<expr::symbols::i_<I0, P0>, expr::op_types_t<E>>;
 
 	
 	template<typename limits_t>
@@ -2113,14 +3269,21 @@ protected:
 
 public:
 
+	SymbolicSeries() = default;
 	SymbolicSeries(E const& e) : e{ e } {}
 
 	template<size_t N, typename X0>
-	auto select(X0)
+	auto select(X0) const
 	{
 		return SymbolicSeries<Op, E, 
 			symphas::lib::types_list<std::index_sequence<N>,
 				typename symphas::internal::filter_i_selection<X0>::type>>(e);
+	}
+
+	template<typename X0>
+	auto select(X0) const
+	{
+		return select<0>(X0{});
 	}
 
 	//! Expand the sum between the given indices.
@@ -2243,8 +3406,9 @@ public:
 	template<typename T1, typename T2>
 	auto operator()(expr::series_limits<T1, T2> const& limit) const
 	{
+		DynamicIndex index[1];
 		return symphas::internal::construct_series<Op>(
-			e, get_template(limit, v_types{}),
+			e, index, get_template(&index[0], limit, v_types{}),
 			symphas::lib::types_list<expr::symbols::i_<I0, 0>>{},
 			v_types{},
 			limit);
@@ -2260,20 +3424,25 @@ public:
 
 	template<typename T1, typename T2, int... P0s>
 	auto get_template(
+		DynamicIndex* index,
 		expr::series_limits<T1, T2> const& limit,
 		symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<I0, P0s>>...>) const
 	{
-		auto e0 = symphas::internal::normalize<v_types, all_indices_of_id>(e, expr::symbols::i_<I0, P0>{}, limit);
+		auto e0 = symphas::internal::normalize<
+			symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<I0, P0s>>...>, 
+			all_indices_of_id>
+			(e, index, expr::symbols::i_<I0, P0>{}, limit);
 		return (expr::template_of(expr::symbols::v_id_type<expr::symbols::i_<I0, P0s>>{}..., expr::symbols::i_<I0, 0>{}) = e0);
 	}
 
 
 	template<typename T1, typename T2, int... P0s>
 	auto get_template(
+		DynamicIndex *index,
 		std::tuple<expr::series_limits<T1, T2>> const& limit,
 		symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<I0, P0s>>...>) const
 	{
-		return get_template(std::get<0>(limit), symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<I0, P0s>>...>{});
+		return get_template(index, std::get<0>(limit), symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<I0, P0s>>...>{});
 	}
 
 protected:
@@ -2355,6 +3524,7 @@ struct SymbolicSeries<Op, OpVoid, symphas::lib::types_list<
 	expr::symbols::i_<I0, P0>, expr::symbols::i_<I1, P1>, expr::symbols::i_<Is, Ps>...
 	>>
 {
+	SymbolicSeries() = default;
 	SymbolicSeries(OpVoid) {}
 
 	template<typename... Ts>
@@ -2380,8 +3550,13 @@ struct SymbolicSeries<Op, E, symphas::lib::types_list<
 protected:
 
 	using all_v_types = symphas::internal::select_v_<expr::op_types_t<E>>;
-	using all_v_nested_types = typename symphas::internal::select_v_nested_<
-		symphas::lib::types_list<expr::symbols::i_<I0, P0>, expr::symbols::i_<I1, P1>, expr::symbols::i_<Is, Ps>...>, all_v_types>::type;
+	using all_v_nested_types = symphas::internal::select_v_nested_<
+		symphas::lib::types_list<expr::symbols::i_<I0, P0>, expr::symbols::i_<I1, P1>, expr::symbols::i_<Is, Ps>...>, all_v_types>;
+	using v_types = symphas::lib::expand_types_list<
+		symphas::internal::select_v_i_<expr::symbols::i_<I0, P0>, all_v_types>,
+		symphas::internal::select_v_i_<expr::symbols::i_<I1, P1>, all_v_types>,
+		symphas::internal::select_v_i_<expr::symbols::i_<Is, Ps>, all_v_types>...
+	>;
 
 	//static constexpr int v_type_count = symphas::lib::types_list_size<
 	//	symphas::lib::expand_types_list<
@@ -2396,13 +3571,14 @@ protected:
 	//static constexpr int index_of_type = symphas::lib::index_of_type<V, all_v_types>;
 
 	template<typename II>
-	using all_indices_of_id = typename symphas::internal::select_all_i_<II, expr::op_types_t<E>>::type;
+	using all_indices_of_id = symphas::internal::select_all_i_<II, expr::op_types_t<E>>;
 
 	template<typename limits_t>
 	using limits_of = symphas::internal::series_limits_of<limits_t>;
 
 public:
 
+	SymbolicSeries() = default;
 	SymbolicSeries(E const& e) : e{ e } {}
 
 	template<size_t... Ns, typename... Xs,
@@ -2412,6 +3588,12 @@ public:
 		return SymbolicSeries<Op, E, 
 			symphas::lib::types_list<std::index_sequence<Ns...>,
 			typename symphas::internal::filter_i_selection<Xs>::type...>>(e);
+	}
+
+	template<typename... Xs>
+	auto select(Xs...)
+	{
+		return select<symphas::internal::typei<0, Xs>...>(Xs{}...);
 	}
 
 	//! Expand the sum between the given indices.
@@ -2443,11 +3625,13 @@ public:
 	template<typename... T1s, typename... T2s, typename = std::enable_if_t<(sizeof...(Is) + 2 == sizeof...(T1s)), int>>
 	auto operator()(expr::series_limits<T1s, T2s> const&... limits) const
 	{
-		using i_types = symphas::lib::types_list<expr::symbols::i_<I0, 0>, expr::symbols::i_<I1, 0>, expr::symbols::i_<Is, 0>...>;
+		using i_types = symphas::lib::types_list<expr::symbols::i_<I0, P0>, expr::symbols::i_<I1, P1>, expr::symbols::i_<Is, Ps>...>;
+
+		DynamicIndex index[sizeof...(Is) + 2];
 		return symphas::internal::construct_series<Op>(
-			e, get_template(std::make_tuple(limits...), all_v_types{}),
+			e, index, get_template(&index[0], std::make_tuple(limits...), v_types{}),
 			i_types{},
-			all_v_types{},
+			v_types{},
 			limits...);
 	}
 
@@ -2572,6 +3756,7 @@ public:
 
 	template<typename... T1s, typename... T2s, int... I0s, int... P0s>
 	auto get_template(
+		DynamicIndex* index,
 		std::tuple<expr::series_limits<T1s, T2s>...> const& limits,
 		symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<I0s, P0s>>...>) const
 	{
@@ -2579,11 +3764,11 @@ public:
 		using I_list = symphas::lib::types_list<expr::symbols::i_<I0, P0>, expr::symbols::i_<I1, P1>, expr::symbols::i_<Is, Ps>...>;
 
 		auto e0 = symphas::internal::normalize<
-			all_v_types, 
-			all_indices_of_id<i_<I0, P0>>,
-			all_indices_of_id<i_<I1, P1>>,
-			all_indices_of_id<i_<Is, Ps>>...>(
-			e, I_list{}, limits);
+			v_types, 
+			all_indices_of_id<i_<I0, 0>>,
+			all_indices_of_id<i_<I1, 0>>,
+			all_indices_of_id<i_<Is, 0>>...>(
+			e, index, I_list{}, limits);
 
 		return (expr::template_of(
 			expr::symbols::v_id_type<expr::symbols::i_<I0s, P0s>>{}..., 
@@ -2718,16 +3903,117 @@ public:
 template<typename Op, typename E>
 struct SymbolicSeries<Op, E, symphas::lib::types_list<>>
 {
+
+	using i_types = symphas::internal::select_unique_i_<expr::op_types_t<E>>;
+
+	SymbolicSeries() = default;
 	SymbolicSeries(E const& e) : e{ e } {}
 	
 	template<size_t... Ns, typename... Xs, typename = std::enable_if_t<(sizeof...(Ns) == sizeof...(Xs)), int>>
-	auto select(Xs...)
+	auto select(Xs...) const
 	{
 		return SymbolicSeries<Op, E, 
 			symphas::lib::types_list<std::index_sequence<Ns...>,
 				typename symphas::internal::filter_i_selection<Xs>::type...>>(e);
 	}
 
+	template<typename... Xs>
+	auto select(Xs...) const
+	{
+		return select<symphas::internal::typei<0, Xs>...>(Xs{}...);
+	}
+
+	template<typename... T1s, typename... T2s>
+	auto operator()(expr::series_limits<T1s, T2s> const& ...limits) const
+	{
+		return series_with_sorted(i_types{}, std::make_tuple(limits...),
+			std::make_index_sequence<symphas::lib::types_list_size<i_types>::value>{});
+	}
+
+	template<typename... T1s, typename... T2s>
+	auto operator()(std::tuple<expr::series_limits<T1s, T2s>...> const& limits) const
+	{
+		return construct_with_limits(limits, std::make_index_sequence<sizeof...(T1s)>{});
+	}
+
+	template<typename... T1s, typename... T2s, typename... Ts>
+	auto operator()(Substitution<Ts...> const& substitution, expr::series_limits<T1s, T2s> const& ...limits) const
+	{
+		return series_with_sorted(i_types{}, substitution, std::make_tuple(limits...), 
+			std::make_index_sequence<symphas::lib::types_list_size<i_types>::value>{});
+	}
+
+	template<typename... T1s, typename... T2s, typename... Ts>
+	auto operator()(std::tuple<expr::series_limits<T1s, T2s>...> const& limits, Substitution<Ts...> const& substitution) const
+	{
+		return construct_with_limits(limits, substitution, std::make_index_sequence<sizeof...(T1s)>{});
+	}
+
+protected:
+
+	template<int N0, int... Ns, typename... T1s, typename... T2s, size_t... Is>
+	auto series_with_sorted(
+		symphas::lib::types_list<expr::symbols::i_<N0, 0>, expr::symbols::i_<Ns, 0>...>,
+		std::tuple<expr::series_limits<T1s, T2s>...> const& limits,
+		std::index_sequence<Is...>
+	) const
+	{
+		return expr::series<Op, expr::symbols::i_<N0, 0>, expr::symbols::i_<Ns, 0>...>(e)(limits);
+	}
+
+	template<typename... T1s, typename... T2s, size_t... Is>
+	auto series_with_sorted(
+		symphas::lib::types_list<>,
+		std::tuple<expr::series_limits<T1s, T2s>...> const& limits,
+		std::index_sequence<Is...>
+	) const
+	{
+		return e;
+	}
+
+	template<typename... T1s, typename... T2s, size_t... Is>
+	auto construct_with_limits(
+		std::tuple<expr::series_limits<T1s, T2s>...> const& limits, 
+		std::index_sequence<Is...>) const
+	{
+		return series_with_sorted(i_types{}, limits,
+			std::make_index_sequence<symphas::lib::types_list_size<i_types>::value>{});
+	}
+
+	template<int N0, int... Ns, typename... T1s, typename... T2s, typename... Ts, size_t... Is>
+	auto series_with_sorted(
+		symphas::lib::types_list<expr::symbols::i_<N0, 0>, expr::symbols::i_<Ns, 0>...>,
+		Substitution<Ts...> const& substitution,
+		std::tuple<expr::series_limits<T1s, T2s>...> const& limits,
+		std::index_sequence<Is...>
+	) const
+	{
+		return expr::series<Op, expr::symbols::i_<N0, 0>, expr::symbols::i_<Ns, 0>...>(e)(std::get<Is>(limits)...)(substitution);
+	}
+
+	template<typename... T1s, typename... T2s, typename... Ts, size_t... Is>
+	auto series_with_sorted(
+		symphas::lib::types_list<>, 
+		Substitution<Ts...> const& substitution,
+		std::tuple<expr::series_limits<T1s, T2s>...> const& limits,
+		std::index_sequence<Is...>
+	) const
+	{
+		return e;
+	}
+
+	template<typename... T1s, typename... T2s, size_t... Is, typename... Ts>
+	auto construct_with_limits(
+		std::tuple<expr::series_limits<T1s, T2s>...> const& limits,
+		Substitution<Ts...> const& substitution,
+		std::index_sequence<Is...>) const
+	{
+		return series_with_sorted(i_types{}, substitution, limits,
+			std::make_index_sequence<symphas::lib::types_list_size<i_types>::value>{});
+	}
+
+
+public:
 
 	E e;
 };
@@ -2736,6 +4022,7 @@ struct SymbolicSeries<Op, E, symphas::lib::types_list<>>
 template<typename Op, size_t N0, size_t... Ns, typename X0, typename... Xs>
 struct SymbolicSeries<Op, OpVoid, symphas::lib::types_list<std::index_sequence<N0, Ns...>, X0, Xs...>>
 {
+	SymbolicSeries() = default;
 	SymbolicSeries(OpVoid) {}
 
 	template<typename... Ts>
@@ -2755,10 +4042,11 @@ struct SymbolicSeries<Op, OpVoid, symphas::lib::types_list<std::index_sequence<N
 template<typename Op, typename E, size_t N0, size_t... Ns, typename X0, typename... Xs>
 struct SymbolicSeries<Op, E, symphas::lib::types_list<std::index_sequence<N0, Ns...>, X0, Xs...>>
 {
+	SymbolicSeries() = default;
 	SymbolicSeries(E const& e) : e{ e } {}
 
 	template<typename... call_ts, typename... Ts>
-	auto expand(symphas::lib::types_list<call_ts...>, Ts&&... subs) const
+	auto expand(symphas::lib::types_list<call_ts...> calls, Ts&&... subs) const
 	{
 		return Op{}(call_ts{}.expand(e, std::forward<Ts>(subs)...)...);
 	}
@@ -2774,7 +4062,7 @@ struct SymbolicSeries<Op, E, symphas::lib::types_list<std::index_sequence<N0, Ns
 	}
 
 	template<typename... call_ts, typename... Ts>
-	auto operator()(symphas::lib::types_list<call_ts...>, Ts&&... subs) const
+	auto operator()(symphas::lib::types_list<call_ts...> calls, Ts&&... subs) const
 	{
 		return Op{}(call_ts{}(e, std::forward<Ts>(subs)...)...);
 	}
@@ -2802,14 +4090,15 @@ struct SymbolicSeries<Op, SymbolicTemplate<S, Ns...>,
 		symphas::lib::types_list<expr::series_limits<T1s, T2s>...>,
 		symphas::lib::types_list<expr::symbols::v_id_type<Is>...>>>
 {
-	SymbolicSeries(OpVoid, SymbolicTemplate<S, Ns...> const& tmpl, expr::series_limits<T1s, T2s> const&... limits) {}
+	SymbolicSeries() = default;
+	SymbolicSeries(OpVoid, SymbolicTemplate<S, Ns...> const& tmpl, 
+		const DynamicIndex(&index)[sizeof...(I0s)], expr::series_limits<T1s, T2s> const&... limits) {}
 
 	template<typename... Ts>
 	auto operator()(Ts&&... subs) const
 	{
 		return OpVoid{};
 	}
-
 };
 
 template<typename Op, typename E, int... I0s, int... P0s, typename... T1s, typename... T2s, typename... Is>
@@ -2820,11 +4109,12 @@ struct SymbolicSeries<Op, void,
 		symphas::lib::types_list<expr::symbols::v_id_type<Is>...>
 	>>
 {
+	SymbolicSeries() = default;
 	SymbolicSeries(
 		E const& e,
 		expr::series_limits<T1s, T2s> const&... limits) :
 			e{ e }, limits{ limits... },
-			dims{ symphas::internal::limit_range(std::integer_sequence<int, I0s...>{}, this->limits, limits)... }
+			dims{ symphas::internal::limit_dimension(std::integer_sequence<int, I0s...>{}, this->limits, limits)... }
 	{}
 
 	E e;
@@ -2859,8 +4149,13 @@ struct SymbolicSeries<Op, SymbolicTemplate<S, Ns...>,
 	using parent_type::dims;
 
 
-	SymbolicSeries(E const& e, SymbolicTemplate<S, Ns...> const& tmpl, expr::series_limits<T1s, T2s> const&... limits)
-		: parent_type(e, limits...), tmpl{ tmpl } {}
+	SymbolicSeries() = default;
+	SymbolicSeries(E const& e, SymbolicTemplate<S, Ns...> const& tmpl, 
+		const DynamicIndex(&index)[sizeof...(I0s)], expr::series_limits<T1s, T2s> const&... limits)
+		: parent_type(e, limits...), index{}, tmpl{ tmpl } 
+	{
+		std::copy(index, index + sizeof...(I0s), this->index);
+	}
 
 
 	template<typename... Ts>
@@ -2888,8 +4183,8 @@ protected:
 		using placeholder_mask_t = std::integer_sequence<bool,
 			(symphas::lib::types_list_size<
 				symphas::internal::select_v_i_<
-				expr::symbols::i_<I0s, 0>,
-				symphas::lib::types_list<expr::symbols::v_id_type<Is>...>>
+					expr::symbols::i_<I0s, 0>,
+					symphas::lib::types_list<expr::symbols::v_id_type<Is>...>>
 				>::value > 0)...
 			>;
 
@@ -2960,8 +4255,9 @@ protected:
 				std::integer_sequence<bool, Bs...>{},
 				std::forward<T0>(data0), std::forward<Ts>(datas)...);
 
+			using curr_i_type = expr::symbols::i_<symphas::lib::seq_index_value<N, std::integer_sequence<int, I0s...>>::value, 0>;
 			return std::tuple_cat(
-				std::make_tuple(SymbolicDataArray<expr::symbols::Symbol>()),
+				std::make_tuple(SymbolicDataArray<expr::symbols::v_id_type<curr_i_type>>()),
 				next_list);
 		}
 	}
@@ -2976,7 +4272,7 @@ protected:
 		auto f = to_function(std::get<Ms>(args)...);
 		
 		auto series = symphas::internal::construct_series<Op>(
-			e, substitution, 
+			e, index, substitution, 
 			id_types{}, 
 			v_id_types{}, 
 			std::get<Ls>(limits)...);
@@ -2992,6 +4288,31 @@ protected:
 			std::make_index_sequence<sizeof...(Ts)>{}, std::make_index_sequence<sizeof...(T1s)>{});
 	}
 
+	template<size_t N>
+	auto update_name(int const& arg) const
+	{
+		return arg;
+	}
+
+	template<size_t N, typename T>
+	auto update_name(T const& arg) const
+	{
+		using v_named_t = symphas::lib::type_at_index<N, expr::symbols::v_id_type<Is>...>;
+		NamedData arg0(T(arg), expr::get_op_name(v_named_t{}));
+		return arg0;
+	}
+
+#ifdef PRINTABLE_EQUATIONS
+	template<size_t N, typename T>
+	auto update_name(NamedData<T> const& arg) const
+	{
+		//constexpr int I = symphas::lib::seq_index_value<N, std::integer_sequence<int, I0s...>>::value;
+		using v_named_t = symphas::lib::type_at_index<N, expr::symbols::v_id_type<Is>...>;
+		NamedData arg0(T(arg), expr::get_op_name(v_named_t{}));
+		return arg0;
+	}
+#endif
+
 	template<typename E0, typename... Ts>
 	SymbolicFunction<E0, symphas::lib::types_list<Ts...>> _to_function(
 		SymbolicFunction<E0, Ts...> const& f) const
@@ -3002,9 +4323,12 @@ protected:
 	template<typename... Ts>
 	auto to_function(Ts const&... args) const
 	{
-		return _to_function(expr::function_of(expr::symbols::arg<Ns, Ts>...) = tmpl);
+		auto f = (expr::function_of(expr::symbols::arg<Ns, Ts>...) = tmpl);
+		f.set_data(update_name<symphas::lib::index_of_value<size_t, Ns, Ns...>>(args)...);
+		return _to_function(f);
 	}
-
+	
+	DynamicIndex index[sizeof...(I0s)];
 	SymbolicTemplate<S, Ns...> tmpl;
 };
 
@@ -3027,26 +4351,31 @@ struct SymbolicSeries<Op, Substitution<SymbolicDataArray<Ts>...>,
 
 	using parent_type = SymbolicSeries<Op, void,
 		symphas::lib::types_list<E,
-			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
-			symphas::lib::types_list<expr::series_limits<T1s, T2s>...>,
-			symphas::lib::types_list<expr::symbols::v_id_type<Is>...>>>;
+		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
+		symphas::lib::types_list<expr::series_limits<T1s, T2s>...>,
+		symphas::lib::types_list<expr::symbols::v_id_type<Is>...>>>;
 	using parent_type::e;
 	using parent_type::limits;
 	using parent_type::dims;
 
 	using this_type = SymbolicSeries<Op, Substitution<SymbolicDataArray<Ts>...>,
 		symphas::lib::types_list<E,
-			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
-			symphas::lib::types_list<expr::series_limits<T1s, T2s>...>,
-			symphas::lib::types_list<expr::symbols::v_id_type<Is>...>
+		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
+		symphas::lib::types_list<expr::series_limits<T1s, T2s>...>,
+		symphas::lib::types_list<expr::symbols::v_id_type<Is>...>
 		>>;
 
+	SymbolicSeries() = default;
 	SymbolicSeries(
 		E const& e,
 		Substitution<SymbolicDataArray<Ts>...> const& substitution,
+		const DynamicIndex(&index)[sizeof...(I0s)],
 		expr::series_limits<T1s, T2s> const&... limits) :
-			parent_type(e, limits...), substitution{ substitution }, 
-			persistent{ get_length(std::make_index_sequence<sizeof...(I0s)>{}) } {}
+		parent_type(e, limits...), substitution{ substitution },
+		persistent{ sizeof...(I0s), get_length(std::make_index_sequence<sizeof...(I0s)>{}) }
+	{
+		std::copy(index, index + sizeof...(I0s), this->index);
+	}
 
 
 protected:
@@ -3066,50 +4395,69 @@ protected:
 	}
 
 	template<size_t... Ms>
-	auto init_starts(
-		iter_type(&starts)[sizeof...(I0s)],
+	auto index_values(
+		iter_type(&values)[sizeof...(I0s)],
+		iter_type(&offsets)[sizeof...(I0s)],
 		std::index_sequence<Ms...>) const
 	{
-		((starts[Ms] = symphas::internal::limit_start(std::integer_sequence<int, I0s...>{}, limits, std::get<Ms>(limits))), ...);
+		((values[Ms] = offsets[Ms] + symphas::internal::check_limit_range(
+			symphas::internal::limit_start(std::integer_sequence<int, I0s...>{}, limits, std::get<Ms>(limits))
+		)), ...);
 	}
 
 	template<typename E0, typename... T0s>
 	auto eval_series(SymbolicFunctionArray<E0, T0s...> const& persistent, iter_type n) const
 	{
 		using namespace symphas::internal;
-		auto result = persistent[0][n];
-		expr::result(Op{}(), result);
 
-		for (iter_type i = 0; i < persistent.len; ++i)
+		if (persistent.len > 0)
 		{
-			result = Op{}(result, persistent[0][n]);
+			auto result = persistent[0][n];
+
+			for (iter_type i = 1; i < persistent.len; ++i)
+			{
+				result = Op{}(result, persistent[i][n]);
+			}
+			return result;
 		}
-		return result;
+		else
+		{
+			return Op{}(typename SymbolicFunctionArray<E0, T0s...>::eval_type{});
+		}
 	}
 
 	template<typename E0, typename... T0s>
 	auto eval_series(SymbolicFunctionArray<E0, T0s...> const& persistent) const
 	{
 		using namespace symphas::internal;
-
-		auto result = persistent[0]();
-		expr::result(Op{}(), result);
-		auto op = expr::make_term(result);
-
-		for (iter_type i = 0; i < persistent.len; ++i)
+		if (persistent.len > 0)
 		{
-			expr::result(Op{}(op, expr::make_term(persistent[i]())), result);
+			auto result = persistent[0]();
+			expr::result(Op{}(), result);
+			auto op = expr::make_term(result);
+
+			for (iter_type i = 0; i < persistent.len; ++i)
+			{
+				expr::result(Op{}(op, expr::make_term(persistent[i]())), result);
+			}
+			return result;
 		}
-		return result;
+		else
+		{
+			return Op{}(typename SymbolicFunctionArray<E0, T0s...>::eval_type{});
+		}
 	}
 
 	//! Evaluates for only one element.
 	template<size_t N, typename E0, typename... T0s>
-	auto build_series_evals(SymbolicFunction<E0, T0s...> const& f, iter_type(&offsets)[sizeof...(I0s)], 
-		SymbolicFunction<E0, T0s...> **fs) const
+	auto build_series_evals(SymbolicFunction<E0, T0s...>& f, iter_type(&offsets)[sizeof...(I0s)],
+		SymbolicFunction<E0, T0s...>** fs, iter_type** set_offsets) const
 	{
 		using namespace symphas::internal;
 		using std::swap;
+
+		using id_types = symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>;
+		using v_id_types = symphas::lib::types_list<expr::symbols::v_id_type<Is>...>;
 
 		len_type pos = 0;
 
@@ -3119,31 +4467,44 @@ protected:
 		}
 		else
 		{
-			iter_type starts[sizeof...(I0s)]{};
-			init_starts(starts, std::make_index_sequence<sizeof...(I0s)>{});
+			auto& index_mutable = const_cast<DynamicIndex(&)[sizeof...(I0s)]>(index);
+
+
+			iter_type values[sizeof...(I0s)]{};
+			index_values(values, offsets, std::make_index_sequence<sizeof...(I0s)>{});
 
 			auto lim = std::get<N>(limits);
-			auto range = limit_range(std::integer_sequence<int, I0s...>{}, limits, lim, offsets);
+			auto offset = compute_offset(std::integer_sequence<int, I0s...>{}, limits, lim, offsets)
+				+ symphas::lib::seq_index_value<N, std::integer_sequence<int, P0s...>>::value;
+
+			offsets[N] = expr::eval(offset);
+			auto range = limit_range(std::integer_sequence<int, I0s...>{}, limits, lim, offsets)/* - offset*/;
+
 			for (iter_type i = 0; i < range; ++i)
 			{
-				offsets[N] = i + compute_offset(std::integer_sequence<int, I0s...>{}, limits, lim, offsets);
 				if constexpr (N == sizeof...(I0s) - 1)
 				{
-					//SymbolicFunction<E0, T0s...> cpy(f);
-					//std::swap(f, *(fs[pos++]));
+					for (iter_type n = 0; n < sizeof...(I0s); ++n)
+					{
+						index_mutable[n] = (int)offsets[n];
+					}
 
-					using id_types = symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>;
-					using v_id_types = symphas::lib::types_list<expr::symbols::v_id_type<Is>...>;
+					auto args0 = symphas::internal::expanded_arg_list(substitution, v_id_types{}, id_types{}, offsets, values);
+					std::copy(offsets, offsets + sizeof...(I0s), set_offsets[pos]);
+					
+					fs[pos]->set_data_tuple(args0);
+					expr::transform::fix_coeffs(fs[pos]->e);
 
-					auto args = symphas::internal::expanded_arg_list(substitution, v_id_types{}, id_types{}, offsets, starts);
-					fs[pos++]->set_data_tuple(args);
+					++pos;
 				}
 				else
 				{
-					pos += build_series_evals<N + 1>(f, offsets, fs + pos);
+					pos += build_series_evals<N + 1>(f, offsets, fs + pos, set_offsets);
 				}
+				offsets[N] += 1;
+				values[N] += 1;
 			}
-			offsets[N] = compute_offset(std::integer_sequence<int, I0s...>{}, limits, lim, offsets);
+			offsets[N] = expr::eval(offset);
 		}
 		return pos;
 	}
@@ -3158,31 +4519,57 @@ public:
 
 
 	template<typename E0, typename... T0s>
-	void update_function_list(SymbolicFunction<E0, T0s...> const& f, 
+	void update_function_list(SymbolicFunction<E0, T0s...>& f, 
 		SymbolicFunctionArray<E0, T0s...>& persistent) const
 	{
 		iter_type offsets[sizeof...(I0s)]{};
-		auto len = build_series_evals<0>(f, offsets, persistent.data);
+		auto len = build_series_evals<0>(f, offsets, persistent.data, persistent.offsets);
 		persistent.len = len;
 	}
 
 	template<typename E0, typename... T0s>
 	void update(SymbolicFunction<E0, T0s...>& f) 
 	{
-		if (persistent.data[0] == nullptr)
-		{
-			persistent.init(f);
-		}
+		persistent.init(f);
 		update_function_list(f, persistent);
+	}
+
+	template<typename... T0s>
+	auto grid_symbols(symphas::lib::types_list<T0s...>) const
+	{
+		return symphas::lib::types_list<GridSymbol<expr::symbols::v_id_type<Is>, expr::grid_dim<T0s>::value>...>{};
+	}
+
+
+	template<int... I00s, int... P00s, size_t... Ds, int... I01s, int... P01s>
+	auto substitute_placeholders(
+		symphas::lib::types_list<GridSymbol<expr::symbols::v_id_type<expr::symbols::i_<I00s, P00s>>, Ds>...>,
+		symphas::lib::types_list<expr::symbols::i_<I01s, P01s>...>) const
+	{
+		if constexpr (sizeof...(I00s) > 0)
+		{
+			return expr::apply_operators(
+				expr::transform::swap_grid<expr::symbols::v_id_type<expr::symbols::i_<I00s, P00s>>...>
+				(e, GridSymbol<expr::symbols::v_id_type<expr::symbols::i_<I00s, P00s>>, Ds>{}...));
+		}
+		else
+		{
+			return e;
+		}
 	}
 
 	template<typename E0, typename... T0s>
 	auto substitute_placeholders(SymbolicFunction<E0, T0s...> const& f) const
 	{
 		using id_types = symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>;
-		using v_id_types = symphas::lib::types_list<expr::symbols::v_id_type<Is>...>;
+		using t_list = symphas::lib::types_before_index<sizeof...(T0s) - sizeof...(I0s), T0s...>;
 
-		return f[symphas::internal::placeholder_list(substitution, v_id_types{}, id_types{})];
+		auto vs = grid_symbols(t_list{});
+		auto is = id_types{};
+
+		return substitute_placeholders(vs, is);
+
+		//return f[symphas::internal::placeholder_list(substitution, grid_symbols(t_list{}), id_types{})];
 	}
 
 	auto eval() const
@@ -3207,6 +4594,7 @@ public:
 		Substitution<SymbolicDataArray<Ts>...>>;
 
 	func_list_t persistent;
+	DynamicIndex index[sizeof...(I0s)];
 };
 
 
@@ -3275,32 +4663,34 @@ namespace symphas::internal
 		typename... T1s, typename... T2s, int... I0s, int... P0s, typename... Is>
 	auto construct_series(
 		OpExpression<E> const& e,
+		const DynamicIndex(&index)[sizeof...(I0s)],
 		SymbolicTemplate<S, Ns...> const& tmpl,
 		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
 		symphas::lib::types_list<expr::symbols::v_id_type<Is>...>,
 		expr::series_limits<T1s, T2s> const&... limits)
 	{
 		using construct_series_list_t = symphas::lib::types_list<E,
-			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, 
+			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
 			symphas::lib::types_list<expr::series_limits<T1s, T2s>...>,
 			symphas::lib::types_list<expr::symbols::v_id_type<Is>...>>;
-		return SymbolicSeries<Op, SymbolicTemplate<S, Ns...>, construct_series_list_t>(*static_cast<E const*>(&e), tmpl, limits...);
+		return SymbolicSeries<Op, SymbolicTemplate<S, Ns...>, construct_series_list_t>(*static_cast<E const*>(&e), tmpl, index, limits...);
 	}
 
 	template<typename Op, typename E, typename... Ts, 
 		typename... T1s, typename... T2s, int... I0s, int... P0s, typename... Is>
 	auto construct_series(
 		OpExpression<E> const& e,
+		const DynamicIndex(&index)[sizeof...(I0s)],
 		Substitution<SymbolicDataArray<Ts>...> const& substitution,
 		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
 		symphas::lib::types_list<expr::symbols::v_id_type<Is>...>,
 		expr::series_limits<T1s, T2s> const&... limits)
 	{
 		using construct_series_list_t = symphas::lib::types_list<E,
-			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, 
-			symphas::lib::types_list<expr::series_limits<T1s, T2s>...>, 
+			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
+			symphas::lib::types_list<expr::series_limits<T1s, T2s>...>,
 			symphas::lib::types_list<expr::symbols::v_id_type<Is>...>>;
-		return SymbolicSeries<Op, Substitution<SymbolicDataArray<Ts>...>, construct_series_list_t>(*static_cast<E const*>(&e), substitution, limits...);
+		return SymbolicSeries<Op, Substitution<SymbolicDataArray<Ts>...>, construct_series_list_t>(*static_cast<E const*>(&e), substitution, index, limits...);
 	}
 }
 

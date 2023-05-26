@@ -54,88 +54,105 @@ namespace symphas::lib
 	 * Given a single index_sequence, a new sequence is returned containing a
 	 * sorted arrangement of the input values.
 	 */
-	template<size_t... Qs>
-	constexpr auto sort_ids(std::index_sequence<Qs...>);
+	//template<size_t... Qs>
+	//constexpr auto sort_ids(std::index_sequence<Qs...>);
 
 
-	template<size_t... Qs, size_t Qmax>
-	constexpr auto sort_ids_depth(std::index_sequence<Qs...>, std::index_sequence<Qmax>);
+	//template<size_t... Qs, size_t Qmax>
+	//constexpr auto sort_ids_depth(std::index_sequence<Qs...>, std::index_sequence<Qmax>);
 
-	//! Specialization based on symphas::lib::sort_ids().
-	template<size_t... Qs, size_t Qmax>
-	constexpr auto sort_ids(std::index_sequence<Qs...>, std::index_sequence<Qmax>, std::index_sequence<>)
-	{
-		return sort_ids_depth(std::index_sequence<Qs...>{}, std::index_sequence<Qmax>{});
-	}
+	////! Specialization based on symphas::lib::sort_ids().
+	//template<size_t... Qs, size_t Qmax>
+	//constexpr auto sort_ids(std::index_sequence<Qs...>, std::index_sequence<Qmax>, std::index_sequence<>);
+	////! Specialization based on symphas::lib::sort_ids().
+	//template<size_t... Ys, size_t Qmax, size_t Q0, size_t... Qs, typename std::enable_if_t<(Qmax > Q0), int> = 0>
+	//constexpr auto sort_ids(std::index_sequence<Ys...>, std::index_sequence<Qmax>, std::index_sequence<Q0, Qs...>);
+	////! Specialization based on symphas::lib::sort_ids().
+	//template<size_t... Ys, size_t Qmax, size_t Q0, size_t... Qs,
+	//	typename std::enable_if_t<(Qmax <= Q0), int> = 0>
+	//constexpr auto sort_ids(std::index_sequence<Ys...>, std::index_sequence<Qmax>, std::index_sequence<Q0, Qs...>);
 
-	//! Specialization based on symphas::lib::sort_ids().
-	template<size_t... Ys, size_t Qmax, size_t Q0, size_t... Qs, typename std::enable_if_t<(Qmax > Q0), int> = 0>
-	constexpr auto sort_ids(std::index_sequence<Ys...>, std::index_sequence<Qmax>, std::index_sequence<Q0, Qs...>)
-	{
-		return sort_ids(std::index_sequence<Ys..., Q0>{}, std::index_sequence<Qmax>{}, std::index_sequence<Qs...>{});
-	}
+	////! Specialization based on symphas::lib::sort_ids().
+	//template<size_t... Qs, size_t Qmax>
+	//constexpr auto sort_ids(std::index_sequence<Qs...>, std::index_sequence<Qmax>, std::index_sequence<>)
+	//{
+	//	return sort_ids_depth(std::index_sequence<Qs...>{}, std::index_sequence<Qmax>{});
+	//}
 
-	//! Specialization based on symphas::lib::sort_ids().
-	template<size_t... Ys, size_t Qmax, size_t Q0, size_t... Qs,
-		typename std::enable_if_t<(Qmax <= Q0), int> = 0>
-	constexpr auto sort_ids(std::index_sequence<Ys...>, std::index_sequence<Qmax>, std::index_sequence<Q0, Qs...>)
-	{
-		return sort_ids(std::index_sequence<Ys..., Qmax>{}, std::index_sequence<Q0>{}, std::index_sequence<Qs...>{});
-	}
+	////! Specialization based on symphas::lib::sort_ids().
+	//template<size_t... Ys, size_t Qmax, size_t Q0, size_t... Qs, typename std::enable_if_t<(Qmax > Q0), int>>
+	//constexpr auto sort_ids(std::index_sequence<Ys...>, std::index_sequence<Qmax>, std::index_sequence<Q0, Qs...>)
+	//{
+	//	return sort_ids(std::index_sequence<Ys..., Q0>{}, std::index_sequence<Qmax>{}, std::index_sequence<Qs...>{});
+	//}
 
-	//! Specialization based on symphas::lib::sort_ids().
-	template<size_t Qmax, size_t Q0, size_t... Qs, 
-		typename std::enable_if_t<(Qmax > Q0), int> = 0>
-	constexpr auto sort_ids(std::index_sequence<Qmax>, std::index_sequence<Q0, Qs...>)
-	{
-		return sort_ids(std::index_sequence<Q0>{}, std::index_sequence<Qmax>{}, std::index_sequence<Qs...>{});
-	}
+	////! Specialization based on symphas::lib::sort_ids().
+	//template<size_t... Ys, size_t Qmax, size_t Q0, size_t... Qs,
+	//	typename std::enable_if_t<(Qmax <= Q0), int>>
+	//constexpr auto sort_ids(std::index_sequence<Ys...>, std::index_sequence<Qmax>, std::index_sequence<Q0, Qs...>)
+	//{
+	//	return sort_ids(std::index_sequence<Ys..., Qmax>{}, std::index_sequence<Q0>{}, std::index_sequence<Qs...>{});
+	//}
 
-	template<size_t Qmax, size_t Q0, size_t... Qs, 
-		typename std::enable_if_t<(Qmax <= Q0), int> = 0>
-	constexpr auto sort_ids(std::index_sequence<Qmax>, std::index_sequence<Q0, Qs...>)
-	{
-		return sort_ids(std::index_sequence<Qmax>{}, std::index_sequence<Q0>{}, std::index_sequence<Qs...>{});
-	}
+	////! Specialization based on symphas::lib::sort_ids().
+	//template<size_t Qmax, size_t Q0, size_t... Qs, 
+	//	typename std::enable_if_t<(Qmax > Q0), int>>
+	//constexpr auto sort_ids(std::index_sequence<Qmax>, std::index_sequence<Q0, Qs...>)
+	//{
+	//	return sort_ids(std::index_sequence<Q0>{}, std::index_sequence<Qmax>{}, std::index_sequence<Qs...>{});
+	//}
+
+	//template<size_t Qmax, size_t Q0, size_t... Qs, 
+	//	typename std::enable_if_t<(Qmax <= Q0), int> = 0>
+	//constexpr auto sort_ids(std::index_sequence<Qmax>, std::index_sequence<Q0, Qs...>)
+	//{
+	//	return sort_ids(std::index_sequence<Qmax>{}, std::index_sequence<Q0>{}, std::index_sequence<Qs...>{});
+	//}
 
 
-	//! Specialization based on symphas::lib::sort_ids().
-	template<size_t Q0, size_t... Qs, 
-		typename std::enable_if_t<(sizeof...(Qs) > 1), int> = 0>
-	constexpr auto sort_ids(std::index_sequence<Q0, Qs...>)
-	{
-		return sort_ids(std::index_sequence<Q0>{}, std::index_sequence<Qs...>{});
-	}
+	////! Specialization based on symphas::lib::sort_ids().
+	//template<size_t Q0, size_t... Qs, 
+	//	typename std::enable_if_t<(sizeof...(Qs) > 1), int> = 0>
+	//constexpr auto sort_ids(std::index_sequence<Q0, Qs...>)
+	//{
+	//	return sort_ids(std::index_sequence<Q0>{}, std::index_sequence<Qs...>{});
+	//}
 
-	//! Specialization based on symphas::lib::sort_ids().
-	template<size_t Q0, size_t... Qs, 
-		typename std::enable_if_t<(sizeof...(Qs) == 1), int> = 0>
-	constexpr auto sort_ids(std::index_sequence<Q0, Qs...>)
-	{
-		return swap_ids<Q0, Qs...>();
-	}
+	////! Specialization based on symphas::lib::sort_ids().
+	//template<size_t Q0, size_t... Qs, 
+	//	typename std::enable_if_t<(sizeof...(Qs) == 1), int> = 0>
+	//constexpr auto sort_ids(std::index_sequence<Q0, Qs...>)
+	//{
+	//	return swap_ids<Q0, Qs...>();
+	//}
 
-	template<size_t Q0, size_t... Qs, 
-		typename std::enable_if_t<(sizeof...(Qs) == 0), int> = 0>
-	constexpr auto sort_ids(std::index_sequence<Q0, Qs...>)
-	{
-		return std::index_sequence<Q0>{};
-	}
+	//template<size_t Q0, size_t... Qs, 
+	//	typename std::enable_if_t<(sizeof...(Qs) == 0), int> = 0>
+	//constexpr auto sort_ids(std::index_sequence<Q0, Qs...>)
+	//{
+	//	return std::index_sequence<Q0>{};
+	//}
 
-	//! See symphas::lib::sort_ids().
-	inline constexpr auto sort_ids(std::index_sequence<>)
+	////! See symphas::lib::sort_ids().
+	//inline constexpr auto sort_ids(std::index_sequence<>)
+	//{
+	//	return std::index_sequence<>{};
+	//}
+
+	//template<size_t... Qs, size_t Qmax>
+	//constexpr auto sort_ids_depth(std::index_sequence<Qs...>, std::index_sequence<Qmax>)
+	//{
+	//	return seq_join(sort_ids(std::index_sequence<Qs...>{}), std::index_sequence<Qmax>{});
+	//}
+
+	// **************************************************************************************
+
+	inline constexpr auto unique_ids(std::index_sequence<>)
 	{
 		return std::index_sequence<>{};
 	}
 
-	template<size_t... Qs, size_t Qmax>
-	constexpr auto sort_ids_depth(std::index_sequence<Qs...>, std::index_sequence<Qmax>)
-	{
-		return seq_join(sort_ids(std::index_sequence<Qs...>{}), std::index_sequence<Qmax>{});
-	}
-
 	// **************************************************************************************
-
 
 	inline constexpr auto fold_unique_ids_apply(std::index_sequence<>)
 	{
@@ -171,7 +188,7 @@ namespace symphas::lib
 	template<size_t... Qs>
 	constexpr auto fold_unique_ids(std::index_sequence<Qs...>)
 	{
-		return fold_unique_ids_apply(sort_ids(std::index_sequence<Qs...>{}));
+		return fold_unique_ids_apply(symphas::lib::sorted_seq<std::index_sequence<Qs...>>{});
 	}
 
 

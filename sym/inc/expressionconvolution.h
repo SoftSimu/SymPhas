@@ -325,8 +325,8 @@ public:
 		len_type len = symphas::dft::length<G_T, D>(g0.dims);
 		if constexpr (std::is_same<G_T, complex_t>::value)
 		{
-			symphas::dft::scale(compute.out_0, len);
-			symphas::dft::scale(compute.out_1, len);
+			grid::scale(compute.out_0, len);
+			grid::scale(compute.out_1, len);
 		}
 
 #		pragma omp parallel for
@@ -340,7 +340,7 @@ public:
 
 		if constexpr (std::is_same<G_T, scalar_t>::value)
 		{
-			symphas::dft::scale(g0);
+			grid::scale(g0);
 		}
 	}
 
@@ -540,7 +540,7 @@ public:
 
 		symphas::dft::iterate_rc<G_T, D>(f, g0.dims);
 		symphas::dft::fftw_execute(compute.p_out_in);
-		symphas::dft::scale(g0);
+		grid::scale(g0);
 	}
 
 
@@ -730,7 +730,7 @@ public:
 
 		symphas::dft::iterate_rc<G_T, D>(f, g0.dims);
 		symphas::dft::fftw_execute(compute.p_out_in);
-		symphas::dft::scale(g0);
+		grid::scale(g0);
 	}
 
 protected:

@@ -27,8 +27,7 @@
 
 #include <tuple>
 
-#include "expressionsprint.h"
-
+#include "expressionrules.h"
 
 namespace expr
 {
@@ -248,12 +247,6 @@ namespace expr
 		return expr::pow<N>(e.a) / expr::pow<N>(e.b);
 	}
 
-	template<size_t N, typename T, typename G, typename>
-	auto pow(OpTerm<T, G> const& e)
-	{
-		return expr::pow<N>(e.value) * OpNLVariable(pow_lv(e.data, std::make_index_sequence<N>{}));
-	}
-
 	template<size_t N, typename V, typename... Gs, expr::exp_key_t... Xs, typename>
 	auto pow(OpTerms<V, Term<Gs, Xs>...> const& e)
 	{
@@ -322,19 +315,34 @@ namespace expr
 			return OpIdentity{};
 		}
 	}
+	
+	template<size_t N, size_t D, bool flag, typename E>
+	auto pow(E const& e)
+	{
+		if constexpr (flag)
+		{
+			return expr::inverse(expr::pow<N, D, false>(e));
+		}
+		else
+		{
+			if constexpr (D == 1)
+			{
+				return expr::pow<N>(e);
+			}
+			else
+			{
+				return expr::make_pow<expr::Xk<N, D, false>>(e);
+			}
+		}
+	}
+
+	template<expr::exp_key_t X, typename E>
+	auto pow(E const& e)
+	{
+		return pow<expr::_Xk_t<X>::N, expr::_Xk_t<X>::D, expr::_Xk_t<X>::sign>(e);
+	}
 }
 
-
-
-template<typename>
-struct NoFunctionDerivative
-{
-	template<typename E>
-	auto operator()(OpExpression<E> const&)
-	{
-		return OpVoid{};
-	}
-};
 
 namespace symphas::internal
 {
@@ -353,11 +361,12 @@ namespace symphas::internal
 		template<typename V, typename E>
 		static auto get(V v, OpExpression<E> const& e);
 
-		template<typename V, typename coeff_t, typename = std::enable_if_t<expr::is_coeff<coeff_t>, int>>
+		template<typename V, typename coeff_t, 
+			typename = std::enable_if_t<(expr::is_coeff<coeff_t> || std::is_same<OpVoid, coeff_t>::value), int>>
 		static auto get(V v, coeff_t);
 
-		template<typename V, typename G>
-		static auto get_g(V v, G g);
+		//template<typename V, typename G>
+		//static auto get_g(V v, G g);
 
 
 		// If passed an OpLiteral, uses its value rather than the object.
@@ -368,11 +377,11 @@ namespace symphas::internal
 		}
 
 		// If passed an OpLiteral, uses its value rather than the object.
-		template<typename V, typename E1>
-		static auto get_g(OpLiteral<V> const& value, E1&& e1)
-		{
-			return get(value.value, std::forward<E1>(e1));
-		}
+		//template<typename V, typename E1>
+		//static auto get_g(OpLiteral<V> const& value, E1&& e1)
+		//{
+		//	return get(value.value, std::forward<E1>(e1));
+		//}
 
 	};
 }
@@ -606,7 +615,6 @@ namespace symphas::internal
 	{
 		return expr::make_literal(OpFunctionApply<f, V, coeff_t>(v, coeff_t{}).eval(0));
 	}
-
 }
 
 
@@ -617,6 +625,14 @@ namespace symphas::internal
 
 namespace expr
 {
+
+
+	template<auto f, typename V, typename E>
+	auto make_applied_function(V const& v, OpExpression<E> const& e)
+	{
+		return symphas::internal::make_function<f>::get(v, *static_cast<E const*>(&e));
+	}
+
 
 	namespace
 	{
@@ -822,6 +838,34 @@ namespace expr
 }
 
 
+template<size_t D, typename T0, typename T1>
+auto expr::make_unit_vector(T0 const& direction0, T1 const& direction1)
+{
+	if constexpr (D == 1)
+	{
+		return OpIdentity{};
+	}
+	else if constexpr (D == 2)
+	{
+		auto s = expr::sin(direction0);
+		auto c = expr::cos(direction0);
+		return (expr::make_column_vector<0, D>() * c + expr::make_column_vector<1, D>() * s);
+	}
+	else
+	{
+		auto s0 = expr::sin(direction0);
+		auto c0 = expr::cos(direction0);
+		auto s1 = expr::sin(direction1);
+		auto c1 = expr::cos(direction1);
+		return (expr::make_column_vector<0, D>() * c0 * s1 + expr::make_column_vector<1, D>() * s0 * s1 + expr::make_column_vector<2, D>() * c1);
+	}
+}
+
+template<size_t D, typename T0>
+auto expr::make_unit_vector(T0 const& direction0)
+{
+	return expr::make_unit_vector<D>(direction0, OpVoid{});
+}
 
 // ***************************************************************************************
 

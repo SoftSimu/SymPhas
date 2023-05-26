@@ -81,6 +81,18 @@ namespace symphas::internal
 		}
 	};
 
+	template<typename T, size_t D>
+	struct data_value_type<any_vector_t<T, D>> 
+	{
+		using type = any_vector_t<T, D>;
+		using ref = type&;
+
+		ref operator()(any_vector_t<T, D>* data, iter_type n)
+		{
+			return data[n];
+		}
+	};
+
 	template<template<typename, size_t> typename G, typename T, size_t D>
 	struct data_value_type<G<any_vector_t<T, D>, D>> : data_value_type<MultiBlock<D, T>>
 	{

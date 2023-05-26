@@ -119,27 +119,33 @@ namespace symphas::internal
 
 
 	template<typename T0>
-	auto _make_symbolic_data(T0*&& arg, len_type len)
+	auto _make_symbolic_data(const T0*&& arg, len_type len)
 	{
-		return SymbolicDataArray<T0>(arg, len, true);
+		return SymbolicDataArray<T0>(const_cast<T0*>(arg), len, true);
 	}
 
 	template<typename T0>
-	auto _make_symbolic_data(T0*& arg, len_type len)
+	auto _make_symbolic_data(const T0*& arg, len_type len)
 	{
-		return SymbolicDataArray<T0>(arg, len, false);
+		return SymbolicDataArray<T0>(const_cast<T0*&>(arg), len, false);
+	}
+
+	template<typename T0>
+	auto _make_symbolic_data(const T0* const &arg, len_type len)
+	{
+		return SymbolicDataArray<T0>(const_cast<T0*&>(arg), len, false);
 	}
 
 	template<typename... T0s>
 	auto _make_symbolic_data(std::tuple<T0s...>&& arg, len_type len)
 	{
-		return SymbolicDataArray<std::tuple<T0s...>>(arg);
+		return SymbolicDataArray(arg);
 	}
 
 	template<typename... T0s>
 	auto _make_symbolic_data(std::tuple<T0s...>& arg, len_type len)
 	{
-		return SymbolicDataArray<std::tuple<T0s...>>(arg);
+		return SymbolicDataArray(arg);
 	}
 
 	template<typename T0>
@@ -154,10 +160,59 @@ namespace symphas::internal
 		return arg;
 	}
 
+	template<typename... Vs, typename... T0s, size_t... Is>
+	auto _make_symbolic_data(std::tuple<OpTerm<Vs, T0s>...>& arg, std::index_sequence<Is...>, len_type len)
+	{
+		return _make_symbolic_data(std::make_tuple(expr::get<1>(std::get<Is>(arg))...), len);
+	}
+
+	template<typename... Vs, typename... T0s>
+	auto _make_symbolic_data(std::tuple<OpTerm<Vs, T0s>...>& arg, len_type len)
+	{
+		return _make_symbolic_data(arg, std::make_index_sequence<sizeof...(Vs)>{}, len);
+	}
+
+	template<typename... Vs, typename... T0s, size_t... Is>
+	auto _make_symbolic_data(std::tuple<OpTerm<Vs, T0s>...>&& arg, std::index_sequence<Is...>, len_type len)
+	{
+		return _make_symbolic_data(std::make_tuple(expr::get<1>(std::get<Is>(arg))...), len);
+	}
+
+	template<typename... Vs, typename... T0s>
+	auto _make_symbolic_data(std::tuple<OpTerm<Vs, T0s>...>&& arg, len_type len)
+	{
+		return _make_symbolic_data(arg, std::make_index_sequence<sizeof...(Vs)>{}, len);
+	}
+
 	template<typename T0>
 	auto make_symbolic_data(T0&& arg, len_type len)
 	{
 		return _make_symbolic_data(arg, len);
+	}
+
+	template<typename T0, size_t D>
+	auto make_symbolic_data(T0(&arg)[D], len_type len)
+	{
+		return _make_symbolic_data(&arg[0], len);
+	}
+
+	template<typename T0, size_t D>
+	auto make_symbolic_data(const T0(&arg)[D], len_type len)
+	{
+		return _make_symbolic_data(&arg[0], len);
+	}
+
+	template<typename G>
+	auto make_symbolic_data(DynamicVariable<G> const& arg, len_type len)
+	{
+		return _make_symbolic_data(arg.data, len);
+	}
+
+	template<typename G>
+	auto make_symbolic_data(OpTerm<OpIdentity, DynamicVariable<G>> const& arg, len_type len)
+	{
+		const auto& [v, t] = arg;
+		return make_symbolic_data(t, len);
 	}
 
 	template<typename T0>
@@ -186,6 +241,30 @@ namespace symphas::internal
 
 }
 
+
+namespace expr::symbols
+{
+
+
+	//! A variable of argument type that can be directly used to define a symbolic construct.
+	template<size_t N, typename T = expr::symbols::Symbol>
+	inline arg_t<N, typename trait_arg_type<T>::type> arg;
+
+	inline arg_t<1, expr::symbols::Symbol> arg_1;
+	inline arg_t<2, expr::symbols::Symbol> arg_2;
+	inline arg_t<3, expr::symbols::Symbol> arg_3;
+	inline arg_t<4, expr::symbols::Symbol> arg_4;
+
+	template<typename T>
+	inline arg_t<1, typename trait_arg_type<T>::type> arg_1_;
+	template<typename T>
+	inline arg_t<2, typename trait_arg_type<T>::type> arg_2_;
+	template<typename T>
+	inline arg_t<3, typename trait_arg_type<T>::type> arg_3_;
+	template<typename T>
+	inline arg_t<4, typename trait_arg_type<T>::type> arg_4_;
+
+}
 
 //! A template into which other expressions can be substituted into.
 /*!
@@ -280,11 +359,6 @@ struct SymbolicFunction<E, Variable<ArgNs, Ts>...>
 	using this_type = SymbolicFunction<E, Variable<ArgNs, Ts>...>;
 	
 	SymbolicFunction() : data{} {}
-	//SymbolicFunction(this_type const& other) : data{ other.data } {}
-	//SymbolicFunction(this_type&& other) : data{}
-	//{
-//		swap(*this, other);
-//	}
 
 protected:
 
@@ -312,7 +386,14 @@ protected:
 	auto substitute_args(SymbolicFunction<E0, Variable<ArgNs, Ts>...> const& func,
 		std::index_sequence<Is...>)
 	{
-		return expr::transform::swap_grid<Variable<ArgNs>...>(func.e, substitute_arg<ArgNs>(std::get<Is>(data))...);
+		if constexpr (sizeof...(Ts) > 0)
+		{
+			return expr::transform::swap_grid<Variable<ArgNs>...>(func.e, substitute_arg<ArgNs>(std::get<Is>(data))...);
+		}
+		else
+		{
+			return func.e;
+		}
 	}
 
 	template<typename E0>
@@ -333,6 +414,12 @@ protected:
 	}
 
 	template<typename T>
+	auto _construct_arg(NamedData<SymbolicData<T>> arg) const
+	{
+		return arg;
+	}
+
+	template<typename T>
 	auto _construct_arg(SymbolicDataArray<T> arg) const
 	{
 		return arg;
@@ -341,7 +428,14 @@ protected:
 	template<typename T>
 	auto _construct_arg(T arg) const
 	{
-		return SymbolicData<T>(&arg, true);
+		if constexpr (expr::is_expression<T> || expr::is_symbol<T>)
+		{
+			return arg;
+		}
+		else
+		{
+			return SymbolicData<T>(&arg, true);
+		}
 	}
 
 	template<typename T>
@@ -364,34 +458,33 @@ public:
 	using type = SymbolicFunction<expr_type, Variable<ArgNs, Ts>...>;
 
 
-//};
-//template<typename E, size_t... ArgNs, typename... Ts>
-//struct SymbolicFunction<E, Variable<ArgNs, Ts>...> 
-//	: SymbolicFunction<SymbolicTemplate<E, ArgNs...>, Variable<ArgNs, Ts>...>
-//{
-//	using parent_type = SymbolicFunction<SymbolicTemplate<E, ArgNs...>, Variable<ArgNs, Ts>...>;
-//	using parent_type::data;
-//	
-	//using this_type = SymbolicFunction<E, Variable<ArgNs, Ts>...>;
 	using result_type = expr::storage_t<E>;
 
-//	using type = typename parent_type::type;
-
-
-	//SymbolicFunction() : parent_type(), e{} {}
+	SymbolicFunction(OpExpression<E> const& e) :
+		data{}, e{ *static_cast<E const*>(&e) } {}
 
 	template<typename E0>
 	SymbolicFunction(SymbolicTemplate<E0, ArgNs...> const& tmpl) :
-		e{ substitute_args(tmpl, std::make_index_sequence<sizeof...(Ts)>{}) }
-	{}
+		data{}, e{ substitute_args(tmpl, std::make_index_sequence<sizeof...(Ts)>{}) } {}
 
 	SymbolicFunction(SymbolicFunction<E, Variable<ArgNs, Ts>...> const& other) :
-		e{ substitute_args(other, std::make_index_sequence<sizeof...(Ts)>{}) }
-	{}
+		data{}, e{ substitute_args(other, std::make_index_sequence<sizeof...(Ts)>{}) } 
+	{
+		set_data_tuple(other.data);
+	}
 
-	SymbolicFunction(SymbolicFunction<E, Variable<ArgNs, Ts>...>&& other) :
-		e{ substitute_args(other, std::make_index_sequence<sizeof...(Ts)>{}) }
-	{}
+	SymbolicFunction(SymbolicFunction<E, Variable<ArgNs, Ts>...>&& other) : 
+		data{}, e{ substitute_args(other, std::make_index_sequence<sizeof...(Ts)>{}) }
+	{
+		set_data_tuple(other.data);
+		//swap(*this, other);
+	}
+
+	SymbolicFunction<E, Variable<ArgNs, Ts>...> operator=(SymbolicFunction<E, Variable<ArgNs, Ts>...> other)
+	{
+		swap(*this, other);
+		return *this;
+	}
 
 	friend void swap(this_type& first, this_type& second)
 	{
@@ -401,13 +494,23 @@ public:
 		swap(first.e, second.e);
 	}
 
-	SymbolicFunction<E, Ts...> operator=(SymbolicFunction<E, Variable<ArgNs, Ts>...>) = delete;
+	template<typename T, typename T0>
+	void set_data_1(SymbolicData<T0>& data0, T const& arg)
+	{
+		data0.set_data(arg);
+	}
+
+	template<typename T, typename T0>
+	void set_data_1(T0& data0, T const& arg)
+	{
+		data0 = arg;
+	}
 
 	template<typename... T0s, size_t... Is>
 	void set_data(std::index_sequence<Is...>, T0s&&... args)
 	{
-		((std::get<Is>(data).set_data(std::forward<T0s>(args)), ...));
-		expr::prune::update(e);
+		(set_data_1<T0s>(std::get<Is>(data), std::forward<T0s>(args)), ...);
+		//expr::prune::update(e);
 	}
 
 	template<typename... T0s>
@@ -419,8 +522,7 @@ public:
 	template<typename... T0s, size_t... Is>
 	void set_data_tuple(std::index_sequence<Is...>, std::tuple<T0s...> const& args)
 	{
-		((std::get<Is>(data).set_data(std::get<Is>(args)), ...));
-		expr::prune::update(e);
+		set_data(std::index_sequence<Is...>{}, std::get<Is>(args)...);
 	}
 
 	template<typename... T0s>
@@ -507,13 +609,13 @@ public:
 	}
 
 	// Evaluate the function at a particular index using the last used arguments.
-	auto operator[](int n) const
+	auto operator[](iter_type n) const
 	{
 		return e.eval(n);
 	}
 
 	// Evaluate the function at a particular index using the last used arguments.
-	auto eval(int n) const
+	auto eval(iter_type n) const
 	{
 		return this->operator[](n);
 	}
@@ -647,7 +749,7 @@ namespace expr
 			return get_substitutable_template(
 				to_template_expression(
 					*static_cast<const E*>(&e), 
-					symphas::lib::sort_seq<decltype(all_ids)>{}, seq{}), 
+					symphas::lib::sorted_seq<decltype(all_ids)>{}, seq{}), 
 				seq{});
 		}
 
@@ -826,16 +928,25 @@ namespace expr
 		template<size_t N0, typename G0, size_t... Ns, typename... Gs>
 		struct SymbolicFunctionDef<Variable<N0, G0>, Variable<Ns, Gs>...>
 		{
+			SymbolicFunctionDef(G0 const& arg0, Gs const&... args) : data{ arg0, args... } {}
+			SymbolicFunctionDef() : data{} {}
+
 			template<typename E>
 			auto get_function(SymbolicTemplate<E, N0, Ns...> const& tmpl)
 			{
 				using function_type = SymbolicFunction<E, Variable<N0, G0>, Variable<Ns, Gs>...>;
-				return typename function_type::type(tmpl);
+				auto f = typename function_type::type(tmpl);
+				f.set_data_tuple(data);
+				return f;
 			}
 
-			auto operator=(OpVoid)
+			template<typename E>
+			auto get_function(OpExpression<E> const& e)
 			{
-				return OpVoid{};
+				using function_type = SymbolicFunction<E, Variable<N0, G0>, Variable<Ns, Gs>...>;
+				auto f = typename function_type::type(*static_cast<E const*>(&e));
+				f.set_data_tuple(data);
+				return f;
 			}
 
 			template<typename E>
@@ -853,6 +964,8 @@ namespace expr
 
 			SymbolicFunctionDef(SymbolicFunctionDef<Variable<N0, G0>, Variable<Ns, Gs>...> const&) = delete;
 			SymbolicFunctionDef(SymbolicFunctionDef<Variable<N0, G0>, Variable<Ns, Gs>...>&&) = delete;
+
+			std::tuple<G0, Gs...> data;
 		};
 
 		template<typename G0, typename... Gs>
@@ -874,11 +987,6 @@ namespace expr
 				return get_function(tmpl);
 			}
 
-			auto operator=(OpVoid)
-			{
-				return OpVoid{};
-			}
-
 			template<typename E>
 			auto operator=(OpExpression<E> const& e)
 			{
@@ -892,16 +1000,10 @@ namespace expr
 		template<>
 		struct SymbolicFunctionDef<>
 		{
-
-			auto operator=(OpVoid)
-			{
-				return OpVoid{};
-			}
-
 			template<typename E>
 			auto operator=(OpExpression<E> const& e)
 			{
-				return *static_cast<E const*>(&e);
+				return SymbolicFunction<E>(*static_cast<E const*>(&e));
 			}
 
 			SymbolicFunctionDef(SymbolicFunctionDef<> const&) = delete;
@@ -922,7 +1024,7 @@ namespace expr
 		 */
 		template<size_t... Ns, typename... Gs,
             typename std::enable_if_t<(all_ne<Ns...> && !(is_symbol<Gs> || ...)), int> = 0>
-		SymbolicFunctionDef<Variable<Ns, Gs>...> function_of_apply(OpTerm<OpIdentity, Variable<Ns, Gs>> const&...) { return {}; }
+		SymbolicFunctionDef<Variable<Ns, Gs>...> function_of_apply(OpTerm<OpIdentity, Variable<Ns, Gs>> const&... args) { return { expr::get<1>(args).data()...}; }
 
 		//! Create a function such that the parameters are expr::symbols::Symbol types.
 		/*!
@@ -931,7 +1033,7 @@ namespace expr
 		 */
 		template<size_t... Ns, typename... Gs, 
             typename std::enable_if_t<(all_ne<Ns...> && !(is_symbol<Gs> || ...)), int> = 0>
-		SymbolicFunctionDef<Variable<Ns, Gs>...> function_of_apply(Variable<Ns, Gs> const&...) { return {}; }
+		SymbolicFunctionDef<Variable<Ns, Gs>...> function_of_apply(Variable<Ns, Gs> const&... args) { return { args... }; }
 
 		template<size_t... Ns, typename... Gs, 
             typename std::enable_if_t<(all_ne<Ns...> && !(is_symbol<Gs> || ...)), int> = 0>
@@ -976,13 +1078,19 @@ namespace expr
 	template<typename... T0s>
 	auto arg_list(T0s&&... args)
 	{
-		return make_substitution(symphas::internal::as_arg(std::forward<T0s>(args))...);
+		return symphas::internal::make_substitution(symphas::internal::as_arg(std::forward<T0s>(args))...);
 	}
 
 	template<typename... T0s>
 	auto arg_array_list(len_type len, T0s&&... args)
 	{
-		return make_substitution(symphas::internal::as_array_arg(std::forward<T0s>(args), len)...);
+		return symphas::internal::make_substitution(symphas::internal::as_array_arg(std::forward<T0s>(args), len)...);
+	}
+
+	template<typename T0>
+	auto array_arg(len_type len, T0&& arg)
+	{
+		return symphas::internal::as_array_arg(std::forward<T0>(arg), len);
 	}
 
 	template<typename T>

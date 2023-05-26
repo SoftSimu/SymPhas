@@ -27,6 +27,8 @@
 
 #pragma once
 
+#include "symboliceval.h"
+
 #include "expressiontypek.h"
-#include "expressiontypenoise.h"
 #include "expressiontypeaxis.h"
+#include "expressiontypenoise.h"
