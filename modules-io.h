@@ -92,7 +92,7 @@ namespace symphas
 		for (iter_type i = 0; i < D; ++i)
 		{
 			symphas::interval_element_type interval;
-			interval.set_interval_count(
+			interval.set_count(
 				sys.get_info().intervals.at(symphas::index_to_axis(i)).left(),
 				sys.get_info().intervals.at(symphas::index_to_axis(i)).right(),
 				sys.dims[i]);
@@ -123,6 +123,26 @@ namespace symphas
 	void checkpoint_systems(std::tuple<Ts...> const& sys, const char* dir, iter_type index)
 	{
 		checkpoint_systems(sys, dir, index, std::make_index_sequence<sizeof...(Ts)>{});
+	}
+
+	//! Write the checkpoint for the list of systems.
+	/*!
+	 * Create the checkpoint of the current solution data found in the given
+	 * systems. Each system will be individually saved.
+	 *
+	 * \param sys The system containing the solution data.
+	 * \param dir The directory to which to save the checkpoint. This directory
+	 * must exist.
+	 * \param index The index of the solution progression.
+	 */
+	template<typename S>
+	void checkpoint_systems(std::pair<S*, len_type> const& sys, const char* dir, iter_type index)
+	{
+		auto [systems, len] = sys;
+		for (iter_type i = 0; i < len; ++i)
+		{
+			checkpoint_system(systems[i], dir, index);
+		}
 	}
 
 	//! Save the checkpoint if the checkpoint index is reached.
