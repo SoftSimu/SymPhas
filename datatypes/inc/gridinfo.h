@@ -57,7 +57,6 @@ enum class Side
 	LEFT, RIGHT, TOP, BOTTOM, FRONT, BACK
 };
 
-
 namespace symphas
 {
 
@@ -143,7 +142,7 @@ namespace symphas
 		 * a spatial width of 1 means there are 3 discrete elements in the
 		 * interval (elements 0, 1 and 2).
 		 */
-		len_type count() const
+		len_type get_count() const
 		{
 				return direct_count();
 		}
@@ -200,11 +199,18 @@ namespace symphas
 		 * \param right The right endpoint of the interval.
 		 * \param width The spatial distance between points in the interval.
 		 */
-		void set_interval(double left, double right, double width)
+		void set_interval(double left, double right, double width = 0)
 		{
-			h = width;
-			data[0] = left;
-			data[1] = right;
+			if (width > 0)
+			{
+				h = width;
+				data[0] = left;
+				data[1] = right;
+			}
+			else
+			{
+				set_count(left, right, get_count());
+			}
 		}
 
 		//! Sets the beginning and end values of the interval. 
@@ -222,30 +228,93 @@ namespace symphas
 		 * \param left The left endpoint of the interval.
 		 * \param right The right endpoint of the interval.
 		 */
-		void set_interval_count(double left, double right, len_type count)
+		void set_count(double left, double right, len_type count)
 		{
 			double width = std::abs(right - left) / (count - 1);
 			set_interval(left, right, width);
 		}
 
-		//! Sets the beginning and end values of the interval. 
-		/*
+		//! Resize the interval with the given number of elements, with constant width.
+		/*!
 		 * See set_interval(double, double, double).
 		 *
-		 * This overload is given the number of points and the width,
-		 * and will consequently assume that the interval begins at 0. The right
-		 * endpoint is determined using the given width.
-		 * 
+		 * This overload is given the number of points (without the width),
+		 * and will resize the interval such that a point is fixed
+		 * along the interval that corresponds to the value
+		 * of the given ratio (between 0 and 1).
+		 *
 		 * The number of given elements is the same value that is
-		 * produced by the function count.
+		 * produced by the function count().
 		 *
 		 * \param count The number of points in the interval.
 		 * \param width The spatial distance between points in the interval.
 		 */
-		void set_interval_count(double width, len_type count)
+		void set_count_from_r(double width, len_type count, double ratio)
 		{
-			set_interval(0, (count - 1) * width, width);
+			double length0 = ((double)count / get_count()) * (width / h) * length();
+			double pos = ratio * length();
+
+			double left = pos - length0 * ratio;
+			double right = left + (count - 1) * width;
+			set_interval(left, right, width);
 		}
+
+		//! Resize the interval with the given number of elements, with constant width.
+		/*!
+		 * See set_interval(double, double, double).
+		 *
+		 * This overload is given the number of points (without the width),
+		 * and will resize the interval such that a point is fixed 
+		 * along the interval that corresponds to the value
+		 * of the given ratio (between 0 and 1).
+		 *
+		 * The number of given elements is the same value that is
+		 * produced by the function count().
+		 *
+		 * \param count The number of points in the interval.
+		 * \param width The spatial distance between points in the interval.
+		 */
+		void set_count_from_r(len_type count, double ratio)
+		{
+			set_count_from_r(h, count, ratio);
+		}
+
+		//! Resize the interval with the given number of elements, with constant width.
+		/*!
+		 * See set_interval(double, double, double).
+		 *
+		 * This overload is given the number of points (without the width),
+		 * and will fix the interval at the center when resizing
+		 *
+		 * The number of given elements is the same value that is
+		 * produced by the function count().
+		 *
+		 * \param count The number of points in the interval.
+		 * \param width The spatial distance between points in the interval.
+		 */
+		void set_count(len_type count)
+		{
+			set_count_from_r(count, 0.5);
+		}
+
+		//! Resize the interval with the given number of elements, with constant width.
+		/*!
+		 * See set_interval(double, double, double).
+		 *
+		 * This overload is given the number of points (without the width),
+		 * and will fix the interval at the center when resizing
+		 *
+		 * The number of given elements is the same value that is
+		 * produced by the function count().
+		 *
+		 * \param count The number of points in the interval.
+		 * \param width The spatial distance between points in the interval.
+		 */
+		void set_count(double width, len_type count)
+		{
+			set_count_from_r(width, count, 0.5);
+		}
+
 	};
 
 	using interval_data_type = std::map<Axis, interval_element_type>;
@@ -254,6 +323,137 @@ namespace symphas
 }
 
 void swap(symphas::grid_info& first, symphas::grid_info& second);
+
+
+namespace grid
+{
+
+	template<typename T>
+	struct box_list
+	{
+		T* data;
+		size_t n;
+
+		box_list(T dim0, T dim1, T dim2) :
+			box_list(dim0, dim1, dim2, (dim1 > 0 && dim2 > 0) ? 3 : (dim1 > 0 || dim2 > 0) ? 2 : 1) {}
+		box_list(T dim0, T dim1) :
+			box_list(dim0, dim1, 0, (dim1 == 0) ? 1 : 2) {}
+		box_list(T dim0) : box_list(dim0, 0, 0, 1) {}
+		box_list() : box_list(0, 0, 0, 0) {}
+
+		box_list(symphas::interval_data_type const& intervals) :
+			box_list(
+				(intervals.find(Axis::X) != intervals.end()) ? intervals.at(Axis::X).get_count() : 0,
+				(intervals.find(Axis::Y) != intervals.end()) ? intervals.at(Axis::Y).get_count() : 0,
+				(intervals.find(Axis::Z) != intervals.end()) ? intervals.at(Axis::Z).get_count() : 0) {}
+
+		box_list(box_list<T> const& other) noexcept : box_list(other.data, other.n) {}
+
+		box_list(const T* data, size_t n) : data{ (n > 0) ? new T[n]{ 0 } : nullptr }, n{ n }
+		{
+			if (data)
+			{
+				for (iter_type i = 0; i < n; ++i)
+				{
+					this->data[i] = data[i];
+				}
+			}
+		}
+
+		//dim_list(len_type* data, size_t D) : dim_list(
+		//	(data && D > 0) ? data[0] : 0,
+		//	(data && D > 1) ? data[1] : 0,
+		//	(data && D > 2) ? data[2] : 0,
+		//	D) {}
+
+		box_list(box_list<T>&& other) noexcept : box_list()
+		{
+			swap(*this, other);
+		}
+
+		~box_list()
+		{
+			delete[] data;
+		}
+
+		operator T* () const
+		{
+			return data;
+		}
+
+		operator T () const
+		{
+			return data[0];
+		}
+
+		std::tuple<T, T, T> _3() const
+		{
+			return { data[0], data[1], data[2] };
+		}
+
+		std::tuple<T, T> _2() const
+		{
+			return { data[0], data[1] };
+		}
+
+		std::tuple<T> _1() const
+		{
+			return { data[0] };
+		}
+
+		T& operator[](iter_type i)
+		{
+			return data[i];
+		}
+
+		const T& operator[](iter_type i) const
+		{
+			return data[i];
+		}
+
+		friend void swap(box_list<T>& first, box_list<T>& second)
+		{
+			using std::swap;
+			swap(first.data, second.data);
+			swap(first.n, second.n);
+		}
+
+		const T* begin() const
+		{
+			return data;
+		}
+
+		const T* end() const
+		{
+			return data + n;
+		}
+
+		T* begin()
+		{
+			return data;
+		}
+
+		T* end()
+		{
+			return data + n;
+		}
+
+	protected:
+
+
+		box_list(T dim0, T dim1, T dim2, size_t n) : data{ (n > 0) ? new T[n] : nullptr }, n{ n }
+		{
+			if (n > 0) data[0] = dim0;
+			if (n > 1) data[1] = dim1;
+			if (n > 2) data[2] = dim2;
+		}
+
+	};
+
+	using dim_list = box_list<len_type>;
+	using h_list = box_list<double>;
+}
+
 
 
 //! Represents parameters of a grid.
@@ -279,7 +479,7 @@ protected:
 			for (iter_type i = 0; i < dimension; ++i)
 			{
 				symphas::interval_element_type interval;
-				interval.set_interval_count(1.0, dims[i]);
+				interval.set_count(1.0, dims[i]);
 				v[symphas::index_to_axis(i)] = interval;
 			}
 
@@ -402,7 +602,7 @@ public:
 		len_type length = 1;
 		for (iter_type i = 0; i < dimension(); ++i)
 		{
-			length *= at(symphas::index_to_axis(i)).count();
+			length *= at(symphas::index_to_axis(i)).get_count();
 		}
 		return length;
 	}
@@ -413,9 +613,9 @@ public:
 	 * Returns the spatial discretization of each of the intervals. This is the
 	 * list of widths between discretized elements in each of the dimensions.
 	 */
-	auto get_widths() const
+	grid::h_list get_widths() const
 	{
-		std::unique_ptr<scalar_t[]> widths{ new scalar_t[dimension()] };
+		grid::h_list widths(nullptr, dimension());
 		for (iter_type i = 0; i < dimension(); ++i)
 		{
 			widths[i] = at(symphas::index_to_axis(i)).width();
@@ -428,20 +628,65 @@ public:
 	/*!
 	 * Gives the number of cells along each dimension.
 	 */
-	auto get_dims() const
+	grid::dim_list get_dims() const
 	{
-		std::unique_ptr<len_type[]> dims{ new len_type[dimension()] };
+		grid::dim_list dims(nullptr, dimension());
 		for (iter_type i = 0; i < dimension(); ++i)
 		{
-			dims[i] = at(symphas::index_to_axis(i)).count();
+			dims[i] = at(symphas::index_to_axis(i)).get_count();
 		}
 		return dims;
+	}
+
+	//! Gives the dimensions of the grid.
+	/*!
+	 * Gives the number of cells along each dimension.
+	 */
+	grid::box_list<double> get_lengths() const
+	{
+		grid::box_list<double> lengths(nullptr, dimension());
+		for (iter_type i = 0; i < dimension(); ++i)
+		{
+			lengths[i] = at(symphas::index_to_axis(i)).length();
+		}
+		return lengths;
+	}
+
+	len_type area() const
+	{
+		double area = 1;
+		for (auto length : get_lengths())
+		{
+			area *= length;
+		}
+		return area;
 	}
 
 	operator symphas::interval_data_type() const
 	{
 		return intervals;
 	}
+
+	auto begin() const
+	{
+		return intervals.begin();
+	}
+
+	auto end() const
+	{
+		return intervals.end();
+	}
+
+	auto begin()
+	{
+		return intervals.begin();
+	}
+
+	auto end()
+	{
+		return intervals.end();
+	}
+
 };
 
 inline void swap(symphas::grid_info& first, symphas::grid_info& second)
@@ -478,12 +723,12 @@ inline void swap(symphas::grid_info& first, symphas::grid_info& second)
 #define INTERVAL_Yh intervals.at(Axis::Y).width()
 #define INTERVAL_Zh intervals.at(Axis::Z).width()
 
-#define INTERVAL_Xc_AT(i) intervals[i].at(Axis::X).count()
-#define INTERVAL_Yc_AT(i) intervals[i].at(Axis::Y).count()
-#define INTERVAL_Zc_AT(i) intervals[i].at(Axis::Z).count()
-#define INTERVAL_Xc intervals.at(Axis::X).count()
-#define INTERVAL_Yc intervals.at(Axis::Y).count()
-#define INTERVAL_Zc intervals.at(Axis::Z).count()
+#define INTERVAL_Xc_AT(i) intervals[i].at(Axis::X).get_count()
+#define INTERVAL_Yc_AT(i) intervals[i].at(Axis::Y).get_count()
+#define INTERVAL_Zc_AT(i) intervals[i].at(Axis::Z).get_count()
+#define INTERVAL_Xc intervals.at(Axis::X).get_count()
+#define INTERVAL_Yc intervals.at(Axis::Y).get_count()
+#define INTERVAL_Zc intervals.at(Axis::Z).get_count()
 
 
 //! \endcond

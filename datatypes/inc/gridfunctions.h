@@ -29,7 +29,7 @@
 #include "dft.h"
 
 
-namespace symphas::dft
+namespace grid
 {
 	//! Specialization based on symphas::dft::scale() using ::Grid type.
 	/*!

@@ -573,7 +573,7 @@ namespace symphas::internal
 	inline void inverse_transform_fourier_map(fftw_plan p_in_out, complex_t* in, complex_t* out, const len_type* dims)
 	{
 		symphas::dft::fftw_execute(p_in_out);
-		symphas::dft::scale<D>(out, dims);
+		grid::scale<D>(out, dims);
 	}
 
 	template<size_t D>
@@ -581,7 +581,7 @@ namespace symphas::internal
 	{
 		//symphas::dft::arrange_fftw_sthc<D>(in, in, dims);
 		symphas::dft::fftw_execute(p_in_out);
-		symphas::dft::scale<D>(out, dims);
+		grid::scale<D>(out, dims);
 	}
 
 	template<size_t D>

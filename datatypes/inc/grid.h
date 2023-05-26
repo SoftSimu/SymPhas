@@ -53,96 +53,6 @@
 namespace grid
 {
 
-
-
-	struct dim_list
-	{
-		len_type* dims;
-		size_t n;
-
-		dim_list(len_type dim0, len_type dim1, len_type dim2) :
-			dim_list(dim0, dim1, dim2, (dim1 > 0 && dim2 > 0) ? 3 : (dim1 > 0 || dim2 > 0) ? 2 : 1) {}
-		dim_list(len_type dim0, len_type dim1) :
-			dim_list(dim0, dim1, 0, (dim1 == 0) ? 1 : 2) {}
-		dim_list(len_type dim0) : dim_list(dim0, 0, 0, 1) {}
-		dim_list() : dim_list(0, 0, 0, 0) {}
-
-		dim_list(symphas::interval_data_type const& intervals) :
-			dim_list(
-				(intervals.find(Axis::X) != intervals.end()) ? intervals.at(Axis::X).count() : 0,
-				(intervals.find(Axis::Y) != intervals.end()) ? intervals.at(Axis::Y).count() : 0,
-				(intervals.find(Axis::Z) != intervals.end()) ? intervals.at(Axis::Z).count() : 0) {}
-
-		dim_list(dim_list const& other) noexcept : dim_list(other.dims, other.n) {}
-
-		dim_list(len_type* dims, size_t D) : dim_list(
-			(D > 0) ? dims[0] : 0,
-			(D > 1) ? dims[1] : 0,
-			(D > 2) ? dims[2] : 0,
-			D) {}
-
-		dim_list(dim_list&& other) noexcept : dim_list()
-		{
-			swap(*this, other);
-		}
-
-		~dim_list()
-		{
-			delete[] dims;
-		}
-
-		operator len_type* () const
-		{
-			return dims;
-		}
-
-		operator len_type () const
-		{
-			return dims[0];
-		}
-
-		std::tuple<len_type, len_type, len_type> _3() const
-		{
-			return { dims[0], dims[1], dims[2] };
-		}
-
-		std::tuple<len_type, len_type> _2() const
-		{
-			return { dims[0], dims[1] };
-		}
-
-		std::tuple<len_type> _1() const
-		{
-			return { dims[0] };
-		}
-
-		friend void swap(dim_list& first, dim_list& second)
-		{
-			using std::swap;
-			swap(first.dims, second.dims);
-			swap(first.n, second.n);
-		}
-
-	protected:
-
-		dim_list(const len_type* dims, size_t n) : dims{ (n > 0) ? new len_type[n] : nullptr }, n{ n }
-		{
-			for (iter_type i = 0; i < n; ++i)
-			{
-				this->dims[i] = dims[i];
-			}
-		}
-
-		dim_list(len_type dim0, len_type dim1, len_type dim2, size_t n) : dims{ (n > 0) ? new len_type[n] : nullptr }, n{ n }
-		{
-			if (n > 0) dims[0] = dim0;
-			if (n > 1) dims[1] = dim1;
-			if (n > 2) dims[2] = dim2;
-		}
-
-	};
-
-
 	//! Compute the number of interior points.
 	/*!
 	 * For grids that include boundaries, only the interior values are typically
@@ -184,7 +94,7 @@ namespace grid
 		len_type dimensions[D];
 		for (iter_type i = 0; i < D; ++i)
 		{
-			dimensions[i] = intervals.at(symphas::index_to_axis(i)).count();
+			dimensions[i] = intervals.at(symphas::index_to_axis(i)).get_count();
 		}
 
 		return length<D>(dimensions);
@@ -384,6 +294,70 @@ namespace grid
 
 		return inner_arr[index];
 	}
+
+
+	template<size_t D>
+	struct select_grid_index;
+
+	template<>
+	struct select_grid_index<1>
+	{
+		select_grid_index(len_type(&dims)[1]) {}
+
+		template<typename T>
+		T& operator()(T* values, iter_type n)
+		{
+			return values[n];
+		}
+
+		template<typename T>
+		const T& operator()(T const* values, iter_type n)
+		{
+			return values[n];
+		}
+	};
+
+	template<>
+	struct select_grid_index<2>
+	{
+		select_grid_index(len_type(&dims)[2]) : stride{ dims[0] } {}
+		len_type stride;
+
+		template<typename T>
+		T& operator()(T* values, iter_type x, iter_type y) const
+		{
+			return values[y * stride + x];
+		}
+
+		template<typename T>
+		const T& operator()(T const* values, iter_type x, iter_type y) const
+		{
+			return values[y * stride + x];
+		}
+	};
+
+	template<>
+	struct select_grid_index<3>
+	{
+		select_grid_index(len_type(&dims)[3]) : stride{ dims[0], dims[0] * dims[1] } {}
+		len_type stride[2];
+
+		template<typename T>
+		T& operator()(T* values, iter_type x, iter_type y, iter_type z) const
+		{
+			return values[z * stride[1] + y * stride[0] + x];
+		}
+
+		template<typename T>
+		const T& operator()(T const* values, iter_type x, iter_type y, iter_type z) const
+		{
+			return values[z * stride[1] + y * stride[0] + x];
+		}
+	};
+
+	template<size_t D>
+	select_grid_index(len_type(&)[D]) -> select_grid_index<D>;
+
 }
 
 
@@ -418,6 +392,7 @@ struct Block
 	}
 
 	explicit Block(const len_type* len, size_t dimensions = 1) : Block((len != nullptr) ? grid::length(len, dimensions) : 0) {}
+	explicit Block(grid::dim_list const& dims) : Block(dims.data, dims.n) {}
 
 	Block(Block<T> const& other) : Block(other.len)
 	{
@@ -629,6 +604,7 @@ struct MultiBlock
 		}
 	}
 
+
 protected:
 
 	MultiBlock() : values{ 0 }, len{ 0 } {}
@@ -806,6 +782,12 @@ public:
 		return *this;
 	}
 
+	template<typename... Ts>
+	auto operator()(Ts&&... indices)
+	{
+		return grid::select_grid_index(dims)(Block<T>::values, std::forward<Ts>(indices)...);
+	}
+
 protected:
 
 	constexpr Grid() : Grid(nullptr) {}
@@ -885,6 +867,12 @@ public:
 	T* axis(Axis ax)
 	{
 		return parent_type::values[symphas::axis_to_index(ax)];
+	}
+
+	template<typename... Ts>
+	auto operator()(iter_type x, Ts&&... rest)
+	{
+		return grid::select_grid_index(dims)(Block<T>::values, x, std::forward<Ts>(rest)...);
 	}
 
 protected:
@@ -971,6 +959,12 @@ public:
 		return *this;
 	}
 
+	template<typename... Ts>
+	auto operator()(iter_type x, Ts&&... rest)
+	{
+		return grid::select_grid_index(dims)(Block<T>::values, x + THICKNESS, (std::forward<Ts>(rest) + THICKNESS)...);
+	}
+
 protected:
 
 #ifdef MULTITHREAD
@@ -1042,6 +1036,11 @@ public:
 	//void copy_ptr_front(T** into);
 	//void copy_ptr_back(T** into);
 
+	template<typename... Ts>
+	auto operator()(iter_type x, Ts&&... rest)
+	{
+		return grid::select_grid_index(dims)(Block<T>::values, x + THICKNESS, (std::forward<Ts>(rest) + THICKNESS)...);
+	}
 
 protected:
 
@@ -1108,6 +1107,12 @@ public:
 		return *this;
 	}
 
+	template<typename... Ts>
+	auto operator()(iter_type x, Ts&&... rest)
+	{
+		return grid::select_grid_index(dims)(Block<T>::values, x + THICKNESS, (std::forward<Ts>(rest) + THICKNESS)...);
+	}
+
 protected:
 
 #ifdef MULTITHREAD
@@ -1168,6 +1173,12 @@ public:
 	//void copy_ptr_left(T** into);
 	//void copy_ptr_right(T** into);
 
+
+	template<typename... Ts>
+	auto operator()(iter_type x, Ts&&... rest)
+	{
+		return grid::select_grid_index(dims)(Block<T>::values, x + THICKNESS, (std::forward<Ts>(rest) + THICKNESS)...);
+	}
 
 protected:
 
@@ -1426,7 +1437,7 @@ namespace grid
 				for (iter_type i = 0; i < D; ++i)
 				{
 					Axis side = symphas::index_to_axis(i);
-					dims[i] = vdata.at(side).count();
+					dims[i] = vdata.at(side).get_count();
 				}
 				return { dims };
 			}
@@ -1606,7 +1617,7 @@ namespace grid
 	 * is performed point-wise for all data points.
 	 */
 	template<typename T>
-	void fill_random(T* data, len_type len, scalar_t min, scalar_t max)
+	void fill_random(T* data, len_type len, scalar_t min = 0, scalar_t max = 1)
 	{
 		std::random_device rd;
 		std::mt19937 gen(rd());
@@ -1628,7 +1639,7 @@ namespace grid
 	 * is performed point-wise for all data points.
 	 */
 	template<typename T>
-	void fill_random(Block<T>& grid, scalar_t min, scalar_t max)
+	void fill_random(Block<T>& grid, scalar_t min = 0, scalar_t max = 1)
 	{
 		std::random_device rd;
 		std::mt19937 gen(rd());
@@ -1650,7 +1661,7 @@ namespace grid
 	 * The values of the system data block are copied into a new one. The copy
 	 * is performed point-wise for all data points.
 	 */
-	inline void fill_random(Block<complex_t>& grid, scalar_t min, scalar_t max)
+	inline void fill_random(Block<complex_t>& grid, scalar_t min = 0, scalar_t max = 1)
 	{
 		std::random_device rd;
 		std::mt19937 gen(rd());
@@ -1672,7 +1683,7 @@ namespace grid
 	 * is performed point-wise for all data points.
 	 */
 	template<typename T, size_t N>
-	void fill_random(MultiBlock<N, T>& grid, scalar_t min, scalar_t max)
+	void fill_random(MultiBlock<N, T>& grid, scalar_t min = 0, scalar_t max = 1)
 	{
 		std::random_device rd;
 		std::mt19937 gen(rd());

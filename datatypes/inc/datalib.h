@@ -1999,7 +1999,7 @@ namespace symphas::lib
 	inline auto new_system_axis_list<1>(symphas::interval_data_type const& intervals)
 	{
 		auto& ix = intervals.at(Axis::X);
-		len_type len = ix.count();
+		len_type len = ix.get_count();
 		auto dx = ix.length() / len;
 
 		axis_1d_type* data_x = new axis_1d_type[len];
@@ -2019,8 +2019,8 @@ namespace symphas::lib
 		auto& ix = intervals.at(Axis::X);
 		auto& iy = intervals.at(Axis::Y);
 
-		len_type lenx = ix.count();
-		len_type leny = iy.count();
+		len_type lenx = ix.get_count();
+		len_type leny = iy.get_count();
 
 		auto dx = ix.length() / lenx;
 		auto dy = iy.length() / leny;
@@ -2051,9 +2051,9 @@ namespace symphas::lib
 		auto& iy = intervals.at(Axis::Y);
 		auto& iz = intervals.at(Axis::Z);
 
-		len_type lenx = ix.count();
-		len_type leny = iy.count();
-		len_type lenz = iz.count();
+		len_type lenx = ix.get_count();
+		len_type leny = iy.get_count();
+		len_type lenz = iz.get_count();
 
 		auto dx = ix.length() / lenx;
 		auto dy = iy.length() / leny;
