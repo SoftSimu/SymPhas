@@ -167,10 +167,11 @@ struct VectorValue
 	 * \param lhs First VectorValue instance used to compute the dot product.
 	 * \param rhs Second VectorValue instance used to compute the dot product.
 	 */
-	friend auto dot(VectorValue<T, D> const& lhs, VectorValue<T, D> const& rhs)
+	template<typename S>
+	friend auto dot(VectorValue<T, D> const& lhs, VectorValue<S, D> const& rhs)
 	{
-		T sum = 0;
-		for (int i = 0; i < D; ++i)
+		auto sum = lhs[0] * rhs[0];
+		for (int i = 1; i < D; ++i)
 		{
 			sum += lhs[i] * rhs[i];
 		}
