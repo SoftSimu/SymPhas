@@ -53,39 +53,39 @@ namespace symphas::dft
 
 	template<size_t D>
 	struct long_dft_call;
-//
-//	template<>
-//	struct long_dft_call<1>
-//	{
-//		template<typename T>
-//		void operator()(const axis_nd_t<1>*, const T* data_y, complex_t* out, len_type len, bool backward = false)
-//		{
-//			long_dft(data_y, out, len, backward);
-//		}
-//	};
-//
-//	template<>
-//	struct long_dft_call<2>
-//	{
-//		template<typename T>
-//		void operator()(const axis_nd_t<2>* data_x, const T* data_y, complex_t* out, len_type len, bool backward = false)
-//		{
-//			auto [L, M] = symphas::lib::get_dimensions<2>(data_x, len)._2();
-//			long_dft(data_y, out, L, M, backward);
-//		}
-//	};
-//
-//	template<>
-//	struct long_dft_call<3>
-//	{
-//		template<typename T>
-//		void operator()(const axis_nd_t<3>* data_x, const T* data_y, complex_t* out, len_type len, bool backward = false)
-//		{
-//			auto [L, M, N] = symphas::lib::get_dimensions<3>(data_x, len)._3();
-//			long_dft(data_y, out, L, M, N, backward);
-//		}
-//	};
-//
+	//
+	//	template<>
+	//	struct long_dft_call<1>
+	//	{
+	//		template<typename T>
+	//		void operator()(const axis_nd_t<1>*, const T* data_y, complex_t* out, len_type len, bool backward = false)
+	//		{
+	//			long_dft(data_y, out, len, backward);
+	//		}
+	//	};
+	//
+	//	template<>
+	//	struct long_dft_call<2>
+	//	{
+	//		template<typename T>
+	//		void operator()(const axis_nd_t<2>* data_x, const T* data_y, complex_t* out, len_type len, bool backward = false)
+	//		{
+	//			auto [L, M] = symphas::lib::get_dimensions<2>(data_x, len)._2();
+	//			long_dft(data_y, out, L, M, backward);
+	//		}
+	//	};
+	//
+	//	template<>
+	//	struct long_dft_call<3>
+	//	{
+	//		template<typename T>
+	//		void operator()(const axis_nd_t<3>* data_x, const T* data_y, complex_t* out, len_type len, bool backward = false)
+	//		{
+	//			auto [L, M, N] = symphas::lib::get_dimensions<3>(data_x, len)._3();
+	//			long_dft(data_y, out, L, M, N, backward);
+	//		}
+	//	};
+	//
 	template<size_t D, typename T>
 	std::vector<std::pair<axis_nd_t<D>, complex_t>> long_dft(std::vector<std::pair<axis_nd_t<D>, T>> const& data, bool backward = false)
 	{
@@ -112,10 +112,14 @@ namespace symphas::dft
 		return out;
 
 	}
-
+}
 
 
 	// ****************************************************************************************
+
+
+namespace grid
+{
 
 	/*
 	 * functions to scale the data after fourier transforms
