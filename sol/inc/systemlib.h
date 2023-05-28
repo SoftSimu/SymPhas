@@ -33,7 +33,6 @@
 #include "gridfunctions.h"
 #include "boundary.h"
 #include "initialconditions.h"
-#include "datalib.h"
 
 #ifdef EXECUTION_HEADER_AVAILABLE
 #include <execution>
@@ -349,7 +348,7 @@ template<typename G>
 struct PersistentSystemData;
 
 #ifdef USING_IO
-
+#include "datalib.h"
 
 //! Maintains grid data parameters as well as a snapshot.
 /*!

@@ -30,7 +30,6 @@
 #include "expressionsprint.h"
 
 
-
 template<typename E>
 struct SymbolicListIndex<E, void>
 {

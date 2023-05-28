@@ -10,7 +10,7 @@
 DEFINE_INIT_EXPR_EQUATION(NAME, DIMENSIONS, EQUATION) \
 NEXT_INIT_EXPR_INDEX(NAME) \
 INIT_EXPR_WRAPPER_FUNC(INIT_EXPR_INDEX_NAME(NAME), DIMENSIONS, \
-if (std::strcmp(name, #NAME) == 0) { return symphas::internal::run_init_expr<InitExpression_ ## NAME<D>>(values, dims, vdata, coeff, num_coeff); })
+if (std::strcmp(name, #NAME) == 0) { return symphas::internal::run_init_expr<D, InitExpression_ ## NAME<D>>(ax, values, dims, vdata, coeff, num_coeff); })
 
 
 
@@ -48,16 +48,17 @@ constexpr init_expr_count_index<INIT_EXPR_INDEX_NAME(PREFIX_NAME)> init_expr_cou
 
 
 //! Implements the association between a model and a name.
-#define INIT_EXPR_WRAPPER_FUNC(N, DIMENSIONS, IMPL) \
+#define INIT_EXPR_WRAPPER_FUNC(N, DIMENSIONS, ...) \
 template<size_t D> \
 struct symphas::internal::init_expr_call_wrapper<D, N> \
 { \
 	template<typename T> \
-	static int call(const char* name, T* values, len_type const* dims, symphas::interval_data_type const& vdata, double const* coeff, size_t num_coeff) \
+	static int call(const char* name, Axis ax, T* values, len_type const* dims, \
+		symphas::interval_data_type const& vdata, double const* coeff, size_t num_coeff) \
 	{ \
-		if constexpr (symphas::lib::is_value_in_seq<D, std::index_sequence<SINGLE_ARG DIMENSIONS>>::value) \
-		{ IMPL } \
-		return init_expr_call_wrapper<D, N - 1>::call(name, values, dims, vdata, coeff, num_coeff); \
+		if constexpr (symphas::lib::is_value_in_seq<size_t, D, std::index_sequence<SINGLE_ARG DIMENSIONS>>::value) \
+		{ __VA_ARGS__ } \
+		return init_expr_call_wrapper<D, N - 1>::call(name, ax, values, dims, vdata, coeff, num_coeff); \
 	} \
 };
 
@@ -117,8 +118,7 @@ struct InitExpression
 		return data;
 	}
 
-	template<size_t I>
-	auto param()
+	auto param(size_t I)
 	{
 		if (I < num_coeff)
 		{
@@ -197,18 +197,32 @@ namespace symphas::internal
 	struct init_expr_call_wrapper
 	{
 		template<typename T>
-		static int call(const char* name, T* values, len_type const* dims, symphas::interval_data_type const& vdata, double const* coeff, size_t num_coeff)
+		static int call(
+			const char* name, Axis ax, T* values, len_type const* dims,
+			symphas::interval_data_type const& vdata, double const* coeff, size_t num_coeff)
 		{
 			return -1;
 		}
 	};
 
-	template<typename EI, typename T>
-	bool run_init_expr(T* values, len_type const* dims, symphas::interval_data_type const& vdata, double const* coeff, size_t num_coeff)
+	template<size_t D, typename EI, typename T>
+	bool run_init_expr(
+		Axis ax, T* values, len_type const* dims,
+		symphas::interval_data_type const& vdata, double const* coeff, size_t num_coeff)
 	{
 		EI init_expr{ dims, vdata, coeff, num_coeff };
 		auto expr = init_expr.get_equation();
-		expr::result(expr, values, grid::length(dims, vdata.size()));
+
+		auto begin = symphas::internal::ic_iterator<T, D, decltype(expr)>(ax, values, expr);
+		auto end = symphas::internal::ic_iterator<T, D, decltype(expr)>(ax, values, expr, grid::length<D>(dims));
+
+
+		std::copy(
+#ifdef EXECUTION_HEADER_AVAILABLE
+			std::execution::par_unseq,
+#endif
+			begin, end, values);
+
 		return true;
 	}
 
@@ -216,7 +230,8 @@ namespace symphas::internal
 }
 
 template<size_t D, typename T>
-bool match_init_expr(const char* initname, T* values, len_type const* dims, symphas::interval_data_type const& vdata, double const* coeff, size_t num_coeff);
+bool match_init_expr(const char* initname, Axis ax, T* values,
+	len_type const* dims, symphas::interval_data_type const& vdata, double const* coeff, size_t num_coeff);
 
 
 //! \endcond

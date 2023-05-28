@@ -708,9 +708,9 @@ public:
 	GaussianSmoothing<D> smoother;	//!< The smoothing kernel.
 
     template<typename V0, size_t D0, typename G0>
-	friend decltype(auto) expr::get_enclosed_expression(OpConvolution<V0, GaussianSmoothing<D0>, OpTerm<OpIdentity, G0>> const&);
+	friend auto expr::get_enclosed_expression(OpConvolution<V0, GaussianSmoothing<D0>, OpTerm<OpIdentity, G0>> const&);
     template<typename V0, size_t D0, typename G0>
-	friend decltype(auto) expr::get_enclosed_expression(OpConvolution<V0, GaussianSmoothing<D0>, OpTerm<OpIdentity, G0>>&);
+	friend auto expr::get_enclosed_expression(OpConvolution<V0, GaussianSmoothing<D0>, OpTerm<OpIdentity, G0>>&);
     template<typename V0, size_t D0, typename G0>
 	friend auto const& expr::get_result_data(OpConvolution<V0, GaussianSmoothing<D0>, OpTerm<OpIdentity, G0>> const&);
     template<typename V0, size_t D0, typename G0>
@@ -719,6 +719,7 @@ public:
 
 	void update()
 	{
+		expr::prune::update(data);
 		symphas::dft::fftw_execute(compute.p_in_out);
 
 		auto f = [&](iter_type ft_i, iter_type i)

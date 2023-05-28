@@ -50,7 +50,7 @@ NEW_SOLVER_WITH_STENCIL(SolverFT)
 	template<typename S>
 	void step(S &sys) const
 	{
-		expr::result_interior(expr::make_term(sys.as_grid()) + expr::make_term(dt, sys.dframe), sys);
+ 		expr::result_interior(expr::make_term(sys.as_grid()) + expr::make_term(dt, sys.dframe), sys);
 	}
 
 
@@ -78,51 +78,56 @@ NEW_SOLVER_WITH_STENCIL(SolverFT)
 	auto form_expr_one(SS&&, std::pair<S, E> const& e) const
 	{
 		auto [sys, equation] = e;
-		auto eq_ft = expr::apply_operators(equation);
+		auto eq_ft = equation/*expr::apply_operators(equation)*/;
 		
-		std::printf("\n");
 		return std::make_pair(sys, eq_ft);
 	}
 
 
-
-
 	static auto make_solver(symphas::problem_parameters_type const& parameters)
 	{
-		double h = parameters.get_interval_data()[0].at(Axis::X).width();
-		size_t dim = parameters.get_dimension();
-
-		// integrity check: all grid widths must be the same
-		for (iter_type i = 0; i < parameters.length(); ++i)
+		if (parameters.length())
 		{
-			for (iter_type n = 0; n < dim; ++n)
+			double h = parameters.get_interval_data()[0].at(Axis::X).width();
+			size_t dim = parameters.get_dimension();
+
+			// integrity check: all grid widths must be the same
+			for (iter_type i = 0; i < parameters.length(); ++i)
 			{
-				if (h != parameters.get_interval_data()[i].at(symphas::index_to_axis(n)).width())
+				for (iter_type n = 0; n < dim; ++n)
 				{
-					char axis =
-						(symphas::index_to_axis(n) == Axis::X) ? 'x' :
-						(symphas::index_to_axis(n) == Axis::Y) ? 'y' :
-						(symphas::index_to_axis(n) == Axis::Z) ? 'z' : '?';
-					fprintf(SYMPHAS_WARN, "the grid spacing of system %d for axis '%c' is "
-						"not consistent, results will not reflect the given problem!\n",
-						i, axis);
+					if (h != parameters.get_interval_data()[i].at(symphas::index_to_axis(n)).width())
+					{
+						char axis =
+							(symphas::index_to_axis(n) == Axis::X) ? 'x' :
+							(symphas::index_to_axis(n) == Axis::Y) ? 'y' :
+							(symphas::index_to_axis(n) == Axis::Z) ? 'z' : '?';
+						fprintf(SYMPHAS_WARN, "the grid spacing of system %d for axis '%c' is "
+							"not consistent, results will not reflect the given problem!\n",
+							i, axis);
+					}
 				}
 			}
-		}
 
-		/* the dimensions of the problem are taken from the first system
-		 * since the solver assumes they are homogeneous
-		 */
-		len_type* dims = new len_type[dim];
-		for (iter_type i = 0; i < dim; ++i)
+			/* the dimensions of the problem are taken from the first system
+			 * since the solver assumes they are homogeneous
+			 */
+			len_type* dims = new len_type[dim];
+			for (iter_type i = 0; i < dim; ++i)
+			{
+				Axis side = symphas::index_to_axis(i);
+				dims[i] = parameters.get_interval_data()[0].at(side).get_count() + 2 * THICKNESS;
+			}
+
+			auto s = this_type{ dims, h };
+			delete[] dims;
+			return s;
+		}
+		else
 		{
-			Axis side = symphas::index_to_axis(i);
-			dims[i] = parameters.get_interval_data()[0].at(side).count() + 2 * THICKNESS;
+			return this_type{ grid::dim_list(nullptr, 3), grid::h_list(nullptr, 3) };
 		}
 
-		auto s = this_type{ dims, h };
-		delete[] dims;
-		return s;
 	}
 
 

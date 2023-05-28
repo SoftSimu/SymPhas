@@ -2281,7 +2281,7 @@ namespace symphas::internal
 		template<typename V, typename E, typename G>
 		auto operator()(V const& v, OpExpression<E> const& e, SymbolicDerivative<G>)
 		{
-			return expr::make_derivative<O, G>(v, *static_cast<E const*>(&e));
+			return v * expr::make_derivative<O, G>(*static_cast<E const*>(&e));
 		}
 	};
 

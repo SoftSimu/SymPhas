@@ -378,8 +378,8 @@ struct NoStencil
 //! Base class for the solver functionality.
 /*!
  * Defines the structure and function of a solver. Specialized solvers use
- * this class through CRTP inheritance.  
- * 
+ * this class through CRTP inheritance.
+ *
  * To define a custom solver, see \ref solver.
  *
  * \param Sp The specialized solver.
@@ -457,7 +457,7 @@ struct Solver
 	 * on the specific solver implementation, the time step provided here will
 	 * not be used, only the time step provided with the solver construction
 	 * will be used.
-	 * 
+	 *
 	 * \param ss The system which is stepped forward.
 	 */
 	template<typename S>
@@ -468,22 +468,6 @@ struct Solver
 
 	//! Evaluate the equations.
 	/*!
-	 * The equations are evaluated, typically updating the data in the 
-	 * specialized phase field systems that are defined with the solver. The
-	 * data that is provided is not necessarily an expression, and comes
-	 * from what was computed in the form_expr() function.
-	 * 
-	 * \param rs A list of objects that are used in computing part of the
-	 * solution at this solution stage.
-	 */
-	//template<typename... Rs>
-	//void equations(std::tuple<Rs...>& rs) const
-	//{
-	//	equations_apply(rs, std::make_index_sequence<sizeof...(Rs)>{});
-	//}
-
-	//! Evaluate the equations.
-	/*!
 	 * The equations are evaluated, typically updating the data in the
 	 * specialized phase field systems that are defined with the solver. The
 	 * data that is provided is not necessarily an expression, and comes
@@ -492,42 +476,58 @@ struct Solver
 	 * \param rs A list of objects that are used in computing part of the
 	 * solution at this solution stage.
 	 */
-	//template<typename... Rs>
-	//void equations(std::tuple<Rs...>&& rs) const
-	//{
-	//	equations_apply(rs, std::make_index_sequence<sizeof...(Rs)>{});
-	//}
+	 //template<typename... Rs>
+	 //void equations(std::tuple<Rs...>& rs) const
+	 //{
+	 //	equations_apply(rs, std::make_index_sequence<sizeof...(Rs)>{});
+	 //}
 
-	//! Evaluate the equations.
-	/*!
-	 * The equations are evaluated, typically updating the data in the
-	 * specialized phase field systems that are defined with the solver. The
-	 * data that is provided is not necessarily an expression, and comes
-	 * from what was computed in the form_expr() function.
-	 *
-	 * \param rs... A list of objects that are used in computing part of the
-	 * solution at this solution stage.
-	 */
-	//template<typename... Rs>
-	//void equations(Rs&& ... rs) const
-	//{
-	//	((..., cast().equation(std::forward<Rs>(rs))));
-	//}
+	 //! Evaluate the equations.
+	 /*!
+	  * The equations are evaluated, typically updating the data in the
+	  * specialized phase field systems that are defined with the solver. The
+	  * data that is provided is not necessarily an expression, and comes
+	  * from what was computed in the form_expr() function.
+	  *
+	  * \param rs A list of objects that are used in computing part of the
+	  * solution at this solution stage.
+	  */
+	  //template<typename... Rs>
+	  //void equations(std::tuple<Rs...>&& rs) const
+	  //{
+	  //	equations_apply(rs, std::make_index_sequence<sizeof...(Rs)>{});
+	  //}
 
-	//! Evaluate the equations.
-	/*!
-	 * For unsupported types, OpVoid will be returned for the equation that
-	 * needs to be processed. When OpVoid is given, then no action is taken
-	 * (since it is equivalently zero).
-	 */
-	//void equations(symphas::internal::solver_unsupported_equation) {}
+	  //! Evaluate the equations.
+	  /*!
+	   * The equations are evaluated, typically updating the data in the
+	   * specialized phase field systems that are defined with the solver. The
+	   * data that is provided is not necessarily an expression, and comes
+	   * from what was computed in the form_expr() function.
+	   *
+	   * \param rs... A list of objects that are used in computing part of the
+	   * solution at this solution stage.
+	   */
+	   //template<typename... Rs>
+	   //void equations(Rs&& ... rs) const
+	   //{
+	   //	((..., cast().equation(std::forward<Rs>(rs))));
+	   //}
+
+	   //! Evaluate the equations.
+	   /*!
+		* For unsupported types, OpVoid will be returned for the equation that
+		* needs to be processed. When OpVoid is given, then no action is taken
+		* (since it is equivalently zero).
+		*/
+		//void equations(symphas::internal::solver_unsupported_equation) {}
 
 
-	//! Evaluate the given list of elements, typically equation/data pairs.
-	/*!
-	 * Each equation from the list is evaluated, and the result is
-	 * stored by the corresponding left hand side data.
-	 */
+		//! Evaluate the given list of elements, typically equation/data pairs.
+		/*!
+		 * Each equation from the list is evaluated, and the result is
+		 * stored by the corresponding left hand side data.
+		 */
 	template<typename... Rs>
 	void evaluate(std::tuple<Rs...>& rs) const
 	{
@@ -591,7 +591,7 @@ struct Solver
 	 * \tparam En The number of equation systems, the rest are supporting
 	 * provisional systems.
 	 */
-	template<size_t En, typename... S, typename... Es, 
+	template<size_t En, typename... S, typename... Es,
 		typename std::enable_if_t<symphas::internal::solver_supported_systems<Sp, S...>::value, int> = 0>
 	decltype(auto) form_expr_all(std::tuple<S...> const& systems, Es&& ...es) const
 	{
@@ -600,13 +600,13 @@ struct Solver
 
 	//! No equation is created for incompatible types.
 	/*!
-	 * For order parameter types types which are not compatible with the 
-	 * solver, a special type is returned. When given to the equations(), 
+	 * For order parameter types types which are not compatible with the
+	 * solver, a special type is returned. When given to the equations(),
 	 * there is no effect. This means that models can be defined with any
-	 * solver, and there will not be a compiler error if a type is not 
+	 * solver, and there will not be a compiler error if a type is not
 	 * supported.
 	 */
-	template<size_t En, typename... S, typename... Es, 
+	template<size_t En, typename... S, typename... Es,
 		typename std::enable_if_t<!symphas::internal::solver_supported_systems<Sp, S...>::value, int> = 0>
 	decltype(auto) form_expr_all(std::tuple<S...> const&, Es&& ...) const
 	{
@@ -625,7 +625,7 @@ struct Solver
 	 * \tparam En The number of equation systems, the rest are supporting
 	 * provisional systems.
 	 */
-	template<size_t En, typename... S, typename... Es, 
+	template<size_t En, typename... S, typename... Es,
 		typename std::enable_if_t<symphas::internal::solver_supported_systems<Sp, S...>::value, int> = 0>
 	decltype(auto) form_expr_all(std::tuple<S const&...>&& systems, Es&& ...es) const
 	{
@@ -634,13 +634,13 @@ struct Solver
 
 	//! Create the equation which is evaluated by the solver iteratively.
 	/*!
-	 * For order parameter types types which are not compatible with the 
-	 * solver, a special type is returned. When given to the equations(), 
+	 * For order parameter types types which are not compatible with the
+	 * solver, a special type is returned. When given to the equations(),
 	 * there is no effect. This means that models can be defined with any
-	 * solver, and there will not be a compiler error if a type is not 
+	 * solver, and there will not be a compiler error if a type is not
 	 * supported.
 	 */
-	template<size_t En, typename... S, typename... Es, 
+	template<size_t En, typename... S, typename... Es,
 		typename std::enable_if_t<!symphas::internal::solver_supported_systems<Sp, S...>::value, int> = 0>
 	decltype(auto) form_expr_all(std::tuple<S const&...>&& systems, Es&& ...) const
 	{
@@ -684,9 +684,9 @@ struct Solver
 	//! Generate a specialized solver instance from problem parameters.
 	/*!
 	 * Takes the problem parameters and passes
-	 * the correct information to the solver constructor in order to create 
+	 * the correct information to the solver constructor in order to create
 	 * the specialized solver instance.
-	 * 
+	 *
 	 * \param parameters The problem parameters used to construct the solver.
 	 */
 	static decltype(auto) make_solver(symphas::problem_parameters_type const& parameters)
@@ -696,7 +696,7 @@ struct Solver
 
 	//! Generate a default specialized solver.
 	/*!
-	 * In many cases, it is desirable for this function to be implemented 
+	 * In many cases, it is desirable for this function to be implemented
 	 * in conjunction with make_solver(symphas::problem_parameters_type const&),
 	 * to avoid any bugs which may occur due to undefined parameters.
 	 */
@@ -994,3 +994,5 @@ struct symphas::internal::provisional_system_type_match
 	using type = ProvisionalSystem<Ty, D>;
 };
 
+NEW_SOLVER(GenericSolver)
+};

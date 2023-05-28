@@ -3648,20 +3648,25 @@ namespace symphas::lib
 	 * Construct a types list with the first `D` axes in the list.
 	 */
 	template<size_t D>
-	auto make_axis_list()
+	auto make_axis_list();
+
+
+	template<>
+	inline auto make_axis_list<1>()
 	{
-		if constexpr (D == 1)
-		{
-			return axis_list<Axis::X>{};
-		}
-		else if constexpr (D == 2)
-		{
-			return axis_list<Axis::X, Axis::Y>{};
-		}
-		else if constexpr (D == 3)
-		{
-			return axis_list<Axis::X, Axis::Y, Axis::Z>{};
-		}
+		return axis_list<Axis::X>{};
+	}
+
+	template<>
+	inline auto make_axis_list<2>()
+	{
+		return axis_list<Axis::X, Axis::Y>{};
+	}
+
+	template<>
+	inline auto make_axis_list<3>()
+	{
+		return axis_list<Axis::X, Axis::Y, Axis::Z>{};
 	}
 
 	template<size_t D, typename G>

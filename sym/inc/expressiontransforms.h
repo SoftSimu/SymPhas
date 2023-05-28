@@ -180,7 +180,6 @@ namespace expr::prune
 		template<typename V, size_t D, typename G>
 		void _update(OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>& e)
 		{
-			_update(expr::get_enclosed_expression(e));
 			e.update();
 		}
 
@@ -530,6 +529,18 @@ namespace expr
 	template<typename Dd, typename V, typename E, typename Sp,
 		typename = std::enable_if_t<expr_has_deriv<E>::value, int>>
 	auto apply_operators(OpDerivative<Dd, V, E, Sp> const& e);
+
+	//! Distribute operators so they are applied to individual expressions.
+	/*!
+	 * For expressions that are derivatives of derivatives, the outermost
+	 * derivatives might need to be distributed to the rest of the expression.
+	 * Additionally, all derivatives which are applied to expressions that
+	 * are linear combinations are distributed.
+	 *
+	 * \param e The expression which is distributed.
+	 */
+	template<typename Dd1, typename Dd2, typename V1, typename V2, typename E, typename Sp1, typename Sp2>
+	auto apply_operators(OpDerivative<Dd1, V1, OpDerivative<Dd2, V2, E, Sp1>, Sp2> const& e);
 
 	//! Distribute operators so they are applied to individual expressions.
 	/*!
@@ -1241,6 +1252,61 @@ namespace expr
 
 	}
 
+	template<typename Dd1, typename Dd2, typename V1, typename V2, typename E, typename Sp1, typename Sp2>
+	auto apply_operators(OpDerivative<Dd1, V1, OpDerivative<Dd2, V2, E, Sp1>, Sp2> const& e)
+	{
+		return e;
+	}
+
+	template<bool parity1, bool parity2, size_t order1, size_t order2, Axis ax1, Axis ax2>
+	struct combine_derivatives
+	{
+		template<typename Sp, typename E, Axis... axs>
+		auto operator()(Sp const& solver, OpExpression<E> const& enclosed, symphas::lib::axis_list<axs...>)
+		{
+			auto dd1 = expr::make_operator_directional_derivative<ax1, parity1>(solver)
+				* break_up_derivative<order1 - parity1>(solver, symphas::lib::axis_list<axs...>{});
+			auto dd2 = expr::make_operator_directional_derivative<ax2, parity2>(solver)
+				* break_up_derivative<order2 - parity2>(solver, symphas::lib::axis_list<axs...>{});
+			
+			return apply_operators((dd1 * dd2) * enclosed);
+		}
+	};
+
+	template<size_t order1, size_t order2, Axis ax1, Axis ax2>
+	struct combine_derivatives<0, 0, order1, order2, ax1, ax2>
+	{
+		template<typename Sp, typename E, Axis... axs>
+		auto operator()(Sp const& solver, OpExpression<E> const& enclosed, symphas::lib::axis_list<axs...>)
+		{
+			using Dd = typename Solver<Sp>::template derivative<Axis::X, order1 + order2>;
+			return apply_operators(expr::make_derivative<Dd>(enclosed, solver));
+			//return apply_operators(expr::make_operator_derivative<order1 + order2>(solver)(OpVoid{}));
+		}
+	};
+
+	template<size_t order1, size_t order2, Axis ax1, Axis ax2>
+	struct combine_derivatives<1, 0, order1, order2, ax1, ax2>
+	{
+		template<typename Sp, typename E, Axis... axs>
+		auto operator()(Sp const& solver, OpExpression<E> const& enclosed, symphas::lib::axis_list<axs...>)
+		{
+			using Dd = typename Solver<Sp>::template derivative<ax1, order1 + order2>;
+			return apply_operators(expr::make_derivative<Dd>(enclosed, solver));
+		}
+	};
+
+	template<size_t order1, size_t order2, Axis ax1, Axis ax2>
+	struct combine_derivatives<0, 1, order1, order2, ax1, ax2>
+	{
+		template<typename Sp, typename E, Axis... axs>
+		auto operator()(Sp const& solver, OpExpression<E> const& enclosed, symphas::lib::axis_list<axs...>)
+		{
+			using Dd = typename Solver<Sp>::template derivative<ax2, order1 + order2>;
+			return apply_operators(expr::make_derivative<Dd>(enclosed, solver));
+		}
+	};
+
 	template<typename Dd1, typename Dd2, typename V1, typename V2, typename E, typename Sp>
 	auto apply_operators(OpDerivative<Dd1, V1, OpDerivative<Dd2, V2, E, Sp>, Sp> const& e)
 	{
@@ -1254,38 +1320,44 @@ namespace expr
 
 		auto enclosed1 = expr::get_enclosed_expression(e);
 		auto enclosed2 = expr::get_enclosed_expression(enclosed1);
-		auto enclosed = apply_operators(expr::coeff(e) * expr::coeff(enclosed1) * enclosed2);
+		auto enclosed = expr::coeff(e) * expr::coeff(enclosed1) * apply_operators(enclosed2);
+
+		auto axis_list = symphas::lib::make_axis_list<D>();
 
 		if constexpr (!Dd1::is_mixed && !Dd2::is_mixed && !Dd1::is_directional && !Dd2::is_directional)
 		{
-			if constexpr (order1 % 2 == 0 && order2 % 2 == 0)
-			{
-				using Dd = typename Solver<Sp>::template derivative<Axis::X, order1 + order2>;
-				return apply_operators(expr::make_derivative<Dd>(enclosed, e.solver));
-			}
-			else if constexpr (order1 % 2 == 1)
-			{
-				using Dd = typename Solver<Sp>::template derivative<d1t::axis, order1 + order2>;
-				return apply_operators(expr::make_derivative<Dd>(enclosed, e.solver));
-			}
-			else if constexpr (order2 % 2 == 1)
-			{
-				using Dd = typename Solver<Sp>::template derivative<d2t::axis, order1 + order2>;
-				return apply_operators(expr::make_derivative<Dd>(enclosed, e.solver));
-			}
-			else
-			{
-				auto dd1 = expr::make_operator_directional_derivative<Dd1::axis, order1 % 2>(e.solver)
-					* break_up_derivative<order1 - (order1 % 2)>(e.solver, symphas::lib::make_axis_list<D>());
-
-				auto dd2 = expr::make_operator_directional_derivative<Dd2::axis, order2 % 2>(e.solver)
-					* break_up_derivative<order2 - (order2 % 2)>(e.solver, symphas::lib::make_axis_list<D>());
-				return apply_operators((dd1 * dd2) * enclosed);
-			}
+			return combine_derivatives<order1 % 2, order2 % 2, order1, order2, d1t::axis, d2t::axis>{}(e.solver, enclosed, axis_list);
+			//if constexpr (order1 % 2 == 0 && order2 % 2 == 0)
+			//{
+			//	//using Dd = typename Solver<Sp>::template derivative<Axis::X, order1 + order2>;
+			//	//return apply_operators(expr::make_derivative<Dd>(enclosed, e.solver));
+			//
+			//	return combine_apply(e.solver, enclosed, axis_list);
+			//}
+			//else if constexpr (order1 % 2 == 1)
+			//{
+			//	//using Dd = typename Solver<Sp>::template derivative<d1t::axis, order1 + order2>;
+			//	//return apply_operators(expr::make_derivative<Dd>(enclosed, e.solver));
+			//}
+			//else if constexpr (order2 % 2 == 1)
+			//{
+			//	//using Dd = typename Solver<Sp>::template derivative<d2t::axis, order1 + order2>;
+			//	//return apply_operators(expr::make_derivative<Dd>(enclosed, e.solver));
+			//}
+			//else
+			//{
+			//	return combine_apply(e.solver, enclosed, axis_list);
+			//	//auto dd1 = expr::make_operator_directional_derivative<Dd1::axis, order1 % 2>(e.solver)
+			//	//	* break_up_derivative<order1 - (order1 % 2)>(e.solver, symphas::lib::make_axis_list<D>());
+			//	//
+			//	//auto dd2 = expr::make_operator_directional_derivative<Dd2::axis, order2 % 2>(e.solver)
+			//	//	* break_up_derivative<order2 - (order2 % 2)>(e.solver, symphas::lib::make_axis_list<D>());
+			//	//return apply_operators((dd1 * dd2) * enclosed);
+			//}
 		}
 		else
 		{
-			return apply_operators(combine_mixed_derivatives<Sp>{}(enclosed, e.solver, Dd1{}, Dd2{}, symphas::lib::make_axis_list<D>()));
+			return apply_operators(combine_mixed_derivatives<Sp>{}(enclosed, e.solver, Dd1{}, Dd2{}, axis_list));
 		}
 	}
 
@@ -1341,21 +1413,23 @@ namespace expr
 	template<typename Dd, typename V, typename E, typename Sp, typename>
 	auto apply_operators(OpDerivative<Dd, V, E, Sp> const& e)
 	{
-		return apply_operators_deriv(e, apply_operators(expr::coeff(e) * expr::get_enclosed_expression(e)));
+		return apply_operators_deriv(e, expr::coeff(e) * apply_operators(expr::get_enclosed_expression(e)));
 	}
 
 	template<typename Dd, typename V, typename... Es, typename Sp>
 	auto apply_operators(OpDerivative<Dd, V, OpAdd<Es...>, Sp> const& e)
 	{
-		auto&& add = expr::get_enclosed_expression(e);
-		return expr::coeff(e) * apply_operators_adds<Dd>(e.solver, add, std::make_index_sequence<sizeof...(Es)>{});
+		return apply_operators_adds<Dd>(e.solver, 
+			expr::coeff(e) * expr::get_enclosed_expression(e), 
+			std::make_index_sequence<sizeof...(Es)>{});
 	}
 
 	template<size_t O, typename V, typename... Es, typename G0>
 	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpAdd<Es...>, SymbolicDerivative<G0>> const& e)
 	{
-		auto&& add = expr::get_enclosed_expression(e);
-		return expr::coeff(e) * apply_operators_adds<O>(e.solver, add, std::make_index_sequence<sizeof...(Es)>{});
+		return apply_operators_adds<O>(e.solver, 
+			expr::coeff(e) * expr::get_enclosed_expression(e), 
+			std::make_index_sequence<sizeof...(Es)>{});
 	}
 
 	template<typename... Es>
@@ -1952,8 +2026,8 @@ namespace expr::transform
 	 *
 	 * \tparam D The real space dimension.
 	 */
-	template<size_t D, typename V, typename T>
-	auto to_ft(OpTerm<V, NoiseData<expr::NoiseType::WHITE, T, D>> const& e, double const* h, const len_type* dims);
+	template<size_t D, typename V, typename T, typename E, size_t... Ns, typename... Ts>
+	auto to_ft(OpSymbolicEval<V, NoiseData<NoiseType::WHITE, T, D>, SymbolicFunction<E, Variable<Ns, Ts>...>> const& e, double const* h, const len_type* dims);
 
 	template<size_t D, typename E>
 	auto to_ft(OpExpression<E> const& e, double const* h, const len_type*)
@@ -2071,6 +2145,7 @@ namespace expr::transform
 	{
 		auto ft = to_ft<D>(e.f.e, h, dims);
 		auto f = (expr::function_of(Ts{}...) = ft);
+		f.set_data_tuple(e.data);
 		return symphas::internal::make_symbolic_eval(expr::coeff(e), e.data, f);
 	}
 

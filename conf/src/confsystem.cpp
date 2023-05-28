@@ -351,7 +351,7 @@ namespace symphas::internal
 					std::copy(content, delim_it, buffer);
 					buffer[delim_pos] = '\0';
 
-					indices.emplace_back(atoi(buffer));
+					indices.emplace_back(atoi(buffer) - 1);
 					iter_type n = symphas::lib::pos_after_token(delim_it, COEFF_ID_RANGE_STRS);
 					bool add_interval = (n != 0);
 
@@ -1419,13 +1419,14 @@ symphas::init_entry_type get_initial_condition_entry(char* input, size_t dimensi
 	char buffer[BUFFER_LENGTH]{ 0 };
 	char name[BUFFER_LENGTH]{ 0 };
 	std::copy(input, tok, name);
+	std::copy(tok, input + std::strlen(input) + 1, buffer);
 
 	init.in = symphas::in_from_str(name);
 
 	if (init.in == Inside::EXPRESSION)
 	{
 		char* pos0 = input;
-		tok = std::strtok(NULL, " ");
+		tok = std::strtok(buffer, " ");
 		char* expression_name = new char[std::strlen(tok) + 1];
 
 		if (sscanf(tok, "%s", expression_name) < 1)
@@ -2077,7 +2078,7 @@ void SystemConf::parse_model_spec(const char* value, const char* dir)
 		if (model_end_pos > std::strlen(model))
 		{
 			const char* iter = value + model_end_pos - 1;
-			while (*++iter != CONFIG_TITLE_PREFIX_C);
+			while (*++iter && *iter != CONFIG_TITLE_PREFIX_C);
 
 			if (*iter == CONFIG_TITLE_PREFIX_C)
 			{

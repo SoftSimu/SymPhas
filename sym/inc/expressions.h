@@ -2570,123 +2570,121 @@ namespace symphas::internal
 
 #ifdef PRINTABLE_EQUATIONS
 
-	template<typename E1, typename E2, std::enable_if_t<(!has_coeff<E1> && has_nmi_coeff<E2>), int> = 0>
+	inline size_t mul_print_left(FILE* out, bool neg)
+	{
+		if (neg)
+		{
+			return fprintf(out, SYEX_MUL_FMT_A);
+		}
+		else
+		{
+			return fprintf(out, SYEX_MUL_FMT_AA);
+		}
+	}
+
+	inline size_t mul_print_sep(FILE* out, bool neg1, bool neg2)
+	{
+		if (neg1 && neg2)
+		{
+			return fprintf(out, SYEX_MUL_SEP);
+		}
+		else if (neg1)
+		{
+			return fprintf(out, SYEX_MUL_SEP_A);
+		}
+		else if (neg2)
+		{
+			return fprintf(out, SYEX_MUL_SEP_B);
+		}
+		else
+		{
+			return fprintf(out, SYEX_MUL_SEP_AB);
+		}
+	}
+
+	inline size_t mul_print_right(FILE* out, bool neg)
+	{
+		if (neg)
+		{
+			return fprintf(out, SYEX_MUL_FMT_B);
+		}
+		else
+		{
+			return fprintf(out, SYEX_MUL_FMT_BB);
+		}
+	}
+
+	inline size_t mul_print_left(char* out, bool neg)
+	{
+		if (neg)
+		{
+			return sprintf(out, SYEX_MUL_FMT_A);
+		}
+		else
+		{
+			return sprintf(out, SYEX_MUL_FMT_AA);
+		}
+	}
+
+	inline size_t mul_print_sep(char* out, bool neg1, bool neg2)
+	{
+		if (neg1 && neg2)
+		{
+			return sprintf(out, SYEX_MUL_SEP);
+		}
+		else if (neg1)
+		{
+			return sprintf(out, SYEX_MUL_SEP_A);
+		}
+		else if (neg2)
+		{
+			return sprintf(out, SYEX_MUL_SEP_B);
+		}
+		else
+		{
+			return sprintf(out, SYEX_MUL_SEP_AB);
+		}
+	}
+
+	inline size_t mul_print_right(char* out, bool neg)
+	{
+		if (neg)
+		{
+			return sprintf(out, SYEX_MUL_FMT_B);
+		}
+		else
+		{
+			return sprintf(out, SYEX_MUL_FMT_BB);
+		}
+	}
+
+	template<typename E1, typename E2>
 	size_t mul_print(FILE* out, OpExpression<E1> const& a, OpExpression<E2> const& b)
 	{
 		size_t n = 0;
-		n += fprintf(out, SYEX_MUL_FMT_AA);
+		bool neg1 = expr::eval(expr::coeff(*static_cast<E1 const*>(&a))) < 0;
+		bool neg2 = expr::eval(expr::coeff(*static_cast<E2 const*>(&b))) < 0;
+
+		n += mul_print_left(out, neg1);
 		n += static_cast<E1 const*>(&a)->print(out);
-		n += fprintf(out, SYEX_MUL_SEP_B);
+		n += mul_print_sep(out, neg1, neg2);
 		n += static_cast<E2 const*>(&b)->print(out);
-		n += fprintf(out, SYEX_MUL_FMT_B);
+		n += mul_print_right(out, neg2);
 		return n;
 	}
 
-	template<typename E1, typename E2, std::enable_if_t<(!has_coeff<E1> && has_nmi_coeff<E2>), int> = 0>
+	template<typename E1, typename E2>
 	size_t mul_print(char* out, OpExpression<E1> const& a, OpExpression<E2> const& b)
 	{
 		size_t n = 0;
-		n += sprintf(out + n, SYEX_MUL_FMT_AA);
+		bool neg1 = expr::eval(expr::coeff(*static_cast<E1 const*>(&a))) < 0;
+		bool neg2 = expr::eval(expr::coeff(*static_cast<E2 const*>(&b))) < 0;
+
+		n += mul_print_left(out + n, neg1);
 		n += static_cast<E1 const*>(&a)->print(out + n);
-		n += sprintf(out + n, SYEX_MUL_SEP_B);
+		n += mul_print_sep(out + n, neg1, neg2);
 		n += static_cast<E2 const*>(&b)->print(out + n);
-		n += sprintf(out + n, SYEX_MUL_FMT_B);
-		return n;
-	}
-
-	template<typename E1, typename E2, std::enable_if_t<(!has_coeff<E1> && has_pmi_coeff<E2>), int> = 0>
-	size_t mul_print(FILE* out, OpExpression<E1> const& a, OpExpression<E2> const& b)
-	{
-		size_t n = 0;
-		n += fprintf(out, SYEX_MUL_FMT_AA);
-		n += static_cast<E1 const*>(&a)->print(out);
-		n += fprintf(out, SYEX_MUL_SEP_AB);
-		n += static_cast<E2 const*>(&b)->print(out);
-		n += fprintf(out, SYEX_MUL_FMT_BB);
-		return n;
-	}
-
-	template<typename E1, typename E2, std::enable_if_t<(!has_coeff<E1> && has_pmi_coeff<E2>), int> = 0>
-	size_t mul_print(char* out, OpExpression<E1> const& a, OpExpression<E2> const& b)
-	{
-		size_t n = 0;
-		n += sprintf(out + n, SYEX_MUL_FMT_AA);
-		n += static_cast<E1 const*>(&a)->print(out + n);
-		n += sprintf(out + n, SYEX_MUL_SEP_AB);
-		n += static_cast<E2 const*>(&b)->print(out + n);
-		n += sprintf(out + n, SYEX_MUL_FMT_BB);
-		return n;
-	}
-
-	template<typename E1, typename E2, std::enable_if_t<(has_pmi_coeff<E1> && has_nmi_coeff<E2>), int> = 0>
-	size_t mul_print(FILE* out, OpExpression<E1> const& a, OpExpression<E2> const& b)
-	{
-		size_t n = 0;
-		n += fprintf(out, SYEX_MUL_FMT_AA);
-		n += static_cast<E1 const*>(&a)->print(out);
-		n += fprintf(out, SYEX_MUL_SEP_B);
-		n += static_cast<E2 const*>(&b)->print(out);
-		n += fprintf(out, SYEX_MUL_FMT_B);
-		return n;
-	}
-
-	template<typename E1, typename E2, std::enable_if_t<(has_pmi_coeff<E1> && has_nmi_coeff<E2>), int> = 0>
-	size_t mul_print(char* out, OpExpression<E1> const& a, OpExpression<E2> const& b)
-	{
-		size_t n = 0;
-		n += sprintf(out + n, SYEX_MUL_FMT_AA);
-		n += static_cast<E1 const*>(&a)->print(out + n);
-		n += sprintf(out + n, SYEX_MUL_SEP_B);
-		n += static_cast<E2 const*>(&b)->print(out + n);
-		n += sprintf(out + n, SYEX_MUL_FMT_B);
-		return n;
-	}
-
-	template<typename E1, typename E2, std::enable_if_t<(has_nmi_coeff<E1> && has_nmi_coeff<E2>), int> = 0>
-	size_t mul_print(FILE* out, OpExpression<E1> const& a, OpExpression<E2> const& b)
-	{
-		size_t n = 0;
-		n += fprintf(out, SYEX_MUL_FMT_A);
-		n += static_cast<E1 const*>(&a)->print(out);
-		n += fprintf(out, SYEX_MUL_SEP);
-		n += static_cast<E2 const*>(&b)->print(out);
-		n += fprintf(out, SYEX_MUL_FMT_B);
-		return n;
-	}
-
-	template<typename E1, typename E2, std::enable_if_t<(has_nmi_coeff<E1> && has_nmi_coeff<E2>), int> = 0>
-	size_t mul_print(char* out, OpExpression<E1> const& a, OpExpression<E2> const& b)
-	{
-		size_t n = 0;
-		n += sprintf(out + n, SYEX_MUL_FMT_A);
-		n += static_cast<E1 const*>(&a)->print(out + n);
-		n += sprintf(out + n, SYEX_MUL_SEP);
-		n += static_cast<E2 const*>(&b)->print(out + n);
-		n += sprintf(out + n, SYEX_MUL_FMT_B);
-		return n;
-	}
-
-	template<typename E1, typename E2, std::enable_if_t<(has_coeff<E1> && has_pmi_coeff<E2>), int> = 0>
-	size_t mul_print(FILE* out, OpExpression<E1> const& a, OpExpression<E2> const& b)
-	{
-		size_t n = 0;
-		n += fprintf(out, SYEX_MUL_FMT_AA);
-		n += static_cast<E1 const*>(&a)->print(out);
-		n += fprintf(out, SYEX_MUL_SEP_OP);
-		n += static_cast<E2 const*>(&b)->print(out);
-		n += fprintf(out, SYEX_MUL_FMT_BB);
-		return n;
-	}
-
-	template<typename E1, typename E2, std::enable_if_t<(has_coeff<E1> && has_pmi_coeff<E2>), int> = 0>
-	size_t mul_print(char* out, OpExpression<E1> const& a, OpExpression<E2> const& b)
-	{
-		size_t n = 0;
-		n += sprintf(out + n, SYEX_MUL_FMT_AA);
-		n += static_cast<E1 const*>(&a)->print(out + n);
-		n += sprintf(out + n, SYEX_MUL_SEP_OP);
-		n += static_cast<E2 const*>(&b)->print(out + n);
-		n += sprintf(out + n, SYEX_MUL_FMT_BB);
+		n += mul_print_right(out + n, neg2);
 		return n;
 	}
 
@@ -2694,11 +2692,14 @@ namespace symphas::internal
 	size_t mul_print(FILE* out, OpIntegral<V, E1, T> const& a, OpExpression<E2> const& b)
 	{
 		size_t n = 0;
-		n += fprintf(out, SYEX_MUL_FMT_AA);
+		bool neg1 = expr::eval(expr::coeff(a)) < 0;
+		bool neg2 = true;
+
+		n += mul_print_left(out, neg1);
 		n += a.print(out);
-		n += fprintf(out, SYEX_MUL_SEP_B);
+		n += mul_print_sep(out, neg1, neg2);
 		n += static_cast<E2 const*>(&b)->print(out);
-		n += fprintf(out, SYEX_MUL_FMT_B);
+		n += mul_print_right(out, neg2);
 		return n;
 	}
 
@@ -2706,17 +2707,23 @@ namespace symphas::internal
 	size_t mul_print(char* out, OpIntegral<V, E1, T> const& a, OpExpression<E2> const& b)
 	{
 		size_t n = 0;
-		n += sprintf(out + n, SYEX_MUL_FMT_AA);
+		bool neg1 = expr::eval(expr::coeff(a)) < 0;
+		bool neg2 = true;
+
+		n += mul_print_left(out + n, neg1);
 		n += a.print(out + n);
-		n += sprintf(out + n, SYEX_MUL_SEP_B);
+		n += mul_print_sep(out + n, neg1, neg2);
 		n += static_cast<E2 const*>(&b)->print(out + n);
-		n += sprintf(out + n, SYEX_MUL_FMT_B);
+		n += mul_print_right(out + n, neg2);
 		return n;
 	}
 
 	template<typename V, typename E1, typename T, typename E2>
 	size_t mul_print(FILE* out, OpExpression<E1> const& a, OpIntegral<V, E2, T> const& b)
 	{
+		bool neg1 = expr::eval(expr::coeff(*static_cast<E1 const*>(&a))) < 0;
+		bool neg2 = false;
+
 		size_t n = 0;
 		n += fprintf(out, SYEX_MUL_FMT_AA);
 		n += static_cast<E1 const*>(&a)->print(out);
@@ -2730,17 +2737,23 @@ namespace symphas::internal
 	size_t mul_print(char* out, OpExpression<E1> const& a, OpIntegral<V, E2, T> const& b)
 	{
 		size_t n = 0;
-		n += sprintf(out + n, SYEX_MUL_FMT_AA);
-		n += static_cast<E1 const*>(&a)->print(out + n);
-		n += sprintf(out + n, SYEX_MUL_SEP_OP);
+		bool neg1 = expr::eval(expr::coeff(*static_cast<E1 const*>(&a))) < 0;
+		bool neg2 = false;
+
+		n += mul_print_left(out + n, neg1);
+		n += static_cast<E1 const*>(&a)->print(out);
+		n += mul_print_sep(out + n, neg1, neg2);
 		n += b.print(out + n);
-		n += sprintf(out + n, SYEX_MUL_FMT_BB);
+		n += mul_print_right(out + n, neg2);
 		return n;
 	}
 
 	template<typename V1, typename E1, typename T1, typename V2, typename E2, typename T2>
 	size_t mul_print(FILE* out, OpIntegral<V1, E1, T1> const& a, OpIntegral<V2, E2, T2> const& b)
 	{
+		bool neg1 = false;
+		bool neg2 = false;
+
 		size_t n = 0;
 		n += fprintf(out, SYEX_MUL_FMT_AA);
 		n += a.print(out);
@@ -2754,11 +2767,14 @@ namespace symphas::internal
 	size_t mul_print(char* out, OpIntegral<V1, E1, T1> const& a, OpIntegral<V2, E2, T2> const& b)
 	{
 		size_t n = 0;
-		n += sprintf(out + n, SYEX_MUL_FMT_AA);
+		bool neg1 = false;
+		bool neg2 = false;
+
+		n += mul_print_left(out + n, neg1);
 		n += a.print(out + n);
-		n += sprintf(out + n, SYEX_MUL_SEP_OP);
+		n += mul_print_sep(out + n, neg1, neg2);
 		n += b.print(out + n);
-		n += sprintf(out + n, SYEX_MUL_FMT_BB);
+		n += mul_print_right(out + n, neg2);
 		return n;
 	}
 

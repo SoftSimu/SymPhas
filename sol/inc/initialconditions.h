@@ -157,7 +157,7 @@ struct InitialConditionsData
 		std::copy(dims, dims + D, this->dims);
 	}
 
-	virtual scalar_t operator()(iter_type) const = 0;
+	virtual scalar_t operator[](iter_type) const = 0;
 
 	virtual operator bool() const
 	{
@@ -171,374 +171,6 @@ struct InitialConditionsData
 	len_type dims[D];					//!< Dimensions of the system.
 
 };
-
-
-
-namespace symphas::internal
-{
-	template<typename T>
-	struct value_fill;
-
-	template<>
-	struct value_fill<scalar_t>
-	{
-		scalar_t operator()(Axis ax, scalar_t const& current, scalar_t value) const
-		{
-			return value;
-		}
-	};
-
-	template<>
-	struct value_fill<complex_t>
-	{
-		value_fill() : 
-			gen{ std::random_device{}() }, 
-			th{ -symphas::PI, symphas::PI } {}
-
-		complex_t operator()(Axis ax, complex_t const& current, scalar_t value) const
-		{
-			using namespace std;
-			switch (ax)
-			{
-			case Axis::NONE:
-			{
-				scalar_t
-					a = th(gen),
-					r = std::abs(value);
-				return { r * cos(a), r * sin(a) };
-			}
-			case Axis::X:
-			{
-				return { value, current.imag() };
-			}
-			case Axis::Y:
-			{
-				return { current.real(), value };
-			}
-			case Axis::T:
-			{
-				scalar_t m = abs(current);
-				return { m * cos(PI * value), m * sin(PI * value) };
-			}
-			case Axis::R:
-			{
-				scalar_t r = abs(current) / value;
-				return { current.real() / r, current.imag() / r };
-			}
-			default:
-			{
-				return current;
-			}
-			}
-		}
-
-		mutable std::mt19937 gen;
-		mutable std::uniform_real_distribution<scalar_t> th;
-	};
-
-
-	template<>
-	struct value_fill<vector_t<1>>
-	{
-		vector_t<1> operator()(Axis ax, vector_t<1> const& current, scalar_t value) const
-		{
-			return { value };
-		}
-	};
-
-	template<>
-	struct value_fill<vector_t<2>> : value_fill<complex_t>
-	{
-		using value_fill<complex_t>::value_fill;
-
-		vector_t<2> operator()(Axis ax, vector_t<2> const& current, scalar_t value) const
-		{
-			auto c = value_fill<complex_t>::operator()(ax, complex_t(current[0], current[1]), value);
-			return { c.real(), c.imag() };
-		}
-	};
-
-	template<>
-	struct value_fill<vector_t<3>> : value_fill<complex_t>
-	{
-		using value_fill<complex_t>::value_fill;
-
-		vector_t<3> operator()(Axis ax, vector_t<3> const& current, scalar_t value) const
-		{
-			using namespace std;
-			switch (ax)
-			{
-			case Axis::NONE:
-			{
-				scalar_t
-					a = th(gen),
-					b = th(gen),
-					r = std::abs(value);
-				return { r * sin(a) * cos(b), r * sin(a) * sin(b), r * cos(a) };
-			}
-			case Axis::X:
-			{
-				return { value, current[1], current[2] };
-			}
-			case Axis::Y:
-			{
-				return { current[0], value, current[2] };
-			}
-			case Axis::Z:
-			{
-				return { current[0], current[1], value };
-			}
-			case Axis::T:
-			{
-				scalar_t m = abs(current);
-				scalar_t th = PI * value;
-				scalar_t phi = acos(current[2] / m);
-				return { m * sin(phi) * cos(th), m * sin(phi) * sin(th), m * cos(phi) };
-			}
-			case Axis::S:
-			{
-				scalar_t m = abs(current);
-				scalar_t th = atan(current[1] / current[0]);
-				scalar_t phi = PI * value;
-				return { m * sin(phi) * cos(th), m * sin(phi) * sin(th), m * cos(phi) };
-			}
-			case Axis::R:
-			{
-				scalar_t r = abs(current) / value;
-				return { current[0] / r, current[1] / r, current[2] / r };
-			}
-			default:
-			{
-				return current;
-			}
-			}
-		}
-	};
-
-
-
-	template<typename T, size_t D>
-	class ic_iterator
-	{
-
-		using E = InitialConditionsData<D>;
-
-	public:
-
-		using iterator_category = std::random_access_iterator_tag;
-		using value_type = T;
-		using difference_type = int;
-		using pointer = T*;
-		using reference = int;
-
-		//! Create an iterator starting at the given position.
-		/*!
-		 * Create an iterator over an expression starting at the given
-		 * position. The expression is explicitly given.
-		 *
-		 * \param e The expression for this iterator.
-		 * \param pos The index of the underlying data in the expression
-		 * which is the first index in the iterator.
-		 */
-		explicit ic_iterator(Axis ax, T* values, E const& e, difference_type pos = 0)
-			: fill{}, init{ static_cast<E const*>(&e) }, pos{ pos }, ax{ ax }, values{ values } {}
-
-
-		ic_iterator(ic_iterator<T, D> const& other) :
-			ic_iterator(other.ax, other.values, *other.init, other.pos) {}
-		ic_iterator(ic_iterator<T, D>&& other) :
-			ic_iterator(other.ax, other.values, *other.init, other.pos) {}
-		ic_iterator<T, D>& operator=(ic_iterator<T, D> other)
-		{
-			fill = other.fill;
-			init = other.init;
-			pos = other.pos;
-			ax = other.ax;
-			values = other.values;
-			return *this;
-		}
-
-		//! Prefix increment, returns itself.
-		ic_iterator<T, D>& operator++()
-		{
-			++pos;
-			return *this;
-		}
-
-		//! Postfix increment, return a copy before the increment.
-		ic_iterator<T, D> operator++(difference_type)
-		{
-			ic_iterator<T, D> it = *this;
-			++pos;
-			return it;
-		}
-
-
-		//! Prefix decrement, returns itself.
-		ic_iterator<T, D>& operator--()
-		{
-			--pos;
-			return *this;
-		}
-
-		//! Postfix decrement, return a copy before the increment.
-		ic_iterator<T, D> operator--(difference_type)
-		{
-			ic_iterator<T, D> it = *this;
-			--pos;
-			return it;
-		}
-
-
-		ic_iterator<T, D>& operator+=(difference_type offset)
-		{
-			pos += offset;
-			return *this;
-		}
-
-		ic_iterator<T, D>& operator-=(difference_type offset)
-		{
-			pos -= offset;
-			return *this;
-		}
-
-
-
-		//! Dereference the iterator.
-		inline value_type operator*() const
-		{
-			return fill(ax, values[pos], (*init)(pos));
-		};
-
-		//! Dereference past the iterator.
-		inline value_type operator[](difference_type given_pos) const
-		{
-			return fill(ax, values[pos], (*init)(pos + given_pos));
-		}
-
-		//! Member access of the iterated expression.
-		inline E* operator->() const
-		{
-			return init;
-		};
-
-
-		//! Equality comparison with another iterator.
-		/*!
-		 * Equality comparison with another iterator.
-		 * Compares the current position.
-		 */
-		bool operator==(ic_iterator<T, D> const& other) const
-		{
-			return pos == other.pos
-				&& init == other.init;
-		}
-
-		//! Inequality comparison with another iterator.
-		/*!
-		 * Inequality comparison with another iterator.
-		 * Compares the current position.
-		 */
-		bool operator!=(ic_iterator<T, D> const& other) const
-		{
-			return !(*this == other);
-		}
-
-		//! Comparison with another iterator.
-		/*!
-		 * Greater than comparison with another iterator.
-		 * Compares the current position.
-		 */
-		bool operator>(ic_iterator<T, D> const& other) const
-		{
-			return pos > other.pos
-				&& init == other.init;
-		}
-
-		//! Comparison with another iterator.
-		/*!
-		 * Less than comparison with another iterator.
-		 * Compares the current position.
-		 */
-		bool operator<(ic_iterator<T, D> const& other) const
-		{
-			return other > *this;
-		}
-
-		//! Comparison with another iterator.
-		/*!
-		 * Greater than or equal to comparison with another iterator.
-		 * Compares the current position.
-		 */
-		bool operator>=(ic_iterator<T, D> const& other) const
-		{
-			return !(*this < other);
-		}
-
-		//! Comparison with another iterator.
-		/*!
-		 * Less than or equal to comparison with another iterator.
-		 * Compares the current position.
-		 */
-		bool operator<=(ic_iterator<T, D> const& other) const
-		{
-			return !(*this > other);
-		}
-
-
-
-		//! Convertible to the difference type of two iterators.
-		operator difference_type() const
-		{
-			return pos;
-		}
-
-		//! Add two iterators.
-		difference_type operator+(ic_iterator<T, D> const& rhs)
-		{
-			return pos + rhs;
-		}
-
-		//! Subtract two iterators.
-		difference_type operator-(ic_iterator<T, D> const& rhs)
-		{
-			return pos - rhs;
-		}
-
-		//! Add an offset from the iterator.
-		ic_iterator<T, D> operator+(difference_type offset)
-		{
-			ic_iterator<T, D> it = *this;
-			return it += offset;
-		}
-
-		//! Subtract an offset from the iterator.
-		ic_iterator<T, D> operator-(difference_type offset)
-		{
-			ic_iterator<T, D> it = *this;
-			return it -= offset;
-		}
-
-		//! Add an offset from the left hand side to an iterator.
-		friend difference_type operator+(difference_type offset, ic_iterator<T, D> rhs)
-		{
-			return offset + rhs.pos;
-		}
-
-		//! Subtract an offset from the left hand side to an iterator.
-		friend difference_type operator-(difference_type offset, ic_iterator<T, D> rhs)
-		{
-			return offset - rhs.pos;
-		}
-
-		value_fill<T> fill;		//!< Method to return the correct type from the generation result.
-		E const* init;			//!< Pointer to the initial conditions generator.
-		difference_type pos;	//!< Current index of iteration.
-		Axis ax;				//!< Axis of the entries to fill. If NONE, all entries are initialized.
-		T* values;				//!< Pointer to the values that will be filled.
-	};
-
-}
 
 
 //! Used to generate initial conditions data for a system of given dimension.
@@ -678,7 +310,7 @@ struct InitialConditionsAlg<D, Inside::SQUARE> :
 {
 	using parent_type = InitialConditionsData<D>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 //! Generate a square randomly offset from the center.
@@ -702,7 +334,7 @@ struct InitialConditionsAlg<D, Inside::SQUARE, InsideTag::RANDOM> :
 		offsets = symphas::internal::RandomDeltas<D>(1, dims, IC_SQUARE_RND_FACTOR);
 	}
 
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 
 	symphas::internal::RandomDeltas<D> offsets;		//!< Manages a list of random offsets.
 };
@@ -720,7 +352,7 @@ struct InitialConditionsAlg<D, Inside::SQUARE, InsideTag::VARA> :
 {
 	using parent_type = InitialConditionsAlg<D, Inside::SQUARE>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 //! Generate a square randomly offset from the center.
@@ -734,7 +366,7 @@ struct InitialConditionsAlg<D, Inside::SQUARE, InsideTag::VARA, InsideTag::RANDO
 {
 	using parent_type = InitialConditionsAlg<D, Inside::SQUARE, InsideTag::RANDOM>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 //! Generate a square randomly offset from the center.
@@ -820,7 +452,7 @@ struct InitialConditionsAlg<D, Inside::CIRCLE> :
 {
 	using parent_type = InitialConditionsData<D>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 //! Generate a circle randomly offset from the center.
@@ -843,7 +475,7 @@ struct InitialConditionsAlg<D, Inside::CIRCLE, InsideTag::RANDOM> :
 		offsets = symphas::internal::RandomDeltas<D>(1, dims, IC_CIRCLE_RND_FACTOR);
 	}
 
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 
 	symphas::internal::RandomDeltas<D> offsets;		//!< Manages a list of random offsets.
 };
@@ -861,7 +493,7 @@ struct InitialConditionsAlg<D, Inside::CIRCLE, InsideTag::VARA> :
 {
 	using parent_type = InitialConditionsAlg<D, Inside::CIRCLE>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 //! Generate a circle randomly offset from the center.
@@ -875,7 +507,7 @@ struct InitialConditionsAlg<D, Inside::CIRCLE, InsideTag::VARA, InsideTag::RANDO
 {
 	using parent_type = InitialConditionsAlg<D, Inside::CIRCLE, InsideTag::RANDOM>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 template<size_t D>
@@ -996,7 +628,7 @@ struct InitialConditionsAlg<D, Inside::CUBIC> :
 {
 	using parent_type = InitialConditionsData<D>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 
@@ -1028,7 +660,7 @@ struct InitialConditionsAlg<D, Inside::CUBIC, InsideTag::RANDOM> :
 		offsets = symphas::internal::RandomDeltas<D>(prod, local_dims, IC_CUBIC_RND_FACTOR);
 	}
 
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 
 	symphas::internal::RandomDeltas<D> offsets;		//!< Manages a list of random offsets.
 };
@@ -1056,7 +688,7 @@ struct InitialConditionsAlg<D, Inside::CUBIC, InsideTag::VARA> :
 {
 	using parent_type = InitialConditionsAlg<D, Inside::CUBIC>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 
@@ -1128,7 +760,7 @@ struct InitialConditionsAlg<D, Inside::HEXAGONAL> :
 {
 	using parent_type = InitialConditionsData<D>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 //! Generates circles randomly offset arranged in a hexagonal lattice.
@@ -1158,7 +790,7 @@ struct InitialConditionsAlg<D, Inside::HEXAGONAL, InsideTag::RANDOM> :
 		offsets = symphas::internal::RandomDeltas<D>(prod, local_dims, IC_HEX_RND_FACTOR);
 	}
 
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 
 	symphas::internal::RandomDeltas<D> offsets;		//!< Manages a list of random offsets.
 };
@@ -1245,7 +877,7 @@ struct InitialConditionsAlg<D, Inside::SEEDSSQUARE> :
 		offsets.add_to_all(center_delta);
 	}
 
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 
 	symphas::internal::RandomDeltas<D> offsets;					//!< Manages a list of random offsets.
 	symphas::internal::RandomOffsets<len_type, D> lengths;		//!< Manages a list of random sizes.
@@ -1286,7 +918,7 @@ struct InitialConditionsAlg<D, Inside::SEEDSSQUARE, InsideTag::RANDOM> :
 		values = symphas::internal::RandomOffsets<scalar_t, 1>(n, value_rng, IC_SEED_RND_FACTOR);
 	}
 
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 
 	symphas::internal::RandomOffsets<scalar_t, 1> values;			//!< Manages a list of random values.
 };
@@ -1313,7 +945,7 @@ struct InitialConditionsAlg<D, Inside::SEEDSSQUARE, InsideTag::VARA> :
 {
 	using parent_type = InitialConditionsAlg<D, Inside::SEEDSSQUARE>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 //! Randomly places squares which are randomly sized throughout the system.
@@ -1327,7 +959,7 @@ struct InitialConditionsAlg<D, Inside::SEEDSSQUARE, InsideTag::VARA, InsideTag::
 {
 	using parent_type = InitialConditionsAlg<D, Inside::SEEDSSQUARE, InsideTag::RANDOM>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 template<size_t D>
@@ -1351,7 +983,7 @@ struct InitialConditionsAlg<D, Inside::SEEDSSQUARE, InsideTag::VARB> :
 {
 	using parent_type = InitialConditionsAlg<D, Inside::SEEDSSQUARE>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 //! Randomly places squares which are randomly sized throughout the system.
@@ -1365,7 +997,7 @@ struct InitialConditionsAlg<D, Inside::SEEDSSQUARE, InsideTag::VARB, InsideTag::
 {
 	using parent_type = InitialConditionsAlg<D, Inside::SEEDSSQUARE, InsideTag::RANDOM>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 template<size_t D>
@@ -1402,7 +1034,7 @@ struct InitialConditionsAlg<D, Inside::SEEDSSQUARE, InsideTag::VARC> :
 {
 	using parent_type = InitialConditionsAlg<D, Inside::SEEDSSQUARE>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 
 	InitialConditionsAlg(
 		symphas::init_entry_type const& init,
@@ -1433,7 +1065,7 @@ struct InitialConditionsAlg<D, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::
 {
 	using parent_type = InitialConditionsAlg<D, Inside::SEEDSSQUARE, InsideTag::RANDOM>;
 
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 
 	InitialConditionsAlg(
 		symphas::init_entry_type const& tdata,
@@ -1487,7 +1119,7 @@ struct InitialConditionsAlg<D, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::
 {
 	using parent_type = InitialConditionsAlg<D, Inside::SEEDSSQUARE, InsideTag::VARC>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 
@@ -1502,7 +1134,7 @@ struct InitialConditionsAlg<D, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::
 {
 	using parent_type = InitialConditionsAlg<D, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::RANDOM>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 
@@ -1570,7 +1202,7 @@ struct InitialConditionsAlg<D, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::
 {
 	using parent_type = InitialConditionsAlg<D, Inside::SEEDSSQUARE, InsideTag::VARC>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 
@@ -1585,7 +1217,7 @@ struct InitialConditionsAlg<D, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::
 {
 	using parent_type = InitialConditionsAlg<D, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::RANDOM>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 template<size_t D>
@@ -1670,7 +1302,7 @@ struct InitialConditionsAlg<D, Inside::SEEDSCIRCLE> :
 {
 	using parent_type = InitialConditionsAlg<D, Inside::SEEDSSQUARE>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 //! Randomly places circles which are randomly sized throughout the system.
@@ -1691,7 +1323,7 @@ struct InitialConditionsAlg<D, Inside::SEEDSCIRCLE, InsideTag::RANDOM> :
 {
 	using parent_type = InitialConditionsAlg<D, Inside::SEEDSSQUARE, InsideTag::RANDOM>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 
@@ -1716,7 +1348,7 @@ struct InitialConditionsAlg<D, Inside::SEEDSCIRCLE, InsideTag::VARA> :
 {
 	using parent_type = InitialConditionsAlg<D, Inside::SEEDSCIRCLE>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 
@@ -1731,7 +1363,7 @@ struct InitialConditionsAlg<D, Inside::SEEDSCIRCLE, InsideTag::VARA, InsideTag::
 {
 	using parent_type = InitialConditionsAlg<D, Inside::SEEDSCIRCLE, InsideTag::RANDOM>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 template<size_t D>
@@ -1754,7 +1386,7 @@ struct InitialConditionsAlg<D, Inside::SEEDSCIRCLE, InsideTag::VARB> :
 {
 	using parent_type = InitialConditionsAlg<D, Inside::SEEDSCIRCLE>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 //! Randomly places circles which are randomly sized throughout the system.
@@ -1768,7 +1400,7 @@ struct InitialConditionsAlg<D, Inside::SEEDSCIRCLE, InsideTag::VARB, InsideTag::
 {
 	using parent_type = InitialConditionsAlg<D, Inside::SEEDSCIRCLE, InsideTag::RANDOM>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 template<size_t D>
@@ -1806,7 +1438,7 @@ struct InitialConditionsAlg<D, Inside::SEEDSCIRCLE, InsideTag::VARC> :
 {
 	using parent_type = InitialConditionsAlg<D, Inside::SEEDSSQUARE, InsideTag::VARC>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 
@@ -1821,7 +1453,7 @@ struct InitialConditionsAlg<D, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::
 {
 	using parent_type = InitialConditionsAlg<D, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::RANDOM>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 template<size_t D>
@@ -1860,7 +1492,7 @@ struct InitialConditionsAlg<D, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::
 {
 	using parent_type = InitialConditionsAlg<D, Inside::SEEDSCIRCLE, InsideTag::VARC>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 
@@ -1875,7 +1507,7 @@ struct InitialConditionsAlg<D, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::
 {
 	using parent_type = InitialConditionsAlg<D, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::RANDOM>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 template<size_t D>
@@ -1942,7 +1574,7 @@ struct InitialConditionsAlg<D, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::
 {
 	using parent_type = InitialConditionsAlg<D, Inside::SEEDSCIRCLE, InsideTag::VARC>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 
@@ -1957,7 +1589,7 @@ struct InitialConditionsAlg<D, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::
 {
 	using parent_type = InitialConditionsAlg<D, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::RANDOM>;
 	using parent_type::parent_type;
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 
@@ -2068,7 +1700,7 @@ struct InitialConditionsAlg<D, Inside::VORONOI> :
 		values = symphas::internal::RandomOffsets<scalar_t, 1>(N, value_rng, (init.data.gp[2] - init.data.gp[1]) / 2);
 	}
 
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 
 	size_t N;													//!< Number of regions.
 	symphas::internal::RandomDeltas<D> offsets;					//!< Manages a list of random offsets.
@@ -2126,7 +1758,7 @@ struct InitialConditionsAlg<D, Inside::BUBBLE> :
 		values = symphas::internal::RandomOffsets<scalar_t, 1>(N, value_rng, (init.data.gp[2] - init.data.gp[1]) / 2);
 	}
 
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 
 	size_t N;													//!< Number of regions.
 	double R;
@@ -2145,7 +1777,7 @@ struct InitialConditionsAlg<D, Inside::SIN> :
 	using parent_type::dims;
 	using parent_type::vdata;
 
-	scalar_t operator()(iter_type n) const override
+	scalar_t operator[](iter_type n) const override
 	{
 		return symphas::internal::get_function_value(n, &symphas::math::sin<scalar_t>, dims, vdata, init.data.gp);
 	}
@@ -2161,7 +1793,7 @@ struct InitialConditionsAlg<D, Inside::SIN, InsideTag::VARA> :
 	using parent_type::dims;
 	using parent_type::vdata;
 
-	scalar_t operator()(iter_type n) const override
+	scalar_t operator[](iter_type n) const override
 	{
 		return symphas::internal::get_function_value_A(n, &symphas::math::sin<scalar_t>, dims, vdata, init.data.gp);
 	}
@@ -2185,7 +1817,7 @@ struct InitialConditionsAlg<D, Inside::COS> :
 	using parent_type::dims;
 	using parent_type::vdata;
 
-	scalar_t operator()(iter_type n) const override
+	scalar_t operator[](iter_type n) const override
 	{
 		return symphas::internal::get_function_value(n, &symphas::math::cos<scalar_t>, dims, vdata, init.data.gp);
 	}
@@ -2201,7 +1833,7 @@ struct InitialConditionsAlg<D, Inside::COS, InsideTag::VARA> :
 	using parent_type::dims;
 	using parent_type::vdata;
 
-	scalar_t operator()(iter_type n) const override
+	scalar_t operator[](iter_type n) const override
 	{
 		return symphas::internal::get_function_value_A(n, &symphas::math::cos<scalar_t>, dims, vdata, init.data.gp);
 	}
@@ -2232,7 +1864,7 @@ struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::VARA> :
 	using parent_type = InitialConditionsAlg<D, Inside::VORONOI>;
 	using parent_type::parent_type;
 
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 //! Generates values for a Voronoi Diagram which, once set, are always the same. 
@@ -2254,9 +1886,9 @@ struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED>
 		parent_type(init, vdata, dims), voronoi{ get_voronoi(init, vdata, dims) } {}
 
 
-	scalar_t operator()(iter_type n) const override
+	scalar_t operator[](iter_type n) const override
 	{
-		return voronoi(n);
+		return voronoi[n];
 	}
 
 	auto get_voronoi(
@@ -2294,9 +1926,9 @@ struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag:
 		parent_type(init, vdata, dims), voronoi{ get_voronoi(init, vdata, dims) } {}
 
 
-	scalar_t operator()(iter_type n) const override
+	scalar_t operator[](iter_type n) const override
 	{
-		return voronoi(n);
+		return voronoi[n];
 	}
 
 	auto get_voronoi(
@@ -2361,7 +1993,7 @@ struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag:
 		return offsets0;
 	}
 
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 
 	size_t N;													//!< Number of regions.
 	symphas::internal::RandomDeltas<D> offsets;					//!< Manages a list of random offsets.
@@ -2397,7 +2029,7 @@ struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag:
 	using parent_type::offsets;
 	using parent_type::values;
 
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 
 };
 
@@ -2463,7 +2095,7 @@ struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag:
 		return values1;
 	}
 
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 
 	size_t N;													//!< Number of regions.
 	symphas::internal::RandomDeltas<D> offsets;					//!< Manages a list of random offsets.
@@ -2498,7 +2130,7 @@ struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag:
 	using parent_type::offsets;
 	using parent_type::values;
 
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 
 };
 
@@ -2584,7 +2216,7 @@ struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag:
 		return values1;
 	}
 
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 
 	size_t N;													//!< Number of regions.
 	symphas::internal::RandomDeltas<D> offsets;					//!< Manages a list of random offsets.
@@ -2621,7 +2253,7 @@ struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag:
 	using parent_type::offsets;
 	using parent_type::values;
 
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 
 };
 
@@ -2663,7 +2295,7 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::VARA> :
 	using parent_type = InitialConditionsAlg<D, Inside::BUBBLE>;
 	using parent_type::parent_type;
 
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 };
 
 //! Fills the system with equally sized semi-overlapping bubbles. 
@@ -2685,9 +2317,9 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED>
 		parent_type(init, vdata, dims), bubble{ get_bubble(init, vdata, dims) } {}
 
 
-	scalar_t operator()(iter_type n) const override
+	scalar_t operator[](iter_type n) const override
 	{
-		return bubble(n);
+		return bubble[n];
 	}
 
 	auto get_bubble(
@@ -2725,9 +2357,9 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::
 		parent_type(init, vdata, dims), bubble{ get_bubble(init, vdata, dims) } {}
 
 
-	scalar_t operator()(iter_type n) const override
+	scalar_t operator[](iter_type n) const override
 	{
-		return bubble(n);
+		return bubble[n];
 	}
 
 	auto get_bubble(
@@ -2792,7 +2424,7 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::
 		values = symphas::internal::RandomOffsets<scalar_t, 1>(N, value_rng, (init.data.gp[2] - init.data.gp[1]) / 2);;
 	}
 
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 
 	size_t N;													//!< Number of regions.
 	double R;
@@ -2828,7 +2460,7 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::
 	using parent_type::offsets;
 	using parent_type::values;
 
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 
 };
 
@@ -2880,7 +2512,7 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::
 		values = get_values(init);
 	}
 
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 
 
 	auto get_values(symphas::init_entry_type const& init) const
@@ -2931,7 +2563,7 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::
 	using parent_type::offsets;
 	using parent_type::values;
 
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 
 };
 
@@ -3004,7 +2636,7 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::
 		values = get_values(init);
 	}
 
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 
 	auto get_select()
 	{
@@ -3058,7 +2690,7 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::
 	using parent_type::offsets;
 	using parent_type::values;
 
-	scalar_t operator()(iter_type) const override;
+	scalar_t operator[](iter_type) const override;
 
 };
 
@@ -3101,7 +2733,7 @@ struct InitialConditionsAlg<D, Inside::GAUSSIAN> :
 		dis{ init.data.gp[0], init.data.gp[1] }
 	{}
 
-	scalar_t operator()(iter_type) const override
+	scalar_t operator[](iter_type) const override
 	{
 		return dis(gen);
 	}
@@ -3127,7 +2759,7 @@ struct InitialConditionsAlg<D, Inside::UNIFORM> :
 		dis{ 0, 1 }, a{ init.data.gp[0] }, b{ init.data.gp[1] }
 	{}
 
-	scalar_t operator()(iter_type) const override
+	scalar_t operator[](iter_type) const override
 	{
 		return (a + dis(gen) * (b - a));
 	}
@@ -3152,7 +2784,7 @@ struct InitialConditionsAlg<D, Inside::CONSTANT> :
 	using parent_type::parent_type;
 	using parent_type::init;
 
-	scalar_t operator()(iter_type) const override
+	scalar_t operator[](iter_type) const override
 	{
 		return init.data.gp[0];
 	}
@@ -3177,9 +2809,9 @@ struct InitialConditionsAlg<D, Inside::CAPPED> :
 		mean{ (init.data.gp[0] + init.data.gp[1]) / 2 }
 	{}
 
-	scalar_t operator()(iter_type n) const override
+	scalar_t operator[](iter_type n) const override
 	{
-		return (parent_type::operator()(n) < mean)
+		return (parent_type::operator[](n) < mean)
 			? init.data.gp[0]
 			: init.data.gp[1];
 	}
@@ -3196,7 +2828,7 @@ struct InitialConditionsAlg<D, Inside::NONE, InsideTag::NONE> :
 	using parent_type = InitialConditionsData<D>;
 	using parent_type::parent_type;
 
-	scalar_t operator()(iter_type n) const override
+	scalar_t operator[](iter_type n) const override
 	{
 		return 0;
 	}
@@ -3314,8 +2946,8 @@ struct InitialConditions
 #endif
 		else if (data.at(ax)->init.in == Inside::EXPRESSION)
 		{
-			return match_init_expr<D>(data.at(ax)->init.expr_data.get_name(), values, data.at(ax)->dims,
-				data.at(ax)->vdata, data.at(ax)->init.expr_data.get_coeff(), data.at(ax)->init.expr_data.get_num_coeff());
+			return match_init_expr<D>(data.at(ax)->init.expr_data.get_name(), ax, values,
+				data.at(ax)->dims, data.at(ax)->vdata, data.at(ax)->init.expr_data.get_coeff(), data.at(ax)->init.expr_data.get_num_coeff());
 		}
 		else
 		{

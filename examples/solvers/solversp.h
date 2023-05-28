@@ -90,29 +90,31 @@ NEW_SOLVER(SolverSP)
 	{
 		auto&& [sys, equation] = e;
 		auto&& [linear, nonlinear] = expr::split::by_linear(expr::apply_operators(equation));
-		nonlinear.print(stdout);
-		printf("\n");
+		//nonlinear.print(stdout);
 
-		auto [linear_in_Z, linear_in_nonZ] = expr::split::separate_var<Z>(linear);
-		auto [l_op, non_op] = solver_sp::get_l_op<Z>(linear_in_Z, h);
+		auto&& [linear_in_Z, linear_in_nonZ] = expr::split::separate_var<Z>(linear);
+		auto&& [l_op, non_op] = solver_sp::get_l_op<Z>(linear_in_Z, h);
 
-		auto A_expression = solver_sp::form_A_op<D>(l_op, dt, sys.get().dims);
-		auto B_expression = solver_sp::form_B_op<D>(l_op, dt, sys.get().dims);
-		
+		auto&& A_expression = solver_sp::form_A_op<D>(l_op, dt, sys.get().dims);
+		auto&& B_expression = solver_sp::form_B_op<D>(l_op, dt, sys.get().dims);
 
-		auto nonlinear_scheme = solver_sp::construct_nonlinear<Z, D>(systems, B_expression, linear_in_nonZ + non_op + nonlinear, h, sys.get().dims);
+		auto&& nonlinear_scheme = solver_sp::construct_nonlinear<Z, D>(systems, B_expression, linear_in_nonZ + non_op + nonlinear, h, sys.get().dims);
 
 
-		auto name = expr::get_fourier_name(expr::get_op_name(expr::get_variable<Z>(equation)));
+		auto&& name = expr::get_fourier_name(expr::get_op_name(expr::get_variable<Z>(equation)));
 
 		len_type dims[D];
 		expr::fill_data_dimensions(equation, dims);
 		auto term_ft = expr::as_grid_data<D>(sys.get().frame_t, dims);
 
-		auto A_term = solver_sp::get_A_term<T_src>(A_expression);
-		auto scheme = expr::make_add(A_term * expr::make_term<Z + sizeof...(Ss)>(NamedData(std::move(term_ft), name)), nonlinear_scheme);
-		scheme.print(stdout);
-		fprintf(stdout, "\n");
+		auto&& A_term = solver_sp::get_A_term<T_src>(A_expression);
+		auto&& scheme = expr::make_add(A_term * expr::make_term<Z + sizeof...(Ss)>(NamedData(std::move(term_ft), name)), nonlinear_scheme);
+		expr::printe(scheme, "spectral scheme");
+
+
+
+		//scheme.print(stdout);
+		//fprintf(stdout, "\n");
 
 		auto data = SpectralData(scheme);
 

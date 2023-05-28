@@ -972,7 +972,7 @@ template<typename coeff_t, typename A1, typename A2, typename E,
 	typename std::enable_if_t<(expr::is_coeff<coeff_t>), int> = 0>
 auto operator*(coeff_t const& value, OpCombination<A1, A2, E> const& b)
 {
-	return (value * b.combination)(b.e);
+	return (value * b.combination)(expr::get_enclosed_expression(b));
 }
 
 template<typename coeff_t, typename A1, typename A2, typename E,
@@ -980,7 +980,7 @@ template<typename coeff_t, typename A1, typename A2, typename E,
 		&& expr::is_tensor<coeff_t> && expr::eval_type<OpOperatorCombination<A1, A2>>::rank == 0), int> = 0>
 auto operator*(coeff_t const& value, OpCombination<A1, A2, E> const& b)
 {
-	return (b.combination)(value * b.e);
+	return (b.combination)(value * expr::get_enclosed_expression(b));
 }
 
 template<typename coeff_t, typename A1, typename A2, typename E,
@@ -988,7 +988,7 @@ template<typename coeff_t, typename A1, typename A2, typename E,
 		&& expr::is_tensor<coeff_t> && expr::eval_type<OpOperatorCombination<A1, A2>>::rank > 0), int> = 0>
 	auto operator*(coeff_t const& value, OpCombination<A1, A2, E> const& b)
 {
-	return (value * b.combination)(b.e);
+	return (value * b.combination)(expr::get_enclosed_expression(b));
 }
 
 

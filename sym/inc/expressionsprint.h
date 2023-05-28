@@ -271,10 +271,19 @@ namespace expr
 #define SYEX_EQN_SEP "->"
 #endif
 
+#ifdef LATEX_PLOT
+
+
+#else
+
+
+#endif
 
 #ifdef LATEX_PLOT
 
 #define SYEX_NOISE_TOKEN_POISSON "\\mathbf{P}"
+#define SYEX_NOISE_TOKEN_WHITE "\\eta"
+#define SYEX_NOISE_TOKEN_NONE "\\hat{" SYEX_NOISE_TOKEN_WHITE "}"
 #define SYEX_NOISE_A SYEX_SUM_A
 #define SYEX_NOISE_B SYEX_SUM_B
 
@@ -286,9 +295,10 @@ namespace expr
 #else
 
 #define SYEX_NOISE_TOKEN_POISSON "Pois"
+#define SYEX_NOISE_TOKEN_WHITE "n"
+#define SYEX_NOISE_TOKEN_NONE SYEX_NOISE_TOKEN_WHITE "'"
 #define SYEX_NOISE_A SYEX_SUM_A
 #define SYEX_NOISE_B SYEX_SUM_B
-
 
 #define SYEX_ARRAY_A SYEX_INTEGRAL_A
 #define SYEX_ARRAY_B SYEX_INTEGRAL_B
@@ -2109,7 +2119,23 @@ namespace expr
 	};
 
 	template<expr::NoiseType nt>
-	struct noise_name_print;
+	struct noise_name_print
+	{
+		auto operator()(FILE* out)
+		{
+			return fprintf(out, "%s", SYEX_NOISE_TOKEN_NONE);
+		}
+
+		auto operator()(char* out)
+		{
+			return sprintf(out, "%s", SYEX_NOISE_TOKEN_NONE);
+		}
+
+		auto operator()()
+		{
+			return STR_ARR_LEN(SYEX_NOISE_TOKEN_NONE);
+		}
+	};
 
 	template<>
 	struct noise_name_print<expr::NoiseType::POISSON>
@@ -2127,6 +2153,25 @@ namespace expr
 		auto operator()()
 		{
 			return STR_ARR_LEN(SYEX_NOISE_TOKEN_POISSON);
+		}
+	};
+
+	template<>
+	struct noise_name_print<expr::NoiseType::WHITE>
+	{
+		auto operator()(FILE* out)
+		{
+			return fprintf(out, "%s", SYEX_NOISE_TOKEN_WHITE);
+		}
+
+		auto operator()(char* out)
+		{
+			return sprintf(out, "%s", SYEX_NOISE_TOKEN_WHITE);
+		}
+
+		auto operator()()
+		{
+			return STR_ARR_LEN(SYEX_NOISE_TOKEN_WHITE);
 		}
 	};
 

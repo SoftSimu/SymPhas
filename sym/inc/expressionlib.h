@@ -71,7 +71,7 @@ struct OpExpression
 	 *
 	 * \param n The index at which to evaluate the data.
 	 */
-	auto operator()(iter_type n) const
+	auto operator[](iter_type n) const
 	{
 		return cast().eval(n);
 	}
@@ -652,7 +652,6 @@ namespace symphas::internal
 
 	template<typename E>
 	static char test_coeff_attribute(decltype(E::value)*);
-
 	template<typename E>
 	static long test_coeff_attribute(...);
 
@@ -701,8 +700,6 @@ namespace symphas::internal
 
 	template <typename E> static auto test_coeff_neg(decltype(E::value)*)
 		-> typename coeff_neg_trait<decltype(E::value)>::type;
-	template <typename E> static auto test_coeff_neg(decltype(E::term)*)
-		-> typename coeff_neg_trait<decltype(E::term)>::type;
 	template <typename E> static long test_coeff_neg(...);
 
 
@@ -888,6 +885,9 @@ namespace expr
 	template<typename E>
 	constexpr bool has_nmi_coeff = sizeof(test_coeff_neg<E>(0)) == sizeof(char);
 
+	template<typename V, typename... Gs>
+	constexpr bool has_nmi_coeff<OpTerms<V, Gs...>> = sizeof(typename symphas::internal::coeff_neg_trait<V>::type) == sizeof(char);
+
 	//! Tests if the coefficient of the expression is ::OpIdentity.
 	/*!
 	 * Tests whether the given expression has a member called `value`. This
@@ -900,7 +900,7 @@ namespace expr
 	 * \tparam E The expression type to check the coefficient.
 	 */
 	template<typename E>
-	constexpr bool has_pmi_coeff = !has_nmi_coeff<E>;
+	constexpr bool has_pmi_coeff = has_coeff<E> && !has_nmi_coeff<E>;
 
 
 	//! Tests if the coefficient of the expression is not an identity.
@@ -1580,7 +1580,7 @@ struct expr::grid_dim<OpFunctionApply<f, V, E>>
 template<typename V, typename sub_t, typename E, typename... Ts>
 struct expr::grid_dim<OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>>>
 {
-	static const size_t dimension = expr::grid_dim<E>::dimension;
+	static const size_t dimension = fixed_max<expr::grid_dim<sub_t>::dimension, expr::grid_dim<E>::dimension>;
 	static const size_t value = dimension;
 };
 
@@ -1632,6 +1632,12 @@ struct expr::grid_dim<OpPow<X, V, E>>
 	static const size_t value = dimension;
 };
 
+template<expr::NoiseType nt, typename T, size_t D>
+struct expr::grid_dim<NoiseData<nt, T, D>>
+{
+	static const size_t dimension = D;
+	static const size_t value = dimension;
+};
 
 
 
@@ -1686,6 +1692,13 @@ template<typename... Ts>
 struct expr::op_types<SymbolicDataArray<std::tuple<Term<Ts>...>>>
 {
 	using type = typename symphas::lib::combine_types_unique<Ts...>::type;
+};
+
+//! Get the expression that the OpConvolution applies to.
+template<expr::NoiseType nt, typename T, size_t D>
+struct expr::op_types<NoiseData<nt, T, D>>
+{
+	using type = NoiseData<nt, T, D>;
 };
 
 //! Specialization based on expr::op_types.
@@ -1774,10 +1787,23 @@ struct expr::op_types<OpFunctionApply<f, V, E>>
 };
 
 //! Get the expression that the OpConvolution applies to.
+template<typename E, typename... Ts>
+struct expr::op_types<SymbolicFunction<E, Ts...>>
+{
+	using type = typename symphas::lib::combine_types_unique<
+		typename expr::op_types<E>::type, typename expr::op_types<Ts>::type...>::type;
+};
+
+//! Get the expression that the OpConvolution applies to.
 template<typename V, typename sub_t, typename E, typename... Ts>
 struct expr::op_types<OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>>>
 {
-	using type = typename expr::op_types<E>::type;
+protected:
+	using At = typename expr::op_types<sub_t>::type;
+	using Bt = typename expr::op_types<SymbolicFunction<E, Ts...>>::type;
+
+public:
+	using type = typename symphas::lib::combine_types_unique<At, Bt>::type;
 };
 
 //! Get the expression that the OpConvolution applies to.
@@ -3944,7 +3970,7 @@ namespace expr
 
 	//! Get the expression that the OpConvolution applies to.
 	template<typename V, size_t D, typename G>
-	decltype(auto) get_enclosed_expression(OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>> const& e)
+	auto get_enclosed_expression(OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>> const& e)
 	{
 		return OpTerm<OpIdentity, G>(OpIdentity{}, e.data);
 	}
@@ -4072,7 +4098,7 @@ namespace expr
 
 	//! Get the expression that the OpConvolution applies to.
 	template<typename V, size_t D, typename G>
-	decltype(auto) get_enclosed_expression(OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>& e)
+	auto get_enclosed_expression(OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>& e)
 	{
 		return OpTerm<OpIdentity, G>(OpIdentity{}, e.data);
 	}

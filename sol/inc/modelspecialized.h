@@ -26,9 +26,7 @@
 #pragma once
 
 #include "model.h"
-#include "expressionaggregates.h"
 #include "provisionalsystemgroup.h"
-#include "symboliceval.h"
 
 namespace expr
 {
@@ -786,11 +784,29 @@ namespace symphas::internal
 		static const bool value = (N0 != N);
 	};
 
+	template<size_t N, size_t N0, size_t N1, typename E0, typename E1>
+	struct dynamics_rule_compare<N, special_dynamics<N0, void, E0>, special_dynamics<N1, void, E1>>
+	{
+		static const bool value = (N0 != N);
+	};
+	
+	template<size_t N, size_t N0, typename E0, typename E1>
+	struct dynamics_rule_compare<N, special_dynamics<N0, void, E0>, special_dynamics<N, void, E1>>
+	{
+		static const bool value = false;
+	};
+
 	template<size_t N, size_t N0, size_t N1, typename I0, typename I1, typename E0, typename E1>
 	struct dynamics_rule_compare<N, special_dynamics<N0, I0, E0>, special_dynamics<N1, I1, E1>>
 	{
 		static const bool value = dynamics_index_compare<N, I0>::value;
 	};
+
+	//template<size_t N, size_t N0, typename I0, typename E0, typename E1>
+	//struct dynamics_rule_compare<N, special_dynamics<N0, I0, E0>, special_dynamics<N, I0, E1>>
+	//{
+	//	static const bool value = dynamics_index_compare<N, I0>::value;
+	//};
 
 	//template<size_t N, size_t N0, size_t N1, typename E0, typename E1>
 	//struct dynamics_rule_compare<N, special_dynamics<N0, void, E0>, special_dynamics<N1, void, E1>>
@@ -920,6 +936,21 @@ namespace symphas::internal
 		return substitute_ops<N>(i_types{}, v_types{}, *static_cast<E0 const*>(&with_fes), model);
 	}
 
+
+	template<typename model_t, size_t I, size_t... Is>
+	auto all_ops(model_t const& model, symphas::lib::types_list<
+		Variable<I, expr::symbols::diff_F_symbol>,
+		Variable<Is, expr::symbols::diff_F_symbol>...>)
+	{
+		return std::make_tuple(model.template op<I>(), model.template op<Is>()...);
+	}
+
+	template<typename model_t>
+	auto all_ops(model_t const& model, symphas::lib::types_list<>)
+	{
+		return std::make_tuple();
+	}
+
 	template<typename S>
 	struct apply_special_dynamics;
 
@@ -929,9 +960,10 @@ namespace symphas::internal
 	{
 		apply_special_dynamics(special_dynamics<N, void, dynamics_key_t<dynamic>>)
 			: apply_dynamics<dynamic>() {}
+		apply_special_dynamics(dynamics_key_t<dynamic>) {}
 
-		template<typename U_D, typename... Us, typename F, typename Sp>
-		auto operator()(U_D const& dop, std::tuple<Us...> const& ops, OpExpression<F> const& fe, Sp const& solver)
+		template<typename U_D, typename model_t, typename F, typename Sp>
+		auto operator()(U_D const& dop, model_t const& model, OpExpression<F> const& fe, Sp const& solver)
 		{
 			return apply_dynamics<dynamic>::operator()(dop, *static_cast<F const*>(&fe), solver);
 		}
@@ -957,20 +989,6 @@ namespace symphas::internal
 			return (dop = expr::apply_operators(evolution));
 		}
 
-		template<typename model_t, size_t I, size_t... Is>
-		auto all_ops(model_t const& model, symphas::lib::types_list<
-			Variable<I, expr::symbols::diff_F_symbol>,
-			Variable<Is, expr::symbols::diff_F_symbol>...>)
-		{
-			return std::make_tuple(model.template op<I>(), model.template op<Is>()...);
-		}
-
-		template<typename model_t>
-		auto all_ops(model_t const& model, symphas::lib::types_list<>)
-		{
-			return std::make_tuple();
-		}
-
 		
 
 		E e;
@@ -981,11 +999,12 @@ namespace symphas::internal
 	{
 		apply_special_dynamics(special_dynamics<N, void, E> const& e) : e{ e.e } {}
 
-		template<typename U_D, typename... Us, typename F, typename Sp>
-		auto operator()(U_D const& dop, std::tuple<Us...> const& ops, OpExpression<F> const& fe, Sp const& solver)
+		template<typename U_D, typename model_t, typename F, typename Sp>
+		auto operator()(U_D const& dop, model_t const& model, OpExpression<F> const& fe, Sp const& solver)
 		{
 			using df_v_types = select_dFE_t<expr::op_types_t<E>>;
-			return (dop = expr::apply_operators(substitute_for_dynamics(df_v_types{}, e, *static_cast<F const*>(&fe))));
+			return (dop = expr::apply_operators(
+				substitute_for_dynamics(df_v_types{}, e, *static_cast<F const*>(&fe), all_ops(model, df_v_types{}))));
 		}
 
 		E e;
@@ -1181,7 +1200,7 @@ struct TraitEquation : parent_trait
     {
         return expr::make_noise<nt, T, Dm>(
             parent_trait::template system<0>().dims,
-            parent_trait::template system<0>().get_info().get_widths().get(),
+            parent_trait::template system<0>().get_info().get_widths(),
             &solver.dt, std::forward<Ts>(args)...);
     }
 
@@ -1191,7 +1210,7 @@ struct TraitEquation : parent_trait
         using T = model_field_t<parent_trait, Z>;
         return expr::make_noise<nt, T, Dm>(
             parent_trait::template system<0>().dims,
-            parent_trait::template system<0>().get_info().get_widths().get(),
+            parent_trait::template system<0>().get_info().get_widths(),
             &solver.dt, std::forward<Ts>(args)...);
     }
 
@@ -1326,7 +1345,7 @@ struct TraitEquation<enclosing_type, symphas::internal::MakeEquation<ArrayModel<
 	{
 		return expr::make_noise<nt, T, D>(
 			parent_trait::template system<0>().dims,
-			parent_trait::template system<0>().get_info().get_widths().get(),
+			parent_trait::template system<0>().get_info().get_widths(),
 			&solver.dt, std::forward<Ts>(args)...);
 	}
 
@@ -1336,7 +1355,7 @@ struct TraitEquation<enclosing_type, symphas::internal::MakeEquation<ArrayModel<
 		using T = model_field_t<parent_trait>;
 		return expr::make_noise<nt, T, D>(
 			parent_trait::template system<0>().dims,
-			parent_trait::template system<0>().get_info().get_widths().get(),
+			parent_trait::template system<0>().get_info().get_widths(),
 			&solver.dt, std::forward<Ts>(args)...);
 	}
 

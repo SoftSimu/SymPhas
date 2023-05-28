@@ -130,8 +130,153 @@ enum class InsideTag
 
 
 
+template<size_t D>
+struct InitialConditionsData;
+
+
 namespace symphas::internal
 {
+
+	template<typename T>
+	struct value_fill;
+
+	template<>
+	struct value_fill<scalar_t>
+	{
+		scalar_t operator()(Axis ax, scalar_t const& current, scalar_t value) const
+		{
+			return value;
+		}
+	};
+
+	template<>
+	struct value_fill<complex_t>
+	{
+		value_fill() :
+			gen{ std::random_device{}() },
+			th{ -symphas::PI, symphas::PI } {}
+
+		complex_t operator()(Axis ax, complex_t const& current, scalar_t value) const
+		{
+			using namespace std;
+			switch (ax)
+			{
+			case Axis::NONE:
+			{
+				scalar_t
+					a = th(gen),
+					r = std::abs(value);
+				return { r * cos(a), r * sin(a) };
+			}
+			case Axis::X:
+			{
+				return { value, current.imag() };
+			}
+			case Axis::Y:
+			{
+				return { current.real(), value };
+			}
+			case Axis::T:
+			{
+				scalar_t m = abs(current);
+				return { m * cos(PI * value), m * sin(PI * value) };
+			}
+			case Axis::R:
+			{
+				scalar_t r = abs(current) / value;
+				return { current.real() / r, current.imag() / r };
+			}
+			default:
+			{
+				return current;
+			}
+			}
+		}
+
+		mutable std::mt19937 gen;
+		mutable std::uniform_real_distribution<scalar_t> th;
+	};
+
+
+	template<>
+	struct value_fill<vector_t<1>>
+	{
+		vector_t<1> operator()(Axis ax, vector_t<1> const& current, scalar_t value) const
+		{
+			return { value };
+		}
+	};
+
+	template<>
+	struct value_fill<vector_t<2>> : value_fill<complex_t>
+	{
+		using value_fill<complex_t>::value_fill;
+
+		vector_t<2> operator()(Axis ax, vector_t<2> const& current, scalar_t value) const
+		{
+			auto c = value_fill<complex_t>::operator()(ax, complex_t(current[0], current[1]), value);
+			return { c.real(), c.imag() };
+		}
+	};
+
+	template<>
+	struct value_fill<vector_t<3>> : value_fill<complex_t>
+	{
+		using value_fill<complex_t>::value_fill;
+
+		vector_t<3> operator()(Axis ax, vector_t<3> const& current, scalar_t value) const
+		{
+			using namespace std;
+			switch (ax)
+			{
+			case Axis::NONE:
+			{
+				scalar_t
+					a = th(gen),
+					b = th(gen),
+					r = std::abs(value);
+				return { r * sin(a) * cos(b), r * sin(a) * sin(b), r * cos(a) };
+			}
+			case Axis::X:
+			{
+				return { value, current[1], current[2] };
+			}
+			case Axis::Y:
+			{
+				return { current[0], value, current[2] };
+			}
+			case Axis::Z:
+			{
+				return { current[0], current[1], value };
+			}
+			case Axis::T:
+			{
+				scalar_t m = abs(current);
+				scalar_t th = PI * value;
+				scalar_t phi = acos(current[2] / m);
+				return { m * sin(phi) * cos(th), m * sin(phi) * sin(th), m * cos(phi) };
+			}
+			case Axis::S:
+			{
+				scalar_t m = abs(current);
+				scalar_t th = atan(current[1] / current[0]);
+				scalar_t phi = PI * value;
+				return { m * sin(phi) * cos(th), m * sin(phi) * sin(th), m * cos(phi) };
+			}
+			case Axis::R:
+			{
+				scalar_t r = abs(current) / value;
+				return { current[0] / r, current[1] / r, current[2] / r };
+			}
+			default:
+			{
+				return current;
+			}
+			}
+		}
+	};
+
+
 	//! Convert an InsideTag value to a size_t value.
 	inline size_t tagtoul(InsideTag t)
 	{
@@ -142,6 +287,226 @@ namespace symphas::internal
 	extern std::map<const char*, InsideTag, symphas::internal::any_case_comparator> init_tag_key_map;
 
 
+	template<typename T, size_t D, typename E = InitialConditionsData<D>>
+	class ic_iterator
+	{
+
+		//using E = InitialConditionsData<D>;
+
+	public:
+
+		using iterator_category = std::random_access_iterator_tag;
+		using value_type = T;
+		using difference_type = int;
+		using pointer = T*;
+		using reference = int;
+
+		//! Create an iterator starting at the given position.
+		/*!
+		 * Create an iterator over an expression starting at the given
+		 * position. The expression is explicitly given.
+		 *
+		 * \param e The expression for this iterator.
+		 * \param pos The index of the underlying data in the expression
+		 * which is the first index in the iterator.
+		 */
+		explicit ic_iterator(Axis ax, T* values, E const& e, difference_type pos = 0)
+			: fill{}, init{ static_cast<E const*>(&e) }, pos{ pos }, ax{ ax }, values{ values } {}
+
+
+		ic_iterator(ic_iterator<T, D> const& other) :
+			ic_iterator(other.ax, other.values, *other.init, other.pos) {}
+		ic_iterator(ic_iterator<T, D>&& other) :
+			ic_iterator(other.ax, other.values, *other.init, other.pos) {}
+		ic_iterator<T, D>& operator=(ic_iterator<T, D> other)
+		{
+			fill = other.fill;
+			init = other.init;
+			pos = other.pos;
+			ax = other.ax;
+			values = other.values;
+			return *this;
+		}
+
+		//! Prefix increment, returns itself.
+		ic_iterator<T, D, E>& operator++()
+		{
+			++pos;
+			return *this;
+		}
+
+		//! Postfix increment, return a copy before the increment.
+		ic_iterator<T, D, E> operator++(difference_type)
+		{
+			ic_iterator<T, D, E> it = *this;
+			++pos;
+			return it;
+		}
+
+
+		//! Prefix decrement, returns itself.
+		ic_iterator<T, D, E>& operator--()
+		{
+			--pos;
+			return *this;
+		}
+
+		//! Postfix decrement, return a copy before the increment.
+		ic_iterator<T, D, E> operator--(difference_type)
+		{
+			ic_iterator<T, D, E> it = *this;
+			--pos;
+			return it;
+		}
+
+
+		ic_iterator<T, D, E>& operator+=(difference_type offset)
+		{
+			pos += offset;
+			return *this;
+		}
+
+		ic_iterator<T, D, E>& operator-=(difference_type offset)
+		{
+			pos -= offset;
+			return *this;
+		}
+
+
+
+		//! Dereference the iterator.
+		inline value_type operator*() const
+		{
+			return fill(ax, values[pos], (*init)[pos]);
+		};
+
+		//! Dereference past the iterator.
+		inline value_type operator[](difference_type given_pos) const
+		{
+			return fill(ax, values[pos + given_pos], (*init)[pos + given_pos]);
+		}
+
+		//! Member access of the iterated expression.
+		inline E* operator->() const
+		{
+			return init;
+		};
+
+
+		//! Equality comparison with another iterator.
+		/*!
+		 * Equality comparison with another iterator.
+		 * Compares the current position.
+		 */
+		bool operator==(ic_iterator<T, D, E> const& other) const
+		{
+			return pos == other.pos
+				&& init == other.init;
+		}
+
+		//! Inequality comparison with another iterator.
+		/*!
+		 * Inequality comparison with another iterator.
+		 * Compares the current position.
+		 */
+		bool operator!=(ic_iterator<T, D, E> const& other) const
+		{
+			return !(*this == other);
+		}
+
+		//! Comparison with another iterator.
+		/*!
+		 * Greater than comparison with another iterator.
+		 * Compares the current position.
+		 */
+		bool operator>(ic_iterator<T, D, E> const& other) const
+		{
+			return pos > other.pos
+				&& init == other.init;
+		}
+
+		//! Comparison with another iterator.
+		/*!
+		 * Less than comparison with another iterator.
+		 * Compares the current position.
+		 */
+		bool operator<(ic_iterator<T, D, E> const& other) const
+		{
+			return other > *this;
+		}
+
+		//! Comparison with another iterator.
+		/*!
+		 * Greater than or equal to comparison with another iterator.
+		 * Compares the current position.
+		 */
+		bool operator>=(ic_iterator<T, D, E> const& other) const
+		{
+			return !(*this < other);
+		}
+
+		//! Comparison with another iterator.
+		/*!
+		 * Less than or equal to comparison with another iterator.
+		 * Compares the current position.
+		 */
+		bool operator<=(ic_iterator<T, D, E> const& other) const
+		{
+			return !(*this > other);
+		}
+
+
+
+		//! Convertible to the difference type of two iterators.
+		operator difference_type() const
+		{
+			return pos;
+		}
+
+		//! Add two iterators.
+		difference_type operator+(ic_iterator<T, D, E> const& rhs)
+		{
+			return pos + rhs;
+		}
+
+		//! Subtract two iterators.
+		difference_type operator-(ic_iterator<T, D, E> const& rhs)
+		{
+			return pos - rhs;
+		}
+
+		//! Add an offset from the iterator.
+		ic_iterator<T, D, E> operator+(difference_type offset)
+		{
+			ic_iterator<T, D, E> it = *this;
+			return it += offset;
+		}
+
+		//! Subtract an offset from the iterator.
+		ic_iterator<T, D, E> operator-(difference_type offset)
+		{
+			ic_iterator<T, D, E> it = *this;
+			return it -= offset;
+		}
+
+		//! Add an offset from the left hand side to an iterator.
+		friend difference_type operator+(difference_type offset, ic_iterator<T, D, E> rhs)
+		{
+			return offset + rhs.pos;
+		}
+
+		//! Subtract an offset from the left hand side to an iterator.
+		friend difference_type operator-(difference_type offset, ic_iterator<T, D, E> rhs)
+		{
+			return offset - rhs.pos;
+		}
+
+		value_fill<T> fill;		//!< Method to return the correct type from the generation result.
+		E const* init;			//!< Pointer to the initial conditions generator.
+		difference_type pos;	//!< Current index of iteration.
+		Axis ax;				//!< Axis of the entries to fill. If NONE, all entries are initialized.
+		T* values;				//!< Pointer to the values that will be filled.
+	};
 
 
 
@@ -255,6 +620,17 @@ namespace symphas
 			}
 			return tp;
 		}
+
+
+	protected:
+
+		friend struct init_entry_type;
+
+		void clear()
+		{
+			gp = nullptr;
+			N = 0;
+		}
 	};
 
 	//! Contains data representing how to read data as initial conditions.
@@ -317,10 +693,23 @@ namespace symphas
 			this->index = index;
 		}
 
+		~init_data_read()
+		{
+			delete[] name;
+		}
+
 	protected:
 
 		iter_type index;					//!< The index to retrieve from the file.
 		char* name;							//!< The name of the file to retrieve.
+
+		friend struct init_entry_type;
+
+		void clear()
+		{
+			name = nullptr;
+			index = 0;
+		}
 	};
 
 
@@ -509,8 +898,36 @@ namespace symphas
 		double* coeff;
 		size_t num_coeff;
 
+		friend struct init_entry_type;
+
+		void clear()
+		{
+			coeff = nullptr;
+			name = nullptr;
+			num_coeff = 0;
+		}
+
 	};
 
+	struct init_entry_data_type
+	{
+		init_entry_data_type(init_data_functor<void>* f_init) : f_init{ f_init }, data{  }, file{  }, expr_data{  } {}
+		init_entry_data_type(init_data_parameters data) : f_init{ nullptr }, data{ data }, file{  }, expr_data{  } {}
+		init_entry_data_type(init_data_read file) : f_init{ nullptr }, data{  }, file{ file }, expr_data{  } {}
+		init_entry_data_type(init_data_expr expr_data) : f_init{ nullptr }, data{  }, file{  }, expr_data{ expr_data } {}
+		init_entry_data_type() : f_init{ nullptr }, data{  }, file{  }, expr_data{  } {}
+
+		init_data_functor<void>* f_init;	//!< Separate functor to generate the initial conditions.
+		init_data_parameters data;			//!< The parameters used by the initial condition algorithm.
+		init_data_read file;				//!< The file from which the field is populated.
+		init_data_expr expr_data;			//!< The expression that will populate the field.
+
+		~init_entry_data_type()
+		{
+			delete f_init;
+		}
+
+	};
 
 	//template<typename F>
 	//init_data_functor(F)->init_data_functor<F>;
@@ -524,14 +941,20 @@ namespace symphas
 	 * the file name should conform to *SymPhas* standards, as the file
 	 * name can't be set directly. See ::init_data_read.
 	 */
-	struct init_entry_type
+	struct init_entry_type : init_entry_data_type
 	{
+
+		using init_entry_data_type::f_init;
+		using init_entry_data_type::data;
+		using init_entry_data_type::file;
+		using init_entry_data_type::expr_data;
+
 		//! Create initial conditions data with no parameters.
 		/*!
 		 * The default initial condition is disabled.
 		 */
 		init_entry_type() : 
-			in{ Inside::NONE }, intag{ symphas::build_intag(InsideTag::NONE) }, data{} {}
+			init_entry_data_type(), in{ Inside::NONE }, intag{ symphas::build_intag(InsideTag::NONE) } {}
 
 		//! Create initial conditions data.
 		/*!
@@ -546,8 +969,8 @@ namespace symphas
 		 * \param intag The modifiers to the initial conditions algorithm.
 		 * \param data Parameters used in generating the initial conditions.
 		 */
-		init_entry_type(Inside in, size_t intag, init_data_parameters data) : 
-			in{ in }, intag{ intag }, data{ data } {}
+		init_entry_type(Inside in, size_t intag, init_data_parameters data) :
+			init_entry_data_type(data), in{ in }, intag{ intag } {}
 
 		//! Create initial conditions data.
 		/*!
@@ -599,7 +1022,7 @@ namespace symphas
 		 * \param file Information about the file.
 		 */
 		init_entry_type(Inside in, init_data_read file) : 
-			in{ in }, intag{ symphas::build_intag(InsideTag::DEFAULT) }, file{ file } {}
+			init_entry_data_type(file), in{ in }, intag{ symphas::build_intag(InsideTag::DEFAULT) } {}
 
 		//! Create initial conditions data from a file.
 		/*!
@@ -619,7 +1042,7 @@ namespace symphas
 		 * \param file Information about the file.
 		 */
 		init_entry_type(init_data_expr expr_data) :
-			in{ Inside::EXPRESSION }, intag{ symphas::build_intag(InsideTag::DEFAULT) }, expr_data{ expr_data } {}
+			init_entry_data_type(expr_data), in{ Inside::EXPRESSION }, intag{ symphas::build_intag(InsideTag::DEFAULT) } {}
 
 		//! Create initial conditions using a given functor.
 		/*!
@@ -631,9 +1054,8 @@ namespace symphas
 		 * the initial conditions.
 		 */
 		template<typename F>
-		init_entry_type(init_data_functor<F> const& f) : 
-			in{ Inside::NONE }, intag{ symphas::build_intag(InsideTag::DEFAULT) }, 
-			f_init{ f.make_copy() } {}
+		init_entry_type(init_data_functor<F> const& f) :
+			init_entry_data_type(f.make_copy()), in{ Inside::NONE }, intag{ symphas::build_intag(InsideTag::DEFAULT) } {}
 
 		template<typename F, typename = std::invoke_result_t<F, iter_type, len_type const*, size_t>>
 		init_entry_type(F &&f) : init_entry_type(init_data_functor{ std::forward<F>(f) }) {}
@@ -644,10 +1066,7 @@ namespace symphas
 			swap(*this, other);
 		}
 
-		init_entry_type(init_entry_type const& other) : init_entry_type()
-		{
-			other.copy_to(*this);
-		}
+		init_entry_type(init_entry_type const& other) : init_entry_type(other.in, other.intag, *static_cast<init_entry_type const*>(&other)) {}
 
 		init_entry_type operator=(init_entry_type other)
 		{
@@ -657,65 +1076,22 @@ namespace symphas
 
 		friend void swap(init_entry_type& first, init_entry_type& second)
 		{
-			init_entry_type tmp;
-
-			first.copy_to(tmp);
-			second.copy_to(first);
-			tmp.copy_to(second);
+			using std::swap;
+			swap(*static_cast<init_entry_data_type*>(&first), *static_cast<init_entry_data_type*>(&second));
+			swap(first.in, second.in);
+			swap(first.intag, second.intag);
 		}
-
-
-		~init_entry_type()
-		{
-			if (in == Inside::NONE 
-				&& symphas::internal::tag_bit_compare(intag, InsideTag::DEFAULT))
-			{
-				delete f_init;
-			}
-		}
-
-
 
 		Inside in;							//!< Type of interior random generation, min/max values.
 		size_t intag;						//!< Modifies the algorithm generating interior values.
 
-		union
-		{
-			init_data_functor<void>* f_init;	//!< Separate functor to generate the initial conditions.
-			init_data_parameters data;			//!< The parameters used by the initial condition algorithm.
-			init_data_read file;				//!< The file from which the field is populated.
-			init_data_expr expr_data;			//!< The file from which the field is populated.
-		};
 
-		void copy_to(init_entry_type &other) const
-		{
-			other.in = in;
-			other.intag = intag;
+	protected:
 
-			if (in == Inside::FILE)
-			{
-				other.file = file;
-			}
-			else if (
-				in == Inside::NONE
-				&& symphas::internal::tag_bit_compare(intag, InsideTag::DEFAULT))
-			{
-				other.f_init = f_init->make_copy();
-			}
-			else if (in == Inside::EXPRESSION)
-			{
-				other.expr_data = expr_data;
-			}
-			else
-			{
-				for (iter_type i = 0; i < NUM_INIT_CONSTANTS; ++i)
-				{
-					other.data.gp[i] = data.gp[i];
-				}
-			}
-		}
+		init_entry_type(Inside in, size_t intag, init_entry_data_type other) : init_entry_data_type(other), in{ in }, intag{ intag } {}
 
 	};
+
 	void swap(init_entry_type& first, init_entry_type& second);
 
 	using init_data_type = std::map<Axis, init_entry_type>;

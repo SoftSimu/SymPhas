@@ -783,7 +783,7 @@ public:
 	}
 
 	template<typename... Ts>
-	auto operator()(Ts&&... indices)
+	auto operator()(Ts&&... indices) const
 	{
 		return grid::select_grid_index(dims)(Block<T>::values, std::forward<Ts>(indices)...);
 	}
@@ -870,7 +870,7 @@ public:
 	}
 
 	template<typename... Ts>
-	auto operator()(iter_type x, Ts&&... rest)
+	auto operator()(iter_type x, Ts&&... rest) const
 	{
 		return grid::select_grid_index(dims)(Block<T>::values, x, std::forward<Ts>(rest)...);
 	}
@@ -960,7 +960,7 @@ public:
 	}
 
 	template<typename... Ts>
-	auto operator()(iter_type x, Ts&&... rest)
+	auto operator()(iter_type x, Ts&&... rest) const
 	{
 		return grid::select_grid_index(dims)(Block<T>::values, x + THICKNESS, (std::forward<Ts>(rest) + THICKNESS)...);
 	}
@@ -1037,7 +1037,7 @@ public:
 	//void copy_ptr_back(T** into);
 
 	template<typename... Ts>
-	auto operator()(iter_type x, Ts&&... rest)
+	auto operator()(iter_type x, Ts&&... rest) const
 	{
 		return grid::select_grid_index(dims)(Block<T>::values, x + THICKNESS, (std::forward<Ts>(rest) + THICKNESS)...);
 	}
@@ -1108,7 +1108,7 @@ public:
 	}
 
 	template<typename... Ts>
-	auto operator()(iter_type x, Ts&&... rest)
+	auto operator()(iter_type x, Ts&&... rest) const
 	{
 		return grid::select_grid_index(dims)(Block<T>::values, x + THICKNESS, (std::forward<Ts>(rest) + THICKNESS)...);
 	}
@@ -1175,7 +1175,7 @@ public:
 
 
 	template<typename... Ts>
-	auto operator()(iter_type x, Ts&&... rest)
+	auto operator()(iter_type x, Ts&&... rest) const
 	{
 		return grid::select_grid_index(dims)(Block<T>::values, x + THICKNESS, (std::forward<Ts>(rest) + THICKNESS)...);
 	}
@@ -1487,7 +1487,7 @@ namespace grid
 			[&] (auto& e) {
 				size_t i = &e - out;
 				e = any_vector_t<T, 1>{
-					grid(Axis::X)[i] };
+					grid.axis(Axis::X)[i] };
 			});
 	}
 
@@ -1507,8 +1507,8 @@ namespace grid
 			[&] (auto& e) {
 				size_t i = &e - out;
 				e = any_vector_t<T, 2>{
-					grid(Axis::X)[i],
-					grid(Axis::Y)[i] };
+					grid.axis(Axis::X)[i],
+					grid.axis(Axis::Y)[i] };
 			});
 	}
 
@@ -1528,9 +1528,9 @@ namespace grid
 			[&] (auto& e) {
 				size_t i = &e - out;
 				e = any_vector_t<S, 3>{
-					grid(Axis::X)[i],
-					grid(Axis::Y)[i],
-					grid(Axis::Z)[i] };
+					grid.axis(Axis::X)[i],
+					grid.axis(Axis::Y)[i],
+					grid.axis(Axis::Z)[i] };
 			});
 	}
 
@@ -1565,7 +1565,7 @@ namespace grid
 			in, in + out.len,
 			[&] (auto& e) {
 				size_t i = &e - in;
-				out(Axis::X)[i] = e[0];
+				out.axis(Axis::X)[i] = e[0];
 			});
 	}
 
@@ -1584,8 +1584,8 @@ namespace grid
 			in, in + out.len,
 			[&] (auto& e) {
 				size_t i = &e - in;
-				out(Axis::X)[i] = e[0];
-				out(Axis::Y)[i] = e[1];
+				out.axis(Axis::X)[i] = e[0];
+				out.axis(Axis::Y)[i] = e[1];
 			});
 	}
 
@@ -1604,9 +1604,9 @@ namespace grid
 			in, in + out.len,
 			[&] (auto& e) {
 				size_t i = &e - in;
-				out(Axis::X)[i] = e[0];
-				out(Axis::Y)[i] = e[1];
-				out(Axis::Z)[i] = e[2];
+				out.axis(Axis::X)[i] = e[0];
+				out.axis(Axis::Y)[i] = e[1];
+				out.axis(Axis::Z)[i] = e[2];
 			});
 	}
 
@@ -1821,7 +1821,7 @@ namespace grid
 	template<typename T>
 	void copy_interior(Grid<any_vector_t<T, 1>, 1> const& input, any_vector_t<T, 1>* output)
 	{
-		ITER_GRID1(output[ENTRY][0] = input(Axis::X)[INDEX], input.dims[0])
+		ITER_GRID1(output[ENTRY][0] = input.axis(Axis::X)[INDEX], input.dims[0])
 	}
 
 
@@ -1836,8 +1836,8 @@ namespace grid
 	template<typename T>
 	void copy_interior(Grid<any_vector_t<T, 2>, 2> const& input, any_vector_t<T, 2>* output)
 	{
-		ITER_GRID2(output[ENTRY][0] = input(Axis::X)[INDEX], input.dims[0], input.dims[1]);
-		ITER_GRID2(output[ENTRY][1] = input(Axis::Y)[INDEX], input.dims[0], input.dims[1]);
+		ITER_GRID2(output[ENTRY][0] = input.axis(Axis::X)[INDEX], input.dims[0], input.dims[1]);
+		ITER_GRID2(output[ENTRY][1] = input.axis(Axis::Y)[INDEX], input.dims[0], input.dims[1]);
 	}
 
 	//! Copy the interior values of the grid into an array.
@@ -1851,9 +1851,9 @@ namespace grid
 	template<typename T>
 	void copy_interior(Grid<any_vector_t<T, 3>, 3> const& input, any_vector_t<T, 3>* output)
 	{
-		ITER_GRID3(output[ENTRY][0] = input(Axis::X)[INDEX], input.dims[0], input.dims[1], input.dims[2]);
-		ITER_GRID3(output[ENTRY][1] = input(Axis::Y)[INDEX], input.dims[0], input.dims[1], input.dims[2]);
-		ITER_GRID3(output[ENTRY][2] = input(Axis::Z)[INDEX], input.dims[0], input.dims[1], input.dims[2]);
+		ITER_GRID3(output[ENTRY][0] = input.axis(Axis::X)[INDEX], input.dims[0], input.dims[1], input.dims[2]);
+		ITER_GRID3(output[ENTRY][1] = input.axis(Axis::Y)[INDEX], input.dims[0], input.dims[1], input.dims[2]);
+		ITER_GRID3(output[ENTRY][2] = input.axis(Axis::Z)[INDEX], input.dims[0], input.dims[1], input.dims[2]);
 	}
 
 

@@ -26,8 +26,6 @@
 #pragma once
 
 #include "modelspecialized.h"
-#include "expressionderivatives.h"
-#include "expressionconvolution.h"
 
 
 /*
@@ -97,7 +95,7 @@ struct PFCTraitDynamic
 	{
 		return symphas::internal::apply_dynamics<dd>{}(
 			OpLHS(expr::as_variable<N>(cast().template system<N>())), 
-			cast().template bulk_pfc_dynamic_N<N>() + cast().template coupled_pfc_dynamic_N<N>(), 
+			cast().template bulk_pfc_dynamic_N<N>() + cast().template coupled_pfc_dynamic_N<N>(),
 			cast().solver);
 	}
 

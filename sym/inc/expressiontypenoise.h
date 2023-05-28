@@ -36,17 +36,6 @@
 #define NOISE_MEAN 0
 #define NOISE_STD 1
 
-#ifdef LATEX_PLOT
-
-#define SYEX_NOISE_OP_STR "\\eta"
-#define SYEX_NOISE_NONE_OP_STR "\\hat{" SYEX_NOISE_OP_STR "}"
-
-#else
-
-#define SYEX_NOISE_OP_STR "n"
-#define SYEX_NOISE_NONE_OP_STR SYEX_NOISE_OP_STR "'"
-
-#endif
 
 
 //! \endcond
@@ -220,16 +209,17 @@ namespace expr
 
 
 	template<size_t D>
-	struct noise_data<NoiseType::WHITE, D> : Grid<scalar_t, D>
+	struct noise_data<NoiseType::WHITE, D> : Grid<scalar_t, D>, random_seed<NoiseType::WHITE>
 	{
 		using parent_type = Grid<scalar_t, D>;
 		using parent_type::values;
 		using parent_type::len;
 		using parent_type::dims;
 		using parent_type::operator[];
+		using seed_type = random_seed<NoiseType::WHITE>;
 
 		noise_data(const len_type* dims, const double* h, double *dt, double intensity = 1.0) :
-			parent_type(dims), H{ 1 }, dt{ dt }, intensity{ intensity }
+			parent_type(dims), seed_type(), H{ 1 }, dt{ dt }, intensity{ intensity }
 		{
 			for (iter_type i = 0; i < D; ++i) H *= h[i];
 		}
@@ -431,10 +421,11 @@ namespace expr
 			return { parent_type::operator[](n)[0], parent_type::operator[](n)[1], data[n]};
 		}
 
-		void update()
+		template<typename E, typename... Ts>
+		void update(SymbolicFunction<E, Ts...> const& f)
 		{
 			data.update();
-			parent_type::update();
+			parent_type::update(f);
 		}
 
 		noise_data<nt, D> data;
@@ -453,10 +444,11 @@ namespace expr
 			return { parent_type::operator[](n)[0], data[n]};
 		}
 
-		void update()
+		template<typename E, typename... Ts>
+		void update(SymbolicFunction<E, Ts...> const& f)
 		{
 			data.update();
-			parent_type::update();
+			parent_type::update(f);
 		}
 
 		noise_data<nt, D> data;
@@ -475,7 +467,8 @@ namespace expr
 			return { parent_type::operator[](n) };
 		}
 
-		void update()
+		template<typename E, typename... Ts>
+		void update(SymbolicFunction<E, Ts...> const& f)
 		{
 			parent_type::update();
 		}
@@ -511,10 +504,10 @@ struct NoiseData<nt, any_vector_t<T, D>, D> : expr::noise_data_axis<D, nt, D>
 	NoiseData() : parent_type() {}
 };
 
-
-DEFINE_BASE_DATA_ARRAY((expr::NoiseType nt, typename T, size_t D), (NoiseData<nt, T, D>))
-DEFINE_SYMBOL_ID((expr::NoiseType nt, typename T, size_t D), (NoiseData<nt, T, D>), { return SYEX_NOISE_OP_STR; })
-DEFINE_SYMBOL_ID((typename T, size_t D), (NoiseData<expr::NoiseType::NONE, T, D>), { return SYEX_NOISE_NONE_OP_STR; })
+//
+//DEFINE_BASE_DATA_ARRAY((expr::NoiseType nt, typename T, size_t D), (NoiseData<nt, T, D>))
+//DEFINE_SYMBOL_ID((expr::NoiseType nt, typename T, size_t D), (NoiseData<nt, T, D>), { return SYEX_NOISE_OP_STR; })
+//DEFINE_SYMBOL_ID((typename T, size_t D), (NoiseData<expr::NoiseType::NONE, T, D>), { return SYEX_NOISE_NONE_OP_STR; })
 
 
 
@@ -607,7 +600,7 @@ namespace expr
 	template<NoiseType nt, typename T, size_t D, typename E>
 	auto make_noise(NoiseData<nt, T, D> const& noise, OpExpression<E> const& e)
 	{
-		return make_noise(OpIdentity{}, noise, function_of() = *static_cast<E const*>(&e));
+		return make_noise(noise, function_of() = *static_cast<E const*>(&e));
 	}
 
 
@@ -670,10 +663,10 @@ namespace expr
 namespace expr::transform
 {
 
-	template<size_t D, typename V, typename T>
-	auto to_ft(OpTerm<V, NoiseData<expr::NoiseType::WHITE, T, D>> const& e, double const* h, const len_type* dims)
+	template<size_t D, typename V, typename T, typename E, size_t... Ns, typename... Ts>
+	auto to_ft(OpSymbolicEval<V, NoiseData<NoiseType::WHITE, T, D>, SymbolicFunction<E, Variable<Ns, Ts>...>> const& e, double const* h, const len_type* dims)
 	{
-		auto const& noise = expr::get<1>(e).data();
-		return expr::make_literal(expr::get<0>(e)) * expr::make_noise<expr::NoiseType::NONE, T, D>(dims, h, noise.dt, noise.intensity);
+		auto noise = to_ft<D>(e.data(), h, dims);
+		return expr::coeff(e) * expr::make_noise(noise, e.f);
 	}
 }

@@ -23,6 +23,8 @@
  * ***************************************************************************
  */
 
+#pragma once
+
 #cmakedefine USING_XDR
 
 #include "writegp.h"

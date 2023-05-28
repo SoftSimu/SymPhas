@@ -485,7 +485,6 @@ namespace model_ ## NAME { \
 template<typename T, size_t D> struct allowed_model_dimensions { static const bool value = true; }; \
 EQUATION_TRAIT_FORWARD_DECL \
 using namespace symphas::internal; \
-using namespace symphas::internal::parameterized; \
 template<size_t Dm, typename Sp> \
 using OpTypes = symphas::internal::expand_types_to_model_t<Dm, Sp, SINGLE_ARG TYPES>; \
 template<typename> struct using_provisional { template<size_t Dm, typename Sp> using type = typename OpTypes<Dm, Sp>::template Specialized<TraitEquationModel>; }; \
@@ -868,7 +867,7 @@ MODEL_WRAPPER_FUNC(NAME, GIVEN_NAME, modelpfc_ ## NAME::ModelPFCSpecialized, App
 #define RESTRICT_DIMENSIONS(...) \
 template<size_t D> \
 struct allowed_model_dimensions<void, D> \
-{ static const bool value = symphas::lib::is_value_in_seq<D, std::index_sequence<__VA_ARGS__>>::value; };
+{ static const bool value = symphas::lib::is_value_in_seq<size_t, D, std::index_sequence<__VA_ARGS__>>::value; };
 
 // **************************************************************************************
 

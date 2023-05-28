@@ -54,7 +54,7 @@ inline bool inquad(size_t n, size_t(&dim)[3])
 // ********************************************************************************
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::SQUARE>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::SQUARE>::operator[](iter_type n) const
 {
 	double ra = dims[0] / 2.0;
 	double aa = ra / init.data.gp[0];
@@ -64,7 +64,7 @@ scalar_t InitialConditionsAlg<1, Inside::SQUARE>::operator()(iter_type n) const
 }
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::SQUARE, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::SQUARE, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	double shift_circle_x = offsets.get_delta(0);
 
@@ -77,7 +77,7 @@ scalar_t InitialConditionsAlg<1, Inside::SQUARE, InsideTag::RANDOM>::operator()(
 
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::CUBIC>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::CUBIC>::operator[](iter_type n) const
 {
 	double const
 		dx = dims[0] / init.data.gp[0],
@@ -104,7 +104,7 @@ scalar_t InitialConditionsAlg<1, Inside::CUBIC>::operator()(iter_type n) const
 }
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::CUBIC, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::CUBIC, InsideTag::VARA>::operator[](iter_type n) const
 {
 	// size of symmetry square
 	double const
@@ -125,7 +125,7 @@ scalar_t InitialConditionsAlg<1, Inside::CUBIC, InsideTag::VARA>::operator()(ite
 }
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::CUBIC, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::CUBIC, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	double const
 		dx = dims[0] / init.data.gp[0],
@@ -158,7 +158,7 @@ scalar_t InitialConditionsAlg<1, Inside::CUBIC, InsideTag::RANDOM>::operator()(i
 
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_1(
 		n, dims, init, 
@@ -168,7 +168,7 @@ scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE>::operator()(iter_type n) c
 }
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_1(
 		n, dims, init, 
@@ -178,7 +178,7 @@ scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE>::operator()(iter_type n) c
 }
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_rnd_1(
 		n, dims, init, 
@@ -188,7 +188,7 @@ scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::RANDOM>::operat
 }
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_rnd_1(
 		n, dims, init, 
@@ -201,7 +201,7 @@ scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::RANDOM>::operat
 
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARA>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_A_1(
 		n, dims, init, 
@@ -211,7 +211,7 @@ scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARA>::operator
 }
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARA>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_A_1(
 		n, dims, init, 
@@ -221,7 +221,7 @@ scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARA>::operator
 }
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARA, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARA, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_A_rnd_1(
 		n, dims, init, 
@@ -231,7 +231,7 @@ scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARA, InsideTag
 }
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARA, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARA, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_A_rnd_1(
 		n, dims, init, 
@@ -243,7 +243,7 @@ scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARA, InsideTag
 
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARB>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARB>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_B_1(
 		n, dims, init, 
@@ -253,7 +253,7 @@ scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARB>::operator
 }
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARB>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARB>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_B_1(
 		n, dims, init, 
@@ -263,7 +263,7 @@ scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARB>::operator
 }
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARB, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARB, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_B_rnd_1(
 		n, dims, init, 
@@ -273,7 +273,7 @@ scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARB, InsideTag
 }
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARB, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARB, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_B_rnd_1(
 		n, dims, init, 
@@ -284,7 +284,7 @@ scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARB, InsideTag
 
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARC>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARC>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -296,7 +296,7 @@ scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARC>::operator
 }
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARC>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARC>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -308,7 +308,7 @@ scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARC>::operator
 }
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -321,7 +321,7 @@ scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag
 }
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -336,7 +336,7 @@ scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag
 
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARA>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -348,7 +348,7 @@ scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag
 }
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARA>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -360,7 +360,7 @@ scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag
 }
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARA, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARA, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -373,7 +373,7 @@ scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag
 }
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARA, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARA, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -386,7 +386,7 @@ scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag
 }
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARB>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARB>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -398,7 +398,7 @@ scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag
 }
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARB>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARB>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -410,7 +410,7 @@ scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag
 }
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARB, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARB, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -423,7 +423,7 @@ scalar_t InitialConditionsAlg<1, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag
 }
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARB, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARB, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -443,7 +443,7 @@ scalar_t InitialConditionsAlg<1, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag
 // ********************************************************************************
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::SQUARE>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::SQUARE>::operator[](iter_type n) const
 {
 	double const
 		ux = dims[0] / 2.0,
@@ -461,7 +461,7 @@ scalar_t InitialConditionsAlg<2, Inside::SQUARE>::operator()(iter_type n) const
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::SQUARE, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::SQUARE, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	iter_type
 		shift_x = static_cast<iter_type>(offsets.get_delta(0)[0]),
@@ -484,7 +484,7 @@ scalar_t InitialConditionsAlg<2, Inside::SQUARE, InsideTag::RANDOM>::operator()(
 
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::SQUARE, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::SQUARE, InsideTag::VARA>::operator[](iter_type n) const
 {
 	auto d = *std::min_element(dims, dims + 2);
 	double u = d / 2.0;
@@ -501,7 +501,7 @@ scalar_t InitialConditionsAlg<2, Inside::SQUARE, InsideTag::VARA>::operator()(it
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::SQUARE, InsideTag::VARA, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::SQUARE, InsideTag::VARA, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	auto d = *std::min_element(dims, dims + 2);
 	iter_type const
@@ -523,7 +523,7 @@ scalar_t InitialConditionsAlg<2, Inside::SQUARE, InsideTag::VARA, InsideTag::RAN
 
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::CIRCLE>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::CIRCLE>::operator[](iter_type n) const
 {
 	double const
 		ux = dims[0] / 2.0,
@@ -541,7 +541,7 @@ scalar_t InitialConditionsAlg<2, Inside::CIRCLE>::operator()(iter_type n) const
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::CIRCLE, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::CIRCLE, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	iter_type const
 		shift_x = static_cast<iter_type>(offsets.get_delta(0)[0]),
@@ -563,7 +563,7 @@ scalar_t InitialConditionsAlg<2, Inside::CIRCLE, InsideTag::RANDOM>::operator()(
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::CIRCLE, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::CIRCLE, InsideTag::VARA>::operator[](iter_type n) const
 {
 	auto d = *std::min_element(dims, dims + 2);
 	double u = d / 2.0;
@@ -580,7 +580,7 @@ scalar_t InitialConditionsAlg<2, Inside::CIRCLE, InsideTag::VARA>::operator()(it
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::CIRCLE, InsideTag::VARA, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::CIRCLE, InsideTag::VARA, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	auto d = *std::min_element(dims, dims + 2);
 	iter_type const
@@ -601,7 +601,7 @@ scalar_t InitialConditionsAlg<2, Inside::CIRCLE, InsideTag::VARA, InsideTag::RAN
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::CUBIC>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::CUBIC>::operator[](iter_type n) const
 {
 	// size of symmetry square
 	double const
@@ -645,7 +645,7 @@ scalar_t InitialConditionsAlg<2, Inside::CUBIC>::operator()(iter_type n) const
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::CUBIC, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::CUBIC, InsideTag::VARA>::operator[](iter_type n) const
 {
 	// size of symmetry square
 	double const
@@ -681,7 +681,7 @@ scalar_t InitialConditionsAlg<2, Inside::CUBIC, InsideTag::VARA>::operator()(ite
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::CUBIC, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::CUBIC, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 
 	// size of symmetry square
@@ -741,7 +741,7 @@ scalar_t InitialConditionsAlg<2, Inside::CUBIC, InsideTag::RANDOM>::operator()(i
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::HEXAGONAL>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::HEXAGONAL>::operator[](iter_type n) const
 {
 	// size of symmetry square
 	double const
@@ -786,7 +786,7 @@ scalar_t InitialConditionsAlg<2, Inside::HEXAGONAL>::operator()(iter_type n) con
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::HEXAGONAL, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::HEXAGONAL, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	// size of symmetry square
 	double const
@@ -848,7 +848,7 @@ scalar_t InitialConditionsAlg<2, Inside::HEXAGONAL, InsideTag::RANDOM>::operator
 
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_2(
 		n, dims, init, 
@@ -858,7 +858,7 @@ scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE>::operator()(iter_type n) c
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_2(
 		n, dims, init, 
@@ -868,7 +868,7 @@ scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE>::operator()(iter_type n) c
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_rnd_2(
 		n, dims, init, 
@@ -878,7 +878,7 @@ scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::RANDOM>::operat
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_rnd_2(
 		n, dims, init, 
@@ -891,7 +891,7 @@ scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::RANDOM>::operat
 
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARA>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_A_2(
 		n, dims, init, 
@@ -901,7 +901,7 @@ scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARA>::operator
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARA>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_A_2(
 		n, dims, init, 
@@ -911,7 +911,7 @@ scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARA>::operator
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARA, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARA, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_A_rnd_2(
 		n, dims, init, 
@@ -921,7 +921,7 @@ scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARA, InsideTag
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARA, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARA, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_A_rnd_2(
 		n, dims, init, 
@@ -933,7 +933,7 @@ scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARA, InsideTag
 
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARB>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARB>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_B_2(
 		n, dims, init, 
@@ -943,7 +943,7 @@ scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARB>::operator
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARB>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARB>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_B_2(
 		n, dims, init, 
@@ -953,7 +953,7 @@ scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARB>::operator
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARB, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARB, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_B_rnd_2(
 		n, dims, init, 
@@ -963,7 +963,7 @@ scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARB, InsideTag
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARB, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARB, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_B_rnd_2(
 		n, dims, init, 
@@ -974,7 +974,7 @@ scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARB, InsideTag
 
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARC>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARC>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -986,7 +986,7 @@ scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARC>::operator
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARC>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARC>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -998,7 +998,7 @@ scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARC>::operator
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -1011,7 +1011,7 @@ scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -1026,7 +1026,7 @@ scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag
 
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARA>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -1038,7 +1038,7 @@ scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARA>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -1050,7 +1050,7 @@ scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARA, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARA, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -1063,7 +1063,7 @@ scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARA, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARA, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -1078,7 +1078,7 @@ scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag
 
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARB>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARB>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -1090,7 +1090,7 @@ scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARB>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARB>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -1102,7 +1102,7 @@ scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARB, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARB, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -1115,7 +1115,7 @@ scalar_t InitialConditionsAlg<2, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARB, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARB, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -1136,7 +1136,7 @@ scalar_t InitialConditionsAlg<2, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag
 // ********************************************************************************
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::SQUARE>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::SQUARE>::operator[](iter_type n) const
 {
 	double const
 		ux = dims[0] / 2.0,
@@ -1157,7 +1157,7 @@ scalar_t InitialConditionsAlg<3, Inside::SQUARE>::operator()(iter_type n) const
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::SQUARE, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::SQUARE, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	 iter_type const
 		shift_x = static_cast<iter_type>(offsets.get_delta(0)[0]),
@@ -1184,7 +1184,7 @@ scalar_t InitialConditionsAlg<3, Inside::SQUARE, InsideTag::RANDOM>::operator()(
 
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::SQUARE, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::SQUARE, InsideTag::VARA>::operator[](iter_type n) const
 {
 	auto d = *std::min_element(dims, dims + 3);
 	double const u = d / 2.0;
@@ -1204,7 +1204,7 @@ scalar_t InitialConditionsAlg<3, Inside::SQUARE, InsideTag::VARA>::operator()(it
 
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::SQUARE, InsideTag::VARA, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::SQUARE, InsideTag::VARA, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	auto d = *std::min_element(dims, dims + 3);
 
@@ -1230,7 +1230,7 @@ scalar_t InitialConditionsAlg<3, Inside::SQUARE, InsideTag::VARA, InsideTag::RAN
 
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::CIRCLE>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::CIRCLE>::operator[](iter_type n) const
 {
 	double const
 		ux = dims[0] / 2.0,
@@ -1251,7 +1251,7 @@ scalar_t InitialConditionsAlg<3, Inside::CIRCLE>::operator()(iter_type n) const
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::CIRCLE, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::CIRCLE, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	iter_type const
 		shift_x = static_cast<iter_type>(offsets.get_delta(0)[0]),
@@ -1277,7 +1277,7 @@ scalar_t InitialConditionsAlg<3, Inside::CIRCLE, InsideTag::RANDOM>::operator()(
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::CIRCLE, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::CIRCLE, InsideTag::VARA>::operator[](iter_type n) const
 {
 	auto d = *std::min_element(dims, dims + 3);
 	double const u = d / 2.0;
@@ -1296,7 +1296,7 @@ scalar_t InitialConditionsAlg<3, Inside::CIRCLE, InsideTag::VARA>::operator()(it
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::CIRCLE, InsideTag::VARA, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::CIRCLE, InsideTag::VARA, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	auto d = *std::min_element(dims, dims + 3);
 
@@ -1322,7 +1322,7 @@ scalar_t InitialConditionsAlg<3, Inside::CIRCLE, InsideTag::VARA, InsideTag::RAN
 
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::CUBIC>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::CUBIC>::operator[](iter_type n) const
 {
 	// size of symmetry square
 	double const
@@ -1376,7 +1376,7 @@ scalar_t InitialConditionsAlg<3, Inside::CUBIC>::operator()(iter_type n) const
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::CUBIC, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::CUBIC, InsideTag::VARA>::operator[](iter_type n) const
 {
 	// size of symmetry square
 	double const
@@ -1414,7 +1414,7 @@ scalar_t InitialConditionsAlg<3, Inside::CUBIC, InsideTag::VARA>::operator()(ite
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::CUBIC, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::CUBIC, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	// size of symmetry square
 	double const
@@ -1484,7 +1484,7 @@ scalar_t InitialConditionsAlg<3, Inside::CUBIC, InsideTag::RANDOM>::operator()(i
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::HEXAGONAL>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::HEXAGONAL>::operator[](iter_type n) const
 {
 	double const
 		dx = dims[0] / init.data.gp[0],
@@ -1531,7 +1531,7 @@ scalar_t InitialConditionsAlg<3, Inside::HEXAGONAL>::operator()(iter_type n) con
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::HEXAGONAL, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::HEXAGONAL, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	double const
 		dx = dims[0] / init.data.gp[0],
@@ -1599,7 +1599,7 @@ scalar_t InitialConditionsAlg<3, Inside::HEXAGONAL, InsideTag::RANDOM>::operator
 
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_3(
 		n, dims, init, 
@@ -1609,7 +1609,7 @@ scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE>::operator()(iter_type n) c
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_3(
 		n, dims, init, 
@@ -1619,7 +1619,7 @@ scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE>::operator()(iter_type n) c
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_rnd_3(
 		n, dims, init, 
@@ -1629,7 +1629,7 @@ scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::RANDOM>::operat
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_rnd_3(
 		n, dims, init, 
@@ -1642,7 +1642,7 @@ scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::RANDOM>::operat
 
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARA>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_A_3(
 		n, dims, init, 
@@ -1652,7 +1652,7 @@ scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARA>::operator
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARA>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_A_3(
 		n, dims, init, 
@@ -1662,7 +1662,7 @@ scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARA>::operator
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARA, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARA, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_A_rnd_3(
 		n, dims, init, 
@@ -1672,7 +1672,7 @@ scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARA, InsideTag
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARA, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARA, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_A_rnd_3(
 		n, dims, init, 
@@ -1684,7 +1684,7 @@ scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARA, InsideTag
 
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARB>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARB>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_B_3(
 		n, dims, init, 
@@ -1694,7 +1694,7 @@ scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARB>::operator
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARB>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARB>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_B_3(
 		n, dims, init, 
@@ -1704,7 +1704,7 @@ scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARB>::operator
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARB, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARB, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_B_rnd_3(
 		n, dims, init, 
@@ -1714,7 +1714,7 @@ scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARB, InsideTag
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARB, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARB, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	return symphas::internal::seeds_B_rnd_3(
 		n, dims, init, 
@@ -1727,7 +1727,7 @@ scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARB, InsideTag
 
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARC>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARC>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -1739,7 +1739,7 @@ scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARC>::operator
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARC>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARC>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -1751,7 +1751,7 @@ scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARC>::operator
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -1764,7 +1764,7 @@ scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -1779,7 +1779,7 @@ scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag
 
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARA>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -1791,7 +1791,7 @@ scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARA>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -1803,7 +1803,7 @@ scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARA, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARA, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -1816,7 +1816,7 @@ scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARA, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARA, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -1830,7 +1830,7 @@ scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag
 
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARB>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARB>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -1842,7 +1842,7 @@ scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARB>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARB>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -1854,7 +1854,7 @@ scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARB, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::VARB, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -1867,7 +1867,7 @@ scalar_t InitialConditionsAlg<3, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARB, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::SEEDSCIRCLE, InsideTag::VARC, InsideTag::VARB, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	double seed_value = seed_value_dis(gen);
 	double field_value = init.data.gp[4];
@@ -2149,38 +2149,38 @@ scalar_t voronoi_value_A_3(iter_type n, const len_type* dims, size_t N,
 
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::VORONOI>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::VORONOI>::operator[](iter_type n) const
 {
 	return voronoi_value_1(n, dims, N, offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::VORONOI>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::VORONOI>::operator[](iter_type n) const
 {
 	return voronoi_value_2(n, dims, N, offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::VORONOI>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::VORONOI>::operator[](iter_type n) const
 {
 	return voronoi_value_3(n, dims, N, offsets, values);
 }
 
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::VORONOI, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::VORONOI, InsideTag::VARA>::operator[](iter_type n) const
 {
 	return voronoi_value_A_1(n, dims, N, offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::VORONOI, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::VORONOI, InsideTag::VARA>::operator[](iter_type n) const
 {
 	return voronoi_value_A_2(n, dims, N, offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::VORONOI, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::VORONOI, InsideTag::VARA>::operator[](iter_type n) const
 {
 	return voronoi_value_A_3(n, dims, N, offsets, values);
 }
@@ -2188,112 +2188,112 @@ scalar_t InitialConditionsAlg<3, Inside::VORONOI, InsideTag::VARA>::operator()(i
 
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	return voronoi_value_1(n, dims, N, offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	return voronoi_value_2(n, dims, N, offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	return voronoi_value_3(n, dims, N, offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA>::operator[](iter_type n) const
 {
 	return voronoi_value_A_1(n, dims, N, offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA>::operator[](iter_type n) const
 {
 	return voronoi_value_A_2(n, dims, N, offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA>::operator[](iter_type n) const
 {
 	return voronoi_value_A_3(n, dims, N, offsets, values);
 }
 
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>::operator[](iter_type n) const
 {
 	return voronoi_value_1(n, dims, N, offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>::operator[](iter_type n) const
 {
 	return voronoi_value_2(n, dims, N, offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>::operator[](iter_type n) const
 {
 	return voronoi_value_3(n, dims, N, offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARB>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARB>::operator[](iter_type n) const
 {
 	return voronoi_value_A_1(n, dims, N, offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARB>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARB>::operator[](iter_type n) const
 {
 	return voronoi_value_A_2(n, dims, N, offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARB>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARB>::operator[](iter_type n) const
 {
 	return voronoi_value_A_3(n, dims, N, offsets, values);
 }
 
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>::operator[](iter_type n) const
 {
 	return voronoi_value_1(n, dims, N, offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>::operator[](iter_type n) const
 {
 	return voronoi_value_2(n, dims, N, offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>::operator[](iter_type n) const
 {
 	return voronoi_value_3(n, dims, N, offsets, values);
 }
 
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARC>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARC>::operator[](iter_type n) const
 {
 	return voronoi_value_A_1(n, dims, N, offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARC>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARC>::operator[](iter_type n) const
 {
 	return voronoi_value_A_2(n, dims, N, offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARC>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARC>::operator[](iter_type n) const
 {
 	return voronoi_value_A_3(n, dims, N, offsets, values);
 }
@@ -2576,38 +2576,38 @@ scalar_t bubble_value_A_3(iter_type n, const len_type* dims, size_t N, double R,
 
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::BUBBLE>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::BUBBLE>::operator[](iter_type n) const
 {
 	return bubble_value_1(n, dims, N, R, init.data.gp[1], offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::BUBBLE>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::BUBBLE>::operator[](iter_type n) const
 {
 	return bubble_value_2(n, dims, N, R, init.data.gp[1], offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::BUBBLE>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::BUBBLE>::operator[](iter_type n) const
 {
 	return bubble_value_3(n, dims, N, R, init.data.gp[1], offsets, values);
 }
 
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::BUBBLE, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::BUBBLE, InsideTag::VARA>::operator[](iter_type n) const
 {
 	return bubble_value_A_1(n, dims, N, R, init.data.gp[1], offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::BUBBLE, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::BUBBLE, InsideTag::VARA>::operator[](iter_type n) const
 {
 	return bubble_value_A_2(n, dims, N, R, init.data.gp[1], offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::BUBBLE, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::BUBBLE, InsideTag::VARA>::operator[](iter_type n) const
 {
 	return bubble_value_A_3(n, dims, N, R, init.data.gp[1], offsets, values);
 }
@@ -2615,112 +2615,112 @@ scalar_t InitialConditionsAlg<3, Inside::BUBBLE, InsideTag::VARA>::operator()(it
 
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	return bubble_value_1(n, dims, N, R, init.data.gp[1], offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	return bubble_value_2(n, dims, N, R, init.data.gp[1], offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM>::operator[](iter_type n) const
 {
 	return bubble_value_3(n, dims, N, R, init.data.gp[1], offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA>::operator[](iter_type n) const
 {
 	return bubble_value_A_1(n, dims, N, R, init.data.gp[1], offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA>::operator[](iter_type n) const
 {
 	return bubble_value_A_2(n, dims, N, R, init.data.gp[1], offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA>::operator[](iter_type n) const
 {
 	return bubble_value_A_3(n, dims, N, R, init.data.gp[1], offsets, values);
 }
 
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>::operator[](iter_type n) const
 {
 	return bubble_value_1(n, dims, N, R, init.data.gp[1], offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>::operator[](iter_type n) const
 {
 	return bubble_value_2(n, dims, N, R, init.data.gp[1], offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARB>::operator[](iter_type n) const
 {
 	return bubble_value_3(n, dims, N, R, init.data.gp[1], offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARB>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARB>::operator[](iter_type n) const
 {
 	return bubble_value_A_1(n, dims, N, R, init.data.gp[1], offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARB>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARB>::operator[](iter_type n) const
 {
 	return bubble_value_A_2(n, dims, N, R, init.data.gp[1], offsets, values);
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARB>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARB>::operator[](iter_type n) const
 {
 	return bubble_value_A_3(n, dims, N, R, init.data.gp[1], offsets, values);
 }
 
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>::operator[](iter_type n) const
 {
 	return bubble_value_1(n, dims, N, R, init.data.gp[1], offsets, values, select);
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>::operator[](iter_type n) const
 {
 	return bubble_value_2(n, dims, N, R, init.data.gp[1], offsets, values, select);
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARC>::operator[](iter_type n) const
 {
 	return bubble_value_3(n, dims, N, R, init.data.gp[1], offsets, values, select);
 }
 
 
 template<>
-scalar_t InitialConditionsAlg<1, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARC>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<1, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARC>::operator[](iter_type n) const
 {
 	return bubble_value_A_1(n, dims, N, R, init.data.gp[1], offsets, values, select);
 }
 
 template<>
-scalar_t InitialConditionsAlg<2, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARC>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<2, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARC>::operator[](iter_type n) const
 {
 	return bubble_value_A_2(n, dims, N, R, init.data.gp[1], offsets, values, select);
 }
 
 template<>
-scalar_t InitialConditionsAlg<3, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARC>::operator()(iter_type n) const
+scalar_t InitialConditionsAlg<3, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::RANDOM, InsideTag::VARA, InsideTag::VARC>::operator[](iter_type n) const
 {
 	return bubble_value_A_3(n, dims, N, R, init.data.gp[1], offsets, values, select);
 }

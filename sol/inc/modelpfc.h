@@ -28,7 +28,6 @@
 #include <utility>
 #include <array>
 
-#include "modelspecialized.h"
 #include "modelpfctraits.h"
 
 #define DEFAULT_ALPHA_COEFF -0.3
@@ -59,7 +58,6 @@ struct ModelPFCEquation : Model<D, Sp, S...>,
 	using parent_type::coeff;
 	using parent_type::num_coeff;
 	using parent_type::_s;
-
 
 	ModelPFCEquation(double const* coeff, size_t num_coeff, symphas::problem_parameters_type const& parameters) :
 		Model<D, Sp, S...>(coeff, num_coeff, parameters)
@@ -115,12 +113,13 @@ struct ModelPFCEquation : Model<D, Sp, S...>,
 
 			for (iter_type j = i + 1; j < SN; ++j)
 			{
-				size_t offset_group = (SN * (SN + 1)) / 2;	// offset from groups
+				size_t offset_group = (SN * (SN - 1)) / 2;	// offset from groups
+				size_t offset_last = offset_group - ((SN - i) * (SN - (i + 1))) / 2; 
 				size_t offset_noninteraction = SN * 5;
 				size_t offset_interaction =
 					offset_noninteraction			// offset from the noninteracting coefficients
-					+ (j - i - 1)					// offset from the previous coupling index
-					+ i * SN - (i * (i + 1)) / 2;	// offset from the coupling index of the previous field
+					+ (j - (i + 1))					// offset from the previous coupling index for the current i
+					+ offset_last;				// offset from the coupling index of the previous fields
 
 				alpha[i][j] = alpha[j][i] = coeff[offset_interaction];
 				beta[i][j] = beta[j][i] = coeff[offset_interaction + offset_group];
@@ -188,7 +187,7 @@ struct ModelPFCEquation : Model<D, Sp, S...>,
 		auto& dims = parent_type::template system<M>().dims;
 		auto widths = parent_type::template system<M>().get_info().get_widths();
 
-		auto G = GaussianSmoothing<D>{ dims, widths.get(), 1.0, 1.0 };
+		auto G = GaussianSmoothing<D>{ dims, widths, 1.0, 1.0 };
 		return expr::make_literal(alpha[N][M]) * m + expr::make_literal(beta[N][M]) * get_mode_NM<N, M>() * m +
 			expr::make_literal(0.5 * gamma[N][M]) * (expr::make_literal(2.) * n * m + m * m) +
 			expr::make_literal(eps[N][M]) * expr::make_convolution(G, eta_N<M>());
@@ -208,10 +207,10 @@ struct ModelPFCEquation : Model<D, Sp, S...>,
 	template<size_t N>
 	auto eta_N()
 	{
-		auto& dims = parent_type::template system<N>().dims;
+		auto dims = parent_type::template system<N>().dims;
 		auto widths = parent_type::template system<N>().get_info().get_widths();
 
-		auto G = GaussianSmoothing<D>{ dims, widths.get(), 1.0, 1.0 };
+		auto G = GaussianSmoothing<D>{ dims, widths, 1.0, 1.0 };
 		return expr::make_convolution(G, get_field_op<N>());
 	}
 

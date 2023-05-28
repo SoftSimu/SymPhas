@@ -363,7 +363,7 @@ namespace symphas::internal
 
 		template<typename V, typename coeff_t, 
 			typename = std::enable_if_t<(expr::is_coeff<coeff_t> || std::is_same<OpVoid, coeff_t>::value), int>>
-		static auto get(V v, coeff_t);
+		static auto get(V v, coeff_t const&);
 
 		//template<typename V, typename G>
 		//static auto get_g(V v, G g);
@@ -611,9 +611,9 @@ namespace symphas::internal
 
 	template<auto f>
 	template<typename V, typename coeff_t, typename>
-	inline auto make_function<f>::get(V v, coeff_t)
+	inline auto make_function<f>::get(V v, coeff_t const& coeff)
 	{
-		return expr::make_literal(OpFunctionApply<f, V, coeff_t>(v, coeff_t{}).eval(0));
+		return expr::make_literal(OpFunctionApply<f, V, coeff_t>(v, coeff).eval(0));
 	}
 }
 

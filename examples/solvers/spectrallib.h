@@ -33,10 +33,7 @@
 #include "indexseqhelpers.h"
 #include "gridpair.h"
 
-#include "expressionexponentials.h"
-#include "expressiontransforms.h"
-#include "expressionlib.h"
-#include "expressionrules.h"
+#include "expressiontypeincludes.h"
 
 namespace solver_sp
 {
@@ -261,6 +258,27 @@ namespace solver_sp
 	auto get_A_term(OpExpression<A> const& A_expression, std::index_sequence<Rs...>);
 
 	//! Given the linear expression, returns the \f$A\f$ operator.
+	template<typename T, typename T0>
+	auto get_A_term(OpLiteral<T0> const& A_expression)
+	{
+		return A_expression;
+	}
+
+	//! Given the linear expression, returns the \f$A\f$ operator.
+	template<typename T>
+	inline auto get_A_term(OpIdentity)
+	{
+		return OpIdentity{};
+	}
+
+	//! Given the linear expression, returns the \f$A\f$ operator.
+	template<typename T>
+	inline auto get_A_term(OpVoid)
+	{
+		return OpVoid{};
+	}
+
+	//! Given the linear expression, returns the \f$A\f$ operator.
 	template<typename T, typename A, size_t R = expr::eval_type<A>::rank, typename std::enable_if_t<(R == 0), int> = 0>
 	auto get_A_term(OpExpression<A> const& A_expression)
 	{
@@ -276,12 +294,6 @@ namespace solver_sp
 		return get_A_term<T>(*static_cast<A const*>(&A_expression), std::make_index_sequence<R>{});
 	}
 
-	//! Given the linear expression, returns the \f$A\f$ operator.
-	template<typename T>
-	inline auto get_A_term(OpIdentity)
-	{
-		return OpIdentity{};
-	}
 
 	//! Given the linear expression, returns the \f$A\f$ operator.
 	template<typename T, typename A, size_t R, size_t... Rs>
@@ -496,7 +508,7 @@ namespace solver_sp
 		typename = std::enable_if_t<(Z < sizeof...(S)), int>>
 	auto construct_nonlinear(std::tuple<S...> const& systems, OpExpression<B> const& bop,
 		OpTerm<T, Variable<Z, G>> const& e, double const* h, const len_type* dims);
-	//template<size_t Z0, size_t D, NoiseType nt, typename... S, typename B, typename T, typename V>
+	//template<size_t Z0, size_t D, expr::NoiseType nt, typename... S, typename B, typename T, typename V>
 	//auto construct_nonlinear(std::tuple<S...> const& systems, OpExpression<B> const& bop,
 	//	OpTerm<V, NoiseData<nt, T, D>> const& e, double const* h, const len_type* dims);
 	template<size_t Z0, size_t D, typename... S, typename B, typename... Es>
@@ -511,6 +523,9 @@ namespace solver_sp
 	template<size_t Z0, size_t D, typename... S, typename B, typename E1, typename E2>
 	auto construct_nonlinear(std::tuple<S...> const& systems, OpExpression<B> const& bop,
 		OpBinaryDiv<E1, E2> const& e, double const* h, const len_type* dims);
+	template<size_t Z0, size_t D, typename... S, typename B, typename E2>
+	auto construct_nonlinear(std::tuple<S...> const& systems, OpExpression<B> const& bop,
+		OpBinaryDiv<OpIdentity, E2> const& e, double const* h, const len_type* dims);
 
 	template<typename S>
 	//using variable_type = decltype(std::declval<S>()[0]);
@@ -667,6 +682,17 @@ namespace solver_sp
 			(construct_nonlinear<Z0, D>(systems, OpIdentity{}, expr::inverse(e.b), h, dims))));
 
 		return B_term * ee;
+	}
+
+	template<size_t Z0, size_t D, typename... S, typename B, typename E2>
+	auto construct_nonlinear(std::tuple<S...> const& systems, OpExpression<B> const& bop,
+		OpBinaryDiv<OpIdentity, E2> const& e, double const* h, const len_type* dims)
+	{
+		using vt = variable_type<std::tuple_element_t<Z0, std::tuple<S...>>>;
+
+		auto B_term = get_B_term<vt>(*static_cast<B const*>(&bop));
+		auto ft = drop_hcts(expr::transform::to_ft<D>(e, h, dims));
+		return B_term * ft;
 	}
 
 	// **************************************************************************************

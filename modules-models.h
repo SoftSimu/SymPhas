@@ -129,6 +129,8 @@ struct model_select
 #undef c15
 #undef c16
 
+#undef C
+
 // order parameter names
 
 #undef op
@@ -208,20 +210,24 @@ struct init_expr_select
 	/* returns false if there is no model with the given name
 	 */
 	template<typename T>
-	auto call(const char* name, T* values, len_type const* dims, symphas::interval_data_type const& vdata, double const* coeff, size_t num_coeff)
+	auto call(
+		const char* name, Axis ax, T* values, 
+		len_type const* dims, symphas::interval_data_type const& vdata, double const* coeff, size_t num_coeff)
 	{
         using namespace symphas::internal;
 		constexpr int last_index = decltype(init_expr_counter(init_expr_count_index<255>{}))::value;
-		return init_expr_call_wrapper<D, last_index - 1>::template call(name, values, dims, vdata, coeff, num_coeff);
+		return init_expr_call_wrapper<D, last_index - 1>::template call(name, ax, values, dims, vdata, coeff, num_coeff);
 	}
 };
 
 template<size_t D, typename T>
-bool match_init_expr(const char* initname, T* values, len_type const* dims, symphas::interval_data_type const& vdata, double const* coeff, size_t num_coeff)
+bool match_init_expr(
+	const char* initname, Axis ax, T* values,
+	len_type const* dims, symphas::interval_data_type const& vdata, double const* coeff, size_t num_coeff)
 {
 	init_expr_select<D> ie;
 
-	if (ie.call(initname, values, dims, vdata, coeff, num_coeff) < 0)
+	if (ie.call(initname, ax, values, dims, vdata, coeff, num_coeff) < 0)
 	{
 		fprintf(SYMPHAS_ERR, "unknown initialization equation provided, '%s'\n", initname);
 		return false;
