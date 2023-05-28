@@ -27,8 +27,6 @@
 
 #include "modelmacros.h"
 
-
-
 #define eta op(1)
 #define deta dop(1)
 

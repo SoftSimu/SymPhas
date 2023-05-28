@@ -86,7 +86,7 @@ MODEL(MH, (SCALAR, VECTOR),
 )
 LINK_WITH_NAME(MH, MODELH)
 DEFINE_MODEL_FIELD_NAMES(MH, ("m", "j"))
-/*
+
 //
 //! Example of coupling through the free energy using an iterated sum.
 MODEL(MH_FE, (SCALAR, VECTOR),
@@ -94,21 +94,21 @@ MODEL(MH_FE, (SCALAR, VECTOR),
 			EQUATION_OF(1)(-lap(-DF(1)) - grad(op(1)) * DF(2)), 
 			EQUATION_OF(2)(lap(DF(2)) + grad(op(1)) * -DF(1))
 			),
-		LANDAU_FE(psi) + _2 * POW(2)(j))
+		LANDAU_FE(psi) + _2 * pow<2>(j))
 )
 LINK_WITH_NAME(MH_FE, MODELH_FE)
 
 #undef j
 #undef dj
-*/
+
 
 //! Model A defined by the free energy.
-//MODEL(MA_FE, (SCALAR),
-//	FREE_ENERGY((NONCONSERVED),
-//		SUM(ii)(LANDAU_FE(op_ii, c1, c2)))
-//)		
-//LINK_WITH_NAME(MA_FE, MODELA_FE)
-//
+MODEL(MA_FE, (SCALAR),
+	FREE_ENERGY((NONCONSERVED),
+		SUM(ii)(LANDAU_FE(op_ii, c1, c2)))
+)		
+LINK_WITH_NAME(MA_FE, MODELA_FE)
+
 //! Example of coupling through the free energy using an iterated sum.
 
 //
@@ -125,23 +125,23 @@ LINK_WITH_NAME(MH_FE, MODELH_FE)
 //		SUM(ii)(LANDAU_FE(op_ii)) + psi * psi * rho)
 //)
 //LINK_WITH_NAME(MC_FE, MODELC_FE)
-//
-//
-////! The Gray-Scott phase field model.
-//MODEL(GRAYSCOTT, (SCALAR, SCALAR),
-//	EVOLUTION_PREAMBLE((auto prr = psi * rho * rho;),
-//		dpsi = c1 * lap(psi) - prr + c3 * (one - psi),
-//		drho = c2 * lap(rho) + prr - (c3 + c4) * rho)
-//)
-//LINK_WITH_NAME(GRAYSCOTT, GRAYSCOTT)
-//
-//// Turing Model
-//MODEL(Turing, (SCALAR, SCALAR),
-//	EVOLUTION(
-//		dpsi = c1 * lap(psi) + c2 * (psi + c3 * rho - psi * rho * rho - c4 * psi * rho),
-//		drho = lap(rho) + c2 * (c5 * rho + c6 * psi + psi * rho * rho + c4 * psi * rho))
-//)
-//LINK_WITH_NAME(Turing, TURING)
+
+
+//! The Gray-Scott phase field model.
+MODEL(GRAYSCOTT, (SCALAR, SCALAR),
+	EVOLUTION_PREAMBLE((auto prr = psi * rho * rho;),
+		dpsi = c1 * lap(psi) - prr + c3 * (one - psi),
+		drho = c2 * lap(rho) + prr - (c3 + c4) * rho)
+)
+LINK_WITH_NAME(GRAYSCOTT, GRAYSCOTT)
+
+// Turing Model
+MODEL(Turing, (SCALAR, SCALAR),
+	EVOLUTION(
+		dpsi = c1 * lap(psi) + c2 * (psi + c3 * rho - psi * rho * rho - c4 * psi * rho),
+		drho = lap(rho) + c2 * (c5 * rho + c6 * psi + psi * rho * rho + c4 * psi * rho))
+)
+LINK_WITH_NAME(Turing, TURING)
 
 
 /*
