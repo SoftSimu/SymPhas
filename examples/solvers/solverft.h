@@ -78,7 +78,7 @@ NEW_SOLVER_WITH_STENCIL(SolverFT)
 	auto form_expr_one(SS&&, std::pair<S, E> const& e) const
 	{
 		auto [sys, equation] = e;
-		auto eq_ft = equation/*expr::apply_operators(equation)*/;
+		auto eq_ft = expr::apply_operators(equation);
 		
 		return std::make_pair(sys, eq_ft);
 	}

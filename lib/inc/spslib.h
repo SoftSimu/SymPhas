@@ -623,6 +623,37 @@ auto operator*(any_matrix_t<T, L, M> const& lhs, any_matrix_t<S, M, N> const& rh
 	return result;
 }
 
+template<typename T, typename S, size_t L, size_t M, typename std::enable_if_t<(is_non_vector<T>&& is_non_vector<S>), int> = 0>
+auto operator*(any_matrix_t<T, L, M> const& lhs, any_vector_t<S, M> const& rhs)
+{
+	any_vector_t<mul_result_t<T, S>, M> result;
+	for (int i = 0; i < L; ++i)
+	{
+		mul_result_t<T, S> sum{};
+		for (int k = 0; k < M; ++k)
+		{
+			sum += lhs[i][k] * rhs[k];
+		}
+		result[i] = sum;
+	}
+	return result;
+}
+
+template<typename T, typename S, size_t L, size_t M, typename std::enable_if_t<(is_non_vector<T>&& is_non_vector<S>), int> = 0>
+auto operator*(any_row_vector_t<T, L> const& lhs, any_matrix_t<S, L, M> const& rhs)
+{
+	any_row_vector_t<mul_result_t<T, S>, M> result;
+	for (int i = 0; i < M; ++i)
+	{
+		mul_result_t<T, S> sum{};
+		for (int k = 0; k < L; ++k)
+		{
+			sum += lhs[k] * rhs[k][i];
+		}
+		result[i] = sum;
+	}
+	return result;
+}
 
 template<typename T, typename S, size_t N, typename std::enable_if_t<(is_non_vector<T> && is_simple_data<S>), int> = 0>
 auto operator/(any_vector_t<T, N> const& lhs, S const& rhs)

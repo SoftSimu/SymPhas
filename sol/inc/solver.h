@@ -809,50 +809,103 @@ struct Solver
 
 };
 
-
-
-template<Axis ax, size_t O, typename Sp, typename G>
-auto apply_directional_derivative(Sp const& sp, G&& e, iter_type n)
+namespace symphas::internal
 {
-	return sp.template generalized_directional_derivative<ax, O>(std::forward<G>(e), n);
+
+	template<Axis ax, size_t O>
+	struct redirect_apply_derivative
+	{
+		template<typename Sp, typename G>
+		auto operator()(Sp const& sp, G&& e, iter_type n)
+		{
+			return sp.template generalized_derivative<ax, O>(std::forward<G>(e), n);
+		}
+	};
+
+	template<Axis ax>
+	struct redirect_apply_derivative<ax, 1>
+	{
+		template<typename Sp, typename G>
+		auto operator()(Sp const& sp, G&& e, iter_type n)
+		{
+			return sp.template gradient<ax>(std::forward<G>(e), n);
+		}
+	};
+
+	template<Axis ax>
+	struct redirect_apply_derivative<ax, 2>
+	{
+		template<typename Sp, typename G>
+		auto operator()(Sp const& sp, G&& e, iter_type n)
+		{
+			return sp.laplacian(std::forward<G>(e), n);
+		}
+	};
+
+	template<Axis ax>
+	struct redirect_apply_derivative<ax, 3>
+	{
+		template<typename Sp, typename G>
+		auto operator()(Sp const& sp, G&& e, iter_type n)
+		{
+			return sp.template gradlaplacian<ax>(std::forward<G>(e), n);
+		}
+	};
+
+	template<Axis ax>
+	struct redirect_apply_derivative<ax, 4>
+	{
+		template<typename Sp, typename G>
+		auto operator()(Sp const& sp, G&& e, iter_type n)
+		{
+			return sp.bilaplacian(std::forward<G>(e), n);
+		}
+	};
+
+	template<size_t... Os, typename Sp, typename G>
+	auto apply_mixed_derivative(Sp const& sp, G&& e, iter_type n)
+	{
+		return sp.template generalized_mixed_derivative<Os...>(std::forward<G>(e), n);
+	}
+
+	template<Axis ax, size_t O, typename Sp, typename G>
+	auto apply_directional_derivative(Sp const& sp, G&& e, iter_type n)
+	{
+		return sp.template generalized_directional_derivative<ax, O>(std::forward<G>(e), n);
+	}
+
 }
 
-template<Axis ax, size_t O, typename Sp, typename G, typename std::enable_if_t<(O == 1), int> = 0>
-auto apply_derivative(Sp const& sp, G&& e, iter_type n)
-{
-	return sp.template gradient<ax>(std::forward<G>(e), n);
-}
-
-template<Axis ax, size_t O, typename Sp, typename G, typename std::enable_if_t<(O == 2), int> = 0>
-auto apply_derivative(Sp const& sp, G&& e, iter_type n)
-{
-	return sp.laplacian(std::forward<G>(e), n);
-}
-
-template<Axis ax, size_t O, typename Sp, typename G, typename std::enable_if_t<(O == 3), int> = 0>
-auto apply_derivative(Sp const& sp, G&& e, iter_type n)
-{
-	return sp.template gradlaplacian<ax>(std::forward<G>(e), n);
-}
-
-template<Axis ax, size_t O, typename Sp, typename G, typename std::enable_if_t<(O == 4), int> = 0>
-auto apply_derivative(Sp const& sp, G&& e, iter_type n)
-{
-	return sp.bilaplacian(std::forward<G>(e), n);
-}
-
-template<Axis ax, size_t O, typename Sp, typename G, typename std::enable_if_t<(O > 4), int> = 0>
-auto apply_derivative(Sp const& sp, G&& e, iter_type n)
-{
-	return sp.template generalized_derivative<ax, O>(std::forward<G>(e), n);
-}
-
-template<size_t... Os, typename Sp, typename G>
-auto apply_mixed_derivative(Sp const& sp, G&& e, iter_type n)
-{
-	return sp.template generalized_mixed_derivative<Os...>(std::forward<G>(e), n);
-}
-
+//
+//template<Axis ax, size_t O, typename Sp, typename G, typename std::enable_if_t<(O == 1), int> = 0>
+//auto apply_derivative(Sp const& sp, G&& e, iter_type n)
+//{
+//	return sp.template gradient<ax>(std::forward<G>(e), n);
+//}
+//
+//template<Axis ax, size_t O, typename Sp, typename G, typename std::enable_if_t<(O == 2), int> = 0>
+//auto apply_derivative(Sp const& sp, G&& e, iter_type n)
+//{
+//	return sp.laplacian(std::forward<G>(e), n);
+//}
+//
+//template<Axis ax, size_t O, typename Sp, typename G, typename std::enable_if_t<(O == 3), int> = 0>
+//auto apply_derivative(Sp const& sp, G&& e, iter_type n)
+//{
+//	return sp.template gradlaplacian<ax>(std::forward<G>(e), n);
+//}
+//
+//template<Axis ax, size_t O, typename Sp, typename G, typename std::enable_if_t<(O == 4), int> = 0>
+//auto apply_derivative(Sp const& sp, G&& e, iter_type n)
+//{
+//	return sp.bilaplacian(std::forward<G>(e), n);
+//}
+//
+//template<Axis ax, size_t O, typename Sp, typename G, typename std::enable_if_t<(O > 4), int> = 0>
+//auto apply_derivative(Sp const& sp, G&& e, iter_type n)
+//{
+//	return sp.template generalized_derivative<ax, O>(std::forward<G>(e), n);
+//}
 
 template<typename Sp>
 template<Axis ax, size_t O>
@@ -861,7 +914,7 @@ struct Solver<Sp>::derivative
 	template<typename G>
 	auto operator()(Sp const& sp, G&& e, iter_type n) const
 	{
-		return apply_derivative<ax, O>(sp, std::forward<G>(e), n);
+		return symphas::internal::redirect_apply_derivative<ax, O>{}(sp, std::forward<G>(e), n);
 	}
 	static const size_t order = O;
 	static const Axis axis = ax;
@@ -877,7 +930,7 @@ struct Solver<Sp>::directional_derivative
 	template<typename G>
 	auto operator()(Sp const& sp, G&& e, iter_type n) const
 	{
-		return apply_directional_derivative<ax, O>(sp, std::forward<G>(e), n);
+		return symphas::internal::apply_directional_derivative<ax, O>(sp, std::forward<G>(e), n);
 	}
 	static const size_t order = O;
 	static const Axis axis = ax;
@@ -916,7 +969,7 @@ struct Solver<Sp>::mixed_derivative
 	template<typename G>
 	auto operator()(Sp const& sp, G&& e, iter_type n) const
 	{
-		return apply_mixed_derivative<Os...>(sp, std::forward<G>(e), n);
+		return symphas::internal::apply_mixed_derivative<Os...>(sp, std::forward<G>(e), n);
 	}
 	static const size_t order = symphas::math::sum<Os...>();
 	static const Axis axis = symphas::internal::max_order_axis<

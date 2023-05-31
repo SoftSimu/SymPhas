@@ -159,7 +159,7 @@ struct SolverSystemSpectral<scalar_t, D> : System<scalar_t, D>
 
 		symphas::dft::fftw_execute(p);
 		symphas::dft::arrange_fftw_ipts<D>(reinterpret_cast<scalar_t*>(dframe), values, dims);
-		scale(System<scalar_t, D>::as_grid());
+		grid::scale(System<scalar_t, D>::as_grid());
 	}
 
 	friend void swap(SolverSystemSpectral<scalar_t, D>& first, SolverSystemSpectral<scalar_t, D>& second)

@@ -570,6 +570,7 @@ namespace symphas::internal
 	struct special_dynamics
 	{
 		special_dynamics(OpExpression<E> const& e) : e{ *static_cast<E const*>(&e) } {}
+		special_dynamics(OpOperator<E> const& e) : e{ *static_cast<E const*>(&e) } {}
 		special_dynamics(I) {}
 
 		E e;
@@ -584,6 +585,7 @@ namespace symphas::internal
 	struct special_dynamics<N, void, E>
 	{
 		special_dynamics(OpExpression<E> const& e) : e{ *static_cast<E const*>(&e) } {}
+		special_dynamics(OpOperator<E> const& e) : e{ *static_cast<E const*>(&e) } {}
 		E e;
 	};
 
@@ -596,6 +598,12 @@ namespace symphas::internal
 
 		template<typename E0>
 		auto operator()(OpExpression<E0> const& e)
+		{
+			return special_dynamics<N, I, E0>(*static_cast<E0 const*>(&e));
+		}
+
+		template<typename E0>
+		auto operator()(OpOperator<E0> const& e)
 		{
 			return special_dynamics<N, I, E0>(*static_cast<E0 const*>(&e));
 		}
@@ -615,6 +623,12 @@ namespace symphas::internal
 
 		template<typename E0>
 		auto operator()(OpExpression<E0> const& e)
+		{
+			return special_dynamics<N, void, E0>(*static_cast<E0 const*>(&e));
+		}
+
+		template<typename E0>
+		auto operator()(OpOperator<E0> const& e)
 		{
 			return special_dynamics<N, void, E0>(*static_cast<E0 const*>(&e));
 		}
@@ -739,7 +753,7 @@ namespace symphas::internal
 	template<size_t N, size_t N0, typename E, typename R>
 	struct dynamics_rule_compare<N, special_dynamics<N0, void, E>, R>
 	{
-		static const bool value = (N != N0);
+		static const bool value = (N == N0);
 	};
 
 	template<size_t N, typename L, typename E>
@@ -787,7 +801,7 @@ namespace symphas::internal
 	template<size_t N, size_t N0, size_t N1, typename E0, typename E1>
 	struct dynamics_rule_compare<N, special_dynamics<N0, void, E0>, special_dynamics<N1, void, E1>>
 	{
-		static const bool value = (N0 != N);
+		static const bool value = (N0 == N);
 	};
 	
 	template<size_t N, size_t N0, typename E0, typename E1>
@@ -875,7 +889,7 @@ namespace symphas::internal
 		return expr::transform::swap_grid<Variable<N, expr::symbols::diff_F_symbol>, Variable<Ns, expr::symbols::diff_F_symbol>...>
 			(*static_cast<E0 const*>(&dyn0), 
 				expr::make_functional_derivative(*static_cast<F const*>(&fe), std::get<0>(ops)),
-				expr::make_functional_derivative(*static_cast<F const*>(&fe), std::get<symphas::lib::index_of_value<size_t, Ns, Ns...>>(ops))...);
+				expr::make_functional_derivative(*static_cast<F const*>(&fe), std::get<symphas::lib::index_of_value<size_t, Ns, Ns...> + 1>(ops))...);
 	}
 	
 	template<size_t NN, typename E0>
@@ -937,12 +951,12 @@ namespace symphas::internal
 	}
 
 
-	template<typename model_t, size_t I, size_t... Is>
+	template<typename model_t, size_t N, size_t... Ns>
 	auto all_ops(model_t const& model, symphas::lib::types_list<
-		Variable<I, expr::symbols::diff_F_symbol>,
-		Variable<Is, expr::symbols::diff_F_symbol>...>)
+		Variable<N, expr::symbols::diff_F_symbol>,
+		Variable<Ns, expr::symbols::diff_F_symbol>...>)
 	{
-		return std::make_tuple(model.template op<I>(), model.template op<Is>()...);
+		return std::make_tuple(model.template op<N>(), model.template op<Ns>()...);
 	}
 
 	template<typename model_t>
@@ -1231,13 +1245,18 @@ struct TraitEquation : parent_trait
 	template<typename... dynamics_ts, typename E>
 	auto generate_equations(std::tuple<dynamics_ts...> const& dynamics, OpExpression<E> const& e) const
 	{
-		return generate_equations_apply(
-			*static_cast<E const*>(&e), dynamics, seq_t{});
+		expr::printe(*static_cast<E const*>(&e), "free energy");
+		return generate_equations_apply(*static_cast<E const*>(&e), dynamics, seq_t{});
+	}
+
+	template<typename... As>
+	auto make_equations(As&& ...as) const
+	{
+		((..., expr::printe(as.second, "given equation")));
+		return solver.template form_expr_all<model_num_parameters<parent_trait>::value>(parent_trait::systems_tuple(), as...);
 	}
 
 protected:
-
-	;
 
 
 	template<size_t I>
@@ -1418,13 +1437,13 @@ protected:
 		return OpLHS(DynamicVariable(index, parent_trait::systems()));
 	}
 
-	template<typename L, typename E>
-	auto update_placeholders(std::pair<L, E> const& equation) const
-	{
-		using swap_t = GridSymbol<symphas::internal::non_parameterized_type<S>, D>;
-		auto&& [l, e] = equation;
-		return std::make_pair(l, expr::transform::swap_grid<swap_t, expr::symbols::placeholder_N_symbol>(e, op(), index));
-	}
+	//template<typename L, typename E>
+	//auto update_placeholders(std::pair<L, E> const& equation) const
+	//{
+	//	using swap_t = GridSymbol<symphas::internal::non_parameterized_type<S>, D>;
+	//	auto&& [l, e] = equation;
+	//	return std::make_pair(l, expr::transform::swap_grid<swap_t, expr::symbols::placeholder_N_symbol>(e, op(), index));
+	//}
 
 };
 

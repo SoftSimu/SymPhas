@@ -1955,6 +1955,10 @@ namespace expr
 	auto make_add(OpVoid, OpAdd<E0s...> const& add);
 	template<typename A, typename B>
 	auto make_add(OpExpression<A> const& a, OpExpression<B> const& b);
+	template<typename A, typename B>
+	auto make_add(OpOperator<A> const& a, OpExpression<B> const& b);
+	template<typename A, typename B>
+	auto make_add(OpExpression<A> const& a, OpOperator<B> const& b);
 	template<typename E1, typename E2, typename E3, typename... Es>
 	auto make_add(E1&& a, E2&& b, E3&& c, Es&& ...es);
 
@@ -2542,6 +2546,18 @@ auto expr::make_add(OpExpression<A> const& a, OpExpression<B> const& b)
 	return OpAdd<A, B>(*static_cast<A const*>(&a), *static_cast<B const*>(&b));
 }
 
+template<typename A, typename B>
+auto expr::make_add(OpOperator<A> const& a, OpExpression<B> const& b)
+{
+	return OpAdd<A, B>(*static_cast<A const*>(&a), *static_cast<B const*>(&b));
+}
+
+template<typename A, typename B>
+auto expr::make_add(OpExpression<A> const& a, OpOperator<B> const& b)
+{
+	return OpAdd<A, B>(*static_cast<A const*>(&a), *static_cast<B const*>(&b));
+}
+
 template<typename E1, typename E2, typename E3, typename... Es>
 auto expr::make_add(E1&& a, E2&& b, E3&& c, Es&& ...es)
 {
@@ -2662,8 +2678,8 @@ namespace symphas::internal
 	size_t mul_print(FILE* out, OpExpression<E1> const& a, OpExpression<E2> const& b)
 	{
 		size_t n = 0;
-		bool neg1 = expr::eval(expr::coeff(*static_cast<E1 const*>(&a))) < 0;
-		bool neg2 = expr::eval(expr::coeff(*static_cast<E2 const*>(&b))) < 0;
+		bool neg1 = expr::eval(expr::coeff(*static_cast<E1 const*>(&a))) < 0 || expr::is_add<E1>;
+		bool neg2 = expr::eval(expr::coeff(*static_cast<E2 const*>(&b))) < 0 || expr::is_add<E2>;
 
 		n += mul_print_left(out, neg1);
 		n += static_cast<E1 const*>(&a)->print(out);
@@ -2674,11 +2690,102 @@ namespace symphas::internal
 	}
 
 	template<typename E1, typename E2>
+	size_t mul_print(FILE* out, OpOperator<E1> const& a, OpExpression<E2> const& b)
+	{
+		size_t n = 0;
+		bool neg1 = false;
+		bool neg2 = expr::eval(expr::coeff(*static_cast<E2 const*>(&b))) < 0 || expr::is_add<E2>;
+
+		n += mul_print_left(out, neg1);
+		n += static_cast<E1 const*>(&a)->print(out);
+		n += mul_print_sep(out, neg1, neg2);
+		n += static_cast<E2 const*>(&b)->print(out);
+		n += mul_print_right(out, neg2);
+		return n;
+	}
+
+	template<typename E1, typename E2>
+	size_t mul_print(FILE* out, OpExpression<E1> const& a, OpOperator<E2> const& b)
+	{
+		size_t n = 0;
+		bool neg1 = expr::eval(expr::coeff(*static_cast<E1 const*>(&a))) < 0 || expr::is_add<E1>;
+		bool neg2 = false;
+
+		n += mul_print_left(out, neg1);
+		n += static_cast<E1 const*>(&a)->print(out);
+		n += mul_print_sep(out, neg1, neg2);
+		n += static_cast<E2 const*>(&b)->print(out);
+		n += mul_print_right(out, neg2);
+		return n;
+	}
+
+	template<typename E1, typename E2>
+	size_t mul_print(FILE* out, OpOperator<E1> const& a, OpOperator<E2> const& b)
+	{
+		size_t n = 0;
+		bool neg1 = false;
+		bool neg2 = false;
+
+		n += mul_print_left(out, neg1);
+		n += static_cast<E1 const*>(&a)->print(out);
+		n += mul_print_sep(out, neg1, neg2);
+		n += static_cast<E2 const*>(&b)->print(out);
+		n += mul_print_right(out, neg2);
+		return n;
+	}
+
+
+	template<typename E1, typename E2>
 	size_t mul_print(char* out, OpExpression<E1> const& a, OpExpression<E2> const& b)
 	{
 		size_t n = 0;
-		bool neg1 = expr::eval(expr::coeff(*static_cast<E1 const*>(&a))) < 0;
-		bool neg2 = expr::eval(expr::coeff(*static_cast<E2 const*>(&b))) < 0;
+		bool neg1 = expr::eval(expr::coeff(*static_cast<E1 const*>(&a))) < 0 || expr::is_add<E1>;
+		bool neg2 = expr::eval(expr::coeff(*static_cast<E2 const*>(&b))) < 0 || expr::is_add<E2>;
+
+		n += mul_print_left(out + n, neg1);
+		n += static_cast<E1 const*>(&a)->print(out + n);
+		n += mul_print_sep(out + n, neg1, neg2);
+		n += static_cast<E2 const*>(&b)->print(out + n);
+		n += mul_print_right(out + n, neg2);
+		return n;
+	}
+
+	template<typename E1, typename E2>
+	size_t mul_print(char* out, OpOperator<E1> const& a, OpExpression<E2> const& b)
+	{
+		size_t n = 0;
+		bool neg1 = false;
+		bool neg2 = expr::eval(expr::coeff(*static_cast<E2 const*>(&b))) < 0 || expr::is_add<E2>;
+
+		n += mul_print_left(out + n, neg1);
+		n += static_cast<E1 const*>(&a)->print(out + n);
+		n += mul_print_sep(out + n, neg1, neg2);
+		n += static_cast<E2 const*>(&b)->print(out + n);
+		n += mul_print_right(out + n, neg2);
+		return n;
+	}
+
+	template<typename E1, typename E2>
+	size_t mul_print(char* out, OpExpression<E1> const& a, OpOperator<E2> const& b)
+	{
+		size_t n = 0;
+		bool neg1 = expr::eval(expr::coeff(*static_cast<E1 const*>(&a))) < 0 || expr::is_add<E1>;
+		bool neg2 = false;
+
+		n += mul_print_left(out + n, neg1);
+		n += static_cast<E1 const*>(&a)->print(out + n);
+		n += mul_print_sep(out + n, neg1, neg2);
+		n += static_cast<E2 const*>(&b)->print(out + n);
+		n += mul_print_right(out + n, neg2);
+		return n;
+	}
+
+	template<typename E1, typename E2>
+	size_t mul_print(char* out, OpOperator<E1> const& a, OpOperator<E2> const& b)
+	{
+		size_t n = 0;
+		bool neg1 = false;
+		bool neg2 = false;
 
 		n += mul_print_left(out + n, neg1);
 		n += static_cast<E1 const*>(&a)->print(out + n);
@@ -2704,11 +2811,41 @@ namespace symphas::internal
 	}
 
 	template<typename V, typename E1, typename T, typename E2>
+	size_t mul_print(FILE* out, OpIntegral<V, E1, T> const& a, OpOperator<E2> const& b)
+	{
+		size_t n = 0;
+		bool neg1 = expr::eval(expr::coeff(a)) < 0;
+		bool neg2 = false;
+
+		n += mul_print_left(out, neg1);
+		n += a.print(out);
+		n += mul_print_sep(out, neg1, neg2);
+		n += static_cast<E2 const*>(&b)->print(out);
+		n += mul_print_right(out, neg2);
+		return n;
+	}
+
+	template<typename V, typename E1, typename T, typename E2>
 	size_t mul_print(char* out, OpIntegral<V, E1, T> const& a, OpExpression<E2> const& b)
 	{
 		size_t n = 0;
 		bool neg1 = expr::eval(expr::coeff(a)) < 0;
 		bool neg2 = true;
+
+		n += mul_print_left(out + n, neg1);
+		n += a.print(out + n);
+		n += mul_print_sep(out + n, neg1, neg2);
+		n += static_cast<E2 const*>(&b)->print(out + n);
+		n += mul_print_right(out + n, neg2);
+		return n;
+	}
+
+	template<typename V, typename E1, typename T, typename E2>
+	size_t mul_print(char* out, OpIntegral<V, E1, T> const& a, OpOperator<E2> const& b)
+	{
+		size_t n = 0;
+		bool neg1 = expr::eval(expr::coeff(a)) < 0;
+		bool neg2 = false;
 
 		n += mul_print_left(out + n, neg1);
 		n += a.print(out + n);
@@ -2734,10 +2871,40 @@ namespace symphas::internal
 	}
 
 	template<typename V, typename E1, typename T, typename E2>
+	size_t mul_print(FILE* out, OpOperator<E1> const& a, OpIntegral<V, E2, T> const& b)
+	{
+		bool neg1 = false;
+		bool neg2 = false;
+
+		size_t n = 0;
+		n += fprintf(out, SYEX_MUL_FMT_AA);
+		n += static_cast<E1 const*>(&a)->print(out);
+		n += fprintf(out, SYEX_MUL_SEP_OP);
+		n += b.print(out);
+		n += fprintf(out, SYEX_MUL_FMT_BB);
+		return n;
+	}
+
+	template<typename V, typename E1, typename T, typename E2>
 	size_t mul_print(char* out, OpExpression<E1> const& a, OpIntegral<V, E2, T> const& b)
 	{
 		size_t n = 0;
 		bool neg1 = expr::eval(expr::coeff(*static_cast<E1 const*>(&a))) < 0;
+		bool neg2 = false;
+
+		n += mul_print_left(out + n, neg1);
+		n += static_cast<E1 const*>(&a)->print(out);
+		n += mul_print_sep(out + n, neg1, neg2);
+		n += b.print(out + n);
+		n += mul_print_right(out + n, neg2);
+		return n;
+	}
+
+	template<typename V, typename E1, typename T, typename E2>
+	size_t mul_print(char* out, OpOperator<E1> const& a, OpIntegral<V, E2, T> const& b)
+	{
+		size_t n = 0;
+		bool neg1 = false;
 		bool neg2 = false;
 
 		n += mul_print_left(out + n, neg1);
@@ -2917,11 +3084,6 @@ auto operator*(OpBinaryMul<A, B> const& a, OpOperator<E> const& b)
 	return OpOperatorChain(a, *static_cast<const E*>(&b));
 }
 
-template<typename E1, typename E2>
-auto operator*(OpOperator<E1> const& a, OpOperator<E2> const& b)
-{
-	return (*static_cast<const E1*>(&a)).operator*(*static_cast<const E2*>(&b));
-}
 
 //! Binary expression, the division of two terms.
 template<typename E1, typename E2>

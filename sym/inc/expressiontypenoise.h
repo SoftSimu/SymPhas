@@ -224,6 +224,8 @@ namespace expr
 			for (iter_type i = 0; i < D; ++i) H *= h[i];
 		}
 
+		noise_data() : parent_type(nullptr), seed_type(), H{ 1 }, dt{ nullptr }, intensity{ 1. } {}
+
 		void update(double mean = NOISE_MEAN, double std_dev = NOISE_STD)
 		{
 			auto gen = get_seed();
@@ -269,6 +271,8 @@ namespace expr
 		noise_data(const len_type* dims, const double* h, double *dt, double intensity = 1.0)
 			: parent_type(&eigen_exponential, dims, h, dt, intensity), seed_type() {}
 
+		noise_data() : parent_type(&eigen_exponential, nullptr, nullptr, nullptr, 1.0) {}
+
 		void update()
 		{
 			parent_type::update(*this, false);
@@ -290,6 +294,8 @@ namespace expr
 
 		noise_data(const len_type* dims, const double* h, double *dt, double intensity = 1.0)
 			: parent_type(&eigen_polynomial, dims, h, dt, intensity), seed_type() {}
+
+		noise_data() : parent_type(&eigen_polynomial, nullptr, nullptr, nullptr, 1.0) {}
 
 		void update()
 		{
@@ -314,6 +320,8 @@ namespace expr
 		noise_data(const len_type* dims, const double* h, double* dt, double intensity = 1.0)
 			: parent_type(&eigen_one, dims, h, dt, intensity), seed_type() {}
 
+		noise_data() : parent_type(&eigen_one, nullptr, nullptr, nullptr, 1.0) {}
+
 		void update()
 		{
 			parent_type::update(*this, true);
@@ -337,7 +345,7 @@ namespace expr
 		noise_data(const len_type* dims, double intensity = 1.0) :
 			noise_data(dims, nullptr, nullptr, intensity) {}
 
-		noise_data() : noise_data{ nullptr } {}
+		noise_data() : seed_type(), intensity{ 1.0 }, next{ 0 }, value{ 0 } {}
 
 
 		auto get_index(expr::symbols::Symbol)
@@ -415,6 +423,7 @@ namespace expr
 
 		noise_data_axis(const len_type* dims, const double* h, double* dt, double intensity = 1.0)
 			: parent_type(dims, h, dt, intensity), data(dims, h, dt, intensity) {}
+		noise_data_axis() : parent_type(), data() {}
 
 		vector_t<3> operator[](iter_type n) const
 		{
@@ -438,6 +447,7 @@ namespace expr
 
 		noise_data_axis(const len_type* dims, const double* h, double* dt, double intensity = 1.0)
 			: parent_type(dims, h, dt, intensity), data(dims, h, dt, intensity) {}
+		noise_data_axis() : parent_type(), data() {}
 
 		vector_t<2> operator[](iter_type n) const
 		{
@@ -461,6 +471,7 @@ namespace expr
 
 		noise_data_axis(const len_type* dims, const double* h, double* dt, double intensity = 1.0)
 			: parent_type(dims, h, dt, intensity) {}
+		noise_data_axis() : parent_type() {}
 
 		vector_t<1> operator[](iter_type n) const
 		{
@@ -663,10 +674,16 @@ namespace expr
 namespace expr::transform
 {
 
+	template<size_t D, NoiseType nt, typename T>
+	auto to_ft(NoiseData<nt, T, D> const& e, double const* h, const len_type* dims)
+	{
+		return e;
+	}
+
 	template<size_t D, typename V, typename T, typename E, size_t... Ns, typename... Ts>
 	auto to_ft(OpSymbolicEval<V, NoiseData<NoiseType::WHITE, T, D>, SymbolicFunction<E, Variable<Ns, Ts>...>> const& e, double const* h, const len_type* dims)
 	{
-		auto noise = to_ft<D>(e.data(), h, dims);
+		auto noise = to_ft<D>(e.data, h, dims);
 		return expr::coeff(e) * expr::make_noise(noise, e.f);
 	}
 }

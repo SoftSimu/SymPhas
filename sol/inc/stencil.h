@@ -346,23 +346,25 @@ namespace symphas::internal
 
 #ifdef GENERATE_UNDEFINED_STENCILS_ON
 
-	template<Axis ax, size_t OD, size_t OA, typename T, typename Stt = std::invoke_result_t<decltype(&expr::get_central_space_stencil<OD, OA, 1>)>>
+	template<size_t OD, size_t OA, typename T>
 	auto apply_generalized_derivative(T* const v, double divh, const len_type (&stride)[1])
 	{
-		return symphas::internal::GeneratedStencilApply<Stt>{ 1, divh }(v);
+		static symphas::internal::GeneratedStencilApply stencil{ expr::get_central_space_stencil<OD, OA, 1>() };
+		return stencil(v, stride, divh);
 	}
 
-
-	template<size_t OD, size_t OA, typename T, typename Stt = std::invoke_result_t<decltype(&expr::get_central_space_stencil<OD, OA, 2>)>>
+	template<size_t OD, size_t OA, typename T>
 	auto apply_generalized_derivative(T* const v, double divh, const len_type(&stride)[2])
 	{
-		return symphas::internal::GeneratedStencilApply<Stt>{ stride, divh }(v);
+		static symphas::internal::GeneratedStencilApply stencil{ expr::get_central_space_stencil<OD, OA, 2>() };
+		return stencil(v, stride, divh);
 	}
 
-	template<size_t OD, size_t OA, typename T, typename Stt = std::invoke_result_t<decltype(&expr::get_central_space_stencil<OD, OA, 3>)>>
+	template<size_t OD, size_t OA, typename T>
 	auto apply_generalized_derivative(T* const v, double divh, const len_type(&stride)[3])
 	{
-		return symphas::internal::GeneratedStencilApply<Stt>{ stride, divh }(v);
+		static symphas::internal::GeneratedStencilApply stencil{ expr::get_central_space_stencil<OD, OA, 3>() };
+		return stencil(v, stride, divh);
 	}
 	
 #else
@@ -435,17 +437,19 @@ struct GeneralizedStencil
 	 * \tparam OD Order of the derivative.
 	 * \tparam ax Axis of the directional derivative.
 	 */
-	template<Axis ax, size_t OD, typename T, typename Stt = std::invoke_result_t<decltype(&expr::get_central_space_stencil<OD, OA, 1>)>,
-		typename = std::enable_if_t<((ax == Axis::Z) ? (DD == 3) : (ax == Axis::Y) ? (DD >= 2) : (ax == Axis::X) ? (DD >= 1) : false), int>>
+	template<Axis ax, size_t OD, typename T/*, typename Stt = std::invoke_result_t<decltype(&expr::get_central_space_stencil<OD, OA, 1>)>,
+		typename = std::enable_if_t<((ax == Axis::Z) ? (DD == 3) : (ax == Axis::Y) ? (DD >= 2) : (ax == Axis::X) ? (DD >= 1) : false), int>*/>
 	auto apply_directional(T* const v) const
 	{
 		len_type stride = (ax == Axis::Z) ? (dims[0] * dims[1]) : (ax == Axis::Y) ? dims[1] : 1;
+		static symphas::internal::GeneratedStencilApply stencil(expr::get_central_space_stencil<OD, OA, 1>());
 
 #ifdef DEBUG
-		static size_t n = expr::print_stencil(symphas::internal::GeneratedStencilApply<Stt>{ stride, divh });
+		static size_t n = expr::print_stencil(stencil);
 #endif
 
-		return symphas::internal::GeneratedStencilApply<Stt>{ stride, divh }(v);
+		return stencil(v, stride, divh);
+
 	}
 
 	//! Determine the finite difference approximation to the mixed derivative.
@@ -456,18 +460,20 @@ struct GeneralizedStencil
 	 * \tparam OD Order of the derivative.
 	 * \tparam ax Axis of the directional derivative.
 	 */
-	template<size_t OD1, size_t OD2, size_t OD3, typename T,
-		typename Stt = std::invoke_result_t<decltype(&expr::get_central_space_mixed_stencil<OA, OD1, OD2, OD3>), std::index_sequence<OD1, OD2, OD3>>>
+	template<size_t OD1, size_t OD2, size_t OD3, typename T/*,
+		typename Stt = std::invoke_result_t<decltype(&expr::get_central_space_mixed_stencil<OA, OD1, OD2, OD3>), std::index_sequence<OD1, OD2, OD3>>*/>
 	auto apply_mixed(T* const v) const
 	{
 		len_type stride[DD];
 		symphas::set_stride<Axis::X>(stride, dims);
+		static symphas::internal::GeneratedStencilApply stencil(expr::get_central_space_mixed_stencil<OA>(std::index_sequence<OD1, OD2, OD3>{}));
 
 #ifdef DEBUG
-		static size_t n = expr::print_stencil(symphas::internal::GeneratedStencilApply<Stt>{ stride, divh });
+		static size_t n = expr::print_stencil(stencil);
 #endif
 
-		return symphas::internal::GeneratedStencilApply<Stt>{ stride, divh }(v);
+		return stencil(v, stride, divh);
+		//return symphas::internal::GeneratedStencilApply<Stt>{ stride, divh }(v);
 	}
 
 	//! Determine the finite difference approximation to the mixed derivative.
@@ -478,17 +484,20 @@ struct GeneralizedStencil
 	 * \tparam OD Order of the derivative.
 	 * \tparam ax Axis of the directional derivative.
 	 */
-	template<size_t OD1, size_t OD2, typename T,
-		typename Stt = std::invoke_result_t<decltype(&expr::get_central_space_mixed_stencil<OA, OD1, OD2>), std::index_sequence<OD1, OD2>>>
+	template<size_t OD1, size_t OD2, typename T/*,
+		typename Stt = std::invoke_result_t<decltype(&expr::get_central_space_mixed_stencil<OA, OD1, OD2>), std::index_sequence<OD1, OD2>>*/>
 	auto apply_mixed(T* const v) const
 	{
 		len_type stride[DD];
 		symphas::set_stride<Axis::X>(stride, dims);
+		static symphas::internal::GeneratedStencilApply stencil(expr::get_central_space_mixed_stencil<OA>(std::index_sequence<OD1, OD2>{}));
+
 #ifdef DEBUG
-		static size_t n = expr::print_stencil(symphas::internal::GeneratedStencilApply<Stt>{ stride, divh });
+		static size_t n = expr::print_stencil(stencil);
 #endif
 
-		return symphas::internal::GeneratedStencilApply<Stt>{ stride, divh }(v);
+		return stencil(v, stride, divh);
+		//return symphas::internal::GeneratedStencilApply<Stt>{ stride, divh }(v);
 	}
 
 	//! Determine the finite difference approximation to the mixed derivative.
@@ -499,7 +508,7 @@ struct GeneralizedStencil
 	 * \tparam OD Order of the derivative.
 	 * \tparam ax Axis of the directional derivative.
 	 */
-	template<size_t OD1, typename T, typename Stt = std::invoke_result_t<decltype(&expr::get_central_space_stencil<OD1, OA, 1>)>>
+	template<size_t OD1, typename T/*, typename Stt = std::invoke_result_t<decltype(&expr::get_central_space_stencil<OD1, OA, 1>)>*/>
 	auto apply_mixed(T* const v) const
 	{
 		len_type stride[DD];
@@ -509,7 +518,24 @@ struct GeneralizedStencil
 		static size_t n = expr::print_stencil(symphas::internal::GeneratedStencilApply<Stt>{ stride, divh });
 #endif
 
-		return symphas::internal::GeneratedStencilApply<Stt>{ stride, divh }(v);
+		static symphas::internal::GeneratedStencilApply stencil(expr::get_central_space_stencil<OD1, OA, 1>());
+		return stencil(v, stride, divh);
+		//return symphas::internal::GeneratedStencilApply<Stt>{ stride, divh }(v);
+	}
+
+
+	template<typename T>
+	auto gradient(T* const v, const len_type(&stride)[DD]) const
+	{
+		return apply<1>(v, stride);
+	}
+
+	template<typename T>
+	auto gradient(T* const v) const
+	{
+		len_type stride[DD]{};
+		symphas::set_stride<Axis::X>(stride, dims);
+		return apply<1>(v, stride);
 	}
 };
 

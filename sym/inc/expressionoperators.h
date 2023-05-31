@@ -98,7 +98,7 @@
  * \tparam E The specialized operator, used for the CRTP strategy.
  */
 template<typename E>
-struct OpOperator : OpExpression<E> 
+struct OpOperator/* : OpExpression<E> */
 {
 	inline auto eval(iter_type) const
 	{
@@ -108,13 +108,19 @@ struct OpOperator : OpExpression<E>
 	template<typename E0>
 	auto operator()(OpExpression<E0> const& e) const
 	{
-		return cast().apply(*static_cast<E0 const*>(&e));
+		return cast().apply_impl(*static_cast<E0 const*>(&e));
+	}
+
+	template<typename E0>
+	auto operator()(OpOperator<E0> const& e) const
+	{
+		return operator*(*static_cast<E0 const*>(&e));
 	}
 
 	template<typename E0>
 	auto operator*(OpExpression<E0> const& e) const
 	{
-		return cast().apply(*static_cast<E0 const*>(&e));
+		return cast().apply_impl(*static_cast<E0 const*>(&e));
 	}
 
 	template<typename E0>
@@ -123,16 +129,24 @@ struct OpOperator : OpExpression<E>
 		return apply(*static_cast<E0 const*>(&e));
 	}
 
-	template<typename E0, typename std::enable_if_t<expr::is_symbol<expr::eval_type_t<E0>>, int> = 0>
+	//template<typename... Es>
+	//auto operator*(OpAdd<Es...> const& e) const
+	//{
+	//	return cast().operator*(e);
+	//}
+
+	template<typename E0, 
+		typename std::enable_if_t<(expr::is_symbol<expr::eval_type_t<E0>> && expr::grid_dim<E0>::value == 0), int> = 0>
 	auto apply(OpExpression<E0> const& e) const
 	{
-		return OpChain(OpOperatorChain(OpIdentity{}, cast()), *static_cast<E0 const*>(&e));
+		return OpOperatorChain(cast(), *static_cast<E0 const*>(&e));
 	}
 
-	template<typename E0, typename std::enable_if_t<!expr::is_symbol<expr::eval_type_t<E0>>, int> = 0>
+	template<typename E0, 
+		typename std::enable_if_t<!(expr::is_symbol<expr::eval_type_t<E0>>&& expr::grid_dim<E0>::value == 0), int> = 0>
 	auto apply(OpExpression<E0> const& e) const
 	{
-		return cast().apply(*static_cast<E0 const*>(&e));
+		return cast().apply_impl(*static_cast<E0 const*>(&e));
 	}
 
 	template<typename E0>
@@ -188,7 +202,8 @@ struct OpOperator : OpExpression<E>
 	template<typename B1, typename B2>
 	auto operator*(OpOperatorCombination<B1, B2> const& b) const
 	{
-		return cast() * b.f + cast() * b.g;
+		return expr::make_mul(cast(), b);
+		//return cast() * b.f + cast() * b.g;
 	}
 
 	 //! An operator applied to a combination creates a chain operator.
@@ -215,12 +230,12 @@ struct OpOperator : OpExpression<E>
 		return (*static_cast<E*>(this));
 	}
 };
-
-template<typename E, typename coeff_t, typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
-auto operator*(OpOperator<E> const& e, coeff_t const& v)
-{
-	return (*static_cast<E const*>(&e))(v);
-}
+//
+//template<typename E, typename coeff_t, typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+//auto operator*(OpOperator<E> const& e, coeff_t const& v)
+//{
+//	return (*static_cast<E const*>(&e))(v);
+//}
 
 
 //! The addition of two operators creates a combination.
@@ -467,6 +482,18 @@ auto operator*(OpBinaryMul<A1, OpOperator<E>> const& a, OpExpression<A2> const& 
 	return a.a * (a.b * (*static_cast<const A2*>(&b)));
 }
 
+
+template<typename E1, typename E2>
+auto operator+(OpExpression<E1> const& a, OpOperator<E2> const& b)
+{
+	return expr::make_add(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b));
+}
+
+template<typename E1, typename E2>
+auto operator+(OpOperator<E1> const& a, OpExpression<E2> const& b)
+{
+	return expr::make_add(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b));
+}
 
 
 // ******************************************************************************************
@@ -744,6 +771,11 @@ namespace expr
 template<typename A1, typename A2>
 struct OpOperatorCombination : OpOperator<OpOperatorCombination<A1, A2>>
 {
+	using parent_type = OpOperator<OpOperatorCombination<A1, A2>>;
+	using parent_type::operator*;
+	using parent_type::operator-;
+	using parent_type::operator+;
+
 	//! Create the combination of two operators.
 	/*!
 	 * Create the combination of two operators.
@@ -793,6 +825,33 @@ struct OpOperatorCombination : OpOperator<OpOperatorCombination<A1, A2>>
 		return f.print_length() + g.print_length() + SYEX_COMBINATION_FMT_LEN;
 	}
 
+
+	//! Apply the chain operation to an expression.
+	template<typename E, typename AA1 = A1, typename AA2 = A2, typename std::enable_if_t<
+		!(std::is_same<mul_result_t<A1, E>, decltype(std::declval<AA1>().apply(std::declval<E>()))>::value/*std::invoke_result_t<decltype(&A1::template apply<E>), A1, E>>::value*/
+			&& std::is_same<mul_result_t<A2, E>, decltype(std::declval<AA2>().apply(std::declval<E>()))>::value/*std::invoke_result_t<decltype(&A2::template apply<E>), A2, E>>::value*/), int> = 0>
+	auto operator*(OpExpression<E> const& e)
+	{
+		return expr::make_mul(*this, *static_cast<E const*>(&e));
+		//return a.f * (*static_cast<E const*>(&e)) + a.g * (*static_cast<E const*>(&e));
+	}
+
+	//! Apply the chain operation to an expression.
+	template<typename E, typename AA1 = A1, typename AA2 = A2, typename std::enable_if_t<
+		(std::is_same<mul_result_t<AA1, E>, decltype(std::declval<AA1>().apply(std::declval<E>()))>::value
+			&& std::is_same<mul_result_t<AA2, E>, decltype(std::declval<AA2>().apply(std::declval<E>()))>::value), int> = 0>
+	auto operator*(OpExpression<E> const& e)
+	{
+		return apply(*static_cast<E const*>(&e));
+	}
+
+	template<typename B1, typename B2>
+	auto operator*(OpOperatorCombination<B1, B2> const& b)
+	{
+		return f * b + g * b;
+	}
+
+
 #endif
 
 	//! Apply this operator an expression.
@@ -803,13 +862,13 @@ struct OpOperatorCombination : OpOperator<OpOperatorCombination<A1, A2>>
 	 * \param a The expression to which this operator is applied.
 	 */
 	template<typename E>
-	auto apply(OpExpression<E> const& e) const
+	auto apply_impl(OpExpression<E> const& e) const
 	{
-		if constexpr (std::is_same<expr::symbols::Symbol, expr::eval_type_t<E>>::value)
-		{
-			return OpOperatorChain(*this, *static_cast<E const*>(&e));
-		}
-		else
+		//if constexpr (expr::is_symbol<expr::eval_type_t<E>>)
+		//{
+		//	return OpOperatorChain(*this, *static_cast<E const*>(&e));
+		//}
+		//else
 		{
 			return OpCombination(*this, *static_cast<E const*>(&e));
 		}
@@ -819,30 +878,31 @@ struct OpOperatorCombination : OpOperator<OpOperatorCombination<A1, A2>>
 	A1 f; //!< Operator on the left of the plus sign.
 	A2 g; //!< Operator on the right of the plus sign.
 };
-
-//! Apply the chain operation to an expression.
-template<typename E, typename A1, typename A2, typename std::enable_if_t<
-	!(std::is_same<mul_result_t<A1, E>, std::invoke_result_t<decltype(&A1::template apply<E>), A1, E>>::value
-		&& std::is_same<mul_result_t<A2, E>, std::invoke_result_t<decltype(&A2::template apply<E>), A2, E>>::value), int> = 0>
-auto operator*(OpOperatorCombination<A1, A2> const& a, OpExpression<E> const& e)
-{
-	return a.f * (*static_cast<E const*>(&e)) + a.g * (*static_cast<E const*>(&e));
-}
-
-//! Apply the chain operation to an expression.
-template<typename E, typename A1, typename A2, typename std::enable_if_t<
-	(std::is_same<mul_result_t<A1, E>, std::invoke_result_t<decltype(&A1::template apply<E>), A1, E>>::value
-		&& std::is_same<mul_result_t<A2, E>, std::invoke_result_t<decltype(&A2::template apply<E>), A2, E>>::value), int> = 0>
-auto operator*(OpOperatorCombination<A1, A2> const& a, OpExpression<E> const& e)
-{
-	return a.apply(*static_cast<E const*>(&e));
-}
-
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator*(OpOperatorCombination<A1, A2> const& a, OpOperatorCombination<B1, B2> const& b)
-{
-	return a.f * b + a.g * b;
-}
+//
+////! Apply the chain operation to an expression.
+//template<typename E, typename A1, typename A2, typename std::enable_if_t<
+//	!(std::is_same<mul_result_t<A1, E>, decltype(std::declval<A1>().apply(std::declval<E>()))>::value/*std::invoke_result_t<decltype(&A1::template apply<E>), A1, E>>::value*/
+//		&& std::is_same<mul_result_t<A2, E>, decltype(std::declval<A2>().apply(std::declval<E>()))>::value/*std::invoke_result_t<decltype(&A2::template apply<E>), A2, E>>::value*/), int> = 0>
+//auto operator*(OpOperatorCombination<A1, A2> const& a, OpExpression<E> const& e)
+//{
+//	return expr::make_mul(a, *static_cast<E const*>(&e));
+//	//return a.f * (*static_cast<E const*>(&e)) + a.g * (*static_cast<E const*>(&e));
+//}
+//
+////! Apply the chain operation to an expression.
+//template<typename E, typename A1, typename A2, typename std::enable_if_t<
+//	(std::is_same<mul_result_t<A1, E>, decltype(std::declval<A1>().apply(std::declval<E>()))>::value
+//		&& std::is_same<mul_result_t<A2, E>, decltype(std::declval<A2>().apply(std::declval<E>()))>::value), int> = 0>
+//auto operator*(OpOperatorCombination<A1, A2> const& a, OpExpression<E> const& e)
+//{
+//	return a.apply(*static_cast<E const*>(&e));
+//}
+//
+//template<typename A1, typename A2, typename B1, typename B2>
+//auto operator*(OpOperatorCombination<A1, A2> const& a, OpOperatorCombination<B1, B2> const& b)
+//{
+//	return a.f * b + a.g * b;
+//}
 
 
 template<typename coeff_t, typename A1, typename A2, typename = std::enable_if_t<expr::is_coeff<coeff_t>, int>>
@@ -1012,6 +1072,11 @@ template<typename coeff_t, typename A1, typename A2, typename E,
 template<typename A1, typename A2>
 struct OpOperatorChain : OpOperator<OpOperatorChain<A1, A2>>
 {
+	using parent_type = OpOperator<OpOperatorChain<A1, A2>>;
+	using parent_type::operator*;
+	using parent_type::operator-;
+	using parent_type::operator+;
+
 	//! Create the chain of two operators.
 	/*!
 	 * Create the chain of two operators.
@@ -1035,13 +1100,13 @@ struct OpOperatorChain : OpOperator<OpOperatorChain<A1, A2>>
 
 	//! Apply the chain operation to an expression.
 	template<typename E>
-	auto apply(OpExpression<E> const& e) const
+	auto apply_impl(OpExpression<E> const& e) const
 	{
-		if constexpr (std::is_same<expr::symbols::Symbol, expr::eval_type_t<E>>::value)
-		{
-			return ::OpOperatorChain(*this, *static_cast<E const*>(&e));
-		}
-		else
+		//if constexpr (std::is_same<expr::symbols::Symbol, expr::eval_type_t<E>>::value)
+		//{
+		//	return ::OpOperatorChain(*this, *static_cast<E const*>(&e));
+		//}
+		//else
 		{
 			return OpChain(*this, *static_cast<E const*>(&e));
 		}
@@ -1084,80 +1149,80 @@ struct OpOperatorChain : OpOperator<OpOperatorChain<A1, A2>>
 	A1 f; //!< Operator which is applied to the result of operator `g` on an expression.
 	A2 g; //!< Operator which is applied first.
 };
-
-//! Overload with multiplication by zero.
-template<typename A>
-auto operator*(OpOperator<A> const& a, OpVoid)
-{
-	return OpVoid{};
-}
-
-//! Overload with multiplication by zero.
-template<typename A>
-auto operator*(OpVoid, OpOperator<A> const& a)
-{
-	return OpVoid{};
-}
-
-//! Apply the chain operation to zero.
-template<typename A1, typename A2>
-auto operator*(OpOperatorChain<A1, A2> const& chain, OpVoid)
-{
-	return OpVoid{};
-}
-
-//! Apply the chain operation to zero.
-template<typename A1, typename A2>
-auto operator*(OpVoid, OpOperatorChain<A1, A2> const& chain)
-{
-	return OpVoid{};
-}
-
-//! Apply the chain operation to an expression.
-template<typename A1, typename A2, typename E, typename std::enable_if_t<!expr::is_coeff<E>, int> = 0>
-auto operator*(OpOperatorChain<A1, A2> const& chain, E const& e)
-{
-	return OpOperatorChain(chain, e);//chain.f(chain.g * e);
-}
-
-//! Apply the chain operation to an expression.
-template<typename A1, typename A2, typename coeff_t, 
-	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
-auto operator*(OpOperatorChain<A1, A2> const& chain, coeff_t const& e)
-{
-	return chain.f(chain.g * e);
-}
-
-//! Apply the chain operation to an expression.
-template<typename A1, typename A2, typename B>
-auto operator*(OpOperatorChain<A1, A2> const& a, OpOperator<B> const& b)
-{
-	return OpOperatorChain(a, b);// a.f(a.g * (*static_cast<B const*>(&b)));
-}
-
-//! Apply the chain operation to an expression.
-template<typename A, typename B1, typename B2>
-auto operator*(OpOperator<A> const& a, OpOperatorChain<B1, B2> const& b)
-{
-	return ((*static_cast<A const*>(&a)) * b.f)(b.g);
-}
-
-//! Apply the chain operation to an expression.
-template<typename A1, typename A2, typename B1, typename B2>
-auto operator*(OpOperatorChain<A1, A2> const& a, OpOperatorChain<B1, B2> const& b)
-{
-	return expr::make_mul(a, b);
-}
-
-/* when multiplied by a literal
- */
-
-template<typename coeff_t, typename A1, typename A2, 
-	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
-auto operator*(coeff_t const& a, OpOperatorChain<A1, A2> const& b)
-{
-	return (a * b.f)(b.g);
-}
+//
+////! Overload with multiplication by zero.
+//template<typename A>
+//auto operator*(OpOperator<A> const& a, OpVoid)
+//{
+//	return OpVoid{};
+//}
+//
+////! Overload with multiplication by zero.
+//template<typename A>
+//auto operator*(OpVoid, OpOperator<A> const& a)
+//{
+//	return OpVoid{};
+//}
+//
+////! Apply the chain operation to zero.
+//template<typename A1, typename A2>
+//auto operator*(OpOperatorChain<A1, A2> const& chain, OpVoid)
+//{
+//	return OpVoid{};
+//}
+//
+////! Apply the chain operation to zero.
+//template<typename A1, typename A2>
+//auto operator*(OpVoid, OpOperatorChain<A1, A2> const& chain)
+//{
+//	return OpVoid{};
+//}
+//
+////! Apply the chain operation to an expression.
+//template<typename A1, typename A2, typename E, typename std::enable_if_t<!expr::is_coeff<E>, int> = 0>
+//auto operator*(OpOperatorChain<A1, A2> const& chain, E const& e)
+//{
+//	return OpOperatorChain(chain, e);//chain.f(chain.g * e);
+//}
+//
+////! Apply the chain operation to an expression.
+//template<typename A1, typename A2, typename coeff_t, 
+//	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+//auto operator*(OpOperatorChain<A1, A2> const& chain, coeff_t const& e)
+//{
+//	return chain.f(chain.g * e);
+//}
+//
+////! Apply the chain operation to an expression.
+//template<typename A1, typename A2, typename B>
+//auto operator*(OpOperatorChain<A1, A2> const& a, OpOperator<B> const& b)
+//{
+//	return OpOperatorChain(a, b);// a.f(a.g * (*static_cast<B const*>(&b)));
+//}
+//
+////! Apply the chain operation to an expression.
+//template<typename A, typename B1, typename B2>
+//auto operator*(OpOperator<A> const& a, OpOperatorChain<B1, B2> const& b)
+//{
+//	return ((*static_cast<A const*>(&a)) * b.f)(b.g);
+//}
+//
+////! Apply the chain operation to an expression.
+//template<typename A1, typename A2, typename B1, typename B2>
+//auto operator*(OpOperatorChain<A1, A2> const& a, OpOperatorChain<B1, B2> const& b)
+//{
+//	return expr::make_mul(a, b);
+//}
+//
+///* when multiplied by a literal
+// */
+//
+//template<typename coeff_t, typename A1, typename A2, 
+//	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+//auto operator*(coeff_t const& a, OpOperatorChain<A1, A2> const& b)
+//{
+//	return (a * b.f)(b.g);
+//}
 
 
 
@@ -1869,6 +1934,20 @@ struct symphas::internal::make_map<symphas::internal::STHC>
 	static auto get(OpMap<symphas::internal::HCTS, OpIdentity, E> const& a);
 };
 
+namespace symphas::internal
+{
+	template<typename T, typename T0>
+	T cast_to_result(T0&& result)
+	{
+		return std::forward<T0>(result);
+	}
+
+	template<>
+	inline scalar_t cast_to_result<scalar_t, complex_t>(complex_t&& result)
+	{
+		return result.real();
+	}
+}
 
 namespace expr
 {
@@ -1930,7 +2009,7 @@ namespace expr
 			if (i0 < dn)
 			{
 				iter_type n0 = i0 + j0 * dn;
-				return static_cast<E const*>(&e)->eval(n0);
+				return symphas::internal::cast_to_result<expr::eval_type_t<E>>(static_cast<E const*>(&e)->eval(n0));
 			}
 			// Hermitian half
 			else
@@ -1938,7 +2017,7 @@ namespace expr
 				iter_type i00 = (dn - (i0 - dn) - 2);
 				iter_type j00 = (j0 == 0) ? j0 : (dims[1] - j0);
 				iter_type n00 = i00 + j00 * dn;
-				return conj(static_cast<E const*>(&e)->eval(n00));
+				return symphas::internal::cast_to_result<expr::eval_type_t<E>>(conj(static_cast<E const*>(&e)->eval(n00)));
 			}
 		}
 	};
@@ -1971,7 +2050,7 @@ namespace expr
 				iter_type j00 = (j0 == 0) ? j0 : (dims[1] - j0);
 				iter_type k00 = (k0 == 0) ? k0 : (dims[2] - k0);
 				iter_type n00 = i00 + j00 * dn;
-				return conj(static_cast<E const*>(&e)->eval(n00));
+				return symphas::internal::cast_to_result<expr::eval_type_t<E>>(conj(static_cast<E const*>(&e)->eval(n00)));
 			}
 			
 			if (i0 >= dn)
@@ -1979,7 +2058,8 @@ namespace expr
 				iter_type i00 = dims[0] - i0 - 1;
 				iter_type j00 = dims[1] - j0 - 1;
 				iter_type k00 = k0;
-				return conj(static_cast<E const*>(&e)->eval(i00 + j00 * dn + k00 * dn * dims[1]));
+				return symphas::internal::cast_to_result<expr::eval_type_t<E>>
+					(conj(static_cast<E const*>(&e)->eval(i00 + j00 * dn + k00 * dn * dims[1])));
 			}
 			else
 			{

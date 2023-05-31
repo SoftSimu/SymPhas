@@ -37,6 +37,8 @@
 namespace symphas::internal
 {
 
+	namespace parameterized {}
+
 	template<typename T, typename S = void>
 	struct parameterized_type;
 

@@ -306,6 +306,11 @@ template<auto A, auto B>
 constexpr auto fixed_min<A, B> = (A < B) ? A : B;
 template<auto A>
 constexpr auto fixed_min<A> = A;
+template<int I>
+constexpr int fixed_abs = (I < 0) ? -I : I;
+template<int I>
+constexpr int fixed_sign = (I < 0) ? -1 : 1;
+
 
 
 template<size_t N, size_t D, size_t... Rest>

@@ -342,6 +342,25 @@ struct NamedData<scalar_t>
 		delete[] str;
 	}
 
+	//! Constructs the named instance represented by the given expression.
+	/*!
+	 * Constructs the named instance with a name that is derived from the
+	 * given instance. That is, it is assumed that the given data is
+	 * equal to the given expression, and the name derived from the print
+	 * output of that expression.
+	 *
+	 * \param data The data that is named.
+	 * \param expr From where the name is derived.
+	 */
+	template<typename E>
+	NamedData(scalar_t data, OpOperator<E> const& e) : data{ data }, name{ "" }
+	{
+		char* str = new char[e.print_length() + 1];
+		e.print(str);
+		name = std::string(str);
+		delete[] str;
+	}
+
 	std::string name;	//!< Name given to the data.
 
 #else
@@ -387,6 +406,13 @@ template<typename G, typename E>
 NamedData(G&&, OpExpression<E>) -> NamedData<G>;
 template<typename G, typename E>
 NamedData(G*, OpExpression<E>) -> NamedData<G*>;
+
+template<typename G, typename E>
+NamedData(G&, OpOperator<E>) -> NamedData<symphas::ref<G>>;
+template<typename G, typename E>
+NamedData(G&&, OpOperator<E>) -> NamedData<G>;
+template<typename G, typename E>
+NamedData(G*, OpOperator<E>) -> NamedData<G*>;
 
 #else
 
@@ -606,6 +632,14 @@ auto symphas::internal::set_var_string(OpExpression<E> const& var)
 	return buffer;
 }
 
+template<typename E>
+auto symphas::internal::set_var_string(OpOperator<E> const& var)
+{
+	char* buffer = new char[static_cast<E const*>(&var)->print_length() + 1];
+	static_cast<E const*>(&var)->print(buffer);
+	return buffer;
+}
+
 template<typename G>
 auto symphas::internal::set_var_string(G const& var)
 {
@@ -654,6 +688,13 @@ struct OpLHS : G
 	//! Combines this data with an expression.
 	template<typename E>
 	auto operator=(OpExpression<E> const& expr) const
+	{
+		return std::pair<G, E>(*this, *static_cast<E const*>(&expr));
+	}
+
+	//! Combines this data with an expression.
+	template<typename E>
+	auto operator=(OpOperator<E> const& expr) const
 	{
 		return std::pair<G, E>(*this, *static_cast<E const*>(&expr));
 	}
@@ -967,6 +1008,12 @@ namespace symphas::internal
 
 	template<typename E>
 	size_t print_length_one_term(OpExpression<E> const& e)
+	{
+		return expr::coeff_print_length(*static_cast<E const*>(&e));
+	}
+
+	template<typename E>
+	size_t print_length_one_term(OpOperator<E> const& e)
 	{
 		return expr::coeff_print_length(*static_cast<E const*>(&e));
 	}
@@ -1578,6 +1625,12 @@ auto operator*(OpExpression<E> const& a, OpTerms<Term<G0, X0>, Term<Gs, Xs>...> 
 
 template<typename E, typename G0, expr::exp_key_t X0, typename... Gs, expr::exp_key_t... Xs>
 auto operator*(OpTerms<Term<G0, X0>, Term<Gs, Xs>...> const& a, OpExpression<E> const& b)
+{
+	return OpTerms(OpIdentity{}, a) * (*static_cast<E const*>(&b));
+}
+
+template<typename E, typename G0, expr::exp_key_t X0, typename... Gs, expr::exp_key_t... Xs>
+auto operator*(OpTerms<Term<G0, X0>, Term<Gs, Xs>...> const& a, OpOperator<E> const& b)
 {
 	return OpTerms(OpIdentity{}, a) * (*static_cast<E const*>(&b));
 }

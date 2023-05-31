@@ -349,7 +349,7 @@ auto operator*(coeff_t const& value, OpSymbolicEval<V, sub_t, Ts...> const& e)
 
 template<typename coeff_t, typename sub_t, typename tensor_t, typename... Ts,
 	typename std::enable_if_t<(expr::is_coeff<coeff_t>&& expr::is_tensor<tensor_t>), int> = 0>
-auto operator*(coeff_t const& value, OpSymbolicEval<tensor_t, sub_t, Ts...>& e)
+auto operator*(coeff_t const& value, OpSymbolicEval<tensor_t, sub_t, Ts...> const& e)
 {
 	return (value * e.value) * symphas::internal::make_symbolic_eval(OpIdentity{}, e.data, e.f);
 }

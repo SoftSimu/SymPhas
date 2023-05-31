@@ -2489,7 +2489,6 @@ auto operator*(OpOperator<E1> const& a, OpOperator<E2> const& b)
 
 }
 
-
 /*
  *
  *
@@ -2508,7 +2507,19 @@ auto operator+(OpExpression<E> const& a, OpAdd<As...> const& b)
 }
 
 template<typename... As, typename E>
+auto operator+(OpOperator<E> const& a, OpAdd<As...> const& b)
+{
+	return expr::add_one(*static_cast<E const*>(&a), b);
+}
+
+template<typename... As, typename E>
 auto operator+(OpAdd<As...> const& a, OpExpression<E> const& b)
+{
+	return expr::add_one(a, *static_cast<E const*>(&b));
+}
+
+template<typename... As, typename E>
+auto operator+(OpAdd<As...> const& a, OpOperator<E> const& b)
 {
 	return expr::add_one(a, *static_cast<E const*>(&b));
 }
@@ -2519,8 +2530,20 @@ auto operator-(OpExpression<E> const& a, OpAdd<Bs...> const& b)
 	return expr::add_one(*static_cast<E const*>(&a), expr::neg_terms(b, std::make_index_sequence<sizeof...(Bs)>{}));
 }
 
+template<typename... Bs, typename E>
+auto operator-(OpOperator<E> const& a, OpAdd<Bs...> const& b)
+{
+	return expr::add_one(*static_cast<E const*>(&a), expr::neg_terms(b, std::make_index_sequence<sizeof...(Bs)>{}));
+}
+
 template<typename... As, typename E>
 auto operator-(OpAdd<As...> const& a, OpExpression<E> const& b)
+{
+	return expr::add_one(a, -*static_cast<E const*>(&b));
+}
+
+template<typename... As, typename E>
+auto operator-(OpAdd<As...> const& a, OpOperator<E> const& b)
 {
 	return expr::add_one(a, -*static_cast<E const*>(&b));
 }
@@ -2544,7 +2567,7 @@ auto operator-(OpAdd<As...> const& a, OpAdd<Bs...> const& b)
  *
  ******************************************************************************/
 
-
+//
 //template<typename A1, typename A2, typename V, typename... Gs, expr::exp_key_t... Xs>
 //auto operator*(OpBinaryMul<A1, A2> const& a, OpTerms<V, Term<Gs, Xs>...> const& b)
 //{
@@ -2556,25 +2579,49 @@ auto operator-(OpAdd<As...> const& a, OpAdd<Bs...> const& b)
 //{
 //	return symphas::internal::terminate_mul(a * b.a, b.b);
 //}
-//
-//template<typename A1, typename A2, typename E, typename std::enable_if_t<!expr::is_coeff<E>, int> = 0>
-//auto operator*(OpBinaryMul<A1, A2> const& a, OpExpression<E> const& b)
-//{
-//	return expr::make_mul(a.a, a.b * (*static_cast<E const*>(&b)));
-//}
-//
+
+template<typename A1, typename A2, typename E/*, typename std::enable_if_t<!expr::is_coeff<E>, int> = 0*/>
+auto operator*(OpBinaryMul<A1, A2> const& a, OpExpression<E> const& b)
+{
+	return expr::make_mul(a.a, a.b * (*static_cast<E const*>(&b)));
+}
+
+template<typename A1, typename A2>
+auto operator*(OpBinaryMul<A1, A2> const& a, OpIdentity)
+{
+	return a;
+}
+
+template<typename A1, typename A2>
+auto operator*(OpBinaryMul<A1, A2> const& a, OpNegIdentity)
+{
+	return -a;
+}
+
+template<typename A1, typename A2, size_t N, size_t D>
+auto operator*(OpBinaryMul<A1, A2> const& a, OpFractionLiteral<N, D>)
+{
+	return expr::make_mul(a.a, OpFractionLiteral<N, D>{} *a.b);
+}
+
+template<typename A1, typename A2, size_t N, size_t D>
+auto operator*(OpBinaryMul<A1, A2> const& a, OpNegFractionLiteral<N, D>)
+{
+	return expr::make_mul(a.a, OpNegFractionLiteral<N, D>{} * a.b);
+}
+
 //
 //template<typename A1, typename A2, typename E, typename std::enable_if_t<!expr::is_coeff<E>, int> = 0>
 //auto operator*(OpExpression<E> const& a, OpBinaryMul<A1, A2> const& b)
 //{
 //	return expr::make_mul((*static_cast<E const*>(&a)) * b.a,  b.b);
 //}
-//
-//template<typename A1, typename A2, typename B1, typename B2>
-//auto operator*(OpBinaryMul<A1, A2> const& a, OpBinaryMul<B1, B2> const& b)
-//{
-//	return expr::make_mul(a.a * (a.b * b.a), b.b);
-//}
+
+template<typename A1, typename A2, typename B1, typename B2>
+auto operator*(OpBinaryMul<A1, A2> const& a, OpBinaryMul<B1, B2> const& b)
+{
+	return expr::make_mul(a.a, a.b * b);
+}
 
 
 
@@ -2809,6 +2856,14 @@ auto operator*(OpExpression<E> const& a, OpBinaryDiv<B1, OpTerms<V, Term<Gs, Xs>
 		expr::inverse(expr::coeff(b.b)) * ((*static_cast<E const*>(&a)) * b.a),
 		OpTerms(OpIdentity{}, expr::terms_after_first(b.b)));
 }
+
+template<typename E, typename B1, typename V, typename... Gs, expr::exp_key_t... Xs,
+	typename std::enable_if_t<(((expr::factor_count<Gs, E>::value == 0) && ...) && !expr::is_identity<E>), int> = 0>
+auto operator*(OpOperator<E> const& a, OpBinaryDiv<B1, OpTerms<V, Term<Gs, Xs>...>> const& b)
+{
+	return (*static_cast<E const*>(&a)).operator()(b);
+}
+
 
 /*
  *
@@ -3237,19 +3292,66 @@ auto operator+(OpExpression<E1> const& a, int b)
 	return *static_cast<const E1*>(&a) + expr::make_literal(b);
 }
 
-
 template<typename E2>
 auto operator-(int a, OpExpression<E2> const& b)
 {
 	return expr::make_literal(a) - *static_cast<const E2*>(&b);
 }
 
-
 template<typename E1>
 auto operator-(OpExpression<E1> const& a, int b)
 {
 	return *static_cast<const E1*>(&a) - expr::make_literal(b);
 }
+
+template<typename E2>
+auto operator+(scalar_t a, OpOperator<E2> const& b)
+{
+	return expr::make_literal(a) + *static_cast<const E2*>(&b);
+}
+
+template<typename E1>
+auto operator+(OpOperator<E1> const& a, scalar_t b)
+{
+	return *static_cast<const E1*>(&a) + expr::make_literal(b);
+}
+
+template<typename E2>
+auto operator-(scalar_t a, OpOperator<E2> const& b)
+{
+	return expr::make_literal(a) - *static_cast<const E2*>(&b);
+}
+
+template<typename E1>
+auto operator-(OpOperator<E1> const& a, scalar_t b)
+{
+	return *static_cast<const E1*>(&a) - expr::make_literal(b);
+}
+
+template<typename E2>
+auto operator+(int a, OpOperator<E2> const& b)
+{
+	return expr::make_literal(a) + *static_cast<const E2*>(&b);
+}
+
+template<typename E1>
+auto operator+(OpOperator<E1> const& a, int b)
+{
+	return *static_cast<const E1*>(&a) + expr::make_literal(b);
+}
+
+template<typename E2>
+auto operator-(int a, OpOperator<E2> const& b)
+{
+	return expr::make_literal(a) - *static_cast<const E2*>(&b);
+}
+
+template<typename E1>
+auto operator-(OpOperator<E1> const& a, int b)
+{
+	return *static_cast<const E1*>(&a) - expr::make_literal(b);
+}
+
 
 
 template<typename T, size_t D, typename E2>
@@ -3274,6 +3376,32 @@ auto operator-(any_vector_t<T, D> const& a, OpExpression<E2> const& b)
 
 template<typename T, size_t D, typename E1>
 auto operator-(OpExpression<E1> const& a, any_vector_t<T, D> const& b)
+{
+	return *static_cast<const E1*>(&a) - expr::make_literal(b);
+}
+
+template<typename T, size_t D, typename E2>
+auto operator+(any_vector_t<T, D> const& a, OpOperator<E2> const& b)
+{
+	return expr::make_literal(a) + *static_cast<const E2*>(&b);
+}
+
+template<typename T, size_t D, typename E1>
+auto operator+(OpOperator<E1> const& a, any_vector_t<T, D> const& b)
+{
+	return *static_cast<const E1*>(&a) + expr::make_literal(b);
+}
+
+
+template<typename T, size_t D, typename E2>
+auto operator-(any_vector_t<T, D> const& a, OpOperator<E2> const& b)
+{
+	return expr::make_literal(a) - *static_cast<const E2*>(&b);
+}
+
+
+template<typename T, size_t D, typename E1>
+auto operator-(OpOperator<E1> const& a, any_vector_t<T, D> const& b)
 {
 	return *static_cast<const E1*>(&a) - expr::make_literal(b);
 }
@@ -3304,7 +3432,6 @@ auto operator/(scalar_t a, OpExpression<E2> const& b)
 	return expr::make_literal(a) / *static_cast<const E2*>(&b);
 }
 
-
 template<typename E2>
 auto operator*(int a, OpExpression<E2> const& b)
 {
@@ -3329,6 +3456,7 @@ auto operator/(OpExpression<E1> const& a, int b)
 	return (*static_cast<const E1*>(&a)) / expr::make_literal(b);
 }
 
+
 template<typename T, size_t D, typename E2>
 auto operator*(any_vector_t<T, D> const& a, OpExpression<E2> const& b)
 {
@@ -3337,6 +3465,66 @@ auto operator*(any_vector_t<T, D> const& a, OpExpression<E2> const& b)
 
 template<typename T, size_t D, typename E1, typename = std::enable_if_t<!(expr::is_identity<E1> || expr::is_fraction<E1>), int>>
 auto operator*(OpExpression<E1> const& a, any_vector_t<T, D> const& b)
+{
+	return *static_cast<const E1*>(&a) * expr::make_literal(b);
+}
+
+template<typename E2>
+auto operator*(scalar_t a, OpOperator<E2> const& b)
+{
+	return expr::make_literal(a) * *static_cast<const E2*>(&b);
+}
+
+template<typename E1, typename = std::enable_if_t<!(expr::is_identity<E1> || expr::is_fraction<E1>), int>>
+auto operator*(OpOperator<E1> const& a, scalar_t b)
+{
+	return b * *static_cast<const E1*>(&a);
+}
+
+template<typename E1>
+auto operator/(OpOperator<E1> const& a, scalar_t b)
+{
+	return *static_cast<const E1*>(&a) / expr::make_literal(b);
+}
+
+template<typename E2>
+auto operator/(scalar_t a, OpOperator<E2> const& b)
+{
+	return expr::make_literal(a) / *static_cast<const E2*>(&b);
+}
+
+template<typename E2>
+auto operator*(int a, OpOperator<E2> const& b)
+{
+	return expr::make_literal(a) * *static_cast<const E2*>(&b);
+}
+
+template<typename E1, typename = std::enable_if_t<!(expr::is_identity<E1> || expr::is_fraction<E1>), int>>
+auto operator*(OpOperator<E1> const& a, int b)
+{
+	return b * *static_cast<const E1*>(&a);
+}
+
+template<typename E2>
+auto operator/(int a, OpOperator<E2> const& b)
+{
+	return expr::make_literal(a) / *static_cast<const E2*>(&b);
+}
+
+template<typename E1>
+auto operator/(OpOperator<E1> const& a, int b)
+{
+	return (*static_cast<const E1*>(&a)) / expr::make_literal(b);
+}
+
+template<typename T, size_t D, typename E2>
+auto operator*(any_vector_t<T, D> const& a, OpOperator<E2> const& b)
+{
+	return expr::make_literal(a) * *static_cast<const E2*>(&b);
+}
+
+template<typename T, size_t D, typename E1, typename = std::enable_if_t<!(expr::is_identity<E1> || expr::is_fraction<E1>), int>>
+auto operator*(OpOperator<E1> const& a, any_vector_t<T, D> const& b)
 {
 	return *static_cast<const E1*>(&a) * expr::make_literal(b);
 }
@@ -3384,6 +3572,20 @@ auto operator*(OpExpression<E> const& e, OpTensor<T, Ns...> const& tensor)
 	if constexpr (expr::eval_type<decltype(expr::coeff(std::declval<E>()))>::rank > 0)
 	{
 		return (expr::coeff(*static_cast<E const*>(&e)) * tensor) * (symphas::internal::tensor_cancel{} * (*static_cast<E const*>(&e)));
+	}
+	else
+	{
+		return tensor * (*static_cast<E const*>(&e));
+	}
+}
+
+//! Ensure a value constant is always multiplied on the left by anything else.
+template<typename E, typename T, size_t... Ns, typename std::enable_if_t<expr::has_coeff<E>, int> = 0>
+auto operator*(OpOperator<E> const& e, OpTensor<T, Ns...> const& tensor)
+{
+	if constexpr (expr::eval_type<decltype(expr::coeff(std::declval<E>()))>::rank > 0)
+	{
+		return (expr::coeff(*static_cast<E const*>(&e)) * tensor) * (symphas::internal::tensor_cancel{} *(*static_cast<E const*>(&e)));
 	}
 	else
 	{

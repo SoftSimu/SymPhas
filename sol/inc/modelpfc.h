@@ -155,7 +155,6 @@ struct ModelPFCEquation : Model<D, Sp, S...>,
 	auto bulk_pfc_dynamic_N()
 	{
 		auto n = get_field_op<N>();
-
 		return (expr::make_literal(gamma[N][N]) + expr::make_literal(delta[N][N]) * n) * n * n + get_mode_N<N>() * n;
 	}
 
@@ -165,7 +164,6 @@ struct ModelPFCEquation : Model<D, Sp, S...>,
 	auto bulk_pfc_fe_N()
 	{
 		auto n = get_field_op<N>();
-
 		return (expr::make_literal(gamma[N][N] / 3) + expr::make_literal(delta[N][N] / 4) * n) * n * n * n
 			+ n * get_mode_N<N>() * (n * expr::make_literal(0.5));
 	}
@@ -184,7 +182,7 @@ struct ModelPFCEquation : Model<D, Sp, S...>,
 	{
 		auto n = get_field_op<N>();
 		auto m = get_field_op<M>();
-		auto& dims = parent_type::template system<M>().dims;
+		auto dims = parent_type::template system<M>().dims;
 		auto widths = parent_type::template system<M>().get_info().get_widths();
 
 		auto G = GaussianSmoothing<D>{ dims, widths, 1.0, 1.0 };

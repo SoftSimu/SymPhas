@@ -160,8 +160,8 @@ namespace expr
 #define SYEX_DIRECTIONAL_DERIV_1_STR(AXIS) SYEX_DIRECTIONAL_DERIV_1_VAR_STR("", AXIS)
 #define SYEX_DERIV_STR(VALUE) "\\nabla^{" VALUE "}"
 #define SYEX_DERIV_STR_1 "\\vec{\\nabla}"
-#define SYEX_FUNCTIONAL_DERIV_1_VAR_STR(NAME, VAR) "\\frac{\\delta " NAME "}{\\delta " VAR "}"
-#define SYEX_FUNCTIONAL_DERIV_1_STR(VAR) SYEX_FUNCTIONAL_DERIV_1_VAR_STR("", VAR)
+#define SYEX_FUNCTIONAL_DERIV_VAR_STR(NAME, VAR) "\\frac{\\delta " NAME "}{\\delta " VAR "}"
+#define SYEX_FUNCTIONAL_DERIV_STR(VAR) SYEX_FUNCTIONAL_DERIV_VAR_STR("", VAR)
 #else
 //! Display string of the derivative.
 #define SYEX_DIRECTIONAL_DERIV_VAR_STR(NAME, VALUE, AXIS) "d" VALUE NAME "/d" AXIS VALUE
@@ -435,6 +435,8 @@ namespace symphas::internal
 
     template<typename E>
     auto set_var_string(OpExpression<E> const& var);
+	template<typename E>
+	auto set_var_string(OpOperator<E> const& var);
     template<typename G>
     auto set_var_string(G const& var);
     
@@ -535,7 +537,8 @@ namespace symphas::internal
 		 *
 		 * \param out The file to which the derivative is printed.
 		 */
-		static size_t print(FILE* out)
+		template<typename Sp = int>
+		static size_t print(FILE* out, Sp const& = 0)
 		{
 			if constexpr (!is_directional)
 			{
@@ -579,7 +582,8 @@ namespace symphas::internal
 		 * \param out The file to which the derivative is printed.
 		 * \param name A string that appears in the numerator after the partial symbol.
 		 */
-		static size_t print(FILE* out, const char* name)
+		template<typename Sp = int>
+		static size_t print(FILE* out, const char* name, Sp const& = 0)
 		{
 			if constexpr (!is_directional)
 			{
@@ -625,7 +629,8 @@ namespace symphas::internal
 		 *
 		 * \param out The string to which the derivative is printed.
 		 */
-		static size_t print(char* out)
+		template<typename Sp = int>
+		static size_t print(char* out, Sp const& = 0)
 		{
 			if constexpr (!is_directional)
 			{
@@ -669,7 +674,8 @@ namespace symphas::internal
 		 * \param out The string to which the derivative is printed.
 		 * \param name A string that appears in the numerator after the partial symbol.
 		 */
-		static size_t print(char* out, const char* name)
+		template<typename Sp = int>
+		static size_t print(char* out, const char* name, Sp const& = 0)
 		{
 			if constexpr (!is_directional)
 			{
@@ -715,7 +721,8 @@ namespace symphas::internal
 		 * are printed as part of the format, and not substituted expression
 		 * strings.
 		 */
-		static size_t print_length()
+		template<typename Sp = int>
+		static size_t print_length(Sp const& = 0)
 		{
 			if constexpr (!is_directional)
 			{
@@ -752,7 +759,8 @@ namespace symphas::internal
 		 * are printed as part of the format, and not substituted expression
 		 * strings.
 		 */
-		static size_t print_length(const char* name)
+		template<typename Sp = int>
+		static size_t print_length(const char* name, Sp const& = 0)
 		{
 			if constexpr (!is_directional)
 			{
@@ -781,6 +789,89 @@ namespace symphas::internal
 					return SYEX_DIRECTIONAL_DERIV_VAR_LEN(name, O);
 				}
 			}
+		}
+
+
+		//! Print the derivative the given order to a file.
+		/*!
+		 * Print the derivative of the given order, and formatted using the order.
+		 *
+		 * \param out The file to which the derivative is printed.
+		 */
+		template<typename G>
+		static size_t print(FILE* out, SymbolicDerivative<G>)
+		{
+			return fprintf(out, SYEX_DIRECTIONAL_DERIV_STR("%zd", "%s"), O, expr::get_op_name(G{}), O);
+		}
+
+		//! Print the derivative the given order to a file.
+		/*!
+		 * Print the derivative of the given order, and formatted using the order. A
+		 * name is also provided, which is the name of the variable to which the derivative
+		 * is applied.
+		 *
+		 * \param out The file to which the derivative is printed.
+		 * \param name A string that appears in the numerator after the partial symbol.
+		 */
+		template<typename G>
+		static size_t print(FILE* out, const char* name, SymbolicDerivative<G>)
+		{
+			return fprintf(out, SYEX_DIRECTIONAL_DERIV_VAR_STR("%s", "%zd", "%s"), O, name, expr::get_op_name(G{}), O);
+		}
+
+
+		//! Print the derivative the given order to a string.
+		/*!
+		 * Print the derivative of the given order, and formatted using the order.
+		 *
+		 * \param out The string to which the derivative is printed.
+		 */
+		template<typename G>
+		static size_t print(char* out, SymbolicDerivative<G>)
+		{
+			return sprintf(out, SYEX_DIRECTIONAL_DERIV_STR("%zd", "%s"), O, expr::get_op_name(G{}), O);
+		}
+
+		//! Print the derivative the given order to a string.
+		/*!
+		 * Print the derivative of the given order, and formatted using the order. A
+		 * name is also provided, which is the name of the variable to which the derivative
+		 * is applied.
+		 *
+		 * \param out The string to which the derivative is printed.
+		 * \param name A string that appears in the numerator after the partial symbol.
+		 */
+		template<typename G>
+		static size_t print(char* out, const char* name, SymbolicDerivative<G>)
+		{
+			return sprintf(out, SYEX_DIRECTIONAL_DERIV_VAR_STR("%s", "%zd", "%s"), O, name, expr::get_op_name(G{}), O);
+		}
+
+		//! Get the print length of the derivative output string.
+		/*!
+		 * Returns the number of characters in the format string that is
+		 * printed to display the derivative. Only includes characters that
+		 * are printed as part of the format, and not substituted expression
+		 * strings.
+		 */
+		template<typename G>
+		static size_t print_length(SymbolicDerivative<G>)
+		{
+			return SYEX_DIRECTIONAL_DERIV_LEN(O) + std::strlen(expr::get_op_name(G{}));
+		}
+
+		//! Get the print length of the derivative output string.
+		/*!
+		 * Returns the number of characters in the format string that is
+		 * printed to display the derivative. Only includes characters that
+		 * are printed as part of the format, and not substituted expression
+		 * strings.
+		 */
+		template<typename G>
+		static size_t print_length(const char* name, SymbolicDerivative<G>)
+		{
+			return SYEX_DIRECTIONAL_DERIV_LEN(O) + std::strlen(expr::get_op_name(name))
+				+ std::strlen(expr::print_op_name(G{}));
 		}
 	};
 
@@ -1041,7 +1132,6 @@ namespace symphas::internal
 		 *
 		 * \param out The file to which the derivative is printed.
 		 */
-		template<typename G>
 		static size_t print(FILE* out)
 		{
 			return fprintf(out, SYEX_FUNCTIONAL_DERIV_FMT(var_str()));
@@ -1056,7 +1146,6 @@ namespace symphas::internal
 		 * \param out The file to which the derivative is printed.
 		 * \param name A string that appears in the numerator after the partial symbol.
 		 */
-		template<typename G>
 		static size_t print(FILE* out, const char* name)
 		{
 			return fprintf(out, SYEX_FUNCTIONAL_DERIV_VAR_FMT(name, var_str()));
@@ -1069,7 +1158,6 @@ namespace symphas::internal
 		 *
 		 * \param out The string to which the derivative is printed.
 		 */
-		template<typename G>
 		static size_t print(char* out)
 		{
 			return fprintf(out, SYEX_FUNCTIONAL_DERIV_FMT(var_str()));
@@ -1084,7 +1172,6 @@ namespace symphas::internal
 		 * \param out The string to which the derivative is printed.
 		 * \param name A string that appears in the numerator after the partial symbol.
 		 */
-		template<typename G>
 		static size_t print(char* out, const char* name)
 		{
 			return sprintf(out, SYEX_FUNCTIONAL_DERIV_VAR_FMT(name, var_str()));
@@ -1097,7 +1184,6 @@ namespace symphas::internal
 		 * are printed as part of the format, and not substituted expression
 		 * strings.
 		 */
-		template<typename G>
 		static size_t print_length()
 		{
 			return SYEX_FUNCTIONAL_DERIV_LEN(var_str());
@@ -1110,7 +1196,6 @@ namespace symphas::internal
 		 * are printed as part of the format, and not substituted expression
 		 * strings.
 		 */
-		template<typename G>
 		static size_t print_length(const char* name)
 		{
 			return SYEX_FUNCTIONAL_DERIV_VAR_LEN(name, var_str());

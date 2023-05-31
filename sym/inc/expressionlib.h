@@ -82,6 +82,12 @@ struct OpExpression
 		return cast() * (*static_cast<E0 const*>(&e));
 	}
 
+	template<typename E0>
+	auto operator()(OpOperator<E0> const& e) const
+	{
+		return cast() * (*static_cast<E0 const*>(&e));
+	}
+
 #ifdef PRINTABLE_EQUATIONS
 
 	//! Print the string representation of this expression to the file.
@@ -846,6 +852,11 @@ namespace expr
 	template<typename... Es>
 	constexpr bool is_coeff<OpAdd<Es...>> = (is_coeff<Es> && ...);
 
+	template<typename E>
+	constexpr bool is_add = false;
+	template<typename... Es>
+	constexpr bool is_add<OpAdd<Es...>> = true;
+	
     
     template<typename T>
     constexpr bool is_id_variable = false;
@@ -1210,6 +1221,18 @@ namespace expr
 	struct derivative_order<OpCombination<E1, E2, E>>
 	{
 		const static size_t value = derivative_order<OpOperatorCombination<E1, E2>>::value;
+	};
+
+	template<typename A, typename B>
+	struct derivative_order<OpBinaryMul<A, B>>
+	{
+		const static size_t value = derivative_order<A>::value + derivative_order<B>::value;
+	};
+
+	template<typename... Es>
+	struct derivative_order<OpAdd<Es...>>
+	{
+		const static size_t value = fixed_max<derivative_order<Es>::value...>;
 	};
 
 
@@ -3563,6 +3586,18 @@ namespace expr
 		return expr::make_literal((*static_cast<E const*>(&e)).value);
 	}
 
+	template<typename E, typename std::enable_if_t<has_coeff<E>, int> = 0>
+	auto coeff(OpOperator<E> const& e)
+	{
+		return expr::make_literal((*static_cast<E const*>(&e)).value);
+	}
+
+	template<typename E, typename std::enable_if_t<!has_coeff<E>, int> = 0>
+	auto coeff(OpOperator<E> const& e)
+	{
+		return OpIdentity{};
+	}
+
 	template<typename E,
 		typename std::enable_if_t<(!has_coeff<E> && expr::is_coeff<E>), int> = 0>
 	constexpr auto coeff(OpExpression<E> const& e)
@@ -3658,7 +3693,6 @@ template<typename E>
 struct expr::eval_type
 {
 
-protected:
 
 
 	template<typename T, size_t D>
@@ -3745,7 +3779,36 @@ protected:
 		}
 	}
 
-	using eval_t = std::invoke_result_t<decltype(&E::eval), E, iter_type>;
+	template<typename E0>
+	static auto _get_eval(OpExpression<E0> const& e)
+	{
+		return static_cast<E const*>(&e)->eval(0);
+	}
+
+	template<typename G, expr::exp_key_t X>
+	static auto _get_eval(Term<G, X> const& e)
+	{
+		return e.eval(0);
+	}
+
+	template<typename E0>
+	static auto _get_eval(OpOperator<E0> const& e)
+	{
+		return static_cast<E const*>(&e)->eval(0);
+	}
+
+	static auto _get_eval(...)
+	{
+		return expr::symbols::Symbol{};
+	}
+
+	template<typename E0>
+	static auto get_eval(E0 const& e0)
+	{
+		return _get_eval(e0);
+	}
+
+	using eval_t = std::invoke_result_t<decltype(&eval_type<E>::template get_eval<E>), E>;
         
 public:
 	

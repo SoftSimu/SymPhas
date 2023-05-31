@@ -440,12 +440,6 @@ namespace symphas::internal
 
 	//
 
-	template<int I>
-	constexpr int fixed_abs = (I < 0) ? -I : I;
-
-	template<int I>
-	constexpr int fixed_sign = (I < 0) ? -1 : 1;
-
 	template<int R, int... As>
 	constexpr bool test_in_radius = (fixed_abs<As> + ...) <= R;
 
@@ -479,8 +473,8 @@ namespace symphas::internal
 // (not including axis)
 // A value of -1 indicates there is no radius and only
 // axes are used.
-#define NEG_RADIUS_CENTRAL_3D 1
-#define USE_RADIUS_CENTRAL_3D false
+#define NEG_RADIUS_CENTRAL_3D 0
+#define USE_RADIUS_CENTRAL_3D true
 
 	template<int... Is, int... Js>
 	auto simplify_axes_2d_odd(types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, OpTerm<OpIdentity, expr::symbols::internal::S2_symbol<Is, Js>>>...>)
@@ -607,7 +601,7 @@ namespace symphas::internal
 		return types_list<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>,
 			typename at_stencil_index_3d<
 				-fixed_max<fixed_abs<Is>, fixed_abs<Js>, fixed_abs<Ks>>,
-				-fixed_min<fixed_max<fixed_abs<Is>, fixed_abs<Js>>, fixed_abs<Ks>>,
+				-fixed_min<fixed_max<fixed_abs<Is>, fixed_abs<Js>>, fixed_max<fixed_abs<Is>, fixed_abs<Ks>>, fixed_max<fixed_abs<Js>, fixed_abs<Ks>>>,
 				-fixed_min<fixed_abs<Is>, fixed_abs<Js>, fixed_abs<Ks>>,
 				Ts,	std::integer_sequence<int, Is...>, std::integer_sequence<int, Js...>, std::integer_sequence<int, Ks...>>::type>...
 			>{};
@@ -671,17 +665,52 @@ namespace symphas::internal
 	}
 
 	template<typename E>
-	auto make_all_substitutions(types_list<> const&, E const& e)
+	auto make_all_substitutions(OpExpression<E> const& e, types_list<> const&)
 	{
 		return E{};
 	}
 
-	template<typename Symbol0, typename... Symbols, typename E0, typename... Es, typename E>
-	auto make_all_substitutions(types_list<std::pair<Symbol0, E0>, std::pair<Symbols, Es>...> const& dict, E const& e)
+	template<typename E, typename Symbol0, typename E0, typename... Symbols, typename... Es>
+	auto make_all_substitutions(OpExpression<E> const& e, types_list<std::pair<Symbol0, E0>, std::pair<Symbols, Es>...>)
 	{
-		return make_all_substitutions(
-			types_list<std::pair<Symbols, Es>...>{},
-			make_substitution<Symbol0>(E{}, E0{}));
+		return make_all_substitutions(make_substitution<Symbol0>(E{}, E0{}), types_list<std::pair<Symbols, Es>...>{});
+	}
+
+	template<typename F, typename T, typename M, typename L>
+	struct match_select_impl;
+
+	template<typename T, typename... Ms, typename... Ls>
+	struct match_select_impl<std::integral_constant<int, -1>, T, types_list<Ms...>, types_list<Ls...>>
+	{
+		using type = types_list<>;
+	};
+
+	template<int N, typename T, typename... Ms, typename... Ls>
+	struct match_select_impl<std::integral_constant<int, N>, T, types_list<Ms...>, types_list<Ls...>>
+	{
+		using type = type_at_index<size_t(N), Ls...>;
+	};
+
+	template<typename T, typename... Ms, typename... Ls>
+	struct match_select_impl<void, T, types_list<Ms...>, types_list<Ls...>>
+	{
+		using type = typename match_select_impl<std::integral_constant<int, index_of_type<T, Ms...>>, T, types_list<Ms...>, types_list<Ls...>>::type;
+	};
+
+	template<typename T, typename M, typename L>
+	using match_select = typename match_select_impl<void, T, M, L>::type;
+
+	template<typename... Symbols, typename... Es, typename... Ts, typename E>
+	auto make_all_substitutions(types_list<std::pair<Symbols, Es>...> const& dict, types_list<Ts...>, OpExpression<E> const& e)
+	{
+		using list_substitutions_t = expand_types_list<match_select<Ts, types_list<Symbols...>, types_list<std::pair<Symbols, Es>...>>...>;
+		return make_all_substitutions(E{}, list_substitutions_t{});
+	}
+
+	template<typename... Symbols, typename... Es, typename E>
+	auto make_all_substitutions(types_list<std::pair<Symbols, Es>...> const& dict, OpExpression<E> const& e)
+	{
+		return make_all_substitutions(dict, expr::op_types_t<E>{}, E{});
 	}
 
 	//! Perform back substitution on the dictionary to update it.
@@ -704,6 +733,14 @@ namespace symphas::internal
 	{
 		return types_list<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, decltype(make_substitution<SymbolKey>(Es{}, E{}))>...>{};
 	}
+
+	//! Perform back substitution on the dictionary to update it.
+	template<typename... Ss, typename... S0s, typename... Es>
+	auto self_complete(types_list<std::pair<Ss, Es>...> const& dict)
+	{
+		return types_list<std::pair<Ss, decltype(make_all_substitutions(dict, Es{}))>...>{};
+	}
+
 
 	////! Perform back substitution on the dictionary to update it.
 	//template<typename SymbolKey, typename... Symbols, typename... Es>
@@ -933,19 +970,20 @@ namespace symphas::internal
 
 		using dict_type = types_list<std::pair<Symbols, Es>...>;
 
-		template<size_t... Is>
-		static constexpr bool get_value(std::index_sequence<Is...>)
-		{
-			return !((
-				std::is_same<
-					type_at_index<Is, Es...>,
-					OpTerm<OpIdentity, type_at_index<Is, Symbols...>>
-				>::value || ...));
-		}
+		//template<size_t... Is>
+		//static constexpr bool get_value(std::index_sequence<Is...>)
+		//{
+		//	return !((
+		//		std::is_same<
+		//			type_at_index<Is, Es...>,
+		//			OpTerm<OpIdentity, type_at_index<Is, Symbols...>>
+		//		>::value || ...));
+		//}
 
 	public:
 
-		static const bool value = get_value(std::make_index_sequence<sizeof...(Symbols)>{});
+		//static const bool value = get_value(std::make_index_sequence<sizeof...(Symbols)>{});
+		static const bool value = !(std::is_same<Es, OpTerm<OpIdentity, Symbols>>::value || ...);
 	};
 
 
@@ -960,6 +998,534 @@ namespace symphas::internal
 namespace expr
 {
 
+	template<size_t N, size_t I, typename E>
+	struct stencil_vector_type {};
+
+	// Represents the vector which is a row vector when I = 0, column when I = 1 and depth when I = 2.
+	template<size_t I, typename... Es>
+	struct stencil_vector_type<0, I, symphas::lib::types_list<Es...>> {};
+
+
+	// Represents the 2d matrix, composed of list of row vectors.
+	template<size_t I, typename... Es>
+	struct stencil_vector_type<1, I, symphas::lib::types_list<stencil_vector_type<0, I, Es>...>> {};
+
+	template<size_t I0, size_t I, typename... Es>
+	auto get_stencil_vector_entry(expr::stencil_vector_type<0, I, symphas::lib::types_list<Es...>>)
+	{
+		return symphas::lib::type_at_index<I0, Es...>{};
+	}
+
+	template<size_t I0, size_t I1, size_t I, typename... Es>
+	auto get_stencil_vector_entry(expr::stencil_vector_type<1, I, symphas::lib::types_list<stencil_vector_type<0, 0, Es>...>>)
+	{
+		return get_stencil_vector_entry<I0>(symphas::lib::type_at_index<I1, stencil_vector_type<0, 0, Es>...>{});
+	}
+
+	template<size_t N, size_t I, typename E>
+	struct stencil_vector_entry_impl
+	{
+		using type = decltype(expr::choose<N, N - I>() * expr::pow<N - I>(E{}));
+	};
+
+	template<size_t N, size_t I, typename V, typename G0, typename... Gs>
+	struct stencil_vector_entry_impl<N, I, OpTerms<V, Term<G0, 1>, Term<Gs, 1>...>>
+	{
+		using type = OpTerms<typename stencil_vector_entry_impl<N, I, V>::type, Term<G0, expr::Xk<N - I>>, Term<Gs, expr::Xk<N - I>>...>;
+	};
+
+	template<size_t N, typename V, typename G0, typename... Gs>
+	struct stencil_vector_entry_impl<N, N, OpTerms<V, Term<G0, 1>, Term<Gs, 1>...>>
+	{
+		using type = typename stencil_vector_entry_impl<N, N, V>::type;
+	};
+
+	template<size_t N, size_t I, typename E>
+	using stencil_vector_entry = typename stencil_vector_entry_impl<N, I, E>::type;
+
+
+
+	template<typename E, size_t... Is>
+	auto stencil_vector(expr::symbols::x, E, std::index_sequence<Is...>)
+	{
+		return stencil_vector_type<0, 0, symphas::lib::types_list<stencil_vector_entry<sizeof...(Is) - 1, Is, E>...>>{};
+	}
+
+	template<typename E, size_t... Is>
+	auto stencil_vector(expr::symbols::y, E, std::index_sequence<Is...>)
+	{
+		return stencil_vector_type<0, 1, symphas::lib::types_list<stencil_vector_entry<sizeof...(Is) - 1, Is, E>...>>{};
+	}
+
+	template<typename E, size_t... Is>
+	auto stencil_vector(expr::symbols::z, E, std::index_sequence<Is...>)
+	{
+		return stencil_vector_type<0, 2, symphas::lib::types_list<stencil_vector_entry<sizeof...(Is) - 1, Is, E>...>>{};
+	}
+
+	template<int I0, typename T, typename Seq>
+	struct empty_stencil_vector_type;
+
+	template<int I0, int I, typename... Es, size_t... Is>
+	struct empty_stencil_vector_type<I0, expr::stencil_vector_type<0, I, symphas::lib::types_list<Es...>>, std::index_sequence<Is...>>
+	{
+		using type = expr::stencil_vector_type<0, I, symphas::lib::types_list<symphas::internal::ttype<Es, OpVoid>...>>;
+	};
+
+	template<int I0, size_t N, int I, typename... E0s, typename... Es, size_t... Is>
+	struct empty_stencil_vector_type<I0, expr::stencil_vector_type<N, I, symphas::lib::types_list<expr::stencil_vector_type<N - 1, I, symphas::lib::types_list<E0s...>>, Es...>>, std::index_sequence<Is...>>
+	{
+		using empties_t = typename empty_stencil_vector_type<I0, expr::stencil_vector_type<N - 1, I, symphas::lib::types_list<E0s...>>, std::make_index_sequence<sizeof...(E0s)>>::type;
+
+		using type = expr::stencil_vector_type<N, I, symphas::lib::types_list<empties_t, symphas::internal::ttype<Es, empties_t>...>>;
+	};
+
+	template<int I0, size_t N, typename T>
+	using empty_stencil_vector_t = typename empty_stencil_vector_type<I0, T, std::make_index_sequence<N>>::type;
+
+	template<size_t I, typename... Es, size_t... Is>
+	auto fill_stencil_vector(expr::stencil_vector_type<0, I, symphas::lib::types_list<Es...>>, std::index_sequence<Is...>)
+	{
+		return expr::stencil_vector_type<0, I, symphas::lib::types_list<Es..., symphas::internal::itype<Is, OpVoid>...>>{};
+	}
+
+	//template<size_t I, typename... Es, size_t... Is, size_t... Ns>
+	//auto fill_stencil_vector(expr::stencil_vector_type<1, I, symphas::lib::types_list<stencil_vector_type<0, 0, Es>...>>, std::index_sequence<Is...>, std::index_sequence<Ns...>)
+	//{
+	//	using empty_t = stencil_vector_type<0, 0, symphas::lib::types_list<symphas::internal::itype<Ns, OpVoid>...>>;
+	//	return expr::stencil_vector_type<1, I, symphas::lib::types_list<stencil_vector_type<0, 0, Es>..., 
+	//		symphas::internal::itype<Is, empty_t>...>>{};
+	//}
+
+	//template<size_t I, typename... Es, size_t... Is>
+	//auto fill_stencil_vector(expr::stencil_vector_type<1, I, symphas::lib::types_list<stencil_vector_type<0, 0, Es>...>>, std::index_sequence<Is...>)
+	//{
+	//	constexpr size_t N = symphas::lib::types_list_size<symphas::lib::type_at_index<0, Es...>>::value;
+	//	return fill_stencil_vector(expr::stencil_vector_type<1, I, symphas::lib::types_list<stencil_vector_type<0, 0, Es>...>>{}, std::index_sequence<Is...>{}, std::make_index_sequence<N>{});
+	//}
+
+	//template<size_t I, typename... Es, size_t... Is, typename T0, typename... Ts>
+	//auto fill_stencil_vector(expr::stencil_vector_type<2, I, symphas::lib::types_list<stencil_vector_type<1, I, Es>...>>, T0, Ts...)
+	//{
+	//	return expr::stencil_vector_type<1, I, symphas::lib::types_list<stencil_vector_type<0, 0, Es>..., Ts...>>{};
+	//}
+
+	template<size_t N, size_t I, typename... Es, size_t... Is>
+	auto fill_stencil_vector(expr::stencil_vector_type<N, I, symphas::lib::types_list<stencil_vector_type<N - 1, I, Es>...>>, std::index_sequence<Is...>)
+	{
+		using E0 = symphas::lib::type_at_index<0, stencil_vector_type<N - 1, I, Es>...>;
+		return expr::stencil_vector_type<N, I, symphas::lib::types_list<stencil_vector_type<N - 1, I, Es>..., empty_stencil_vector_t<Is, sizeof...(Is), E0>...>>{};
+	}
+
+
+	template<typename V, expr::exp_key_t X, size_t... N0s>
+	auto as_stencil_vector_impl(OpTerms<V, Term<expr::symbols::x_symbol, X>>, std::index_sequence<N0s...>)
+	{
+		constexpr size_t N = expr::_Xk_t<X>::N;
+		return stencil_vector_type<0, 0, symphas::lib::types_list<std::conditional_t<N == N0s, V, OpVoid>...>>{};
+	}
+
+	template<typename V, expr::exp_key_t X, size_t... N0s, size_t... N1s>
+	auto as_stencil_vector_impl(OpTerms<V, Term<expr::symbols::x_symbol, X>>, std::index_sequence<N0s...>, std::index_sequence<0, N1s...>)
+	{
+		constexpr size_t N = expr::_Xk_t<X>::N;
+		return 
+			stencil_vector_type<0, 0, symphas::lib::types_list<std::conditional_t<N == N0s, V, OpVoid>...>>{}
+			* stencil_vector_type<0, 1, symphas::lib::types_list<OpIdentity, symphas::internal::itype<N1s, OpVoid>...>>{};
+	}
+
+	template<typename V, expr::exp_key_t X, size_t... N0s, size_t... N1s>
+	auto as_stencil_vector_impl(OpTerms<V, Term<expr::symbols::y_symbol, X>>, std::index_sequence<0, N0s...>, std::index_sequence<N1s...>)
+	{
+		constexpr size_t N = expr::_Xk_t<X>::N;
+		return
+			stencil_vector_type<0, 0, symphas::lib::types_list<OpIdentity, symphas::internal::itype<N0s, OpVoid>...>>{}
+			* stencil_vector_type<0, 1, symphas::lib::types_list<std::conditional_t<N == N1s, V, OpVoid>...>>{};
+	}
+
+	template<typename V, expr::exp_key_t X0, expr::exp_key_t X1, size_t... N0s, size_t... N1s>
+	auto as_stencil_vector_impl(OpTerms<V, Term<expr::symbols::y_symbol, X1>, Term<expr::symbols::x_symbol, X0>>, std::index_sequence<0, N0s...>, std::index_sequence<0, N1s...>)
+	{
+		constexpr size_t N0 = expr::_Xk_t<X0>::N;
+		constexpr size_t N1 = expr::_Xk_t<X1>::N;
+		return
+			stencil_vector_type<0, 0, symphas::lib::types_list<OpVoid, std::conditional_t<N0 == N0s, OpIdentity, OpVoid>...>>{}
+			* stencil_vector_type<0, 1, symphas::lib::types_list<OpVoid, std::conditional_t<N1 == N1s, V, OpVoid>...>>{};
+	}
+
+	template<typename V, expr::exp_key_t X0, expr::exp_key_t X1, size_t... N0s, size_t... N1s>
+	auto as_stencil_vector_impl(OpTerms<V, Term<expr::symbols::x_symbol, X0>, Term<expr::symbols::y_symbol, X1>>, std::index_sequence<0, N0s...>, std::index_sequence<0, N1s...>)
+	{
+		constexpr size_t N0 = expr::_Xk_t<X0>::N;
+		constexpr size_t N1 = expr::_Xk_t<X1>::N;
+		return
+			stencil_vector_type<0, 0, symphas::lib::types_list<OpVoid, std::conditional_t<N0 == N0s, OpIdentity, OpVoid>...>>{}
+			* stencil_vector_type<0, 1, symphas::lib::types_list<OpVoid, std::conditional_t<N1 == N1s, V, OpVoid>...>>{};
+	}
+
+
+	template<typename V, expr::exp_key_t X, size_t... N0s, size_t... N1s, size_t... N2s>
+	auto as_stencil_vector_impl(OpTerms<V, Term<expr::symbols::x_symbol, X>>, std::index_sequence<N0s...>, std::index_sequence<0, N1s...>, std::index_sequence<0, N2s...>)
+	{
+		constexpr size_t N = expr::_Xk_t<X>::N;
+		return
+			(stencil_vector_type<0, 0, symphas::lib::types_list<std::conditional_t<N == N0s, V, OpVoid>...>>{}
+				* stencil_vector_type<0, 1, symphas::lib::types_list<OpIdentity, symphas::internal::itype<N1s, OpVoid>...>>{})
+			* stencil_vector_type<0, 2, symphas::lib::types_list<OpIdentity, symphas::internal::itype<N2s, OpVoid>...>>{};
+	}
+	
+	template<typename V, expr::exp_key_t X, size_t... N0s, size_t... N1s, size_t... N2s>
+	auto as_stencil_vector_impl(OpTerms<V, Term<expr::symbols::y_symbol, X>>, std::index_sequence<0, N0s...>, std::index_sequence<N1s...>, std::index_sequence<0, N2s...>)
+	{
+		constexpr size_t N = expr::_Xk_t<X>::N;
+		return
+			(stencil_vector_type<0, 0, symphas::lib::types_list<OpIdentity, symphas::internal::itype<N0s, OpVoid>...>>{}
+				* stencil_vector_type<0, 1, symphas::lib::types_list<std::conditional_t<N == N1s, V, OpVoid>...>>{})
+			* stencil_vector_type<0, 2, symphas::lib::types_list<OpIdentity, symphas::internal::itype<N2s, OpVoid>...>>{};
+	}
+	
+	template<typename V, expr::exp_key_t X, size_t... N0s, size_t... N1s, size_t... N2s>
+	auto as_stencil_vector_impl(OpTerms<V, Term<expr::symbols::z_symbol, X>>, std::index_sequence<0, N0s...>, std::index_sequence<0, N1s...>, std::index_sequence<N2s...>)
+	{
+		constexpr size_t N = expr::_Xk_t<X>::N;
+		return
+			(stencil_vector_type<0, 0, symphas::lib::types_list<OpIdentity, symphas::internal::itype<N0s, OpVoid>...>>{}
+				* stencil_vector_type<0, 1, symphas::lib::types_list<OpIdentity, symphas::internal::itype<N1s, OpVoid>...>>{})
+			* stencil_vector_type<0, 2, symphas::lib::types_list<std::conditional_t<N == N2s, V, OpVoid>...>>{};
+	}
+
+	template<typename V, expr::exp_key_t X0, expr::exp_key_t X1, size_t... N0s, size_t... N1s, size_t... N2s>
+	auto as_stencil_vector_impl(OpTerms<V, Term<expr::symbols::x_symbol, X0>, Term<expr::symbols::y_symbol, X1>>, std::index_sequence<0, N0s...>, std::index_sequence<0, N1s...>, std::index_sequence<N2s...>)
+	{
+		constexpr size_t N0 = expr::_Xk_t<X0>::N;
+		constexpr size_t N1 = expr::_Xk_t<X1>::N;
+		return
+			(stencil_vector_type<0, 0, symphas::lib::types_list<OpVoid, std::conditional_t<N0 == N0s, OpIdentity, OpVoid>...>>{}
+				* stencil_vector_type<0, 1, symphas::lib::types_list<OpVoid, std::conditional_t<N1 == N1s, V, OpVoid>...>>{})
+			* stencil_vector_type<0, 2, symphas::lib::types_list<OpIdentity, symphas::internal::itype<N2s, OpVoid>...>>{};
+	}
+
+	template<typename V, expr::exp_key_t X0, expr::exp_key_t X1, size_t... N0s, size_t... N1s, size_t... N2s>
+	auto as_stencil_vector_impl(OpTerms<V, Term<expr::symbols::y_symbol, X1>, Term<expr::symbols::x_symbol, X0>>, std::index_sequence<0, N0s...>, std::index_sequence<0, N1s...>, std::index_sequence<N2s...>)
+	{
+		constexpr size_t N0 = expr::_Xk_t<X0>::N;
+		constexpr size_t N1 = expr::_Xk_t<X1>::N;
+		return
+			(stencil_vector_type<0, 0, symphas::lib::types_list<OpVoid, std::conditional_t<N0 == N0s, OpIdentity, OpVoid>...>>{}
+				* stencil_vector_type<0, 1, symphas::lib::types_list<OpVoid, std::conditional_t<N1 == N1s, V, OpVoid>...>>{})
+			* stencil_vector_type<0, 2, symphas::lib::types_list<OpIdentity, symphas::internal::itype<N2s, OpVoid>...>>{};
+	}
+
+	template<typename V, expr::exp_key_t X0, expr::exp_key_t X2, size_t... N0s, size_t... N1s, size_t... N2s>
+	auto as_stencil_vector_impl(OpTerms<V, Term<expr::symbols::x_symbol, X0>, Term<expr::symbols::z_symbol, X2>>, std::index_sequence<0, N0s...>, std::index_sequence<N1s...>, std::index_sequence<0, N2s...>)
+	{
+		constexpr size_t N0 = expr::_Xk_t<X0>::N;
+		constexpr size_t N2 = expr::_Xk_t<X2>::N;
+		return
+			(stencil_vector_type<0, 0, symphas::lib::types_list<OpVoid, std::conditional_t<N0 == N0s, OpIdentity, OpVoid>...>>{}
+				* stencil_vector_type<0, 1, symphas::lib::types_list<OpIdentity, symphas::internal::itype<N1s, OpVoid>...>>{})
+			* stencil_vector_type<0, 2, symphas::lib::types_list<OpVoid, std::conditional_t<N2 == N2s, V, OpVoid>...>>{};
+	}
+
+	template<typename V, expr::exp_key_t X0, expr::exp_key_t X2, size_t... N0s, size_t... N1s, size_t... N2s>
+	auto as_stencil_vector_impl(OpTerms<V, Term<expr::symbols::z_symbol, X2>, Term<expr::symbols::x_symbol, X0>>, std::index_sequence<0, N0s...>, std::index_sequence<N1s...>, std::index_sequence<0, N2s...>)
+	{
+		constexpr size_t N0 = expr::_Xk_t<X0>::N;
+		constexpr size_t N2 = expr::_Xk_t<X2>::N;
+		return
+			(stencil_vector_type<0, 0, symphas::lib::types_list<OpVoid, std::conditional_t<N0 == N0s, OpIdentity, OpVoid>...>>{}
+				* stencil_vector_type<0, 1, symphas::lib::types_list<OpIdentity, symphas::internal::itype<N1s, OpVoid>...>>{})
+			* stencil_vector_type<0, 2, symphas::lib::types_list<OpVoid, std::conditional_t<N2 == N2s, V, OpVoid>...>>{};
+	}
+
+	template<typename V, expr::exp_key_t X1, expr::exp_key_t X2, size_t... N0s, size_t... N1s, size_t... N2s>
+	auto as_stencil_vector_impl(OpTerms<V, Term<expr::symbols::y_symbol, X1>, Term<expr::symbols::z_symbol, X2>>, std::index_sequence<0, N0s...>, std::index_sequence<N1s...>, std::index_sequence<0, N2s...>)
+	{
+		constexpr size_t N1 = expr::_Xk_t<X1>::N;
+		constexpr size_t N2 = expr::_Xk_t<X2>::N;
+		return
+			(stencil_vector_type<0, 0, symphas::lib::types_list<OpIdentity, symphas::internal::itype<N0s, OpVoid>...>>{}
+				* stencil_vector_type<0, 1, symphas::lib::types_list<OpVoid, std::conditional_t<N1 == N1s, OpIdentity, OpVoid>...>>{})
+			* stencil_vector_type<0, 2, symphas::lib::types_list<OpVoid, std::conditional_t<N2 == N2s, V, OpVoid>...>>{};
+	}
+
+	template<typename V, expr::exp_key_t X1, expr::exp_key_t X2, size_t... N0s, size_t... N1s, size_t... N2s>
+	auto as_stencil_vector_impl(OpTerms<V, Term<expr::symbols::z_symbol, X2>, Term<expr::symbols::y_symbol, X1>>, std::index_sequence<0, N0s...>, std::index_sequence<N1s...>, std::index_sequence<0, N2s...>)
+	{
+		constexpr size_t N1 = expr::_Xk_t<X1>::N;
+		constexpr size_t N2 = expr::_Xk_t<X2>::N;
+		return
+			(stencil_vector_type<0, 0, symphas::lib::types_list<OpIdentity, symphas::internal::itype<N0s, OpVoid>...>>{}
+				* stencil_vector_type<0, 1, symphas::lib::types_list<OpVoid, std::conditional_t<N1 == N1s, OpIdentity, OpVoid>...>>{})
+			* stencil_vector_type<0, 2, symphas::lib::types_list<OpVoid, std::conditional_t<N2 == N2s, V, OpVoid>...>>{};
+	}
+
+	template<typename V, expr::exp_key_t X0, expr::exp_key_t X1, expr::exp_key_t X2, size_t... N0s, size_t... N1s, size_t... N2s>
+	auto as_stencil_vector_impl(OpTerms<V, Term<expr::symbols::x_symbol, X0>, Term<expr::symbols::y_symbol, X1>, Term<expr::symbols::z_symbol, X2>>, std::index_sequence<0, N0s...>, std::index_sequence<0, N1s...>, std::index_sequence<0, N2s...>)
+	{
+		constexpr size_t N0 = expr::_Xk_t<X0>::N;
+		constexpr size_t N1 = expr::_Xk_t<X1>::N;
+		constexpr size_t N2 = expr::_Xk_t<X2>::N;
+		return
+			(stencil_vector_type<0, 0, symphas::lib::types_list<OpVoid, std::conditional_t<N0 == N0s, OpIdentity, OpVoid>...>>{}
+				* stencil_vector_type<0, 1, symphas::lib::types_list<OpVoid, std::conditional_t<N1 == N1s, V, OpVoid>...>>{})
+			* stencil_vector_type<0, 2, symphas::lib::types_list<OpVoid, std::conditional_t<N2 == N2s, V, OpVoid>...>>{};
+	}
+
+	template<typename V, expr::exp_key_t X0, expr::exp_key_t X1, expr::exp_key_t X2, size_t... N0s, size_t... N1s, size_t... N2s>
+	auto as_stencil_vector_impl(OpTerms<V, Term<expr::symbols::x_symbol, X0>, Term<expr::symbols::z_symbol, X2>, Term<expr::symbols::y_symbol, X1>>, std::index_sequence<0, N0s...>, std::index_sequence<0, N1s...>, std::index_sequence<0, N2s...>)
+	{
+		constexpr size_t N0 = expr::_Xk_t<X0>::N;
+		constexpr size_t N1 = expr::_Xk_t<X1>::N;
+		constexpr size_t N2 = expr::_Xk_t<X2>::N;
+		return
+			(stencil_vector_type<0, 0, symphas::lib::types_list<OpVoid, std::conditional_t<N0 == N0s, OpIdentity, OpVoid>...>>{}
+				* stencil_vector_type<0, 1, symphas::lib::types_list<OpVoid, std::conditional_t<N1 == N1s, V, OpVoid>...>>{})
+			* stencil_vector_type<0, 2, symphas::lib::types_list<OpVoid, std::conditional_t<N2 == N2s, V, OpVoid>...>>{};
+	}
+
+	template<typename V, expr::exp_key_t X0, expr::exp_key_t X1, expr::exp_key_t X2, size_t... N0s, size_t... N1s, size_t... N2s>
+	auto as_stencil_vector_impl(OpTerms<V, Term<expr::symbols::y_symbol, X1>, Term<expr::symbols::x_symbol, X0>, Term<expr::symbols::z_symbol, X2>>, std::index_sequence<0, N0s...>, std::index_sequence<0, N1s...>, std::index_sequence<0, N2s...>)
+	{
+		constexpr size_t N0 = expr::_Xk_t<X0>::N;
+		constexpr size_t N1 = expr::_Xk_t<X1>::N;
+		constexpr size_t N2 = expr::_Xk_t<X2>::N;
+		return
+			(stencil_vector_type<0, 0, symphas::lib::types_list<OpVoid, std::conditional_t<N0 == N0s, OpIdentity, OpVoid>...>>{}
+				* stencil_vector_type<0, 1, symphas::lib::types_list<OpVoid, std::conditional_t<N1 == N1s, V, OpVoid>...>>{})
+			* stencil_vector_type<0, 2, symphas::lib::types_list<OpVoid, std::conditional_t<N2 == N2s, V, OpVoid>...>>{};
+	}
+
+	template<typename V, expr::exp_key_t X0, expr::exp_key_t X1, expr::exp_key_t X2, size_t... N0s, size_t... N1s, size_t... N2s>
+	auto as_stencil_vector_impl(OpTerms<V, Term<expr::symbols::y_symbol, X1>, Term<expr::symbols::z_symbol, X2>, Term<expr::symbols::x_symbol, X0>>, std::index_sequence<0, N0s...>, std::index_sequence<0, N1s...>, std::index_sequence<0, N2s...>)
+	{
+		constexpr size_t N0 = expr::_Xk_t<X0>::N;
+		constexpr size_t N1 = expr::_Xk_t<X1>::N;
+		constexpr size_t N2 = expr::_Xk_t<X2>::N;
+		return
+			(stencil_vector_type<0, 0, symphas::lib::types_list<OpVoid, std::conditional_t<N0 == N0s, OpIdentity, OpVoid>...>>{}
+				* stencil_vector_type<0, 1, symphas::lib::types_list<OpVoid, std::conditional_t<N1 == N1s, V, OpVoid>...>>{})
+			* stencil_vector_type<0, 2, symphas::lib::types_list<OpVoid, std::conditional_t<N2 == N2s, V, OpVoid>...>>{};
+	}
+
+	template<typename V, expr::exp_key_t X0, expr::exp_key_t X1, expr::exp_key_t X2, size_t... N0s, size_t... N1s, size_t... N2s>
+	auto as_stencil_vector_impl(OpTerms<V, Term<expr::symbols::z_symbol, X2>, Term<expr::symbols::x_symbol, X0>, Term<expr::symbols::y_symbol, X1>>, std::index_sequence<0, N0s...>, std::index_sequence<0, N1s...>, std::index_sequence<0, N2s...>)
+	{
+		constexpr size_t N0 = expr::_Xk_t<X0>::N;
+		constexpr size_t N1 = expr::_Xk_t<X1>::N;
+		constexpr size_t N2 = expr::_Xk_t<X2>::N;
+		return
+			(stencil_vector_type<0, 0, symphas::lib::types_list<OpVoid, std::conditional_t<N0 == N0s, OpIdentity, OpVoid>...>>{}
+				* stencil_vector_type<0, 1, symphas::lib::types_list<OpVoid, std::conditional_t<N1 == N1s, V, OpVoid>...>>{})
+			* stencil_vector_type<0, 2, symphas::lib::types_list<OpVoid, std::conditional_t<N2 == N2s, V, OpVoid>...>>{};
+	}
+
+	template<typename V, expr::exp_key_t X0, expr::exp_key_t X1, expr::exp_key_t X2, size_t... N0s, size_t... N1s, size_t... N2s>
+	auto as_stencil_vector_impl(OpTerms<V, Term<expr::symbols::z_symbol, X2>, Term<expr::symbols::y_symbol, X1>, Term<expr::symbols::x_symbol, X0>>, std::index_sequence<0, N0s...>, std::index_sequence<0, N1s...>, std::index_sequence<0, N2s...>)
+	{
+		constexpr size_t N0 = expr::_Xk_t<X0>::N;
+		constexpr size_t N1 = expr::_Xk_t<X1>::N;
+		constexpr size_t N2 = expr::_Xk_t<X2>::N;
+		return
+			(stencil_vector_type<0, 0, symphas::lib::types_list<OpVoid, std::conditional_t<N0 == N0s, OpIdentity, OpVoid>...>>{}
+				* stencil_vector_type<0, 1, symphas::lib::types_list<OpVoid, std::conditional_t<N1 == N1s, V, OpVoid>...>>{})
+			* stencil_vector_type<0, 2, symphas::lib::types_list<OpVoid, std::conditional_t<N2 == N2s, V, OpVoid>...>>{};
+	}
+
+	template<size_t... N0s>
+	auto as_stencil_vector_impl(OpVoid, std::index_sequence<N0s...>)
+	{
+		return stencil_vector_type<0, 0, symphas::lib::types_list<symphas::internal::itype<N0s, OpVoid>...>>{};
+	}
+
+	template<size_t... N0s, size_t... N1s>
+	auto as_stencil_vector_impl(OpVoid, std::index_sequence<N0s...>, std::index_sequence<N1s...>)
+	{
+		return
+			stencil_vector_type<0, 0, symphas::lib::types_list<symphas::internal::itype<N0s, OpVoid>...>>{}
+			* stencil_vector_type<0, 1, symphas::lib::types_list<symphas::internal::itype<N1s, OpVoid>...>>{};
+	}
+
+	template<size_t... N0s, size_t... N1s, size_t... N2s>
+	auto as_stencil_vector_impl(OpVoid, std::index_sequence<N0s...>, std::index_sequence<N1s...>, std::index_sequence<N2s...>)
+	{
+		return
+			(stencil_vector_type<0, 0, symphas::lib::types_list<symphas::internal::itype<N0s, OpVoid>...>>{}
+				* stencil_vector_type<0, 1, symphas::lib::types_list<symphas::internal::itype<N1s, OpVoid>...>>{})
+			* stencil_vector_type<0, 2, symphas::lib::types_list<symphas::internal::itype<N2s, OpVoid>...>>{};
+	}
+
+	template<typename... Es, typename... Seqs>
+	auto as_stencil_vector_impl(OpAdd<Es...>, Seqs...)
+	{
+		return (as_stencil_vector_impl(Es{}, Seqs{}...) + ...);
+	}
+
+	template<typename E, size_t... Ns>
+	auto as_stencil_vector(OpExpression<E>, std::index_sequence<Ns...>)
+	{
+		return as_stencil_vector_impl(E{}, std::make_index_sequence<Ns>{}...);
+	}
+
+	template<size_t I, typename... Es>
+	auto unpack_stencil_vector(expr::stencil_vector_type<0, I, symphas::lib::types_list<Es...>>)
+	{
+		return std::make_tuple(Es{}...);
+	}
+
+	template<size_t I, typename... Es>
+	auto unpack_stencil_vector(expr::stencil_vector_type<1, I, symphas::lib::types_list<stencil_vector_type<0, 0, Es>...>>)
+	{
+		return std::make_tuple(unpack_stencil_vector(stencil_vector_type<0, 0, Es>{})...);
+	}
+
+	template<size_t I, typename... Es>
+	auto unpack_stencil_vector(expr::stencil_vector_type<1, I, symphas::lib::types_list<stencil_vector_type<0, 0, Es>&&...>>)
+	{
+		return std::make_tuple(unpack_stencil_vector(stencil_vector_type<0, 0, Es>{})...);
+	}
+
+	template<size_t I, typename... Es>
+	auto unpack_stencil_vector(expr::stencil_vector_type<2, I, symphas::lib::types_list<stencil_vector_type<1, 0, Es>...>>)
+	{
+		return std::make_tuple(unpack_stencil_vector(stencil_vector_type<1, 0, Es>{})...);
+	}
+
+	template<typename... Es>
+	auto unpack_stencil_vector(symphas::lib::types_list<Es...>)
+	{
+		return std::tuple_cat(unpack_stencil_vector(Es{})...);
+	}
+}
+
+namespace symphas::internal
+{
+	using expr::stencil_vector_type;
+
+	template<typename T>
+	struct filter_zeros
+	{
+		using type = symphas::lib::types_list<T>;
+	};
+
+	template<>
+	struct filter_zeros<OpVoid>
+	{
+		using type = symphas::lib::types_list<>;
+	};
+
+	template<typename... Ts>
+	struct filter_zeros<symphas::lib::types_list<Ts...>>
+	{
+		using type = symphas::lib::expand_types_list<typename filter_zeros<Ts>::type...>;
+	};
+
+	template<size_t N, size_t I, typename... Es>
+	struct filter_zeros<expr::stencil_vector_type<N, I, symphas::lib::types_list<Es...>>>
+	{
+		using type = symphas::lib::expand_types_list<typename filter_zeros<symphas::lib::types_list<Es...>>::type>;
+	};
+
+	template<typename T>
+	using filter_zeros_t = typename filter_zeros<T>::type;
+
+}
+
+
+template<typename V, typename G, size_t I, size_t N, typename... Es>
+auto operator*(OpTerm<V, G> const& term, expr::stencil_vector_type<N, I, symphas::lib::types_list<Es...>>)
+{
+	return expr::stencil_vector_type<N, I, symphas::lib::types_list<mul_result_t<OpTerm<V, G>, Es>...>>{};
+}
+
+template<size_t I, size_t N, typename... Es, typename E>
+auto operator*(expr::stencil_vector_type<I, N, symphas::lib::types_list<Es...>>, OpExpression<E> const& term)
+{
+	return expr::stencil_vector_type<I, N, symphas::lib::types_list<mul_result_t<Es, E>...>>{};
+}
+
+template<size_t I, size_t N, typename... Es>
+auto operator*(expr::stencil_vector_type<I, N, symphas::lib::types_list<Es...>>, OpVoid)
+{
+	return expr::stencil_vector_type<I, N, symphas::lib::types_list<symphas::internal::ttype<Es, OpVoid>...>>{};
+}
+
+template<size_t I, size_t N, typename... Es>
+auto operator*(expr::stencil_vector_type<I, N, symphas::lib::types_list<Es...>>, OpIdentity)
+{
+	return expr::stencil_vector_type<I, N, symphas::lib::types_list<Es...>>{};
+}
+
+template<typename... E0s, typename... E1s>
+auto operator*(expr::stencil_vector_type<0, 0, symphas::lib::types_list<E0s...>>,
+	expr::stencil_vector_type<0, 1, symphas::lib::types_list<E1s...>>)
+{
+	return expr::stencil_vector_type<1, 0,
+		symphas::lib::types_list<mul_result_t<expr::stencil_vector_type<0, 0, symphas::lib::types_list<E0s...>>, E1s>...>>{};
+}
+
+template<typename... E0s, typename... E1s>
+auto operator*(expr::stencil_vector_type<1, 0, symphas::lib::types_list<E0s...>>,
+	expr::stencil_vector_type<0, 2, symphas::lib::types_list<E1s...>>)
+{
+	return expr::stencil_vector_type<2, 0,
+		symphas::lib::types_list<mul_result_t<expr::stencil_vector_type<1, 0, symphas::lib::types_list<E0s...>>, E1s>...>>{};
+}
+
+template<size_t N, size_t I, typename... E0s, typename... E1s>
+auto operator+(expr::stencil_vector_type<N, I, symphas::lib::types_list<E0s...>>,
+	expr::stencil_vector_type<N, I, symphas::lib::types_list<E1s...>>)
+{
+	if constexpr (sizeof...(E0s) == sizeof...(E1s))
+	{
+		//auto test0 = unpack_stencil_vector(expr::stencil_vector_type<N, I, symphas::lib::types_list<E0s...>>{});
+		//auto test1 = unpack_stencil_vector(expr::stencil_vector_type<N, I, symphas::lib::types_list<E1s...>>{});
+		//auto test = unpack_stencil_vector(expr::stencil_vector_type<N, I, symphas::lib::types_list<add_result_t<E0s, E1s>...>>{});
+		return expr::stencil_vector_type<N, I, symphas::lib::types_list<add_result_t<E0s, E1s>...>>{};
+	}
+	else if constexpr (sizeof...(E0s) < sizeof...(E1s))
+	{
+		return expr::fill_stencil_vector(
+				expr::stencil_vector_type<N, I, symphas::lib::types_list<E0s...>>{},
+				std::make_index_sequence<sizeof...(E1s) - sizeof...(E0s)>{})
+		+ expr::stencil_vector_type<N, I, symphas::lib::types_list<E1s...>>{};
+	}
+	else
+	{
+		return expr::stencil_vector_type<N, I, symphas::lib::types_list<E0s...>>{}
+			+ expr::fill_stencil_vector(
+				expr::stencil_vector_type<N, I, symphas::lib::types_list<E1s...>>{},
+				std::make_index_sequence<sizeof...(E0s) - sizeof...(E1s)>{});
+	}
+}
+
+template<size_t N, size_t I, typename... E0s, typename... E1s>
+auto operator-(expr::stencil_vector_type<N, I, symphas::lib::types_list<E0s...>>,
+	expr::stencil_vector_type<N, I, symphas::lib::types_list<E1s...>>)
+{
+	if constexpr (sizeof...(E0s) == sizeof...(E1s))
+	{
+		return expr::stencil_vector_type<N, I, symphas::lib::types_list<sub_result_t<E0s, E1s>...>>{};
+	}
+	else if constexpr (sizeof...(E0s) < sizeof...(E1s))
+	{
+		return expr::fill_stencil_vector(
+			expr::stencil_vector_type<N, I, symphas::lib::types_list<E0s...>>{},
+			std::make_index_sequence<sizeof...(E1s) - sizeof...(E0s)>{})
+			- expr::stencil_vector_type<N, I, symphas::lib::types_list<E1s...>>{};
+	}
+	else
+	{
+		return expr::stencil_vector_type<N, I, symphas::lib::types_list<E0s...>>{}
+		- expr::fill_stencil_vector(
+			expr::stencil_vector_type<N, I, symphas::lib::types_list<E1s...>>{},
+			std::make_index_sequence<sizeof...(E0s) - sizeof...(E1s)>{});
+	}
+}
+
+namespace expr
+{
+
 	using namespace symphas::internal;
 
 	template<size_t K, int... Is, typename... Es, typename E>
@@ -967,26 +1533,40 @@ namespace expr
 	{
 		using namespace expr::symbols;
 
-		return ((Es{} * expr::pow<K>(x{} + expr::make_integer<Is>() * h{})) + ...)
-			- expr::apply_operators(d_op * (expr::pow<K>(x{})));
+		return ((Es{} * expr::stencil_vector(x{}, expr::make_integer<Is>() * h{}, std::make_index_sequence<K + 1>{})) + ...)
+			+ expr::as_stencil_vector(-expr::apply_operators(d_op * (expr::pow<K>(x{}))), std::index_sequence<K + 1>{});
+		//return ((Es{} * expr::pow<K>(x{} + expr::make_integer<Is>() * h{})) + ...)
+		//	- expr::apply_operators(d_op * (expr::pow<K>(x{})));
 	}
-
 
 	template<size_t K, size_t L, int... Is, int... Js, typename... Es, typename E>
 	auto setup_stencil_equation(types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...>, E const& d_op)
 	{
 		using namespace expr::symbols;
-		return ((Es{} * expr::pow<K>(x{} + expr::make_integer<Is>() * h{}) * expr::pow<L>(y{} + expr::make_integer<Js>() * h{})) + ...)
-			- expr::apply_operators(d_op * (expr::pow<K>(x{}) * expr::pow<L>(y{})));
+		return (
+			(Es{}
+				* expr::stencil_vector(x{}, expr::make_integer<Is>() * h{}, std::make_index_sequence<K + 1>{})
+				* expr::stencil_vector(y{}, expr::make_integer<Js>() * h{}, std::make_index_sequence<L + 1>{})) + ...)
+			+ expr::as_stencil_vector(-expr::apply_operators(d_op * (expr::pow<K>(x{}) * expr::pow<L>(y{}))), std::index_sequence<K + 1, L + 1>{});
+
+		//return ((Es{} * expr::pow<K>(x{} + expr::make_integer<Is>() * h{}) * expr::pow<L>(y{} + expr::make_integer<Js>() * h{})) + ...)
+		//	- expr::apply_operators(d_op * (expr::pow<K>(x{}) * expr::pow<L>(y{})));
 	}
+
 
 	template<size_t K, size_t L, size_t M, int... Is, int... Js, int... Ks, typename... Es, typename E>
 	auto setup_stencil_equation(types_list<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>...>, E const& d_op)
 	{
 		using namespace expr::symbols;
+		return (
+			(Es{}
+				* (expr::stencil_vector(x{}, expr::make_integer<Is>() * h {}, std::make_index_sequence<K + 1>{})
+					* expr::stencil_vector(y{}, expr::make_integer<Js>() * h {}, std::make_index_sequence<L + 1>{}))
+				* expr::stencil_vector(z{}, expr::make_integer<Ks>() * h{}, std::make_index_sequence<M + 1>{})) + ...)
+			+ expr::as_stencil_vector(-expr::apply_operators(d_op * (expr::pow<K>(x{}) * expr::pow<L>(y{}) * expr::pow<M>(z{}))), std::index_sequence<K + 1, L + 1, M + 1>{});
 
-		return ((Es{} * expr::pow<K>(x{} + expr::make_integer<Is>() * h{}) * expr::pow<L>(y{} + expr::make_integer<Js>() * h{}) * expr::pow<M>(z{} + expr::make_integer<Ks>() * h{})) + ...)
-			- expr::apply_operators(d_op * (expr::pow<K>(x{}) * expr::pow<L>(y{}) * expr::pow<M>(z{})));
+		//return ((Es{} * expr::pow<K>(x{} + expr::make_integer<Is>() * h{}) * expr::pow<L>(y{} + expr::make_integer<Js>() * h{}) * expr::pow<M>(z{} + expr::make_integer<Ks>() * h{})) + ...)
+		//	- expr::apply_operators(d_op * (expr::pow<K>(x{}) * expr::pow<L>(y{}) * expr::pow<M>(z{})));
 	}
 
 	template<typename... Symbols>
@@ -1416,7 +1996,6 @@ namespace expr
 		}
 	}
 
-
 	//template<int... Is, int... Js, int... Ks, typename... Es>
 	//auto update_stencil_dictionary(types_list<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>...> const& dict, types_list<> const& exprs)
 	//{
@@ -1435,10 +2014,19 @@ namespace expr
 	//	return typename pack_dictionary<types_list<Es...>, std::integer_sequence<int, Is...>>::type{};
 	//}
 
+	template<typename... Symbols, typename... Es, typename E0, typename... E0s>
+	auto update_stencil_dictionary(types_list<std::pair<Symbols, Es>...> const& dict, types_list<E0, E0s...> const& exprs);
+
 	template<typename... Symbols, typename... Es>
 	auto update_stencil_dictionary(types_list<std::pair<Symbols, Es>...> const& dict, types_list<> const& exprs)
 	{
-		return dict;
+		return self_complete(dict);
+	}
+
+	template<typename... Symbols, typename... Es, typename... E0s>
+	auto update_stencil_dictionary(types_list<std::pair<Symbols, Es>...> const& dict, types_list<OpVoid, E0s...> const& exprs)
+	{
+		return update_stencil_dictionary(dict, types_list<E0s...>{});
 	}
 
 	template<typename... Symbols, typename... Es, typename E0, typename... E0s>
@@ -1446,8 +2034,7 @@ namespace expr
 	{
 		if constexpr (!dict_complete<types_list<std::pair<Symbols, Es>...>>::value)
 		{
-			auto&& dict2 = update_stencil_dictionary(dict, E0{});
-			return update_stencil_dictionary(dict2, types_list<E0s...>{});
+			return update_stencil_dictionary(update_stencil_dictionary(dict, E0{}), types_list<E0s...>{});
 		}
 		else
 		{
@@ -1455,6 +2042,20 @@ namespace expr
 		}
 	}
 
+
+	template<typename... Symbols, typename... Es, typename... E0s>
+	auto update_stencil_dictionary(types_list<std::pair<Symbols, Es>...> const& dict,
+		stencil_vector_type<0, 0, symphas::lib::types_list<E0s...>>)
+	{
+		return update_stencil_dictionary(dict, symphas::lib::types_list<E0s...>{});
+	}
+
+	template<typename... Symbols, typename... Es, size_t N, typename... E0s>
+	auto update_stencil_dictionary(types_list<std::pair<Symbols, Es>...> const& dict,
+		stencil_vector_type<N, 0, symphas::lib::types_list<stencil_vector_type<N - 1, 0, E0s>...>>)
+	{
+		return update_stencil_dictionary(dict, symphas::lib::types_list<stencil_vector_type<N - 1, 0, E0s>...>{});
+	}
 
 }
 
@@ -1523,8 +2124,6 @@ namespace expr
 				expr::make_operator_derivative<Oz, expr::symbols::z_symbol>());
 	}
 
-
-
 	//! Separates a list of equations based on the order of the x and y variables.
 	template<size_t Q, int... Is, int... Js, typename... Es, size_t... Ls, typename E>
 	auto setup_stencil_equation_list(types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...> const& dict,
@@ -1534,7 +2133,7 @@ namespace expr
 		using symphas::internal::reverse_types_list;
 		
 		using expr_types = types_list<decltype(expr::setup_stencil_equation<Q - Ls, Ls>(dict, d_op))...>;
-		return expr_types{};
+		return symphas::internal::filter_zeros_t<expr_types>{};
 	}
 
 	//! Separates a list of equations based on the order of the x and y variables.
@@ -1544,12 +2143,10 @@ namespace expr
 	{
 		using symphas::internal::split_by;
 
+		//auto exprs = std::make_tuple(expr::unpack_stencil_vector(symphas::internal::setup_stencil_equation_expand_1<Q, Q - Ls, Ls>(dict, d_op, std::make_index_sequence<Ls>{}))...);
 		using expr_types = types_list<decltype(
 			symphas::internal::setup_stencil_equation_expand_1<Q, Q - Ls, Ls>(dict, d_op, std::make_index_sequence<Ls>{}))...>;
-		using x_splits = typename split_by<expr::symbols::x_symbol, expr_types>::type;
-		using y_splits = typename split_by<expr::symbols::y_symbol, x_splits>::type;
-		using z_splits = typename split_by<expr::symbols::z_symbol, y_splits>::type;
-		return z_splits{};
+		return symphas::internal::filter_zeros_t<expr_types>{};
 	}
 
 
@@ -1562,8 +2159,9 @@ namespace expr
 		typename... Es, typename E, size_t O = expr::derivative_order<E>::value>
 	auto construct_stencil(types_list<std::pair<expr::symbols::internal::S1_symbol<Is>, Es>...> const& dict, E const& d_op)
 	{
-		auto equations = typename split_by<expr::symbols::x_symbol, decltype(setup_stencil_equation<Q>(dict, d_op))>::type{};
-		return update_stencil_dictionary(dict, equations);
+		//expr::printe(setup_stencil_equation_<Q>(dict, d_op));
+		//auto terms = expr::unpack_stencil_vector(setup_stencil_equation<Q>(dict, d_op));
+		return update_stencil_dictionary(dict, setup_stencil_equation<Q>(dict, d_op));
 	}
 
 	template<size_t Q, size_t N, int R, int... Is, int... Js, typename... Es,
@@ -1572,12 +2170,9 @@ namespace expr
 	{
 		using symphas::internal::split_by;
 		using symphas::internal::reverse_types_list;
-		
-		using expr_types = decltype(setup_stencil_equation_list<Q>(dict, d_op, std::make_index_sequence<Q + 1>{}));
-		using x_splits = typename split_by<expr::symbols::x_symbol, expr_types>::type;
-		using y_splits = typename split_by<expr::symbols::y_symbol, x_splits>::type;
 
-		return update_stencil_dictionary(dict, y_splits{});
+		constexpr size_t QQ = (N % 2 == 0) ? Q / 2 + 1 : Q + 1;
+		return update_stencil_dictionary(dict, setup_stencil_equation_list<Q>(dict, d_op, std::make_index_sequence<QQ>{}));
 	}
 
 
@@ -1585,8 +2180,8 @@ namespace expr
 		typename E, size_t O = expr::derivative_order<E>::value>
 	auto construct_stencil(types_list<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>...> const& dict, E const& d_op)
 	{
-		auto equations = setup_stencil_equation_list<Q, R>(dict, d_op, std::make_index_sequence<Q / 2 + 1>{});
-		return update_stencil_dictionary(dict, equations);
+		constexpr size_t QQ = (N % 2 == 0) ? Q / 2 + 1 : Q + 1;
+		return update_stencil_dictionary(dict, setup_stencil_equation_list<Q, R>(dict, d_op, std::make_index_sequence<QQ>{}));
 	}
 
 	template<size_t O1, size_t O2>
@@ -1741,7 +2336,7 @@ namespace symphas::internal
 		static const size_t h_exponent = 0;
 
 		template<typename T, size_t D>
-		constexpr auto operator()(T const* v, len_type(&stride)[D])
+		constexpr auto operator()(T const* v, const len_type(&stride)[D])
 		{
 			return E{}.eval(0);
 		}
@@ -1913,65 +2508,8 @@ namespace symphas::internal
 		}
 	};
 
-
-	template<typename E0>
-	struct coeff_type_divh { using type = E0; };
-	template<>
-	struct coeff_type_divh<OpVoid> { using type = OpVoid; };
-	template<typename A, typename B>
-	struct coeff_type_divh<OpBinaryDiv<A, B>> { using type = B; };
-
 	template<typename T>
 	struct GeneratedStencilApply;
-
-	template<>
-	struct GeneratedStencilApply<types_list<>>
-	{
-		GeneratedStencilApply(...) {}
-
-		size_t print(char* out) const
-		{
-			return sprintf(out, "x");
-		}
-
-		size_t print(FILE* out) const
-		{
-			return fprintf(out, "x");
-		}
-	};
-
-	template<int... Is, typename... Es>
-	struct GeneratedStencilApply<types_list<std::pair<expr::symbols::internal::S1_symbol<Is>, Es>...>>
-	{
-		static const size_t h_exponent = fixed_max<expr::factor_count<expr::symbols::h_symbol, typename coeff_type_divh<Es>::type>::value...>;
-
-		len_type stride;
-		double _h;
-		GeneratedStencilApply(len_type stride, double _h) : stride{ stride }, _h{ std::pow(_h, h_exponent) } {}
-
-		template<typename T>
-		auto operator()(T const* v) const
-		{
-			return _h * (StencilCoeff<std::pair<expr::symbols::internal::S1_symbol<Is>, Es>>{}(v, stride) + ...);
-		}
-
-		size_t print(char* out) const
-		{
-			size_t n = 0;
-			(((n += StencilCoeff<std::pair<expr::symbols::internal::S1_symbol<Is>, Es>>{}.print(out + n)),
-				(n += sprintf(out + n, "\n"))), ...);
-			return n;
-		}
-
-		size_t print(FILE* out) const
-		{
-			size_t n = 0;
-			(((n += StencilCoeff<std::pair<expr::symbols::internal::S1_symbol<Is>, Es>>{}.print(out)),
-				(n += fprintf(out, "\n"))), ...);
-			return n;
-		}
-	};
-	
 
 	template<int Im, int Jm, int I>
 	void print_stencil(types_list<>)
@@ -2026,19 +2564,71 @@ namespace symphas::internal
 	}
 
 
+	template<typename E0>
+	struct coeff_type_divh { using type = E0; };
+	template<>
+	struct coeff_type_divh<OpVoid> { using type = OpVoid; };
+	template<typename A, typename B>
+	struct coeff_type_divh<OpBinaryDiv<A, B>> { using type = B; };
+
+
+	template<>
+	struct GeneratedStencilApply<types_list<>>
+	{
+		GeneratedStencilApply(...) {}
+
+		size_t print(char* out) const
+		{
+			return sprintf(out, "x");
+		}
+
+		size_t print(FILE* out) const
+		{
+			return fprintf(out, "x");
+		}
+	};
+
+	template<int... Is, typename... Es>
+	struct GeneratedStencilApply<types_list<std::pair<expr::symbols::internal::S1_symbol<Is>, Es>...>>
+	{
+		static const size_t h_exponent = fixed_max<expr::factor_count<expr::symbols::h_symbol, typename coeff_type_divh<Es>::type>::value...>;
+
+		GeneratedStencilApply(types_list<std::pair<expr::symbols::internal::S1_symbol<Is>, Es>...>) {}
+
+		template<typename T>
+		auto operator()(T const* v, len_type stride, double divh) const
+		{
+			return std::pow(divh, h_exponent) * (StencilCoeff<std::pair<expr::symbols::internal::S1_symbol<Is>, Es>>{}(v, stride) + ...);
+		}
+
+		size_t print(char* out) const
+		{
+			size_t n = 0;
+			(((n += StencilCoeff<std::pair<expr::symbols::internal::S1_symbol<Is>, Es>>{}.print(out + n)),
+				(n += sprintf(out + n, "\n"))), ...);
+			return n;
+		}
+
+		size_t print(FILE* out) const
+		{
+			size_t n = 0;
+			(((n += StencilCoeff<std::pair<expr::symbols::internal::S1_symbol<Is>, Es>>{}.print(out)),
+				(n += fprintf(out, "\n"))), ...);
+			return n;
+		}
+	};
+
 	template<int... Is, int... Js, typename... Es>
 	struct GeneratedStencilApply<types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...>>
 	{
 		static const size_t h_exponent = fixed_max<expr::factor_count<expr::symbols::h_symbol, typename coeff_type_divh<Es>::type>::value...>;
 
-		len_type stride[2];
-		double _h;
-		GeneratedStencilApply(len_type const (&stride)[2], double _h) : stride{ stride[0], stride[1] }, _h{ std::pow(_h, h_exponent) } {}
+		GeneratedStencilApply(types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...>) {}
 
 		template<typename T>
-		auto operator()(T const* v) const
+		auto operator()(T const* v, len_type const (&stride)[2], double divh) const
 		{
-			return _h * (StencilCoeff<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>>{}(v, stride) + ...);
+			return std::pow(divh, h_exponent) * (StencilCoeff<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>>{}(v, stride) + ...);
 		}
 
 		size_t print(char* out) const
@@ -2063,14 +2653,12 @@ namespace symphas::internal
 	{
 		static const size_t h_exponent = fixed_max<expr::factor_count<expr::symbols::h_symbol, typename coeff_type_divh<Es>::type>::value...>;
 
-		len_type stride[3];
-		double _h;
-		GeneratedStencilApply(len_type const (&stride)[3], double _h) : stride{ stride[0], stride[1], stride[2] }, _h{ std::pow(_h, h_exponent) } {}
+		GeneratedStencilApply(types_list<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>...>) {}
 
 		template<typename T>
-		auto operator()(T const* v) const
+		auto operator()(T const* v, len_type const (&stride)[3], double divh) const
 		{
-			return _h * (StencilCoeff<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>>{}(v, stride) + ...);
+			return std::pow(divh, h_exponent) * (StencilCoeff<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>>{}(v, stride) + ...);
 		}
 
 		size_t print(char* out) const
@@ -2089,6 +2677,16 @@ namespace symphas::internal
 			return n;
 		}
 	};
+
+	template<int... Is, typename... Es>
+	GeneratedStencilApply(types_list<std::pair<expr::symbols::internal::S1_symbol<Is>, Es>...>) ->
+		GeneratedStencilApply<types_list<std::pair<expr::symbols::internal::S1_symbol<Is>, Es>...>>;
+	template<int... Is, int... Js, typename... Es>
+	GeneratedStencilApply(types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...>) ->
+		GeneratedStencilApply<types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...>>;
+	template<int... Is, int... Js, int... Ks, typename... Es>
+	GeneratedStencilApply(types_list<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>...>) ->
+		GeneratedStencilApply<types_list<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>...>>;
 }
 
 namespace expr

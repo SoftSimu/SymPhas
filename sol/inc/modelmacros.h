@@ -420,7 +420,7 @@ template<typename M> struct symphas::internal::model_field_parameters<M, PARAMET
 }; \
 
 #define PARAMETERIZED_TYPE(NAME, TYPE, PARAMETERS) \
-namespace symphas::internal { namespace parameterized { struct type_ ## NAME ## _t; } } \
+namespace symphas::internal::parameterized { struct type_ ## NAME ## _t; } \
 PARAMETERS_FROM_MODEL(symphas::internal::parameterized::type_ ## NAME ## _t, (SINGLE_ARG PARAMETERS)) \
 template<> struct symphas::internal::parameterized_type<symphas::internal::parameterized::type_ ## NAME ## _t, TYPE> : \
 	symphas::internal::parameterized_type<void, void> { \
@@ -485,6 +485,7 @@ namespace model_ ## NAME { \
 template<typename T, size_t D> struct allowed_model_dimensions { static const bool value = true; }; \
 EQUATION_TRAIT_FORWARD_DECL \
 using namespace symphas::internal; \
+using namespace symphas::internal::parameterized; \
 template<size_t Dm, typename Sp> \
 using OpTypes = symphas::internal::expand_types_to_model_t<Dm, Sp, SINGLE_ARG TYPES>; \
 template<typename> struct using_provisional { template<size_t Dm, typename Sp> using type = typename OpTypes<Dm, Sp>::template Specialized<TraitEquationModel>; }; \

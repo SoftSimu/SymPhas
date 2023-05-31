@@ -86,8 +86,8 @@ namespace symphas::internal
 		double divh2, divh3, divh4;
 
 		//! Gradient of the field.
-		template<typename T>
-		auto gradient(T* const, const len_type(&)[1]) const = delete;
+		//template<typename T>
+		//auto gradient(T* const, const len_type(&)[1]) const = delete;
 	};
 
 
@@ -108,8 +108,8 @@ namespace symphas::internal
 		double divh2, divh3, divh4;
 
 		//! Gradient of the field.
-		template<typename T>
-		auto gradient(T* const, const len_type(&)[2]) const = delete;
+		//template<typename T>
+		//auto gradient(T* const, const len_type(&)[2]) const = delete;
 	};
 
 
@@ -130,29 +130,29 @@ namespace symphas::internal
 		double divh2, divh3, divh4;
 
 		//! Gradient of the field.
-		template<typename T>
-		auto gradient(T* const, const len_type(&)[3]) const = delete;
+		//template<typename T>
+		//auto gradient(T* const, const len_type(&)[3]) const = delete;
 	};
 
 
 
-	template<>
-	inline auto StencilBase1d2h::gradient<scalar_t>(scalar_t* const v, const len_type (&stride)[1]) const
-	{
-		return -0.5 * (vx_ - vx) * divh;
-	}
+	//template<>
+	//inline auto StencilBase1d2h::gradient<scalar_t>(scalar_t* const v, const len_type (&stride)[1]) const
+	//{
+	//	return -0.5 * (vx_ - vx) * divh;
+	//}
 
-	template<>
-	inline auto StencilBase2d2h::gradient<scalar_t>(scalar_t* const v, const len_type (&stride)[2]) const
-	{
-		return -0.5 * (vx_ - vx) * divh;
-	}
+	//template<>
+	//inline auto StencilBase2d2h::gradient<scalar_t>(scalar_t* const v, const len_type (&stride)[2]) const
+	//{
+	//	return -0.5 * (vx_ - vx) * divh;
+	//}
 
-	template<>
-	inline auto StencilBase3d2h::gradient<scalar_t>(scalar_t* const v, const len_type (&stride)[3]) const
-	{
-		return -0.5 * (vx_ - vx) * divh;
-	}
+	//template<>
+	//inline auto StencilBase3d2h::gradient<scalar_t>(scalar_t* const v, const len_type (&stride)[3]) const
+	//{
+	//	return -0.5 * (vx_ - vx) * divh;
+	//}
 
 
 	//! Implements the gradient for the 2-dimensional stencil.
@@ -172,15 +172,15 @@ namespace symphas::internal
 		double divh2, divh3, divh4;
 
 		//! Gradient of the field.
-		template<typename T>
-		auto gradient(T* const, const len_type(&)[2]) const;
+		//template<typename T>
+		//auto gradient(T* const, const len_type(&)[2]) const;
 	};
 
-	template<>
+	/*template<>
 	inline auto StencilBase2d4h::gradient<scalar_t>(scalar_t* const v, const len_type (&stride)[2]) const
 	{
 		return (1 / 12.) * ((vx2_ - vx2) - 8 * (vx_ - vx)) * divh;
-	}
+	}*/
 }
 
 //! 1-dimensional stencil with 2nd order of accuracy.

@@ -158,22 +158,22 @@ namespace expr
 				return *this;
 			}
 
-			inline auto operator+(expr::symbols::Symbol)
+			inline auto operator+(expr::symbols::Symbol) const
 			{
 				return expr::symbols::Symbol{};
 			}
 
-			inline auto operator-(expr::symbols::Symbol)
+			inline auto operator-(expr::symbols::Symbol) const
 			{
 				return expr::symbols::Symbol{};
 			}
 
-			inline auto operator*(expr::symbols::Symbol)
+			inline auto operator*(expr::symbols::Symbol) const
 			{
 				return expr::symbols::Symbol{};
 			}
 
-			inline auto operator/(expr::symbols::Symbol)
+			inline auto operator/(expr::symbols::Symbol) const
 			{
 				return expr::symbols::Symbol{};
 			}
@@ -185,25 +185,25 @@ namespace expr
 			}
 
 			template<typename E>
-			auto operator+(E)
+			auto operator+(E) const
 			{
 				return expr::symbols::Symbol{};
 			}
 
 			template<typename E>
-			auto operator-(E)
+			auto operator-(E) const
 			{
 				return expr::symbols::Symbol{};
 			}
 
 			template<typename E>
-			auto operator*(E)
+			auto operator*(E) const
 			{
 				return expr::symbols::Symbol{};
 			}
 
 			template<typename E>
-			auto operator/(E)
+			auto operator/(E) const
 			{
 				return expr::symbols::Symbol{};
 			}

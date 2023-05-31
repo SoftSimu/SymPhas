@@ -302,7 +302,7 @@ namespace grid
 	template<>
 	struct select_grid_index<1>
 	{
-		select_grid_index(len_type(&dims)[1]) {}
+		select_grid_index(const len_type(&dims)[1]) {}
 
 		template<typename T>
 		T& operator()(T* values, iter_type n)
@@ -320,7 +320,7 @@ namespace grid
 	template<>
 	struct select_grid_index<2>
 	{
-		select_grid_index(len_type(&dims)[2]) : stride{ dims[0] } {}
+		select_grid_index(const len_type(&dims)[2]) : stride{ dims[0] } {}
 		len_type stride;
 
 		template<typename T>
@@ -339,7 +339,7 @@ namespace grid
 	template<>
 	struct select_grid_index<3>
 	{
-		select_grid_index(len_type(&dims)[3]) : stride{ dims[0], dims[0] * dims[1] } {}
+		select_grid_index(const len_type(&dims)[3]) : stride{ dims[0], dims[0] * dims[1] } {}
 		len_type stride[2];
 
 		template<typename T>
@@ -356,7 +356,7 @@ namespace grid
 	};
 
 	template<size_t D>
-	select_grid_index(len_type(&)[D]) -> select_grid_index<D>;
+	select_grid_index(const len_type(&)[D]) -> select_grid_index<D>;
 
 }
 
@@ -782,7 +782,7 @@ public:
 		return *this;
 	}
 
-	template<typename... Ts>
+	template<typename... Ts, std::enable_if_t<(sizeof...(Ts) == D), int> = 0>
 	auto operator()(Ts&&... indices) const
 	{
 		return grid::select_grid_index(dims)(Block<T>::values, std::forward<Ts>(indices)...);
@@ -1487,7 +1487,7 @@ namespace grid
 			[&] (auto& e) {
 				size_t i = &e - out;
 				e = any_vector_t<T, 1>{
-					grid.axis(Axis::X)[i] };
+					grid(Axis::X)[i] };
 			});
 	}
 
@@ -1507,8 +1507,8 @@ namespace grid
 			[&] (auto& e) {
 				size_t i = &e - out;
 				e = any_vector_t<T, 2>{
-					grid.axis(Axis::X)[i],
-					grid.axis(Axis::Y)[i] };
+					grid(Axis::X)[i],
+					grid(Axis::Y)[i] };
 			});
 	}
 
@@ -1528,9 +1528,9 @@ namespace grid
 			[&] (auto& e) {
 				size_t i = &e - out;
 				e = any_vector_t<S, 3>{
-					grid.axis(Axis::X)[i],
-					grid.axis(Axis::Y)[i],
-					grid.axis(Axis::Z)[i] };
+					grid(Axis::X)[i],
+					grid(Axis::Y)[i],
+					grid(Axis::Z)[i] };
 			});
 	}
 
@@ -1565,7 +1565,7 @@ namespace grid
 			in, in + out.len,
 			[&] (auto& e) {
 				size_t i = &e - in;
-				out.axis(Axis::X)[i] = e[0];
+				out(Axis::X)[i] = e[0];
 			});
 	}
 
@@ -1584,8 +1584,8 @@ namespace grid
 			in, in + out.len,
 			[&] (auto& e) {
 				size_t i = &e - in;
-				out.axis(Axis::X)[i] = e[0];
-				out.axis(Axis::Y)[i] = e[1];
+				out(Axis::X)[i] = e[0];
+				out(Axis::Y)[i] = e[1];
 			});
 	}
 
@@ -1604,9 +1604,9 @@ namespace grid
 			in, in + out.len,
 			[&] (auto& e) {
 				size_t i = &e - in;
-				out.axis(Axis::X)[i] = e[0];
-				out.axis(Axis::Y)[i] = e[1];
-				out.axis(Axis::Z)[i] = e[2];
+				out(Axis::X)[i] = e[0];
+				out(Axis::Y)[i] = e[1];
+				out(Axis::Z)[i] = e[2];
 			});
 	}
 

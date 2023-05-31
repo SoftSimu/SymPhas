@@ -184,6 +184,12 @@ namespace solver_sp
 	}
 
 
+	template<typename V, expr::NoiseType nt, typename T, size_t D, typename E, typename... Ts>
+	auto hcts_apply_on_scalar(OpSymbolicEval<V, NoiseData<nt, T, D>, SymbolicFunction<E, Ts...>> const& e)
+	{
+		return e;
+	}
+
 
 	//! Given the linear expression, returns the \f$A\f$ operator.
 	template<size_t D, typename E, size_t R = expr::eval_type<E>::rank, size_t... Rs>

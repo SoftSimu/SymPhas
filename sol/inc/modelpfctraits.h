@@ -97,6 +97,9 @@ struct PFCTraitDynamic
 			OpLHS(expr::as_variable<N>(cast().template system<N>())), 
 			cast().template bulk_pfc_dynamic_N<N>() + cast().template coupled_pfc_dynamic_N<N>(),
 			cast().solver);
+
+		//return std::make_pair(OpLHS(expr::as_variable<N>(cast().template system<N>())),
+		//	/*OpIdentity{});*/ ((cast().template bulk_pfc_dynamic_N<N>())));
 	}
 
 protected:
@@ -130,6 +133,8 @@ protected:
 	template<size_t N, size_t M, size_t I>
 	auto get_mode()
 	{
+		//auto qd = (1. + expr::make_operator_derivative<2>(cast().solver));
+		//return qd * qd;
 		auto qd = (expr::make_literal(cast().nu[N][M] * cast().nu[N][M]) + expr::make_operator_derivative<2>(cast().solver));
 		return expr::make_literal(cast().alpha[N][M]) + expr::make_literal(cast().beta[N][N]) * qd * qd;
 	}

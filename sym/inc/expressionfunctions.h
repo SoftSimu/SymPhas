@@ -93,6 +93,15 @@ namespace expr
 	 *
 	 * \param e The expression to multiply with itself.
 	 */
+	template<size_t N, typename E, typename = std::enable_if_t<(N < MAX_EXPONENT), int>>
+	auto pow(OpOperator<E> const& e);
+
+	//! Computes the expression multiplied `N` times with itself.
+	/*!
+	 * Computes the expression multiplied `N` times with itself.
+	 *
+	 * \param e The expression to multiply with itself.
+	 */
 	template<size_t N, typename E0, typename... Es, typename = std::enable_if_t<(N > 1 && N < MAX_EXPONENT), int>>
 	auto pow(OpAdd<E0, Es...> const& e);
 
@@ -180,6 +189,7 @@ namespace expr
 			return OpTerms(OpIdentity{}, expr::get<Is>(e).template pow<N>()...);
 		}
 
+
 		template<typename E0, typename E1, size_t... Ns>
 		auto pow_add(E0 const& a, OpVoid, std::index_sequence<Ns...>)
 		{
@@ -205,6 +215,38 @@ namespace expr
 
 	template<size_t N, typename E, typename>
 	auto pow(OpExpression<E> const& e)
+	{
+		if constexpr (N == 0)
+		{
+			return OpIdentity{};
+		}
+		else if constexpr (N == 1)
+		{
+			return *static_cast<E const*>(&e);
+		}
+		else if constexpr (N == 2)
+		{
+			return (*static_cast<E const*>(&e)) * (*static_cast<E const*>(&e));
+		}
+		else
+		{
+			constexpr size_t N2 = N / 2;
+			constexpr size_t N0 = N - N2 * 2;
+
+			auto p = pow<N2>(*static_cast<E const*>(&e));
+			if constexpr (N0 == 0)
+			{
+				return p * p;
+			}
+			else
+			{
+				return p * p * *static_cast<E const*>(&e);
+			}
+		}
+	}
+
+	template<size_t N, typename E, typename>
+	auto pow(OpOperator<E> const& e)
 	{
 		if constexpr (N == 0)
 		{

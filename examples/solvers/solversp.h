@@ -50,7 +50,7 @@ NEW_SOLVER(SolverSP)
 
 	double h[3];
 
-	SolverSP(const double *h, double dt, size_t dim) : parent_type(dt), h{ 0 }
+	SolverSP(const double *h = nullptr, double dt = 1, size_t dim = 0) : parent_type(dt), h{ 0 }
 	{
 		std::copy(h, h + dim, this->h);
 	}

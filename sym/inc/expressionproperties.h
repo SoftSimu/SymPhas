@@ -502,6 +502,12 @@ namespace expr
 	//! Specialization based on expr::data_list(E const&).
 	template<typename V, typename E, typename F, typename Arg0, typename... Args>
 	auto data_list(OpFunction<V, E, F, Arg0, Args...> const& e);
+	//! Specialization based on expr::data_list(E const&).
+	template<expr::NoiseType nt, typename T, size_t D>
+	auto data_list(NoiseData<nt, T, D> const& e);
+	//! Specialization based on expr::data_list(E const&).
+	template<typename V, expr::NoiseType nt, typename T, size_t D, typename E, typename... Ts>
+	auto data_list(OpSymbolicEval<V, NoiseData<nt, T, D>, SymbolicFunction<E, Ts...>> const& e);
 	//! Specialization based on expr::vars.
 	template<typename V, typename sub_t, typename E, typename... Ts>
 	auto data_list(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e);
@@ -534,6 +540,18 @@ namespace expr
 	template<typename E1, typename E2>
 	auto data_list(OpExpression<E1> const& a, OpExpression<E2> const& b);
 
+	template<typename E1, typename E2>
+	auto data_list(OpOperator<E1> const& a, OpOperator<E2> const& b);
+	template<typename E1, typename E2>
+	auto data_list(OpExpression<E1> const& a, OpOperator<E2> const& b);
+	template<typename E1, typename E2>
+	auto data_list(OpOperator<E1> const& a, OpExpression<E2> const& b);
+
+	template<typename E>
+	auto data_list(OpOperator<E> const& e)
+	{
+		return std::make_tuple();
+	}
 
 	template<typename T>
 	auto data_list_check(SymbolicData<T> const& e)
@@ -573,7 +591,7 @@ namespace expr
 	template<typename... Ts, size_t... Is>
 	auto data_list(Substitution<SymbolicDataArray<Ts>...> const& e, std::index_sequence<Is...>)
 	{
-		return std::tuple_cat(expr::get<Is>(e)...);
+		return std::make_tuple(std::get<Is>(e)...);
 	}
 
 
@@ -668,6 +686,18 @@ namespace expr
 		return data_list(expr::get_enclosed_expression(e));
 	}
 
+	template<expr::NoiseType nt, typename T, size_t D>
+	auto data_list(NoiseData<nt, T, D> const& e)
+	{
+		return std::make_tuple(e);
+	}
+
+	template<typename V, expr::NoiseType nt, typename T, size_t D, typename E, typename... Ts>
+	auto data_list(OpSymbolicEval<V, NoiseData<nt, T, D>, SymbolicFunction<E, Ts...>> const& e)
+	{
+		return std::tuple_cat(data_list(e.f.e), data_list(e.data));
+	}
+
 	template<typename V, typename E, typename... Ts, int... I0s, int... P0s, typename E0, typename... T0s, typename B, typename C>
 	auto data_list(OpSum<V, E, Substitution<SymbolicDataArray<Ts>...>, 
 		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, SymbolicFunction<E0, T0s...>, B, C> const& e)
@@ -730,6 +760,32 @@ namespace expr
 		);
 	}
 
+	template<typename E1, typename E2>
+	auto data_list(OpOperator<E1> const& a, OpOperator<E2> const& b)
+	{
+		return std::tuple_cat(
+			data_list(*static_cast<const E1*>(&a)),
+			data_list(*static_cast<const E2*>(&b))
+		);
+	}
+
+	template<typename E1, typename E2>
+	auto data_list(OpExpression<E1> const& a, OpOperator<E2> const& b)
+	{
+		return std::tuple_cat(
+			data_list(*static_cast<const E1*>(&a)),
+			data_list(*static_cast<const E2*>(&b))
+		);
+	}
+
+	template<typename E1, typename E2>
+	auto data_list(OpOperator<E1> const& a, OpExpression<E2> const& b)
+	{
+		return std::tuple_cat(
+			data_list(*static_cast<const E1*>(&a)),
+			data_list(*static_cast<const E2*>(&b))
+		);
+	}
 
 	namespace
 	{
@@ -824,6 +880,12 @@ namespace expr
 	template<typename V, typename sub_t, typename E, typename... Ts>
 	grid::dim_list data_dimensions(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e);
 	//! Specialization based on expr::data_dimensions(E const&).
+	template<expr::NoiseType nt, typename T, size_t D>
+	grid::dim_list data_dimensions(NoiseData<nt, T, D> const& e);
+	//! Specialization based on expr::data_dimensions(E const&).
+	template<typename V, expr::NoiseType nt, typename T, size_t D, typename E, typename... Ts>
+	grid::dim_list data_dimensions(OpSymbolicEval<V, NoiseData<nt, T, D>, SymbolicFunction<E, Ts...>> const& e);
+	//! Specialization based on expr::data_dimensions(E const&).
 	template<typename V, typename E, typename... Ts, int... I0s, int... P0s, typename E0, typename... T0s, typename B, typename C>
 	grid::dim_list data_dimensions(OpSum<V, E, Substitution<SymbolicDataArray<Ts>...>, 
 		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, SymbolicFunction<E0, T0s...>, B, C> const& e);
@@ -862,6 +924,13 @@ namespace expr
 	grid::dim_list data_dimensions(OpExpression<E1> const& a, OpExpression<E2> const& b);
 
 
+	template<typename E1, typename E2>
+	grid::dim_list data_dimensions(OpOperator<E1> const& a, OpOperator<E2> const& b);
+	template<typename E1, typename E2>
+	grid::dim_list data_dimensions(OpExpression<E1> const& a, OpOperator<E2> const& b);
+	template<typename E1, typename E2>
+	grid::dim_list data_dimensions(OpOperator<E1> const& a, OpExpression<E2> const& b);
+
 	template<typename E>
 	grid::dim_list data_dimensions(E const& e)
 	{
@@ -872,6 +941,12 @@ namespace expr
 	grid::dim_list data_dimensions(OpExpression<E> const& e)
 	{
 		return data_dimensions(*static_cast<E const*>(&e));
+	}
+
+	template<typename E>
+	grid::dim_list data_dimensions(OpOperator<E> const& e)
+	{
+		return {};
 	}
 
 	template<typename... Gs, expr::exp_key_t... Xs>
@@ -949,6 +1024,18 @@ namespace expr
 		return data_dimensions(expr::get_enclosed_expression(e));
 	}
 
+	template<expr::NoiseType nt, typename T, size_t D>
+	grid::dim_list data_dimensions(NoiseData<nt, T, D> const& e)
+	{
+		return data_dimensions_data(e);
+	}
+
+	template<typename V, expr::NoiseType nt, typename T, size_t D, typename E, typename... Ts>
+	grid::dim_list data_dimensions(OpSymbolicEval<V, NoiseData<nt, T, D>, SymbolicFunction<E, Ts...>> const& e)
+	{
+		return data_dimensions(e.data);
+	}
+
 	template<typename V, typename E, typename... Ts, int... I0s, int... P0s, typename E0, typename... T0s, typename B, typename C>
 	grid::dim_list data_dimensions(OpSum<V, E, Substitution<SymbolicDataArray<Ts>...>, 
 		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, SymbolicFunction<E0, T0s...>, B, C> const& e)
@@ -1002,6 +1089,27 @@ namespace expr
 
 	template<typename E1, typename E2>
 	grid::dim_list data_dimensions(OpExpression<E1> const& a, OpExpression<E2> const& b)
+	{
+		auto dims = data_dimensions(*static_cast<const E1*>(&a));
+		return (dims.n > 0) ? dims : data_dimensions(*static_cast<const E2*>(&b));
+	}
+
+	template<typename E1, typename E2>
+	grid::dim_list data_dimensions(OpOperator<E1> const& a, OpOperator<E2> const& b)
+	{
+		auto dims = data_dimensions(*static_cast<const E1*>(&a));
+		return (dims.n > 0) ? dims : data_dimensions(*static_cast<const E2*>(&b));
+	}
+
+	template<typename E1, typename E2>
+	grid::dim_list data_dimensions(OpExpression<E1> const& a, OpOperator<E2> const& b)
+	{
+		auto dims = data_dimensions(*static_cast<const E1*>(&a));
+		return (dims.n > 0) ? dims : data_dimensions(*static_cast<const E2*>(&b));
+	}
+
+	template<typename E1, typename E2>
+	grid::dim_list data_dimensions(OpOperator<E1> const& a, OpExpression<E2> const& b)
 	{
 		auto dims = data_dimensions(*static_cast<const E1*>(&a));
 		return (dims.n > 0) ? dims : data_dimensions(*static_cast<const E2*>(&b));
@@ -1067,6 +1175,12 @@ namespace expr
 	template<typename V, typename sub_t, typename E, typename... Ts>
 	len_type data_length(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e);
 	//! Specialization based on expr::data_length(E const&).
+	template<expr::NoiseType nt, typename T, size_t D>
+	len_type data_length(NoiseData<nt, T, D> const& e);
+	//! Specialization based on expr::data_length(E const&).
+	template<typename V, expr::NoiseType nt, typename T, size_t D, typename E, typename... Ts>
+	len_type data_length(OpSymbolicEval<V, NoiseData<nt, T, D>, SymbolicFunction<E, Ts...>> const& e);
+	//! Specialization based on expr::data_length(E const&).
 	template<typename V, typename E, typename... Ts, int... I0s, int... P0s, typename E0, typename... T0s, typename B, typename C>
 	len_type data_length(OpSum<V, E, Substitution<SymbolicDataArray<Ts>...>, 
 		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, SymbolicFunction<E0, T0s...>, B, C> const& e);
@@ -1101,6 +1215,18 @@ namespace expr
 	 */
 	template<typename E1, typename E2>
 	len_type data_length(OpExpression<E1> const& a, OpExpression<E2> const& b);
+	template<typename E1, typename E2>
+	len_type data_length(OpOperator<E1> const& a, OpOperator<E2> const& b);
+	template<typename E1, typename E2>
+	len_type data_length(OpExpression<E1> const& a, OpOperator<E2> const& b);
+	template<typename E1, typename E2>
+	len_type data_length(OpOperator<E1> const& a, OpExpression<E2> const& b);
+
+	template<typename E>
+	len_type data_length(OpOperator<E> const& e)
+	{
+		return 0;
+	}
 
 	template<typename... Es, size_t... Is>
 	len_type data_length(OpAdd<Es...> const& e, std::index_sequence<Is...>)
@@ -1166,19 +1292,19 @@ namespace expr
 	template<typename A1, typename A2, typename E>
 	len_type data_length(OpCombination<A1, A2, E> const& e)
 	{
-		return data_length(e.e);
+		return data_length(expr::get_enclosed_expression(e));
 	}
 
 	template<typename A1, typename A2, typename E>
 	len_type data_length(OpChain<A1, A2, E> const& e)
 	{
-		return data_length(e.e);
+		return data_length(expr::get_enclosed_expression(e));
 	}
 
 	template<typename V, typename E>
 	len_type data_length(OpExponential<V, E> const& e)
 	{
-		return data_length(e.e);
+		return data_length(expr::get_enclosed_expression(e));
 	}
 
 	template<expr::exp_key_t X, typename V, typename E>
@@ -1203,6 +1329,18 @@ namespace expr
 	len_type data_length(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e)
 	{
 		return data_length(expr::get_enclosed_expression(e));
+	}
+
+	template<expr::NoiseType nt, typename T, size_t D>
+	len_type data_length(NoiseData<nt, T, D> const& e)
+	{
+		return data_len_data(e);
+	}
+
+	template<typename V, expr::NoiseType nt, typename T, size_t D, typename E, typename... Ts>
+	len_type data_length(OpSymbolicEval<V, NoiseData<nt, T, D>, SymbolicFunction<E, Ts...>> const& e)
+	{
+		return data_length(e.data);
 	}
 
 	template<typename V, typename E, typename... Ts, int... I0s, int... P0s, typename E0, typename... T0s, typename B, typename C>
@@ -1264,6 +1402,30 @@ namespace expr
 			data_length(*static_cast<const E2*>(&b)));
 	}
 
+	template<typename E1, typename E2>
+	len_type data_length(OpOperator<E1> const& a, OpOperator<E2> const& b)
+	{
+		return std::max(
+			data_length(*static_cast<const E1*>(&a)),
+			data_length(*static_cast<const E2*>(&b)));
+	}
+
+	template<typename E1, typename E2>
+	len_type data_length(OpExpression<E1> const& a, OpOperator<E2> const& b)
+	{
+		return std::max(
+			data_length(*static_cast<const E1*>(&a)),
+			data_length(*static_cast<const E2*>(&b)));
+	}
+
+	template<typename E1, typename E2>
+	len_type data_length(OpOperator<E1> const& a, OpExpression<E2> const& b)
+	{
+		return std::max(
+			data_length(*static_cast<const E1*>(&a)),
+			data_length(*static_cast<const E2*>(&b)));
+	}
+
 
 
 
@@ -1317,6 +1479,12 @@ namespace expr
 	template<typename V, typename sub_t, typename E, typename... Ts>
 	std::pair<iter_type*, len_type> eval_iters(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e);
 	//! Specialization based on expr::eval_iters(E const&).
+	template<expr::NoiseType nt, typename T, size_t D>
+	std::pair<iter_type*, len_type> eval_iters(NoiseData<nt, T, D> const& e);
+	//! Specialization based on expr::eval_iters(E const&).
+	template<typename V, expr::NoiseType nt, typename T, size_t D, typename E, typename... Ts>
+	std::pair<iter_type*, len_type> eval_iters(OpSymbolicEval<V, NoiseData<nt, T, D>, SymbolicFunction<E, Ts...>> const& e);
+	//! Specialization based on expr::eval_iters(E const&).
 	template<typename V, typename E, typename... Ts, int... I0s, int... P0s, typename E0, typename... T0s, typename B, typename C>
 	std::pair<iter_type*, len_type> eval_iters(OpSum<V, E, Substitution<SymbolicDataArray<Ts>...>,
 		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, SymbolicFunction<E0, T0s...>, B, C> const& e);
@@ -1351,6 +1519,12 @@ namespace expr
 	 */
 	template<typename E1, typename E2>
 	std::pair<iter_type*, len_type> eval_iters(OpExpression<E1> const& a, OpExpression<E2> const& b);
+	template<typename E1, typename E2>
+	std::pair<iter_type*, len_type> eval_iters(OpOperator<E1> const& a, OpOperator<E2> const& b);
+	template<typename E1, typename E2>
+	std::pair<iter_type*, len_type> eval_iters(OpExpression<E1> const& a, OpOperator<E2> const& b);
+	template<typename E1, typename E2>
+	std::pair<iter_type*, len_type> eval_iters(OpOperator<E1> const& a, OpExpression<E2> const& b);
 
 	template<typename E>
 	std::pair<iter_type*, len_type> eval_iters(E const& e)
@@ -1444,6 +1618,18 @@ namespace expr
 		return eval_iters(expr::get_enclosed_expression(e));
 	}
 
+	template<expr::NoiseType nt, typename T, size_t D>
+	std::pair<iter_type*, len_type> eval_iters(NoiseData<nt, T, D> const& e)
+	{
+		return eval_iters_data(e.e);
+	}
+
+	template<typename V, expr::NoiseType nt, typename T, size_t D, typename E, typename... Ts>
+	std::pair<iter_type*, len_type> eval_iters(OpSymbolicEval<V, NoiseData<nt, T, D>, SymbolicFunction<E, Ts...>> const& e)
+	{
+		return eval_iters(e.data);
+	}
+
 	template<typename V, typename E, typename... Ts, int... I0s, int... P0s, typename E0, typename... T0s, typename B, typename C>
 	std::pair<iter_type*, len_type> eval_iters(OpSum<V, E, Substitution<SymbolicDataArray<Ts>...>,
 		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, SymbolicFunction<E0, T0s...>, B, C> const& e)
@@ -1498,6 +1684,27 @@ namespace expr
 
 	template<typename E1, typename E2>
 	std::pair<iter_type*, len_type> eval_iters(OpExpression<E1> const& a, OpExpression<E2> const& b)
+	{
+		auto [iters0, n0] = eval_iters(*static_cast<const E1*>(&a));
+		return (n0 > 0) ? std::make_pair(iters0, n0) : eval_iters(*static_cast<const E2*>(&b));
+	}
+
+	template<typename E1, typename E2>
+	std::pair<iter_type*, len_type> eval_iters(OpOperator<E1> const& a, OpOperator<E2> const& b)
+	{
+		auto [iters0, n0] = eval_iters(*static_cast<const E1*>(&a));
+		return (n0 > 0) ? std::make_pair(iters0, n0) : eval_iters(*static_cast<const E2*>(&b));
+	}
+
+	template<typename E1, typename E2>
+	std::pair<iter_type*, len_type> eval_iters(OpExpression<E1> const& a, OpOperator<E2> const& b)
+	{
+		auto [iters0, n0] = eval_iters(*static_cast<const E1*>(&a));
+		return (n0 > 0) ? std::make_pair(iters0, n0) : eval_iters(*static_cast<const E2*>(&b));
+	}
+
+	template<typename E1, typename E2>
+	std::pair<iter_type*, len_type> eval_iters(OpOperator<E1> const& a, OpExpression<E2> const& b)
 	{
 		auto [iters0, n0] = eval_iters(*static_cast<const E1*>(&a));
 		return (n0 > 0) ? std::make_pair(iters0, n0) : eval_iters(*static_cast<const E2*>(&b));

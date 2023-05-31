@@ -135,6 +135,9 @@ namespace symphas::internal
 		template<typename V, typename E, typename Sp>
 		static auto get(V const& v, OpExpression<E> const& e, solver_op_type<Sp> solver);
 
+		template<typename V, typename E, typename Sp>
+		static auto get(V const& v, OpOperator<E> const& e, solver_op_type<Sp> solver);
+
 		//! Constructs the derivative applied to a variable.
 		template<typename V, typename S, typename G, typename Sp>
 		static auto get(V const& v, OpTerm<S, G> const& e, solver_op_type<Sp> solver);
@@ -148,6 +151,9 @@ namespace symphas::internal
 
 		template<typename V, typename E, typename G0>
 		static auto get(V const& v, OpExpression<E> const& e, SymbolicDerivative<G0> s);
+
+		template<typename V, typename E, typename G0>
+		static auto get(V const& v, OpOperator<E> const& e, SymbolicDerivative<G0> s);
 
 
 		//! Constructs the derivative using a grid instead of an expression.
@@ -342,23 +348,40 @@ namespace symphas::internal
 	template<Axis ax, size_t O, typename Sp>
 	using nth_derivative_apply = make_derivative<typename Solver<Sp>::template derivative<ax, O>>;
 
-	//! Alias for constructing gradient.
-	template<Axis ax, typename Sp>
-	using gradient_apply = nth_directional_derivative_apply<ax, 1, Sp>;
+	////! Alias for constructing gradient.
+	//template<Axis ax, typename Sp>
+	//using gradient_apply = nth_directional_derivative_apply<ax, 1, Sp>;
 
-	//! Alias for constructing laplacian.
-	template<Axis ax, typename Sp>
-	using laplacian_apply = nth_derivative_apply<ax, 2, Sp>;
+	////! Alias for constructing laplacian.
+	//template<Axis ax, typename Sp>
+	//using laplacian_apply = nth_derivative_apply<ax, 2, Sp>;
 
-	//! Alias for constructing gradlaplacian.
-	template<Axis ax, typename Sp>
-	using gradlaplacian_apply = nth_derivative_apply<ax, 3, Sp>;
+	////! Alias for constructing gradlaplacian.
+	//template<Axis ax, typename Sp>
+	//using gradlaplacian_apply = nth_derivative_apply<ax, 3, Sp>;
 
-	//! Alias for constructing bilaplacian.
-	template<Axis ax, typename Sp>
-	using bilaplacian_apply = nth_derivative_apply<ax, 4, Sp>;
+	////! Alias for constructing bilaplacian.
+	//template<Axis ax, typename Sp>
+	//using bilaplacian_apply = nth_derivative_apply<ax, 4, Sp>;
 
 
+	template<typename E>
+	struct setup_result_data
+	{
+		E operator()(grid::dim_list const& dims)
+		{
+			return { dims };
+		}
+	};
+
+	template<>
+	struct setup_result_data<expr::symbols::Symbol>
+	{
+		expr::symbols::Symbol operator()(grid::dim_list const& dims)
+		{
+			return {};
+		}
+	};
 
 }
 
@@ -498,14 +521,32 @@ namespace expr
 		return expr::make_derivative<O, A>(*static_cast<E const*>(&e));
 	}
 
+	template<size_t O, typename E, typename A>
+	auto make_symbolic_derivative(OpOperator<E> const& e, A const& symbol)
+	{
+		return expr::make_derivative<O, A>(*static_cast<E const*>(&e));
+	}
+
 	template<size_t O, typename E, size_t Z, typename G>
 	auto make_symbolic_derivative(OpExpression<E> const& e, OpTerm<OpIdentity, Variable<Z, G>> const& symbol)
 	{
 		return expr::make_derivative<O, Z>(*static_cast<E const*>(&e));
 	}
 
+	template<size_t O, typename E, size_t Z, typename G>
+	auto make_symbolic_derivative(OpOperator<E> const& e, OpTerm<OpIdentity, Variable<Z, G>> const& symbol)
+	{
+		return expr::make_derivative<O, Z>(*static_cast<E const*>(&e));
+	}
+
 	template<size_t Z, typename V, typename E>
 	auto make_functional_derivative(V const& value, OpExpression<E> const& e)
+	{
+		return OpFunctionalDerivative<V, E, Variable<Z>>(value, *static_cast<E const*>(&e));
+	}
+
+	template<size_t Z, typename V, typename E>
+	auto make_functional_derivative(V const& value, OpOperator<E> const& e)
 	{
 		return OpFunctionalDerivative<V, E, Variable<Z>>(value, *static_cast<E const*>(&e));
 	}
@@ -522,8 +563,20 @@ namespace expr
 		return OpFunctionalDerivative<V, E, Variable<Z, G>>(value, *static_cast<E const*>(&e));
 	}
 
+	template<typename V, typename E, size_t Z, typename G>
+	auto make_functional_derivative(V const& value, OpOperator<E> const& e, Variable<Z, G>)
+	{
+		return OpFunctionalDerivative<V, E, Variable<Z, G>>(value, *static_cast<E const*>(&e));
+	}
+
 	template<typename E, size_t Z, typename G>
 	auto make_functional_derivative(OpExpression<E> const& e, Variable<Z, G>)
+	{
+		return make_functional_derivative(OpIdentity{}, *static_cast<E const*>(&e), Variable<Z, G>{});
+	}
+
+	template<typename E, size_t Z, typename G>
+	auto make_functional_derivative(OpOperator<E> const& e, Variable<Z, G>)
 	{
 		return make_functional_derivative(OpIdentity{}, *static_cast<E const*>(&e), Variable<Z, G>{});
 	}
@@ -534,12 +587,23 @@ namespace expr
 		return OpFunctionalDerivative<V, E, DynamicVariable<G>>(value, *static_cast<E const*>(&e), symbol);
 	}
 
+	template<typename V, typename E, typename G>
+	auto make_functional_derivative(V const& value, OpOperator<E> const& e, DynamicVariable<G> const& symbol)
+	{
+		return OpFunctionalDerivative<V, E, DynamicVariable<G>>(value, *static_cast<E const*>(&e), symbol);
+	}
+
 	template<typename E, typename G>
 	auto make_functional_derivative(OpExpression<E> const& e, DynamicVariable<G> const& symbol)
 	{
 		return make_functional_derivative(OpIdentity{}, *static_cast<E const*>(&e), symbol);
 	}
 
+	template<typename E, typename G>
+	auto make_functional_derivative(OpOperator<E> const& e, DynamicVariable<G> const& symbol)
+	{
+		return make_functional_derivative(OpIdentity{}, *static_cast<E const*>(&e), symbol);
+	}
 
 	template<typename V, typename E, typename G>
 	auto make_functional_derivative(V const& value, OpExpression<E> const& e, G const& symbol)
@@ -547,8 +611,20 @@ namespace expr
 		return OpFunctionalDerivative<V, E, G>(value, *static_cast<E const*>(&e));
 	}
 
+	template<typename V, typename E, typename G>
+	auto make_functional_derivative(V const& value, OpOperator<E> const& e, G const& symbol)
+	{
+		return OpFunctionalDerivative<V, E, G>(value, *static_cast<E const*>(&e));
+	}
+
 	template<typename E, typename G>
 	auto make_functional_derivative(OpExpression<E> const& e, G const& symbol)
+	{
+		return make_functional_derivative(OpIdentity{}, *static_cast<E const*>(&e), G{});
+	}
+
+	template<typename E, typename G>
+	auto make_functional_derivative(OpOperator<E> const& e, G const& symbol)
 	{
 		return make_functional_derivative(OpIdentity{}, *static_cast<E const*>(&e), G{});
 	}
@@ -571,6 +647,12 @@ namespace expr
 		return OpFunctionalDerivative<V, E, DynamicVariable<G>>(value, *static_cast<E const*>(&e), SymbolicDerivative(expr::get<1>(symbol).data()));
 	}
 
+	template<typename V, typename E, typename G>
+	auto make_functional_derivative(V const& value, OpOperator<E> const& e, OpTerm<OpIdentity, DynamicVariable<G>> const& symbol)
+	{
+		return OpFunctionalDerivative<V, E, DynamicVariable<G>>(value, *static_cast<E const*>(&e), SymbolicDerivative(expr::get<1>(symbol).data()));
+	}
+
 	template<typename E, typename G>
 	auto make_functional_derivative(E&& e, OpTerm<OpIdentity, DynamicVariable<G>> const& symbol)
 	{
@@ -579,6 +661,12 @@ namespace expr
 
 	template<typename V, typename E, typename G>
 	auto make_functional_derivative(V const& value, OpExpression<E> const& e, OpTerm<OpIdentity, G> const& symbol)
+	{
+		return OpFunctionalDerivative<V, E, G>(value, *static_cast<E const*>(&e));
+	}
+
+	template<typename V, typename E, typename G>
+	auto make_functional_derivative(V const& value, OpOperator<E> const& e, OpTerm<OpIdentity, G> const& symbol)
 	{
 		return OpFunctionalDerivative<V, E, G>(value, *static_cast<E const*>(&e));
 	}
@@ -899,7 +987,8 @@ struct OpDerivative : OpExpression<OpDerivative<Dd, V, E, Sp>>
 	 * object.
 	 */
 	OpDerivative(V value, E const& e, solver_op_type<Sp> solver) : 
-		grid{ expr::data_dimensions(e) }, value{ value }, solver{ solver }, e{ e } { /*update();*/ }
+		grid{ symphas::internal::setup_result_data<result_grid>{}(expr::data_dimensions(e)) }, 
+		value{value}, solver{solver}, e{e} { /*update();*/ }
 
 	OpDerivative(E const& e, solver_op_type<Sp> solver) : 
 		grid{ expr::data_dimensions(e) }, value{ OpIdentity{} }, solver{ solver }, e{ e } { /*update();*/ }
@@ -995,7 +1084,7 @@ struct OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> : OpExpression<OpDerivativ
 	using Dd::is_directional;
 
 	template<typename V0, typename V1, typename std::enable_if_t<std::is_convertible<mul_result_t<V0, V1>, V>::value, int> = 0>
-	OpDerivative(V0 value, OpTerm<V1, G> const& e, solver_op_type<Sp> solver) : value{ expr::coeff(e) * value }, solver{ solver }, data{expr::data(e)} {}
+	OpDerivative(V0 value, OpTerm<V1, G> const& e, solver_op_type<Sp> solver) : value{ expr::coeff(e) * value }, solver{ solver }, data{ expr::data(e) } {}
 	OpDerivative(V value, G data, solver_op_type<Sp> solver) : value{ value }, solver{ solver }, data{ data } {}
 
 	OpDerivative() : value{ V{} }, solver{ Sp::make_solver() }, data{} {}
@@ -1466,38 +1555,6 @@ auto operator*(coeff_t const& value, OpDerivative<Dd2, tensor_t, E2, Sp> const& 
 
 // ******************************************************************************************
 
-namespace expr
-{
-
-
-	//! Function wrappers to return the laplacian concrete derivative.
-	template<typename E, typename Sp>
-	auto laplacian(E&& e, solver_op_type<Sp> solver)
-	{
-		return symphas::internal::laplacian_apply<Axis::X, Sp>::template get(OpIdentity{}, std::forward<E>(e), solver);
-	}
-
-	//! Function wrappers to return the bilaplacian concrete derivative.
-	template<typename E, typename Sp>
-	auto bilaplacian(E&& e, solver_op_type<Sp> solver)
-	{
-		return symphas::internal::bilaplacian_apply<Axis::X, Sp>::template get(OpIdentity{}, std::forward<E>(e), solver);
-	}
-
-	//! Function wrappers to return the gradlaplacian concrete derivative.
-	template<Axis ax, typename E, typename Sp>
-	auto gradlaplacian(E&& e, solver_op_type<Sp> solver)
-	{
-		return symphas::internal::gradlaplacian_apply<ax, Sp>::template get(OpIdentity{}, std::forward<E>(e), solver);
-	}
-
-	//! Function wrappers to return the gradient concrete derivative.
-	template<Axis ax, typename E, typename Sp>
-	auto gradient(E&& e, solver_op_type<Sp> solver)
-	{
-		return symphas::internal::gradient_apply<ax, Sp>::template get(OpIdentity{}, std::forward<E>(e), solver);
-	}
-}
 
 
 
@@ -1514,6 +1571,11 @@ namespace expr
 template<size_t O, typename V, typename Sp>
 struct OpOperatorDerivative : OpOperator<OpOperatorDerivative<O, V, Sp>>
 {
+	using parent_type = OpOperator<OpOperatorDerivative<O, V, Sp>>;
+	using parent_type::operator*;
+	using parent_type::operator-;
+	using parent_type::operator+;
+
 	OpOperatorDerivative() : value{ V{} }, solver{} {}
 
 	static_assert(O <= DERIV_MAX_ORDER);
@@ -1536,24 +1598,33 @@ struct OpOperatorDerivative : OpOperator<OpOperatorDerivative<O, V, Sp>>
 	 * concrete derivative.
 	 */
 	template<typename E>
-	auto apply(E const& e) const
+	auto apply_impl(E const& e) const
 	{
-		return _apply(e);
+		return _apply_impl(e);
 	}
+
+	template<typename E>
+	auto operator*(OpExpression<E> const& e) const;
+
+	//template<typename E>
+	//auto operator*(OpOperator<E> const& e)
+	//{
+	//	return OpOperator<OpOperatorDerivative<O, V, Sp>>::operator*(*static_cast<E const*>(&e));
+	//}
 
 #ifdef PRINTABLE_EQUATIONS
 
 	size_t print(FILE* out) const
 	{
 		size_t n = expr::print_with_coeff(out, value);
-		n += symphas::internal::print_deriv<O>::print(out);
+		n += symphas::internal::print_deriv<O>::print(out, solver);
 		return n;
 	}
 
 	size_t print(char* out) const
 	{
 		size_t n = expr::print_with_coeff(out, value);
-		n += symphas::internal::print_deriv<O>::print(out + n);
+		n += symphas::internal::print_deriv<O>::print(out + n, solver);
 		return n;
 	}
 
@@ -1571,11 +1642,11 @@ struct OpOperatorDerivative : OpOperator<OpOperatorDerivative<O, V, Sp>>
 protected:
 
 	template<typename E>
-	auto _apply(OpExpression<E> const& e) const;
+	auto _apply_impl(OpExpression<E> const& e) const;
 
 
 	template<typename E>
-	auto _apply(OpOperator<E> const& e) const
+	auto _apply_impl(OpOperator<E> const& e) const
 	{
 		return OpOperatorChain(*this, *static_cast<E const*>(&e));
 	}
@@ -1627,6 +1698,11 @@ auto operator*(coeff_t const& value, OpOperatorDerivative<O2, tensor_t, Sp2> con
 template<Axis ax, size_t O, typename V, typename Sp>
 struct OpOperatorDirectionalDerivative : OpOperator<OpOperatorDirectionalDerivative<ax, O, V, Sp>>
 {
+	using parent_type = OpOperator<OpOperatorDirectionalDerivative<ax, O, V, Sp>>;
+	using parent_type::operator*;
+	using parent_type::operator-;
+	using parent_type::operator+;
+
 	OpOperatorDirectionalDerivative() : value{ V{} }, solver{} {}
 
 	static_assert(O <= DERIV_MAX_ORDER);
@@ -1644,10 +1720,14 @@ struct OpOperatorDirectionalDerivative : OpOperator<OpOperatorDirectionalDerivat
 	}
 
 	template<typename E>
-	auto apply(E const& e) const
+	auto apply_impl(E const& e) const
 	{
-		return _apply(e);
+		return _apply_impl(e);
 	}
+
+
+	template<typename E>
+	auto operator*(OpExpression<E> const& e) const;
 
 
 #ifdef PRINTABLE_EQUATIONS
@@ -1684,20 +1764,20 @@ struct OpOperatorDirectionalDerivative : OpOperator<OpOperatorDirectionalDerivat
 	 * concrete derivative.
 	 */
 	template<typename E, typename std::enable_if_t<!(expr::is_symbol<expr::eval_type_t<E>> && expr::grid_dim<E>::value == 0), int> = 0>
-	auto _apply(OpExpression<E> const& e) const;
+	auto _apply_impl(OpExpression<E> const& e) const;
 
 	//! Apply to a Symbol.
 	/*!
 	 * Apply the generalized derivative to an expression to produce a Chain operator.
 	 */
 	template<typename E, typename std::enable_if_t<(expr::is_symbol<expr::eval_type_t<E>> && expr::grid_dim<E>::value == 0), int> = 0>
-	auto _apply(OpExpression<E> const& e) const
+	auto _apply_impl(OpExpression<E> const& e) const
 	{
 		return symphas::internal::nth_directional_derivative_apply<ax, O, Sp>::template get(value, *static_cast<E const*>(&e), solver);
 	}
 
 	template<typename E>
-	auto _apply(OpOperator<E> const& e) const
+	auto _apply_impl(OpOperator<E> const& e) const
 	{
 		return OpOperatorChain(*this, *static_cast<E const*>(&e));
 	}
@@ -1754,6 +1834,11 @@ auto operator*(coeff_t const& value, OpOperatorDirectionalDerivative<ax2, O2, te
 template<typename V, typename Sp, size_t... Os>
 struct OpOperatorMixedDerivative : OpOperator<OpOperatorMixedDerivative<V, Sp, Os...>>
 {
+	using parent_type = OpOperator<OpOperatorMixedDerivative<V, Sp, Os...>>;
+	using parent_type::operator*;
+	using parent_type::operator-;
+	using parent_type::operator+;
+
 	OpOperatorMixedDerivative() : value{ V{} }, solver{} {}
 
 	OpOperatorMixedDerivative(V value, solver_op_type<Sp> solver) : value{ value }, solver{ solver } {}
@@ -1770,10 +1855,13 @@ struct OpOperatorMixedDerivative : OpOperator<OpOperatorMixedDerivative<V, Sp, O
 	}
 
 	template<typename E>
-	auto apply(E const& e) const
+	auto apply_impl(E const& e) const
 	{
-		return _apply(e);
+		return _apply_impl(e);
 	}
+
+	template<typename E>
+	auto operator*(OpExpression<E> const& e) const;
 
 #ifdef PRINTABLE_EQUATIONS
     using print_type = decltype(symphas::internal::select_print_deriv<Sp>(typename Sp::template mixed_derivative<Os...>{}));
@@ -1811,21 +1899,21 @@ protected:
 	 * concrete derivative.
 	 */
 	template<typename E, typename std::enable_if_t<!(expr::is_symbol<expr::eval_type_t<E>> && expr::grid_dim<E>::value == 0), int> = 0>
-	auto _apply(OpExpression<E> const& e) const;
+	auto _apply_impl(OpExpression<E> const& e) const;
 
 	//! Apply to a Symbol.
 	/*!
 	 * Apply the generalized derivative to an expression to produce a Chain operator.
 	 */
 	template<typename E, typename std::enable_if_t<(expr::is_symbol<expr::eval_type_t<E>> && expr::grid_dim<E>::value == 0), int> = 0>
-	auto _apply(OpExpression<E> const& e) const
+	auto _apply_impl(OpExpression<E> const& e) const
 	{
 		return symphas::internal::nth_mixed_derivative_apply<Sp, Os...>::template get(value, *static_cast<E const*>(&e), solver);
 	}
 
 
 	template<typename E>
-	auto _apply(OpOperator<E> const& e) const
+	auto _apply_impl(OpOperator<E> const& e) const
 	{
 		return OpOperatorChain(*this, *static_cast<E const*>(&e));
 	}
@@ -2120,76 +2208,183 @@ namespace symphas::internal
 	}
 
 
-	template<size_t R, size_t O, typename Sp>
-	auto apply_derivative(OpVoid, solver_op_type<Sp> solver)
+	template<size_t R, size_t O, size_t R0, size_t order_parity = O % 2>
+	struct apply_derivative;
+
+	template<size_t R, size_t O>
+	struct apply_derivative<R, O, 0, 0>
 	{
-		return OpVoid{};
-	}
+		template<typename E, typename Sp>
+		auto operator()(OpVoid, solver_op_type<Sp> solver)
+		{
+			return OpVoid{};
+		}
 
-	template<size_t R, size_t O, typename E, typename Sp, size_t R0 = expr::eval_type<E>::rank,
-		typename std::enable_if_t<(R0 == 0 && O % 2 == 0), int> = 0>
-	auto apply_derivative(OpExpression<E> const& e, solver_op_type<Sp> solver)
+		template<typename E, typename Sp>
+		auto operator()(OpExpression<E> const& e, solver_op_type<Sp> solver)
+		{
+			using deriv_type = symphas::internal::nth_derivative_apply<Axis::X, O, Sp>;
+			return deriv_type::template get(*static_cast<E const*>(&e), solver);
+		}
+	};
+
+	template<size_t R, size_t O, size_t R0>
+	struct apply_derivative<R, O, R0, 0>
 	{
-		return symphas::internal::nth_derivative_apply<Axis::X, O, Sp>::template get(*static_cast<E const*>(&e), solver);
-	}
+		template<typename E, typename Sp>
+		auto operator()(OpVoid, solver_op_type<Sp> solver)
+		{
+			return OpVoid{};
+		}
 
-	template<size_t R, size_t O, typename E, typename Sp, size_t R0 = expr::eval_type<E>::rank,
-		typename std::enable_if_t<(R0 > 0 && O % 2 == 0), int> = 0>
-	auto apply_derivative(OpExpression<E> const& e, solver_op_type<Sp> solver)
+		template<typename E, typename Sp>
+		auto operator()(OpExpression<E> const& e, solver_op_type<Sp> solver)
+		{
+			constexpr size_t D = expr::eval_type<E>::rank;
+			constexpr Axis ax = (R == 1) ? Axis::X : (R == 2) ? Axis::Y : Axis::Z;
+			auto rtensor = expr::make_row_vector<R - 1, D>();
+			auto ctensor = expr::make_column_vector<R - 1, D>();
+
+			auto d = ctensor * symphas::internal::nth_derivative_apply<ax, O, Sp>::template get(rtensor * (*static_cast<E const*>(&e)), solver);
+			if constexpr (R > 1)
+			{
+				return d + apply_derivative<R - 1, O, R0, 0>{}((*static_cast<E const*>(&e)), solver);
+			}
+			else
+			{
+				return d;
+			}
+		}
+	};
+
+	template<size_t R, size_t O>
+	struct apply_derivative<R, O, 0, 1>
 	{
-		constexpr size_t D = expr::eval_type<E>::rank;
-		constexpr Axis ax = (R == 1) ? Axis::X : (R == 2) ? Axis::Y : Axis::Z;
-		auto rtensor = expr::make_row_vector<R - 1, D>();
-		auto ctensor = expr::make_column_vector<R - 1, D>();
-
-		auto d = ctensor * symphas::internal::nth_derivative_apply<ax, O, Sp>::template get(rtensor * (*static_cast<E const*>(&e)), solver);
-		if constexpr (R > 1)
+		template<typename E, typename Sp>
+		auto operator()(OpVoid, solver_op_type<Sp> solver)
 		{
-			return d + apply_derivative<R - 1, O>((*static_cast<E const*>(&e)), solver);
+			return OpVoid{};
 		}
-		else
-		{
-			return d;
-		}
-	}
 
-	template<size_t R, size_t O, typename E, typename Sp, size_t R0 = expr::eval_type<E>::rank, size_t N = expr::grid_dim<E>::value - R,
-		typename std::enable_if_t<(R0 == 0 && O % 2 == 1), int> = 0>
-	auto apply_derivative(OpExpression<E> const& e, solver_op_type<Sp> solver)
+		template<typename E, typename Sp>
+		auto operator()(OpExpression<E> const& e, solver_op_type<Sp> solver)
+		{
+			constexpr size_t N = expr::grid_dim<E>::value - R;
+
+			constexpr size_t D = expr::grid_dim<E>::value;
+			constexpr Axis ax = (N == 1) ? Axis::X : (N == 2) ? Axis::Y : Axis::Z;
+			auto ctensor = expr::make_column_vector<N - 1, D>();
+
+			auto d = ctensor * symphas::internal::nth_derivative_apply<ax, O, Sp>::template get(*static_cast<E const*>(&e), solver);
+			if constexpr (N > 1)
+			{
+				return d + apply_derivative<R + 1, O, 0, 1>{}((*static_cast<E const*>(&e)), solver);
+			}
+			else
+			{
+				return d;
+			}
+		}
+	};
+
+	template<size_t R, size_t O, size_t R0>
+	struct apply_derivative<R, O, R0, 1>
 	{
-		constexpr size_t D = expr::grid_dim<E>::value;
-		constexpr Axis ax = (N == 1) ? Axis::X : (N == 2) ? Axis::Y : Axis::Z;
-		auto ctensor = expr::make_column_vector<N - 1, D>();
+		template<typename E, typename Sp>
+		auto operator()(OpVoid, solver_op_type<Sp> solver)
+		{
+			return OpVoid{};
+		}
 
-		auto d = ctensor * symphas::internal::nth_derivative_apply<ax, O, Sp>::template get(*static_cast<E const*>(&e), solver);
-		if constexpr (N > 1)
+		template<typename E, typename Sp>
+		auto operator()(OpExpression<E> const& e, solver_op_type<Sp> solver)
 		{
-			return d + apply_derivative<R + 1, O>((*static_cast<E const*>(&e)), solver);
-		}
-		else
-		{
-			return d;
-		}
-	}
+			constexpr size_t D = expr::eval_type<E>::rank;
+			constexpr Axis ax = (R == 1) ? Axis::X : (R == 2) ? Axis::Y : Axis::Z;
+			auto rtensor = expr::make_row_vector<R - 1, D>();
 
-	template<size_t R, size_t O, typename E, typename Sp, size_t R0 = expr::eval_type<E>::rank,
-		typename std::enable_if_t<(R0 > 0 && O % 2 == 1), int> = 0>
-	auto apply_derivative(OpExpression<E> const& e, solver_op_type<Sp> solver)
-	{
-		constexpr size_t D = expr::eval_type<E>::rank;
-		constexpr Axis ax = (R == 1) ? Axis::X : (R == 2) ? Axis::Y : Axis::Z;
-		auto rtensor = expr::make_row_vector<R - 1, D>();
+			auto d = apply_derivative<0, O, 0, 1>{}(rtensor * (*static_cast<E const*>(&e)), solver) * rtensor;
+			if constexpr (R > 1)
+			{
+				return d + apply_derivative<R - 1, O, R0, 1>{}((*static_cast<E const*>(&e)), solver);
+			}
+			else
+			{
+				return d;
+			}
+		}
+	};
 
-		auto d = apply_derivative<0, O>(rtensor * (*static_cast<E const*>(&e)), solver) * rtensor;
-		if constexpr (R > 1)
-		{
-			return d + apply_derivative<R - 1, O>((*static_cast<E const*>(&e)), solver);
-		}
-		else
-		{
-			return d;
-		}
-	}
+	//template<size_t R, size_t O, typename Sp>
+	//auto apply_derivative(OpVoid, solver_op_type<Sp> solver)
+	//{
+	//	return OpVoid{};
+	//}
+
+	//template<size_t R, size_t O, typename E, typename Sp, size_t R0 = expr::eval_type<E>::rank,
+	//	typename std::enable_if_t<(R0 == 0 && O % 2 == 0), int> = 0>
+	//auto apply_derivative(OpExpression<E> const& e, solver_op_type<Sp> solver)
+	//{
+	//	return symphas::internal::nth_derivative_apply<Axis::X, O, Sp>::template get(*static_cast<E const*>(&e), solver);
+	//}
+
+	//template<size_t R, size_t O, typename E, typename Sp, size_t R0 = expr::eval_type<E>::rank,
+	//	typename std::enable_if_t<(R0 > 0 && O % 2 == 0), int> = 0>
+	//auto apply_derivative(OpExpression<E> const& e, solver_op_type<Sp> solver)
+	//{
+	//	constexpr size_t D = expr::eval_type<E>::rank;
+	//	constexpr Axis ax = (R == 1) ? Axis::X : (R == 2) ? Axis::Y : Axis::Z;
+	//	auto rtensor = expr::make_row_vector<R - 1, D>();
+	//	auto ctensor = expr::make_column_vector<R - 1, D>();
+
+	//	auto d = ctensor * symphas::internal::nth_derivative_apply<ax, O, Sp>::template get(rtensor * (*static_cast<E const*>(&e)), solver);
+	//	if constexpr (R > 1)
+	//	{
+	//		return d + apply_derivative<R - 1, O>((*static_cast<E const*>(&e)), solver);
+	//	}
+	//	else
+	//	{
+	//		return d;
+	//	}
+	//}
+
+	//template<size_t R, size_t O, typename E, typename Sp, size_t R0 = expr::eval_type<E>::rank, size_t N = expr::grid_dim<E>::value - R,
+	//	typename std::enable_if_t<(R0 == 0 && O % 2 == 1), int> = 0>
+	//auto apply_derivative(OpExpression<E> const& e, solver_op_type<Sp> solver)
+	//{
+	//	constexpr size_t D = expr::grid_dim<E>::value;
+	//	constexpr Axis ax = (N == 1) ? Axis::X : (N == 2) ? Axis::Y : Axis::Z;
+	//	auto ctensor = expr::make_column_vector<N - 1, D>();
+
+	//	auto d = ctensor * symphas::internal::nth_derivative_apply<ax, O, Sp>::template get(*static_cast<E const*>(&e), solver);
+	//	if constexpr (N > 1)
+	//	{
+	//		return d + apply_derivative<R + 1, O>((*static_cast<E const*>(&e)), solver);
+	//	}
+	//	else
+	//	{
+	//		return d;
+	//	}
+	//}
+
+	//template<size_t R, size_t O, typename E, typename Sp, size_t R0 = expr::eval_type<E>::rank,
+	//	typename std::enable_if_t<(R0 > 0 && O % 2 == 1), int> = 0>
+	//auto apply_derivative(OpExpression<E> const& e, solver_op_type<Sp> solver)
+	//{
+	//	constexpr size_t D = expr::eval_type<E>::rank;
+	//	constexpr Axis ax = (R == 1) ? Axis::X : (R == 2) ? Axis::Y : Axis::Z;
+	//	auto rtensor = expr::make_row_vector<R - 1, D>();
+
+	//	auto d = apply_derivative<0, O>(rtensor * (*static_cast<E const*>(&e)), solver) * rtensor;
+	//	if constexpr (R > 1)
+	//	{
+	//		return d + apply_derivative<R - 1, O>((*static_cast<E const*>(&e)), solver);
+	//	}
+	//	else
+	//	{
+	//		return d;
+	//	}
+	//}
 
 
 
@@ -2222,7 +2417,7 @@ namespace symphas::internal
 		typename std::enable_if_t<(R0 == 0 || O % 2 == 0), int> = 0>
 	auto apply_derivative_dot(OpExpression<E> const& e, solver_op_type<Sp> solver)
 	{
-		return apply_derivative<R, O>(*static_cast<E const*>(&e), solver);
+		return apply_derivative<R, O, R0>{}(*static_cast<E const*>(&e), solver);
 	}
 
 	template<size_t O, typename E, typename Sp>
@@ -2241,7 +2436,7 @@ namespace symphas::internal
 			}
 			else
 			{
-				return apply_derivative<0, O>(*static_cast<E const*>(&e), solver);
+				return apply_derivative<0, O, 0>{}(*static_cast<E const*>(&e), solver);
 			}
 		}
 	}
@@ -2266,7 +2461,7 @@ namespace symphas::internal
 			}
 			else
 			{
-				return v * apply_derivative<R, O>(*static_cast<E const*>(&e), solver);
+				return v * apply_derivative<R, O, R>{}(*static_cast<E const*>(&e), solver);
 			}
 		}
 		
@@ -2280,6 +2475,12 @@ namespace symphas::internal
 
 		template<typename V, typename E, typename G>
 		auto operator()(V const& v, OpExpression<E> const& e, SymbolicDerivative<G>)
+		{
+			return v * expr::make_derivative<O, G>(*static_cast<E const*>(&e));
+		}
+
+		template<typename V, typename E, typename G>
+		auto operator()(V const& v, OpOperator<E> const& e, SymbolicDerivative<G>)
 		{
 			return v * expr::make_derivative<O, G>(*static_cast<E const*>(&e));
 		}
@@ -2335,6 +2536,13 @@ namespace symphas::internal
 	}
 
 	template<typename Dd>
+	template<typename V, typename E, typename Sp>
+	inline auto make_derivative<Dd>::get(V const& v, OpOperator<E> const& e, solver_op_type<Sp> solver)
+	{
+		return OpDerivative<Dd, V, E, Sp>(v, *static_cast<const E*>(&e), solver);
+	}
+
+	template<typename Dd>
 	template<typename V, typename S, typename G, typename G0>
 	inline auto make_derivative<Dd>::get(V const& v, OpTerm<S, G> const& e, SymbolicDerivative<G0> s)
 	{
@@ -2345,6 +2553,13 @@ namespace symphas::internal
 	template<typename Dd>
 	template<typename V, typename E, typename G0>
 	inline auto make_derivative<Dd>::get(V const& v, OpExpression<E> const& e, SymbolicDerivative<G0> s)
+	{
+		return OpDerivative<Dd, V, E, SymbolicDerivative<G0>>(v, *static_cast<E const*>(&e), s);
+	}
+
+	template<typename Dd>
+	template<typename V, typename E, typename G0>
+	inline auto make_derivative<Dd>::get(V const& v, OpOperator<E> const& e, SymbolicDerivative<G0> s)
 	{
 		return OpDerivative<Dd, V, E, SymbolicDerivative<G0>>(v, *static_cast<E const*>(&e), s);
 	}
@@ -2378,96 +2593,147 @@ namespace symphas::internal
 	}
 }
 
+//
+//template<size_t O, typename V, typename Sp, typename E, size_t R = expr::eval_type<E>::rank,
+//	typename std::enable_if_t<(R > 0), int> = 0>
+//auto operator*(E const& e, OpOperatorDerivative<O, V, Sp> const& d)
+//{
+//	return expr::dot(e, expr::break_up_derivative<O, R>(d.solver));
+//}
 
-template<size_t O, typename V, typename Sp, typename E, size_t R = expr::eval_type<E>::rank,
-	typename std::enable_if_t<(R > 0), int> = 0>
-auto operator*(E const& e, OpOperatorDerivative<O, V, Sp> const& d)
-{
-	return expr::dot(e, expr::break_up_derivative<O, R>(d.solver));
-}
+//template<size_t O, typename V, typename Sp, typename E>
+//auto operator*(OpOperatorDerivative<O, V, Sp> const& d, E const& e)
+//{
+//	if constexpr (expr::is_coeff<E>)
+//	{
+//		return e * d;
+//	}
+//	else if constexpr (std::is_convertible_v<E, OpOperator<E>>)
+//	{
+//		return d.operator*(e);
+//	}
+//	else
+//	{
+//		return expr::coeff(d) * symphas::internal::apply_derivative_dot<O>(e, d.solver);
+//	}
+//}
 
-template<size_t O, typename V, typename Sp, typename E>
-auto operator*(OpOperatorDerivative<O, V, Sp> const& d, E const& e)
-{
-	if constexpr (expr::is_coeff<E>)
-	{
-		return e * d;
-	}
-	else if constexpr (std::is_convertible_v<E, OpOperator<E>>)
-	{
-		return d.operator*(e);
-	}
-	else
-	{
-		return expr::coeff(d) * symphas::internal::apply_derivative_dot<O>(e, d.solver);
-	}
-}
 
-template<size_t O, typename V, typename Sp, typename T>
-auto operator*(OpOperatorDerivative<O, V, Sp> const& d, OpLiteral<T> const& e)
-{
-	return e * d;
-}
 
-template<Axis ax, size_t O, typename V, typename Sp, typename E>
-auto operator*(OpOperatorDirectionalDerivative<ax, O, V, Sp> const& d, E const& e)
+template<size_t O, typename V, typename Sp>
+template<typename E>
+auto OpOperatorDerivative<O, V, Sp>::operator*(OpExpression<E> const& e) const
 {
 	if constexpr (expr::is_coeff<E>)
 	{
-		return e * d;
-	}
-	else if constexpr (std::is_convertible_v<E, OpOperator<E>>)
-	{
-		return d.operator*(e);
+		return *static_cast<E const*>(&e) * (*this);
 	}
 	else
 	{
-		return d.operator*(e);
+		return value * symphas::internal::apply_derivative_dot<O>(e, solver);
 	}
 }
 
-template<Axis ax, size_t O, typename V, typename Sp, typename T>
-auto operator*(OpOperatorDirectionalDerivative<ax, O, V, Sp> const& d, OpLiteral<T> const& e)
-{
-	return e * d;
-}
 
-template<typename V, typename Sp, size_t... Os, typename E>
-auto operator*(OpOperatorMixedDerivative<V, Sp, Os...> const& d, E const& e)
+template<Axis ax, size_t O, typename V, typename Sp>
+template<typename E>
+auto OpOperatorDirectionalDerivative<ax, O, V, Sp>::operator*(OpExpression<E> const& e) const
 {
 	if constexpr (expr::is_coeff<E>)
 	{
-		return e * d;
+		return *static_cast<E const*>(&e) * *this;
 	}
-	else if constexpr (std::is_convertible_v<E, OpOperator<E>>)
-	{
-		return d.operator*(e);
-	}
+	//else if constexpr (std::is_convertible_v<E, OpOperator<E>>)
+	//{
+	//	return d.operator*(e);
+	//}
 	else
 	{
-		return d.operator*(e);
+		return apply_impl(e);
+		//return d.operator*(e);
 	}
 }
 
-template<typename V, typename Sp, size_t... Os, typename T>
-auto operator*(OpOperatorMixedDerivative<V, Sp, Os...> const& d, OpLiteral<T> const& e)
+template<typename V, typename Sp, size_t... Os>
+template<typename E>
+auto OpOperatorMixedDerivative<V, Sp, Os...>::operator*(OpExpression<E> const& e) const
 {
-	return e * d;
+	if constexpr (expr::is_coeff<E>)
+	{
+		return *static_cast<E const*>(&e) * (*this);
+	}
+	else
+	{
+		return apply_impl(e);
+		//return value * symphas::internal::apply_mixed_derivative<O>(e, solver);
+	}
 }
+//
+//template<size_t O, typename V, typename Sp, typename T>
+//auto operator*(OpOperatorDerivative<O, V, Sp> const& d, OpLiteral<T> const& e)
+//{
+//	return e * d;
+//}
+//
+//template<Axis ax, size_t O, typename V, typename Sp, typename E>
+//auto operator*(OpOperatorDirectionalDerivative<ax, O, V, Sp> const& d, E const& e)
+//{
+//	if constexpr (expr::is_coeff<E>)
+//	{
+//		return e * d;
+//	}
+//	else if constexpr (std::is_convertible_v<E, OpOperator<E>>)
+//	{
+//		return d.operator*(e);
+//	}
+//	else
+//	{
+//		return d.operator*(e);
+//	}
+//}
+//
+//template<Axis ax, size_t O, typename V, typename Sp, typename T>
+//auto operator*(OpOperatorDirectionalDerivative<ax, O, V, Sp> const& d, OpLiteral<T> const& e)
+//{
+//	return e * d;
+//}
+//
+//template<typename V, typename Sp, size_t... Os, typename E>
+//auto operator*(OpOperatorMixedDerivative<V, Sp, Os...> const& d, E const& e)
+//{
+//	if constexpr (expr::is_coeff<E>)
+//	{
+//		return e * d;
+//	}
+//	else if constexpr (std::is_convertible_v<E, OpOperator<E>>)
+//	{
+//		return d.operator*(e);
+//	}
+//	else
+//	{
+//		return d.operator*(e);
+//	}
+//}
+//
+//template<typename V, typename Sp, size_t... Os, typename T>
+//auto operator*(OpOperatorMixedDerivative<V, Sp, Os...> const& d, OpLiteral<T> const& e)
+//{
+//	return e * d;
+//}
 
 
 
 
 template<size_t O, typename V, typename Sp>
 template<typename E>
-auto OpOperatorDerivative<O, V, Sp>::_apply(OpExpression<E> const& e) const
+auto OpOperatorDerivative<O, V, Sp>::_apply_impl(OpExpression<E> const& e) const
 {
 	return symphas::internal::initialize_derivative_order<O>{}(value, *static_cast<E const*>(&e), solver);
 }
 
 template<Axis ax, size_t O, typename V, typename Sp>
 template<typename E, typename std::enable_if_t<!(expr::is_symbol<expr::eval_type_t<E>>&& expr::grid_dim<E>::value == 0), int>>
-auto OpOperatorDirectionalDerivative<ax, O, V, Sp>::_apply(OpExpression<E> const& e) const
+auto OpOperatorDirectionalDerivative<ax, O, V, Sp>::_apply_impl(OpExpression<E> const& e) const
 {
 	constexpr size_t R = expr::eval_type<E>::rank;
 	return value * symphas::internal::apply_directional_derivative<R, ax, O>(*static_cast<E const*>(&e), solver);
@@ -2475,11 +2741,51 @@ auto OpOperatorDirectionalDerivative<ax, O, V, Sp>::_apply(OpExpression<E> const
 
 template<typename V, typename Sp, size_t... Os>
 template<typename E, typename std::enable_if_t<!(expr::is_symbol<expr::eval_type_t<E>> && expr::grid_dim<E>::value == 0), int>>
-auto OpOperatorMixedDerivative<V, Sp, Os...>::_apply(OpExpression<E> const& e) const
+auto OpOperatorMixedDerivative<V, Sp, Os...>::_apply_impl(OpExpression<E> const& e) const
 {
 	constexpr size_t R = expr::eval_type<E>::rank;
 	return value * symphas::internal::apply_directional_mixed<R, Os...>(*static_cast<E const*>(&e), solver);
 }
+
+
+
+namespace expr
+{
+
+
+	//! Function wrappers to return the laplacian concrete derivative.
+	template<typename E, typename Sp>
+	auto make_laplacian(E&& e, solver_op_type<Sp> solver)
+	{
+		return symphas::internal::initialize_derivative_order<2>{}(OpIdentity{}, std::forward<E>(e), solver);
+		//	return symphas::internal::laplacian_apply<Axis::X, Sp>::template get();
+	}
+
+	//! Function wrappers to return the bilaplacian concrete derivative.
+	template<typename E, typename Sp>
+	auto make_bilaplacian(E&& e, solver_op_type<Sp> solver)
+	{
+		return symphas::internal::initialize_derivative_order<4>{}(OpIdentity{}, std::forward<E>(e), solver);
+		//return symphas::internal::bilaplacian_apply<Axis::X, Sp>::template get(OpIdentity{}, std::forward<E>(e), solver);
+	}
+
+	//! Function wrappers to return the gradlaplacian concrete derivative.
+	template<Axis ax, typename E, typename Sp>
+	auto make_gradlaplacian(E&& e, solver_op_type<Sp> solver)
+	{
+		return symphas::internal::initialize_derivative_order<3>{}(OpIdentity{}, std::forward<E>(e), solver);
+		//return symphas::internal::gradlaplacian_apply<ax, Sp>::template get(OpIdentity{}, std::forward<E>(e), solver);
+	}
+
+	//! Function wrappers to return the gradient concrete derivative.
+	template<Axis ax, typename E, typename Sp>
+	auto make_gradient(E&& e, solver_op_type<Sp> solver)
+	{
+		return symphas::internal::initialize_derivative_order<1>{}(OpIdentity{}, std::forward<E>(e), solver);
+		//return symphas::internal::gradient_apply<ax, Sp>::template get(OpIdentity{}, std::forward<E>(e), solver);
+	}
+}
+
 
 namespace symphas::math
 {
@@ -2520,6 +2826,8 @@ namespace expr
 
 	template<typename E>
 	int _get_solver(OpExpression<E> const& e);
+	template<typename E>
+	int _get_solver(OpOperator<E> const& e);
 	int _get_solver(OpAddList<> const& e);
 	template<typename E0, typename... Es>
 	auto _get_solver(OpAddList<E0, Es...> const& e);
@@ -2577,6 +2885,12 @@ namespace expr
 
 	template<typename E>
 	int _get_solver(OpExpression<E> const& e)
+	{
+		return 0;
+	}
+
+	template<typename E>
+	int _get_solver(OpOperator<E> const& e)
 	{
 		return 0;
 	}
