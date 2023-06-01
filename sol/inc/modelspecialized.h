@@ -540,7 +540,7 @@ namespace symphas::internal
 		template<typename U_D, typename F, typename Sp>
 		auto operator()(U_D const& dop, F const& dfe, Sp const& solver)
 		{
-			return (dop = expr::apply_operators(expr::make_operator_derivative<2>(solver) * dfe));
+			return (dop = expr::make_operator_derivative<2>(solver) * dfe);
 		}
 	};
 
@@ -550,7 +550,7 @@ namespace symphas::internal
 		template<typename U_D, typename F, typename Sp>
 		auto operator()(U_D const& dop, F const& dfe, Sp const& solver)
 		{
-			return (dop = -expr::apply_operators(dfe));
+			return (dop = -dfe);
 		}
 	};
 
@@ -1000,7 +1000,7 @@ namespace symphas::internal
 				*static_cast<F const*>(&fe), 
 				all_ops(model, df_v_types{}));
 
-			return (dop = expr::apply_operators(evolution));
+			return (dop = evolution);
 		}
 
 		
@@ -1017,8 +1017,8 @@ namespace symphas::internal
 		auto operator()(U_D const& dop, model_t const& model, OpExpression<F> const& fe, Sp const& solver)
 		{
 			using df_v_types = select_dFE_t<expr::op_types_t<E>>;
-			return (dop = expr::apply_operators(
-				substitute_for_dynamics(df_v_types{}, e, *static_cast<F const*>(&fe), all_ops(model, df_v_types{}))));
+			return (dop = 
+				substitute_for_dynamics(df_v_types{}, e, *static_cast<F const*>(&fe), all_ops(model, df_v_types{})));
 		}
 
 		E e;

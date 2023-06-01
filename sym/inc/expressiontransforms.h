@@ -1106,21 +1106,22 @@ namespace expr
 	{
 
 
-		template<typename Sp, Axis axd, Axis axm, typename Seq>
+		template<typename Sp, typename Seq, typename Axes>
 		struct mixed_derivative_type {};
 
-		template<typename Sp, Axis axd, Axis axm, size_t... Os>
-		struct mixed_derivative_type<Sp, axd, axm, std::index_sequence<Os...>>
+		template<typename Sp, size_t... Os, Axis... axs>
+		struct mixed_derivative_type<Sp, std::index_sequence<Os...>, symphas::lib::axis_list<axs...>>
 		{
-			template<Axis ax0, size_t O>
-			static const size_t p1 = (ax0 == axd) ? (O % 2) : 0;
-
+			template<Axis ax0, Axis ax1, size_t O>
+			static const size_t p1 = (ax0 == ax1) ? (O % 2) : 0;
+			
 			template<Axis ax0, Axis ax1, size_t O>
 			static const size_t pO = (ax0 == ax1) ? (O - (O % 2)) : 0;
 
 
-			template<size_t O, Axis... axs>
-			using type = typename Solver<Sp>::template mixed_derivative<(Os + pO<axm, axs, O> + p1<axs, O>)...>;
+			template<size_t O, Axis axd>
+			//using type = typename Solver<Sp>::template mixed_derivative<(Os + pO<axm, axs, O> + p1<axs, O>)...>;
+			using type = typename Solver<Sp>::template mixed_derivative<(Os + pO<axd, axs, O> + p1<axd, axs, O>)...>;
 		};
 
 		template<typename Sp>
@@ -1234,8 +1235,8 @@ namespace expr
 				symphas::lib::axis_list<axs...>) const
 			{
 				return (expr::make_derivative<
-					typename mixed_derivative_type<Sp, ax, axs, std::index_sequence<O2s...>>::template type<O, axs...>
-				>(*static_cast<E const*>(&enclosed), solver) + ...);
+					typename mixed_derivative_type<Sp, std::index_sequence<O2s...>, symphas::lib::axis_list<axs...>>::template type<O, ax>
+				>(*static_cast<E const*>(&enclosed), solver) );
 			}
 
 			template<typename E, Axis ax, size_t O, size_t... O1s, Axis... axs>
@@ -1247,8 +1248,8 @@ namespace expr
 				symphas::lib::axis_list<axs...>) const
 			{
 				return (expr::make_derivative<
-					typename mixed_derivative_type<Sp, ax, axs, std::index_sequence<O1s...>>::template type<O, axs...>
-				>(*static_cast<E const*>(&enclosed), solver) + ...);
+					typename mixed_derivative_type<Sp, std::index_sequence<O1s...>, symphas::lib::axis_list<axs...>>::template type<O, ax>
+				>(*static_cast<E const*>(&enclosed), solver) );
 			}
 
 			template<typename E, Axis ax1, size_t O1, Axis ax2, size_t O2, Axis... axs>
@@ -1259,9 +1260,11 @@ namespace expr
 				directional_derivative<ax2, O2>,
 				symphas::lib::axis_list<axs...>) const
 			{
+				//using mixed_type = typename Solver<Sp>::template mixed_derivative<((axs == ax1) ? O1 : (axs == ax2) ? O2 : 0)...>;
+				//return expr::make_derivative<mixed_type>(*static_cast<E const*>(&enclosed), solver);
 				return (expr::make_derivative<
-					typename mixed_derivative_type<Sp, ax1, axs, std::index_sequence<((ax2 == axs) ? O2 : 0)...>>::template type<O1, axs...>
-				>(*static_cast<E const*>(&enclosed), solver) + ...);
+					typename mixed_derivative_type<Sp, std::index_sequence<((ax2 == axs) ? O2 : 0)...>, symphas::lib::axis_list<axs...>>::template type<O1, ax1>
+				>(*static_cast<E const*>(&enclosed), solver) );
 			}
 
 			template<typename E, Axis ax1, size_t O1, Axis ax2, size_t O2, Axis... axs>
@@ -1272,10 +1275,13 @@ namespace expr
 				derivative<ax2, O2>,
 				symphas::lib::axis_list<axs...>) const
 			{
+				//using mixed_type = typename Solver<Sp>::template mixed_derivative<((axs == ax1) ? O1 : (axs == ax2) ? O2 : 0)...>;
+				//return expr::make_derivative<mixed_type>(*static_cast<E const*>(&enclosed), solver);
 				return (expr::make_derivative<
-					typename mixed_derivative_type<Sp, ax2, axs, std::index_sequence<((ax1 == axs) ? O1 : 0)...>>::template type<O2, axs...>
-				>(*static_cast<E const*>(&enclosed), solver) + ...);
+					typename mixed_derivative_type<Sp, std::index_sequence<((ax1 == axs) ? O1 : 0)...>, symphas::lib::axis_list<axs...>>::template type<O2, ax2>
+				>(*static_cast<E const*>(&enclosed), solver) );
 			}
+
 		};
 
 	}
@@ -1472,11 +1478,6 @@ namespace expr
 
 	namespace
 	{
-		template<typename E1, typename E2>
-		auto apply_operators_mul(OpOperator<E1> const& a, OpOperator<E2> const& b)
-		{
-			return (*static_cast<E1 const*>(&a)).operator*(*static_cast<E2 const*>(&b));
-		}
 
 		template<typename A, typename B, typename E2>
 		auto apply_operators_mul(OpOperatorCombination<A, B> const& combination, OpExpression<E2> const& b)
@@ -1484,10 +1485,29 @@ namespace expr
 			return apply_operators(combination.f * (*static_cast<E2 const*>(&b))) + apply_operators(combination.g * (*static_cast<E2 const*>(&b)));
 		}
 
+		//! Apply the chain operation to an expression.
+		template<typename A1, typename A2, typename E>
+		auto apply_operators_mul(OpOperatorChain<A1, A2> const& combination, OpExpression<E> const& b)
+		{
+			return apply_operators(combination.f(combination.g * *static_cast<E const*>(&b)));
+		}
+
 		template<typename E1, typename E2>
 		auto apply_operators_mul(OpOperator<E1> const& a, OpExpression<E2> const& b)
 		{
 			return apply_operators((*static_cast<E1 const*>(&a)) * (*static_cast<E2 const*>(&b)));
+		}
+
+		template<typename E1, typename E2>
+		auto apply_operators_mul(OpExpression<E1> const& a, OpOperator<E2> const& b)
+		{
+			return (*static_cast<E1 const*>(&a)) * (*static_cast<E2 const*>(&b));
+		}
+
+		template<typename E1, typename E2>
+		auto apply_operators_mul(OpOperator<E1> const& a, OpOperator<E2> const& b)
+		{
+			return (*static_cast<E1 const*>(&a)) * (*static_cast<E2 const*>(&b));
 		}
 
 		template<typename E1, typename E2>
@@ -1502,6 +1522,7 @@ namespace expr
 			return apply_operators(a * *static_cast<E2 const*>(&b));
 		}
 	}
+
 
 	template<typename E1, typename E2>
 	auto apply_operators(OpBinaryMul<E1, E2> const& e)
@@ -6725,7 +6746,8 @@ namespace expr
 		auto apply_operators_deriv(OpDerivative<Dd, V, E, Sp> const& d, OpOperator<E0> const& e)
 		{
 			auto [dd, ee] = expr::split::separate_operator(d);
-			return dd * ee;
+			OpOperatorChain chain(OpIdentity{}, dd);
+			return OpChain(chain, ee);
 		}
 
 		template<typename G0, typename E>

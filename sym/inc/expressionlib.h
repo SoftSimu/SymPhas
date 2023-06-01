@@ -181,10 +181,21 @@ struct VectorComponent : G
 
 	VectorComponent(G const& data) : G(data) {}
 	VectorComponent(G&& data) noexcept : G(std::forward<G>(data)) {}
-
-protected:
-	VectorComponent() : G(G{}) {}
+	constexpr VectorComponent() : VectorComponent(((G*)0)[0]) {}
 };
+
+template<Axis ax, typename G>
+struct VectorComponent<ax, symphas::ref<G>> : symphas::ref<G>
+{
+	using parent_type = symphas::ref<G>;
+	using parent_type::parent_type;
+
+	VectorComponent(symphas::ref<G> const& data) : parent_type(data) {}
+	VectorComponent(symphas::ref<G>&& data) noexcept : parent_type(std::move(data)) {}
+	VectorComponent(G&& data) noexcept : parent_type(std::move(data)) {}
+	constexpr VectorComponent() : VectorComponent(((G*)0)[0]) {}
+};
+
 
 template<Axis ax>
 struct VectorComponent<ax, void> {};
@@ -3808,11 +3819,12 @@ struct expr::eval_type
 		return _get_eval(e0);
 	}
 
-	using eval_t = std::invoke_result_t<decltype(&eval_type<E>::template get_eval<E>), E>;
+	template<typename E0>
+	using eval_t = std::invoke_result_t<decltype(&eval_type<E>::template get_eval<E0>), E0>;
         
 public:
 	
-	using type = typename symphas::internal::test_eval<eval_t>::type;
+	using type = typename symphas::internal::test_eval<eval_t<E>>::type;
 	static constexpr size_t rank = symphas::lib::seq_index_value<0, std::invoke_result_t<decltype(&eval_type<E>::get_rank<type>)>>::value;
 	
 protected:

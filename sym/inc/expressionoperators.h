@@ -114,7 +114,7 @@ struct OpOperator/* : OpExpression<E> */
 	template<typename E0>
 	auto operator()(OpOperator<E0> const& e) const
 	{
-		return operator*(*static_cast<E0 const*>(&e));
+		return apply(*static_cast<E0 const*>(&e));
 	}
 
 	template<typename E0>
@@ -577,6 +577,14 @@ namespace expr
 	template<typename A1, typename A2, typename E>
 	auto distribute_operator(OpOperatorCombination<A1, A2> const& a, OpExpression<E> const& b);
 
+	//! The expression is applied to the combination operator.
+	/*!
+	 * Distributing an operator will split apart the expression by add/subtraction to apply the
+	 * operator to each term of the expression. The operator itself is not expanded.
+	 */
+	template<typename A1, typename A2, typename E>
+	auto distribute_operator(OpOperatorCombination<A1, A2> const& a, OpOperator<E> const& b);
+
 	//! The chain operator is applied to terms in a binary addition.
 	/*!
 	 * Distributing an operator will split apart the expression by add/subtraction to apply the
@@ -593,6 +601,13 @@ namespace expr
 	template<typename A1, typename A2, typename E>
 	auto distribute_operator(OpOperatorChain<A1, A2> const& a, OpExpression<E> const& b);
 
+	//! The expression is applied to the chain operator.
+	/*!
+	 * Distributing an operator will split apart the expression by add/subtraction to apply the
+	 * operator to each term of the expression. The operator itself is not expanded.
+	 */
+	template<typename A1, typename A2, typename E>
+	auto distribute_operator(OpOperatorChain<A1, A2> const& a, OpOperator<E> const& b);
 
 	//! The expression is distributed among all terms in the expression.
 	/*!
@@ -601,6 +616,17 @@ namespace expr
 	 */
 	template<typename E1, typename E2>
 	auto distribute_operator(OpExpression<E1> const& a, OpExpression<E2> const& b)
+	{
+		return (*static_cast<E1 const*>(&a)) * (*static_cast<E2 const*>(&b));
+	}
+	
+	//! The expression is distributed among all terms in the expression.
+	/*!
+	 * Distributing an operator will split apart the expression by add/subtraction to apply the
+	 * operator to each term of the expression. The operator itself is not expanded.
+	 */
+	template<typename E1, typename E2>
+	auto distribute_operator(OpExpression<E1> const& a, OpOperator<E2> const& b)
 	{
 		return (*static_cast<E1 const*>(&a)) * (*static_cast<E2 const*>(&b));
 	}
@@ -614,6 +640,17 @@ namespace expr
 	auto distribute_operator(OpOperator<E1> const& a, OpExpression<E2> const& b)
 	{
 		return (*static_cast<E1 const*>(&a))(*static_cast<E2 const*>(&b));
+	}
+
+	//! The expression is distributed among all terms in the expression.
+	/*!
+	 * Distributing an operator will split apart the expression by add/subtraction to apply the
+	 * operator to each term of the expression. The operator itself is not expanded.
+	 */
+	template<typename E1, typename E2>
+	auto distribute_operator(OpOperator<E1> const& a, OpOperator<E2> const& b)
+	{
+		return (*static_cast<E1 const*>(&a)) * (*static_cast<E2 const*>(&b));
 	}
 
 	template<typename A1, typename A2, typename... Es, size_t... Is>
@@ -630,6 +667,12 @@ namespace expr
 
 	template<typename A1, typename A2, typename E>
 	auto distribute_operator(OpOperatorCombination<A1, A2> const& a, OpExpression<E> const& b)
+	{
+		return a(*static_cast<E const*>(&b));
+	}
+
+	template<typename A1, typename A2, typename E>
+	auto distribute_operator(OpOperatorCombination<A1, A2> const& a, OpOperator<E> const& b)
 	{
 		return a * (*static_cast<E const*>(&b));
 	}
@@ -648,6 +691,12 @@ namespace expr
 
 	template<typename A1, typename A2, typename E>
 	auto distribute_operator(OpOperatorChain<A1, A2> const& a, OpExpression<E> const& b)
+	{
+		return a(*static_cast<E const*>(&b));
+	}
+
+	template<typename A1, typename A2, typename E>
+	auto distribute_operator(OpOperatorChain<A1, A2> const& a, OpOperator<E> const& b)
 	{
 		return a * (*static_cast<E const*>(&b));
 	}
@@ -904,12 +953,12 @@ struct OpOperatorCombination : OpOperator<OpOperatorCombination<A1, A2>>
 //	return a.f * b + a.g * b;
 //}
 
-
-template<typename coeff_t, typename A1, typename A2, typename = std::enable_if_t<expr::is_coeff<coeff_t>, int>>
-auto operator*(coeff_t const& a, OpOperatorCombination<A1, A2> const& b)
-{
-	return a * b.f + a * b.g;
-}
+//
+//template<typename coeff_t, typename A1, typename A2, typename = std::enable_if_t<expr::is_coeff<coeff_t>, int>>
+//auto operator*(coeff_t const& a, OpOperatorCombination<A1, A2> const& b)
+//{
+//	return a * b.f + a * b.g;
+//}
 
 
 
@@ -1206,23 +1255,21 @@ struct OpOperatorChain : OpOperator<OpOperatorChain<A1, A2>>
 //{
 //	return ((*static_cast<A const*>(&a)) * b.f)(b.g);
 //}
-//
-////! Apply the chain operation to an expression.
-//template<typename A1, typename A2, typename B1, typename B2>
-//auto operator*(OpOperatorChain<A1, A2> const& a, OpOperatorChain<B1, B2> const& b)
-//{
-//	return expr::make_mul(a, b);
-//}
-//
-///* when multiplied by a literal
-// */
-//
-//template<typename coeff_t, typename A1, typename A2, 
-//	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
-//auto operator*(coeff_t const& a, OpOperatorChain<A1, A2> const& b)
-//{
-//	return (a * b.f)(b.g);
-//}
+
+
+template<typename coeff_t, typename A1, typename A2, 
+	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator*(coeff_t const& a, OpOperatorChain<A1, A2> const& b)
+{
+	return (a * b.f)(b.g);
+}
+
+template<typename coeff_t, typename A1, typename A2,
+	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator*(coeff_t const& a, OpOperatorCombination<A1, A2> const& b)
+{
+	return a * b.f + a * b.g;
+}
 
 
 

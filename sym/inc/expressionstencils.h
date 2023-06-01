@@ -2171,8 +2171,8 @@ namespace expr
 		using symphas::internal::split_by;
 		using symphas::internal::reverse_types_list;
 
-		constexpr size_t QQ = (N % 2 == 0) ? Q / 2 + 1 : Q + 1;
-		return update_stencil_dictionary(dict, setup_stencil_equation_list<Q>(dict, d_op, std::make_index_sequence<QQ>{}));
+		//constexpr size_t QQ = (O % 2 == 0) ? Q / 2 + 1 : Q + 1;
+		return update_stencil_dictionary(dict, setup_stencil_equation_list<Q>(dict, d_op, std::make_index_sequence<Q>{}));
 	}
 
 
@@ -2180,8 +2180,8 @@ namespace expr
 		typename E, size_t O = expr::derivative_order<E>::value>
 	auto construct_stencil(types_list<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>...> const& dict, E const& d_op)
 	{
-		constexpr size_t QQ = (N % 2 == 0) ? Q / 2 + 1 : Q + 1;
-		return update_stencil_dictionary(dict, setup_stencil_equation_list<Q, R>(dict, d_op, std::make_index_sequence<QQ>{}));
+		//constexpr size_t QQ = (O % 2 == 0) ? Q / 2 + 1 : Q + 1;
+		return update_stencil_dictionary(dict, setup_stencil_equation_list<Q, R>(dict, d_op, std::make_index_sequence<Q>{}));
 	}
 
 	template<size_t O1, size_t O2>

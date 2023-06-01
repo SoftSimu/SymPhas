@@ -2156,15 +2156,35 @@ namespace symphas::internal
 		return symphas::internal::nth_directional_derivative_apply<ax, O, Sp>::template get(*static_cast<E const*>(&e), solver);
 	}
 
-	template<size_t R, Axis ax, size_t O, typename E, typename Sp, size_t R0 = expr::eval_type<E>::rank,
-		typename std::enable_if_t<(R0 > 0), int> = 0>
+	template<size_t R, Axis ax, size_t O, typename E, typename Sp, size_t R0 = expr::eval_type<E>::rank, size_t R1 = expr::eval_type<E>::template rank_<1>,
+		typename std::enable_if_t<(R0 > 0 && R1 == 1), int> = 0>
 	auto apply_directional_derivative(OpExpression<E> const& e, solver_op_type<Sp> solver)
 	{
 		constexpr size_t D = expr::eval_type<E>::rank;
+		constexpr size_t Q = expr::eval_type<E>::template rank_<1>;
+
 		auto rtensor = expr::make_row_vector<R - 1, D>();
 		auto ctensor = expr::make_column_vector<R - 1, D>();
 
 		auto d = ctensor * apply_directional_derivative<0, ax, O>(rtensor * (*static_cast<E const*>(&e)), solver);
+		if constexpr (R > 1)
+		{
+			return d + apply_directional_derivative<R - 1, ax, O>((*static_cast<E const*>(&e)), solver);
+		}
+		else
+		{
+			return d;
+		}
+	}
+
+	template<size_t R, Axis ax, size_t O, typename E, typename Sp, size_t R0 = expr::eval_type<E>::rank, size_t R1 = expr::eval_type<E>::template rank_<1>,
+		typename std::enable_if_t<(R0 > 0 && R1 > 1), int> = 0>
+	auto apply_directional_derivative(OpExpression<E> const& e, solver_op_type<Sp> solver)
+	{
+		auto rtensor = expr::make_row_vector<R - 1, R0>();
+		auto ctensor = expr::make_column_vector<R - 1, R1>();
+
+		auto d = apply_directional_derivative<R0, ax, O>((*static_cast<E const*>(&e) * ctensor), solver) * rtensor;
 		if constexpr (R > 1)
 		{
 			return d + apply_directional_derivative<R - 1, ax, O>((*static_cast<E const*>(&e)), solver);
