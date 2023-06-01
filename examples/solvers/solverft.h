@@ -79,7 +79,7 @@ NEW_SOLVER_WITH_STENCIL(SolverFT)
 	{
 		auto [sys, equation] = e;
 		auto eq_ft = expr::apply_operators(equation);
-		
+		expr::printe(eq_ft, "scheme");
 		return std::make_pair(sys, eq_ft);
 	}
 
