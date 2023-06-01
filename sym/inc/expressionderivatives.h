@@ -2558,7 +2558,16 @@ namespace symphas::internal
 	template<typename V, typename E, typename Sp>
 	inline auto make_derivative<Dd>::get(V const& v, OpExpression<E> const& e, solver_op_type<Sp> solver)
 	{
-		return OpDerivative<Dd, V, E, Sp>(v, *static_cast<const E*>(&e), solver);
+		//if constexpr (expr::eval_type_t<E>::rank > 0)
+		//{
+		//	auto d = expr::make_derivative<Dd>(expr::symbols::Symbol{}, solver);
+		//	auto [op, _] = expr::split::separate_operator(d);
+		//	return op(*static_cast<E const*>(&e));
+		//}
+		//else
+		{
+			return OpDerivative<Dd, V, E, Sp>(v, *static_cast<const E*>(&e), solver);
+		}
 	}
 
 	template<typename Dd>

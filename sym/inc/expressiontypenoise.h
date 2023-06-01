@@ -599,7 +599,7 @@ namespace expr
 	template<typename T, size_t D, typename E>
 	auto make_poisson_event(NoiseData<expr::NoiseType::POISSON, T, D> const& noise, OpExpression<E> const& e)
 	{
-		return make_poisson_event(OpIdentity{}, noise, function_of() = *static_cast<E const*>(&e));
+		return make_poisson_event(noise, function_of() = *static_cast<E const*>(&e));
 	}
 
 	template<NoiseType nt, typename T, size_t D, typename E, typename... Ts>

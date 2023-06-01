@@ -363,6 +363,9 @@ public:
 // **************************************************************************************
 
 
+template<>
+inline constexpr bool is_simple_data<expr::symbols::Symbol> = true;
+
 namespace expr
 {
 	template<Axis ax, size_t D, typename T>

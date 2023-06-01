@@ -668,14 +668,6 @@ namespace symphas::internal
 namespace expr
 {
 
-
-	template<auto f, typename V, typename E>
-	auto make_applied_function(V const& v, OpExpression<E> const& e)
-	{
-		return symphas::internal::make_function<f>::get(v, *static_cast<E const*>(&e));
-	}
-
-
 	namespace
 	{
 		//! Alias to construct a conjugate function to compute the conjugate.

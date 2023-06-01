@@ -831,6 +831,7 @@ namespace expr
 
 	namespace
 	{
+
 		template<typename Dd, typename Sp, typename E1, typename E2>
 		auto handle_apply_mul(Sp const& solver, OpExpression<E1> const& lhs0, OpExpression<E2> const& rhs0)
 		{
@@ -848,13 +849,15 @@ namespace expr
 		template<typename Dd, typename Sp, typename E1, typename E2>
 		auto handle_apply_mul(Sp const& solver, OpExpression<E1> const& lhs0, OpOperator<E2> const& rhs0)
 		{
-			return expr::make_derivative<Dd>((*static_cast<E1 const*>(&lhs0)) * (*static_cast<E2 const*>(&rhs0)), solver);
+			auto lhs = apply_operators(expr::make_derivative<Dd>(*static_cast<E1 const*>(&lhs0), solver) * (*static_cast<E2 const*>(&rhs0)));
+			auto rhs = apply_operators((*static_cast<E1 const*>(&lhs0)) * expr::make_derivative<Dd>(*static_cast<E2 const*>(&rhs0), solver));
+			return lhs + rhs;
 		}
 
 		template<typename Dd, typename Sp, typename E1, typename E2>
 		auto handle_apply_mul(Sp const& solver, OpOperator<E1> const& lhs0, OpOperator<E2> const& rhs0)
 		{
-			return expr::make_derivative<Dd>((*static_cast<E1 const*>(&lhs0)) * (*static_cast<E2 const*>(&rhs0)), solver);
+			return apply_operators(expr::make_derivative<Dd>(apply_operators((*static_cast<E1 const*>(&lhs0)) * (*static_cast<E2 const*>(&rhs0))), solver));
 		}
 
 		template<typename Dd, typename Sp, typename E10, typename E11, typename E2>
@@ -988,28 +991,28 @@ namespace expr
 	template<typename V, typename E, typename F>
 	auto apply_operators(OpFunction<V, E, F, void> const& e)
 	{
-		return expr::make_function(expr::coeff(e), apply_operators(expr::get_enclosed_expression(e)), e.name, e.f);
+		return expr::coeff(e) * expr::make_function(apply_operators(expr::get_enclosed_expression(e)), e.name, e.f);
 	};
 
 	//! Specialization based on expr::grid_dim.
 	template<typename V, typename E, typename F, typename Arg0, typename... Args>
 	auto apply_operators(OpFunction<V, E, F, Arg0, Args...> const& e)
 	{
-		return expr::make_function(expr::coeff(e), apply_operators(expr::get_enclosed_expression(e)), e.name, e.f, e.args);
+		return expr::coeff(e) * expr::make_function(apply_operators(expr::get_enclosed_expression(e)), e.name, e.f, e.args);
 	};
 
 	//! Specialization based on expr::grid_dim.
 	template<auto f, typename V, typename E>
 	auto apply_operators(OpFunctionApply<f, V, E> const& e)
 	{
-		return expr::make_function<f>(expr::coeff(e), apply_operators(expr::get_enclosed_expression(e)));
+		return expr::coeff(e) * expr::make_function<f>(apply_operators(expr::get_enclosed_expression(e)));
 	};
 
 	//! Specialization based on expr::grid_dim.
 	template<typename V, typename E, typename T>
 	auto apply_operators(OpIntegral<V, E, T> const& e)
 	{
-		return expr::make_integral(expr::coeff(e), apply_operators(expr::get_enclosed_expression(e)), e.domain);
+		return expr::coeff(e) * expr::make_integral(apply_operators(expr::get_enclosed_expression(e)), e.domain);
 	};
 
 	//! Implementation of the product rule for terms.
@@ -1526,22 +1529,22 @@ namespace expr
 	template<typename Dd, typename V, typename E, typename Sp, typename>
 	auto apply_operators(OpDerivative<Dd, V, E, Sp> const& e)
 	{
-		return apply_operators_deriv(e, expr::coeff(e) * apply_operators(expr::get_enclosed_expression(e)));
+		return expr::coeff(e) * apply_operators_deriv(e, apply_operators(expr::get_enclosed_expression(e)));
 	}
 
 	template<typename Dd, typename V, typename... Es, typename Sp>
 	auto apply_operators(OpDerivative<Dd, V, OpAdd<Es...>, Sp> const& e)
 	{
-		return apply_operators_adds<Dd>(e.solver, 
-			expr::coeff(e) * expr::get_enclosed_expression(e), 
+		return expr::coeff(e) * apply_operators_adds<Dd>(e.solver,
+			expr::get_enclosed_expression(e), 
 			std::make_index_sequence<sizeof...(Es)>{});
 	}
 
 	template<size_t O, typename V, typename... Es, typename G0>
 	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpAdd<Es...>, SymbolicDerivative<G0>> const& e)
 	{
-		return apply_operators_adds<O>(e.solver, 
-			expr::coeff(e) * expr::get_enclosed_expression(e), 
+		return expr::coeff(e) * apply_operators_adds<O>(e.solver,
+			expr::get_enclosed_expression(e), 
 			std::make_index_sequence<sizeof...(Es)>{});
 	}
 
@@ -1563,6 +1566,19 @@ namespace expr
 		//! Apply the chain operation to an expression.
 		template<typename A1, typename A2, typename E>
 		auto apply_operators_mul(OpOperatorChain<A1, A2> const& combination, OpExpression<E> const& b)
+		{
+			return apply_operators(combination.f(apply_operators(combination.g * *static_cast<E const*>(&b))));
+		}
+
+		template<typename A, typename B, typename E2>
+		auto apply_operators_mul(OpOperatorCombination<A, B> const& combination, OpOperator<E2> const& b)
+		{
+			return apply_operators(combination.f * (*static_cast<E2 const*>(&b))) + apply_operators(combination.g * (*static_cast<E2 const*>(&b)));
+		}
+
+		//! Apply the chain operation to an expression.
+		template<typename A1, typename A2, typename E>
+		auto apply_operators_mul(OpOperatorChain<A1, A2> const& combination, OpOperator<E> const& b)
 		{
 			return apply_operators(combination.f(apply_operators(combination.g * *static_cast<E const*>(&b))));
 		}
@@ -1593,6 +1609,12 @@ namespace expr
 
 		template<typename... Es, typename E2>
 		auto apply_operators_mul(OpAdd<Es...> const& a, OpExpression<E2> const& b)
+		{
+			return apply_operators(a * *static_cast<E2 const*>(&b));
+		}
+
+		template<typename... Es, typename E2>
+		auto apply_operators_mul(OpAdd<Es...> const& a, OpOperator<E2> const& b)
 		{
 			return apply_operators(a * *static_cast<E2 const*>(&b));
 		}
@@ -3043,7 +3065,7 @@ namespace expr::transform
 	auto swap_grid(OpFunctionApply<f, V, E> const& e, G_F&& g)
 	{
         auto eg = swap_grid<Z>(e.e, std::forward<G_F>(g));
-		return OpFunctionApply<f, V, decltype(eg)>(e.value, eg);
+		return expr::coeff(e) * expr::make_function<f>(eg);
 	}
 
 	namespace
@@ -3948,7 +3970,7 @@ namespace expr::transform
 	{
 		auto&& eg = swap_grid<Sg>(e.e, std::forward<G_F>(g));
 		auto&& c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
-		return c * make_applied_function<f>(OpIdentity{}, eg);
+		return c * expr::make_function<f>(OpIdentity{}, eg);
 	}
 
 
@@ -7014,14 +7036,14 @@ namespace expr
 	template<size_t O, typename V, typename V0, typename G0, expr::exp_key_t X0, typename GG>
 	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpTerms<V0, Term<G0, X0>>, SymbolicDerivative<OpTerm<OpIdentity, GG>>> const& e)
 	{
-		return apply_operators(expr::make_derivative<O, GG>(expr::coeff(e), expr::get_enclosed_expression(e), e.solver));
+		return apply_operators(expr::coeff(e) * expr::make_derivative<O, GG>(expr::get_enclosed_expression(e), e.solver));
 	}
 
 	template<size_t O, typename V, typename V0, typename G0, typename G1, typename... Gs,
 		expr::exp_key_t X0, expr::exp_key_t X1, expr::exp_key_t... Xs, typename GG>
 	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpTerms<V0, Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...>, SymbolicDerivative<OpTerm<OpIdentity, GG>>> const& e)
 	{
-		return apply_operators(expr::make_derivative<O, GG>(expr::coeff(e), expr::get_enclosed_expression(e), e.solver));
+		return apply_operators(expr::coeff(e) * expr::make_derivative<O, GG>(expr::get_enclosed_expression(e), e.solver));
 	}
 	
 

@@ -518,6 +518,14 @@ auto operator*(any_vector_t<T, D> const& lhs, any_vector_t<T, D> const& rhs)
 	return dot(lhs, rhs);
 }
 
+template<typename T, typename S, size_t D, typename std::enable_if_t<is_non_vector<T> && is_non_vector<S>, int> = 0>
+auto operator*(any_vector_t<T, D> const& lhs, any_vector_t<S, D> const& rhs)
+{
+	using namespace std;
+	using namespace symphas::math;
+	return dot(lhs, rhs);
+}
+
 template<typename T, typename S, size_t D, typename std::enable_if_t<(is_non_vector<T> && is_non_vector<S>), int> = 0>
 auto operator*(any_row_vector_t<T, D> const& lhs, any_vector_t<S, D> const& rhs)
 {

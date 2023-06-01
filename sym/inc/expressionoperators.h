@@ -504,6 +504,29 @@ auto operator+(OpOperator<E1> const& a, OpExpression<E2> const& b)
 	return expr::make_add(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b));
 }
 
+template<typename E1, typename E2>
+auto operator-(OpExpression<E1> const& a, OpOperator<E2> const& b)
+{
+	return expr::make_add(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b));
+}
+
+template<typename E1, typename E2>
+auto operator-(OpOperator<E1> const& a, OpExpression<E2> const& b)
+{
+	return expr::make_add(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b));
+}
+
+template<typename E1, typename E2>
+auto operator/(OpExpression<E1> const& a, OpOperator<E2> const& b)
+{
+	return expr::make_div(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b));
+}
+
+template<typename E1, typename E2>
+auto operator/(OpOperator<E1> const& a, OpExpression<E2> const& b)
+{
+	return expr::make_div(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b));
+}
 
 // ******************************************************************************************
 //
