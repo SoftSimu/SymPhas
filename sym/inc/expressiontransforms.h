@@ -829,24 +829,89 @@ namespace expr
 		return expr::coeff(e);
 	}
 
+	namespace
+	{
+		template<typename Dd, typename Sp, typename E1, typename E2>
+		auto handle_apply_mul(Sp const& solver, OpExpression<E1> const& lhs0, OpExpression<E2> const& rhs0)
+		{
+			auto lhs = apply_operators(expr::make_derivative<Dd>(*static_cast<E1 const*>(&lhs0), solver) * (*static_cast<E2 const*>(&rhs0)));
+			auto rhs = apply_operators((*static_cast<E1 const*>(&lhs0)) * expr::make_derivative<Dd>(*static_cast<E2 const*>(&rhs0), solver));
+			return lhs + rhs;
+		}
+
+		template<typename Dd, typename Sp, typename E1, typename E2>
+		auto handle_apply_mul(Sp const& solver, OpOperator<E1> const& lhs0, OpExpression<E2> const& rhs0)
+		{
+			return apply_operators(expr::make_derivative<Dd>(apply_operators((*static_cast<E1 const*>(&lhs0)) * (*static_cast<E2 const*>(&rhs0))), solver));
+		}
+
+		template<typename Dd, typename Sp, typename E1, typename E2>
+		auto handle_apply_mul(Sp const& solver, OpExpression<E1> const& lhs0, OpOperator<E2> const& rhs0)
+		{
+			return expr::make_derivative<Dd>((*static_cast<E1 const*>(&lhs0)) * (*static_cast<E2 const*>(&rhs0)), solver);
+		}
+
+		template<typename Dd, typename Sp, typename E1, typename E2>
+		auto handle_apply_mul(Sp const& solver, OpOperator<E1> const& lhs0, OpOperator<E2> const& rhs0)
+		{
+			return expr::make_derivative<Dd>((*static_cast<E1 const*>(&lhs0)) * (*static_cast<E2 const*>(&rhs0)), solver);
+		}
+
+		template<typename Dd, typename Sp, typename E10, typename E11, typename E2>
+		auto handle_apply_mul(Sp const& solver, OpOperatorCombination<E10, E11> const& lhs0, OpExpression<E2> const& rhs0)
+		{
+			return apply_operators(expr::make_derivative<Dd>(lhs0.f * (*static_cast<E2 const*>(&rhs0)) + lhs0.g * (*static_cast<E2 const*>(&rhs0)), solver));
+		}
+
+		template<typename Dd, typename Sp, typename E10, typename E11, typename E2>
+		auto handle_apply_mul(Sp const& solver, OpOperatorChain<E10, E11> const& lhs0, OpExpression<E2> const& rhs0)
+		{
+			return apply_operators(expr::make_derivative<Dd>(lhs0.f(lhs0.g * (*static_cast<E2 const*>(&rhs0))), solver));
+		}
+
+		template<typename Dd, typename Sp, typename E10, typename E11, typename E2>
+		auto handle_apply_mul(Sp const& solver, OpOperatorCombination<E10, E11> const& lhs0, OpOperator<E2> const& rhs0)
+		{
+			return apply_operators(expr::make_derivative<Dd>(lhs0.f * (*static_cast<E2 const*>(&rhs0)) + lhs0.g * (*static_cast<E2 const*>(&rhs0)), solver));
+		}
+
+		template<typename Dd, typename Sp, typename E10, typename E11, typename E2>
+		auto handle_apply_mul(Sp const& solver, OpOperatorChain<E10, E11> const& lhs0, OpOperator<E2> const& rhs0)
+		{
+			return apply_operators(expr::make_derivative<Dd>(lhs0.f(lhs0.g * (*static_cast<E2 const*>(&rhs0))), solver));
+		}
+	}
+
 	//! Implementation of the quotient rule for symbolic derivatives.
 	template<size_t O, typename V, typename E1, typename E2, typename G>
 	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpBinaryDiv<E1, E2>, SymbolicDerivative<G>> const& e)
 	{
-		auto&& expr = expr::get_enclosed_expression(e);
-		auto lhs = apply_operators(expr::make_derivative<O, G>(expr.a, e.solver)) * expr.b;
-		auto rhs = expr.a * apply_operators(expr::make_derivative<O, G>(expr.b, e.solver));
-		return expr::coeff(e) * (lhs - rhs) / (expr.b * expr.b);
+		//auto expr = expr::get_enclosed_expression(e);
+		//return expr::coeff(e) * handle_apply_mul(expr::make_operator_derivative<O, G>(e.solver), apply_operators(expr.a), apply_operators(expr.b));
+		
+		auto expr = expr::get_enclosed_expression(e);
+		auto a = apply_operators(expr.a);
+		auto b = apply_operators(expr.b);
+
+		auto lhs = apply_operators(expr::make_derivative<O, G>(a, e.solver) * b);
+		auto rhs = apply_operators(a * expr::make_derivative<O, G>(b, e.solver));
+		return expr::coeff(e) * (lhs - rhs) / (b * b);
 	}
 
 	//! Implementation of the quotient rule for symbolic derivatives.
 	template<size_t O, typename V, typename E1, typename E2, typename G>
 	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpBinaryMul<E1, E2>, SymbolicDerivative<G>> const& e)
 	{
-		auto&& expr = expr::get_enclosed_expression(e);
-		auto lhs = apply_operators(expr::make_derivative<O, G>(expr.a, e.solver)) * expr.b;
-		auto rhs = expr.a * apply_operators(expr::make_derivative<O, G>(expr.b, e.solver));
-		return expr::coeff(e) * (lhs + rhs);
+		auto expr = expr::get_enclosed_expression(e);
+		return expr::coeff(e) * handle_apply_mul<std::index_sequence<O>>(e.solver, apply_operators(expr.a), apply_operators(expr.b));
+
+		//auto expr = expr::get_enclosed_expression(e);
+		//auto a = apply_operators(expr.a);
+		//auto b = apply_operators(expr.b);
+		//
+		//auto lhs = apply_operators(expr::make_derivative<O, G>(a, e.solver) * b);
+		//auto rhs = apply_operators(a * expr::make_derivative<O, G>(b, e.solver));
+		//return expr::coeff(e) * (lhs + rhs);
 	}
 
 	//! Implementation of the product rule.
@@ -854,10 +919,17 @@ namespace expr
 		typename std::enable_if_t<(OpDerivative<Dd, V, OpBinaryMul<E1, E2>, Sp>::order > 0), int>>
 	auto apply_operators(OpDerivative<Dd, V, OpBinaryMul<E1, E2>, Sp> const& e)
 	{
-		auto&& expr = expr::get_enclosed_expression(e);
-		auto lhs = apply_operators(expr::make_derivative<Dd>(expr.a, e.solver)) * expr.b;
-		auto rhs = expr.a * apply_operators(expr::make_derivative<Dd>(expr.b, e.solver));
-		return expr::coeff(e) * (lhs + rhs);
+
+		auto expr = expr::get_enclosed_expression(e);
+		return expr::coeff(e) * handle_apply_mul<Dd>(e.solver, apply_operators(expr.a), apply_operators(expr.b));
+
+		//auto expr = expr::get_enclosed_expression(e);
+		//auto a = apply_operators(expr.a);
+		//auto b = apply_operators(expr.b);
+		//
+		//auto lhs = apply_operators(expr::make_derivative<Dd>(a, e.solver) * b);
+		//auto rhs = apply_operators(a * expr::make_derivative<Dd>(b, e.solver));
+		//return expr::coeff(e) * (lhs + rhs);
 	}
 
 	//! Implementation of the quotient rule.
@@ -865,10 +937,13 @@ namespace expr
 		typename std::enable_if_t<(OpDerivative<Dd, V, OpBinaryDiv<E1, E2>, Sp>::order > 0), int>>
 	auto apply_operators(OpDerivative<Dd, V, OpBinaryDiv<E1, E2>, Sp> const& e)
 	{
-		auto&& expr = expr::get_enclosed_expression(e);
-		auto lhs = apply_operators(expr::make_derivative<Dd>(expr.a, e.solver)) * expr.b;
-		auto rhs = expr.a * apply_operators(expr::make_derivative<Dd>(expr.b, e.solver));
-		return expr::coeff(e) * (lhs - rhs) / (expr.b * expr.b);
+		auto expr = expr::get_enclosed_expression(e);
+		auto a = apply_operators(expr.a);
+		auto b = apply_operators(expr.b);
+
+		auto lhs = apply_operators(expr::make_derivative<Dd>(a, e.solver) * b);
+		auto rhs = apply_operators(a * expr::make_derivative<Dd>(b, e.solver));
+		return expr::coeff(e) * (lhs - rhs) / (b * b);
 	}
 
 	////! Implementation of the product rule for symbolic derivatives.
@@ -1070,19 +1145,19 @@ namespace expr
 		return apply_operators_chain(apply_operators(e.f)(apply_operators(e.g)));
 	}
 
-	template<typename A1, typename B1, typename B2>
-	auto apply_operators(OpOperatorChain<A1, OpOperatorChain<B1, B2>> const& e)
-	{
-		return apply_operators(((apply_operators(e.f)(apply_operators(e.g.f))) * apply_operators(e.g.g)))
-			+ apply_operators((apply_operators(e.g.f) * (apply_operators(e.f)(apply_operators(e.g.g)))));
-	}
+	//template<typename A1, typename B1, typename B2>
+	//auto apply_operators(OpOperatorChain<A1, OpOperatorChain<B1, B2>> const& e)
+	//{
+	//	return apply_operators(((apply_operators(e.f)(apply_operators(e.g.f))) * apply_operators(e.g.g)))
+	//		+ apply_operators((apply_operators(e.g.f) * (apply_operators(e.f)(apply_operators(e.g.g)))));
+	//}
 
-	template<typename A1, typename B1, typename B2>
-	auto apply_operators(OpOperatorChain<A1, OpBinaryMul<B1, B2>> const& e)
-	{
-		return apply_operators(((apply_operators(e.f)(apply_operators(e.g.a))) * apply_operators(e.g.b)))
-			+ apply_operators((apply_operators(e.g.a) * (apply_operators(e.f)(apply_operators(e.g.b)))));
-	}
+	//template<typename A1, typename B1, typename B2>
+	//auto apply_operators(OpOperatorChain<A1, OpBinaryMul<B1, B2>> const& e)
+	//{
+	//	return apply_operators(((apply_operators(e.f)(apply_operators(e.g.a))) * apply_operators(e.g.b)))
+	//		+ apply_operators((apply_operators(e.g.a) * (apply_operators(e.f)(apply_operators(e.g.b)))));
+	//}
 
 	template<typename A1, typename A2>
 	auto apply_operators(OpOperatorCombination<A1, A2> const& e)
@@ -1303,7 +1378,7 @@ namespace expr
 			auto dd2 = expr::make_operator_directional_derivative<ax2, parity2>(solver)
 				* break_up_derivative<order2 - parity2>(solver, symphas::lib::axis_list<axs...>{});
 			
-			return apply_operators((dd1 * dd2) * enclosed);
+			return apply_operators((dd1 * dd2) * *static_cast<E const*>(&enclosed));
 		}
 	};
 
@@ -1314,7 +1389,7 @@ namespace expr
 		auto operator()(Sp const& solver, OpExpression<E> const& enclosed, symphas::lib::axis_list<axs...>)
 		{
 			using Dd = typename Solver<Sp>::template derivative<Axis::X, order1 + order2>;
-			return apply_operators(expr::make_derivative<Dd>(enclosed, solver));
+			return apply_operators(expr::make_derivative<Dd>(*static_cast<E const*>(&enclosed), solver));
 			//return apply_operators(expr::make_operator_derivative<order1 + order2>(solver)(OpVoid{}));
 		}
 	};
@@ -1326,7 +1401,7 @@ namespace expr
 		auto operator()(Sp const& solver, OpExpression<E> const& enclosed, symphas::lib::axis_list<axs...>)
 		{
 			using Dd = typename Solver<Sp>::template derivative<ax1, order1 + order2>;
-			return apply_operators(expr::make_derivative<Dd>(enclosed, solver));
+			return apply_operators(expr::make_derivative<Dd>(*static_cast<E const*>(&enclosed), solver));
 		}
 	};
 
@@ -1337,7 +1412,7 @@ namespace expr
 		auto operator()(Sp const& solver, OpExpression<E> const& enclosed, symphas::lib::axis_list<axs...>)
 		{
 			using Dd = typename Solver<Sp>::template derivative<ax2, order1 + order2>;
-			return apply_operators(expr::make_derivative<Dd>(enclosed, solver));
+			return apply_operators(expr::make_derivative<Dd>(*static_cast<E const*>(&enclosed), solver));
 		}
 	};
 
@@ -1489,7 +1564,7 @@ namespace expr
 		template<typename A1, typename A2, typename E>
 		auto apply_operators_mul(OpOperatorChain<A1, A2> const& combination, OpExpression<E> const& b)
 		{
-			return apply_operators(combination.f(combination.g * *static_cast<E const*>(&b)));
+			return apply_operators(combination.f(apply_operators(combination.g * *static_cast<E const*>(&b))));
 		}
 
 		template<typename E1, typename E2>
@@ -6746,8 +6821,7 @@ namespace expr
 		auto apply_operators_deriv(OpDerivative<Dd, V, E, Sp> const& d, OpOperator<E0> const& e)
 		{
 			auto [dd, ee] = expr::split::separate_operator(d);
-			OpOperatorChain chain(OpIdentity{}, dd);
-			return OpChain(chain, ee);
+			return OpOperatorChain(dd, ee);
 		}
 
 		template<typename G0, typename E>
@@ -7732,7 +7806,7 @@ namespace symphas::internal
 		// multiplying incompatible types just gives their multiplication
 		else
 		{
-			return expr::make_mul(a, b);
+			return expr::make_mul(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b));
 		}
 	}
 }
@@ -7749,7 +7823,7 @@ namespace expr
 	auto transpose(OpTensor<T, N, D> const& tensor)
 	{
 		return expr::make_tensor<0, D, 1, N>(T(tensor));
-	}
+	}	
 
 	template<typename T, size_t N0, size_t N1, size_t D0, size_t D1>
 	auto transpose(OpTensor<T, N0, N1, D0, D1> const& tensor)

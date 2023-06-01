@@ -3047,28 +3047,28 @@ template<typename E1, typename E2,
 	typename std::enable_if_t<(expr::eval_type<E1>::rank == 0 || expr::eval_type<E2>::rank == 0), int> = 0>
 auto operator*(OpExpression<E1> const& a, OpOperator<E2> const& b)
 {
-	return expr::make_mul(*static_cast<const E1*>(&a), *static_cast<const E2*>(&b));
+	return OpOperatorChain(*static_cast<const E1*>(&a), *static_cast<const E2*>(&b));
 }
 
 template<typename A, typename B, typename E2,
 	typename std::enable_if_t<(expr::eval_type<OpBinaryDiv<A, B>>::rank == 0 || expr::eval_type<E2>::rank == 0), int> = 0>
 auto operator*(OpBinaryDiv<A, B> const& a, OpOperator<E2> const& b)
 {
-	return expr::make_mul(a, *static_cast<const E2*>(&b));
+	return OpOperatorChain(a, *static_cast<const E2*>(&b));
 }
 
 template<typename A, typename B, typename E2,
 	typename std::enable_if_t<(expr::eval_type<OpBinaryMul<A, B>>::rank == 0 || expr::eval_type<E2>::rank == 0), int> = 0>
 auto operator*(OpBinaryMul<A, B> const& a, OpOperator<E2> const& b)
 {
-	return expr::make_mul(a, *static_cast<const E2*>(&b));
+	return OpOperatorChain(a, *static_cast<const E2*>(&b));
 }
 
 //! Distributing an RHS expression between operands in addition expression.
 template<typename... As, typename B2>
 auto operator*(OpAdd<As...> const& a, OpOperator<B2> const& b)
 {
-	return expr::make_mul(a, *static_cast<const B2*>(&b));
+	return OpOperatorChain(a, *static_cast<const B2*>(&b));
 }
 
 template<typename E1, typename E2,

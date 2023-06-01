@@ -87,25 +87,26 @@ MODEL(MH, (SCALAR, VECTOR),
 LINK_WITH_NAME(MH, MODELH)
 DEFINE_MODEL_FIELD_NAMES(MH, ("m", "j"))
 
-//
 //! Example of coupling through the free energy using an iterated sum.
 MODEL(MH_FE, (SCALAR, VECTOR),
 	FREE_ENERGY((
 			EQUATION_OF(1)(-lap(-DF(1)) - grad(op(1)) * DF(2)), 
 			EQUATION_OF(2)(lap(DF(2)) + grad(op(1)) * -DF(1))
 			),
-		LANDAU_FE(psi) + _2 * pow<2>(j))
+		integral(LANDAU_FE(op(1)) + _2 * pow<2>(op(2))))
 )
 LINK_WITH_NAME(MH_FE, MODELH_FE)
+DEFINE_MODEL_FIELD_NAMES(MH_FE, ("m", "j"))
 
 #undef j
 #undef dj
 
 
-//! Model A defined by the free energy.
+//! Model A defined by the free energy, where the free energy uses
+//! a general index for any number of fields that are defined.
 MODEL(MA_FE, (SCALAR),
 	FREE_ENERGY((NONCONSERVED),
-		SUM(ii)(LANDAU_FE(op_ii, c1, c2)))
+		integral(SUM(ii)(LANDAU_FE(op_ii, c1, c2))))
 )		
 LINK_WITH_NAME(MA_FE, MODELA_FE)
 
@@ -115,14 +116,14 @@ LINK_WITH_NAME(MA_FE, MODELA_FE)
 ////! Model B defined by the free energy.
 //MODEL(MB_FE, (SCALAR),
 //	FREE_ENERGY((CONSERVED),
-//		SUM(ii)(LANDAU_FE(op_ii)))
+//		integral(SUM(ii)(LANDAU_FE(op_ii))))
 //)
 //LINK_WITH_NAME(MB_FE, MODELB_FE)
 //
 ////! Model B defined by the free energy.
 //MODEL(MC_FE, (SCALAR, SCALAR),
 //	FREE_ENERGY((NONCONSERVED, CONSERVED),
-//		SUM(ii)(LANDAU_FE(op_ii)) + psi * psi * rho)
+//		integral(SUM(ii)(LANDAU_FE(op_ii)) + psi * psi * rho))
 //)
 //LINK_WITH_NAME(MC_FE, MODELC_FE)
 
@@ -148,7 +149,7 @@ LINK_WITH_NAME(Turing, TURING)
 
 MODEL(COUPLING4, (SCALARS(4)),
 	FREE_ENERGY((ALL_NONCONSERVED),
-		SUM(ii)(LANDAU_FE(op_ii)) + _4 * SUM(ii, jj != ii)(op_ii * op_jj * op_jj) + op(1))
+		integral(SUM(ii)(LANDAU_FE(op_ii)) + _4 * SUM(ii, jj != ii)(op_ii * op_jj * op_jj) + op(1)))
 )
 LINK_WITH_NAME(COUPLING4, MODEL_COUPLING4)
 DEFINE_MODEL_FIELD_NAMES(COUPLING4, ("A", "B", "C", "D"))

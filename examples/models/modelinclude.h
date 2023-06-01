@@ -63,8 +63,8 @@ LINK_WITH_NAME(CONV, CONVOLUTION)
 
 #else
 
-//#include "advancedmodeldefs.h"
-//#include "pfcdefs.h"
+#include "advancedmodeldefs.h"
+#include "pfcdefs.h"
 #include "modeldefs.h"
 //#include "modelacmms.h"
 #endif

@@ -55,22 +55,22 @@
 #define psi op(1)
 #define drho dop(2)
 #define rho op(2)
-
-PARAMETERIZED_TYPE(NORMAL_CELL, SCALAR, (lambda, mu, R, kappa, xi, gamma))
-PARAMETERIZED_TYPE(CANCER_CELL, SCALAR, (lambda, mu, R, kappa, xi, gammaC))
-
-MODEL(CELL_MIGRATION, (MANY(CANCER_CELL, 1), MANY(NORMAL_CELL, CONFIGURATION)),
-	FREE_ENERGY(
-		(EQUATION_OF(ii)(
-			-_2 * DF_(ii) - 
-			(vel * e(2 * Pi * ARRAY(ii)(Poisson(1. / tau)(t, ii))) 
-				+ val<60> * kappa / (xi * lambda_[ii]) * integral(op_ii * grad(op_ii) * SUM(jj != ii)(op_jj * op_jj))) * grad(op_ii)
-			)),		
-		SUM(ii)(gamma_n_[ii] * integral(CELLULAR_FE(op_ii, lambda_[ii])) + mu / (Pi * R2) * pow<2>(Pi * R2 - integral(op_ii * op_ii)))
-		+ integral(SUM(ii, jj != ii)(integer(30) * kappa / lambda_[ii] * op_ii * op_ii * op_jj * op_jj)))
-)
-LINK_WITH_NAME(CELL_MIGRATION, CELL_MODEL)
-DEFINE_MODEL_FIELD_NAMES_FORMAT(CELL_MIGRATION, "\\phi_{%d}")
+//
+//PARAMETERIZED_TYPE(NORMAL_CELL, SCALAR, (lambda, mu, R, kappa, xi, gamma))
+//PARAMETERIZED_TYPE(CANCER_CELL, SCALAR, (lambda, mu, R, kappa, xi, gammaC))
+//
+//MODEL(CELL_MIGRATION, (MANY(CANCER_CELL, 1), MANY(NORMAL_CELL, CONFIGURATION)),
+//	FREE_ENERGY(
+//		(EQUATION_OF(ii)(
+//			-_2 * DF_(ii) - 
+//			(vel * e(2 * Pi * ARRAY(ii)(Poisson(1. / tau)(t, ii))) 
+//				+ val<60> * kappa / (xi * lambda_[ii]) * integral(op_ii * grad(op_ii) * SUM(jj != ii)(op_jj * op_jj))) * grad(op_ii)
+//			)),		
+//		SUM(ii)(gamma_n_[ii] * integral(CELLULAR_FE(op_ii, lambda_[ii])) + mu / (Pi * R2) * pow<2>(Pi * R2 - integral(op_ii * op_ii)))
+//		+ integral(SUM(ii, jj != ii)(integer(30) * kappa / lambda_[ii] * op_ii * op_ii * op_jj * op_jj)))
+//)
+//LINK_WITH_NAME(CELL_MIGRATION, CELL_MODEL)
+//DEFINE_MODEL_FIELD_NAMES_FORMAT(CELL_MIGRATION, "\\phi_{%d}")
 
 #undef lambda
 #undef kappa
@@ -92,15 +92,10 @@ DEFINE_MODEL_FIELD_NAMES_FORMAT(CELL_MIGRATION, "\\phi_{%d}")
 //LINK_WITH_NAME(CELL_MIGRATION, CELL_MODEL)
 //DEFINE_MODEL_FIELD_NAMES_FORMAT(CELL_MIGRATION, "\\phi_{%d}")
 
-//MODEL(MODEL_B_MANY, (SCALARS(RUNTIME)),
-//	FREE_ENERGY((EQUATION_OF(ii)(lap * DF_(ii))),
-//		SUM(ii)(integral(LANDAU_FE(op_ii))))
-//)
-//LINK_WITH_NAME(MODEL_B_MANY, MODELB_MANY)
 
 //MODEL(FLOCK, (VECTOR, SCALAR),
 //	EVOLUTION(
-//		dpsi = c1 * psi - c2 * psi * psi * psi - grad(c6 * (rho - STATS.mean(rho)) + c7 * POW(2)(rho - STATS.mean(rho))) + c3 * grad(grad * psi) + c4 * lap(psi) + c5 * POW(2)(psi * grad) * psi - (psi * grad) * psi + _nW(VECTOR),
+//		dpsi = c1 * psi - c2 * psi * psi * psi - grad(c6 * (rho - STATS.mean(rho)) + c7 * pow<2>(rho - STATS.mean(rho))) + c3 * grad(grad * psi) + c4 * lap(psi) + c5 * pow<2>(psi * grad) * psi - (psi * grad) * psi + _nW(VECTOR),
 //		drho = -grad * (psi * rho))
 //)
 //LINK_WITH_NAME(FLOCK, FLOCK_MODEL)

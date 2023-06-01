@@ -1606,6 +1606,12 @@ struct OpOperatorDerivative : OpOperator<OpOperatorDerivative<O, V, Sp>>
 	template<typename E>
 	auto operator*(OpExpression<E> const& e) const;
 
+	//template<size_t O1, typename V1>
+	//auto operator*(OpOperatorDerivative<O1, V1, Sp> const& other)
+	//{
+	//	return expr::coeff(other) * value * expr::make_operator_derivative<O + O1>(solver);
+	//}
+
 	//template<typename E>
 	//auto operator*(OpOperator<E> const& e)
 	//{

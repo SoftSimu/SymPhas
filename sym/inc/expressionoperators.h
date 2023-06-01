@@ -120,13 +120,15 @@ struct OpOperator/* : OpExpression<E> */
 	template<typename E0>
 	auto operator*(OpExpression<E0> const& e) const
 	{
-		return cast().apply_impl(*static_cast<E0 const*>(&e));
+		return expr::make_mul(cast(), *static_cast<E0 const*>(&e));
+		//return cast().apply_impl(*static_cast<E0 const*>(&e));
 	}
 
 	template<typename E0>
 	auto operator*(OpOperator<E0> const& e) const
 	{
-		return apply(*static_cast<E0 const*>(&e));
+		return expr::make_mul(cast(), *static_cast<E0 const*>(&e));
+		//return OpOperatorChain(cast(), *static_cast<E0 const*>(&e));
 	}
 
 	//template<typename... Es>
@@ -199,25 +201,32 @@ struct OpOperator/* : OpExpression<E> */
 	}
 
 	//! An operator applied to a combination creates a chain operator.
-	template<typename B1, typename B2>
-	auto operator*(OpOperatorCombination<B1, B2> const& b) const
-	{
-		return expr::make_mul(cast(), b);
-		//return cast() * b.f + cast() * b.g;
-	}
+	//template<typename B1, typename B2>
+	//auto operator*(OpOperatorCombination<B1, B2> const& b) const
+	//{
+	//	//return OpOperatorChain(cast(), b);
+	//	return expr::make_mul(cast(), b);
+	//	//return cast() * b.f + cast() * b.g;
+	//}
 
 	 //! An operator applied to a combination creates a chain operator.
 	template<typename B1, typename B2, typename F>
 	auto operator*(OpCombination<B1, B2, F> const& b) const
 	{
-		return (cast() * b.combination)(expr::get_enclosed_expression(b));
+		//OpOperatorChain combination(cast(), b.combination);
+		//return OpChain(combination, b.e);
+		return expr::make_mul(cast(), b);
+		//return (cast() * b.combination)(expr::get_enclosed_expression(b));
 	}
 
 	//! An operator applied to a chain builds the chain operator.
 	template<typename B1, typename B2, typename F>
 	auto operator*(OpChain<B1, B2, F> const& b) const
 	{
-		return OpOperatorChain(cast(), b.combination)(expr::get_enclosed_expression(b));
+		//OpOperatorChain combination(cast(), b.combination);
+		//return OpChain(combination, b.e);
+		return expr::make_mul(cast(), b);
+		//return OpOperatorChain(cast(), b.combination)(expr::get_enclosed_expression(b));
 	}
 
 	E const& cast() const
@@ -1146,6 +1155,11 @@ struct OpOperatorChain : OpOperator<OpOperatorChain<A1, A2>>
 		return ::OpOperatorChain(-f, g);
 	}
 
+	//template<typename E>
+	//auto operator*(OpExpression<E> const& e) const
+	//{
+	//	return f(g * *static_cast<E const*>(&e));
+	//}
 
 	//! Apply the chain operation to an expression.
 	template<typename E>
