@@ -838,7 +838,7 @@ namespace expr
 				return *static_cast<E const*>(&e);
 			}
 
-			template<typename E, typename X, typename... Xs, size_t N0, size_t... Ns>
+			template<typename X, typename... Xs, typename E, size_t N0, size_t... Ns>
 			auto swap_all_grids(OpExpression<E> const& e, std::index_sequence<N0, Ns...>)
 			{	
 				return expr::transform::swap_grid<X, Xs...>(
@@ -864,7 +864,7 @@ namespace expr
 				using seq_cut = symphas::lib::seq_lt_t<sizeof...(Gs), seq_filtered>;
 
 
-				auto swapped = swap_all_grids<E, Gs...>(*static_cast<const E*>(&e), seq_cut{});
+				auto swapped = swap_all_grids<Gs...>(*static_cast<const E*>(&e), seq_cut{});
 				return make_substitutable_template(swapped, seq_cut{});
 			}
 

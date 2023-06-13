@@ -429,9 +429,207 @@ static constexpr size_t print_length(wrap_f<&symphas::math:: F <typename expr::e
 
 
 // ************************************************************************************
+namespace expr
+{
+
+	//! Empty implementation for obtaining a variable's string represenation.
+	/*!
+	 * Empty implementation for the obtaining the name of a variable when #PRINTABLE_EQUATIONS is
+	 * not used. Therefore, this function can still be invoked but there is no effect.
+	 */
+	template<typename... T>
+	auto get_op_name(T&&...)
+	{
+		return "";
+	}
+
+	template<typename... T>
+	size_t print_with_coeff(T&&...)
+	{
+		return 0;
+	}
+
+	template<typename... T>
+	size_t coeff_print_length(T&&...)
+	{
+		return 0;
+	}
+
+	template<typename... T>
+	auto get_fourier_name(T&&...)
+	{
+		return "";
+	}
+
+	DLLEXPR extern int NAME_PTR_POS;					//!< Current position in selecting name for arbitrary data pointers.
+	DLLEXPR extern std::vector<const void*> NAME_PTRS;	//!< List of all data pointers with names associated with them.
+	DLLEXPR extern std::vector<char*> MORE_NAMES;		//!< List of overflow names for data pointers.
+
+
+	//! Gets the string name associated with the data.
+	template<typename A>
+	const char* get_op_name(symphas::ref<A> const& a);
+
+	//! Gets the string name associated with the data.
+	template<typename T>
+	const char* get_op_name(T* ptr);
+
+
+	//! Gets the string name associated with the data.
+	template<>
+	inline const char* get_op_name(char* a)
+	{
+		return a;
+	}
+
+	//! Gets the string name associated with the data.
+	template<>
+	inline const char* get_op_name(const char* a)
+	{
+		return a;
+	}
+
+	//! Gets the string name associated with the data.
+	template<typename A>
+	const char* get_op_name(A const& a)
+	{
+		return get_op_name(expr::SymbolID<A>::get(a));
+	}
+
+	//! Gets the string name associated with the data.
+	template<typename A>
+	const char* get_op_name(symphas::ref<A> const& a)
+	{
+		return get_op_name(expr::SymbolID<A>::get(a));
+	}
+
+	//! Specialization based on SymbolID.
+	template<Axis ax, typename G>
+	const char* get_op_name(VectorComponent<ax, G> const& a)
+	{
+		try
+		{
+			assert(static_cast<G const*>(&a));
+			static std::map<std::string, char*> map;
+			const char* name = get_op_name(SymbolID<G>::get(*static_cast<G const*>(&a)));
+
+			auto with_component = map.find(name);
+			if (with_component == map.end())
+			{
+				map[name] = new char[std::strlen(name) + 3];
+
+				std::strcpy(map[name], name);
+				map[name][std::strlen(name)] = '_';
+				map[name][std::strlen(name) + 1] = (ax == Axis::X) ? 'x' : (ax == Axis::Y) ? 'y' : (ax == Axis::Z) ? 'z' : '?';
+				map[name][std::strlen(name) + 2] = '\0';
+			}
+
+			return map[name];
+		}
+		catch (...)
+		{
+			return "???";
+		}
+	};
+
+	//! Specialization based on SymbolID.
+	template<size_t Z, Axis ax, typename G>
+	const char* get_op_name(Variable<Z, VectorComponent<ax, G>> const& a)
+	{
+		return get_op_name(*static_cast<VectorComponent<ax, G> const*>(&a));
+	};
+
+	//! Gets the string name associated with the data.
+	template<size_t N>
+	const char* get_op_name(Variable<N> const& a)
+	{
+		static size_t NN = 0;
+		static char** names;
+		const char prefix[] = "var";
+		if (N >= NN)
+		{
+			char** new_names = new char* [N + 1];
+			for (iter_type i = 0; i < NN; ++i)
+			{
+				new_names[i] = new char[std::strlen(names[i]) + 1];
+				std::strcpy(new_names[i], names[i]);
+			}
+			for (size_t i = NN; i <= N; ++i)
+			{
+				new_names[i] = new char[STR_ARR_LEN(prefix) + symphas::lib::num_digits(N)];
+				sprintf(new_names[i], "%s%zd", prefix, N);
+			}
+			delete[] names;
+			names = new_names;
+			return names[N];
+		}
+		else
+		{
+			return names[N];
+		}
+	}
+
+	//! Gets the string name associated with the data.
+	template<typename T>
+	const char* get_op_name(T* ptr)
+	{
+		if (!ptr)
+		{
+			return "?";
+		}
+		else
+		{
+			const void* ptr_cmp = static_cast<const void*>(ptr);
+			constexpr size_t MAX_NAME_COUNT = sizeof(VARIABLE_NAMES) / sizeof(*VARIABLE_NAMES);
+
+			for (iter_type i = 0; i < NAME_PTR_POS; ++i)
+			{
+				if (NAME_PTRS[i] == ptr_cmp)
+				{
+					if (i < MAX_NAME_COUNT)
+					{
+						return VARIABLE_NAMES[i];
+					}
+					else
+					{
+						return MORE_NAMES[i - MAX_NAME_COUNT];
+					}
+				}
+			}
+			NAME_PTRS.push_back(ptr_cmp);
+
+			if (NAME_PTR_POS < MAX_NAME_COUNT)
+			{
+				return VARIABLE_NAMES[NAME_PTR_POS++];
+			}
+			else
+			{
+				char* name = new char[BUFFER_LENGTH_R4];
+				snprintf(name, BUFFER_LENGTH_R4, VARIABLE_NAME_EXTRA_FMT, NAME_PTR_POS);
+				MORE_NAMES.push_back(name);
+				return MORE_NAMES[NAME_PTR_POS++ - MAX_NAME_COUNT];
+			}
+		}
+	}
+
+
+}
+
+
 
 namespace symphas::internal
 {
+
+
+	inline size_t print_sep(char* out, const char* sep)
+	{
+		return sprintf(out, "%s", sep);
+	}
+
+	inline size_t print_sep(FILE* out, const char* sep)
+	{
+		return fprintf(out, "%s", sep);
+	}
 
 	template<typename E>
 	auto set_var_string(OpExpression<E> const& var);
@@ -841,13 +1039,14 @@ namespace symphas::internal
 			if constexpr (O == 1)
 			{
 				size_t n = 0;
-				n += fprintf(out, SYEX_DIRECTIONAL_DERIV_1_VAR_FMT(name, ax));
+                n += fprintf(out, SYEX_DERIV_STR_1);
+				n += fprintf(out, SYEX_DERIV_APPLIED_EXPR_FMT, name);
 				return n;
 			}
 			else if constexpr (O % 2 == 1)
 			{
 				size_t n = 0;
-				n += fprintf(out, SYEX_DIRECTIONAL_DERIV_1_FMT(ax));
+                n += fprintf(out, SYEX_DERIV_STR_1);
 				n += fprintf(out, SYEX_DERIV_STR_FMT(O - 1));
 				n += fprintf(out, SYEX_DERIV_APPLIED_EXPR_FMT, name);
 				return n;
@@ -904,13 +1103,14 @@ namespace symphas::internal
 			if constexpr (O == 1)
 			{
 				size_t n = 0;
-				n += sprintf(out + n, SYEX_DIRECTIONAL_DERIV_1_VAR_FMT(name, ax));
+				n += sprintf(out + n, SYEX_DERIV_STR_1);
+				n += sprintf(out + n, SYEX_DERIV_APPLIED_EXPR_FMT, name);
 				return n;
 			}
 			else if constexpr (O % 2 == 1)
 			{
 				size_t n = 0;
-				n += sprintf(out + n, SYEX_DIRECTIONAL_DERIV_1_FMT(ax));
+				n += sprintf(out + n, SYEX_DERIV_STR_1);
 				n += sprintf(out + n, SYEX_DERIV_STR_FMT(O - 1));
 				n += sprintf(out + n, SYEX_DERIV_APPLIED_EXPR_FMT, name);
 				return n;
@@ -1053,7 +1253,7 @@ namespace symphas::internal
 		static size_t print_length(const char* name, SymbolicDerivative<G>)
 		{
 			return SYEX_DIRECTIONAL_DERIV_LEN(O) + std::strlen(expr::get_op_name(name))
-				+ std::strlen(expr::print_op_name(G{}));
+				+ std::strlen(expr::get_op_name(G{}));
 		}
 	};
 
@@ -1342,7 +1542,7 @@ namespace symphas::internal
 		 */
 		static size_t print(char* out)
 		{
-			return fprintf(out, SYEX_FUNCTIONAL_DERIV_FMT(var_str()));
+			return sprintf(out, SYEX_FUNCTIONAL_DERIV_FMT(var_str()));
 		}
 
 		//! Print the derivative the given order to a string.
@@ -1427,161 +1627,8 @@ namespace symphas::internal
 
 // ************************************************************************************
 
-
 namespace expr
 {
-
-	DLLEXPR extern int NAME_PTR_POS;					//!< Current position in selecting name for arbitrary data pointers.
-	DLLEXPR extern std::vector<const void*> NAME_PTRS;	//!< List of all data pointers with names associated with them.
-	DLLEXPR extern std::vector<char*> MORE_NAMES;		//!< List of overflow names for data pointers.
-
-
-	//! Gets the string name associated with the data.
-	template<typename A>
-	const char* get_op_name(symphas::ref<A> const& a);
-
-	//! Gets the string name associated with the data.
-	template<typename T>
-	const char* get_op_name(T* ptr);
-
-
-	//! Gets the string name associated with the data.
-	template<>
-	inline const char* get_op_name(char* a)
-	{
-		return a;
-	}
-
-	//! Gets the string name associated with the data.
-	template<>
-	inline const char* get_op_name(const char* a)
-	{
-		return a;
-	}
-
-	//! Gets the string name associated with the data.
-	template<typename A>
-	const char* get_op_name(A const& a)
-	{
-		return get_op_name(expr::SymbolID<A>::get(a));
-	}
-
-	//! Gets the string name associated with the data.
-	template<typename A>
-	const char* get_op_name(symphas::ref<A> const& a)
-	{
-		return get_op_name(expr::SymbolID<A>::get(a));
-	}
-
-	//! Specialization based on SymbolID.
-	template<Axis ax, typename G>
-	const char* get_op_name(VectorComponent<ax, G> const& a)
-	{
-		try
-		{
-			assert(static_cast<G const*>(&a));
-			static std::map<std::string, char*> map;
-			const char* name = get_op_name(SymbolID<G>::get(*static_cast<G const*>(&a)));
-
-			auto with_component = map.find(name);
-			if (with_component == map.end())
-			{
-				map[name] = new char[std::strlen(name) + 3];
-
-				std::strcpy(map[name], name);
-				map[name][std::strlen(name)] = '_';
-				map[name][std::strlen(name) + 1] = (ax == Axis::X) ? 'x' : (ax == Axis::Y) ? 'y' : (ax == Axis::Z) ? 'z' : '?';
-				map[name][std::strlen(name) + 2] = '\0';
-			}
-
-			return map[name];
-		}
-		catch (...)
-		{
-			return "???";
-		}
-	};
-
-	//! Specialization based on SymbolID.
-	template<size_t Z, Axis ax, typename G>
-	const char* get_op_name(Variable<Z, VectorComponent<ax, G>> const& a)
-	{
-		return get_op_name(*static_cast<VectorComponent<ax, G> const*>(&a));
-	};
-
-	//! Gets the string name associated with the data.
-	template<size_t N>
-	const char* get_op_name(Variable<N> const& a)
-	{
-		static size_t NN = 0;
-		static char** names;
-		const char prefix[] = "var";
-		if (N >= NN)
-		{
-			char** new_names = new char* [N + 1];
-			for (iter_type i = 0; i < NN; ++i)
-			{
-				new_names[i] = new char[std::strlen(names[i]) + 1];
-				std::strcpy(new_names[i], names[i]);
-			}
-			for (size_t i = NN; i <= N; ++i)
-			{
-				new_names[i] = new char[STR_ARR_LEN(prefix) + symphas::lib::num_digits(N)];
-				sprintf(new_names[i], "%s%zd", prefix, N);
-			}
-			delete[] names;
-			names = new_names;
-			return names[N];
-		}
-		else
-		{
-			return names[N];
-		}
-	}
-
-	//! Gets the string name associated with the data.
-	template<typename T>
-	const char* get_op_name(T* ptr)
-	{
-		if (!ptr)
-		{
-			return "?";
-		}
-		else
-		{
-			const void* ptr_cmp = static_cast<const void*>(ptr);
-			constexpr size_t MAX_NAME_COUNT = sizeof(VARIABLE_NAMES) / sizeof(*VARIABLE_NAMES);
-
-			for (iter_type i = 0; i < NAME_PTR_POS; ++i)
-			{
-				if (NAME_PTRS[i] == ptr_cmp)
-				{
-					if (i < MAX_NAME_COUNT)
-					{
-						return VARIABLE_NAMES[i];
-					}
-					else
-					{
-						return MORE_NAMES[i - MAX_NAME_COUNT];
-					}
-				}
-			}
-			NAME_PTRS.push_back(ptr_cmp);
-
-			if (NAME_PTR_POS < MAX_NAME_COUNT)
-			{
-				return VARIABLE_NAMES[NAME_PTR_POS++];
-			}
-			else
-			{
-				char* name = new char[BUFFER_LENGTH_R4];
-				snprintf(name, BUFFER_LENGTH_R4, VARIABLE_NAME_EXTRA_FMT, NAME_PTR_POS);
-				MORE_NAMES.push_back(name);
-				return MORE_NAMES[NAME_PTR_POS++ - MAX_NAME_COUNT];
-			}
-		}
-	}
-
 
 	template<typename T>
 	auto get_fourier_name(T const& t)
@@ -2749,7 +2796,7 @@ namespace expr
 		size_t print_limits_length(std::tuple<expr::series_limits<T1s, T2s>...> const& limits, std::index_sequence<Ns...>)
 		{
 			size_t n = 0;
-			((n += print_limit_length(symphas::lib::type_at_index<Ns, expr::symbols::i_<I0s, P0s>...>{}, out + n, std::get<Ns>(limits))), ...);
+			((n += print_limit_length(symphas::lib::type_at_index<Ns, expr::symbols::i_<I0s, P0s>...>{}, std::get<Ns>(limits))), ...);
 			return n;
 		}
 
@@ -2826,7 +2873,7 @@ namespace expr
 			size_t n = 0;
 			n += STR_ARR_LEN(SYEX_INTEGRAL_SYMBOL SYEX_INTEGRAL_LIM_A SYEX_INTEGRAL_LIM_SEP SYEX_INTEGRAL_LIM_B
 				SYEX_INTEGRAL_DOMAIN_SYM SYEX_INTEGRAL_INTEGRATION_SYM SYEX_INTEGRAL_A SYEX_INTEGRAL_B);
-			n += (*static_cast<E const*>(&e)).print_length(out + n);
+			n += (*static_cast<E const*>(&e)).print_length();
 			return n;
 		}
 	};
@@ -2853,7 +2900,7 @@ namespace expr
 			size_t n = 0;
 			n += sprintf(out + n, SYEX_INTEGRAL_SYMBOL);
 			n += sprintf(out + n, SYEX_INTEGRAL_LIM_A "%s" SYEX_INTEGRAL_LIM_SEP "%s" SYEX_INTEGRAL_LIM_B, SYEX_INTEGRAL_DOMAIN_SYM, "");
-			n += fprintf(out, SYEX_INTEGRAL_INTEGRATION_SYM);
+			n += sprintf(out + n, SYEX_INTEGRAL_INTEGRATION_SYM);
 			n += sprintf(out + n, SYEX_INTEGRAL_A);
 			n += (*static_cast<E const*>(&e)).print(out + n);
 			n += sprintf(out + n, SYEX_INTEGRAL_B);
@@ -2866,7 +2913,7 @@ namespace expr
 			size_t n = 0;
 			n += STR_ARR_LEN(SYEX_INTEGRAL_SYMBOL SYEX_INTEGRAL_LIM_A SYEX_INTEGRAL_LIM_SEP SYEX_INTEGRAL_LIM_B
 				SYEX_INTEGRAL_DOMAIN_SYM SYEX_INTEGRAL_INTEGRATION_SYM SYEX_INTEGRAL_A SYEX_INTEGRAL_B);
-			n += (*static_cast<E const*>(&e)).print_length(out + n);
+			n += (*static_cast<E const*>(&e)).print_length();
 			return n;
 		}
 	};
@@ -2902,35 +2949,6 @@ namespace expr
 	template<typename... T>
 	auto printe(T&&...) {}
 
-
-	//! Empty implementation for obtaining a variable's string represenation.
-	/*!
-	 * Empty implementation for the obtaining the name of a variable when #PRINTABLE_EQUATIONS is
-	 * not used. Therefore, this function can still be invoked but there is no effect.
-	 */
-	template<typename... T>
-	auto get_op_name(T&&...)
-	{
-		return "";
-	}
-
-	template<typename... T>
-	size_t print_with_coeff(T&&...)
-	{
-		return 0;
-	}
-
-	template<typename... T>
-	size_t coeff_print_length(T&&...)
-	{
-		return 0;
-	}
-
-	template<typename... T>
-	auto get_fourier_name(T&&...)
-	{
-		return "";
-	}
 }
 
 #endif

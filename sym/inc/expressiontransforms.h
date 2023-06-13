@@ -116,8 +116,8 @@ namespace expr::prune
 		//		symphas::lib::types_list<expr::symbols::v_id_type<Is>...>
 		//	>>& e);
 
-		template<typename... Ts>
-		void _update(OpTerms<Ts...>& e);
+		template<typename V, typename... Ts>
+		void _update(OpTerms<V, Ts...>& e);
 
         template<typename G, expr::exp_key_t X>
         void _update(Term<G, X>& e);
@@ -318,8 +318,8 @@ namespace expr::prune
 			e.update();
 		}
 
-		template<typename V, typename... Gs, expr::exp_key_t... Xs>
-		void _update(OpTermsList<V, Term<Gs, Xs>...>& e);
+		template<typename G0, expr::exp_key_t X0>
+		void _update(OpTermsList<Term<G0, X0>>& e);
 
 		template<typename G0, expr::exp_key_t X0, typename G1, expr::exp_key_t X1, typename... Gs, expr::exp_key_t... Xs>
 		void _update(OpTermsList<Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...>& e)
@@ -328,16 +328,16 @@ namespace expr::prune
 			_update(expr::terms_after_n<0>(e));
 		}
 
-		template<typename V, typename... Gs, expr::exp_key_t... Xs>
-		void _update(OpTermsList<V, Term<Gs, Xs>...>& e)
+		template<typename G0, expr::exp_key_t X0>
+		void _update(OpTermsList<Term<G0, X0>>& e)
+        {
+			_update(expr::get<0>(e));
+        }
+
+		template<typename V, typename... Ts>
+		void _update(OpTerms<V, Ts...>& e)
 		{
 			_update(expr::get<0>(e));
-			_update(expr::terms_after_n<0>(e));
-		}
-
-		template<typename... Ts>
-		void _update(OpTerms<Ts...>& e)
-		{
 			_update(*static_cast<OpTermsList<Ts...>*>(&e));
 		}
 
@@ -3672,7 +3672,7 @@ namespace expr::transform
 	{
 
 		template<typename... As, typename... Bs, exp_key_t X, typename C, typename... Sgs, size_t... Is, typename... G_Fs>
-		auto handle_case(Term<SymbolicCase<symphas::lib::types_list<As, Bs>...>, X> const& term, 
+		auto handle_case(Term<SymbolicCase<expr::case_entry<As, Bs>...>, X> const& term, 
 			SymbolicCaseSwap<C, symphas::lib::types_list<Sgs...>>, std::tuple<G_Fs...> const& gs, std::index_sequence<Is...>)
 		{
 			constexpr int N = symphas::lib::index_of_type<C, As...>;
@@ -7392,7 +7392,7 @@ namespace expr
 		
 
 		template<typename E, typename... Ts, int... I0s, int... P0s, typename B, typename C,
-			typename E0, int I0, int P0, typename G0, typename... Ls, typename... Rs>
+			typename E0, int I0, int P0, typename G0, typename... Ls, typename... Rs, std::enable_if_t<!expr::is_id_variable<G0>, int> = 0>
 		auto apply_operators_sum_case(
 			SymbolicSum<E, Substitution<Ts...>, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, B, C> const& series,
 			OpExpression<E0> const& applied,
@@ -7592,7 +7592,7 @@ namespace expr
 
         template<size_t O, typename V, typename V0, typename E, typename... Ts,
             int... I0s, int... P0s, typename A, typename B, typename... Vs, typename GG,
-            std::enable_if_t<!expr::is_id_variable<GG>, int> = 0>
+            std::enable_if_t<(!expr::is_id_variable<GG> && !expr::is_functional_derivative<SymbolicDerivative<GG>>), int> = 0>
         auto apply_operators_sum(
             std::index_sequence<O>, V const& coeff, 
             OpSum<V0, E,
@@ -7889,7 +7889,7 @@ namespace symphas::internal
 
 	inline auto filter_variables(std::tuple<> const& data_list)
 	{
-		return std::tuple();
+		return std::make_tuple();
 	}
 
 	template<typename G, typename... Gs>
@@ -7907,7 +7907,7 @@ namespace symphas::internal
 
 	inline auto sort_variables(std::tuple<> const& data_list)
 	{
-		return std::tuple();
+		return std::make_tuple();
 	}
 
 	template<size_t Z0, typename G0>
@@ -7957,7 +7957,7 @@ namespace symphas::internal
 	template<typename... Gs>
 	auto index_variables(std::tuple<Gs...> const& data_list, std::index_sequence<>)
 	{
-		return std::tuple();
+		return std::make_tuple();
 	}
 
 	template<size_t I0, size_t... Is>

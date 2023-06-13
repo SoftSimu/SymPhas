@@ -586,6 +586,8 @@ public:
 
 };
 
+template<typename V, expr::NoiseType nt, typename T, size_t D, typename E, size_t... Ns, typename... Ts>
+OpSymbolicEval(V, NoiseData<nt, T, D>, SymbolicFunction<E, Variable<Ns, Ts>...>) -> OpSymbolicEval<V, NoiseData<nt, T, D>, SymbolicFunction<E, Variable<Ns, Ts>...>>;
 
 namespace expr
 {

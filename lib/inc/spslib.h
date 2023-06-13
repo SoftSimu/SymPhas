@@ -211,7 +211,7 @@ inline complex_t _ ## NAME(complex_t v) { RETURN; } \
 template<typename T> \
 auto _ ## NAME(T v) { return _ ## NAME(static_cast<complex_t>(v)); } \
 template<typename T> \
-auto NAME(T v) { return _ ## NAME(v); }
+T NAME(T v) { return _ ## NAME(v); }
 
 #define MATH_FUNCTION_OVERLOADS(NAME, FUNC) MATH_FUNCTION_OVERLOADS_IMPL(NAME, return FUNC(v))
 
@@ -1532,7 +1532,7 @@ namespace symphas::lib
 	template<typename Pick, typename From>
 	struct select_seq_impl;
 
-	template<typename T, size_t... Is, size_t... Ns>
+	template<typename T, size_t... Is, T... Ns>
 	struct select_seq_impl<std::index_sequence<Is...>, std::integer_sequence<T, Ns...>>
 	{
 		using type = std::integer_sequence<T, seq_index_value<Is, std::integer_sequence<T, Ns...>>::value...>;
@@ -1944,14 +1944,14 @@ namespace symphas::lib
 	struct find_index_lt;
 
 	// find the largest index of the sequence that is smaller than N
-	template<typename T, T N, size_t I0>
+	template<typename T, T N, T I0>
 	struct find_index_lt<T, N, std::integer_sequence<T, I0>>
 	{
 		static const size_t value = (I0 < N) ? 0 : -1;
 	};
 
 	// find the largest index of the sequence that is smaller than N
-	template<typename T, T N, size_t I0, size_t I1, size_t... Is>
+	template<typename T, T N, T I0, T I1, T... Is>
 	struct find_index_lt<T, N, std::integer_sequence<T, I0, I1, Is...>>
 	{
 		static const size_t value = 
@@ -1964,14 +1964,14 @@ namespace symphas::lib
 	struct find_index_ge;
 
 	// find the largest index of the sequence that is smaller than N
-	template<typename T, T N, size_t I0>
+	template<typename T, T N, T I0>
 	struct find_index_ge<T, N, std::integer_sequence<T, I0>>
 	{
 		static const size_t value = (I0 >= N) ? 0 : 1;
 	};
 
 	// find the largest index of the sequence that is smaller than N
-	template<typename T, T N, size_t I0, size_t I1, size_t... Is>
+	template<typename T, T N, T I0, T I1, T... Is>
 	struct find_index_ge<T, N, std::integer_sequence<T, I0, I1, Is...>>
 	{
 		static const size_t value =
@@ -2024,26 +2024,26 @@ namespace symphas::lib
 	template<typename Seq0, typename Seq1>
 	struct merge_sort_seq_impl;
 
-	template<typename T, size_t N0, size_t... Ns>
+	template<typename T, T N0, T... Ns>
 	struct merge_sort_seq_impl<std::integer_sequence<T, N0, Ns...>, std::integer_sequence<T>>
 	{
 		using type = std::integer_sequence<T, N0, Ns...>;
 	};
 
-	template<typename T, size_t M0, size_t... Ms>
+	template<typename T, T M0, T... Ms>
 	struct merge_sort_seq_impl<std::integer_sequence<T>, std::integer_sequence<T, M0, Ms...>>
 	{
 		using type = std::integer_sequence<T, M0, Ms...>;
 	};
 
-	template<typename T, size_t N0, size_t... Ns, size_t M0, size_t... Ms>
+	template<typename T, T N0, T... Ns, T M0, T... Ms>
 	struct merge_sort_seq_impl<std::integer_sequence<T, N0, Ns...>, std::integer_sequence<T, M0, Ms...>>
 	{
 		using type = typename select_merge_sort_seq_impl<(N0 < M0), std::integer_sequence<T, N0, Ns...>, std::integer_sequence<T, M0, Ms...>>::type;
 	};
 
 
-	template<typename T, size_t N0, size_t... Ns, size_t M0, size_t... Ms>
+	template<typename T, T N0, T... Ns, T M0, T... Ms>
 	struct select_merge_sort_seq_impl<true, std::integer_sequence<T, N0, Ns...>, std::integer_sequence<T, M0, Ms...>>
 	{
 		using type = typename merge_sort_seq_impl<
@@ -2051,7 +2051,7 @@ namespace symphas::lib
 			std::integer_sequence<T, Ms...>>::type;
 	};
 
-	template<typename T, size_t N0, size_t... Ns, size_t M0, size_t... Ms>
+	template<typename T, T N0, T... Ns, T M0, T... Ms>
 	struct select_merge_sort_seq_impl<false, std::integer_sequence<T, N0, Ns...>, std::integer_sequence<T, M0, Ms...>>
 	{
 		using type = typename merge_sort_seq_impl<
@@ -2059,7 +2059,7 @@ namespace symphas::lib
 			std::integer_sequence<T, Ns...>>::type;
 	};
 
-	template<typename T, size_t N0, size_t... Ns, size_t... Ms>
+	template<typename T, T N0, T... Ns, T... Ms>
 	struct select_merge_sort_seq_impl<false, std::integer_sequence<T, N0, Ns...>, std::integer_sequence<T, N0, Ms...>>
 	{
 		using type = typename merge_sort_seq_impl<
@@ -2079,13 +2079,13 @@ namespace symphas::lib
 		using type = std::integer_sequence<T>;
 	};
 
-	template<typename T, size_t N0>
+	template<typename T, T N0>
 	struct sorted_seq_impl<std::integer_sequence<T, N0>>
 	{
 		using type = std::integer_sequence<T, N0>;
 	};
 
-	template<typename T, size_t N0, size_t N1, size_t... Ns>
+	template<typename T, T N0, T N1, T... Ns>
 	struct sorted_seq_impl<std::integer_sequence<T, N0, N1, Ns...>>
 	{
 		using type = merge_sort_seq<

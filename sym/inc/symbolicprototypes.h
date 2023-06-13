@@ -158,6 +158,9 @@ namespace expr
 	template<typename Is, typename E>
 	constexpr bool has_selected_index = false;
 
+    template<typename C, typename T>
+    struct case_entry {};
+
 }
 
 
@@ -166,16 +169,16 @@ struct SymbolicCase;
 
 template<typename I, typename G, typename A, typename B>
 using SymbolicTernaryCase = SymbolicCase<
-	symphas::lib::types_list<expr::symbols::index_eq<I, G>, A>,
-	symphas::lib::types_list<expr::symbols::index_neq<I, G>, B>>;
+	expr::case_entry<expr::symbols::index_eq<I, G>, A>,
+	expr::case_entry<expr::symbols::index_neq<I, G>, B>>;
 
 template<typename I, int N, typename A, typename B>
 using SymbolicTernaryNCase = SymbolicCase<
-	symphas::lib::types_list<expr::symbols::index_eq_N<I, N>, A>,
-	symphas::lib::types_list<expr::symbols::index_neq_N<I, N>, B>>;
+	expr::case_entry<expr::symbols::index_eq_N<I, N>, A>,
+	expr::case_entry<expr::symbols::index_neq_N<I, N>, B>>;
 
 template<typename C = void, typename T = void>
-using SymbolicCaseSwap = SymbolicCase<symphas::lib::types_list<C, T>>;
+using SymbolicCaseSwap = SymbolicCase<expr::case_entry<C, T>>;
 
 template<typename E, typename T, typename Seq, typename B, typename C>
 using SymbolicSum = SymbolicSeries<expr::sum_op, T, symphas::lib::types_list<E, Seq, B, C>>;
@@ -184,7 +187,7 @@ template<typename V, typename E, typename T, typename Seq, typename A, typename 
 using OpSum = OpSymbolicEval<V, SymbolicSum<E, T, Seq, B, C>, A>;
 
 template<>
-struct SymbolicCase<symphas::lib::types_list<void, void>> : expr::symbols::Symbol {};
+struct SymbolicCase<expr::case_entry<void, void>> : expr::symbols::Symbol {};
 
 
 

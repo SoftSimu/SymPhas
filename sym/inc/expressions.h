@@ -738,21 +738,21 @@ struct OpLiteral : OpExpression<OpLiteral<T>>
 		return value;
 	}
 
-	operator const T() const
+	explicit operator const T&() const
 	{
 		return value;
 	}
 
-	operator T&()
+	explicit operator T&()
 	{
 		return value;
 	}
 
 
-	auto operator^(size_t exp) const
-	{
-		return expr::make_literal(std::pow(value, exp));
-	}
+	//auto operator^(size_t exp) const
+	//{
+	//	return expr::make_literal(std::pow(value, exp));
+	//}
 
 	template<typename S>
 	auto operator*(OpLiteral<S> const& other) const
@@ -2030,17 +2030,6 @@ namespace symphas::internal
 
 #ifdef PRINTABLE_EQUATIONS
 
-
-	inline size_t print_sep(char* out, const char* sep)
-	{
-		return sprintf(out, "%s", sep);
-	}
-
-	inline size_t print_sep(FILE* out, const char* sep)
-	{
-		return fprintf(out, "%s", sep);
-	}
-
 	template<typename E>
 	void print_one(E const& e, FILE* out, size_t& n)
 	{
@@ -2590,11 +2579,11 @@ namespace symphas::internal
 	{
 		if (neg)
 		{
-			return fprintf(out, SYEX_MUL_FMT_A);
+			return fprintf(out, "%s", SYEX_MUL_FMT_A);
 		}
 		else
 		{
-			return fprintf(out, SYEX_MUL_FMT_AA);
+			return fprintf(out, "%s", SYEX_MUL_FMT_AA);
 		}
 	}
 
@@ -2622,11 +2611,11 @@ namespace symphas::internal
 	{
 		if (neg)
 		{
-			return fprintf(out, SYEX_MUL_FMT_B);
+			return fprintf(out, "%s", SYEX_MUL_FMT_B);
 		}
 		else
 		{
-			return fprintf(out, SYEX_MUL_FMT_BB);
+			return fprintf(out, "%s", SYEX_MUL_FMT_BB);
 		}
 	}
 
@@ -2634,11 +2623,11 @@ namespace symphas::internal
 	{
 		if (neg)
 		{
-			return sprintf(out, SYEX_MUL_FMT_A);
+			return sprintf(out, "%s", SYEX_MUL_FMT_A);
 		}
 		else
 		{
-			return sprintf(out, SYEX_MUL_FMT_AA);
+			return sprintf(out, "%s", SYEX_MUL_FMT_AA);
 		}
 	}
 
@@ -2666,11 +2655,11 @@ namespace symphas::internal
 	{
 		if (neg)
 		{
-			return sprintf(out, SYEX_MUL_FMT_B);
+			return sprintf(out, "%s", SYEX_MUL_FMT_B);
 		}
 		else
 		{
-			return sprintf(out, SYEX_MUL_FMT_BB);
+			return sprintf(out, "%s", SYEX_MUL_FMT_BB);
 		}
 	}
 
@@ -2862,11 +2851,11 @@ namespace symphas::internal
 		bool neg2 = false;
 
 		size_t n = 0;
-		n += fprintf(out, SYEX_MUL_FMT_AA);
+		n += fprintf(out, "%s", SYEX_MUL_FMT_AA);
 		n += static_cast<E1 const*>(&a)->print(out);
-		n += fprintf(out, SYEX_MUL_SEP_OP);
+		n += fprintf(out, "%s", SYEX_MUL_SEP_OP);
 		n += b.print(out);
-		n += fprintf(out, SYEX_MUL_FMT_BB);
+		n += fprintf(out, "%s", SYEX_MUL_FMT_BB);
 		return n;
 	}
 
@@ -2877,11 +2866,11 @@ namespace symphas::internal
 		bool neg2 = false;
 
 		size_t n = 0;
-		n += fprintf(out, SYEX_MUL_FMT_AA);
+		n += fprintf(out, "%s", SYEX_MUL_FMT_AA);
 		n += static_cast<E1 const*>(&a)->print(out);
-		n += fprintf(out, SYEX_MUL_SEP_OP);
+		n += fprintf(out, "%s", SYEX_MUL_SEP_OP);
 		n += b.print(out);
-		n += fprintf(out, SYEX_MUL_FMT_BB);
+		n += fprintf(out, "%s", SYEX_MUL_FMT_BB);
 		return n;
 	}
 
@@ -2922,11 +2911,11 @@ namespace symphas::internal
 		bool neg2 = false;
 
 		size_t n = 0;
-		n += fprintf(out, SYEX_MUL_FMT_AA);
+		n += fprintf(out, "%s", SYEX_MUL_FMT_AA);
 		n += a.print(out);
-		n += fprintf(out, SYEX_MUL_SEP_OP);
+		n += fprintf(out, "%s", SYEX_MUL_SEP_OP);
 		n += b.print(out);
-		n += fprintf(out, SYEX_MUL_FMT_BB);
+		n += fprintf(out, "%s", SYEX_MUL_FMT_BB);
 		return n;
 	}
 
@@ -3107,11 +3096,11 @@ struct OpBinaryDiv : OpExpression<OpBinaryDiv<E1, E2>>
 	size_t print(FILE* out) const
 	{
 		size_t n = 0;
-		n += fprintf(out, SYEX_DIV_FMT_A);
+		n += fprintf(out, "%s", SYEX_DIV_FMT_A);
 		n += a.print(out);
-		n += fprintf(out, SYEX_DIV_SEP);
+		n += fprintf(out, "%s", SYEX_DIV_SEP);
 		n += b.print(out);
-		n += fprintf(out, SYEX_DIV_FMT_B);
+		n += fprintf(out, "%s", SYEX_DIV_FMT_B);
 		return n;
 
 	}
@@ -3119,11 +3108,11 @@ struct OpBinaryDiv : OpExpression<OpBinaryDiv<E1, E2>>
 	size_t print(char* out) const
 	{
 		size_t n = 0;
-		n += sprintf(out + n, SYEX_DIV_FMT_A);
+		n += sprintf(out + n, "%s", SYEX_DIV_FMT_A);
 		n += a.print(out + n);
-		n += sprintf(out + n, SYEX_DIV_SEP);
+		n += sprintf(out + n, "%s", SYEX_DIV_SEP);
 		n += b.print(out + n);
-		n += sprintf(out + n, SYEX_DIV_FMT_B);
+		n += sprintf(out + n, "%s", SYEX_DIV_FMT_B);
 		return n;
 	}
 

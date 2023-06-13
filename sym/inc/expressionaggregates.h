@@ -1476,7 +1476,6 @@ struct OpTerms<V, Term<Gs, Xs>...> : OpExpression<OpTerms<V, Term<Gs, Xs>...>>, 
 template<>
 struct OpTerms<> : OpTermsList<> {};
 
-
 template<typename V, typename... Gs, expr::exp_key_t... Xs>
 OpTerms(V, Term<Gs, Xs>...) -> OpTerms<V, Term<Gs, Xs>...>;
 
@@ -1488,6 +1487,8 @@ OpTerms(OpTerms<V, Term<Gs, Xs>...>, Term<G0, X0>) -> OpTerms<V, Term<G0, X0>, T
 
 template<typename... Ts>
 OpTerms(OpTermsList<Ts...>) -> OpTerms<Ts...>;
+
+OpTerms() -> OpTerms<>;
 
 
 template<typename V, typename... Gs, expr::exp_key_t... Xs>
@@ -1662,6 +1663,17 @@ namespace symphas::internal
 		return place_at(terms, term0, std::make_index_sequence<P>{}, std::make_index_sequence<sizeof...(Gs) - P>{});
 	}
 
+    template<typename G0, expr::exp_key_t X0, typename... Gs, expr::exp_key_t... Xs>
+    auto combine_terms(Term<G0, X0> const& term0, Term<Gs, Xs> const& ...terms)
+    {
+        return OpTerms(term0, terms...);
+    }
+    
+    inline auto combine_terms()
+    {
+        return OpTerms<>();
+    }
+
 	template<typename G02, expr::exp_key_t X02, typename... G2s, expr::exp_key_t... X2s>
 	auto combine_terms(std::index_sequence<>, OpTerms<> const& terms_num, OpTerms<Term<G02, X02>, Term<G2s, X2s>...> const& terms_den)
 	{
@@ -1707,11 +1719,11 @@ namespace symphas::internal
 	{
 		if constexpr ((expr::_Xk_t<X2s>::sign && ...))
 		{
-			return combine_terms(std::index_sequence<Ms...>{}, OpTerms(expr::get<Is>(a)...), OpTerms(~expr::get<Js>(b)...), (expr::get<Ms>(a) * expr::get<Ns>(b))...);
+			return combine_terms(std::index_sequence<Ms...>{}, combine_terms(expr::get<Is>(a)...), combine_terms(~expr::get<Js>(b)...), (expr::get<Ms>(a) * expr::get<Ns>(b))...);
 		}
 		else
 		{
-			return combine_terms(std::index_sequence<Ms...>{}, OpTerms(expr::get<Is>(a)..., expr::get<Js>(b)...), OpTerms<>{}, (expr::get<Ms>(a) * expr::get<Ns>(b))...);
+			return combine_terms(std::index_sequence<Ms...>{}, combine_terms(expr::get<Is>(a)..., expr::get<Js>(b)...), OpTerms<>{}, (expr::get<Ms>(a) * expr::get<Ns>(b))...);
 		}
 	}
 
@@ -2125,101 +2137,53 @@ namespace symphas::internal
 		}
 	};
 
-	template<typename V, typename G0, expr::exp_key_t X0, typename... Gs, expr::exp_key_t... Xs>
-	struct construct_term<OpTerms<V, Term<G0, X0>, Term<Gs, Xs>...>>
+
+	template<typename... Vs>
+	struct construct_term<OpTerms<Vs...>>
 	{
-		template<typename S>
-		static auto construct(S value, OpTerms<Term<G0, X0>, Term<Gs, Xs>...> data)
+		template<typename S, typename... Gs, expr::exp_key_t... Xs>
+		static auto construct(S value, S, OpTerms<Term<Gs, Xs>...> data)
 		{
-			return OpTerms<S, Term<G0, X0>, Term<Gs, Xs>...>(value, data);
+			return OpTerms<S, Term<Gs, Xs>...>(value, data);
+		}
+
+		template<typename G0, expr::exp_key_t X0, typename... Gs, expr::exp_key_t... Xs>
+		static auto construct(OpIdentity, Term<G0, X0> term, OpTerms<Term<Gs, Xs>...> data)
+		{
+            auto terms = OpTermsList<Term<G0, X0>, Term<Gs, Xs>...>(term, data);
+			return OpTerms<OpIdentity, Term<G0, X0>, Term<Gs, Xs>...>(OpIdentity{}, terms);
+		}
+        
+		template<typename G0, expr::exp_key_t X0>
+		static auto construct(OpIdentity, Term<G0, X0> term, OpIdentity)
+		{
+            auto terms = OpTermsList<Term<G0, X0>>(term);
+			return OpTerms<OpIdentity, Term<G0, X0>>(OpIdentity{}, terms);
 		}
 
 		template<typename S>
-		static auto get(S value, OpTerms<V, Term<G0, X0>, Term<Gs, Xs>...> data)
+		static auto get(S value, OpTerms<Vs...> data)
 		{
-			return construct(value * expr::coeff(data), expr::terms_after_first(data));
+			return value * construct(expr::coeff(data), expr::get<0>(data), expr::terms_after_n<0>(data));
 		}
 
-		static auto get(OpTerms<V, Term<G0, X0>, Term<Gs, Xs>...> data)
+		static auto get(OpTerms<Vs...> data)
 		{
-			return construct(expr::coeff(data), expr::terms_after_first(data));
+			return construct(expr::coeff(data), expr::get<0>(data), expr::terms_after_n<0>(data));
 		}
 
 		template<size_t Z, typename S>
-		static auto get(S value, OpTerms<V, Term<G0, X0>, Term<Gs, Xs>...> data)
+		static auto get(S value, OpTerms<Vs...> data)
 		{
-			return construct(value * expr::coeff(data), expr::terms_after_first(data));
+			return value * construct(expr::coeff(data), expr::get<0>(data), expr::terms_after_n<0>(data));
 		}
 
 		template<size_t Z>
-		static auto get(OpTerms<V, Term<G0, X0>, Term<Gs, Xs>...> data)
+		static auto get(OpTerms<Vs...> data)
 		{
-			return construct(expr::coeff(data), expr::terms_after_first(data));
+			return construct(expr::coeff(data), expr::get<0>(data), expr::terms_after_n<0>(data));
 		}
 	};
-
-	template<typename G0, expr::exp_key_t X0, typename G1, expr::exp_key_t X1, typename... Gs, expr::exp_key_t... Xs>
-	struct construct_term<OpTerms<Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...>>
-	{
-		template<typename S>
-		static auto construct(S value, OpTerms<Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...> data)
-		{
-			return OpTerms<S, Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...>(value, data);
-		}
-
-		template<typename S>
-		static auto get(S value, OpTerms<Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...> data)
-		{
-			return construct(value, data);
-		}
-
-		static auto get(OpTerms<Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...> data)
-		{
-			return construct(OpIdentity{}, data);
-		}
-
-		template<size_t Z, typename S>
-		static auto get(S value, OpTerms<Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...> data)
-		{
-			return construct(value, data);
-		}
-
-		template<size_t Z>
-		static auto get(OpTerms<Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...> data)
-		{
-			return construct(OpIdentity{}, data);
-		}
-	};
-
-	template<typename G0, expr::exp_key_t X0>
-	struct construct_term<OpTerms<Term<G0, X0>>> : construct_term<Term<G0, X0>>
-	{
-		using construct_term<Term<G0, X0>>::construct;
-
-		template<typename S>
-		static auto get(S value, OpTerms<Term<G0, X0>> data)
-		{
-			return construct(value, data.term);
-		}
-
-		static auto get(OpTerms<Term<G0, X0>> data)
-		{
-			return construct(OpIdentity{}, data.term);
-		}
-
-		template<size_t Z, typename S>
-		static auto get(S value, OpTerms<Term<G0, X0>> data)
-		{
-			return construct(value, expr::as_variable<Z>(data.term));
-		}
-
-		template<size_t Z>
-		static auto get(OpTerms<Term<G0, X0>> data)
-		{
-			return construct(OpIdentity{}, expr::as_variable<Z>(data.term));
-		}
-	};
-
 
 	//! Helper in order to construct an OpTerms.
 	/*!

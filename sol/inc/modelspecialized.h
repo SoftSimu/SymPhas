@@ -32,7 +32,7 @@ namespace expr
 {
 	//! -c1/2 * op^2 + c2/4 * op^4 + |grad(op)|^2
 	template<typename G, typename Sp, typename coeff_t1 = OpIdentity, typename coeff_t2 = OpIdentity>
-	auto landau_fe(OpTerm<OpIdentity, G> const& term, Sp const& solver, coeff_t1 const& c1 = coeff_t1{}, coeff_t2 const& c2 = coeff_t2{})
+	auto landau_fe(Sp const& solver, OpTerm<OpIdentity, G> const& term, coeff_t1 const& c1 = coeff_t1{}, coeff_t2 const& c2 = coeff_t2{})
 	{
 		return -c1 * expr::make_fraction<1, 2>() * expr::pow<2>(term) + c2 * expr::make_fraction<1, 4>() * expr::pow<4>(term)
 			+ expr::make_fraction<1, 2>() * expr::pow<2>(expr::make_operator_derivative<1>(solver)(term));
@@ -40,14 +40,14 @@ namespace expr
 
 	//! c2/4 * (op^2 - c1)^2 + |grad(op)|^2
 	template<typename G, typename Sp, typename coeff_t1 = OpIdentity, typename coeff_t2 = OpIdentity>
-	auto doublewell_fe(OpTerm<OpIdentity, G> const& term, Sp const& solver, coeff_t1 const& c1 = coeff_t1{}, coeff_t2 const& c2 = coeff_t2{})
+	auto doublewell_fe(Sp const& solver, OpTerm<OpIdentity, G> const& term, coeff_t1 const& c1 = coeff_t1{}, coeff_t2 const& c2 = coeff_t2{})
 	{
 		return c2 * expr::make_fraction<1, 4>() * expr::pow<2>(expr::pow<2>(term) - c1)
 			+ expr::make_fraction<1, 2>() * expr::pow<2>(expr::make_operator_derivative<1>(solver)(term));
 	}
 
 	template<typename G, typename Sp, typename coeff_t1 = OpIdentity, typename coeff_t2 = OpIdentity>
-	auto cellular_fe(OpTerm<OpIdentity, G> const& term, Sp const& solver, coeff_t1 const& c1 = coeff_t1{})
+	auto cellular_fe(Sp const& solver, OpTerm<OpIdentity, G> const& term, coeff_t1 const& c1 = coeff_t1{})
 	{
 		return expr::make_integer<30>() / (c1 * c1) * term * term * expr::pow<2>(expr::symbols::one - term)
 			+ expr::pow<2>(expr::make_operator_derivative<1>(solver)(term));
@@ -253,6 +253,7 @@ struct ModelApplied<D, Sp>::OpTypes<S...>::Specialized : eq_type
 	using parent_type = eq_type;
 	//using parent_type::parent_type;
 
+    using this_type = typename ModelApplied<D, Sp>::template OpTypes<S...>::template Specialized<Eq, eq_type>;
 	using eqs = typename std::invoke_result_t<decltype(&parent_type::make_equations), parent_type>;
 	eqs equations;
 
@@ -260,14 +261,14 @@ struct ModelApplied<D, Sp>::OpTypes<S...>::Specialized : eq_type
 		parent_type(coeff, num_coeff, parameters), equations{ parent_type::make_equations() } {}
 	Specialized(symphas::problem_parameters_type const& parameters) : Specialized(nullptr, 0, parameters) {}
 
-	impl_type<ModelApplied<D, Sp>::template OpTypes<S...>::template Specialized, Sp>& operator=(
-		impl_type<ModelApplied<D, Sp>::template OpTypes<S...>::template Specialized, Sp> other)
+	/*ModelApplied<D, Sp>::template OpTypes<S...>::template Specialized<Eq, eq_type>& operator=(
+		ModelApplied<D, Sp>::template OpTypes<S...>::template Specialized<Eq, eq_type> other)
 	{
 		using std::swap;
 
 		swap(*static_cast<parent_type*>(this), *static_cast<parent_type*>(&other));
 		swap(equations, other.equations);
-	}
+	}*/
 
 
 
@@ -319,6 +320,7 @@ struct ModelApplied<D, Sp>::OpTypes<S...>::ProvTypes<P...>::Specialized : eq_typ
 	using eqs = typename std::invoke_result_t<decltype(&parent_type::make_equations), parent_type>;
 	using prs = typename std::invoke_result_t<decltype(&parent_type::make_provisionals), parent_type>;
 
+    using this_type = typename ModelApplied<D, Sp>::template OpTypes<S...>::template ProvTypes<P...>::template Specialized<Eq, Pr, pr_type, eq_type>;
 
 	prs provisionals;
 	eqs equations;
@@ -327,15 +329,14 @@ struct ModelApplied<D, Sp>::OpTypes<S...>::ProvTypes<P...>::Specialized : eq_typ
 		parent_type(coeff, num_coeff, parameters), provisionals{ parent_type::make_provisionals() }, equations{ parent_type::make_equations() } {}
 	Specialized(symphas::problem_parameters_type const& parameters) : Specialized(nullptr, 0, parameters) {}
 
-	impl_type<ModelApplied<D, Sp>::template OpTypes<S...>::template ProvTypes<P...>::template Specialized, Sp>& operator=(
-		impl_type<ModelApplied<D, Sp>::template OpTypes<S...>::template ProvTypes<P...>::template Specialized, Sp> other)
+	/*this_type& operator=(this_type other)
 	{
 		using std::swap;
 		
 		swap(*static_cast<parent_type*>(this), *static_cast<parent_type*>(&other));
 		swap(equations, other.equations);
 		swap(provisionals, other.provisionals);
-	}
+	}*/
 
 
 
@@ -409,6 +410,8 @@ struct ModelApplied<D, Sp>::ArrayType<S, Ts...>::Specialized : eq_type
 	using parent_type = eq_type;
 	//using parent_type::parent_type;
 
+    using this_type = typename ModelApplied<D, Sp>::template ArrayType<S, Ts...>::template Specialized<Eq, eq_type>;
+
 	using eqs = std::tuple_element_t<0, typename std::invoke_result_t<decltype(&parent_type::make_equations), parent_type>>;
 	eqs equations;
 
@@ -416,14 +419,14 @@ struct ModelApplied<D, Sp>::ArrayType<S, Ts...>::Specialized : eq_type
 		parent_type(coeff, num_coeff, parameters), equations{ std::get<0>(parent_type::make_equations()) } {}
 	Specialized(symphas::problem_parameters_type const& parameters) : Specialized(nullptr, 0, parameters) {}
 
-	impl_type<ModelApplied<D, Sp>::template ArrayType<S, Ts...>::template Specialized, Sp>& operator=(
-		impl_type<ModelApplied<D, Sp>::template ArrayType<S, Ts...>::template Specialized, Sp> other)
+    /*
+	this_type& operator=(this_type other)
 	{
 		using std::swap;
 
 		swap(*static_cast<parent_type*>(this), *static_cast<parent_type*>(&other));
 		swap(equations, other.equations);
-	}
+	}*/
 
 	void update(double time)
 	{

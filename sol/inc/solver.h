@@ -576,7 +576,7 @@ struct Solver
 	 */
 	inline void equation(symphas::internal::solver_unsupported_equation const& r) const
 	{
-		cast().equation(std::forward<R>(r));
+		cast().equation(r);
 	}
 
 	//! Create the equation which is evaluated by the solver iteratively.

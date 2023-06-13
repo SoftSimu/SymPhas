@@ -878,6 +878,9 @@ namespace expr
     template<size_t Z, typename G>
     constexpr bool is_id_variable<Variable<Z, G>> = true;
 
+    template<typename G>
+    constexpr bool is_id_variable<DynamicVariable<G>> = true;
+
 	using symphas::internal::test_coeff_attribute;
 	using symphas::internal::test_coeff_neg;
 
@@ -1260,11 +1263,19 @@ namespace expr
 	const auto& get(OpTerms<V, Term<Gs, Xs>...> const& e);
 	template<size_t N, typename V, typename... Gs, expr::exp_key_t... Xs>
 	auto& get(OpTerms<V, Term<Gs, Xs>...>& e);
+	template<size_t N, typename V, typename... Gs, expr::exp_key_t... Xs>
+	const auto& get(OpTermsList<V, Term<Gs, Xs>...> const& e);
+	template<size_t N, typename V, typename... Gs, expr::exp_key_t... Xs>
+	auto& get(OpTermsList<V, Term<Gs, Xs>...>& e);
 
 	template<size_t N, typename... Es>
 	const auto& get(OpAdd<Es...> const& e);
 	template<size_t N, typename... Es>
 	auto& get(OpAdd<Es...>& e);
+	template<size_t N, typename... Es>
+	const auto& get(OpAddList<Es...> const& e);
+	template<size_t N, typename... Es>
+	auto& get(OpAddList<Es...>& e);
 
 	//! Reevaluate an entire expression.
 	/*!
@@ -3619,14 +3630,17 @@ namespace expr
 		return *static_cast<E const*>(&e);
 	}
 
-	template<typename V, typename G0, exp_key_t X0, typename... Gs, exp_key_t... Xs>
-	auto coeff(OpTerms<V, Term<G0, X0>, Term<Gs, Xs>...> const& e)
-	{
-		return expr::make_literal(e.term);
-	}
+    template<typename G0, expr::exp_key_t X0>
+    auto coeff(Term<G0, X0> const& term)
+    {
+        return OpIdentity{};
+    }
 
-	template<typename G0, exp_key_t X0, typename G1, exp_key_t X1, typename... Gs, exp_key_t... Xs>
-	auto coeff(OpTerms<Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...> const& e) = delete;
+	template<typename... Vs>
+	auto coeff(OpTerms<Vs...> const& e)
+	{
+		return expr::coeff(e.term);
+	}
 
 	template<typename A, typename B>
 	constexpr auto coeff(OpBinaryMul<A, B> const& e)
@@ -4312,11 +4326,6 @@ namespace expr
 	auto get_solver(E const& e);
 
 
-	template<size_t N, typename V, typename... Gs, exp_key_t... Xs>
-	const auto& get(OpTerms<V, Term<Gs, Xs>...> const& e);
-	template<size_t N, typename V, typename... Gs, exp_key_t... Xs>
-	auto& get(OpTerms<V, Term<Gs, Xs>...>& e);
-
 	template<typename G0, exp_key_t X0>
 	const auto& terms_after_first(OpTerms<Term<G0, X0>> const& e);
 	template<typename G0, exp_key_t X0>
@@ -4329,15 +4338,19 @@ namespace expr
 	decltype(auto) terms_after_first(OpTerms<V> const& e);
 	template<typename V>
 	decltype(auto) terms_after_first(OpTerms<V>& e);
+    template<typename... Ts>
+    decltype(auto) terms_after_first(OpTermsList<Ts...> const& e);
+    template<typename... Ts>
+    decltype(auto) terms_after_first(OpTermsList<Ts...>& e);
 	template<size_t N, typename V, typename... Gs, exp_key_t... Xs>
 	decltype(auto) terms_after_n(OpTerms<V, Term<Gs, Xs>...> const& e);
 	template<size_t N, typename V, typename... Gs, exp_key_t... Xs>
 	decltype(auto) terms_after_n(OpTerms<V, Term<Gs, Xs>...>& e);
+    template<typename... Ts>
+    decltype(auto) terms_after_n(OpTermsList<Ts...> const& e);
+    template<typename... Ts>
+    decltype(auto) terms_after_n(OpTermsList<Ts...>& e);
 
-	template<size_t N, typename... Es>
-	const auto& get(OpAdd<Es...> const& e);
-	template<size_t N, typename... Es>
-	auto& get(OpAdd<Es...>& e);
 	template<size_t N, typename... Es>
 	decltype(auto) terms_before_n(OpAdd<Es...> const& e);
 	template<size_t N, typename... Es>
@@ -4347,6 +4360,10 @@ namespace expr
 	decltype(auto) terms_after_n(OpAdd<Es...> const& e);
 	template<size_t N, typename... Es>
 	decltype(auto) terms_after_n(OpAdd<Es...>& e);
+    template<typename... Ts>
+    decltype(auto) terms_after_n(OpAddList<Ts...> const& e);
+    template<typename... Ts>
+    decltype(auto) terms_after_n(OpAddList<Ts...>& e);
 	template<typename E0, typename E1, typename E2, typename... Es>
 	const auto& terms_after_first(OpAdd<E0, E1, E2, Es...> const& e);
 	template<typename E0, typename E1>
@@ -4355,6 +4372,10 @@ namespace expr
 	auto& terms_after_first(OpAdd<E0, E1, E2, Es...>& e);
 	template<typename E0, typename E1>
 	auto& terms_after_first(OpAdd<E0, E1>& e);
+    template<typename... Ts>
+    decltype(auto) terms_after_first(OpAddList<Ts...> const& e);
+    template<typename... Ts>
+    decltype(auto) terms_after_first(OpAddList<Ts...>& e);
 
 
     template<typename T>

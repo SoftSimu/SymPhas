@@ -797,9 +797,9 @@ public:
 	 */
 	void save_systems(const char* dir, const char* name) const
 	{
-		if (plot_type == ModelModifiers::PLOT_MAX)
+		if (plot_type == symphas::ModelModifiers::PLOT_MAX)
 		{
-			symphas::internal::modifier_save<ModelModifiers::PLOT_MAX>{}(_s, len, index, dir);
+			symphas::internal::modifier_save<symphas::ModelModifiers::PLOT_MAX>{}(_s, len, index, dir);
 		}
 		else
 		{
@@ -1266,12 +1266,6 @@ protected:
 	void do_for_field_type(F&& f, Args&& ... args) const
 	{
 		do_for_field<I>(f, std::forward<Args>(args)...);
-	}
-
-	template<size_t... Is>
-	void print_all_dimensions(FILE* out, std::index_sequence<Is...>) const
-	{
-		((..., print_grid_dimensions<Is>(out)));
 	}
 
 	void print_all_dimensions(FILE* out) const

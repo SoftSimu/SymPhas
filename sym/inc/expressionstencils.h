@@ -1022,26 +1022,26 @@ namespace expr
 		return get_stencil_vector_entry<I0>(symphas::lib::type_at_index<I1, stencil_vector_type<0, 0, Es>...>{});
 	}
 
-	template<size_t N, size_t I, typename E>
+	template<bool flag, size_t N, size_t I, typename E>
 	struct stencil_vector_entry_impl
 	{
 		using type = decltype(expr::choose<N, N - I>() * expr::pow<N - I>(E{}));
 	};
 
 	template<size_t N, size_t I, typename V, typename G0, typename... Gs>
-	struct stencil_vector_entry_impl<N, I, OpTerms<V, Term<G0, 1>, Term<Gs, 1>...>>
+	struct stencil_vector_entry_impl<false, N, I, OpTerms<V, Term<G0, 1>, Term<Gs, 1>...>>
 	{
-		using type = OpTerms<typename stencil_vector_entry_impl<N, I, V>::type, Term<G0, expr::Xk<N - I>>, Term<Gs, expr::Xk<N - I>>...>;
+		using type = OpTerms<typename stencil_vector_entry_impl<false, N, I, V>::type, Term<G0, expr::Xk<N - I>>, Term<Gs, expr::Xk<N - I>>...>;
 	};
 
 	template<size_t N, typename V, typename G0, typename... Gs>
-	struct stencil_vector_entry_impl<N, N, OpTerms<V, Term<G0, 1>, Term<Gs, 1>...>>
+	struct stencil_vector_entry_impl<true, N, N, OpTerms<V, Term<G0, 1>, Term<Gs, 1>...>>
 	{
-		using type = typename stencil_vector_entry_impl<N, N, V>::type;
+		using type = typename stencil_vector_entry_impl<true, N, N, V>::type;
 	};
 
 	template<size_t N, size_t I, typename E>
-	using stencil_vector_entry = typename stencil_vector_entry_impl<N, I, E>::type;
+	using stencil_vector_entry = typename stencil_vector_entry_impl<N == I, N, I, E>::type;
 
 
 
@@ -2512,13 +2512,13 @@ namespace symphas::internal
 	struct GeneratedStencilApply;
 
 	template<int Im, int Jm, int I>
-	void print_stencil(types_list<>)
+	size_t print_stencil(types_list<>)
 	{
 		return printf("|\n");
 	}
 
 	template<int Im, int Jm, int I, int I0, int J0, typename E0, int... Is, int... Js, typename... Es>
-	void print_stencil(types_list<std::pair<expr::symbols::internal::S2_symbol<I0, J0>, E0>, std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...> content)
+	size_t print_stencil(types_list<std::pair<expr::symbols::internal::S2_symbol<I0, J0>, E0>, std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...> content)
 	{
 		using entry_t = StencilCoeff<std::pair<expr::symbols::internal::S2_symbol<I0, J0>, E0>>;
 
@@ -2552,13 +2552,13 @@ namespace symphas::internal
 	}
 
 	template<int... Is, int... Js, typename... Es>
-	void print_stencil(types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...> content)
+	size_t print_stencil(types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...> content)
 	{
 		return print_stencil<fixed_min<Is...>, fixed_min<Js...>, fixed_min<Is...>>(content);
 	}
 
 	template<int... Is, int... Js, typename... Es>
-	void print_stencil(GeneratedStencilApply<types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...>>)
+	size_t print_stencil(GeneratedStencilApply<types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...>>)
 	{
 		return print_stencil(types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...>{});
 	}

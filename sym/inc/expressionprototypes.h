@@ -219,32 +219,6 @@ namespace expr
 			}
 		};
 
-
-		template<typename E>
-		auto operator+(E, expr::symbols::Symbol)
-		{
-			return expr::symbols::Symbol{};
-		}
-
-		template<typename E>
-		auto operator-(E, expr::symbols::Symbol)
-		{
-			return expr::symbols::Symbol{};
-		}
-
-		template<typename E>
-		auto operator*(E, expr::symbols::Symbol)
-		{
-			return expr::symbols::Symbol{};
-		}
-
-		template<typename E>
-		auto operator/(E, expr::symbols::Symbol)
-		{
-			return expr::symbols::Symbol{};
-		}
-
-
 		template<typename T>
 		struct SymbolType {};
 	}
@@ -257,6 +231,15 @@ namespace expr
 
 }
 
+
+template<typename E>
+auto operator+(E, expr::symbols::Symbol);
+template<typename E>
+auto operator-(E, expr::symbols::Symbol);
+template<typename E>
+auto operator*(E, expr::symbols::Symbol);
+template<typename E>
+auto operator/(E, expr::symbols::Symbol);
 
 /*!
  * \defgroup Op Symbolic Algebra Objects

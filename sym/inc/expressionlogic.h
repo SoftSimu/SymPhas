@@ -1786,26 +1786,39 @@ struct expr::factor_count<Variable<Y, symphas::internal::exclusive_swap>, Variab
 	static const size_t value = expr::factor_count<Variable<Y>, Variable<Z>>::value;
 };
 
-//! Specialization based on expr::factor_count;
-template<typename... T1s, typename... T2s>
-struct expr::factor_count<SymbolicCase<T1s...>, SymbolicCase<T2s...>>
+namespace symphas::internal
 {
-	static const size_t value = 0;
-};
+    template<typename C, typename T, typename A>
+    struct count_symbolic_case_factors;
+
+    template<typename C, typename T, typename... As>
+    struct count_symbolic_case_factors<C, T, symphas::lib::types_list<As...>>
+    {
+	    static const size_t value = ((std::is_same<C, As>::value || ...)) ? 1 : 0;
+    };
+
+    template<typename... As>
+    struct count_symbolic_case_factors<void, void, symphas::lib::types_list<As...>>
+    {
+	    static const size_t value = 1;
+    };
+}
+
 
 //! Specialization based on expr::factor_count;
 template<typename C, typename T, typename... As, typename... Bs>
-struct expr::factor_count<SymbolicCaseSwap<C, T>, SymbolicCase<symphas::lib::types_list<As, Bs>...>>
+struct expr::factor_count<SymbolicCaseSwap<C, T>, SymbolicCase<expr::case_entry<As, Bs>...>>
 {
-	static const size_t value = ((std::is_same<C, As>::value || ...)) ? 1 : 0;
+    static const size_t value = symphas::internal::count_symbolic_case_factors<C, T, symphas::lib::types_list<As...>>::value;
+	//static const size_t value = ((std::is_same<C, As>::value || ...)) ? 1 : 0;
 };
 
 //! Specialization based on expr::factor_count;
-template<typename... As, typename... Bs>
-struct expr::factor_count<SymbolicCaseSwap<>, SymbolicCase<symphas::lib::types_list<As, Bs>...>>
-{
-	static const size_t value = 1;
-};
+//template<typename... As, typename... Bs>
+//struct expr::factor_count<SymbolicCaseSwap<>, SymbolicCase<expr::case_entry<As, Bs>...>>
+//{
+//	static const size_t value = 1;
+//};
 
 //! Specialization based on expr::factor_count;
 template<typename C, typename T>

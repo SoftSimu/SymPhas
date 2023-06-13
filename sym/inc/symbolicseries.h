@@ -928,7 +928,7 @@ namespace expr
 
 
 template<typename... T1s, typename... T2s>
-struct SymbolicCase<symphas::lib::types_list<T1s, T2s>...> : expr::symbols::Symbol
+struct SymbolicCase<expr::case_entry<T1s, T2s>...> : expr::symbols::Symbol
 {
 	using parent_type = expr::symbols::Symbol;
 
@@ -941,8 +941,8 @@ struct SymbolicCase<symphas::lib::types_list<T1s, T2s>...> : expr::symbols::Symb
 
 template<int N0, int P0, typename G, typename A, typename B>
 struct SymbolicCase<
-	symphas::lib::types_list<expr::symbols::index_eq<expr::symbols::i_<N0, P0>, G>, A>,
-	symphas::lib::types_list<expr::symbols::index_neq<expr::symbols::i_<N0, P0>, G>, B>> : expr::symbols::Symbol
+	expr::case_entry<expr::symbols::index_eq<expr::symbols::i_<N0, P0>, G>, A>,
+	expr::case_entry<expr::symbols::index_neq<expr::symbols::i_<N0, P0>, G>, B>> : expr::symbols::Symbol
 {
 	using parent_type = expr::symbols::Symbol;
 
@@ -955,8 +955,8 @@ struct SymbolicCase<
 
 template<int N0, int P0, int N, typename A, typename B>
 struct SymbolicCase<
-	symphas::lib::types_list<expr::symbols::index_eq_N<expr::symbols::i_<N0, P0>, N>, A>,
-	symphas::lib::types_list<expr::symbols::index_neq_N<expr::symbols::i_<N0, P0>, N>, B>> : expr::symbols::Symbol
+	expr::case_entry<expr::symbols::index_eq_N<expr::symbols::i_<N0, P0>, N>, A>,
+	expr::case_entry<expr::symbols::index_neq_N<expr::symbols::i_<N0, P0>, N>, B>> : expr::symbols::Symbol
 {
 	using parent_type = expr::symbols::Symbol;
 
@@ -968,7 +968,7 @@ struct SymbolicCase<
 };
 
 template<typename C>
-struct SymbolicCase<symphas::lib::types_list<C, void>> : expr::symbols::Symbol
+struct SymbolicCase<expr::case_entry<C, void>> : expr::symbols::Symbol
 {
 	using parent_type = expr::symbols::Symbol;
 
@@ -976,21 +976,21 @@ struct SymbolicCase<symphas::lib::types_list<C, void>> : expr::symbols::Symbol
 };
 
 template<typename... T1s, typename... T2s>
-SymbolicCase(std::pair<T1s, T2s>...) -> SymbolicCase<symphas::lib::types_list<T1s, T2s>...>;
+SymbolicCase(std::pair<T1s, T2s>...) -> SymbolicCase<expr::case_entry<T1s, T2s>...>;
 
 // For SymbolicTernaryCase
 template<int N0, int P0, typename G, typename A, typename B>
 SymbolicCase(expr::symbols::index_eq<expr::symbols::i_<N0, P0>, G>, A, B) -> SymbolicCase<
-	symphas::lib::types_list<expr::symbols::index_eq<expr::symbols::i_<N0, P0>, G>, A>,
-	symphas::lib::types_list<expr::symbols::index_neq<expr::symbols::i_<N0, P0>, G>, B>>;
+	expr::case_entry<expr::symbols::index_eq<expr::symbols::i_<N0, P0>, G>, A>,
+	expr::case_entry<expr::symbols::index_neq<expr::symbols::i_<N0, P0>, G>, B>>;
 template<int N0, int P0, int N, typename A, typename B>
 SymbolicCase(expr::symbols::index_eq_N<expr::symbols::i_<N0, P0>, N>, A, B) -> SymbolicCase<
-	symphas::lib::types_list<expr::symbols::index_eq_N<expr::symbols::i_<N0, P0>, N>, A>,
-	symphas::lib::types_list<expr::symbols::index_neq_N<expr::symbols::i_<N0, P0>, N>, B>>;
+	expr::case_entry<expr::symbols::index_eq_N<expr::symbols::i_<N0, P0>, N>, A>,
+	expr::case_entry<expr::symbols::index_neq_N<expr::symbols::i_<N0, P0>, N>, B>>;
 
 // For SymbolicCaseSwap
 template<typename C>
-SymbolicCase(C) -> SymbolicCase<symphas::lib::types_list<C, void>>;
+SymbolicCase(C) -> SymbolicCase<expr::case_entry<C, void>>;
 
 ALLOW_COMBINATION((typename... Ts), (SymbolicCase<Ts...>))
 
@@ -1676,11 +1676,11 @@ namespace symphas::internal
 		return normalize<v_types, i_types...>(e0, index + 1, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>{}, symphas::lib::get_tuple_ge<1>(limits));
 	}
 
-	template<typename v_types, typename... i_types, int... I0s, int... P0s, typename E, typename... T1s, typename... T2s>
-	auto normalize(OpExpression<E> const& e, DynamicIndex* index, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, std::tuple<expr::series_limits<T1s, T2s>...> const& limits)
-	{
-		return normalize<v_types, i_types...>(*static_cast<E const*>(&e), index, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>{}, limits);
-	}
+	//template<typename v_types, typename... i_types, int... I0s, int... P0s, typename E, typename... T1s, typename... T2s>
+	//auto normalize(OpExpression<E> const& e, DynamicIndex* index, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, std::tuple<expr::series_limits<T1s, T2s>...> const& limits)
+	//{
+	//	return normalize<v_types, i_types...>(*static_cast<E const*>(&e), index, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>{}, limits);
+	//}
 
 	template<typename Op, typename E, typename S, size_t... Ns, 
 		typename... T1s, typename... T2s, int... I0s, int... P0s, typename... Is>
@@ -1703,271 +1703,271 @@ namespace symphas::internal
 		expr::series_limits<T1s, T2s> const&... limits);
 
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T2>
+	template<int... I0s, typename... Ts, typename T2>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<int, T2> const& limit);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename V, typename T2>
+	template<int... I0s, typename... Ts, typename V, typename T2>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpBinaryMul<V, DynamicIndex>, T2> const& limit);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T2>
+	template<int... I0s, typename... Ts, typename T2>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<DynamicIndex, T2> const& limit);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T2, typename G>
+	template<int... I0s, typename... Ts, typename T2, typename G>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpTerm<OpIdentity, G>, T2> const& limit);
 
-	template<int... I0s, typename... T1s, typename... T2s, int I0, int P0, typename T2>
+	template<int... I0s, typename... Ts, int I0, int P0, typename T2>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpTerm<OpIdentity, expr::symbols::i_<I0, P0>>, T2> const& limit);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2, size_t... Ns>
+	template<int... I0s, typename... Ts, typename... E0s, typename T2, size_t... Ns>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpAdd<E0s...>, T2> const& limit, std::index_sequence<Ns...>);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2>
+	template<int... I0s, typename... Ts, typename... E0s, typename T2>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpAdd<E0s...>, T2> const& limit);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T2, typename A, typename B>
+	template<int... I0s, typename... Ts, typename T2, typename A, typename B>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<std::pair<A, B>, T2> const& limit);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1>
+	template<int... I0s, typename... Ts, typename T1>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, int> const& limit);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename V, typename T1>
+	template<int... I0s, typename... Ts, typename V, typename T1>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpBinaryMul<V, DynamicIndex>> const& limit);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1>
+	template<int... I0s, typename... Ts, typename T1>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, DynamicIndex> const& limit);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename G>
+	template<int... I0s, typename... Ts, typename T1, typename G>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpTerm<OpIdentity, G>> const& limit);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, int I1, int P1>
+	template<int... I0s, typename... Ts, typename T1, int I1, int P1>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpTerm<OpIdentity, expr::symbols::i_<I1, P1>>> const& limit);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename... E0s, size_t... Ns>
+	template<int... I0s, typename... Ts, typename T1, typename... E0s, size_t... Ns>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpAdd<E0s...>> const& limit, std::index_sequence<Ns...>);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename... E0s>
+	template<int... I0s, typename... Ts, typename T1, typename... E0s>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpAdd<E0s...>> const& limit);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename A, typename B>
+	template<int... I0s, typename... Ts, typename T1, typename A, typename B>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, std::pair<A, B>> const& limit);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T2>
+	template<int... I0s, typename... Ts, typename T2>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<int, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)]);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename V, typename T2>
+	template<int... I0s, typename... Ts, typename V, typename T2>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpBinaryMul<V, DynamicIndex>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)]);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T2>
+	template<int... I0s, typename... Ts, typename T2>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<DynamicIndex, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)]);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T2, typename G>
+	template<int... I0s, typename... Ts, typename T2, typename G>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpTerm<OpIdentity, G>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)]);
 
-	template<int... I0s, typename... T1s, typename... T2s, int I0, int P0, typename T2>
+	template<int... I0s, typename... Ts, int I0, int P0, typename T2>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpTerm<OpIdentity, expr::symbols::i_<I0, P0>>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)]);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2, size_t... Ns>
+	template<int... I0s, typename... Ts, typename... E0s, typename T2, size_t... Ns>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpAdd<E0s...>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)],
 		std::index_sequence<Ns...>);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2>
+	template<int... I0s, typename... Ts, typename... E0s, typename T2>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpAdd<E0s...>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)]);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T2, typename A, typename B>
+	template<int... I0s, typename... Ts, typename T2, typename A, typename B>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<std::pair<A, B>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)]);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1>
+	template<int... I0s, typename... Ts, typename T1>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, int> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)]);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename V, typename T1>
+	template<int... I0s, typename... Ts, typename V, typename T1>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpBinaryMul<V, DynamicIndex>> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)]);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1>
+	template<int... I0s, typename... Ts, typename T1>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, DynamicIndex> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)]);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename G>
+	template<int... I0s, typename... Ts, typename T1, typename G>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpTerm<OpIdentity, G>> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)]);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, int I1, int P1>
+	template<int... I0s, typename... Ts, typename T1, int I1, int P1>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpTerm<OpIdentity, expr::symbols::i_<I1, P1>>> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)]);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename... E0s, size_t... Ns>
+	template<int... I0s, typename... Ts, typename T1, typename... E0s, size_t... Ns>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpAdd<E0s...>> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)],
 		std::index_sequence<Ns...>);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename... E0s>
+	template<int... I0s, typename... Ts, typename T1, typename... E0s>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpAdd<E0s...>> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)]);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename A, typename B>
+	template<int... I0s, typename... Ts, typename T1, typename A, typename B>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, std::pair<A, B>> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)]);
 
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T2>
+	template<int... I0s, typename... Ts, typename T2>
 	auto compute_offset(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<int, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)]);
 
-	template<int... I0s, typename... T1s, typename... T2s, size_t N0, typename T2>
+	template<int... I0s, typename... Ts, size_t N0, typename T2>
 	auto compute_offset(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<expr::symbols::placeholder_N_<N0>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)]);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename V, typename T2>
+	template<int... I0s, typename... Ts, typename V, typename T2>
 	auto compute_offset(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpBinaryMul<V, DynamicIndex>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)]);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T2>
+	template<int... I0s, typename... Ts, typename T2>
 	auto compute_offset(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<DynamicIndex, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)]);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename G, typename T2>
+	template<int... I0s, typename... Ts, typename G, typename T2>
 	auto compute_offset(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpTerm<OpIdentity, G>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)]);
 
-	template<int... I0s, typename... T1s, typename... T2s, int I0, int P0, typename T2>
+	template<int... I0s, typename... Ts, int I0, int P0, typename T2>
 	auto compute_offset(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpTerm<OpIdentity, expr::symbols::i_<I0, P0>>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)]);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename... E0s, size_t... Ns, typename T2>
+	template<int... I0s, typename... Ts, typename... E0s, size_t... Ns, typename T2>
 	auto compute_offset(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpAdd<E0s...>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)],
 		std::index_sequence<Ns...>);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2>
+	template<int... I0s, typename... Ts, typename... E0s, typename T2>
 	auto compute_offset(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpAdd<E0s...>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)]);
 
@@ -2021,46 +2021,46 @@ namespace symphas::internal
 		return check_limit_range(static_cast<E const*>(&e)->eval());
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T2>
+	template<int... I0s, typename... Ts, typename T2>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<int, T2> const& limit)
 	{
 		return limit._0;
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename V, typename T2>
+	template<int... I0s, typename... Ts, typename V, typename T2>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpBinaryMul<V, DynamicIndex>, T2> const& limit)
 	{
 		return limit._0.a.eval() * limit._0.b.start();
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T2>
+	template<int... I0s, typename... Ts, typename T2>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<DynamicIndex, T2> const& limit)
 	{
 		return limit._0.start();
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T2, typename G>
+	template<int... I0s, typename... Ts, typename T2, typename G>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpTerm<OpIdentity, G>, T2> const& limit)
 	{
 		return expr::eval(limit._0c) * expr::eval(limit._0);
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, int I0, int P0, typename T2>
+	template<int... I0s, typename... Ts, int I0, int P0, typename T2>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpTerm<OpIdentity, expr::symbols::i_<I0, P0>>, T2> const& limit)
 	{
 		static const int N = symphas::lib::index_of_value<int, I0, I0s...>;
@@ -2075,10 +2075,10 @@ namespace symphas::internal
 		}
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2, size_t... Ns>
+	template<int... I0s, typename... Ts, typename... E0s, typename T2, size_t... Ns>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpAdd<E0s...>, T2> const& limit, std::index_sequence<Ns...>)
 	{
 		return (limit_start(std::integer_sequence<int, I0s...>{}, limits,
@@ -2086,20 +2086,20 @@ namespace symphas::internal
 			+ ...);
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2>
+	template<int... I0s, typename... Ts, typename... E0s, typename T2>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpAdd<E0s...>, T2> const& limit)
 	{
 		return limit_start(std::integer_sequence<int, I0s...>{}, limits,
 			limit, std::make_index_sequence<sizeof...(E0s)>{});
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T2, typename A, typename B>
+	template<int... I0s, typename... Ts, typename T2, typename A, typename B>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<std::pair<A, B>, T2> const& limit)
 	{
 		auto [a, b] = limit._0;
@@ -2108,46 +2108,46 @@ namespace symphas::internal
 		return limit_side<false>(la, lb);
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1>
+	template<int... I0s, typename... Ts, typename T1>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, int> const& limit)
 	{
 		return limit._1;
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename V, typename T1>
+	template<int... I0s, typename... Ts, typename V, typename T1>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpBinaryMul<V, DynamicIndex>> const& limit)
 	{
 		return limit._1.a.eval() * limit._1.b.start();
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1>
+	template<int... I0s, typename... Ts, typename T1>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, DynamicIndex> const& limit)
 	{
 		return limit._1.start();
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename G>
+	template<int... I0s, typename... Ts, typename T1, typename G>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpTerm<OpIdentity, G>> const& limit)
 	{
 		return expr::eval(limit._1c) * expr::eval(limit._1);
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, int I1, int P1>
+	template<int... I0s, typename... Ts, typename T1, int I1, int P1>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpTerm<OpIdentity, expr::symbols::i_<I1, P1>>> const& limit)
 	{
 		static const int N = symphas::lib::index_of_value<int, I1, I0s...>;
@@ -2162,10 +2162,10 @@ namespace symphas::internal
 		}
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename... E0s, size_t... Ns>
+	template<int... I0s, typename... Ts, typename T1, typename... E0s, size_t... Ns>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpAdd<E0s...>> const& limit, std::index_sequence<Ns...>)
 	{
 		return (limit_end(std::integer_sequence<int, I0s...>{}, limits,
@@ -2173,20 +2173,20 @@ namespace symphas::internal
 			+ ...);
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename... E0s>
+	template<int... I0s, typename... Ts, typename T1, typename... E0s>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpAdd<E0s...>> const& limit)
 	{
 		return limit_end(std::integer_sequence<int, I0s...>{}, limits,
 			limit, std::make_index_sequence<sizeof...(E0s)>{});
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename A, typename B>
+	template<int... I0s, typename... Ts, typename T1, typename A, typename B>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, std::pair<A, B>> const& limit)
 	{
 		auto [a, b] = limit._1;
@@ -2195,10 +2195,10 @@ namespace symphas::internal
 		return limit_side<true>(la, lb);
 	}
 
-	//template<int... I0s, typename... T1s, typename... T2s, typename T1, typename T2>
+	//template<int... I0s, typename... Ts, typename T1, typename T2>
 	//auto limit_range(
 	//	std::integer_sequence<int, I0s...>,
-	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	std::tuple<Ts...> limits,
 	//	expr::series_limits<T1, T2> const& limit)
 	//{
 	//	return check_limit_range((limit_end(std::integer_sequence<int, I0s...>{}, limits, limit)
@@ -2206,50 +2206,50 @@ namespace symphas::internal
 	//}
 
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T2>
+	template<int... I0s, typename... Ts, typename T2>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<int, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)])
 	{
 		return limit._0;
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename V, typename T2>
+	template<int... I0s, typename... Ts, typename V, typename T2>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpBinaryMul<V, DynamicIndex>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)])
 	{
 		return limit._0.a.eval() * limit._0.b.index();
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T2>
+	template<int... I0s, typename... Ts, typename T2>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<DynamicIndex, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)])
 	{
 		return limit._0.index();
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T2, typename G>
+	template<int... I0s, typename... Ts, typename T2, typename G>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpTerm<OpIdentity, G>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)])
 	{
 		return expr::eval(limit._0c) * expr::eval(limit._0);
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, int I0, int P0, typename T2>
+	template<int... I0s, typename... Ts, int I0, int P0, typename T2>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpTerm<OpIdentity, expr::symbols::i_<I0, P0>>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)])
 	{
@@ -2265,10 +2265,10 @@ namespace symphas::internal
 		}
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2, size_t... Ns>
+	template<int... I0s, typename... Ts, typename... E0s, typename T2, size_t... Ns>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpAdd<E0s...>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)],
 		std::index_sequence<Ns...>)
@@ -2278,10 +2278,10 @@ namespace symphas::internal
 			+ ...);
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2>
+	template<int... I0s, typename... Ts, typename... E0s, typename T2>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpAdd<E0s...>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)])
 	{
@@ -2289,10 +2289,10 @@ namespace symphas::internal
 			limit, offsets, std::make_index_sequence<sizeof...(E0s)>{});
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T2, typename A, typename B>
+	template<int... I0s, typename... Ts, typename T2, typename A, typename B>
 	auto limit_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<std::pair<A, B>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)])
 	{
@@ -2302,50 +2302,50 @@ namespace symphas::internal
 		return limit_side<true>(la, lb);
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1>
+	template<int... I0s, typename... Ts, typename T1>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, int> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)])
 	{
 		return limit._1;
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename V, typename T1>
+	template<int... I0s, typename... Ts, typename V, typename T1>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpBinaryMul<V, DynamicIndex>> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)])
 	{
 		return limit._1.a.eval() * limit._1.b.index();
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1>
+	template<int... I0s, typename... Ts, typename T1>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, DynamicIndex> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)])
 	{
 		return limit._1.index();
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename G>
+	template<int... I0s, typename... Ts, typename T1, typename G>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpTerm<OpIdentity, G>> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)])
 	{
 		return expr::eval(limit._1c) * expr::eval(limit._1);
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, int I1, int P1>
+	template<int... I0s, typename... Ts, typename T1, int I1, int P1>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpTerm<OpIdentity, expr::symbols::i_<I1, P1>>> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)])
 	{
@@ -2361,10 +2361,10 @@ namespace symphas::internal
 		}
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename... E0s, size_t... Ns>
+	template<int... I0s, typename... Ts, typename T1, typename... E0s, size_t... Ns>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpAdd<E0s...>> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)],
 		std::index_sequence<Ns...>)
@@ -2373,10 +2373,10 @@ namespace symphas::internal
 			expr::series_limits(limit._0, expr::get<Ns>(limit._1)), offsets) + ...);
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename... E0s>
+	template<int... I0s, typename... Ts, typename T1, typename... E0s>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpAdd<E0s...>> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)])
 	{
@@ -2384,10 +2384,10 @@ namespace symphas::internal
 			limit, offsets, std::make_index_sequence<sizeof...(E0s)>{});
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename A, typename B>
+	template<int... I0s, typename... Ts, typename T1, typename A, typename B>
 	auto limit_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, std::pair<A, B>> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)])
 	{
@@ -2397,10 +2397,10 @@ namespace symphas::internal
 		return limit_side<false>(la, lb);
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename T2>
+	template<int... I0s, typename... Ts, typename T1, typename T2>
 	auto limit_range(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)])
 	{
@@ -2442,127 +2442,127 @@ namespace symphas::internal
 	}
 
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename T2>
+	template<int... I0s, typename... Ts, typename T1, typename T2>
 	auto limit_dimension_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, T2> const& limit);
-	template<int... I0s, typename... T1s, typename... T2s, typename V, typename T2>
+	template<int... I0s, typename... Ts, typename V, typename T2>
 	auto limit_dimension_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpBinaryMul<V, DynamicIndex>, T2> const& limit);
-	template<int... I0s, typename... T1s, typename... T2s, typename T2>
+	template<int... I0s, typename... Ts, typename T2>
 	auto limit_dimension_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<DynamicIndex, T2> const& limit);
-	template<int... I0s, typename... T1s, typename... T2s, typename T2, typename G>
+	template<int... I0s, typename... Ts, typename T2, typename G>
 	auto limit_dimension_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpTerm<OpIdentity, G>, T2> const& limit);
-	template<int... I0s, typename... T1s, typename... T2s, int I0, int P0, typename T2>
+	template<int... I0s, typename... Ts, int I0, int P0, typename T2>
 	auto limit_dimension_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpTerm<OpIdentity, expr::symbols::i_<I0, P0>>, T2> const& limit);
-	template<int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2, size_t... Ns>
+	template<int... I0s, typename... Ts, typename... E0s, typename T2, size_t... Ns>
 	auto limit_dimension_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpAdd<E0s...>, T2> const& limit, std::index_sequence<Ns...>);
-	template<int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2>
+	template<int... I0s, typename... Ts, typename... E0s, typename T2>
 	auto limit_dimension_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpAdd<E0s...>, T2> const& limit);
-	template<int... I0s, typename... T1s, typename... T2s, typename T2, typename A, typename B>
+	template<int... I0s, typename... Ts, typename T2, typename A, typename B>
 	auto limit_dimension_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<std::pair<A, B>, T2> const& limit);
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename T2>
+	template<int... I0s, typename... Ts, typename T1, typename T2>
 	auto limit_dimension_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, T2> const& limit);
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename V>
+	template<int... I0s, typename... Ts, typename T1, typename V>
 	auto limit_dimension_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpBinaryMul<V, DynamicIndex>> const& limit);
-	template<int... I0s, typename... T1s, typename... T2s, typename T1>
+	template<int... I0s, typename... Ts, typename T1>
 	auto limit_dimension_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, DynamicIndex> const& limit);
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename G>
+	template<int... I0s, typename... Ts, typename T1, typename G>
 	auto limit_dimension_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpTerm<OpIdentity, G>> const& limit);
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, int I1, int P1>
+	template<int... I0s, typename... Ts, typename T1, int I1, int P1>
 	auto limit_dimension_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpTerm<OpIdentity, expr::symbols::i_<I1, P1>>> const& limit);
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename... E0s, size_t... Ns>
+	template<int... I0s, typename... Ts, typename T1, typename... E0s, size_t... Ns>
 	auto limit_dimension_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpAdd<E0s...>> const& limit, std::index_sequence<Ns...>);
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename... E0s>
+	template<int... I0s, typename... Ts, typename T1, typename... E0s>
 	auto limit_dimension_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpAdd<E0s...>> const& limit);
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename A, typename B>
+	template<int... I0s, typename... Ts, typename T1, typename A, typename B>
 	auto limit_dimension_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, std::pair<A, B>> const& limit);
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename T2>
+	template<int... I0s, typename... Ts, typename T1, typename T2>
 	auto limit_dimension_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, T2> const& limit)
 	{
 		return limit._0;
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename V, typename T2>
+	template<int... I0s, typename... Ts, typename V, typename T2>
 	auto limit_dimension_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpBinaryMul<V, DynamicIndex>, T2> const& limit)
 	{
 		return limit._0.a * expr::make_literal(limit._0.b.start());
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T2>
+	template<int... I0s, typename... Ts, typename T2>
 	auto limit_dimension_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<DynamicIndex, T2> const& limit)
 	{
 		return expr::make_literal(limit._0.start());
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T2, typename G>
+	template<int... I0s, typename... Ts, typename T2, typename G>
 	auto limit_dimension_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpTerm<OpIdentity, G>, T2> const& limit)
 	{
 		return expr::eval(limit._0c) * expr::eval(limit._0);
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, int I0, int P0, typename T2>
+	template<int... I0s, typename... Ts, int I0, int P0, typename T2>
 	auto limit_dimension_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpTerm<OpIdentity, expr::symbols::i_<I0, P0>>, T2> const& limit)
 	{
 		static const int N = symphas::lib::index_of_value<int, I0, I0s...>;
@@ -2577,10 +2577,10 @@ namespace symphas::internal
 		}
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2, size_t... Ns>
+	template<int... I0s, typename... Ts, typename... E0s, typename T2, size_t... Ns>
 	auto limit_dimension_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpAdd<E0s...>, T2> const& limit, std::index_sequence<Ns...>)
 	{
 		return (limit_dimension_start(std::integer_sequence<int, I0s...>{}, limits,
@@ -2588,20 +2588,20 @@ namespace symphas::internal
 			+ ...);
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2>
+	template<int... I0s, typename... Ts, typename... E0s, typename T2>
 	auto limit_dimension_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpAdd<E0s...>, T2> const& limit)
 	{
 		return limit_dimension_start(std::integer_sequence<int, I0s...>{}, limits,
 			limit, std::make_index_sequence<sizeof...(E0s)>{});
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T2, typename A, typename B>
+	template<int... I0s, typename... Ts, typename T2, typename A, typename B>
 	auto limit_dimension_start(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<std::pair<A, B>, T2> const& limit)
 	{
 		auto [a, b] = limit._0;
@@ -2610,46 +2610,46 @@ namespace symphas::internal
 		return limit_side_dimension<false>(la, lb);
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename T2>
+	template<int... I0s, typename... Ts, typename T1, typename T2>
 	auto limit_dimension_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, T2> const& limit)
 	{
 		return limit._1;
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename V>
+	template<int... I0s, typename... Ts, typename T1, typename V>
 	auto limit_dimension_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpBinaryMul<V, DynamicIndex>> const& limit)
 	{
 		return limit._1.a * expr::make_literal(limit._1.b.end());
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1>
+	template<int... I0s, typename... Ts, typename T1>
 	auto limit_dimension_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, DynamicIndex> const& limit)
 	{
 		return expr::make_literal(limit._1.end());
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename G>
+	template<int... I0s, typename... Ts, typename T1, typename G>
 	auto limit_dimension_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpTerm<OpIdentity, G>> const& limit)
 	{
 		return expr::eval(limit._1c) * expr::eval(limit._1);
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, int I1, int P1>
+	template<int... I0s, typename... Ts, typename T1, int I1, int P1>
 	auto limit_dimension_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpTerm<OpIdentity, expr::symbols::i_<I1, P1>>> const& limit)
 	{
 		static const int N = symphas::lib::index_of_value<int, I1, I0s...>;
@@ -2664,10 +2664,10 @@ namespace symphas::internal
 		}
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename... E0s, size_t... Ns>
+	template<int... I0s, typename... Ts, typename T1, typename... E0s, size_t... Ns>
 	auto limit_dimension_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpAdd<E0s...>> const& limit, std::index_sequence<Ns...>)
 	{
 		return (limit_dimension_end(std::integer_sequence<int, I0s...>{}, limits,
@@ -2675,20 +2675,20 @@ namespace symphas::internal
 			+ ...);
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename... E0s>
+	template<int... I0s, typename... Ts, typename T1, typename... E0s>
 	auto limit_dimension_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, OpAdd<E0s...>> const& limit)
 	{
 		return limit_dimension_end(std::integer_sequence<int, I0s...>{}, limits,
 			limit, std::make_index_sequence<sizeof...(E0s)>{});
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename A, typename B>
+	template<int... I0s, typename... Ts, typename T1, typename A, typename B>
 	auto limit_dimension_end(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, std::pair<A, B>> const& limit)
 	{
 		auto [a, b] = limit._1;
@@ -2697,10 +2697,10 @@ namespace symphas::internal
 		return limit_side_dimension<true>(expr::eval(la), expr::eval(lb));
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename T2>
+	template<int... I0s, typename... Ts, typename T1, typename T2>
 	auto limit_dimension(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, T2> const& limit)
 	{
 		return check_limit_range((limit_dimension_end(std::integer_sequence<int, I0s...>{}, limits, limit)
@@ -2709,84 +2709,84 @@ namespace symphas::internal
 
 
 
-	//template<size_t N, int... I0s, typename... T1s, typename... T2s, typename T2>
+	//template<size_t N, int... I0s, typename... Ts, typename T2>
 	//auto limit_current(
 	//	std::integer_sequence<int, I0s...>,
-	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	std::tuple<Ts...> limits,
 	//	expr::series_limits<int, T2> const& limit,
 	//	iter_type(&offsets)[sizeof...(I0s)]);
-	//template<size_t N, int... I0s, typename... T1s, typename... T2s, typename T2>
+	//template<size_t N, int... I0s, typename... Ts, typename T2>
 	//auto limit_current(
 	//	std::integer_sequence<int, I0s...>,
-	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	std::tuple<Ts...> limits,
 	//	expr::series_limits<DynamicIndex, T2> const& limit,
 	//	iter_type(&offsets)[sizeof...(I0s)]);
-	//template<size_t N, int... I0s, typename... T1s, typename... T2s, typename T2, typename G>
+	//template<size_t N, int... I0s, typename... Ts, typename T2, typename G>
 	//auto limit_current(
 	//	std::integer_sequence<int, I0s...>,
-	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	std::tuple<Ts...> limits,
 	//	expr::series_limits<OpTerm<OpIdentity, G>, T2> const& limit,
 	//	iter_type(&offsets)[sizeof...(I0s)]);
-	//template<size_t N, int... I0s, typename... T1s, typename... T2s, int I0, int P0, typename T2>
+	//template<size_t N, int... I0s, typename... Ts, int I0, int P0, typename T2>
 	//auto limit_current(
 	//	std::integer_sequence<int, I0s...>,
-	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	std::tuple<Ts...> limits,
 	//	expr::series_limits<OpTerm<OpIdentity, expr::symbols::i_<I0, P0>>, T2> const& limit,
 	//	iter_type(&offsets)[sizeof...(I0s)]);
-	//template<size_t N, int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2, size_t... Ns>
+	//template<size_t N, int... I0s, typename... Ts, typename... E0s, typename T2, size_t... Ns>
 	//auto limit_current(
 	//	std::integer_sequence<int, I0s...>,
-	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	std::tuple<Ts...> limits,
 	//	expr::series_limits<OpAdd<E0s...>, T2> const& limit,
 	//	iter_type(&offsets)[sizeof...(I0s)],
 	//	std::index_sequence<Ns...>);
-	//template<size_t N, int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2>
+	//template<size_t N, int... I0s, typename... Ts, typename... E0s, typename T2>
 	//auto limit_current(
 	//	std::integer_sequence<int, I0s...>,
-	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	std::tuple<Ts...> limits,
 	//	expr::series_limits<OpAdd<E0s...>, T2> const& limit,
 	//	iter_type(&offsets)[sizeof...(I0s)]);
-	//template<size_t N, int... I0s, typename... T1s, typename... T2s, typename T2, typename A, typename B>
+	//template<size_t N, int... I0s, typename... Ts, typename T2, typename A, typename B>
 	//auto limit_current(
 	//	std::integer_sequence<int, I0s...>,
-	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	std::tuple<Ts...> limits,
 	//	expr::series_limits<std::pair<A, B>, T2> const& limit,
 	//	iter_type(&offsets)[sizeof...(I0s)]);
 
-	//template<size_t N, int... I0s, typename... T1s, typename... T2s, typename T2>
+	//template<size_t N, int... I0s, typename... Ts, typename T2>
 	//auto limit_current(
 	//	std::integer_sequence<int, I0s...>,
-	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	std::tuple<Ts...> limits,
 	//	expr::series_limits<int, T2> const& limit,
 	//	iter_type(&offsets)[sizeof...(I0s)])
 	//{
 	//	return limit._0 + offsets[N];
 	//}
 
-	//template<size_t N, int... I0s, typename... T1s, typename... T2s, typename T2>
+	//template<size_t N, int... I0s, typename... Ts, typename T2>
 	//auto limit_current(
 	//	std::integer_sequence<int, I0s...>,
-	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	std::tuple<Ts...> limits,
 	//	expr::series_limits<DynamicIndex, T2> const& limit,
 	//	iter_type(&offsets)[sizeof...(I0s)])
 	//{
 	//	return limit._0.start() + offsets[N];
 	//}
 
-	//template<size_t N, int... I0s, typename... T1s, typename... T2s, typename T2, typename G>
+	//template<size_t N, int... I0s, typename... Ts, typename T2, typename G>
 	//auto limit_current(
 	//	std::integer_sequence<int, I0s...>,
-	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	std::tuple<Ts...> limits,
 	//	expr::series_limits<OpTerm<OpIdentity, G>, T2> const& limit,
 	//	iter_type(&offsets)[sizeof...(I0s)])
 	//{
 	//	return expr::make_term(limit._0c, limit._0).eval();
 	//}
 
-	//template<size_t N, int... I0s, typename... T1s, typename... T2s, int I0, int P0, typename T2>
+	//template<size_t N, int... I0s, typename... Ts, int I0, int P0, typename T2>
 	//auto limit_current(
 	//	std::integer_sequence<int, I0s...>,
-	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	std::tuple<Ts...> limits,
 	//	expr::series_limits<OpTerm<OpIdentity, expr::symbols::i_<I0, P0>>, T2> const& limit,
 	//	iter_type(&offsets)[sizeof...(I0s)])
 	//{
@@ -2806,10 +2806,10 @@ namespace symphas::internal
 	//	}
 	//}
 
-	//template<size_t N, int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2, size_t... Ns>
+	//template<size_t N, int... I0s, typename... Ts, typename... E0s, typename T2, size_t... Ns>
 	//auto limit_current(
 	//	std::integer_sequence<int, I0s...>,
-	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	std::tuple<Ts...> limits,
 	//	expr::series_limits<OpAdd<E0s...>, T2> const& limit,
 	//	iter_type(&offsets)[sizeof...(I0s)],
 	//	std::index_sequence<Ns...>)
@@ -2823,10 +2823,10 @@ namespace symphas::internal
 	//		+ ...) + offsets[N];
 	//}
 
-	//template<size_t N, int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2>
+	//template<size_t N, int... I0s, typename... Ts, typename... E0s, typename T2>
 	//auto limit_current(
 	//	std::integer_sequence<int, I0s...>,
-	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	std::tuple<Ts...> limits,
 	//	expr::series_limits<OpAdd<E0s...>, T2> const& limit,
 	//	iter_type(&offsets)[sizeof...(I0s)])
 	//{
@@ -2834,10 +2834,10 @@ namespace symphas::internal
 	//		limit, offsets, std::make_index_sequence<sizeof...(E0s)>{});
 	//}
 
-	//template<size_t N, int... I0s, typename... T1s, typename... T2s, typename T2, typename A, typename B>
+	//template<size_t N, int... I0s, typename... Ts, typename T2, typename A, typename B>
 	//auto limit_current(
 	//	std::integer_sequence<int, I0s...>,
-	//	std::tuple<expr::series_limits<T1s, T2s>...> limits,
+	//	std::tuple<Ts...> limits,
 	//	expr::series_limits<std::pair<A, B>, T2> const& limit,
 	//	iter_type(&offsets)[sizeof...(I0s)])
 	//{
@@ -2849,60 +2849,60 @@ namespace symphas::internal
 
 
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T2>
+	template<int... I0s, typename... Ts, typename T2>
 	auto compute_offset(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<int, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)])
 	{
 		return 0;
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, size_t N0, typename T2>
+	template<int... I0s, typename... Ts, size_t N0, typename T2>
 	auto compute_offset(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<expr::symbols::placeholder_N_<N0>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)])
 	{
 		return 0;
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename V, typename T2>
+	template<int... I0s, typename... Ts, typename V, typename T2>
 	auto compute_offset(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpBinaryMul<V, DynamicIndex>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)])
 	{
 		return expr::limit_0(limit);// limit._0.a.eval()* limit._0.b.index();
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T2>
+	template<int... I0s, typename... Ts, typename T2>
 	auto compute_offset(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<DynamicIndex, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)])
 	{
 		return expr::limit_0(limit);//limit._0.index();
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename G, typename T2>
+	template<int... I0s, typename... Ts, typename G, typename T2>
 	auto compute_offset(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpTerm<OpIdentity, G>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)])
 	{
 		return 0;
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, int I0, int P0, typename T2>
+	template<int... I0s, typename... Ts, int I0, int P0, typename T2>
 	auto compute_offset(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpTerm<OpIdentity, expr::symbols::i_<I0, P0>>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)])
 	{
@@ -2917,10 +2917,10 @@ namespace symphas::internal
 		}
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename... E0s, size_t... Ns, typename T2>
+	template<int... I0s, typename... Ts, typename... E0s, size_t... Ns, typename T2>
 	auto compute_offset(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpAdd<E0s...>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)],
 		std::index_sequence<Ns...>)
@@ -2931,10 +2931,10 @@ namespace symphas::internal
 			+ ...);
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename... E0s, typename T2>
+	template<int... I0s, typename... Ts, typename... E0s, typename T2>
 	auto compute_offset(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<OpAdd<E0s...>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)])
 	{
@@ -2943,10 +2943,10 @@ namespace symphas::internal
 			limit, offsets, std::make_index_sequence<sizeof...(E0s)>{});
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename A, typename B, typename T2>
+	template<int... I0s, typename... Ts, typename A, typename B, typename T2>
 	auto compute_offset(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<std::pair<A, B>, T2> const& limit,
 		iter_type(&offsets)[sizeof...(I0s)])
 	{
@@ -2960,10 +2960,10 @@ namespace symphas::internal
 		return limit_side<true>(expr::eval(offset0), expr::eval(offset1));
 	}
 
-	template<int... I0s, typename... T1s, typename... T2s, typename T1, typename T2>
+	template<int... I0s, typename... Ts, typename T1, typename T2>
 	auto compute_offset(
 		std::integer_sequence<int, I0s...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> limits,
+		std::tuple<Ts...> limits,
 		expr::series_limits<T1, T2> const& limit)
 	{
 		len_type offsets[sizeof...(I0s)]{};
@@ -3432,7 +3432,7 @@ public:
 			symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<I0, P0s>>...>, 
 			all_indices_of_id>
 			(e, index, expr::symbols::i_<I0, P0>{}, limit);
-		return (expr::template_of(expr::symbols::v_id_type<expr::symbols::i_<I0, P0s>>{}..., expr::symbols::i_<I0, 0>{}) = e0);
+		return (expr::template_of(expr::symbols::v_id_type<expr::symbols::i_<I0, P0s>>{}..., expr::symbols::i_<I0, 0>{}) = e);
 	}
 
 

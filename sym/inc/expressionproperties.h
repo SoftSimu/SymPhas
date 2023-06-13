@@ -379,7 +379,7 @@ namespace expr
 		template<typename... Ts>
 		std::pair<iter_type*, len_type> eval_iters_data(SymbolicTermArray<Ts...> const& data, std::index_sequence<>)
 		{
-			return nullptr;
+            return eval_iters_cast(0);
 		}
 
 		//! Specialization based on expr::eval_iters_data().

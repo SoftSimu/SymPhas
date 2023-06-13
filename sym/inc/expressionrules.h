@@ -1202,6 +1202,30 @@ inline auto operator/(expr::symbols::Symbol, OpVoid) = delete;
 
 
 
+template<typename E>
+auto operator+(E, expr::symbols::Symbol)
+{
+    return expr::symbols::Symbol{};
+}
+
+template<typename E>
+auto operator-(E, expr::symbols::Symbol)
+{
+    return expr::symbols::Symbol{};
+}
+
+template<typename E>
+auto operator*(E, expr::symbols::Symbol)
+{
+    return expr::symbols::Symbol{};
+}
+
+template<typename E>
+auto operator/(E, expr::symbols::Symbol)
+{
+    return expr::symbols::Symbol{};
+}
+
 
 
 //! Addition between a primitive value and the identity expression.

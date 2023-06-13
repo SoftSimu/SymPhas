@@ -107,6 +107,16 @@ SymbolicDerivative(DynamicVariable<G>) -> SymbolicDerivative<expr::variational_t
 template<typename V, typename E, typename G>
 using OpFunctionalDerivative = OpDerivative<std::index_sequence<1>, V, E, SymbolicFunctionalDerivative<G>>;
 
+namespace expr
+{
+    template<typename T>
+    constexpr bool is_functional_derivative = false;
+
+    template<typename G>
+    constexpr bool is_functional_derivative<
+        SymbolicFunctionalDerivative<G>> = true;
+}
+
 //! \cond
 //! The solver type used by the derivative expression.
 template<typename Sp>

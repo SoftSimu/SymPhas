@@ -869,10 +869,10 @@ public:
 		return parent_type::values[symphas::axis_to_index(ax)];
 	}
 
-	template<typename... Ts>
-	auto operator()(iter_type x, Ts&&... rest) const
+	template<typename... Ts, std::enable_if_t<(sizeof...(Ts) == D), int> = 0>
+	auto operator()(Ts&&... rest) const
 	{
-		return grid::select_grid_index(dims)(Block<T>::values, x, std::forward<Ts>(rest)...);
+		return grid::select_grid_index(dims)(Block<T>::values, std::forward<Ts>(rest)...);
 	}
 
 protected:
@@ -959,10 +959,10 @@ public:
 		return *this;
 	}
 
-	template<typename... Ts>
-	auto operator()(iter_type x, Ts&&... rest) const
+	template<typename... Ts, std::enable_if_t<(sizeof...(Ts) == D), int> = 0>
+	auto operator()(Ts&&... rest) const
 	{
-		return grid::select_grid_index(dims)(Block<T>::values, x + THICKNESS, (std::forward<Ts>(rest) + THICKNESS)...);
+		return grid::select_grid_index(dims)(Block<T>::values, (std::forward<Ts>(rest) + THICKNESS)...);
 	}
 
 protected:
@@ -1036,10 +1036,9 @@ public:
 	//void copy_ptr_front(T** into);
 	//void copy_ptr_back(T** into);
 
-	template<typename... Ts>
-	auto operator()(iter_type x, Ts&&... rest) const
+	auto operator()(iter_type x, iter_type y, iter_type z) const
 	{
-		return grid::select_grid_index(dims)(Block<T>::values, x + THICKNESS, (std::forward<Ts>(rest) + THICKNESS)...);
+		return grid::select_grid_index(dims)(Block<T>::values, x + THICKNESS, y + THICKNESS, z + THICKNESS);
 	}
 
 protected:
@@ -1107,10 +1106,9 @@ public:
 		return *this;
 	}
 
-	template<typename... Ts>
-	auto operator()(iter_type x, Ts&&... rest) const
+	auto operator()(iter_type x, iter_type y) const
 	{
-		return grid::select_grid_index(dims)(Block<T>::values, x + THICKNESS, (std::forward<Ts>(rest) + THICKNESS)...);
+		return grid::select_grid_index(dims)(Block<T>::values, x + THICKNESS, y + THICKNESS);
 	}
 
 protected:
@@ -1174,10 +1172,9 @@ public:
 	//void copy_ptr_right(T** into);
 
 
-	template<typename... Ts>
-	auto operator()(iter_type x, Ts&&... rest) const
+	auto operator()(iter_type x) const
 	{
-		return grid::select_grid_index(dims)(Block<T>::values, x + THICKNESS, (std::forward<Ts>(rest) + THICKNESS)...);
+		return grid::select_grid_index(dims)(Block<T>::values, x + THICKNESS);
 	}
 
 protected:

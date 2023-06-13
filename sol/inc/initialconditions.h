@@ -135,7 +135,6 @@
   */
 
 
-
 template<size_t D>
 struct InitialConditionsData
 {

@@ -41,12 +41,12 @@ struct SymbolicListIndex<E, void>
 
 	iter_type start() const
 	{
-		return expr::limit_dimension_start(std::integer_sequence<int>{}, std::make_tuple(), expr::series_limits(e, 0));
+		return symphas::internal::limit_dimension_start(std::integer_sequence<int>{}, std::make_tuple(), expr::series_limits(e, 0));
 	}
 
 	iter_type end() const
 	{
-		return expr::limit_dimension_end(std::integer_sequence<int>{}, std::make_tuple(), expr::series_limits(0, e));
+		return symphas::internal::limit_dimension_end(std::integer_sequence<int>{}, std::make_tuple(), expr::series_limits(0, e));
 	}
 
 	iter_type length() const
@@ -94,10 +94,11 @@ namespace symphas::internal
 }
 
 
-template<typename V, typename sub_t, typename E, size_t... Ns, typename... Ts>
-struct OpSymbolicEval<V, sub_t, SymbolicFunction<E, Variable<Ns, Ts>...>> :
-	OpExpression<OpSymbolicEval<V, sub_t, SymbolicFunction<E, Variable<Ns, Ts>...>>>
+template<typename V, typename... Ss, typename E, size_t... Ns, typename... Ts>
+struct OpSymbolicEval<V, SymbolicSeries<Ss...>, SymbolicFunction<E, Variable<Ns, Ts>...>> :
+	OpExpression<OpSymbolicEval<V, SymbolicSeries<Ss...>, SymbolicFunction<E, Variable<Ns, Ts>...>>>
 {
+    using sub_t = SymbolicSeries<Ss...>;
 	using eval_t = SymbolicFunction<E, Variable<Ns, Ts>...>;
 	using this_t = OpSymbolicEval<V, sub_t, SymbolicFunction<E, Variable<Ns, Ts>...>>;
 
@@ -236,7 +237,7 @@ struct OpSymbolicEval<V, SymbolicListIndex<E0, K>, SymbolicFunction<E, Variable<
 	}
 
 	OpSymbolicEval(V value, SymbolicListIndex<E0> const& data, eval_t const& f) :
-		OpSymbolicEval(v, sub_t(data.e), f) {}
+		OpSymbolicEval(value, sub_t(data.e), f) {}
 
 	OpSymbolicEval(OpSymbolicEval<V, sub_t, eval_t> const& other) :
 		OpSymbolicEval(other.value, other.data, other.f) {}
@@ -1678,10 +1679,10 @@ namespace symphas::internal
 	//	return value * (*static_cast<E const*>(&e));
 	//}
 
-	template<typename V, expr::NoiseType nt, typename T, size_t D, typename E, typename... Ts>
-	auto make_symbolic_eval_impl(V const& value, NoiseData<nt, T, D> const& noise, SymbolicFunction<E, Ts...> const& f)
+	template<typename V, expr::NoiseType nt, typename T, size_t D, typename E, size_t... Ns, typename... Ts>
+	auto make_symbolic_eval_impl(V const& value, NoiseData<nt, T, D> const& noise, SymbolicFunction<E, Variable<Ns, Ts>...> const& f)
 	{
-		return OpSymbolicEval<V, NoiseData<nt, T, D>, SymbolicFunction<E, Ts...>>(value, noise, f);
+		return OpSymbolicEval(value, noise, f);
 	}
 
 	template<typename V, expr::NoiseType nt, typename T, size_t D, typename E>
@@ -1690,10 +1691,10 @@ namespace symphas::internal
 		return make_symbolic_eval_impl(value, noise, expr::function_of() = *static_cast<E const*>(&e));
 	}
 
-	template<typename V, int N, int P, typename E, typename... Ts>
-	auto make_symbolic_eval_impl(V const& value, expr::symbols::i_<N, P>, SymbolicFunction<E, Ts...> const& f)
+	template<typename V, int N, int P, typename E, size_t... Ns, typename... Ts>
+	auto make_symbolic_eval_impl(V const& value, expr::symbols::i_<N, P>, SymbolicFunction<E, Variable<Ns, Ts>...> const& f)
 	{
-		return OpSymbolicEval<V, expr::symbols::i_<N, P>, SymbolicFunction<E, Ts...>>(value, expr::symbols::i_<N, P>{}, f);
+		return OpSymbolicEval<V, expr::symbols::i_<N, P>, SymbolicFunction<E, Variable<Ns, Ts>...>>(value, expr::symbols::i_<N, P>{}, f);
 	}
 
 	template<typename V, int N, int P, typename E>
@@ -1702,10 +1703,10 @@ namespace symphas::internal
 		return make_symbolic_eval_impl(value, expr::symbols::i_<N, P>{}, expr::function_of() = *static_cast<E const*>(&e));
 	}
 
-	template<typename V, typename E0, typename K, typename E, typename... Ts, std::enable_if_t<!std::is_same<K, void>::value, int> = 0>
-	auto make_symbolic_eval_impl(V const& value, SymbolicListIndex<E0, K> const& data, SymbolicFunction<E, Ts...> const& f)
+	template<typename V, typename E0, typename K, typename E, size_t... Ns, typename... Ts, std::enable_if_t<!std::is_same<K, void>::value, int> = 0>
+	auto make_symbolic_eval_impl(V const& value, SymbolicListIndex<E0, K> const& data, SymbolicFunction<E, Variable<Ns, Ts>...> const& f)
 	{
-		return OpSymbolicEval<V, SymbolicListIndex<E0, K>, SymbolicFunction<E, Ts...>>(value, data, f);
+		return OpSymbolicEval<V, SymbolicListIndex<E0, K>, SymbolicFunction<E, Variable<Ns, Ts>...>>(value, data, f);
 	}
 
 	template<typename V, typename E0, typename K, typename E, std::enable_if_t<!std::is_same<K, void>::value, int> = 0>
@@ -1714,8 +1715,8 @@ namespace symphas::internal
 		return make_symbolic_eval_impl(value, data, expr::function_of() = *static_cast<E const*>(&e));
 	}
 
-	template<typename V, int N, int P, typename E, typename... Ts>
-	auto make_symbolic_eval_impl(V const& value, SymbolicListIndex<expr::symbols::i_<N, P>> const& data, SymbolicFunction<E, Ts...> const& f)
+	template<typename V, int N, int P, typename E, size_t... Ns, typename... Ts>
+	auto make_symbolic_eval_impl(V const& value, SymbolicListIndex<expr::symbols::i_<N, P>> const& data, SymbolicFunction<E, Variable<Ns, Ts>...> const& f)
 	{
 		return make_symbolic_eval_impl(value, data.e, f);
 	}

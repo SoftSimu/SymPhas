@@ -1216,9 +1216,9 @@ namespace symphas::internal
 // free energy parameters
 
 
-#define LANDAU_FE(U, ...) landau_fe(U, solver, __VA_ARGS__)
-#define DOUBLE_WELL_FE(U, ...) doublewell_fe(U, solver, __VA_ARGS__)
-#define CELLULAR_FE(U, ...) cellular_fe(U, solver, __VA_ARGS__)
+#define LANDAU_FE(...) landau_fe(solver, __VA_ARGS__)
+#define DOUBLE_WELL_FE(...) doublewell_fe(solver, __VA_ARGS__)
+#define CELLULAR_FE(...) cellular_fe(solver, __VA_ARGS__)
 
 #define ii_(P) SUM_INDEX(0, P)
 #define ii ii_(0)
