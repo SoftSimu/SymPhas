@@ -91,11 +91,13 @@ struct SymbolicDerivative<expr::variational_t<DynamicVariable<G>>> : SymbolicDer
 template<typename G>
 struct SymbolicDerivative<expr::variational_t<DynamicVariable<NamedData<G>>>> : SymbolicDerivative<G>
 {
-	SymbolicDerivative() : index{} {}
+
+#ifdef PRINTABLE_EQUATIONS
+
+	SymbolicDerivative() : index{}, name{ 0, "" } {}
 	SymbolicDerivative(DynamicIndex const& index) : index{ index }, name{ 0, "" } {}
 	SymbolicDerivative(DynamicVariable<NamedData<G>> const& var) : index{ var }, name{ 0, var.data.name } {}
 
-#ifdef PRINTABLE_EQUATIONS
 	const char* get_name() const
 	{
 		return name.name;
@@ -105,19 +107,31 @@ struct SymbolicDerivative<expr::variational_t<DynamicVariable<NamedData<G>>>> : 
 	{
 		return name.name;
 	}
+	
+	NamedData<void*> name;
+
+#else
+
+	SymbolicDerivative() : index{} {}
+	SymbolicDerivative(DynamicIndex const& index) : index{ index } {}
+	SymbolicDerivative(DynamicVariable<NamedData<G>> const& var) : index{ var } {}
+
 #endif
 
 	DynamicIndex index;
-	NamedData<void*> name;
 };
 
 template<size_t Z, typename G>
 struct SymbolicDerivative<expr::variational_t<Variable<Z, NamedData<G>>>> : SymbolicDerivative<G>
 {
-	SymbolicDerivative() {}
-	SymbolicDerivative(Variable<Z, NamedData<G>> const& var) : name{ 0, var.data.name } {}
-
 #ifdef PRINTABLE_EQUATIONS
+
+	SymbolicDerivative() : index{}, name{ 0, "" } {}
+	SymbolicDerivative(DynamicIndex const& index) : index{ index }, name{ 0, "" } {}
+	SymbolicDerivative(Variable<Z, NamedData<G>> const& var) : index{ var }, name{ 0, var.data.name } {}
+
+	NamedData<void*> name;
+
 	const char* get_name() const
 	{
 		return name.name;
@@ -127,9 +141,15 @@ struct SymbolicDerivative<expr::variational_t<Variable<Z, NamedData<G>>>> : Symb
 	{
 		return name.name;
 	}
+
+#else
+
+	SymbolicDerivative() : index{} {}
+	SymbolicDerivative(DynamicIndex const& index) : index{ index } {}
+	SymbolicDerivative(Variable<Z, NamedData<G>> const& var) : index{ var } {}
+
 #endif
 
-	NamedData<void*> name;
 };
 
 template<size_t Z, typename G>

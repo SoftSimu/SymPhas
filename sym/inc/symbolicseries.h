@@ -4295,6 +4295,7 @@ protected:
 	}
 
 #ifdef PRINTABLE_EQUATIONS
+
 	template<size_t N, typename T>
 	auto update_name(T const& arg) const
 	{
@@ -4311,6 +4312,15 @@ protected:
 		NamedData arg0(T(arg), expr::get_op_name(v_named_t{}));
 		return arg0;
 	}
+
+#else
+
+	template<size_t N, typename T>
+	auto update_name(T const& arg) const
+	{
+		return arg;
+	}
+
 #endif
 
 	template<typename E0, typename... Ts>

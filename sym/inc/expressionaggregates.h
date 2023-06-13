@@ -274,8 +274,8 @@ struct NamedData<G*>
 
 	NamedData() : data{} {}
 
-	template<typename T>
-	NamedData(G* data, T&&) : data{ data } {}
+	template<typename T = char>
+	NamedData(G* data, T&& = '\0') : data{data} {}
 
 #endif
 

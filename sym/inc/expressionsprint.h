@@ -438,7 +438,6 @@ static constexpr size_t print_length(wrap_f<&symphas::math:: F <typename expr::e
 // ************************************************************************************
 namespace expr
 {
-#ifdef PRINTABLE_EQUATIONS
 
 	DLLEXPR extern int NAME_PTR_POS;					//!< Current position in selecting name for arbitrary data pointers.
 	DLLEXPR extern std::vector<const void*> NAME_PTRS;	//!< List of all data pointers with names associated with them.
@@ -590,46 +589,6 @@ namespace expr
 			}
 		}
 	}
-
-#else
-
-	//! Empty implementation for obtaining a variable's string represenation.
-	/*!
-	 * Empty implementation for the obtaining the name of a variable when #PRINTABLE_EQUATIONS is
-	 * not used. Therefore, this function can still be invoked but there is no effect.
-	 */
-	template<typename... T>
-	auto get_op_name(T&&...)
-	{
-		return "";
-	}
-
-	template<typename... T>
-	size_t print_with_coeff(T&&...)
-	{
-		return 0;
-	}
-
-	template<typename... T>
-	size_t coeff_print_length(T&&...)
-	{
-		return 0;
-	}
-
-	template<typename... T>
-	auto get_fourier_name(T&&...)
-	{
-		return "";
-    }
-    
-	template<typename E0, typename... Es>
-	auto print_list(E0&& e0, Es&&... es)
-	{
-		expr_name_arr list_str(0);
-		return list_str;
-	}
-
-#endif
 
 }
 
@@ -3005,6 +2964,43 @@ namespace expr
 	 */
 	template<typename... T>
 	auto printe(T&&...) {}
+
+
+	//! Empty implementation for obtaining a variable's string represenation.
+	/*!
+	 * Empty implementation for the obtaining the name of a variable when #PRINTABLE_EQUATIONS is
+	 * not used. Therefore, this function can still be invoked but there is no effect.
+	 */
+	template<typename... T>
+	auto get_op_name(T&&...)
+	{
+		return "";
+	}
+
+	template<typename... T>
+	size_t print_with_coeff(T&&...)
+	{
+		return 0;
+	}
+
+	template<typename... T>
+	size_t coeff_print_length(T&&...)
+	{
+		return 0;
+	}
+
+	template<typename... T>
+	auto get_fourier_name(T&&...)
+	{
+		return "";
+	}
+
+	template<typename E0, typename... Es>
+	auto print_list(E0&& e0, Es&&... es)
+	{
+		expr_name_arr list_str(0);
+		return list_str;
+	}
 
 }
 
