@@ -88,6 +88,60 @@ struct SymbolicDerivative<expr::variational_t<DynamicVariable<G>>> : SymbolicDer
 	DynamicIndex index;
 };
 
+template<typename G>
+struct SymbolicDerivative<expr::variational_t<DynamicVariable<NamedData<G>>>> : SymbolicDerivative<G>
+{
+	SymbolicDerivative() : index{} {}
+	SymbolicDerivative(DynamicIndex const& index) : index{ index }, name{ 0, "" } {}
+	SymbolicDerivative(DynamicVariable<NamedData<G>> const& var) : index{ var }, name{ 0, var.data.name } {}
+
+	const char* get_name() const
+	{
+		return name.name;
+	}
+
+	char* get_name()
+	{
+		return name.name;
+	}
+
+	DynamicIndex index;
+	NamedData<void*> name;
+};
+
+template<size_t Z, typename G>
+struct SymbolicDerivative<expr::variational_t<Variable<Z, NamedData<G>>>> : SymbolicDerivative<G>
+{
+	SymbolicDerivative() {}
+	SymbolicDerivative(Variable<Z, NamedData<G>> const& var) : name{ 0, var.data.name } {}
+
+	const char* get_name() const
+	{
+		return name.name;
+	}
+
+	char* get_name()
+	{
+		return name.name;
+	}
+
+	NamedData<void*> name;
+};
+
+template<size_t Z, typename G>
+struct SymbolicDerivative<expr::variational_t<Variable<Z, G>>> : SymbolicDerivative<G>
+{
+	SymbolicDerivative() {}
+	SymbolicDerivative(Variable<Z, G> const& var) {}
+};
+
+template<typename G>
+struct SymbolicDerivative<expr::variational_t<G>> : SymbolicDerivative<G>
+{
+	SymbolicDerivative() : index{} {}
+	SymbolicDerivative(G const& var) {}
+};
+
 template<typename G, size_t D>
 struct SymbolicDerivative<expr::variational_t<GridSymbol<G, D>>> : SymbolicDerivative<G>
 {
@@ -98,11 +152,9 @@ struct SymbolicDerivative<expr::variational_t<GridSymbol<G, D>>> : SymbolicDeriv
 };
 
 template<typename G>
-using SymbolicFunctionalDerivative = SymbolicDerivative<expr::variational_t<G>>;
-
-template<typename G>
 SymbolicDerivative(DynamicVariable<G>) -> SymbolicDerivative<expr::variational_t<DynamicVariable<G>>>;
-
+template<size_t Z, typename G>
+SymbolicDerivative(Variable<Z, G>) -> SymbolicDerivative<expr::variational_t<Variable<Z, G>>>;
 
 template<typename V, typename E, typename G>
 using OpFunctionalDerivative = OpDerivative<std::index_sequence<1>, V, E, SymbolicFunctionalDerivative<G>>;
@@ -642,7 +694,7 @@ namespace expr
 	template<typename V, typename E, size_t Z, typename G>
 	auto make_functional_derivative(V const& value, OpExpression<E> const& e, OpTerm<OpIdentity, Variable<Z, G>> const& symbol)
 	{
-		return OpFunctionalDerivative<V, E, Variable<Z, G>>(value, *static_cast<E const*>(&e));
+		return OpFunctionalDerivative<V, E, Variable<Z, G>>(value, *static_cast<E const*>(&e), SymbolicDerivative(expr::get<1>(symbol).data()));
 	}
 
 	template<typename E, size_t Z, typename G>
@@ -1377,13 +1429,14 @@ struct OpDerivative<std::index_sequence<1>, V, E, SymbolicFunctionalDerivative<G
 		return symphas::internal::make_derivative<std::index_sequence<1>>::get(-value, e, solver);
 	}
 
+	using print_type = decltype(symphas::internal::select_print_deriv(SymbolicFunctionalDerivative<G>{}));
+
 #ifdef PRINTABLE_EQUATIONS
-	using print_type = decltype(symphas::internal::select_print_deriv(expr::variational_t<G>{}));
 
 	size_t print(FILE* out) const
 	{
 		size_t n = expr::print_with_coeff(out, value);
-		n += print_type::print(out);
+		n += print_type::print(out, solver);
 		n += fprintf(out, SYEX_DERIV_APPLIED_EXPR_FMT_A);
 		n += e.print(out);
 		n += fprintf(out, SYEX_DERIV_APPLIED_EXPR_FMT_B);
@@ -1393,7 +1446,7 @@ struct OpDerivative<std::index_sequence<1>, V, E, SymbolicFunctionalDerivative<G
 	size_t print(char* out) const
 	{
 		size_t n = expr::print_with_coeff(out, value);
-		n += print_type::print(out + n);
+		n += print_type::.print(out + n, solver);
 		n += sprintf(out + n, SYEX_DERIV_APPLIED_EXPR_FMT_A);
 		n += e.print(out + n);
 		n += sprintf(out + n, SYEX_DERIV_APPLIED_EXPR_FMT_B);
@@ -1402,8 +1455,9 @@ struct OpDerivative<std::index_sequence<1>, V, E, SymbolicFunctionalDerivative<G
 
 	size_t print_length() const
 	{
+
 		return expr::coeff_print_length(value) + STR_ARR_LEN(SYEX_DERIV_APPLIED_EXPR_FMT_A SYEX_DERIV_APPLIED_EXPR_FMT_B) - 1
-			+ print_type::print_length() + e.print_length();
+			+ print_type::print_length(solver) + e.print_length();
 	}
 
 #endif

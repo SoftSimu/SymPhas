@@ -68,6 +68,15 @@ namespace expr
 		return make_poisson_event(NoiseData<expr::NoiseType::POISSON, scalar_t, D>(noise), f);
 	}
 
+	template<NoiseType nt, typename T, size_t D, typename E, typename... Ts>
+	auto make_noise(NoiseData<nt, T, D> const& noise, SymbolicFunction<E, Ts...> const& f);
+
+	template<NoiseType nt, typename T, size_t D, typename E>
+	auto make_noise(NoiseData<nt, T, D> const& noise, OpExpression<E> const& e);
+
+	template<NoiseType nt, typename T, size_t D>
+	auto make_noise(const len_type* dimensions, const double* h, const double* dt);
+
 }
 
 namespace symphas::internal
@@ -76,7 +85,7 @@ namespace symphas::internal
 	template<size_t I0, size_t... Is, typename E, typename T0, typename... Ts>
 	auto build_function_for_noise(std::index_sequence<I0, Is...>, OpExpression<E> const& e, T0 const& arg0, Ts const&... args)
 	{
-		auto f = expr::function_of(expr::symbols::arg_t<I0, T0>{}, expr::symbols::arg_t<Is, Ts>{}...) = *static_cast<E const*>(&e);
+		auto f = expr::function_of(Variable<I0, T0>{}, Variable<Is, Ts>{}...) = *static_cast<E const*>(&e);
 		f.set_data(arg0, args...);
 		return f;
 	}
@@ -135,11 +144,10 @@ namespace expr
 		using parent_type::len;
 		using parent_type::dims;
 
-		noise_data_with_function(F f, const len_type* dims, const double* h, double *dt, double intensity = 1.0)
-			: parent_type(dims), dt{ dt }, intensity{ intensity }, h{ 0 }, f{ f }
+		noise_data_with_function(F f, const len_type* dims, const double* h, const double *dt)
+			: parent_type(dims), dt{ dt }, h{ 0 }, f{ f }
 		{
 			std::copy(h, h + D, this->h);
-			update();
 		}
 
 		scalar_t operator[](iter_type n) const
@@ -150,7 +158,7 @@ namespace expr
 	protected:
 
 		template<NoiseType nt>
-		void update(random_seed<nt> const& seed, bool fourier_space = true)
+		void update(random_seed<nt> const& seed, double intensity, bool fourier_space = true)
 		{
 			using std::exp;
 			using std::sqrt;
@@ -186,8 +194,7 @@ namespace expr
 			}
 		}
 
-		double *dt;
-		double intensity;
+		const double *dt;
 		double h[D];
 		F f;
 	};
@@ -218,15 +225,15 @@ namespace expr
 		using parent_type::operator[];
 		using seed_type = random_seed<NoiseType::WHITE>;
 
-		noise_data(const len_type* dims, const double* h, double *dt, double intensity = 1.0) :
-			parent_type(dims), seed_type(), H{ 1 }, dt{ dt }, intensity{ intensity }
+		noise_data(const len_type* dims, const double* h, const double *dt) :
+			parent_type(dims), seed_type(), H{ 1 }, dt{ dt }
 		{
 			for (iter_type i = 0; i < D; ++i) H *= h[i];
 		}
 
-		noise_data() : parent_type(nullptr), seed_type(), H{ 1 }, dt{ nullptr }, intensity{ 1. } {}
+		noise_data() : parent_type(nullptr), seed_type(), H{ 1 }, dt{ nullptr } {}
 
-		void update(double mean = NOISE_MEAN, double std_dev = NOISE_STD)
+		void update(double intensity, double mean = NOISE_MEAN, double std_dev = NOISE_STD)
 		{
 			auto gen = get_seed();
 			std::normal_distribution<> dis(mean, std_dev);
@@ -238,27 +245,33 @@ namespace expr
 			}
 		}
 
-		template<typename E>
-		void update(SymbolicFunction<E> const& f)
+		template<typename R>
+		void update(OpExpression<R> const& intensity, std::tuple<> const& args)
 		{
-			update();
+			update(static_cast<R const*>(&intensity)->eval());
 		}
 
-		template<typename E, typename T0>
-		void update(SymbolicFunction<E, T0> const& f)
+		template<typename R, typename T0>
+		void update(OpExpression<R> const& intensity, std::tuple<T0> const& args)
 		{
-			update(std::get<0>(f.data));
+			update(static_cast<R const*>(&intensity)->eval(), std::get<0>(args));
 		}
 
-		template<typename E, typename T0, typename T1, typename... Ts>
-		void update(SymbolicFunction<E, T0, T1, Ts...> const& f)
+		template<typename R, typename E, typename T0, typename T1, typename... Ts>
+		void update(OpExpression<R> const& intensity, std::tuple<T0, T1, Ts...> const& args)
 		{
-			update(std::get<0>(f.data), std::get<1>(f.data));
+			update(static_cast<R const*>(&intensity)->eval(), std::get<0>(args), std::get<1>(args));
+		}
+
+		template<typename E, typename... Ts>
+		auto operator()(OpExpression<E> const& e, Ts&&... args) const
+		{
+			auto f = symphas::internal::build_function_for_noise(*static_cast<E const*>(&e), std::forward<Ts>(args)...);
+			return expr::make_noise(*this, f);
 		}
 
 		double H;
-		double *dt;
-		scalar_t intensity;
+		const double *dt;
 	};
 
 	template<size_t D>
@@ -268,20 +281,28 @@ namespace expr
 		using seed_type = random_seed<NoiseType::DECAY_EXP>;
 		using parent_type::operator[];
 
-		noise_data(const len_type* dims, const double* h, double *dt, double intensity = 1.0)
-			: parent_type(&eigen_exponential, dims, h, dt, intensity), seed_type() {}
+		noise_data(const len_type* dims, const double* h, const double *dt)
+			: parent_type(&eigen_exponential, dims, h, dt), seed_type() {}
 
-		noise_data() : parent_type(&eigen_exponential, nullptr, nullptr, nullptr, 1.0) {}
+		noise_data() : parent_type(&eigen_exponential, nullptr, nullptr, nullptr) {}
 
-		void update()
+		template<typename R>
+		void update(OpExpression<R> const& intensity)
 		{
-			parent_type::update(*this, false);
+			parent_type::update(*this, static_cast<R const*>(&intensity)->eval(), false);
+		}
+
+		template<typename R, typename... Ts>
+		void update(OpExpression<R> const& intensity, std::tuple<Ts...> const& args)
+		{
+			update(*static_cast<R const*>(&intensity));
 		}
 
 		template<typename E, typename... Ts>
-		void update(SymbolicFunction<E, Ts...> const& f)
+		auto operator()(OpExpression<E> const& e, Ts&&... args) const
 		{
-			update();
+			auto f = symphas::internal::build_function_for_noise(*static_cast<E const*>(&e), std::forward<Ts>(args)...);
+			return expr::make_noise(*this, f);
 		}
 	};
 
@@ -292,20 +313,28 @@ namespace expr
 		using seed_type = random_seed<NoiseType::DECAY_POLY>;
 		using parent_type::operator[];
 
-		noise_data(const len_type* dims, const double* h, double *dt, double intensity = 1.0)
-			: parent_type(&eigen_polynomial, dims, h, dt, intensity), seed_type() {}
+		noise_data(const len_type* dims, const double* h, const double *dt)
+			: parent_type(&eigen_polynomial, dims, h, dt), seed_type() {}
 
 		noise_data() : parent_type(&eigen_polynomial, nullptr, nullptr, nullptr, 1.0) {}
 
-		void update()
+		template<typename R>
+		void update(OpExpression<R> const& intensity)
 		{
-			parent_type::update(*this, false);
+			parent_type::update(*this, static_cast<R const*>(&intensity)->eval(), false);
+		}
+
+		template<typename R, typename... Ts>
+		void update(OpExpression<R> const& intensity, std::tuple<Ts...> const& args)
+		{
+			update(*static_cast<R const*>(&intensity));
 		}
 
 		template<typename E, typename... Ts>
-		void update(SymbolicFunction<E, Ts...> const& f)
+		auto operator()(OpExpression<E> const& e, Ts&&... args) const
 		{
-			update();
+			auto f = symphas::internal::build_function_for_noise(*static_cast<E const*>(&e), std::forward<Ts>(args)...);
+			return expr::make_noise(*this, f);
 		}
 	};
 
@@ -317,21 +346,30 @@ namespace expr
 		using seed_type = random_seed<NoiseType::NONE>;
 		using parent_type::operator[];
 
-		noise_data(const len_type* dims, const double* h, double* dt, double intensity = 1.0)
-			: parent_type(&eigen_one, dims, h, dt, intensity), seed_type() {}
+		noise_data(const len_type* dims, const double* h, const double* dt)
+			: parent_type(&eigen_one, dims, h, dt), seed_type() {}
 
 		noise_data() : parent_type(&eigen_one, nullptr, nullptr, nullptr, 1.0) {}
 
-		void update()
+		template<typename R>
+		void update(OpExpression<R> const& intensity)
 		{
-			parent_type::update(*this, true);
+			parent_type::update(*this, static_cast<R const*>(&intensity)->eval(), false);
+		}
+
+		template<typename R, typename... Ts>
+		void update(OpExpression<R> const& intensity, std::tuple<Ts...> const& args)
+		{
+			update(*static_cast<R const*>(&intensity));
 		}
 
 		template<typename E, typename... Ts>
-		void update(SymbolicFunction<E, Ts...> const& f)
+		auto operator()(OpExpression<E> const& e, Ts&&... args) const
 		{
-			update();
+			auto f = symphas::internal::build_function_for_noise(*static_cast<E const*>(&e), std::forward<Ts>(args)...);
+			return expr::make_noise(*this, f);
 		}
+
 	};
 
 	template<size_t D>
@@ -339,13 +377,13 @@ namespace expr
 	{
 		using seed_type = random_seed<NoiseType::POISSON>;
 
-		noise_data(const len_type* dims, const double* h, double* dt, double intensity = 1.0) :
-			seed_type(), intensity{ intensity }, next{ 0 }, value{ 0 } {}
+		noise_data(const len_type* dims, const double* h, const double* dt) :
+			seed_type(), next{ 0 }, value{ 0 } {}
 
-		noise_data(const len_type* dims, double intensity = 1.0) :
-			noise_data(dims, nullptr, nullptr, intensity) {}
+		noise_data(const len_type* dims) :
+			noise_data(dims, nullptr, nullptr) {}
 
-		noise_data() : seed_type(), intensity{ 1.0 }, next{ 0 }, value{ 0 } {}
+		noise_data() : seed_type(), next{ 0 }, value{ 0 } {}
 
 
 		auto get_index(expr::symbols::Symbol)
@@ -358,25 +396,16 @@ namespace expr
 			return index;
 		}
 
-		auto update(std::tuple<> const& args, std::index_sequence<>) {}
-
-		template<typename T0, typename... Ts, size_t... Is>
-		auto update(std::tuple<T0, Ts...> const& args, std::index_sequence<0, Is...>)
+		template<typename R, typename T0, typename T1, typename... Ts>
+		void update(OpExpression<R> const& intensity, std::tuple<T0, T1, Ts...> const& args)
 		{
-			auto arg = std::get<0>(args);
-			index = get_index(expr::eval(arg));
-		}
-
-		template<typename E, typename... Ts>
-		void update(SymbolicFunction<E, Ts...> const& f)
-		{
-			update(f.data, std::make_index_sequence<sizeof...(Ts)>{});
-
-			auto current = f();
+			auto current = expr::eval(std::get<0>(args));
 			if (current >= next)
 			{
+				index = get_index(expr::eval(std::get<1>(args)));
+
 				auto gen = get_seed();
-				std::exponential_distribution<> dis(intensity);
+				std::exponential_distribution<> dis(static_cast<R const*>(&intensity)->eval());
 				next += dis(gen);
 
 				std::uniform_real_distribution<> dis0(0.0, 1.0);
@@ -402,12 +431,8 @@ namespace expr
 			return value;
 		}
 
-
-
-
 	public:
 
-		scalar_t intensity;
 		double next;
 		double value;
 	};
@@ -421,8 +446,8 @@ namespace expr
 		using parent_type = noise_data_axis<2, nt, D>;
 		using parent_type::parent_type;
 
-		noise_data_axis(const len_type* dims, const double* h, double* dt, double intensity = 1.0)
-			: parent_type(dims, h, dt, intensity), data(dims, h, dt, intensity) {}
+		noise_data_axis(const len_type* dims, const double* h, const double* dt)
+			: parent_type(dims, h, dt), data(dims, h, dt) {}
 		noise_data_axis() : parent_type(), data() {}
 
 		vector_t<3> operator[](iter_type n) const
@@ -430,11 +455,11 @@ namespace expr
 			return { parent_type::operator[](n)[0], parent_type::operator[](n)[1], data[n]};
 		}
 
-		template<typename E, typename... Ts>
-		void update(SymbolicFunction<E, Ts...> const& f)
+		template<typename R, typename... Ts>
+		void update(OpExpression<R> const& intensity, std::tuple<Ts...> const& args)
 		{
-			data.update();
-			parent_type::update(f);
+			data.update(*static_cast<R const*>(&intensity), args);
+			parent_type::update(*static_cast<R const*>(&intensity), args);
 		}
 
 		noise_data<nt, D> data;
@@ -445,8 +470,8 @@ namespace expr
 	{
 		using parent_type = noise_data_axis<1, nt, D>;
 
-		noise_data_axis(const len_type* dims, const double* h, double* dt, double intensity = 1.0)
-			: parent_type(dims, h, dt, intensity), data(dims, h, dt, intensity) {}
+		noise_data_axis(const len_type* dims, const double* h, const double* dt)
+			: parent_type(dims, h, dt), data(dims, h, dt) {}
 		noise_data_axis() : parent_type(), data() {}
 
 		vector_t<2> operator[](iter_type n) const
@@ -454,11 +479,11 @@ namespace expr
 			return { parent_type::operator[](n)[0], data[n]};
 		}
 
-		template<typename E, typename... Ts>
-		void update(SymbolicFunction<E, Ts...> const& f)
+		template<typename R, typename... Ts>
+		void update(OpExpression<R> const& intensity, std::tuple<Ts...> const& args)
 		{
-			data.update();
-			parent_type::update(f);
+			data.update(*static_cast<R const*>(&intensity), args);
+			parent_type::update(*static_cast<R const*>(&intensity), args);
 		}
 
 		noise_data<nt, D> data;
@@ -469,8 +494,8 @@ namespace expr
 	{
 		using parent_type = noise_data<nt, D>;
 
-		noise_data_axis(const len_type* dims, const double* h, double* dt, double intensity = 1.0)
-			: parent_type(dims, h, dt, intensity) {}
+		noise_data_axis(const len_type* dims, const double* h, const double* dt)
+			: parent_type(dims, h, dt) {}
 		noise_data_axis() : parent_type() {}
 
 		vector_t<1> operator[](iter_type n) const
@@ -478,10 +503,10 @@ namespace expr
 			return { parent_type::operator[](n) };
 		}
 
-		template<typename E, typename... Ts>
-		void update(SymbolicFunction<E, Ts...> const& f)
+		template<typename R, typename... Ts>
+		void update(OpExpression<R> const& intensity, std::tuple<Ts...> const& args)
 		{
-			parent_type::update();
+			parent_type::update(*static_cast<R const*>(&intensity), args);
 		}
 
 	};
@@ -556,7 +581,7 @@ public:
 
 	void update()
 	{
-		data.update(f);
+		data.update(f.e, f.data);
 	}
 
 #ifdef PRINTABLE_EQUATIONS
@@ -579,7 +604,7 @@ public:
 
 	size_t print_length() const
 	{
-		return expr::symbolic_eval_print<sub_t>{}(data, value * (f.e));
+		return expr::coeff_print_length(value) + expr::symbolic_eval_print<sub_t>{}(data, (f.e));
 	}
 
 #endif
@@ -598,10 +623,10 @@ namespace expr
 		return symphas::internal::make_symbolic_eval(OpIdentity{}, noise, f);
 	}
 
-	template<typename T, size_t D, typename E>
-	auto make_poisson_event(NoiseData<expr::NoiseType::POISSON, T, D> const& noise, OpExpression<E> const& e)
+	template<typename T, size_t D, typename E, typename L>
+	auto make_poisson_event(NoiseData<expr::NoiseType::POISSON, T, D> const& noise, OpExpression<E> const& e, OpExpression<L> const& lambda)
 	{
-		return make_poisson_event(noise, function_of() = *static_cast<E const*>(&e));
+		return make_poisson_event(noise, function_of(*static_cast<L>(&lambda)) = *static_cast<E const*>(&e));
 	}
 
 	template<NoiseType nt, typename T, size_t D, typename E, typename... Ts>
@@ -618,9 +643,9 @@ namespace expr
 
 
 	template<NoiseType nt, typename T, size_t D>
-	auto make_noise(const len_type* dimensions, const double* h, const double* dt, double intensity = 1.0)
+	auto make_noise(const len_type* dimensions, const double* h, const double* dt)
 	{
-		return make_noise(NoiseData<nt, T, D>(dimensions, h, const_cast<double*>(dt), intensity), OpVoid{});
+		return make_noise(NoiseData<nt, T, D>(dimensions, h, const_cast<double*>(dt)), OpIdentity{});
 	}
 
 	template<typename T, size_t D>

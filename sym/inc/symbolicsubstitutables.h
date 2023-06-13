@@ -1032,7 +1032,7 @@ namespace expr
 		 * symbols defined in the function argument list will be substituted.
 		 */
 		template<size_t... Ns, typename... Gs, 
-            typename std::enable_if_t<(all_ne<Ns...> && !(is_symbol<Gs> || ...)), int> = 0>
+            typename std::enable_if_t<(all_ne<Ns...>/* && !(is_symbol<Gs> || ...)*/), int> = 0>
 		SymbolicFunctionDef<Variable<Ns, Gs>...> function_of_apply(Variable<Ns, Gs> const&... args) { return { args... }; }
 
 		template<size_t... Ns, typename... Gs, 
@@ -1054,8 +1054,6 @@ namespace expr
 		 */
 		template<typename... symbol_ts, typename std::enable_if_t<(all_different<symbol_ts...> && (is_symbol<symbol_ts> && ...)), int> = 0>
 		SymbolicFunctionDef<symbol_ts...> function_of_apply(OpTerms<OpIdentity, Term<symbol_ts, 1>> const&...) { return {}; }
-
-
 	}
 
 

@@ -738,12 +738,12 @@ struct OpLiteral : OpExpression<OpLiteral<T>>
 		return value;
 	}
 
-	explicit operator const T&() const
+	operator const T&() const
 	{
 		return value;
 	}
 
-	explicit operator T&()
+	operator T&()
 	{
 		return value;
 	}

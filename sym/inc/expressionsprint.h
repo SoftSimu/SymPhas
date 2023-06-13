@@ -431,35 +431,7 @@ static constexpr size_t print_length(wrap_f<&symphas::math:: F <typename expr::e
 // ************************************************************************************
 namespace expr
 {
-
-	//! Empty implementation for obtaining a variable's string represenation.
-	/*!
-	 * Empty implementation for the obtaining the name of a variable when #PRINTABLE_EQUATIONS is
-	 * not used. Therefore, this function can still be invoked but there is no effect.
-	 */
-	template<typename... T>
-	auto get_op_name(T&&...)
-	{
-		return "";
-	}
-
-	template<typename... T>
-	size_t print_with_coeff(T&&...)
-	{
-		return 0;
-	}
-
-	template<typename... T>
-	size_t coeff_print_length(T&&...)
-	{
-		return 0;
-	}
-
-	template<typename... T>
-	auto get_fourier_name(T&&...)
-	{
-		return "";
-	}
+#ifdef PRINTABLE_EQUATIONS
 
 	DLLEXPR extern int NAME_PTR_POS;					//!< Current position in selecting name for arbitrary data pointers.
 	DLLEXPR extern std::vector<const void*> NAME_PTRS;	//!< List of all data pointers with names associated with them.
@@ -611,7 +583,37 @@ namespace expr
 			}
 		}
 	}
+#else
 
+	//! Empty implementation for obtaining a variable's string represenation.
+	/*!
+	 * Empty implementation for the obtaining the name of a variable when #PRINTABLE_EQUATIONS is
+	 * not used. Therefore, this function can still be invoked but there is no effect.
+	 */
+	template<typename... T>
+	auto get_op_name(T&&...)
+	{
+		return "";
+	}
+
+	template<typename... T>
+	size_t print_with_coeff(T&&...)
+	{
+		return 0;
+	}
+
+	template<typename... T>
+	size_t coeff_print_length(T&&...)
+	{
+		return 0;
+	}
+
+	template<typename... T>
+	auto get_fourier_name(T&&...)
+	{
+		return "";
+}
+#endif
 
 }
 
@@ -1499,14 +1501,50 @@ namespace symphas::internal
 		}
 	};
 
+	template<typename G>
+	auto var_str(SymbolicFunctionalDerivative<G> const& solver)
+	{
+		return get_op_name(G{});
+	}
+
+	template<typename G>
+	auto var_str(SymbolicFunctionalDerivative<DynamicVariable<NamedData<G>>> const& solver)
+	{
+		return solver.get_name();
+	}
+
+	template<size_t Z, typename G>
+	auto var_str(SymbolicFunctionalDerivative<Variable<Z, NamedData<G>>> const& solver)
+	{
+		return solver.get_name();
+	}
+
 
 	template<typename G0>
 	struct print_functional_deriv
 	{
-		static const char* var_str()
+	/*	print_functional_deriv(const char* name) : var{ (std::strlen(name) > 0) ? new char[std::strlen(name) + 1] : nullptr } 
 		{
-			return expr::get_op_name(G0{});
+			std::strcpy(var, name);
 		}
+		print_functional_deriv() : print_functional_deriv(get_op_name(G0{})) {}
+
+		print_functional_deriv(print_functional_deriv<G0> const& other) : print_functional_deriv(other.var) {}
+		print_functional_deriv(print_functional_deriv<G0>&& other) : print_functional_deriv() 
+		{
+			swap(*this, other);
+		}
+		print_functional_deriv<G0>& operator=(print_functional_deriv<G0> other)
+		{
+			swap(*this, other);
+			return *this;
+		}
+
+		friend void swap(print_functional_deriv<G0>& first, print_functional_deriv<G0>& second)
+		{
+			using std::swap;
+			swap(first.var, second.var);
+		}*/
 
 		//! Print the derivative the given order to a file.
 		/*!
@@ -1514,9 +1552,10 @@ namespace symphas::internal
 		 *
 		 * \param out The file to which the derivative is printed.
 		 */
-		static size_t print(FILE* out)
+		template<typename G>
+		static size_t print(FILE* out, SymbolicFunctionalDerivative<G> const& solver)
 		{
-			return fprintf(out, SYEX_FUNCTIONAL_DERIV_FMT(var_str()));
+			return fprintf(out, SYEX_FUNCTIONAL_DERIV_FMT(var_str(solver)));
 		}
 
 		//! Print the derivative the given order to a file.
@@ -1528,9 +1567,10 @@ namespace symphas::internal
 		 * \param out The file to which the derivative is printed.
 		 * \param name A string that appears in the numerator after the partial symbol.
 		 */
-		static size_t print(FILE* out, const char* name)
+		template<typename G>
+		static size_t print(FILE* out, SymbolicFunctionalDerivative<G> const& solver, const char* name)
 		{
-			return fprintf(out, SYEX_FUNCTIONAL_DERIV_VAR_FMT(name, var_str()));
+			return fprintf(out, SYEX_FUNCTIONAL_DERIV_VAR_FMT(name, var_str(solver)));
 		}
 
 
@@ -1540,9 +1580,10 @@ namespace symphas::internal
 		 *
 		 * \param out The string to which the derivative is printed.
 		 */
-		static size_t print(char* out)
+		template<typename G>
+		static size_t print(char* out, SymbolicFunctionalDerivative<G> const& solver)
 		{
-			return sprintf(out, SYEX_FUNCTIONAL_DERIV_FMT(var_str()));
+			return sprintf(out, SYEX_FUNCTIONAL_DERIV_FMT(var_str(solver)));
 		}
 
 		//! Print the derivative the given order to a string.
@@ -1554,9 +1595,10 @@ namespace symphas::internal
 		 * \param out The string to which the derivative is printed.
 		 * \param name A string that appears in the numerator after the partial symbol.
 		 */
-		static size_t print(char* out, const char* name)
+		template<typename G>
+		static size_t print(char* out, SymbolicFunctionalDerivative<G> const& solver, const char* name)
 		{
-			return sprintf(out, SYEX_FUNCTIONAL_DERIV_VAR_FMT(name, var_str()));
+			return sprintf(out, SYEX_FUNCTIONAL_DERIV_VAR_FMT(name, var_str(solver)));
 		}
 
 		//! Get the print length of the derivative output string.
@@ -1566,9 +1608,10 @@ namespace symphas::internal
 		 * are printed as part of the format, and not substituted expression
 		 * strings.
 		 */
-		static size_t print_length()
+		template<typename G>
+		static size_t print_length(SymbolicFunctionalDerivative<G> const& solver)
 		{
-			return SYEX_FUNCTIONAL_DERIV_LEN(var_str());
+			return SYEX_FUNCTIONAL_DERIV_LEN(var_str(solver));
 		}
 
 		//! Get the print length of the derivative output string.
@@ -1578,11 +1621,11 @@ namespace symphas::internal
 		 * are printed as part of the format, and not substituted expression
 		 * strings.
 		 */
-		static size_t print_length(const char* name)
+		template<typename G>
+		static size_t print_length(SymbolicFunctionalDerivative<G> const& solver, const char* name)
 		{
-			return SYEX_FUNCTIONAL_DERIV_VAR_LEN(name, var_str());
+			return SYEX_FUNCTIONAL_DERIV_VAR_LEN(name, var_str(solver));
 		}
-
 	};
 
 	template<size_t O>
@@ -1617,12 +1660,11 @@ namespace symphas::internal
 	}
 
 	template<typename G>
-	auto select_print_deriv(expr::variational_t<G>)
+	auto select_print_deriv(SymbolicFunctionalDerivative<G> const& solver)
 	{
 		return print_functional_deriv<G>{};
 	}
-
-
+		
 }
 
 // ************************************************************************************

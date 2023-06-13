@@ -294,11 +294,13 @@ struct OpSymbolicEval<V, SymbolicListIndex<E0, K>, SymbolicFunction<E, Variable<
 
 	void update()
 	{
-		for (iter_type i = 0; i < data.length(); ++i)
-		{
-			index = i + data.start();
-			expr::prune::update(list[i]->e);
-		}
+		index = data.e.eval();
+		expr::prune::update(list[index.index() - data.start()]->e);
+		//for (iter_type i = 0; i < data.length(); ++i)
+		//{
+		//	index = i + data.start();
+		//	expr::prune::update(list[i]->e);
+		//}
 	}
 
 	//template<int N, int P>

@@ -1204,28 +1204,30 @@ struct OpOperatorChain : OpOperator<OpOperatorChain<A1, A2>>
 	size_t print(FILE* out) const
 	{
 		size_t n = 0;
-		n += fprintf(out, SYEX_CHAIN_FMT_A);
-		n += f.print(out);
-		n += fprintf(out, SYEX_CHAIN_FMT_SEP);
-		n += g.print(out);
-		n += fprintf(out, SYEX_CHAIN_FMT_B);
+		n += symphas::internal::mul_print(out, f, g);
+		//n += fprintf(out, SYEX_CHAIN_FMT_A);
+		//n += f.print(out);
+		//n += fprintf(out, SYEX_CHAIN_FMT_SEP);
+		//n += g.print(out);
+		//n += fprintf(out, SYEX_CHAIN_FMT_B);
 		return n;
 	}
 
 	size_t print(char* out) const
 	{
 		size_t n = 0;
-		n += sprintf(out + n, SYEX_CHAIN_FMT_A);
-		n += f.print(out + n);
-		n += sprintf(out + n, SYEX_CHAIN_FMT_SEP);
-		n += g.print(out + n);
-		n += sprintf(out + n, SYEX_CHAIN_FMT_B);
+		n += symphas::internal::mul_print(out, f, g);
+		//n += sprintf(out + n, SYEX_CHAIN_FMT_A);
+		//n += f.print(out + n);
+		//n += sprintf(out + n, SYEX_CHAIN_FMT_SEP);
+		//n += g.print(out + n);
+		//n += sprintf(out + n, SYEX_CHAIN_FMT_B);
 		return n;
 	}
 
 	size_t print_length() const
 	{
-		return f.print_length() + g.print_length() + SYEX_CHAIN_FMT_LEN;
+		return f.print_length() + g.print_length() + /*SYEX_CHAIN_FMT_LEN*/SYEX_MUL_FMT_LEN;
 	}
 
 #endif

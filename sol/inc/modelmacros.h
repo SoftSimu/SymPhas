@@ -1046,9 +1046,12 @@ namespace symphas::internal
 
 #define integral(E) expr::make_domain_integral(E, parent_type::template system<0>().get_info())
 
-#define _nW(TYPE, ...) parent_type::template make_noise<expr::NoiseType::WHITE, TYPE>(__VA_ARGS__)
-#define Poisson(INTENSITY) NoiseData<NoiseType::POISSON, scalar_t, Dm>(SYS_DIMS(0), INTENSITY)
+#define NOISE(VARIETY, TYPE, ...) parent_type::template make_noise<expr::NoiseType:: VARIETY, TYPE>(__VA_ARGS__)
+#define WHITE_NOISE(TYPE, ...) NOISE(WHITE, TYPE, __VA_ARGS__)
+#define POISSON_NOISE(INTENSITY, LAMBDA, ...) NOISE(POISSON, SCALAR, INTENSITY, LAMBDA, __VA_ARGS__)
 
+#define _wN(...) WHITE_NOISE(__VA_ARGS__)
+#define _pN(...) POISSON_NOISE(__VA_ARGS__)
 
 // **************************************************************************************
 
@@ -1062,11 +1065,12 @@ namespace symphas::internal
 //! Get the total number of fields of the model.
 #define NUM_FIELDS symphas::internal::num_fields_as_literal(*this)
 
+
 //! Get the dimensions of the system.
-#define SYS_DIMS(N) parent_type::template system<N>().dims
+#define DIMENSIONS_OF(N) parent_type::template system<N>().dims
 
 //! Get the intervals of the system.
-#define SYS_INTERVAL(N, AXIS) parent_type::template system<N>().get_info().intervals
+#define INTERVALS_OF(N, AXIS) parent_type::template system<N>().get_info().intervals
 
 
 // **************************************************************************************
@@ -1110,9 +1114,9 @@ namespace symphas::internal
 #define power(E, N) expr::pow<N>(E)
 
 
-#define x expr::make_var<Axis::X, D>(SYS_DIMS(0), SYS_INTERVAL(0, X))
-#define y expr::make_var<Axis::Y, D>(SYS_DIMS(0), SYS_INTERVAL(0, Y))
-#define z expr::make_var<Axis::Z, D>(SYS_DIMS(0), SYS_INTERVAL(0, Z))
+#define x expr::make_var<Axis::X, D>(DIMENSIONS_OF(0), INTERVALS_OF(0, X))
+#define y expr::make_var<Axis::Y, D>(DIMENSIONS_OF(0), INTERVALS_OF(0, Y))
+#define z expr::make_var<Axis::Z, D>(DIMENSIONS_OF(0), INTERVALS_OF(0, Z))
 #define t parent_type::get_time_var()
 
 

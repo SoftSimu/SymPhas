@@ -1424,6 +1424,13 @@ namespace symphas::lib
 		using type = std::integer_sequence<T, Is...>;
 	};
 
+	//! The index sequence result type of filtering multiple sequences.
+	template<typename T>
+	struct filter_seq_result<std::integer_sequence<T>, std::integer_sequence<T>>
+	{
+		using type = std::integer_sequence<T>;
+	};
+
 	template<typename T, T I0, T... Fs>
 	struct test_ne
 	{

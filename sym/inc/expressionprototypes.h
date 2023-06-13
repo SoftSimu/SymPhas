@@ -357,6 +357,9 @@ struct GridAxis;
 template<typename I>
 using OpCoeffSwap = OpCoeff<void, I>;
 
+template<typename G>
+using SymbolicFunctionalDerivative = SymbolicDerivative<expr::variational_t<G>>;
+
 
 //! @}
 

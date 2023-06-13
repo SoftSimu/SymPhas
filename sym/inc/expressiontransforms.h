@@ -187,8 +187,8 @@ namespace expr::prune
 		template<typename V, typename sub_t, typename eval_t>
 		void _update(OpSymbolicEval<V, sub_t, eval_t>& e)
 		{
-			e.update();
 			_update(e.f);
+			e.update();
 		}
 
 		template<typename E, typename... Ts>
@@ -4001,7 +4001,7 @@ namespace expr::transform
 		auto swap_grid_symbolic(SymbolicFunction<E, Variable<ArgNs, Ts>...> const& f, G_F&& g)
 		{
 			using var_g = decltype(expr::get_independent_variables(std::forward<G_F>(g)));
-			using seq_t = std::make_index_sequence<fixed_max<sizeof...(Ts), var_g::size()> + 1>;
+			using seq_t = std::make_index_sequence<sizeof...(Ts) + var_g::size()>;
 			using seq_filt_t = symphas::lib::filter_seq_t<seq_t, var_g>;
 			using seq_cut_t = symphas::lib::seq_lt_t<sizeof...(Ts), seq_filt_t>;
 			return swap_grid_symbolic<Sg>(

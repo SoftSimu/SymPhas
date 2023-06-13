@@ -579,12 +579,12 @@ struct OpFunctionApply : OpExpression<OpFunctionApply<f, V, E>>
 
 	size_t print(FILE* out) const
 	{
-		char* str = new char[e.print_length() + 1];
+		char* str = new char[e.print_length() + 1] {};
 		e.print(str);
-
+		
 		size_t n = expr::print_with_coeff(out, value);
 		n += symphas::internal::print_f_op<E>::template print<f>(out, str);
-
+		
 		delete[] str;
 		return n;
 	}

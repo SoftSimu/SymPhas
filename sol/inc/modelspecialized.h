@@ -1215,23 +1215,21 @@ struct TraitEquation : parent_trait
 		return coeff_matrix;
 	}
 
-    template<expr::NoiseType nt, typename T, typename... Ts>
-    auto make_noise(Ts&& ...args) const
+    template<expr::NoiseType nt, typename T, typename... T0s>
+    auto make_noise(T0s&& ...args) const
     {
-        return expr::make_noise<nt, T, Dm>(
-            parent_trait::template system<0>().dims,
-            parent_trait::template system<0>().get_info().get_widths(),
-            &solver.dt, std::forward<Ts>(args)...);
+        return symphas::internal::parameterized::NOISE<nt, T, Dm>(
+			parent_trait::template system<0>().info, &solver.dt)
+			(std::forward<T0s>(args)...);
     }
 
-    template<expr::NoiseType nt, size_t Z, typename G, typename... Ts>
-    auto make_noise(OpTerm<OpIdentity, Variable<Z, G>>, Ts&& ...args) const
+    template<expr::NoiseType nt, size_t Z, typename G, typename... T0s>
+    auto make_noise(OpTerm<OpIdentity, Variable<Z, G>>, T0s&& ...args) const
     {
         using T = model_field_t<parent_trait, Z>;
-        return expr::make_noise<nt, T, Dm>(
-            parent_trait::template system<0>().dims,
-            parent_trait::template system<0>().get_info().get_widths(),
-            &solver.dt, std::forward<Ts>(args)...);
+        return symphas::internal::parameterized::NOISE<nt, T, Dm>(
+            parent_trait::template system<Z>().info, &solver.dt)
+			(std::forward<T0s>(args)...);
     }
 
 
@@ -1368,21 +1366,20 @@ struct TraitEquation<enclosing_type, symphas::internal::MakeEquation<ArrayModel<
 	template<expr::NoiseType nt, typename T, typename... T0s>
 	auto make_noise(T0s&& ...args) const
 	{
-		return expr::make_noise<nt, T, D>(
-			parent_trait::template system<0>().dims,
-			parent_trait::template system<0>().get_info().get_widths(),
-			&solver.dt, std::forward<Ts>(args)...);
+		return symphas::internal::parameterized::NOISE<nt, T, D>(
+			parent_trait::template system<0>().info, &solver.dt)
+			(std::forward<T0s>(args)...);
 	}
 
-	template<expr::NoiseType nt, typename G, typename... T0s>
-	auto make_noise(OpTerm<OpIdentity, DynamicVariable<G>>, T0s&& ...args) const
+	template<expr::NoiseType nt, size_t Z, typename G, typename... T0s>
+	auto make_noise(OpTerm<OpIdentity, Variable<Z, G>>, T0s&& ...args) const
 	{
-		using T = model_field_t<parent_trait>;
-		return expr::make_noise<nt, T, D>(
-			parent_trait::template system<0>().dims,
-			parent_trait::template system<0>().get_info().get_widths(),
-			&solver.dt, std::forward<Ts>(args)...);
+		using T = model_field_t<parent_trait, Z>;
+		return symphas::internal::parameterized::NOISE<nt, T, D>(
+			parent_trait::template system<Z>().info, &solver.dt)
+			(std::forward<T0s>(args)...);
 	}
+
 
 	template<template<typename> typename other_enclosing_type, typename other_parent_trait>
 	explicit operator other_enclosing_type<other_parent_trait>()
