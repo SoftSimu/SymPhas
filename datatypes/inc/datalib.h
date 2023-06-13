@@ -2135,6 +2135,54 @@ namespace symphas::lib
 
 
 
+	inline grid::dim_list get_sorted_dimensions(const axis_3d_type* sorted_data, len_type len)
+	{
+		len_type L = 0, M = 0, N = 0;
+		double
+			z0 = (*sorted_data)[2],
+			y0 = (*sorted_data)[1];
+		for (auto* it = sorted_data + 1; it < sorted_data + len; ++it)
+		{
+			if (y0 != (*it)[1])
+			{
+				L = static_cast<iter_type>(it - sorted_data);
+				break;
+			}
+		}
+		for (auto* it = sorted_data + L; it < sorted_data + len; it += L)
+		{
+			if (z0 != (*it)[2])
+			{
+				M = static_cast<iter_type>(it - sorted_data) / L;
+				break;
+			}
+		}
+		N = len / (M * L);
+
+		return { L, M, N };
+
+	}
+
+	inline grid::dim_list get_sorted_dimensions(const axis_2d_type* sorted_data, len_type len)
+	{
+		len_type L = 0, M = 0;
+		double y0 = (*sorted_data)[1];
+		while (y0 == (*sorted_data++)[1])
+		{
+			++L;
+		}
+		M = len / L;
+
+		return { L, M };
+
+	}
+
+	inline len_type get_sorted_dimensions(const axis_1d_type*, len_type len)
+	{
+		return len;
+	}
+
+
 	// ****************************************************************************************
 
 
@@ -2222,7 +2270,7 @@ namespace symphas::lib
 	template<typename Y>
 	auto radial_avg(FieldAxis<2, Y> const& data)
 	{
-		auto [L, M] = symphas::lib::get_sorted_dimensions(data.x, data.length());
+		auto [L, M] = symphas::lib::get_sorted_dimensions(data.x, data.length())._2();
 
 		double const
 			dx = ((*(data.x + 1))[0] - (*data.x)[0]),
@@ -2243,7 +2291,7 @@ namespace symphas::lib
 	template<typename Y>
 	auto radial_avg(FieldAxis<3, Y> const& data)
 	{
-		auto [L, M, N] = symphas::lib::get_sorted_dimensions(data.x, data.length());
+		auto [L, M, N] = symphas::lib::get_sorted_dimensions(data.x, data.length())._3();
 
 		double const
 			dx = ((*(data.x + 1))[0] - (*data.x)[0]),
@@ -2281,54 +2329,6 @@ namespace symphas::lib
 
 		return { L, M, N };
 
-	}
-
-
-	inline grid::dim_list get_sorted_dimensions(const axis_3d_type* sorted_data, len_type len)
-	{
-		len_type L = 0, M = 0, N = 0;
-		double
-			z0 = (*sorted_data)[2],
-			y0 = (*sorted_data)[1];
-		for (auto* it = sorted_data + 1; it < sorted_data + len; ++it)
-		{
-			if (y0 != (*it)[1])
-			{
-				L = static_cast<iter_type>(it - sorted_data);
-				break;
-			}
-		}
-		for (auto* it = sorted_data + L; it < sorted_data + len; it += L)
-		{
-			if (z0 != (*it)[2])
-			{
-				M = static_cast<iter_type>(it - sorted_data) / L;
-				break;
-			}
-		}
-		N = len / (M * L);
-
-		return { L, M, N };
-
-	}
-
-	inline grid::dim_list get_sorted_dimensions(const axis_2d_type* sorted_data, len_type len)
-	{
-		len_type L = 0, M = 0;
-		double y0 = (*sorted_data)[1];
-		while (y0 == (*sorted_data++)[1])
-		{
-			++L;
-		}
-		M = len / L;
-
-		return { L, M };
-
-	}
-
-	inline len_type get_sorted_dimensions(const axis_1d_type*, len_type len)
-	{
-		return len;
 	}
 
 	//! Return the min, max and separation distance of the given axis.

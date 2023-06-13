@@ -133,21 +133,17 @@ struct model_select
 
 // order parameter names
 
-#undef op
-#undef dop
-#undef var
+//#undef op
+//#undef dop
+//#undef var
 
-#undef dx
-#undef lap
-#undef bilap
-#undef gradlap
-#undef grad
-#undef param
+//#undef lap
+//#undef bilap
+//#undef gradlap
+//#undef grad
+//#undef param
 
-#undef Ii
-#undef lit
 #undef integer
-#undef one
 
 
 #undef x
@@ -157,47 +153,35 @@ struct model_select
 
 // free energy parameters
 
-#undef SUM
-#undef SUM_INDEX
-
-#undef ii_
-#undef ii
-#undef jj_
-#undef jj
-#undef kk_
-#undef kk
-
-#undef op_ii_
-#undef op_ii
-#undef op_jj_
-#undef op_jj
+//#undef SUM
+//#undef SUM_INDEX
+//
+//#undef ii_
+//#undef ii
+//#undef jj_
+//#undef jj
+//#undef kk_
+//#undef kk
+//
+//#undef op_ii_
+//#undef op_ii
+//#undef op_jj_
+//#undef op_jj
 
 // functions
 
-#undef modulus
-#undef conj
-#undef Im
-#undef Re
 #undef Gaussian
 #undef smoothing
 #undef cross
 
 
-#undef VECTOR
-#undef SCALAR
-#undef COMPLEX
+//#undef VECTOR
+//#undef SCALAR
+//#undef COMPLEX
 
-#undef CONSERVED
-#undef NONCONSERVED
+//#undef CONSERVED
+//#undef NONCONSERVED
 
-#undef DYNAMIC
-#undef MODE
-
-
-#undef POW
-#undef LENGTH
-
-#undef STATS
 
 #endif
 

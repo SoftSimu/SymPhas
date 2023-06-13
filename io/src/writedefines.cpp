@@ -153,7 +153,15 @@ FILE* symphas::io::open_data_file(const char* dir, const char* data_name, int in
 	static std::vector<std::tuple<std::string, size_t, DataFileType>> idlist;
 	static std::mutex idlist_mtx;
 
-	bool first_open = (std::find(idlist.begin(), idlist.end(), std::make_tuple(dir, id, type)) == idlist.end());
+	bool first_open;
+	if (idlist.empty())
+	{
+		first_open = true;
+	}
+	else
+	{
+		first_open = (std::find(idlist.begin(), idlist.end(), std::make_tuple(dir, id, type)) == idlist.end());
+	}
 	const char* mode = (params::single_output_file) ? "a" : "w";
 
 	if (first_open)
@@ -342,7 +350,7 @@ void symphas::io::append_postproc_plot_file(
 	symphas::lib::to_file_name(params::title, title_name);
 
 	sprintf(latex_name, OUTPUT_LATEX_FILE_FMT, title_name, name, id, index);
-	fprintf(plot, set, params::title, latex_name, data_loc, entry_index);
+	fprintf(plot, set, title_name, index, latex_name, data_loc, entry_index);
 #else
 
 	fprintf(plot, set, data_loc, entry_index);

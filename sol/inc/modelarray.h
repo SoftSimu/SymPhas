@@ -33,11 +33,307 @@
 
 
 
-
 namespace symphas::internal
 {
 
-	namespace parameterized {}
+	namespace parameterized
+	{
+
+		struct ExpressionStats
+		{
+		protected:
+
+			template<typename T, size_t D>
+			static auto max(any_vector_t<T, D> const& v1, any_vector_t<T, D> const& v2)
+			{
+				using std::max;
+				any_vector_t<T, D> vm;
+				for (iter_type i = 0; i < D; ++i)
+				{
+					vm[i] = max(v1[i], v2[i]);
+				}
+				return vm;
+			}
+
+			template<typename T, size_t D>
+			static auto min(any_vector_t<T, D> const& v1, any_vector_t<T, D> const& v2)
+			{
+				using std::min;
+				any_vector_t<T, D> vm;
+				for (iter_type i = 0; i < D; ++i)
+				{
+					vm[i] = min(v1[i], v2[i]);
+				}
+				return vm;
+			}
+
+		public:
+
+			template<typename E>
+			auto sum(OpExpression<E> const& e) const
+			{
+				expr::eval_type_t<E> sum;
+				expr::result(OpVoid{}, sum);
+
+				auto sumop = expr::make_term(sum);
+
+				len_type len = expr::data_length(*static_cast<E const*>(&e));
+				for (iter_type i = 0; i < len; ++i)
+				{
+					sum += (*static_cast<E const*>(&e)).eval(i);
+				}
+
+				return expr::make_literal(sum);
+			}
+
+			template<typename E>
+			auto mean(OpExpression<E> const& e) const
+			{
+				len_type len = expr::data_length(*static_cast<E const*>(&e));
+				return sum(*static_cast<E const*>(&e)) * (1. / len);
+			}
+
+			template<typename E>
+			auto max(OpExpression<E> const& e) const
+			{
+				using std::max;
+
+				expr::eval_type_t<E> result;
+				expr::result((*static_cast<E const*>(&e)).eval(0), result);
+
+				len_type len = expr::data_length(*static_cast<E const*>(&e));
+				for (iter_type i = 1; i < len; ++i)
+				{
+					result = max((*static_cast<E const*>(&e)).eval(i), result);
+				}
+
+				return expr::make_literal(result);
+			}
+
+			template<typename E>
+			auto min(OpExpression<E> const& e) const
+			{
+				using std::max;
+
+				expr::eval_type_t<E> result;
+				expr::result((*static_cast<E const*>(&e)).eval(0), result);
+
+				len_type len = expr::data_length(*static_cast<E const*>(&e));
+				for (iter_type i = 1; i < len; ++i)
+				{
+					result = min((*static_cast<E const*>(&e)).eval(i), result);
+				}
+
+				return expr::make_literal(result);
+			}
+		};
+
+
+		//! Real valued order parameter.
+		/*!
+		 * The order parameter will be of type ::scalar_t.
+		 */
+		using SCALAR = scalar_t;
+
+		//! Complex value order parameter.
+		/*!
+		* The order parameter will be of type ::complex_t.
+		*/
+		using COMPLEX = complex_t;
+
+		//! Vector valued order parameter of real elements.
+		/*!
+		* The order parameter will a vector type, specified by ::vector_t.
+		*/
+		template<size_t Dm>
+		using VECTOR_D = vector_t<Dm>;
+
+		//! Indicates that the field number is selected from configuration.
+		/*!
+		 * The number of fields of the type this option is passed to is selected using
+		 * the configuration. The configuration will select the total number of fields.
+		 * Only a single field can have this option applied.
+		 */
+		constexpr int CONFIGURATION = -1;
+
+		//! The imaginary number for an expression.
+		/*!
+		 * An imaginary number literal that can be used in an expression.
+		 */
+		inline OpLiteral<complex_t> Ii = expr::make_literal(complex_t(0, 1));
+
+		//! Access statistics about the system, such as the mean.
+		/*!
+		 * Included statistics are: mean, max, min and sum.
+		 */
+		inline ExpressionStats STATS;
+
+		constexpr expr::symbols::i_<0, 0> ii;
+		constexpr expr::symbols::i_<1, 0> jj;
+		constexpr expr::symbols::i_<2, 0> kk;
+
+
+		constexpr auto n1 = val<1>;
+		constexpr auto n2 = val<2>;
+		constexpr auto n3 = val<3>;
+		constexpr auto n4 = val<4>;
+		constexpr auto n5 = val<5>;
+		constexpr auto n6 = val<6>;
+		constexpr auto n7 = val<7>;
+		constexpr auto n8 = val<8>;
+		constexpr auto n9 = val<9>;
+		constexpr auto n10 = val<10>;
+		constexpr auto n11 = val<11>;
+		constexpr auto n12 = val<12>;
+		constexpr auto n13 = val<13>;
+		constexpr auto n14 = val<14>;
+		constexpr auto n15 = val<15>;
+		constexpr auto n16 = val<16>;
+		constexpr auto n17 = val<17>;
+		constexpr auto n18 = val<18>;
+		constexpr auto n19 = val<19>;
+		constexpr auto n20 = val<20>;
+		constexpr auto n21 = val<21>;
+		constexpr auto n22 = val<22>;
+		constexpr auto n23 = val<23>;
+		constexpr auto n24 = val<24>;
+		constexpr auto n25 = val<25>;
+		constexpr auto n26 = val<26>;
+		constexpr auto n27 = val<27>;
+		constexpr auto n28 = val<28>;
+		constexpr auto n29 = val<29>;
+		constexpr auto n30 = val<30>;
+		constexpr auto n31 = val<31>;
+		constexpr auto n32 = val<32>;
+		constexpr auto n33 = val<33>;
+		constexpr auto n34 = val<34>;
+		constexpr auto n35 = val<35>;
+		constexpr auto n36 = val<36>;
+		constexpr auto n37 = val<37>;
+		constexpr auto n38 = val<38>;
+		constexpr auto n39 = val<39>;
+		constexpr auto n40 = val<40>;
+		constexpr auto n41 = val<41>;
+		constexpr auto n42 = val<42>;
+		constexpr auto n43 = val<43>;
+		constexpr auto n44 = val<44>;
+		constexpr auto n45 = val<45>;
+		constexpr auto n46 = val<46>;
+		constexpr auto n47 = val<47>;
+		constexpr auto n48 = val<48>;
+		constexpr auto n49 = val<49>;
+		constexpr auto n50 = val<50>;
+		constexpr auto n51 = val<51>;
+		constexpr auto n52 = val<52>;
+		constexpr auto n53 = val<53>;
+		constexpr auto n54 = val<54>;
+		constexpr auto n55 = val<55>;
+		constexpr auto n56 = val<56>;
+		constexpr auto n57 = val<57>;
+		constexpr auto n58 = val<58>;
+		constexpr auto n59 = val<59>;
+		constexpr auto n60 = val<60>;
+		constexpr auto n61 = val<61>;
+		constexpr auto n62 = val<62>;
+		constexpr auto n63 = val<63>;
+		constexpr auto n64 = val<64>;
+		constexpr auto n65 = val<65>;
+		constexpr auto n66 = val<66>;
+		constexpr auto n67 = val<67>;
+		constexpr auto n68 = val<68>;
+		constexpr auto n69 = val<69>;
+		constexpr auto n70 = val<70>;
+		constexpr auto n71 = val<71>;
+		constexpr auto n72 = val<72>;
+		constexpr auto n73 = val<73>;
+		constexpr auto n74 = val<74>;
+		constexpr auto n75 = val<75>;
+		constexpr auto n76 = val<76>;
+		constexpr auto n77 = val<77>;
+		constexpr auto n78 = val<78>;
+		constexpr auto n79 = val<79>;
+		constexpr auto n80 = val<80>;
+		constexpr auto n81 = val<81>;
+		constexpr auto n82 = val<82>;
+		constexpr auto n83 = val<83>;
+		constexpr auto n84 = val<84>;
+		constexpr auto n85 = val<85>;
+		constexpr auto n86 = val<86>;
+		constexpr auto n87 = val<87>;
+		constexpr auto n88 = val<88>;
+		constexpr auto n89 = val<89>;
+		constexpr auto n90 = val<90>;
+		constexpr auto n91 = val<91>;
+		constexpr auto n92 = val<92>;
+		constexpr auto n93 = val<93>;
+		constexpr auto n94 = val<94>;
+		constexpr auto n95 = val<95>;
+		constexpr auto n96 = val<96>;
+		constexpr auto n97 = val<97>;
+		constexpr auto n98 = val<98>;
+		constexpr auto n99 = val<99>;
+
+
+		//! Take the imaginary part of a complex number resulting from an expression.
+		/*!
+		 * Take the imaginary part of the complex number that is computed by
+		 * evaluating the given expression.
+		 *
+		 * \param EXPR The expression which is differentiated.
+		 */
+		template<typename E>
+		decltype(auto) Im(E&& e)
+		{
+			return expr::imag(std::forward<E>(e));
+		}
+
+		//! Take the imaginary part of a complex number resulting from an expression.
+		/*!
+		 * Take the real part of the complex number that is computed by
+		 * evaluating the given expression.
+		 *
+		 * \param EXPR The expression which is differentiated.
+		 */
+		template<typename E>
+		decltype(auto) Re(E&& e)
+		{
+			return expr::real(std::forward<E>(e));
+		}
+
+		//! Use a number in an expression.
+		/*!
+		 * Create a number with the given value to use in an expression.
+		 * This is a constant.
+		 *
+		 * \param V The value of the number.
+		 */
+		template<typename E>
+		decltype(auto) lit(E&& e)
+		{
+			return expr::make_literal(std::forward<E>(e));
+		}
+
+		//! Define an array that will be iterated using the given index.
+		/*!
+		 * This object is only applicable in the context of a index-defined EOM or
+		 * free energy. The array is defined using an expression which can use the same index, 
+		 * in which case the index of the array will take over. The array is generally used when
+		 * multiple distinct instances have to be generated for each field, such as a noise term.
+		 * 
+		 * \param V The value of the number.
+		 */
+		template<int N, int P>
+		decltype(auto) ARRAY(expr::symbols::i_<N, P>)
+		{
+			return symphas::internal::indexed_array(expr::symbols::i_<N, P>{});
+		}
+
+		template<typename E>
+		decltype(auto) T(E&& e)
+		{
+			return expr::transpose(std::forward<E>(e));
+		}
+	}
 
 	template<typename T, typename S = void>
 	struct parameterized_type;
@@ -58,11 +354,11 @@ namespace symphas::internal
 		}
 
 		template<typename M, typename T>
-		parameterized_type(model_field_parameters<M, T>&& other) : 
+		parameterized_type(model_field_parameters<M, T>&& other) :
 			parameterized_type(static_cast<parameterized_type<void, void>&&>(other)) {}
 
 		template<typename M, typename T>
-		parameterized_type(model_field_parameters<M, T> const& other) : 
+		parameterized_type(model_field_parameters<M, T> const& other) :
 			parameterized_type(static_cast<parameterized_type<void, void> const&>(other)) {}
 
 		parameterized_type(parameterized_type<void, void> const& other) :
@@ -173,7 +469,7 @@ namespace symphas::internal
 	};
 
 	template<typename M>
-	struct model_field_parameters<M, void> 
+	struct model_field_parameters<M, void>
 	{
 		model_field_parameters(M const& m) : model{ &m } {}
 
@@ -237,15 +533,15 @@ namespace symphas::internal
 
 }
 
- //! Used to obtain names of phase fields for a given model.
- /*!
-  * Used for getting the name of the phase field at the given index, typically
-  * for printing to output or for using the name in expressions.
-  *
-  * Specialization of this class by model type is used to associate different
-  * phase field names than the default ones. All models use default phase field
-  * names unless specialized.
-  */
+//! Used to obtain names of phase fields for a given model.
+/*!
+ * Used for getting the name of the phase field at the given index, typically
+ * for printing to output or for using the name in expressions.
+ *
+ * Specialization of this class by model type is used to associate different
+ * phase field names than the default ones. All models use default phase field
+ * names unless specialized.
+ */
 template<template<typename> typename M>
 struct model_field_name
 {
@@ -307,20 +603,21 @@ namespace symphas::internal
 {
 	template<typename T>
 	struct field_array_t;
-	
+
 	template<typename S>
-	constexpr bool not_model_array_type = true;
+	constexpr bool is_field_array_type = false;
 	template<typename S>
-	constexpr bool not_model_array_type<field_array_t<S>> = false;
+	constexpr bool is_field_array_type<field_array_t<S>> = true;
 	template<typename T, typename S>
-	constexpr bool not_model_array_type<parameterized_type<T, S>> = not_model_array_type<S>;
-	
+	constexpr bool is_field_array_type<parameterized_type<T, S>> = is_field_array_type<S>;
+
 	template<ModelModifiers modifier = ModelModifiers::PLOT_DEFAULT>
 	struct modifier_save
 	{
 		template<typename S>
 		void operator()(S* _s, len_type len, iter_type index, const char* dir) const
 		{
+			S& output = get_output(_s);
 			if (dir)
 			{
 				for (iter_type i = 0; i < len; ++i)
@@ -331,9 +628,10 @@ namespace symphas::internal
 		}
 
 		template<typename S>
-		auto& get_output(S* _s) const
+		S& get_output(S* _s) const
 		{
-			return _s[0];
+			static S ss(_s[0]);
+			return ss;
 		}
 	};
 
@@ -365,7 +663,7 @@ namespace symphas::internal
 		}
 
 		template<typename S>
-		auto& get_output(S* _s) const
+		S& get_output(S* _s = nullptr) const
 		{
 			static S ss(_s[0]);
 			return ss;
@@ -408,12 +706,12 @@ namespace symphas
 //! A representation of the phase field crystal model.
 /*!
  * A representation of the phase field crystal model. Implements the phase
- * field crystal model equation, and allows 
- * 
+ * field crystal model equation, and allows
+ *
  * \tparam PFC The phase field crystal parameters specialized object.
  * \tparam D The dimension of the phase field crystal problem.
  * \tparam Sp The solver type for numerically solving the phase field crystal
- * problem. 
+ * problem.
  * \tparam S... The types of the order parameters.
  */
 template<size_t D, typename Sp, typename S, typename... Ts>
@@ -428,19 +726,33 @@ struct Model<D, Sp, symphas::internal::field_array_t<S>, Ts...>
 	 * \tparam N The phase field index to get the type.
 	 */
 	template<size_t N = 0>
-	using type_of_S = symphas::internal::non_parameterized_type<S>;
+	using type_of_S = symphas::lib::type_at_index<N,
+		symphas::internal::non_parameterized_type<S>,
+		symphas::internal::non_parameterized_type<Ts>...>;
 
+	using all_field_types = symphas::lib::types_list<
+		symphas::internal::non_parameterized_type<S>,
+		symphas::internal::non_parameterized_type<Ts>...>;
+
+	template<typename Type>
+	static constexpr bool model_has_type = symphas::lib::index_of_type<Type, symphas::lib::expand_types_list<all_field_types>> >= 0;
+
+	template<typename Type, size_t I = 0>
+	static constexpr int index_of_type = symphas::lib::nth_index_of_type<Type, I, symphas::lib::expand_types_list<all_field_types>>;
+
+	static constexpr size_t num_array_types = (
+		size_t(symphas::internal::is_field_array_type<symphas::internal::field_array_t<S>>)
+		+ ... + size_t(symphas::internal::is_field_array_type<Ts>));
 
 	//! The type of the system storing the phase fields, used by the solver.
 	using SolverSystemApplied = typename symphas::solver_system_type<Sp>::template type<type_of_S<>, D>;
-
 
 
 protected:
 
 	Model()
 		: len{ 0 }, _s{ construct_systems({}, {}, {}, 0, 0) }, solver{ Sp::make_solver() }, coeff{ nullptr }, num_coeff{ 0 },
-		index{ params::start_index }, time{ 0 }, plot_type{ symphas::ModelModifiers::PLOT_DEFAULT }
+		index{ params::start_index }, time{ 0 }, lens_{}, plot_type{ symphas::ModelModifiers::PLOT_DEFAULT }
 #ifdef VTK_ON
 		, viz_update{ nullptr }
 #endif 
@@ -463,7 +775,7 @@ public:
 		len{ static_cast<len_type>(parameters.length()) },
 		_s{ construct_systems(parameters.get_initial_data(), parameters.get_interval_data(), parameters.get_boundary_data(), parameters.length(), parameters.length()) },
 		solver{ Sp::make_solver(get_updated_parameters(parameters)) }, coeff{ (num_coeff > 0) ? new double[num_coeff] : nullptr },
-		num_coeff{ num_coeff }, index{ parameters.index }, time{ parameters.time }, plot_type{ parameters.get_modifier() }
+		num_coeff{ num_coeff }, index{ parameters.index }, time{ parameters.time }, lens_{}, plot_type{ parameters.get_modifier() }
 #ifdef VTK_ON
 		, viz_update{ nullptr }
 #endif
@@ -484,14 +796,15 @@ public:
 
 	Model(ArrayModel<D, Sp, S, Ts...> const& other) :
 		len{ other.len },
-		_s{ construct_systems(other._s, other.len) }, solver{other.solver}, coeff{(other.num_coeff > 0) ? new double[other.num_coeff] : nullptr},
-		num_coeff{ other.num_coeff }, index{ other.index }, time{ other.time }, plot_type{ other.plot_type }
+		_s{ construct_systems(other._s, other.len) }, solver{ other.solver }, coeff{ (other.num_coeff > 0) ? new double[other.num_coeff] : nullptr },
+		num_coeff{ other.num_coeff }, index{ other.index }, time{ other.time }, lens_{}, plot_type{ other.plot_type }
 #ifdef VTK_ON
 		, viz_update{ nullptr }
 #endif
 	{
 		std::copy(other._s, other._s + other.len, _s);
 		std::copy(other.coeff, other.coeff + other.num_coeff, coeff);
+		std::copy(other.lens_, other.lens_ + num_array_types, lens_);
 		visualize();
 	}
 
@@ -531,6 +844,7 @@ public:
 		swap(first.num_coeff, second.num_coeff);
 		swap(first.index, second.index);
 		swap(first.time, second.time);
+		swap(first.lens_, second.lens_);
 		swap(first.plot_type, second.timeplot_type);
 
 #ifdef VTK_ON
@@ -550,6 +864,7 @@ public:
 		swap(first.num_coeff, second.num_coeff);
 		swap(first.index, second.index);
 		swap(first.time, second.time);
+		swap(first.lens_, second.lens_);
 		swap(first.plot_type, second.timeplot_type);
 
 #ifdef VTK_ON
@@ -628,14 +943,7 @@ public:
 	template<typename S0>
 	size_t num_fields() const
 	{
-		if constexpr (std::is_same<S0, type_of_S<>>::value)
-		{
-			return len;
-		}
-		else
-		{
-			return 0;
-		}
+		return num_fields<S0>(std::make_index_sequence<sizeof...(Ts) + 1>{});
 	}
 
 	//! Get the number of fields of the given types.
@@ -663,22 +971,23 @@ public:
 	 * \tparam Type The type to find in the list and return its position index.
 	 * \tparam I Chose the `I`-th appearance of the chosen type.
 	 */
-	//template<typename Type, size_t I = 0>
-	//int index_of_type = (std::is_same<Type, S>::value) ? I : -1;
+	 //template<typename Type, size_t I = 0>
+	 //int index_of_type = (std::is_same<Type, S>::value) ? I : -1;
 
-	//! Execute a function for all fields of the given type.
-	/*!
-	 * Execute a function for all fields of the given type.
-	 * The function expects as parameters the axes values, the data values and
-	 * the index of the corresponding field, followed by desired arguments.
-	 *
-	 * \param f The function to execute on the field of the given type.
-	 * \param args The arguments to pass to the function.
-	 *
-	 * \tparam Type The field type that is selected to be passed to the
-	 * function.
-	 */
-	template<typename Type, typename F, typename... Args, typename std::enable_if<std::is_same<Type, type_of_S<>>::value, int>::type = 0>
+	 //! Execute a function for all fields of the given type.
+	 /*!
+	  * Execute a function for all fields of the given type.
+	  * The function expects as parameters the axes values, the data values and
+	  * the index of the corresponding field, followed by desired arguments.
+	  *
+	  * \param f The function to execute on the field of the given type.
+	  * \param args The arguments to pass to the function.
+	  *
+	  * \tparam Type The field type that is selected to be passed to the
+	  * function.
+	  */
+	template<typename Type, typename F, typename... Args, 
+		typename std::enable_if_t<model_has_type<Type>, int> = 0>
 	void do_for_field_type(F f, Args&& ...args) const
 	{
 		do_for_field_type<Type, 0>(f, std::forward<Args>(args)...);
@@ -698,8 +1007,12 @@ public:
 	template<size_t N, typename F, typename... Args>
 	void do_for_field(F f, Args&& ... args) const
 	{
-		auto&& data = _s[N].get_snapshot();
-		f(data.values, data.len, std::forward<Args>(args)...);
+		iter_type i0 = num_field_offset<N>();
+		for (iter_type i = 0; i < num_field<N>(); ++i)
+		{
+			auto data = _s[i + i0].get_snapshot();
+			f(data.values, data.len, std::forward<Args>(args)...);
+		}
 	}
 
 	//! Copy the values of the `N`-th field into the given array. 
@@ -1058,7 +1371,10 @@ protected:
 	//! The current simulation time.
 	double time;
 
+	len_type lens_[num_array_types];				//!< Number of fields of each array type.
+
 	symphas::ModelModifiers plot_type;
+
 
 #ifdef VTK_ON
 
@@ -1070,7 +1386,7 @@ protected:
 	{
 		if constexpr (std::is_same<type_of_S<>, scalar_t>::value)
 		{
-			S* ss;
+			SolverSystemApplied* ss;
 			if (plot_type == symphas::ModelModifiers::PLOT_MAX)
 			{
 				ss = &symphas::internal::modifier_save<symphas::ModelModifiers::PLOT_MAX>{}.get_output(_s);
@@ -1086,7 +1402,7 @@ protected:
 					{
 						ColourPlot2d viz{};
 						viz.init(viz_grid->values, viz_grid->dims, *index, *viz_update);
-					}, &(ss->as_grid()), & index, & viz_update);
+					}, &(ss->as_grid()), &index, &viz_update);
 			}
 		}
 	}
@@ -1191,7 +1507,7 @@ protected:
 	{
 		void* systems = operator new[](len * sizeof(SolverSystemApplied));
 		SolverSystemApplied* ptr = static_cast<SolverSystemApplied*>(systems);
-		
+
 		for (iter_type i = 0; i < std::min(data_len, len); ++i)
 		{
 			new(&ptr[i]) SolverSystemApplied(tdata[i], vdata[i], bdata[i], i);
@@ -1256,16 +1572,42 @@ protected:
 	 * the given function
 	 */
 
-	template<typename Type, size_t I, typename F, typename... Args, typename std::enable_if_t<(I > 0), int> = 0>
-	void do_for_field_type(F&& f, Args&& ... args) const
+	template<size_t N>
+	size_t num_field() const
 	{
-		do_for_field_type<Type, I - 1, Args...>(f, std::forward<Args>(args)...);
+		using type_n = symphas::lib::type_at_index<N, symphas::internal::field_array_t<S>, Ts...>;
+		if constexpr (symphas::internal::is_field_array_type<type_n>)
+		{
+			return len - sizeof...(Ts);
+		}
+		else
+		{
+			return 1;
+		}
 	}
 
-	template<typename Type, size_t I, typename F, typename... Args, typename std::enable_if_t<(I == 0), int> = 0>
-	void do_for_field_type(F&& f, Args&& ... args) const
+	template<size_t... Is>
+	size_t num_field_offset(std::index_sequence<Is...>) const
 	{
-		do_for_field<I>(f, std::forward<Args>(args)...);
+		return (num_field<Is>() + ... + 0);
+	}
+
+	template<size_t N>
+	size_t num_field_offset() const
+	{
+		return num_field_offset(std::make_index_sequence<N>{});
+	}
+
+	template<typename S0, size_t... Is>
+	size_t num_fields(std::index_sequence<Is...>) const
+	{
+		return (((std::is_same<S0, type_of_S<Is>>::value) ? num_field<Is>() : 0) + ...);
+	}
+
+	template<typename Type, size_t... Is, typename F, typename... Args>
+	void do_for_field_type(std::index_sequence<Is...>, F&& f, Args&& ... args) const
+	{
+		(do_for_field<index_of_type<Type, Is>>(f, std::forward<Args>(args)...), ...);
 	}
 
 	void print_all_dimensions(FILE* out) const

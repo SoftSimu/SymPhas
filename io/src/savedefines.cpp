@@ -43,7 +43,7 @@ unset key
 
 #ifdef LATEX_PLOT 
 R"~(
-set title "%s Average Field Values at $t = %.2lf$"
+set title "%s Average Field Values at index $%.2lf$"
 set output %s"
 plot "%s" index %d u 1:2 w lines
 unset output
@@ -82,7 +82,7 @@ unset key
 
 #ifdef LATEX_PLOT 
 R"~(
-set title "%s Data Field Values at $t = %.2lf$"
+set title "%s Data Field Values at index $%.2lf$"
 set output %s"
 plot "%s" index %d matrix nonuniform w image
 unset output
@@ -95,4 +95,105 @@ plot "%s" index %d matrix nonuniform w image
 #endif
 };
 
+DLLIO const char* symphas::io::defset2d[] = { R"~(
+set xtics border autofreq
+set ytics border autofreq)~"
+
+#ifdef LATEX_PLOT 
+R"~(
+set term epslatex color size )~" PLOT_DISPLAY_SIZE_LATEX
+#else
+R"~(
+set terminal )~" STR(GNU_PLOTTER) R"~( 1 size )~" PLOT_DISPLAY_SIZE_WIN
+#endif
+
+R"~(
+set ylabel "Y"
+set xlabel "X"
+unset key
+
+)~",
+
+#ifdef LATEX_PLOT 
+R"~(
+set title "%s Tracked Points at index $%.2lf$"
+set output %s"
+plot "%s" index %d u 1:2 w points pt 7 ps .25
+unset output
+)~"
+#else
+R"~(
+set title "Tracked Points"
+plot "%s" index %d u 2:3 w points pt 7 ps .25
+)~"
+#endif
+};
+
+DLLIO const char* symphas::io::defset3d[] = { R"~(
+set xtics border autofreq
+set ytics border autofreq)~"
+
+#ifdef LATEX_PLOT 
+R"~(
+set term epslatex color size )~" PLOT_DISPLAY_SIZE_LATEX
+#else
+R"~(
+set terminal )~" STR(GNU_PLOTTER) R"~( 1 size )~" PLOT_DISPLAY_SIZE_WIN
+#endif
+
+R"~(
+set ylabel "Y"
+set xlabel "X"
+unset key
+
+)~",
+
+#ifdef LATEX_PLOT 
+R"~(
+set title "%s Tracked Points at index $%.2lf$"
+set output %s"
+plot "%s" index %d u 1:2 w points pt 7 ps .25
+unset output
+)~"
+#else
+R"~(
+set title "Tracked Points"
+plot "%s" index %d u 2:3 w points pt 7 ps .25
+)~"
+#endif
+};
+
+DLLIO const char* symphas::io::defsettup[] = { R"~(
+set xtics border autofreq
+set ytics border autofreq)~"
+
+#ifdef LATEX_PLOT 
+R"~(
+set term epslatex color size )~" PLOT_DISPLAY_SIZE_LATEX
+#else
+R"~(
+set terminal )~" STR(GNU_PLOTTER) R"~( 1 size )~" PLOT_DISPLAY_SIZE_WIN
+#endif
+
+R"~(
+set ylabel "Y"
+set xlabel "X"
+unset key
+
+)~",
+
+#ifdef LATEX_PLOT 
+R"~(
+set title "%s Tracked Values at index $%.2lf$"
+set output %s"
+plot "%s" index %d u 1:2 w points pt 7 ps .25
+unset output
+)~"
+#else
+R"~(
+set title "Tracked Points"
+plot "%s" index %d u 2:3 w points pt 7 ps .25
+)~"
+#endif
+};
 

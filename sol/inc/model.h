@@ -58,7 +58,7 @@ template<size_t D, typename Sp, typename... S>
 struct Model
 {
 
-	static_assert((symphas::internal::not_model_array_type<S> && ...));
+	static_assert((!symphas::internal::is_field_array_type<S> && ...));
 
 	//! The type of the system storing the phase fields, used by the solver.
 	template<typename Ty>
@@ -324,10 +324,10 @@ public:
 	 * \tparam Type The field type that is selected to be passed to the
 	 * function.
 	 */
-	template<typename Type, typename F, typename... Args, typename std::enable_if<(num_fields<Type>() > 0), int>::type = 0>
+	template<typename Type, typename F, typename... Args, typename std::enable_if_t<(num_fields<Type>() > 0), int> = 0>
 	void do_for_field_type(F f, Args&& ...args) const
 	{
-		do_for_field_type<Type, num_fields<Type>() - 1>(f, std::forward<Args>(args)...);
+		do_for_field_type<Type>(std::make_index_sequence<num_fields<Type>()>{}, f, std::forward<Args>(args)...);
 	}
 
 	//! Execute a function for the `N`-th field.
@@ -344,7 +344,7 @@ public:
 	template<size_t N, typename F, typename... Args, typename std::enable_if<(N <= sizeof...(S)), int>::type = 0>
 	void do_for_field(F f, Args&& ... args) const
 	{
-		auto&& data = std::get<N>(_s).get_snapshot();
+		auto data = std::get<N>(_s).get_snapshot();
 		f(data.values, data.len, std::forward<Args>(args)...);
 	}
 
@@ -836,16 +836,10 @@ protected:
 	 * the given function
 	 */
 
-	template<typename Type, size_t I, typename F, typename... Args, typename std::enable_if_t<(I > 0), int> = 0>
-	void do_for_field_type(F &&f, Args&& ... args) const
+	template<typename Type, size_t... Is, typename F, typename... Args>
+	void do_for_field_type(std::index_sequence<Is...>, F &&f, Args&& ... args) const
 	{
-		do_for_field_type<Type, I - 1, Args...>(f, std::forward<Args>(args)...);
-	}
-
-	template<typename Type, size_t I, typename F, typename... Args, typename std::enable_if_t<(I == 0), int> = 0>
-	void do_for_field_type(F &&f, Args&& ... args) const
-	{
-		do_for_field<index_of_type<Type, I>>(f, std::forward<Args>(args)...);
+		(do_for_field<index_of_type<Type, Is>>(f, std::forward<Args>(args)...), ...);
 	}
 
 	template<size_t I>
@@ -954,23 +948,23 @@ protected:
 	};
 
 	template<size_t D, typename Sp, typename... S>
-	static constexpr auto _pack_count(Model<D, Sp, S...>*)
+	static constexpr auto _pack_count(Model<D, Sp, S...>)
 	{
 		return count_wrap<sizeof...(S)>{};
 	}
 
 	template<size_t D, typename Sp, typename S, typename... Ts>
-	static constexpr auto _pack_count(ArrayModel<D, Sp, S, Ts...>*)
+	static constexpr auto _pack_count(ArrayModel<D, Sp, S, Ts...>)
 	{
 		return count_wrap<0>{};
 	}
 
-	static constexpr auto pack_count(M* m)
+	static constexpr auto pack_count(M m)
 	{
 		return _pack_count(m);
 	}
 
-	using T = typename std::invoke_result_t<decltype(&model_num_parameters<M>::pack_count), M*>;
+	using T = typename std::invoke_result_t<decltype(&model_num_parameters<M>::pack_count), M>;
 
 public:
 
@@ -1092,6 +1086,38 @@ public:
 template<typename M>
 using model_types_t = typename model_types<M>::type;
 
+
+template<typename M>
+struct is_model_array_type_impl
+{
+protected:
+
+	template<size_t D, typename Sp, typename... S>
+	static constexpr auto _check(Model<D, Sp, S...>)
+	{
+		return std::bool_constant<false>{};
+	}
+
+	template<size_t D, typename Sp, typename S, typename... Ts>
+	static constexpr auto _check(ArrayModel<D, Sp, S, Ts...>)
+	{
+		return std::bool_constant<true>{};
+	}
+
+	static constexpr auto check(M m)
+	{
+		return _check(m);
+	}
+
+	using T = typename std::invoke_result_t<decltype(&is_model_array_type_impl<M>::check), M>;
+
+public:
+
+	static const size_t value = T::value;
+};
+
+template<typename M>
+constexpr bool is_model_array_type = is_model_array_type_impl<M>::value;
 
 #undef SN
 

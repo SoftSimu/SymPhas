@@ -78,34 +78,6 @@ if(USE_CONF)
 endif()
 
 
-foreach(GROUP_NAME ${GROUP_NAMES_0})
-	
-	if(${GROUP_NAME} STREQUAL "proc")
-		if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${GROUP_NAME})
-			
-			add_subdirectory(${GROUP_NAME})
-			list(APPEND GROUP_NAMES ${GROUP_NAME})
-
-			if(TARGET symphas_proc_o)
-				set(PROC_ENABLED ON)
-			else()
-				set(PROC_ENABLED OFF)
-			endif()
-		endif()
-	else()
-		add_subdirectory(${GROUP_NAME})
-		list(APPEND GROUP_NAMES ${GROUP_NAME})
-	endif()
-
-	if(TARGET symphas_${GROUP_NAME})
-		list(APPEND SYMPHAS_DEP_LIBS symphas_${GROUP_NAME})
-		list(APPEND SYMPHAS_OBJ_LIBS symphas_${GROUP_NAME}_o)
-		list(APPEND SYMPHAS_OBJ_SRCS $<TARGET_OBJECTS:symphas_${GROUP_NAME}_o>)
-	endif()
-
-endforeach()
-
-
 set(MODULES_SOURCE "prereq.cpp")
 if(USE_IO)
 	list(APPEND MODULES_SOURCE "modules-io.cpp")
@@ -122,9 +94,6 @@ target_compile_features(${PROJECT_NAME}
 		cxx_attributes 
 		cxx_inheriting_constructors)
 
-target_link_libraries(${PROJECT_NAME} PUBLIC ${SYMPHAS_DEP_LIBS})
-set_target_properties(${SYMPHAS_DEP_LIBS} ${PROJECT_NAME} PROPERTIES CXX_STANDARD 17)
-target_compile_options(${PROJECT_NAME} PUBLIC ${ADDITIONAL_COMPILE_OPTIONS})
 
 if(ENABLE_TIMINGS)
 	list(APPEND ADD_DEFINITIONS PRINT_TIMINGS)
@@ -182,9 +151,9 @@ if(SOLVER_INCLUDE_HEADER_NAME)
 
 else()
 	set(SOLVER_INCLUDE_HEADER_DIR ${CMAKE_SOURCE_DIR})
-
 endif()
 
+get_target_property(EXTRA_INCLUDE_DIRECTORIES ${PROJECT_NAME} INCLUDE_DIRECTORIES)
 
 if(${CMAKE_BUILD_TYPE} MATCHES "Debug")
 	list(APPEND ADD_DEFINITIONS DEBUG)
@@ -202,6 +171,43 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 	$<INSTALL_INTERFACE:include>)
 	
+
+	
+foreach(GROUP_NAME ${GROUP_NAMES_0})
+
+	if(${GROUP_NAME} STREQUAL "proc")
+		if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${GROUP_NAME})
+			
+			add_subdirectory(${GROUP_NAME})
+			#message(STATUS ${EXTRA_INCLUDE_DIRECTORIES})
+			#target_compile_definitions(symphas_${GROUP_NAME} PRIVATE ${ADD_DEFINITIONS})
+			#target_include_directories(symphas_${GROUP_NAME} PRIVATE ${MODEL_INCLUDE_HEADER_DIR})
+			list(APPEND GROUP_NAMES ${GROUP_NAME})
+
+			if(TARGET symphas_proc_o)
+				set(PROC_ENABLED ON)
+			else()
+				set(PROC_ENABLED OFF)
+			endif()
+		endif()
+	else()
+		add_subdirectory(${GROUP_NAME})
+		list(APPEND GROUP_NAMES ${GROUP_NAME})
+	endif()
+
+	if(TARGET symphas_${GROUP_NAME})
+		list(APPEND SYMPHAS_DEP_LIBS symphas_${GROUP_NAME})
+		list(APPEND SYMPHAS_OBJ_LIBS symphas_${GROUP_NAME}_o)
+		list(APPEND SYMPHAS_OBJ_SRCS $<TARGET_OBJECTS:symphas_${GROUP_NAME}_o>)
+	endif()
+
+endforeach()
+
+target_link_libraries(${PROJECT_NAME} PUBLIC ${SYMPHAS_DEP_LIBS})
+set_target_properties(${SYMPHAS_DEP_LIBS} ${PROJECT_NAME} PROPERTIES CXX_STANDARD 17)
+target_compile_options(${PROJECT_NAME} PUBLIC ${ADDITIONAL_COMPILE_OPTIONS})
+
+
 # installation of symphas
 # install libraries and install header files into the include directory
 

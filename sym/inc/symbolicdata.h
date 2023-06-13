@@ -66,7 +66,7 @@ namespace expr
 		template<int N, int P>
 		struct i_ : Symbol
 		{
-			explicit constexpr operator int() 
+			explicit constexpr operator int() const
 			{
 				return 0;
 			}
@@ -459,6 +459,101 @@ auto operator/(OpVoid, expr::symbols::i_<N, P>)
 }
 
 
+template<int N, int P>
+auto operator+(expr::symbols::i_<N, P>, OpIdentity)
+{
+	return expr::symbols::i_op_type<N, P + 1>{};
+}
+
+template<int N, int P>
+auto operator+(expr::symbols::i_<N, P>, OpNegIdentity)
+{
+	return expr::symbols::i_op_type<N, P - 1>{};
+}
+
+template<int N, int P, size_t N0>
+auto operator+(expr::symbols::i_<N, P>, OpFractionLiteral<N0, 1>)
+{
+	return expr::symbols::i_op_type<N, P + N0>{};
+}
+
+template<int N, int P, size_t N0>
+auto operator+(expr::symbols::i_<N, P>, OpNegFractionLiteral<N0, 1>)
+{
+	return expr::symbols::i_op_type<N, P - N0>{};
+}
+
+template<int N, int P>
+auto operator-(expr::symbols::i_<N, P>, OpIdentity)
+{
+	return expr::symbols::i_op_type<N, P>{} + OpNegIdentity{};
+}
+
+template<int N, int P>
+auto operator-(expr::symbols::i_<N, P>, OpNegIdentity)
+{
+	return expr::symbols::i_op_type<N, P>{} + OpIdentity{};
+}
+
+template<int N, int P, size_t N0>
+auto operator-(expr::symbols::i_<N, P>, OpFractionLiteral<N0, 1>)
+{
+	return expr::symbols::i_op_type<N, P>{} + OpNegFractionLiteral<N0, 1>{};
+}
+
+template<int N, int P, size_t N0>
+auto operator-(expr::symbols::i_<N, P>, OpNegFractionLiteral<N0, 1>)
+{
+	return expr::symbols::i_op_type<N, P>{} + OpFractionLiteral<N0, 1>{};
+}
+
+template<int N, int P>
+auto operator+(OpIdentity, expr::symbols::i_<N, P>)
+{
+	return expr::symbols::i_op_type<N, P + 1>{};
+}
+
+template<int N, int P>
+auto operator+(OpNegIdentity, expr::symbols::i_<N, P>)
+{
+	return expr::symbols::i_op_type<N, P - 1>{};
+}
+
+template<int N, int P, size_t N0>
+auto operator+(OpFractionLiteral<N0, 1>, expr::symbols::i_<N, P>)
+{
+	return expr::symbols::i_op_type<N, P + N0>{};
+}
+
+template<int N, int P, size_t N0>
+auto operator+(OpNegFractionLiteral<N0, 1>, expr::symbols::i_<N, P>)
+{
+	return expr::symbols::i_op_type<N, P - N0>{};
+}
+
+template<int N, int P>
+auto operator-(OpIdentity, expr::symbols::i_<N, P>)
+{
+	return expr::symbols::i_op_type<N, -P + 1>{};
+}
+
+template<int N, int P>
+auto operator-(OpNegIdentity, expr::symbols::i_<N, P>)
+{
+	return expr::symbols::i_op_type<N, -P - 1>{};
+}
+
+template<int N, int P, size_t N0>
+auto operator-(OpFractionLiteral<N0, 1>, expr::symbols::i_<N, P>)
+{
+	return expr::symbols::i_op_type<N, -P + N0>{};
+}
+
+template<int N, int P, size_t N0>
+auto operator-(OpNegFractionLiteral<N0, 1>, expr::symbols::i_<N, P>)
+{
+	return expr::symbols::i_op_type<N, -P - N0>{};
+}
 
 
 template<typename E0, typename... T0s>

@@ -1,4 +1,4 @@
-
+	
 /* ***************************************************************************
  * This file is part of the SymPhas library, a framework for implementing
  * solvers for phase-field problems with compile-time symbolic algebra.
@@ -422,13 +422,13 @@ template<typename M> struct symphas::internal::model_field_parameters<M, PARAMET
 #define PARAMETERIZED_TYPE(NAME, TYPE, PARAMETERS) \
 namespace symphas::internal::parameterized { struct type_ ## NAME ## _t; } \
 PARAMETERS_FROM_MODEL(symphas::internal::parameterized::type_ ## NAME ## _t, (SINGLE_ARG PARAMETERS)) \
-template<> struct symphas::internal::parameterized_type<symphas::internal::parameterized::type_ ## NAME ## _t, TYPE> : \
+template<> struct symphas::internal::parameterized_type<symphas::internal::parameterized::type_ ## NAME ## _t, symphas::internal::parameterized::TYPE> : \
 	symphas::internal::parameterized_type<void, void> { \
 	parameterized_type() : parameterized_type<void, void>() {} \
 	template<typename M> parameterized_type(M const& model) : \
 		parameterized_type<void, void>{ model_field_parameters<M, parameterized::type_ ## NAME ## _t>(model) } {} \
 }; \
-namespace symphas::internal { namespace parameterized { using NAME = symphas::internal::parameterized_type<type_ ## NAME ## _t, TYPE>; } } 
+namespace symphas::internal { namespace parameterized { using NAME = symphas::internal::parameterized_type<type_ ## NAME ## _t, symphas::internal::parameterized::TYPE>; } } 
 
 
 
@@ -749,6 +749,7 @@ MODEL_WRAPPER_FUNC(NAME, GIVEN_NAME, model_ ## NAME::SpecializedModel, AppliedSo
  */
 #define PFC_TYPE(NAME, DEFAULTS, TYPES, ...) \
 namespace modelpfc_ ## NAME { \
+using namespace symphas::internal::parameterized; \
 struct PFCParameters : PFCParametersDefault<modelpfc_ ## NAME::PFCParameters> \
 { \
 	using parent_type = PFCParametersDefault<modelpfc_ ## NAME::PFCParameters>; \
@@ -872,29 +873,12 @@ struct allowed_model_dimensions<void, D> \
 
 // **************************************************************************************
 
-
-//! Real valued order parameter.
-/*!
- * The order parameter will be of type ::scalar_t.
- */
-#define SCALAR scalar_t
-
-//! Complex value order parameter.
-/*!
- * The order parameter will be of type ::complex_t.
- */
-#define COMPLEX complex_t
-
-//! Vector valued order parameter of real elements.
-/*!
- * The order parameter will a vector type, specified by ::vector_t.
- */
-#define VECTOR vector_t<Dm>
-
-#define CONFIGURATION -1
+#define VECTOR VECTOR_D<Dm>
 
 namespace symphas::internal
 {
+	using namespace parameterized;
+
 	template<int N, typename T>
 	struct model_repeating_type
 	{
@@ -1065,7 +1049,6 @@ namespace symphas::internal
 #define _nW(TYPE, ...) parent_type::template make_noise<expr::NoiseType::WHITE, TYPE>(__VA_ARGS__)
 #define Poisson(INTENSITY) NoiseData<NoiseType::POISSON, scalar_t, Dm>(SYS_DIMS(0), INTENSITY)
 
-#define T(E) expr::transpose(E)
 
 // **************************************************************************************
 
@@ -1085,55 +1068,9 @@ namespace symphas::internal
 //! Get the intervals of the system.
 #define SYS_INTERVAL(N, AXIS) parent_type::template system<N>().get_info().intervals
 
-//! Access statistics about the system, such as the mean.
-/*!
- * Included statistics are: mean, max, min and sum.
- */
-#define STATS ExpressionStats{}
-
-
 
 // **************************************************************************************
 
-#define SUM(...) symphas::internal::series_index_selection(names_t{}, parent_type::systems_tuple(), __VA_ARGS__)
-#define SUM_INDEX(I, P) (i_<I, P>{})
-#define SUM_VARIABLE(In, P) parent_type::op_i(In)
-#define ARRAY(I) symphas::internal::indexed_array(I)
-
-
-//! The modulus of the given expression.
-/*!
- * The modulus of the expression is computed, interpreting it as a complex
- * number. The expression can also be real.
- */
-#define modulus(EXPR) expr::modulus(EXPR)
-
-//! Take the conjugate of a complex number resulting from an expression.
-/*!
- * Take the conjugate of the complex number that is computed by
- * evaluating the given expression.
- *
- * \param EXPR The expression which is differentiated.
- */
-#define conj(EXPR) expr::conj(EXPR)
-
-//! Take the imaginary part of a complex number resulting from an expression.
-/*!
- * Take the imaginary part of the complex number that is computed by
- * evaluating the given expression.
- * 
- * \param EXPR The expression which is differentiated.
- */
-#define Im(EXPR) expr::imag(EXPR)
-
-//! Take the imaginary part of a complex number resulting from an expression.
-/*!
- * Take the real part of the complex number that is computed by
- * evaluating the given expression.
- *
- * \param EXPR The expression which is differentiated.
- */
-#define Re(EXPR) expr::real(EXPR)
 
 //! Standard Gaussian with spatial distance equal to unity.
 #define Gaussian GaussianSmoothing<Dm>{ \
@@ -1151,26 +1088,12 @@ namespace symphas::internal
 //! Smoothing with Gaussian based on the spatial width of the i-th field.
 #define smoothing_n(i, Z) expr::make_convolution(Gaussian_F(i), Z)
 
-//! Use a number in an expression.
-/*!
- * Create a number with the given value to use in an expression. 
- * This is a constant.
- * 
- * \param V The value of the number.
- */
-#define lit(V) expr::make_literal(V)
-
 //! Use an integer in an expression as a constant value.
 /*!
  * The integer is generated as a compile-time constant value.
  */
 #define integer(N) expr::make_integer<N>()
 
-//! The imaginary number for an expression.
-/*!
- * An imaginary number literal that can be used in an expression.
- */
-#define Ii lit(complex_t(0, 1))
 
 //! The unit vector, which can be defined with one or two (for 3D) angles.
 /*!
@@ -1185,7 +1108,6 @@ namespace symphas::internal
  * Construct an expression representing an expression E to the power of the given value, N.
  */
 #define power(E, N) expr::pow<N>(E)
-
 
 
 #define x expr::make_var<Axis::X, D>(SYS_DIMS(0), SYS_INTERVAL(0, X))
@@ -1220,20 +1142,32 @@ namespace symphas::internal
 #define DOUBLE_WELL_FE(...) doublewell_fe(solver, __VA_ARGS__)
 #define CELLULAR_FE(...) cellular_fe(solver, __VA_ARGS__)
 
-#define ii_(P) SUM_INDEX(0, P)
-#define ii ii_(0)
-#define jj_(P) SUM_INDEX(1, P)
-#define jj jj_(0)
-#define kk_(P) SUM_INDEX(2, P)
-#define kk kk_(0)
 
-#define op_(In, P) SUM_VARIABLE(In, P)
-#define op_ii_(P) op_(ii_(P), P)
-#define op_ii op_ii_(0)
-#define op_jj_(P) op_(jj_(P), P)
-#define op_jj op_jj_(0)
-#define op_kk_(P) op_(kk_(P), P)
-#define op_kk op_kk_(0)
+// **************************************************************************************
+
+#define SUM(...) symphas::internal::series_index_selection(names_t{}, parent_type::systems_tuple(), __VA_ARGS__)
+#define op_(In, P) parent_type::op_n(In)
+#define index_(I) (i_<I, 0>{})
+
+#define op_ii op_(ii, 0)
+#define op_jj op_(jj, 0)
+#define op_kk op_(kk, 0)
+
+//#define SUM_INDEX(I, P) (i_<I, P>{})
+
+//#define ii_(P) SUM_INDEX(0, P)
+//#define ii ii_(0)
+//#define jj_(P) SUM_INDEX(1, P)
+//#define jj jj_(0)
+//#define kk_(P) SUM_INDEX(2, P)
+//#define kk kk_(0)
+
+//#define op_(In, P) SUM_VARIABLE(In, P)
+//#define op_ii_(P) op_(ii_(P), P)
+//#define op_jj_(P) op_(jj_(P), P)
+//#define op_jj op_jj_(0)
+//#define op_kk_(P) op_(kk_(P), P)
+//#define op_kk op_kk_(0)
 
 
 #define DF(N) symphas::internal::dFE_var<N - 1>()

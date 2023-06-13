@@ -74,10 +74,10 @@ namespace symphas::internal
 {
 
 	template<size_t I0, size_t... Is, typename E, typename T0, typename... Ts>
-	auto build_function_for_noise(std::index_sequence<I0, Is...>, OpExpression<E> const& e, T0&& arg0, Ts&&... args)
+	auto build_function_for_noise(std::index_sequence<I0, Is...>, OpExpression<E> const& e, T0 const& arg0, Ts const&... args)
 	{
 		auto f = expr::function_of(expr::symbols::arg_t<I0, T0>{}, expr::symbols::arg_t<Is, Ts>{}...) = *static_cast<E const*>(&e);
-		f.set_data(std::forward<T0>(arg0), std::forward<Ts>(args)...);
+		f.set_data(arg0, args...);
 		return f;
 	}
 

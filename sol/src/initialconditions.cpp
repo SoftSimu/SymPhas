@@ -1988,7 +1988,7 @@ scalar_t voronoi_value_A_1(iter_type n, const len_type* dims, size_t N,
 	iter_type index = 0;
 	for (iter_type i = 0; i < N; ++i)
 	{
-		axis_1d_type v0{ offsets.get_delta(i) };
+		axis_1d_type v0{ offsets.get_delta(i) - p };
 		axis_1d_type v{
 			v0 - dm * std::round(v0 / dm) };
 		//axis_1d_type v_l{ offsets.get_delta(i) - dm };
@@ -1996,8 +1996,9 @@ scalar_t voronoi_value_A_1(iter_type n, const len_type* dims, size_t N,
 		//
 		//for (auto const& v : { v0, v_l, v_r })
 		//{
-			axis_coord_t d = symphas::lib::distance(p, v);
-			if (d < d0)
+			//axis_coord_t d = symphas::lib::distance(p, v);
+		axis_coord_t d = symphas::lib::length(v);
+		if (d < d0)
 			{
 				index = i;
 				d0 = d;
@@ -2033,7 +2034,7 @@ scalar_t voronoi_value_A_2(iter_type n, const len_type* dims, size_t N,
 	iter_type index = 0;
 	for (iter_type i = 0; i < N; ++i)
 	{
-		axis_2d_type v0{ offsets.get_delta(i)[0], offsets.get_delta(i)[1] };
+		axis_2d_type v0{ offsets.get_delta(i)[0] - p[0], offsets.get_delta(i)[1] - p[1] };
 
 		axis_2d_type v{
 			v0[0] - dm[0] * std::round(v0[0] / dm[0]),
@@ -2051,7 +2052,8 @@ scalar_t voronoi_value_A_2(iter_type n, const len_type* dims, size_t N,
 		//
 		//for (auto const& v : { v0, v_t, v_b, v_r, v_l, v_tr, v_tl, v_br, v_bl })
 		//{
-			axis_coord_t d = symphas::lib::distance(p, v);
+		axis_coord_t d = symphas::lib::length(v);
+		//axis_coord_t d = symphas::lib::distance(p, v);
 			if (d < d0)
 			{
 				index = i;
@@ -2090,7 +2092,7 @@ scalar_t voronoi_value_A_3(iter_type n, const len_type* dims, size_t N,
 
 	for (iter_type i = 0; i < N; ++i)
 	{
-		axis_3d_type v0{ offsets.get_delta(i)[0], offsets.get_delta(i)[1], offsets.get_delta(i)[2] };
+		axis_3d_type v0{ offsets.get_delta(i)[0] - p[0], offsets.get_delta(i)[1] - p[1], offsets.get_delta(i)[2] - p[2]};
 
 		axis_3d_type v{
 			v0[0] - dm[0] * std::round(v0[0] / dm[0]),
@@ -2134,7 +2136,8 @@ scalar_t voronoi_value_A_3(iter_type n, const len_type* dims, size_t N,
 		//	v_fr, v_fl, v_nr, v_nl, v_ft, v_fb, v_nt, v_nb,
 		//	v_ntr, v_ntl, v_nbr, v_nbl, v_ftr, v_ftl, v_fbr, v_fbl })
 		//{
-			axis_coord_t d = symphas::lib::distance(p, v);
+			//axis_coord_t d = symphas::lib::distance(p, v);
+			axis_coord_t d = symphas::lib::length(v);
 			if (d < d0)
 			{
 				index = i;
@@ -2412,14 +2415,15 @@ scalar_t bubble_value_A_1(iter_type n, const len_type* dims, size_t N, double R,
 	int i_end = (select < 0) ? offsets.size() : select + 1;
 	for (iter_type i = i_start; i < i_end; ++i)
 	{
-		axis_1d_type v0{ offsets.get_delta(i) };
+		axis_1d_type v0{ offsets.get_delta(i) - p };
 		axis_1d_type v{ v0 - dm * std::round(v0 / dm) };
 		//axis_1d_type v_l{ offsets.get_delta(i) - dm };
 		//axis_1d_type v_r{ offsets.get_delta(i) + dm };
 
 		//for (auto const& v : { v0, v_l, v_r })
 		//{
-			axis_coord_t d = symphas::lib::distance(p, v);
+			//axis_coord_t d = symphas::lib::distance(p, v);
+			axis_coord_t d = symphas::lib::length(v);
 			if (d < R)
 			{
 				return values.get_offset(i);
@@ -2458,7 +2462,7 @@ scalar_t bubble_value_A_2(iter_type n, const len_type* dims, size_t N, double R,
 	int i_end = (select < 0) ? offsets.size() : select + 1;
 	for (iter_type i = i_start; i < i_end; ++i)
 	{
-		axis_2d_type v0{ offsets.get_delta(i)[0], offsets.get_delta(i)[1] };
+		axis_2d_type v0{ offsets.get_delta(i)[0] - p[0], offsets.get_delta(i)[1] - p[1]};
 		axis_2d_type v{
 			v0[0] - dm[0] * std::round(v0[0] / dm[0]),
 			v0[1] - dm[1] * std::round(v0[1] / dm[1]) };
@@ -2476,7 +2480,8 @@ scalar_t bubble_value_A_2(iter_type n, const len_type* dims, size_t N, double R,
 
 		//for (auto const& v : { v0, v_t, v_b, v_r, v_l, v_tr, v_tl, v_br, v_bl })
 		//{
-			axis_coord_t d = symphas::lib::distance(p, v);
+			//axis_coord_t d = symphas::lib::distance(p, v);
+			axis_coord_t d = symphas::lib::length(v);
 			if (d < R)
 			{
 				return values.get_offset(i);
@@ -2517,7 +2522,7 @@ scalar_t bubble_value_A_3(iter_type n, const len_type* dims, size_t N, double R,
 	int i_end = (select < 0) ? offsets.size() : select + 1;
 	for (iter_type i = i_start; i < i_end; ++i)
 	{
-		axis_3d_type v0{ offsets.get_delta(i)[0], offsets.get_delta(i)[1], offsets.get_delta(i)[2] };
+		axis_3d_type v0{ offsets.get_delta(i)[0] - p[0], offsets.get_delta(i)[1] - p[1], offsets.get_delta(i)[2] - p[2] };
 
 		axis_3d_type v{
 			v0[0] - dm[0] * std::round(v0[0] / dm[0]),
@@ -2561,7 +2566,8 @@ scalar_t bubble_value_A_3(iter_type n, const len_type* dims, size_t N, double R,
 		//	v_fr, v_fl, v_nr, v_nl, v_ft, v_fb, v_nt, v_nb,
 		//	v_ntr, v_ntl, v_nbr, v_nbl, v_ftr, v_ftl, v_fbr, v_fbl })
 		//{
-			axis_coord_t d = symphas::lib::distance(p, v);
+			//axis_coord_t d = symphas::lib::distance(p, v);
+			axis_coord_t d = symphas::lib::length(v);
 			if (d < R)
 			{
 				return values.get_offset(i);

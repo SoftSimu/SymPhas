@@ -238,6 +238,41 @@ struct axis_nd<1>
 {
 	using type = axis_coord_t;
 };
+//
+//template<size_t D>
+//struct axis_nd : std::array<axis_coord_t, D>
+//{
+//	using std::array<axis_coord_t, D>::array;
+//	template<typename... Ts>
+//	axis_nd(Ts&&... data) : std::array<axis_coord_t, D>({ std::forward<Ts>(data)... }) {}
+//};
+//
+////! Specialization of the 1-dimensional axis. 
+///*!
+// * A 1-dimensional system has a single axis, namely, the coordinate system is fully
+// * specified by points which are just one value. This specialization, therefore,
+// * designates the 1-dimensional axis type as the scalar type (as opposed to the
+// * usual array type in higher dimensions).
+// */
+//template<>
+//struct axis_nd<1>
+//{
+//	axis_nd(axis_coord_t value = 0) : value{ value } {}
+//
+//	operator axis_coord_t const& () const
+//	{
+//		return value;
+//	}
+//
+//	operator axis_coord_t& ()
+//	{
+//		return value;
+//	}
+//
+//protected:
+//
+//	axis_coord_t value;
+//};
 
 //! Alias to nested type axis_nd::type;
 /*!

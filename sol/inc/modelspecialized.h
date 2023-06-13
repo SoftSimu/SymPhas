@@ -658,6 +658,9 @@ namespace symphas::internal
 	template<typename T>
 	struct special_dynamics_select;
 
+	template<typename T>
+	struct special_dynamics_select<T const> : special_dynamics_select<T> {};
+
 	template<int N, int P>
 	struct special_dynamics_select<expr::symbols::i_<N, P>>
 	{
@@ -1188,7 +1191,7 @@ struct TraitEquation : parent_trait
 	}
 
 	template<int N, int P>
-	auto op_i(expr::symbols::i_<N, P>) const
+	auto op_n(expr::symbols::i_<N, P>) const
 	{
 		return expr::symbols::v_<expr::symbols::i_<N, P>>{};
 	}
@@ -1338,7 +1341,7 @@ struct TraitEquation<enclosing_type, symphas::internal::MakeEquation<ArrayModel<
 	}
 
 	template<int N, int P>
-	auto op_i(expr::symbols::i_<N, P>) const
+	auto op_n(expr::symbols::i_<N, P>) const
 	{
 		return expr::symbols::v_<expr::symbols::i_<N, P>>{};
 	}
