@@ -150,6 +150,7 @@ struct SymbolicDerivative<expr::variational_t<Variable<Z, NamedData<G>>>> : Symb
 
 #endif
 
+	DynamicIndex index;
 };
 
 template<size_t Z, typename G>
