@@ -28,7 +28,6 @@
 
 #include <iostream>
 
-#include "expressionlib.h"
 #include "expressionproperties.h"
 #include "expressionsprint.h"
 
@@ -771,6 +770,26 @@ struct OpLiteral : OpExpression<OpLiteral<T>>
 		auto v = expr::make_literal(value - a.value);
 		return v;
 	}
+
+	template<typename S>
+	auto operator*(OpLiteral<S>&& other) const
+	{
+		return expr::make_literal(value * other.value);
+	}
+
+	auto operator*(OpLiteral<T>&& other) const
+	{
+		return expr::make_literal(value * other.value);
+	}
+
+	template<typename S>
+	auto operator-(OpLiteral<S>&& a) const
+	{
+		auto v = expr::make_literal(value - a.value);
+		return v;
+	}
+
+
 	auto operator-() const
 	{
 		return expr::make_literal(-value);
@@ -3277,7 +3296,7 @@ namespace expr
 #undef SYEX_SUB_SEP
 #undef SYEX_MUL_FMT
 #undef SYEX_MUL_FMT_LATEX
-#undef SYEX_MUL_FMT_LEN
+//#undef SYEX_MUL_FMT_LEN
 #undef SYEX_MUL_FMT_LATEX_LEN
 #undef SYEX_DIV_FMT
 #undef SYEX_DIV_FMT_LATEX

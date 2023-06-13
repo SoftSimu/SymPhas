@@ -95,6 +95,7 @@ struct SymbolicDerivative<expr::variational_t<DynamicVariable<NamedData<G>>>> : 
 	SymbolicDerivative(DynamicIndex const& index) : index{ index }, name{ 0, "" } {}
 	SymbolicDerivative(DynamicVariable<NamedData<G>> const& var) : index{ var }, name{ 0, var.data.name } {}
 
+#ifdef PRINTABLE_EQUATIONS
 	const char* get_name() const
 	{
 		return name.name;
@@ -104,6 +105,7 @@ struct SymbolicDerivative<expr::variational_t<DynamicVariable<NamedData<G>>>> : 
 	{
 		return name.name;
 	}
+#endif
 
 	DynamicIndex index;
 	NamedData<void*> name;
@@ -115,6 +117,7 @@ struct SymbolicDerivative<expr::variational_t<Variable<Z, NamedData<G>>>> : Symb
 	SymbolicDerivative() {}
 	SymbolicDerivative(Variable<Z, NamedData<G>> const& var) : name{ 0, var.data.name } {}
 
+#ifdef PRINTABLE_EQUATIONS
 	const char* get_name() const
 	{
 		return name.name;
@@ -124,6 +127,7 @@ struct SymbolicDerivative<expr::variational_t<Variable<Z, NamedData<G>>>> : Symb
 	{
 		return name.name;
 	}
+#endif
 
 	NamedData<void*> name;
 };
@@ -138,7 +142,7 @@ struct SymbolicDerivative<expr::variational_t<Variable<Z, G>>> : SymbolicDerivat
 template<typename G>
 struct SymbolicDerivative<expr::variational_t<G>> : SymbolicDerivative<G>
 {
-	SymbolicDerivative() : index{} {}
+	SymbolicDerivative() {}
 	SymbolicDerivative(G const& var) {}
 };
 
@@ -1429,9 +1433,10 @@ struct OpDerivative<std::index_sequence<1>, V, E, SymbolicFunctionalDerivative<G
 		return symphas::internal::make_derivative<std::index_sequence<1>>::get(-value, e, solver);
 	}
 
-	using print_type = decltype(symphas::internal::select_print_deriv(SymbolicFunctionalDerivative<G>{}));
 
 #ifdef PRINTABLE_EQUATIONS
+
+	using print_type = decltype(symphas::internal::select_print_deriv(SymbolicFunctionalDerivative<G>{}));
 
 	size_t print(FILE* out) const
 	{
@@ -1446,7 +1451,7 @@ struct OpDerivative<std::index_sequence<1>, V, E, SymbolicFunctionalDerivative<G
 	size_t print(char* out) const
 	{
 		size_t n = expr::print_with_coeff(out, value);
-		n += print_type::.print(out + n, solver);
+		n += print_type::print(out + n, solver);
 		n += sprintf(out + n, SYEX_DERIV_APPLIED_EXPR_FMT_A);
 		n += e.print(out + n);
 		n += sprintf(out + n, SYEX_DERIV_APPLIED_EXPR_FMT_B);

@@ -574,8 +574,434 @@ namespace expr
 	template<size_t D, typename T0>
 	auto make_unit_vector(T0 const& direction0);
 
+	template<typename T, size_t... Ns>
+	auto inverse(OpTensor<T, Ns...> const& tensor) = delete;
+
+	//! Apply an inverse to a scalar value.
+	inline auto inverse(scalar_t e);
+	//! Apply an inverse to an integer value.
+	inline auto inverse(int e);
+	//! Apply an inverse to a complex value.
+	inline auto inverse(complex_t const& e);
+	//! Apply an inverse to an expression.
+	template<typename E>
+	auto inverse(OpExpression<E> const& e);
+	//! Apply an inverse to an expression.
+	template<typename A, typename B>
+	auto inverse(OpBinaryDiv<A, B> const& e);
+	//! Apply an inverse to an expression literal.
+	template<typename T>
+	auto inverse(OpLiteral<T> const& e);
+	//! Apply an inverse to an expression literal.
+	template<size_t N, size_t D>
+	constexpr auto inverse(OpFractionLiteral<N, D>);
+	//! Apply an inverse to an expression literal.
+	template<size_t N, size_t D>
+	constexpr auto inverse(OpNegFractionLiteral<N, D>);
+	//! Apply an inverse to an expression literal.
+	constexpr inline auto inverse(OpIdentity);
+	//! Apply an inverse to an expression literal.
+	constexpr inline auto inverse(OpNegIdentity);
+	//! Apply an inverse to an expression.
+	template<typename V, typename G0, expr::exp_key_t X0, typename... Gs, expr::exp_key_t... Xs>
+	auto inverse(OpTerms<Term<G0, X0>, Term<Gs, Xs>...> const& e);
+	//! Apply an inverse to an expression.
+	template<typename V, typename... Gs, expr::exp_key_t... Xs>
+	auto inverse(OpTerms<V, Term<Gs, Xs>...> const& e);
+	//! Apply an inverse to an expression.
+	template<typename V, typename E>
+	auto inverse(OpExponential<V, E> const& e);
+	//! Apply an inverse to an expression.
+	template<expr::exp_key_t X, typename V, typename E>
+	auto inverse(OpPow<X, V, E> const& e);
+
 }
 
+namespace symphas::internal 
+{
+
+
+	template<int N0, typename V>
+	struct search_index_in_v
+	{
+		static const bool value = 0;
+	};
+
+	template<int N0, int N1, int P, typename... Is>
+	struct search_index_in_v<N0, expr::symbols::v_id_type<expr::symbols::i_<N1, P>, Is...>>
+	{
+		static const bool value = (N0 == N1) ? P : search_index_in_v<N0, expr::symbols::v_id_type<Is...>>::value;
+	};
+
+
+	template<typename I, typename T0, typename List>
+	struct select_v_i_impl;
+
+
+	template<int N0, int P0, typename... Vs>
+	struct select_v_i_impl<expr::symbols::i_<N0, P0>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<>>
+	{
+		using type = symphas::lib::types_list<Vs...>;
+	};
+
+	template<int N0, int P0, typename... Vs, int... Ns, int... Ps, typename... Rest>
+	struct select_v_i_impl<expr::symbols::i_<N0, P0>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>, Rest...>>
+	{
+		static const bool flag = symphas::lib::index_of_value<int, N0, Ns...> >= 0;
+
+		using type = typename select_v_i_impl<
+			expr::symbols::i_<N0, P0>,
+			std::conditional_t<flag,
+				symphas::lib::types_list<Vs..., expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>>,
+				symphas::lib::types_list<Vs...>>,
+			symphas::lib::types_list<Rest...>>::type;
+	};
+
+	template<int N0, int P0, typename... Vs, int... Ns, int... Ps, size_t D, typename... Rest>
+	struct select_v_i_impl<expr::symbols::i_<N0, P0>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<GridSymbol<expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>, D>, Rest...>>
+	{
+		using type = typename select_v_i_impl<expr::symbols::i_<N0, P0>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>, Rest...>>::type;
+	};
+
+	template<int N0, int P0, typename... Vs, typename T, typename... Rest>
+	struct select_v_i_impl<expr::symbols::i_<N0, P0>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<T, Rest...>>
+	{
+		using type = typename select_v_i_impl<
+			expr::symbols::i_<N0, P0>,
+			symphas::lib::types_list<Vs...>,
+			symphas::lib::types_list<Rest...>>::type;
+	};
+
+	//template<int N0, int P0, typename... Vs>
+	//struct select_v_i_<expr::symbols::i_<N0, P0>, symphas::lib::types_list<Vs...>>
+	//{
+	//	using type = typename select_v_i_<
+	//		expr::symbols::i_<N0, P0>,
+	//		symphas::lib::types_list<>,
+	//		symphas::lib::types_list<Vs...>>::type;
+	//};
+    
+    template<typename T>
+    constexpr bool is_v_type = false;
+
+    template<int... Ns, int... Ps>
+    constexpr bool is_v_type<expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>> = true;
+    template<int... Ns, int... Ps, size_t D>
+    constexpr bool is_v_type<GridSymbol<expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>, D>> = true;
+
+	template<typename I, typename List>
+	using select_v_i_ = typename select_v_i_impl<I, symphas::lib::types_list<>, List>::type;
+
+	template<size_t flag, typename Is, typename T0, typename List>
+	struct select_v_nested_impl;
+
+	template<int... N0s, int... P0s, typename... Vs>
+	struct select_v_nested_impl<2, symphas::lib::types_list<expr::symbols::i_<N0s, P0s>...>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<>>
+	{
+		using type = symphas::lib::types_list<Vs...>;
+	};
+
+	template<int... N0s, int... P0s, typename... Vs, int... Ns, int... Ps, typename... Rest>
+	struct select_v_nested_impl<1, symphas::lib::types_list<expr::symbols::i_<N0s, P0s>...>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>, Rest...>>
+	{
+		static const bool flag = symphas::lib::filter_seq_t<std::integer_sequence<int, Ns...>, std::integer_sequence<int, N0s...>>::size() == 0;
+
+		using type = typename select_v_nested_impl<2,
+			symphas::lib::types_list<expr::symbols::i_<N0s, P0s>...>,
+			std::conditional_t<false,
+				symphas::lib::types_list<Vs..., expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>>,
+				symphas::lib::types_list<Vs...>>,
+			symphas::lib::types_list<Rest...>>::type;
+	};
+
+	template<int... N0s, int... P0s, typename... Vs, int... Ns, int... Ps, size_t D, typename... Rest>
+	struct select_v_nested_impl<1, symphas::lib::types_list<expr::symbols::i_<N0s, P0s>...>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<GridSymbol<expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>, D>, Rest...>>
+	{
+		using type = typename select_v_nested_impl<1, symphas::lib::types_list<expr::symbols::i_<N0s, P0s>...>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>, Rest...>>::type;
+	};
+
+	template<int... N0s, int... P0s, typename... Vs, typename T, typename... Rest>
+	struct select_v_nested_impl<2, symphas::lib::types_list<expr::symbols::i_<N0s, P0s>...>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<T, Rest...>>
+	{
+		using type = typename select_v_nested_impl<
+            size_t(is_v_type<T>),
+			symphas::lib::types_list<expr::symbols::i_<N0s, P0s>...>,
+			symphas::lib::types_list<Vs...>,
+			symphas::lib::types_list<T, Rest...>>::type;
+	};
+
+	template<int... N0s, int... P0s, typename... Vs, typename T, typename... Rest>
+	struct select_v_nested_impl<0, symphas::lib::types_list<expr::symbols::i_<N0s, P0s>...>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<T, Rest...>>
+	{
+		using type = typename select_v_nested_impl<2,
+			symphas::lib::types_list<expr::symbols::i_<N0s, P0s>...>,
+			symphas::lib::types_list<Vs...>,
+			symphas::lib::types_list<Rest...>>::type;
+	};
+
+	template<typename Is, typename List>
+	using select_v_nested_ = typename select_v_nested_impl<2, Is, symphas::lib::types_list<>, List>::type;
+
+
+	template<size_t flag, typename... Ts>
+	struct select_v_impl;
+	
+	template<typename... Vs, typename I0, typename... Is, typename... Rest>
+	struct select_v_impl<1, symphas::lib::types_list<Vs...>, symphas::lib::types_list<expr::symbols::v_id_type<I0, Is...>, Rest...>>
+	{
+		using type = typename select_v_impl<2,
+			symphas::lib::types_list<Vs..., expr::symbols::v_id_type<I0, Is...>>,
+			symphas::lib::types_list<Rest...>>::type;
+	};
+
+	template<typename... Vs, typename I0, typename... Is, size_t D, typename... Rest>
+	struct select_v_impl<1, symphas::lib::types_list<Vs...>, symphas::lib::types_list<GridSymbol<expr::symbols::v_id_type<I0, Is...>, D>, Rest...>>
+	{
+		using type = typename select_v_impl<1, symphas::lib::types_list<Vs...>, symphas::lib::types_list<expr::symbols::v_id_type<I0, Is...>, Rest...>>::type;
+	};
+
+	template<typename... Vs, typename T, typename... Rest>
+	struct select_v_impl<2, symphas::lib::types_list<Vs...>, symphas::lib::types_list<T, Rest...>>
+	{
+		using type = typename select_v_impl<
+            size_t(is_v_type<T>),
+			symphas::lib::types_list<Vs...>,
+			symphas::lib::types_list<T, Rest...>>::type;
+	};
+
+	template<typename... Vs, typename T, typename... Rest>
+	struct select_v_impl<0, symphas::lib::types_list<Vs...>, symphas::lib::types_list<T, Rest...>>
+	{
+		using type = typename select_v_impl<2, 
+			symphas::lib::types_list<Vs...>,
+			symphas::lib::types_list<Rest...>>::type;
+	};
+    
+	template<typename... Vs>
+	struct select_v_impl<2, symphas::lib::types_list<Vs...>, symphas::lib::types_list<>>
+	{
+		using type = symphas::lib::types_list<Vs...>;
+	};
+
+	template<typename List>
+	using select_v_ = typename select_v_impl<2, symphas::lib::types_list<>, List>::type;
+
+
+
+	template<typename... Ts>
+	struct select_all_i_impl_;
+
+	template<int N, typename... Is>
+	struct select_all_i_impl_<expr::symbols::i_<N, 0>, symphas::lib::types_list<Is...>, symphas::lib::types_list<>>
+	{
+		using type = symphas::lib::types_list<Is...>;
+	};
+
+	template<int N, typename... Is, int P0, typename... Rest>
+	struct select_all_i_impl_<expr::symbols::i_<N, 0>, symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<N, P0>>, Rest...>>
+	{
+		using type = typename select_all_i_impl_<expr::symbols::i_<N, 0>,
+			symphas::lib::types_list<Is..., expr::symbols::i_<N, P0>>, symphas::lib::types_list<Rest...>>::type;
+	};
+
+	template<int N, typename... Is, int N0, int P0, typename... Rest>
+	struct select_all_i_impl_<expr::symbols::i_<N, 0>, symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::i_<N0, P0>, Rest...>>
+	{
+		using type = typename select_all_i_impl_<expr::symbols::i_<N, 0>,
+			symphas::lib::types_list<Is...>, symphas::lib::types_list<Rest...>>::type;
+	};
+
+	template<int N, typename... Is, int P0, typename... Rest>
+	struct select_all_i_impl_<expr::symbols::i_<N, 0>, symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::i_<N, P0>, Rest...>>
+	{
+		using type = typename select_all_i_impl_<expr::symbols::i_<N, 0>,
+			symphas::lib::types_list<Is..., expr::symbols::i_<N, P0>>, symphas::lib::types_list<Rest...>>::type;
+	};
+
+	template<int N, typename... Is, typename Other, typename... Rest>
+	struct select_all_i_impl_<expr::symbols::i_<N, 0>, symphas::lib::types_list<Is...>, symphas::lib::types_list<Other, Rest...>>
+	{
+		using type = typename select_all_i_impl_<expr::symbols::i_<N, 0>,
+			symphas::lib::types_list<Is...>, symphas::lib::types_list<Rest...>>::type;
+	};
+
+	template<int N, int P, typename... Vs>
+	struct select_all_i_impl_<expr::symbols::i_<N, P>, symphas::lib::types_list<Vs...>>
+	{
+		using type = typename select_all_i_impl_<expr::symbols::i_<N, 0>,
+			symphas::lib::types_list<>, symphas::lib::types_list<Vs...>>::type;
+	};
+
+	template<int N0, int P0, int... Ns, int... Ps, typename... Vs>
+	struct select_all_i_impl_<symphas::lib::types_list<
+			expr::symbols::i_<N0, P0>, expr::symbols::i_<Ns, Ps>...>, 
+		symphas::lib::types_list<Vs...>>
+	{
+		using type = symphas::lib::expand_types_list<
+			typename select_all_i_impl_<expr::symbols::i_<N0, 0>, symphas::lib::types_list<>, symphas::lib::types_list<Vs...>>::type,
+			typename select_all_i_impl_<expr::symbols::i_<Ns, 0>, symphas::lib::types_list<>, symphas::lib::types_list<Vs...>>::type...
+			>;
+	};
+
+	template<typename I, typename T>
+	using select_all_i_ = typename select_all_i_impl_<I, T>::type;
+
+
+
+
+	template<typename... Ts>
+	struct select_only_i_impl_;
+
+	template<int N, typename... Is>
+	struct select_only_i_impl_<expr::symbols::i_<N, 0>, symphas::lib::types_list<Is...>, symphas::lib::types_list<>>
+	{
+		using type = symphas::lib::types_list<Is...>;
+	};
+
+	template<int N, typename... Is, int P0, typename... Rest>
+	struct select_only_i_impl_<expr::symbols::i_<N, 0>, symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::i_<N, P0>, Rest...>>
+	{
+		using type = typename select_only_i_impl_<expr::symbols::i_<N, 0>,
+			symphas::lib::types_list<Is..., expr::symbols::i_<N, P0>>, symphas::lib::types_list<Rest...>>::type;
+	};
+
+	template<int N, typename... Is, typename Other, typename... Rest>
+	struct select_only_i_impl_<expr::symbols::i_<N, 0>, symphas::lib::types_list<Is...>, symphas::lib::types_list<Other, Rest...>>
+	{
+		using type = typename select_only_i_impl_<expr::symbols::i_<N, 0>,
+			symphas::lib::types_list<Is...>, symphas::lib::types_list<Rest...>>::type;
+	};
+
+	template<int N, int P, typename... Vs>
+	struct select_only_i_impl_<expr::symbols::i_<N, P>, symphas::lib::types_list<Vs...>>
+	{
+		using type = typename select_only_i_impl_<expr::symbols::i_<N, 0>,
+			symphas::lib::types_list<>, symphas::lib::types_list<Vs...>>::type;
+	};
+
+	template<int N0, int P0, int... Ns, int... Ps, typename... Vs>
+	struct select_only_i_impl_<symphas::lib::types_list<
+		expr::symbols::i_<N0, P0>, expr::symbols::i_<Ns, Ps>...>,
+		symphas::lib::types_list<Vs...>>
+	{
+		using type = symphas::lib::expand_types_list<
+			typename select_only_i_impl_<expr::symbols::i_<N0, 0>, symphas::lib::types_list<>, symphas::lib::types_list<Vs...>>::type,
+			typename select_only_i_impl_<expr::symbols::i_<Ns, 0>, symphas::lib::types_list<>, symphas::lib::types_list<Vs...>>::type...
+		>;
+	};
+
+	template<typename I, typename T>
+	using select_only_i_ = typename select_only_i_impl_<I, T>::type;
+
+
+	template<typename... Ts>
+	struct select_unique_i_impl_;
+
+	template<int... Ns>
+	struct select_unique_i_impl_<std::integer_sequence<int, Ns...>>
+	{
+		using type = symphas::lib::types_list<expr::symbols::i_<Ns, 0>...>;
+	};
+
+	template<int... Ns>
+	struct select_unique_i_impl_<symphas::lib::types_list<expr::symbols::i_<Ns, 0>...>, symphas::lib::types_list<>>
+	{
+		using type = typename select_unique_i_impl_<symphas::lib::sorted_seq<std::integer_sequence<int, Ns...>>>::type;
+	};
+
+	template<int N, int P, int M0, typename... Is, typename... Rest>
+	struct select_unique_i_impl_<symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::index_neq_N<expr::symbols::i_<N, P>, M0>, Rest...>>
+	{
+		using type = typename select_unique_i_impl_<
+			symphas::lib::types_list<Is..., expr::symbols::i_<N, 0>>, symphas::lib::types_list<Rest...>>::type;
+	};
+
+	template<int N, int P, typename B, typename... Is, typename... Rest>
+	struct select_unique_i_impl_<symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::index_neq<expr::symbols::i_<N, P>, B>, Rest...>>
+	{
+		using type = typename select_unique_i_impl_<
+			symphas::lib::types_list<Is..., expr::symbols::i_<N, 0>>, symphas::lib::types_list<B, Rest...>>::type;
+	};
+
+	template<int N, int P, int M0, typename... Is, typename... Rest>
+	struct select_unique_i_impl_<symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::index_eq_N<expr::symbols::i_<N, P>, M0>, Rest...>>
+	{
+		using type = typename select_unique_i_impl_<
+			symphas::lib::types_list<Is..., expr::symbols::i_<N, 0>>, symphas::lib::types_list<Rest...>>::type;
+	};
+
+	template<int N, int P, typename B, typename... Is, typename... Rest>
+	struct select_unique_i_impl_<symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::index_eq<expr::symbols::i_<N, P>, B>, Rest...>>
+	{
+		using type = typename select_unique_i_impl_<
+			symphas::lib::types_list<Is..., expr::symbols::i_<N, 0>>, symphas::lib::types_list<B, Rest...>>::type;
+	};
+
+	template<typename A, typename B, typename... Is, typename... Rest>
+	struct select_unique_i_impl_<symphas::lib::types_list<Is...>, symphas::lib::types_list<symphas::lib::types_list<A, B>, Rest...>>
+	{
+		using type = symphas::lib::expand_types_list<
+			typename select_unique_i_impl_<symphas::lib::types_list<>, symphas::lib::types_list<A>>::type,
+			typename select_unique_i_impl_<
+			symphas::lib::types_list<Is...>, symphas::lib::types_list<B, Rest...>>::type>;
+	};
+
+	template<int N, int P, typename... Is, typename... Rest>
+	struct select_unique_i_impl_<symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::i_<N, P>, Rest...>>
+	{
+		using type = typename select_unique_i_impl_<
+			symphas::lib::types_list<Is..., expr::symbols::i_<N, 0>>, symphas::lib::types_list<Rest...>>::type;
+	};
+
+	template<int N, int P, typename... Is, typename... Rest>
+	struct select_unique_i_impl_<symphas::lib::types_list<Is...>, symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<N, P>>, Rest...>>
+	{
+		using type = typename select_unique_i_impl_<
+			symphas::lib::types_list<Is..., expr::symbols::i_<N, 0>>, symphas::lib::types_list<Rest...>>::type;
+	};
+
+	template<typename... Is, typename Other, typename... Rest>
+	struct select_unique_i_impl_<symphas::lib::types_list<Is...>, symphas::lib::types_list<Other, Rest...>>
+	{
+		using type = typename select_unique_i_impl_<
+			symphas::lib::types_list<Is...>, symphas::lib::types_list<Rest...>>::type;
+	};
+
+	template<typename... Es>
+	struct select_unique_i_impl_<symphas::lib::types_list<Es...>>
+	{
+		using type = typename symphas::lib::combine_types_unique<typename select_unique_i_impl_<
+			symphas::lib::types_list<>, symphas::lib::types_list<Es...>>::type>::type;
+	};
+
+	template<typename T>
+	using select_unique_i_ = typename select_unique_i_impl_<T>::type;
+
+
+	template<typename... Is>
+	struct filter_for_unique_vs
+	{
+		using type = symphas::lib::types_list<>;
+	};
+
+	template<int I0, int P0, int... I0s, int... P0s>
+	struct filter_for_unique_vs<expr::symbols::v_id_type<expr::symbols::i_<I0, P0>>, expr::symbols::v_id_type<expr::symbols::i_<I0s, P0s>>...>
+	{
+		using type = typename symphas::lib::combine_types_unique<
+			expr::symbols::i_<I0, 0>,
+			expr::symbols::i_<I0s, 0>...>::type;
+	};
+
+	template<int I0, int P0, int... I0s, int... P0s>
+	struct filter_for_unique_vs<expr::symbols::v_<expr::symbols::i_<I0, P0>>, expr::symbols::v_<expr::symbols::i_<I0s, P0s>>...>
+	{
+		using type = typename filter_for_unique_vs<
+			expr::symbols::v_id_type<expr::symbols::i_<I0, P0>>,
+			expr::symbols::v_id_type<expr::symbols::i_<I0s, P0s>>...>::type;
+	};
+
+
+}
 
 
 

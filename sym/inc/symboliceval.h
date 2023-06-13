@@ -27,7 +27,6 @@
 #pragma once
 
 #include "symbolicseries.h"
-#include "expressionsprint.h"
 
 
 template<typename E>

@@ -28,6 +28,7 @@
 
 #include "expressionsprint.h"
 #include "expressionproperties.h"
+#include "expressionaggregates.h"
 
 
 namespace symphas::internal
@@ -128,7 +129,7 @@ struct OpIntegral : OpExpression<OpIntegral<V, E, T>>
 			expr::prune::update(e);
 			data = e.eval(0);
 
-#			pragma omp parallel for reduction (+:data)
+//#			pragma omp parallel for reduction (+:data)
 			for (iter_type i = 1; i < len; ++i)
 			{
 				data += e.eval(i);
@@ -218,7 +219,7 @@ struct OpIntegral<V, E, expr::variational_t<T>> : OpExpression<OpIntegral<V, E, 
 			{
 				data = e.eval(iters[0]);
 
-#				pragma omp parallel for reduction (+:data)
+//#				pragma omp parallel for reduction (+:data)
 				for (iter_type i = 1; i < n; ++i)
 				{
 					data += e.eval(iters[i]);
@@ -228,7 +229,7 @@ struct OpIntegral<V, E, expr::variational_t<T>> : OpExpression<OpIntegral<V, E, 
 			{
 				data = e.eval(0);
 
-#				pragma omp parallel for reduction (+:data)
+//#				pragma omp parallel for reduction (+:data)
 				for (iter_type i = 1; i < len; ++i)
 				{
 					data += e.eval(i);

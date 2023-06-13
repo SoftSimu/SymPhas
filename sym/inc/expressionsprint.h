@@ -57,6 +57,13 @@ namespace expr
 	template<size_t N = 0>
 	struct expr_name_arr
 	{
+        expr_name_arr(const char* arr) : value{}
+        {
+            std::strcpy(arr, value);
+        }
+
+        expr_name_arr() : value{} {}
+
 		char value[N];
 		char* new_str()
 		{
@@ -583,6 +590,7 @@ namespace expr
 			}
 		}
 	}
+
 #else
 
 	//! Empty implementation for obtaining a variable's string represenation.
@@ -612,11 +620,18 @@ namespace expr
 	auto get_fourier_name(T&&...)
 	{
 		return "";
-}
+    }
+    
+	template<typename E0, typename... Es>
+	auto print_list(E0&& e0, Es&&... es)
+	{
+		expr_name_arr list_str(0);
+		return list_str;
+	}
+
 #endif
 
 }
-
 
 
 namespace symphas::internal

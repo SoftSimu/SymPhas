@@ -28,9 +28,8 @@
 
 #include <cassert>
 
-#include "expressionaggregates.h"
-
-#include "symbolicdata.h"
+#include "expressions.h"
+//#include "symbolicdata.h"
 
 // ******************************************************************************************
 
@@ -856,8 +855,8 @@ any_vector_t<T1, D>& operator*=(any_vector_t<T1, D>& lhs, OpLiteral<T2> const& v
 
 namespace expr
 {
-	template<typename T, size_t... Ns>
-	auto inverse(OpTensor<T, Ns...> const& tensor) = delete;
+//	template<typename T, size_t... Ns>
+	//auto inverse(OpTensor<T, Ns...> const& tensor) = delete;
 
 
 	//! Apply an inverse to a scalar value.

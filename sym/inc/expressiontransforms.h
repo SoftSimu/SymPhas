@@ -29,14 +29,14 @@
 
 #include <type_traits>
 
-#include "expressionrules.h"
-#include "expressionconvolution.h"
+//#include "expressions.h"
 #include "expressionderivatives.h"
 #include "expressionintegrals.h"
 #include "expressionexponentials.h"
 #include "expressionfunctions.h"
-#include "expressionproperties.h"
-#include "expressionaggregates.h"
+#include "expressionconvolution.h"
+#include "expressionrules.h"
+//#include "expressionproperties.h"
 
 namespace expr
 {

@@ -131,6 +131,9 @@ namespace expr
 		template<typename, typename...>
 		struct v_id_type;
 
+		template<typename I0, typename... Is>
+		using v_ = OpTerm<OpIdentity, v_id_type<I0, Is...>>;
+
 
 		template<typename I0, typename T0>
 		using index_eq = symphas::lib::types_list<I0, T0>;

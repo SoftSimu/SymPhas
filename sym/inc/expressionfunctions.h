@@ -27,7 +27,7 @@
 
 #include <tuple>
 
-#include "expressionrules.h"
+#include "expressionaggregates.h"
 
 namespace expr
 {
@@ -993,6 +993,8 @@ struct OpFunction : OpExpression<OpFunction<V, E, F, Arg0, Args...>>
 		return OpFunction<decltype(-value), E, F, Arg0, Args...>(-value, e, f, tt);
 	}
 
+#ifdef PRINTABLE_EQUATIONS
+
 	size_t print(FILE* out) const
 	{
 		size_t n = expr::print_with_coeff(out, value);
@@ -1016,6 +1018,8 @@ struct OpFunction : OpExpression<OpFunction<V, E, F, Arg0, Args...>>
 		return expr::coeff_print_length(value) + e.print_length()
 			+ name.length() + SYEX_LAMBDA_FUNC_FMT_LEN;
 	}
+
+#endif
 
 protected:
 

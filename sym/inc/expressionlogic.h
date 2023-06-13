@@ -27,7 +27,6 @@
 
 #pragma once
 
-#include "expressionlib.h"
 #include "expressionproperties.h"
 
 

@@ -47,7 +47,7 @@
 
 
 #define SYEX_SUM_FMT SYEX_SUM_FMT_AA "%s" SYEX_SUM_FMT_AB SYEX_SUM_FMT_BA "%s" SYEX_SUM_FMT_BB
-#define SYEX_MUL_FMT_LEN (STR_ARR_LEN(SYEX_SUM_FMT_AA SYEX_SUM_FMT_AB SYEX_SUM_FMT_BA SYEX_SUM_FMT_BB) - 1)
+//#define SYEX_MUL_FMT_LEN (STR_ARR_LEN(SYEX_SUM_FMT_AA SYEX_SUM_FMT_AB SYEX_SUM_FMT_BA SYEX_SUM_FMT_BB) - 1)
 
 
 
@@ -4294,6 +4294,7 @@ protected:
 		return arg;
 	}
 
+#ifdef PRINTABLE_EQUATIONS
 	template<size_t N, typename T>
 	auto update_name(T const& arg) const
 	{
@@ -4302,7 +4303,6 @@ protected:
 		return arg0;
 	}
 
-#ifdef PRINTABLE_EQUATIONS
 	template<size_t N, typename T>
 	auto update_name(NamedData<T> const& arg) const
 	{

@@ -170,7 +170,7 @@ struct NamedData : G
 
 #else
 
-	NamedData() : G(data) {}
+	NamedData() : G() {}
 
 	template<typename T>
 	NamedData(G data, T&&) : G(data) {}
@@ -988,6 +988,8 @@ namespace symphas::internal
 		}
 	};
 
+#ifdef PRINTABLE_EQUATIONS
+
 	template<typename estream, typename E>
 	size_t print_one_term(estream* out, E const& e)
 	{
@@ -1023,6 +1025,8 @@ namespace symphas::internal
 	{
 		return term.print_length();
 	}
+
+#endif
 
 
 
@@ -1442,8 +1446,11 @@ struct OpTerms<V, Term<Gs, Xs>...> : OpExpression<OpTerms<V, Term<Gs, Xs>...>>, 
 {
 	using parent_type = OpTermsList<V, Term<Gs, Xs>...>;
 	using parent_type::term;
+
+#ifdef PRINTABLE_EQUATIONS
 	using parent_type::print;
 	using parent_type::print_length;
+#endif
 
 	constexpr OpTerms() : parent_type() {}
 
