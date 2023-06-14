@@ -28,6 +28,16 @@
 
 #include "symbolicseries.h"
 
+namespace symphas::internal
+{
+
+    template<typename K, typename E>
+	auto swapped_for_dynamic(OpExpression<E> const& e, DynamicIndex const& index) 
+	{
+		return expr::transform::swap_grid<K>(*static_cast<E const*>(&e), index);
+	}
+
+}
 
 template<typename E>
 struct SymbolicListIndex<E, void>
@@ -220,14 +230,14 @@ struct OpSymbolicEval<V, SymbolicListIndex<E0, K>, SymbolicFunction<E, Variable<
 	using eval_t = SymbolicFunction<E, Variable<Ns, Ts>...>;
 	using this_t = OpSymbolicEval<V, sub_t, eval_t>;
 
-	OpSymbolicEval() = default;
+	OpSymbolicEval() : OpSymbolicEval(V{}, sub_t{}, eval_t{}) {}
 
 	OpSymbolicEval(V value, sub_t const& data, eval_t const& f) :
 		value{ value }, f{ f }, data{ data },
 		index{ data.start(), data.start(), data.end() },
 		list{ (data.length() > 0) ? new list_t * [data.length()] {} : nullptr}
 	{
-		auto sw = swapped_for_dynamic(f.e);
+		auto sw = symphas::internal::swapped_for_dynamic<K>(f.e, index);
 		for (iter_type i = 0; i < data.length(); ++i)
 		{
 			list[i] = new list_t(sw);
@@ -270,12 +280,8 @@ struct OpSymbolicEval<V, SymbolicListIndex<E0, K>, SymbolicFunction<E, Variable<
 	sub_t data;
 	DynamicIndex index;
 
-	auto swapped_for_dynamic(OpExpression<E> const& e) const
-	{
-		return expr::transform::swap_grid<K>(*static_cast<E const*>(&e), index);
-	}
 
-	using list_expr_t = std::invoke_result_t<decltype(&this_t::swapped_for_dynamic), this_t, E>;
+	using list_expr_t = std::invoke_result_t<decltype(&symphas::internal::swapped_for_dynamic<K, E>), E, DynamicIndex>;
 	using list_t = SymbolicFunction<list_expr_t, Variable<Ns, Ts>...>;
 
 	list_t** list;

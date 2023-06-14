@@ -513,12 +513,12 @@ struct GeneralizedStencil
 	{
 		len_type stride[DD];
 		symphas::set_stride<Axis::X>(stride, dims);
+		static symphas::internal::GeneratedStencilApply stencil(expr::get_central_space_stencil<OD1, OA, 1>());
 
 #ifdef DEBUG
-		static size_t n = expr::print_stencil(symphas::internal::GeneratedStencilApply<Stt>{ stride, divh });
+		static size_t n = expr::print_stencil(stencil);
 #endif
 
-		static symphas::internal::GeneratedStencilApply stencil(expr::get_central_space_stencil<OD1, OA, 1>());
 		return stencil(v, stride, divh);
 		//return symphas::internal::GeneratedStencilApply<Stt>{ stride, divh }(v);
 	}

@@ -26,7 +26,7 @@
 
 #pragma once
 
-#include "expressiontransforms.h"
+//#include "expressiontransforms.h"
 #include "symbolicdata.h"
 
 
@@ -324,6 +324,94 @@ public:
 	E e;				//!< The substitutable function.
 };
 
+namespace symphas::internal
+{
+
+	template<typename T>
+	auto _construct_arg(SymbolicData<T> arg) 
+	{
+		return arg;
+	}
+
+	template<typename T>
+	auto _construct_arg(NamedData<SymbolicData<T>> arg) 
+	{
+		return arg;
+	}
+
+	template<typename T>
+	auto _construct_arg(SymbolicDataArray<T> arg) 
+	{
+		return arg;
+	}
+
+	template<typename T>
+	auto _construct_arg(T arg) 
+	{
+		if constexpr (expr::is_expression<T> || expr::is_symbol<T>)
+		{
+			return arg;
+		}
+		else
+		{
+			return SymbolicData<T>(&arg, true);
+		}
+	}
+
+	template<typename T>
+	auto construct_arg(T arg) 
+	{
+		return _construct_arg(arg);
+	}
+
+
+	template<size_t N, typename T>
+	auto substitute_arg(T const& data0)
+	{
+		if constexpr (expr::is_symbol<T>)
+		{
+			return expr::make_term<N>(T{});
+		}
+		else
+		{
+			return expr::make_term<N>(std::ref(const_cast<T&>(data0)));
+		}
+	}
+
+	template<typename E0, size_t... ArgNs, typename... Ts, size_t... Is>
+	auto substitute_args(SymbolicTemplate<E0, ArgNs...> const& tmpl, std::tuple<Ts...> const& data,
+		std::index_sequence<Is...>)
+	{
+		return expr::apply_operators(tmpl(substitute_arg<ArgNs>(std::get<Is>(data))...));
+	}
+
+	template<typename E0, size_t... ArgNs, typename... Ts, size_t... Is>
+	auto substitute_args(SymbolicFunction<E0, Variable<ArgNs, Ts>...> const& func, std::tuple<Ts...> const& data,
+		std::index_sequence<Is...>)
+	{
+		if constexpr (sizeof...(Ts) > 0)
+		{
+			return expr::transform::swap_grid<Variable<ArgNs>...>(func.e, substitute_arg<ArgNs>(std::get<Is>(data))...);
+		}
+		else
+		{
+			return func.e;
+		}
+	}
+
+	template<typename E0, size_t... ArgNs, typename... Ts>
+	auto construct_function(SymbolicTemplate<E0, ArgNs...> const& tmpl, std::tuple<Ts...> const& data)
+	{
+		return substitute_args(tmpl, data, std::make_index_sequence<sizeof...(ArgNs)>{});
+	}
+
+	template<typename T, typename R>
+	auto construct_function_resolve(T const& tmpl, R const& data)
+	{
+		return construct_function(tmpl, data);
+	}
+
+}
 
 
 //! A function into which data can be substituted and be automatically evaluated.
@@ -360,101 +448,14 @@ struct SymbolicFunction<E, Variable<ArgNs, Ts>...>
 	
 	SymbolicFunction() : data{} {}
 
-protected:
-
-	template<size_t N, typename T>
-	auto substitute_arg(T const& data0)
-	{
-		if constexpr (expr::is_symbol<T>)
-		{
-			return expr::make_term<N>(T{});
-		}
-		else
-		{
-			return expr::make_term<N>(std::ref(const_cast<T&>(data0)));
-		}
-	}
-
-	template<typename E0, size_t... Is>
-	auto substitute_args(SymbolicTemplate<E0, ArgNs...> const& tmpl,
-		std::index_sequence<Is...>)
-	{
-		return expr::apply_operators(tmpl(substitute_arg<ArgNs>(std::get<Is>(data))...));
-	}
-
-	template<typename E0, size_t... Is>
-	auto substitute_args(SymbolicFunction<E0, Variable<ArgNs, Ts>...> const& func,
-		std::index_sequence<Is...>)
-	{
-		if constexpr (sizeof...(Ts) > 0)
-		{
-			return expr::transform::swap_grid<Variable<ArgNs>...>(func.e, substitute_arg<ArgNs>(std::get<Is>(data))...);
-		}
-		else
-		{
-			return func.e;
-		}
-	}
-
-	template<typename E0>
-	auto _construct_function(SymbolicTemplate<E0, ArgNs...> const& tmpl)
-	{
-		return substitute_args(tmpl, std::make_index_sequence<sizeof...(ArgNs)>{});
-	}
-
-	auto construct_function(SymbolicTemplate<E, ArgNs...> const& tmpl)
-	{
-		return _construct_function(tmpl);
-	}
-
 	template<typename T>
-	auto _construct_arg(SymbolicData<T> arg) const
-	{
-		return arg;
-	}
-
-	template<typename T>
-	auto _construct_arg(NamedData<SymbolicData<T>> arg) const
-	{
-		return arg;
-	}
-
-	template<typename T>
-	auto _construct_arg(SymbolicDataArray<T> arg) const
-	{
-		return arg;
-	}
-
-	template<typename T>
-	auto _construct_arg(T arg) const
-	{
-		if constexpr (expr::is_expression<T> || expr::is_symbol<T>)
-		{
-			return arg;
-		}
-		else
-		{
-			return SymbolicData<T>(&arg, true);
-		}
-	}
-
-	template<typename T>
-	auto construct_arg(T arg) const
-	{
-		return _construct_arg(arg);
-	}
-
-public:
-
-
-	template<typename T>
-	using arg_type = typename std::invoke_result_t<decltype(&this_type::template construct_arg<T>), this_type, T>;
+	using arg_type = typename std::invoke_result_t<decltype(&symphas::internal::construct_arg<T>), T>;
 	using data_type = std::tuple<arg_type<Ts>...>;
 
 	//! The linked substitutable data.
 	data_type data;
 
-	using expr_type = typename std::invoke_result_t<decltype(&this_type::construct_function), this_type, SymbolicTemplate<E, ArgNs...>>;
+	using expr_type = typename std::invoke_result_t<decltype(&symphas::internal::construct_function_resolve<SymbolicTemplate<E, ArgNs...>, data_type>), SymbolicTemplate<E, ArgNs...>, data_type>;
 	using type = SymbolicFunction<expr_type, Variable<ArgNs, Ts>...>;
 
 
@@ -465,16 +466,16 @@ public:
 
 	template<typename E0>
 	SymbolicFunction(SymbolicTemplate<E0, ArgNs...> const& tmpl) :
-		data{}, e{ substitute_args(tmpl, std::make_index_sequence<sizeof...(Ts)>{}) } {}
+		data{}, e{ symphas::internal::substitute_args(tmpl, data, std::make_index_sequence<sizeof...(Ts)>{}) } {}
 
 	SymbolicFunction(SymbolicFunction<E, Variable<ArgNs, Ts>...> const& other) :
-		data{}, e{ substitute_args(other, std::make_index_sequence<sizeof...(Ts)>{}) } 
+		data{}, e{ symphas::internal::substitute_args(other, data, std::make_index_sequence<sizeof...(Ts)>{}) } 
 	{
 		set_data_tuple(other.data);
 	}
 
 	SymbolicFunction(SymbolicFunction<E, Variable<ArgNs, Ts>...>&& other) : 
-		data{}, e{ substitute_args(other, std::make_index_sequence<sizeof...(Ts)>{}) }
+		data{}, e{ symphas::internal::substitute_args(other, data, std::make_index_sequence<sizeof...(Ts)>{}) }
 	{
 		set_data_tuple(other.data);
 		//swap(*this, other);

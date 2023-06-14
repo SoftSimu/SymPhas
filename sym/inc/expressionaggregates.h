@@ -469,12 +469,12 @@ struct DynamicVariable : DynamicIndex
 
 	const auto& get() const
 	{
-		return data[DynamicIndex::data];
+		return data[*DynamicIndex::data];
 	}
 
 	auto& get()
 	{
-		return data[DynamicIndex::data];
+		return data[*DynamicIndex::data];
 	}
 
 	G* data;
@@ -488,12 +488,12 @@ struct DynamicVariable<NamedData<G*>> : DynamicIndex
 
 	const auto& get() const
 	{
-		return data.data[DynamicIndex::data];
+		return data.data[*DynamicIndex::data];
 	}
 
 	auto& get()
 	{
-		return data.data[DynamicIndex::data];
+		return data.data[*DynamicIndex::data];
 	}
 
 	NamedData<G*> data;

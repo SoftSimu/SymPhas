@@ -1384,19 +1384,19 @@ constexpr auto expr::make_integer()
 struct DynamicIndex : OpExpression<DynamicIndex>
 {
 	DynamicIndex(iter_type&& data, len_type start_index, len_type end_index) :
-		data{ *(new len_type(data)) }, start_index{ start_index }, end_index{ end_index }, is_local{ false }, clear{ true } {}
+		data{ new len_type(data) }, start_index{ start_index }, end_index{ end_index }, is_local{ false }, clear{ true } {}
+	DynamicIndex(iter_type&& data, len_type start_index) : 
+		data{ new len_type(data) }, start_index{ start_index }, end_index{ data }, is_local{ true }, clear{ false } {}
+	DynamicIndex(iter_type&& data) : DynamicIndex(std::move(data), len_type(data)) {}
+
 	DynamicIndex(iter_type& data, len_type start_index, len_type end_index) :
-		data{ data }, start_index{ start_index }, end_index{ end_index }, is_local{ false }, clear{ false } {}
+		data{ &data }, start_index{ start_index }, end_index{ end_index }, is_local{ false }, clear{ false } {}
 	DynamicIndex(iter_type& data) : DynamicIndex(data, data, data) {}
 	
-	DynamicIndex(iter_type&& data, len_type start_index) : 
-		data{ *(new len_type(data)) }, start_index{ start_index }, end_index{ data },
-		is_local{ true }, clear{ false } {}
-	DynamicIndex(iter_type&& data) : DynamicIndex(std::move(data), iter_type(data)) {}
 	DynamicIndex() : DynamicIndex(0) {}
 
 	DynamicIndex(DynamicIndex const& other) :
-		data{ (other.is_local) ? *(new int(other.data)) : other.data.get() },
+		data{ (other.is_local) ? new int(*other.data) : other.data },
 		start_index{ other.start_index }, end_index{ other.end_index }, 
 		is_local{ other.is_local }, clear{ false } {}
 	DynamicIndex(DynamicIndex&& other) : DynamicIndex()
@@ -1408,6 +1408,13 @@ struct DynamicIndex : OpExpression<DynamicIndex>
 	{
 		swap(*this, other);
 		return *this;
+	}
+
+	DynamicIndex operator=(iter_type index)
+	{
+		DynamicIndex other(*this);
+		*other.data = index;
+		return other;
 	}
 
 	friend void swap(DynamicIndex& first, DynamicIndex& second)
@@ -1465,16 +1472,9 @@ struct DynamicIndex : OpExpression<DynamicIndex>
 	}
 #endif
 
-	DynamicIndex operator=(iter_type index)
-	{
-		DynamicIndex other(*this);
-		other.data.get() = index;
-		return other;
-	}
-
 	iter_type index() const
 	{
-		return data.get();
+		return *data;
 	}
 
 	len_type start() const
@@ -1494,7 +1494,7 @@ struct DynamicIndex : OpExpression<DynamicIndex>
 
 	bool is_constant() const
 	{
-		return (data.get() == end_index && (start_index == end_index || start_index == 0));
+		return (*data == end_index && (start_index == end_index || start_index == 0));
 	}
 
 	void set_data(DynamicIndex& other)
@@ -1510,13 +1510,13 @@ struct DynamicIndex : OpExpression<DynamicIndex>
 	{
 		if (is_local || clear)
 		{
-			delete& (data.get());
+			delete data;
 		}
 	}
 
 protected:
 
-	symphas::ref<iter_type> data;	//!< The reference to the index.
+	iter_type* data;	            //!< The reference to the index.
 	len_type start_index;			//!< The smallest value the index can attain.
 	len_type end_index;				//!< The maximum value the index can attain.
 	bool is_local;					//!< The index is only local to this object and will be destroyed at the end of its lifetime.

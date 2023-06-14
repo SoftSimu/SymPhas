@@ -25,8 +25,7 @@
 
 #pragma once
 
-#include "expressionsprint.h"
-#include "expressionlogic.h"
+#include "expressiontransforms.h"
 
 
 /*!
