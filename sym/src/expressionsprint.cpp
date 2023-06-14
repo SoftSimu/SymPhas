@@ -19,7 +19,7 @@
  */
 
 
-#include "expressionaggregates.h"
+#include "expressionsprint.h"
 
 #ifdef PRINTABLE_EQUATIONS
 

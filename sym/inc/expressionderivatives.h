@@ -127,7 +127,7 @@ struct SymbolicDerivative<expr::variational_t<Variable<Z, NamedData<G>>>> : Symb
 #ifdef PRINTABLE_EQUATIONS
 
 	SymbolicDerivative() : name{ 0, "" } {}
-	SymbolicDerivative(Variable<Z, NamedData<G>> const& var) : name{ 0, var.data.name } {}
+	SymbolicDerivative(Variable<Z, NamedData<G>> const& var) : name{ 0, var.name } {}
 
 	NamedData<void*> name;
 
