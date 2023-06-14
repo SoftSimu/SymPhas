@@ -126,9 +126,8 @@ struct SymbolicDerivative<expr::variational_t<Variable<Z, NamedData<G>>>> : Symb
 {
 #ifdef PRINTABLE_EQUATIONS
 
-	SymbolicDerivative() : index{}, name{ 0, "" } {}
-	SymbolicDerivative(DynamicIndex const& index) : index{ index }, name{ 0, "" } {}
-	SymbolicDerivative(Variable<Z, NamedData<G>> const& var) : index{ var }, name{ 0, var.data.name } {}
+	SymbolicDerivative() : name{ 0, "" } {}
+	SymbolicDerivative(Variable<Z, NamedData<G>> const& var) : name{ 0, var.data.name } {}
 
 	NamedData<void*> name;
 
@@ -144,13 +143,10 @@ struct SymbolicDerivative<expr::variational_t<Variable<Z, NamedData<G>>>> : Symb
 
 #else
 
-	SymbolicDerivative() : index{} {}
-	SymbolicDerivative(DynamicIndex const& index) : index{ index } {}
-	SymbolicDerivative(Variable<Z, NamedData<G>> const& var) : index{ var } {}
+	SymbolicDerivative() {}
+	SymbolicDerivative(Variable<Z, NamedData<G>> const& var) {}
 
 #endif
-
-	DynamicIndex index;
 };
 
 template<size_t Z, typename G>

@@ -3086,10 +3086,18 @@ auto operator*(OpExpression<E1> const& a, OpOperator<E2> const& b)
 	return expr::dot(*static_cast<const E1*>(&a), *static_cast<const E2*>(&b));
 }
 
-template<typename A, typename B, typename E>
+template<typename A, typename B, typename E,
+	typename std::enable_if_t<(expr::eval_type<OpBinaryMul<A, B>>::rank > 0 && expr::eval_type<E>::rank > 0), int> = 0>
 auto operator*(OpBinaryMul<A, B> const& a, OpOperator<E> const& b)
 {
-	return OpOperatorChain(a, *static_cast<const E*>(&b));
+	return expr::dot(a, *static_cast<const E*>(&b));
+}
+
+template<typename A, typename B, typename E,
+	typename std::enable_if_t<(expr::eval_type<OpBinaryMul<A, B>>::rank > 0 && expr::eval_type<E>::rank > 0), int> = 0>
+auto operator*(OpBinaryDiv<A, B> const& a, OpOperator<E> const& b)
+{
+	return expr::dot(a, *static_cast<const E*>(&b));
 }
 
 

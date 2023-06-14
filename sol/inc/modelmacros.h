@@ -1050,8 +1050,8 @@ namespace symphas::internal
 #define WHITE_NOISE(TYPE, ...) NOISE(WHITE, TYPE, __VA_ARGS__)
 #define POISSON_NOISE(INTENSITY, LAMBDA, ...) NOISE(POISSON, SCALAR, INTENSITY, LAMBDA, __VA_ARGS__)
 
-#define _wN(...) WHITE_NOISE(__VA_ARGS__)
-#define _pN(...) POISSON_NOISE(__VA_ARGS__)
+#define _nW(...) WHITE_NOISE(__VA_ARGS__)
+#define _nP(...) POISSON_NOISE(__VA_ARGS__)
 
 // **************************************************************************************
 

@@ -170,10 +170,10 @@ struct NamedData : G
 
 #else
 
-	NamedData() : G() {}
 
 	template<typename T>
 	NamedData(G data, T&&) : G(data) {}
+	NamedData(G data = symphas::internal::make_data<G>{}()) : NamedData(data, nullptr) {}
 
 #endif
 

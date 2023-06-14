@@ -74,6 +74,12 @@ namespace expr
 	template<NoiseType nt, typename T, size_t D, typename E>
 	auto make_noise(NoiseData<nt, T, D> const& noise, OpExpression<E> const& e);
 
+	template<NoiseType nt, size_t D, typename E, typename... Ts>
+	auto make_noise(expr::noise_data<nt, D> const& noise, SymbolicFunction<E, Ts...> const& f)
+	{
+		return make_noise(NoiseData<nt, scalar_t, D>(noise), f);
+	}
+
 	template<NoiseType nt, typename T, size_t D>
 	auto make_noise(const len_type* dimensions, const double* h, const double* dt);
 
@@ -82,18 +88,18 @@ namespace expr
 namespace symphas::internal
 {
 
-	template<size_t I0, size_t... Is, typename E, typename T0, typename... Ts>
-	auto build_function_for_noise(std::index_sequence<I0, Is...>, OpExpression<E> const& e, T0 const& arg0, Ts const&... args)
+	template<size_t... Is, typename E, typename... Ts>
+	auto build_function_for_noise(std::index_sequence<Is...>, OpExpression<E> const& e, Ts const&... args)
 	{
-		auto f = expr::function_of(Variable<I0, T0>{}, Variable<Is, Ts>{}...) = *static_cast<E const*>(&e);
-		f.set_data(arg0, args...);
+		auto f = expr::function_of(Variable<Is, Ts>{}...) = *static_cast<E const*>(&e);
+		f.set_data(args...);
 		return f;
 	}
 
-	template<typename E, typename T0, typename... Ts>
-	auto build_function_for_noise(OpExpression<E> const& e, T0&& arg0, Ts&&... args)
+	template<typename E, typename... Ts>
+	auto build_function_for_noise(OpExpression<E> const& e, Ts&&... args)
 	{
-		return build_function_for_noise(std::make_index_sequence<sizeof...(Ts) + 1>{}, * static_cast<E const*>(&e), std::forward<T0>(arg0), std::forward<Ts>(args)...);
+		return build_function_for_noise(std::make_index_sequence<sizeof...(Ts)>{}, * static_cast<E const*>(&e), std::forward<Ts>(args)...);
 	}
 }
 
@@ -263,13 +269,6 @@ namespace expr
 			update(static_cast<R const*>(&intensity)->eval(), std::get<0>(args), std::get<1>(args));
 		}
 
-		template<typename E, typename... Ts>
-		auto operator()(OpExpression<E> const& e, Ts&&... args) const
-		{
-			auto f = symphas::internal::build_function_for_noise(*static_cast<E const*>(&e), std::forward<Ts>(args)...);
-			return expr::make_noise(*this, f);
-		}
-
 		double H;
 		const double *dt;
 	};
@@ -297,13 +296,6 @@ namespace expr
 		{
 			update(*static_cast<R const*>(&intensity));
 		}
-
-		template<typename E, typename... Ts>
-		auto operator()(OpExpression<E> const& e, Ts&&... args) const
-		{
-			auto f = symphas::internal::build_function_for_noise(*static_cast<E const*>(&e), std::forward<Ts>(args)...);
-			return expr::make_noise(*this, f);
-		}
 	};
 
 	template<size_t D>
@@ -328,13 +320,6 @@ namespace expr
 		void update(OpExpression<R> const& intensity, std::tuple<Ts...> const& args)
 		{
 			update(*static_cast<R const*>(&intensity));
-		}
-
-		template<typename E, typename... Ts>
-		auto operator()(OpExpression<E> const& e, Ts&&... args) const
-		{
-			auto f = symphas::internal::build_function_for_noise(*static_cast<E const*>(&e), std::forward<Ts>(args)...);
-			return expr::make_noise(*this, f);
 		}
 	};
 
@@ -361,13 +346,6 @@ namespace expr
 		void update(OpExpression<R> const& intensity, std::tuple<Ts...> const& args)
 		{
 			update(*static_cast<R const*>(&intensity));
-		}
-
-		template<typename E, typename... Ts>
-		auto operator()(OpExpression<E> const& e, Ts&&... args) const
-		{
-			auto f = symphas::internal::build_function_for_noise(*static_cast<E const*>(&e), std::forward<Ts>(args)...);
-			return expr::make_noise(*this, f);
 		}
 
 	};
@@ -411,19 +389,6 @@ namespace expr
 				std::uniform_real_distribution<> dis0(0.0, 1.0);
 				value = dis0(gen);
 			}
-		}
-
-		template<typename E>
-		auto operator()(OpExpression<E> const& e) const
-		{
-			return expr::make_poisson_event(*this, *static_cast<E const*>(&e));
-		}
-
-		template<typename E, typename T0, typename... Ts>
-		auto operator()(OpExpression<E> const& e, T0&& arg0, Ts&&... args) const
-		{
-			auto f = symphas::internal::build_function_for_noise(*static_cast<E const*>(&e), std::forward<T0>(arg0), std::forward<Ts>(args)...);
-			return expr::make_poisson_event(*this, f);
 		}
 
 		auto operator[](iter_type n) const
@@ -524,6 +489,26 @@ struct NoiseData : expr::noise_data<nt, D>
 	NoiseData(expr::noise_data<nt, D> const& noise) : parent_type(noise) {}
 	NoiseData(expr::noise_data<nt, D>&& noise) : parent_type(noise) {}
 	NoiseData() : parent_type() {}
+
+
+	template<typename E, typename... Ts>
+	auto operator()(OpExpression<E> const& e, Ts&&... args) const
+	{
+		auto f = symphas::internal::build_function_for_noise(*static_cast<E const*>(&e), std::forward<Ts>(args)...);
+		return expr::make_noise(*this, f);
+	}
+
+	template<typename T0, typename... Ts>
+	auto operator()(T0 const& arg0, Ts&&... args) const
+	{
+		auto f = symphas::internal::build_function_for_noise(expr::make_literal(arg0), std::forward<Ts>(args)...);
+		return expr::make_noise(*this, f);
+	}
+
+	auto operator()() const
+	{
+		return expr::make_noise(*this, OpIdentity{});
+	}
 };
 
 template<expr::NoiseType nt, typename T, size_t D>
@@ -538,6 +523,21 @@ struct NoiseData<nt, any_vector_t<T, D>, D> : expr::noise_data_axis<D, nt, D>
 	NoiseData(expr::noise_data_axis<D, nt, D> const& noise) : parent_type(noise) {}
 	NoiseData(expr::noise_data_axis<D, nt, D>&& noise) : parent_type(noise) {}
 	NoiseData() : parent_type() {}
+
+
+	template<typename E, typename... Ts>
+	auto operator()(OpExpression<E> const& e, Ts&&... args) const
+	{
+		auto f = symphas::internal::build_function_for_noise(*static_cast<E const*>(&e), std::forward<Ts>(args)...);
+		return expr::make_noise(*this, f);
+	}
+
+	template<typename T0, typename... Ts>
+	auto operator()(T0 const& arg0, Ts&&... args) const
+	{
+		auto f = symphas::internal::build_function_for_noise(expr::make_literal(arg0), std::forward<Ts>(args)...);
+		return expr::make_noise(*this, f);
+	}
 };
 
 //

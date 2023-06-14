@@ -1121,12 +1121,14 @@ struct SymbolicDataArray<std::tuple<NamedData<Ts>...>>
 	template<size_t N, typename T0>
 	auto set_data_1(T0 const& term)
 	{
+#ifdef PRINTABLE_EQUATIONS
 		if constexpr (expr::clear_named_data<T0>::value)
 		{
 			data[N] = NamedData<SymbolicData<storage_type>>(
 				SymbolicData<storage_type>(&expr::BaseData<T0>::get(const_cast<T0&>(term)), false), term.name);
 		}
 		else
+#endif
 		{
 			data[N] = NamedData<SymbolicData<storage_type>>(
 				SymbolicData<storage_type>(&expr::BaseData<T0>::get(const_cast<T0&>(term)), false), "");
@@ -1136,12 +1138,14 @@ struct SymbolicDataArray<std::tuple<NamedData<Ts>...>>
 	template<size_t N, typename T0>
 	auto set_data_1(Term<T0> const& term)
 	{
+#ifdef PRINTABLE_EQUATIONS
 		if constexpr (expr::clear_named_data<T0>::value)
 		{
 			data[N] = NamedData<SymbolicData<storage_type>>(
 				SymbolicData<storage_type>(&expr::BaseData<T0>::get(const_cast<T0&>(term.data())), false), term.name);
 		}
 		else
+#endif
 		{
 			data[N] = NamedData<SymbolicData<storage_type>>(
 				SymbolicData<storage_type>(&expr::BaseData<T0>::get(const_cast<T0&>(term.data())), false), "");

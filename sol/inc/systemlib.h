@@ -722,7 +722,12 @@ namespace symphas
                 throw std::out_of_range("given initial data element larger than list length\n");
             }
         }
-    
+		void set_initial_data(symphas::init_entry_type const& tentry_set, size_t n)
+		{
+			symphas::init_data_type tdata_set{ { Axis::NONE, tentry_set } };
+			set_initial_data(tdata_set, n);
+		}
+
         //! Set the interval data of the problem parameters.
         /*
          * Set the interval data of the problem parameters, to be applied to one
