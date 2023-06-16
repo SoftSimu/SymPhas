@@ -150,3 +150,5 @@ DEFINE_MODEL_FIELD_NAMES_FORMAT(CELL_MIGRATION, "\\phi_{%d}")
 #undef R2
 #undef R
 
+#undef w
+#undef dw

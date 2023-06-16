@@ -66,7 +66,7 @@ namespace symphas::io
 
 	template<typename... Ts, size_t... Is>
 	void write_data_entry(FILE* out, std::tuple<Ts...> const& data, std::index_sequence<Is...>);
-	template<typename... Ts, size_t... Is>
+	template<typename... Ts>
 	void write_data_entry(FILE* out, std::tuple<Ts...> const& data);
 
 
@@ -853,7 +853,7 @@ void symphas::io::write_data_entry(FILE* out, std::tuple<Ts...> const& data, std
 	((write_data_entry(out, std::get<Is>(data)), fprintf(out, " ")), ...);
 }
 
-template<typename... Ts, size_t... Is>
+template<typename... Ts>
 void symphas::io::write_data_entry(FILE* out, std::tuple<Ts...> const& data)
 {
 	write_data_entry(out, data, std::make_index_sequence<sizeof...(Ts)>{});

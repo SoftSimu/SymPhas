@@ -248,17 +248,26 @@ namespace expr
 		}
 
 		symphas::internal::data_iterator it(std::forward<assign_type>(data));
-
-#if defined(EXECUTION_HEADER_AVAILABLE)
-		std::copy(std::execution::par, 
-			static_cast<const E*>(&e)->begin(), 
-			static_cast<const E*>(&e)->end(len), it);
-#else
-		for (iter_type i = 0; i < len; i++)
+		if (len < MULTITHREAD_TRIGGER_COUNT)
 		{
-			it[i] = static_cast<const E*>(&e)->eval(i);
+			for (iter_type i = 0; i < len; i++)
+			{
+				it[i] = static_cast<const E*>(&e)->eval(i);
+			}
 		}
+		else
+		{
+#if defined(EXECUTION_HEADER_AVAILABLE) 
+			std::copy(std::execution::par,
+				static_cast<const E*>(&e)->begin(),
+				static_cast<const E*>(&e)->end(len), it);
+#else
+			for (iter_type i = 0; i < len; i++)
+			{
+				it[i] = static_cast<const E*>(&e)->eval(i);
+			}
 #endif
+		}
 	}
 	
 	//! See result(OpExpression<E> const&, T*, len_type).

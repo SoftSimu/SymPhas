@@ -148,14 +148,28 @@ namespace expr
 		template<typename T>
 		len_type data_len_data(SymbolicData<T> const& data)
 		{
-			return data_len_data(*data.data);
+			if (data.data)
+			{
+				return data_len_data(*data.data);
+			}
+			else
+			{
+				return data_len_data(0);
+			}
 		}
 
 		//! Specialization based on expr::data_len_data().
 		template<typename T>
 		len_type data_len_data(SymbolicDataArray<T> const& data)
 		{
-			return data_len_data(*data.data);
+			if (data.data)
+			{
+				return data_len_data(*data.data);
+			}
+			else
+			{
+				return data_len_data(0);
+			}
 		}
 
 		//! Specialization based on expr::data_len_data().
@@ -218,7 +232,14 @@ namespace expr
 		template<typename T>
 		grid::dim_list data_dimensions_cast(SymbolicData<T> const* data)
 		{
-			return data_dimensions_cast(data->data);
+			if (data.data)
+			{
+				return data_dimensions_cast(data->data);
+			}
+			else
+			{
+				return data_dimensions_cast(0);
+			}
 		}
 
 		//! Specialization based on expr::data_dimensions_data().
@@ -300,14 +321,28 @@ namespace expr
 		template<typename T>
 		grid::dim_list data_dimensions_data(SymbolicData<T> const& data)
 		{
-			return data_dimensions_data(*data.data);
+			if (data.data)
+			{
+				return data_dimensions_data(*data.data);
+			}
+			else
+			{
+				return data_dimensions_data(0);
+			}
 		}
 
 		//! Specialization based on expr::data_dimensions_data().
 		template<typename T>
 		grid::dim_list data_dimensions_data(SymbolicDataArray<T> const& data)
 		{
-			return data_dimensions_data(*data.data);
+			if (data.data)
+			{
+				return data_dimensions_data(*data.data);
+			}
+			else
+			{
+				return data_dimensions_data(0);
+			}
 		}
 
 		//! Specialization based on expr::data_dimensions_data().
@@ -441,14 +476,28 @@ namespace expr
 		template<typename T>
 		std::pair<iter_type*, len_type> eval_iters_data(SymbolicData<T> const& data)
 		{
-			return eval_iters_data(*data.data);
+			if (data.data)
+			{
+				return eval_iters_data(*data.data);
+			}
+			else
+			{
+				return eval_iters_data(0);
+			}
 		}
 
 		//! Specialization based on expr::eval_iters_data().
 		template<typename T>
 		std::pair<iter_type*, len_type> eval_iters_data(SymbolicDataArray<T> const& data)
 		{
-			return eval_iters_data(*data.data);
+			if (data.data)
+			{
+				return eval_iters_data(*data.data);
+			}
+			else
+			{
+				return eval_iters_data(0);
+			}
 		}
 
 		//! Specialization based on expr::eval_iters_data().
@@ -1078,7 +1127,7 @@ namespace expr
 	template<typename E1, typename E2>
 	grid::dim_list data_dimensions(OpBinaryMul<E1, E2> const& e)
 	{
-		return data_dimensions(e.a, e.b);
+ 		return data_dimensions(e.a, e.b);
 	}
 
 	template<typename E1, typename E2>

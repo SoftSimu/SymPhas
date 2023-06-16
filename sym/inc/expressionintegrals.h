@@ -47,6 +47,12 @@ namespace symphas::internal
 
 		template<typename V, typename E>
 		static auto get(V const& v, OpExpression<E> const& e, symphas::grid_info const& domain);
+
+		template<typename V, typename E, typename T>
+		static auto get(V const& v, OpOperator<E> const& e, T const& domain);
+
+		template<typename V, typename E>
+		static auto get(V const& v, OpOperator<E> const& e, symphas::grid_info const& domain);
 	};
 
 }
@@ -391,6 +397,18 @@ namespace symphas::internal
 
 	template<typename V, typename E>
 	inline auto make_integral::get(V const& v, OpExpression<E> const& e, symphas::grid_info const& domain)
+	{
+		return OpIntegral<V, E, expr::variational_t<void>>(v, *static_cast<E const*>(&e), domain);
+	}
+
+	template<typename V, typename E, typename T>
+	inline auto make_integral::get(V const& v, OpOperator<E> const& e, T const& domain)
+	{
+		return OpIntegral<V, E, T>(v, *static_cast<E const*>(&e), domain);
+	}
+
+	template<typename V, typename E>
+	inline auto make_integral::get(V const& v, OpOperator<E> const& e, symphas::grid_info const& domain)
 	{
 		return OpIntegral<V, E, expr::variational_t<void>>(v, *static_cast<E const*>(&e), domain);
 	}

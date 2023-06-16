@@ -1618,6 +1618,11 @@ namespace symphas::internal
 
 
 
+	//template<typename E, int I0, int P00, int... P0s>
+	//auto normalize_test(OpExpression<E> const& e, symphas::lib::types_list<expr::symbols::i_<I0, P00>, expr::symbols::i_<I0, P0s>...>)
+	//{
+	//	return *static_cast<E const*>(&e);
+	//}
 
 	template<typename E, typename T1, typename T2>
 	auto normalize_indices(OpExpression<E> const& e, DynamicIndex const& index, 
@@ -1626,14 +1631,14 @@ namespace symphas::internal
 		return *static_cast<E const*>(&e);
 	}
 
-	template<typename E, int I0, int P00, int... P0s, typename T1, typename T2>
+	template<typename E, int I0, int... P0s, typename T1, typename T2>
 	auto normalize_indices(OpExpression<E> const& e, DynamicIndex const& index,
-		symphas::lib::types_list<expr::symbols::i_<I0, P00>, expr::symbols::i_<I0, P0s>...>,
+		symphas::lib::types_list<expr::symbols::i_<I0, P0s>...>,
 		expr::series_limits<T1, T2> const& limit)
 	{
-		auto e0 = expr::transform::swap_grid<expr::symbols::i_<I0, P00>, expr::symbols::i_<I0, P0s>...>(
+		auto e0 = expr::transform::swap_grid</*expr::symbols::i_<I0, P00>, */expr::symbols::i_<I0, P0s>...>(
 			*static_cast<E const*>(&e), 
-			(expr::symbols::i_<I0, 0>{} + expr::make_integer<P00>()), (expr::symbols::i_<I0, 0>{} + expr::make_integer<P0s>())...);
+			/*(expr::symbols::i_<I0, 0>{} + expr::make_integer<P00>()), */(expr::symbols::i_<I0, 0>{} + expr::make_integer<P0s>())...);
 		return expr::transform::swap_grid<OpCoeffSwap<expr::symbols::i_<I0, 0>>>(e0, index);
 	}
 
@@ -1651,30 +1656,84 @@ namespace symphas::internal
 	//		(*static_cast<E const*>(&e), expr::symbols::v_id_type<expr::symbols::i_<I0, P00 + P0>>{}, expr::symbols::v_id_type<expr::symbols::i_<I0, P0s + P0>>{}...);
 	//}
 
-	template<typename v_types, typename i_types, int I0, int P0, typename E, typename T1, typename T2>
-	auto normalize(OpExpression<E> const& e, DynamicIndex *index, 
-		expr::symbols::i_<I0, P0>, expr::series_limits<T1, T2> const& limit)
+	template<typename v_types, typename i_types>
+	struct normalize_parse_one;
+
+	//template<typename v_types, int I0, int P00>
+	//struct normalize_parse_one<v_types, symphas::lib::types_list<expr::symbols::i_<I0, P00>>>
+	//{
+	//	using i_types = symphas::lib::types_list<expr::symbols::i_<I0, P00>>;
+
+	//	template<int I0, int P0, typename E, typename T1, typename T2>
+	//	auto operator()(OpExpression<E> const& e, DynamicIndex* index,
+	//		expr::symbols::i_<I0, P0>, expr::series_limits<T1, T2> const& limit)
+	//	{
+	//		auto f = normalize_test(*static_cast<E const*>(&e), i_types{});
+	//		return normalize_indices(*static_cast<E const*>(&e), *index, i_types{}, limit);
+	//	}
+	//};
+
+	template<typename v_types, int I0, int... P0s>
+	struct normalize_parse_one<v_types, symphas::lib::types_list<expr::symbols::i_<I0, P0s>...>>
 	{
+		using i_types = symphas::lib::types_list<expr::symbols::i_<I0, P0s>...>;
+
+		template<int P0, typename E, typename T1, typename T2>
+		auto operator()(OpExpression<E> const& e, DynamicIndex* index,
+			expr::symbols::i_<I0, P0>, expr::series_limits<T1, T2> const& limit)
+		{
+			return normalize_indices(*static_cast<E const*>(&e), *index, i_types{}, limit);
+		}
+	};
+
+	//auto normalize()
+	//{
 		//return normalize_indices(normalize_placeholders<P0>(*static_cast<E const*>(&e), v_types{}), index, i_types{}, limit);
-		return normalize_indices(*static_cast<E const*>(&e), *index, i_types{}, limit);
-	}
+	//}
 
-	template<typename v_types, typename E>
-	auto normalize(OpExpression<E> const& e, DynamicIndex* index, symphas::lib::types_list<>, std::tuple<> const& limits)
-	{
-		return *static_cast<E const*>(&e);
-	}
+	template<typename v_types, typename... i_types>
+	struct normalize_parse;
 
-	template<typename v_types, typename i_types0, typename... i_types, int I0, int P0, int... I0s, int... P0s, typename E, typename... T1s, typename... T2s>
-	auto normalize(OpExpression<E> const& e, DynamicIndex* index,
-		symphas::lib::types_list<expr::symbols::i_<I0, P0>, expr::symbols::i_<I0s, P0s>...>,
-		std::tuple<expr::series_limits<T1s, T2s>...> const& limits)
+	template<typename v_types>
+	struct normalize_parse<v_types>
 	{
-		auto vs = select_v_i_<expr::symbols::i_<I0, 0>, v_types>{};
-		//auto e0 = normalize_indices(normalize_placeholders<P0>(*static_cast<E const*>(&e), vs), i_types0{}, std::get<0>(limits));
-		auto e0 = normalize_indices(*static_cast<E const*>(&e), *index, i_types0{}, std::get<0>(limits));
-		return normalize<v_types, i_types...>(e0, index + 1, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>{}, symphas::lib::get_tuple_ge<1>(limits));
-	}
+		template<typename E>
+		auto operator()(OpExpression<E> const& e, DynamicIndex* index, symphas::lib::types_list<>, std::tuple<> const& limits)
+		{
+			return *static_cast<E const*>(&e);
+		}
+	};
+
+	template<typename v_types, typename i_types0, typename... i_types>
+	struct normalize_parse<v_types, i_types0, i_types...>
+	{
+		template<int I0, int P0, int... I0s, int... P0s, typename E, typename... T1s, typename... T2s >
+		auto operator()(OpExpression<E> const& e, DynamicIndex* index,
+			symphas::lib::types_list<expr::symbols::i_<I0, P0>, expr::symbols::i_<I0s, P0s>...>,
+			std::tuple<expr::series_limits<T1s, T2s>...> const& limits)
+		{
+			auto vs = select_v_i_<expr::symbols::i_<I0, 0>, v_types>{};
+			//auto e0 = normalize_indices(normalize_placeholders<P0>(*static_cast<E const*>(&e), vs), i_types0{}, std::get<0>(limits));
+			auto e0 = normalize_indices(*static_cast<E const*>(&e), *index, i_types0{}, std::get<0>(limits));
+			return normalize_parse<v_types, i_types...>{}(e0, index + 1, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>{}, symphas::lib::get_tuple_ge<1>(limits));
+		}
+	};
+	//template<typename v_types, typename E>
+	//auto normalize(OpExpression<E> const& e, DynamicIndex* index, symphas::lib::types_list<>, std::tuple<> const& limits)
+	//{
+	//	return *static_cast<E const*>(&e);
+	//}
+	//
+	//template<typename v_types, typename i_types0, typename... i_types, int I0, int P0, int... I0s, int... P0s, typename E, typename... T1s, typename... T2s>
+	//auto normalize(OpExpression<E> const& e, DynamicIndex* index,
+	//	symphas::lib::types_list<expr::symbols::i_<I0, P0>, expr::symbols::i_<I0s, P0s>...>,
+	//	std::tuple<expr::series_limits<T1s, T2s>...> const& limits)
+	//{
+	//	auto vs = select_v_i_<expr::symbols::i_<I0, 0>, v_types>{};
+	//	//auto e0 = normalize_indices(normalize_placeholders<P0>(*static_cast<E const*>(&e), vs), i_types0{}, std::get<0>(limits));
+	//	auto e0 = normalize_indices(*static_cast<E const*>(&e), *index, i_types0{}, std::get<0>(limits));
+	//	return normalize<v_types, i_types...>(e0, index + 1, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>{}, symphas::lib::get_tuple_ge<1>(limits));
+	//}
 
 	//template<typename v_types, typename... i_types, int... I0s, int... P0s, typename E, typename... T1s, typename... T2s>
 	//auto normalize(OpExpression<E> const& e, DynamicIndex* index, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, std::tuple<expr::series_limits<T1s, T2s>...> const& limits)
@@ -2013,6 +2072,11 @@ namespace symphas::internal
 	inline auto check_limit_range(int range)
 	{
 		return range;
+	}
+
+	inline auto check_limit_range(scalar_t range)
+	{
+		return (int)range;
 	}
 
 	template<typename E>
@@ -3428,10 +3492,10 @@ public:
 		expr::series_limits<T1, T2> const& limit,
 		symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<I0, P0s>>...>) const
 	{
-		auto e0 = symphas::internal::normalize<
+		auto e0 = symphas::internal::normalize_parse_one<
 			symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<I0, P0s>>...>, 
-			all_indices_of_id>
-			(e, index, expr::symbols::i_<I0, P0>{}, limit);
+			all_indices_of_id
+		>{}(e, index, expr::symbols::i_<I0, P0>{}, limit);
 		return (expr::template_of(expr::symbols::v_id_type<expr::symbols::i_<I0, P0s>>{}..., expr::symbols::i_<I0, 0>{}) = e);
 	}
 
@@ -3763,12 +3827,12 @@ public:
 		using namespace expr::symbols;
 		using I_list = symphas::lib::types_list<expr::symbols::i_<I0, P0>, expr::symbols::i_<I1, P1>, expr::symbols::i_<Is, Ps>...>;
 
-		auto e0 = symphas::internal::normalize<
+		auto e0 = symphas::internal::normalize_parse<
 			v_types, 
 			all_indices_of_id<i_<I0, 0>>,
 			all_indices_of_id<i_<I1, 0>>,
-			all_indices_of_id<i_<Is, 0>>...>(
-			e, index, I_list{}, limits);
+			all_indices_of_id<i_<Is, 0>>...
+		>{}(e, index, I_list{}, limits);
 
 		return (expr::template_of(
 			expr::symbols::v_id_type<expr::symbols::i_<I0s, P0s>>{}..., 
@@ -4277,8 +4341,7 @@ protected:
 			v_id_types{}, 
 			std::get<Ls>(limits)...);
 		
-		return symphas::internal::make_symbolic_eval(
-			OpIdentity{}, series, f);
+		return symphas::internal::make_symbolic_eval(OpIdentity{}, series, f);
 	}
 
 	template<typename sub_t, typename... Ts>

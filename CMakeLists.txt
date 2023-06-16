@@ -272,7 +272,7 @@ if(SOLVER_INCLUDE_HEADER_NAME
 
 	file(GLOB_RECURSE INCLUDE_FILES "${SOLVER_INCLUDE_HEADER_DIR}/*.h")
 	install(FILES ${INCLUDE_FILES} DESTINATION ${INCLUDEDIR})
-	message(STATUS "installing solver definition headers.. ${INCLUDE_FILES}")
+	message(STATUS "installing solver definition headers.. ${INCLUDE_FILES} to ${INCLUDEDIR}")
 endif()
 
 if(MODEL_INCLUDE_HEADER_NAME
@@ -281,7 +281,7 @@ if(MODEL_INCLUDE_HEADER_NAME
 
 	file(GLOB_RECURSE INCLUDE_FILES "${MODEL_INCLUDE_HEADER_DIR}/*.h")
 	install(FILES ${INCLUDE_FILES} DESTINATION ${INCLUDEDIR})
-	message(STATUS "installing model definition headers.. ${CMAKE_SOURCE_DIR}")
+	message(STATUS "installing model definition headers.. ${INCLUDE_FILES} to ${INCLUDEDIR}")
 endif()
 
 file(GLOB_RECURSE INSTALL_HEADERS "*.h")

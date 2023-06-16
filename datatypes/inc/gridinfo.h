@@ -652,7 +652,7 @@ public:
 		return lengths;
 	}
 
-	len_type area() const
+	double area() const
 	{
 		double area = 1;
 		for (auto length : get_lengths())

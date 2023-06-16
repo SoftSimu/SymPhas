@@ -109,48 +109,6 @@ struct model_select
 
 };
 
-
-// undefine all the parameters
-
-#undef c1 
-#undef c2 
-#undef c3 
-#undef c4 
-#undef c5 
-#undef c6 
-#undef c7 
-#undef c8 
-#undef c9 
-#undef c10
-#undef c11
-#undef c12
-#undef c13
-#undef c14
-#undef c15
-#undef c16
-
-#undef C
-
-// order parameter names
-
-//#undef op
-//#undef dop
-//#undef var
-
-//#undef lap
-//#undef bilap
-//#undef gradlap
-//#undef grad
-//#undef param
-
-#undef integer
-
-
-#undef x
-#undef y
-#undef z
-#undef t
-
 // free energy parameters
 
 //#undef SUM
@@ -218,6 +176,47 @@ bool match_init_expr(
 	}
 	return true;
 }
+
+
+
+// undefine all the parameters
+
+#undef c1 
+#undef c2 
+#undef c3 
+#undef c4 
+#undef c5 
+#undef c6 
+#undef c7 
+#undef c8 
+#undef c9 
+#undef c10
+#undef c11
+#undef c12
+#undef c13
+#undef c14
+#undef c15
+#undef c16
+
+#undef C
+
+// order parameter names
+
+//#undef op
+//#undef dop
+//#undef var
+
+//#undef lap
+//#undef bilap
+//#undef gradlap
+//#undef grad
+//#undef param
+
+
+#undef x
+#undef y
+#undef z
+#undef t
 
 
 

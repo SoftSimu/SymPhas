@@ -1173,6 +1173,12 @@ namespace expr
 		struct check_is_expression
 		{
 			template<typename EE>
+			static constexpr std::true_type _get_value(OpOperator<EE>)
+			{
+				return {};
+			}
+
+			template<typename EE>
 			static constexpr std::true_type _get_value(OpExpression<EE>)
 			{
 				return {};

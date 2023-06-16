@@ -33,6 +33,10 @@
 #include "modelvirtual.h"
 
 
+#ifdef USING_PROC
+#include "proc.h"
+#endif
+
 namespace symphas
 {
 

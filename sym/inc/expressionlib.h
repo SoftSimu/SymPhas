@@ -633,10 +633,35 @@ namespace symphas::internal
 		static const bool value = (N0 == N1) ? P : search_index_in_v<N0, expr::symbols::v_id_type<Is...>>::value;
 	};
 
+	template<typename I, typename T>
+	constexpr bool has_matching_i = false;
+
+	template<int N0, int P0, int... Ns, int... Ps>
+	constexpr bool has_matching_i<expr::symbols::i_<N0, P0>, expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>>
+		= (symphas::lib::index_of_value<int, N0, Ns...> >= 0);
+	
+	template<int N0, int P0, int... Ns, int... Ps, size_t D>
+	constexpr bool has_matching_i<expr::symbols::i_<N0, P0>, GridSymbol<expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>, D>>
+		= has_matching_i<expr::symbols::i_<N0, P0>, expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>>;
+
+	template<bool flag, typename T0>
+	struct test_select_v_i_impl;
+
+
+	template<typename T0>
+	struct test_select_v_i_impl<true, T0>
+	{
+		using type = symphas::lib::types_list<T0>;
+	};
+
+	template<typename T0>
+	struct test_select_v_i_impl<false, T0>
+	{
+		using type = symphas::lib::types_list<>;
+	};
 
 	template<typename I, typename T0, typename List>
 	struct select_v_i_impl;
-
 
 	template<int N0, int P0, typename... Vs>
 	struct select_v_i_impl<expr::symbols::i_<N0, P0>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<>>
@@ -644,33 +669,42 @@ namespace symphas::internal
 		using type = symphas::lib::types_list<Vs...>;
 	};
 
-	template<int N0, int P0, typename... Vs, int... Ns, int... Ps, typename... Rest>
-	struct select_v_i_impl<expr::symbols::i_<N0, P0>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>, Rest...>>
+	template<int N0, int P0, typename... Vs, typename T0, typename... Ts>
+	struct select_v_i_impl<expr::symbols::i_<N0, P0>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<T0, Ts...>>
 	{
-		static const bool flag = symphas::lib::index_of_value<int, N0, Ns...> >= 0;
-
-		using type = typename select_v_i_impl<
-			expr::symbols::i_<N0, P0>,
-			std::conditional_t<flag,
-				symphas::lib::types_list<Vs..., expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>>,
-				symphas::lib::types_list<Vs...>>,
-			symphas::lib::types_list<Rest...>>::type;
+		using type = typename select_v_i_impl<expr::symbols::i_<N0, P0>, 
+			symphas::lib::expand_types_list<symphas::lib::types_list<Vs...>, typename test_select_v_i_impl<has_matching_i<expr::symbols::i_<N0, P0>, T0>, T0>::type>,
+			symphas::lib::types_list<Ts...>>::type;
 	};
 
-	template<int N0, int P0, typename... Vs, int... Ns, int... Ps, size_t D, typename... Rest>
-	struct select_v_i_impl<expr::symbols::i_<N0, P0>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<GridSymbol<expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>, D>, Rest...>>
-	{
-		using type = typename select_v_i_impl<expr::symbols::i_<N0, P0>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>, Rest...>>::type;
-	};
+	//template<int N0, int P0, typename... Vs, int N1, int P1, int... Ns, int... Ps, typename... Rest>
+	//struct select_v_i_impl<expr::symbols::i_<N0, P0>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<N1, P1>, expr::symbols::i_<Ns, Ps>...>, Rest...>>
+	//{
+	//	//static const bool flag = symphas::lib::index_of_value<int, N0, Ns...> >= 0;
+	//	//
+	//	//using type = typename select_v_i_impl<
+	//	//	expr::symbols::i_<N0, P0>,
+	//	//	std::conditional_t<flag,
+	//	//		symphas::lib::types_list<Vs..., expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>>,
+	//	//		symphas::lib::types_list<Vs...>>,
+	//	//	symphas::lib::types_list<Rest...>>::type;
+	//	//using type = typename select_v_i_impl < expr::symbols::i_<N0, P0>, symphas::lib::types_list<Vs..., expr::symbols::v_id_type<expr::symbols::i_<N1, P1>, expr::symbols::i_<Ns, Ps>...>>, symphas::lib::types_list<Rest...>>::type;
+	//};
 
-	template<int N0, int P0, typename... Vs, typename T, typename... Rest>
-	struct select_v_i_impl<expr::symbols::i_<N0, P0>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<T, Rest...>>
-	{
-		using type = typename select_v_i_impl<
-			expr::symbols::i_<N0, P0>,
-			symphas::lib::types_list<Vs...>,
-			symphas::lib::types_list<Rest...>>::type;
-	};
+	//template<int N0, int P0, typename... Vs, int... Ns, int... Ps, size_t D, typename... Rest>
+	//struct select_v_i_impl<expr::symbols::i_<N0, P0>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<GridSymbol<expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>, D>, Rest...>>
+	//{
+	//	using type = typename select_v_i_impl<expr::symbols::i_<N0, P0>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>, Rest...>>::type;
+	//};
+
+	//template<int N0, int P0, typename... Vs, typename T, typename... Rest>
+	//struct select_v_i_impl<expr::symbols::i_<N0, P0>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<T, Rest...>>
+	//{
+	//	using type = typename select_v_i_impl<
+	//		expr::symbols::i_<N0, P0>,
+	//		symphas::lib::types_list<Vs...>,
+	//		symphas::lib::types_list<Rest...>>::type;
+	//};
 
 	//template<int N0, int P0, typename... Vs>
 	//struct select_v_i_<expr::symbols::i_<N0, P0>, symphas::lib::types_list<Vs...>>
@@ -680,7 +714,10 @@ namespace symphas::internal
 	//		symphas::lib::types_list<>,
 	//		symphas::lib::types_list<Vs...>>::type;
 	//};
-    
+
+	template<typename I, typename List>
+	using select_v_i_ = typename select_v_i_impl<I, symphas::lib::types_list<>, List>::type;
+
     template<typename T>
     constexpr bool is_v_type = false;
 
@@ -689,8 +726,6 @@ namespace symphas::internal
     template<int... Ns, int... Ps, size_t D>
     constexpr bool is_v_type<GridSymbol<expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>, D>> = true;
 
-	template<typename I, typename List>
-	using select_v_i_ = typename select_v_i_impl<I, symphas::lib::types_list<>, List>::type;
 
 	template<size_t flag, typename Is, typename T0, typename List>
 	struct select_v_nested_impl;

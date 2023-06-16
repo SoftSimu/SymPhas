@@ -647,8 +647,8 @@ namespace symphas
 		{
 			if (str)
 			{
-				int next = 0;
-				int end = std::strlen(str);
+				size_t next = 0;
+				size_t end = std::strlen(str);
 				char buffer[BUFFER_LENGTH_R2];
 
 
@@ -659,7 +659,7 @@ namespace symphas
 
 				while (next < end)
 				{
-					sscanf(str, "%s %n", buffer, &next);
+					sscanf(str, "%s %zn", buffer, &next);
 					for (auto [k, v] : map)
 					{
 						if (k == buffer)
@@ -722,10 +722,10 @@ namespace symphas
                 throw std::out_of_range("given initial data element larger than list length\n");
             }
         }
-		void set_initial_data(symphas::init_entry_type const& tentry_set, size_t n)
+		void set_initial_data(symphas::init_entry_type const& tentry_set, iter_type i)
 		{
 			symphas::init_data_type tdata_set{ { Axis::NONE, tentry_set } };
-			set_initial_data(tdata_set, n);
+			set_initial_data(tdata_set, i);
 		}
 
         //! Set the interval data of the problem parameters.

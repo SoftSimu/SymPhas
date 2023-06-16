@@ -2316,7 +2316,7 @@ scalar_t bubble_value_1(iter_type n, const len_type* dims, size_t N, double R,
 			static_cast<axis_coord_t>(dims[0]) });
 
 	int i_start = (select < 0) ? 0 : select;
-	int i_end = (select < 0) ? offsets.size() : select + 1;
+	int i_end = (select < 0) ? len_type(offsets.size()) : select + 1;
 	for (iter_type i = i_start; i < i_end; ++i)
 	{
 		axis_1d_type v{ offsets.get_delta(i) };
@@ -2345,7 +2345,7 @@ scalar_t bubble_value_2(iter_type n, const len_type* dims, size_t N, double R,
 		static_cast<axis_coord_t>(y) };
 
 	int i_start = (select < 0) ? 0 : select;
-	int i_end = (select < 0) ? offsets.size() : select + 1;
+	int i_end = (select < 0) ? len_type(offsets.size()) : select + 1;
 	for (iter_type i = i_start; i < i_end; ++i)
 	{
 		axis_2d_type v{ offsets.get_delta(i)[0], offsets.get_delta(i)[1] };
@@ -2382,7 +2382,7 @@ scalar_t bubble_value_3(iter_type n, const len_type* dims, size_t N, double R,
 	axis_coord_t d0 = symphas::lib::length(dm);
 
 	int i_start = (select < 0) ? 0 : select;
-	int i_end = (select < 0) ? offsets.size() : select + 1;
+	int i_end = (select < 0) ? len_type(offsets.size()) : select + 1;
 	for (iter_type i = i_start; i < i_end; ++i)
 	{
 		axis_3d_type v{ offsets.get_delta(i)[0], offsets.get_delta(i)[1], offsets.get_delta(i)[2] };
@@ -2412,7 +2412,7 @@ scalar_t bubble_value_A_1(iter_type n, const len_type* dims, size_t N, double R,
 	axis_coord_t d0 = symphas::lib::length(dm * 2);
 
 	int i_start = (select < 0) ? 0 : select;
-	int i_end = (select < 0) ? offsets.size() : select + 1;
+	int i_end = (select < 0) ? len_type(offsets.size()) : select + 1;
 
 	if (i_start < offsets.size())
 	{
@@ -2463,7 +2463,7 @@ scalar_t bubble_value_A_2(iter_type n, const len_type* dims, size_t N, double R,
 			dm[1] * 2 });
 
 	int i_start = (select < 0) ? 0 : select;
-	int i_end = (select < 0) ? offsets.size() : select + 1;
+	int i_end = (select < 0) ? len_type(offsets.size()) : select + 1;
 
 	if (i_start < offsets.size())
 	{
@@ -2512,7 +2512,7 @@ scalar_t bubble_value_A_3(iter_type n, const len_type* dims, size_t N, double R,
 			dm[2] * 16 });
 
 	int i_start = (select < 0) ? 0 : select;
-	int i_end = (select < 0) ? offsets.size() : select + 1;
+	int i_end = (select < 0) ? len_type(offsets.size()) : select + 1;
 
 	if (i_start < offsets.size())
 	{

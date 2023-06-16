@@ -2319,10 +2319,18 @@ namespace expr
 		return add_group(add_group(add, std::index_sequence<Is...>{}, add0), std::forward<T0>(e1), std::forward<Ts>(rest)...);
 	}
 
+	template<typename A, typename B>
+	constexpr bool distribute_adds_predicate = false;
+
+	template<typename A, typename... Bs>
+	constexpr bool distribute_adds_predicate<A, OpAdd<Bs...>> = (std::is_same_v<mul_result_t<A, Bs>, OpBinaryMul<A, Bs>> && ...);
+
+	template<typename... As, typename B>
+	constexpr bool distribute_adds_predicate<OpAdd<As...>, B> = (std::is_same_v<mul_result_t<As, B>, OpBinaryMul<As, B>> && ...);
 
 	//! Distributing addition expression into a addition expression.
 	template<typename A0, typename... Bs, size_t... Js,
-		typename std::enable_if_t<(std::is_same<mul_result_t<A0, Bs>, OpBinaryMul<A0, Bs>>::value && ...), int> = 0>
+		std::enable_if_t<distribute_adds_predicate<A0, OpAdd<Bs...>>, int> = 0>
 	auto distribute_adds(A0 const& a, OpAdd<Bs...> const& b, std::index_sequence<Js...>)
 	{
 		//return expr::make_add((a * expr::get<Js>(b))...);
@@ -2331,7 +2339,7 @@ namespace expr
 
 	//! Distributing addition expression into a addition expression.
 	template<typename A0, typename... Bs, size_t... Js,
-		typename std::enable_if_t<!(std::is_same<mul_result_t<A0, Bs>, OpBinaryMul<A0, Bs>>::value && ...), int> = 0>
+		std::enable_if_t<!distribute_adds_predicate<A0, OpAdd<Bs...>>, int> = 0>
 	auto distribute_adds(A0 const& a, OpAdd<Bs...> const& b, std::index_sequence<Js...>)
 	{
 		return ((a * expr::get<Js>(b)) + ...);
@@ -2339,7 +2347,7 @@ namespace expr
 
 	//! Distributing addition expression into a addition expression.
 	template<typename... As, typename B0, size_t... Is,
-		typename std::enable_if_t<(std::is_same<mul_result_t<As, B0>, OpBinaryMul<As, B0>>::value && ...), int> = 0>
+		std::enable_if_t<distribute_adds_predicate<OpAdd<As...>, B0>, int> = 0>
 	auto distribute_adds(OpAdd<As...> const& a, B0 const& b, std::index_sequence<Is...>)
 	{
 		//return expr::make_add((expr::get<Is>(a) * b)...);
@@ -2348,7 +2356,7 @@ namespace expr
 
 	//! Distributing addition expression into a addition expression.
 	template<typename... As, typename B0, size_t... Is,
-		typename std::enable_if_t<!(std::is_same<mul_result_t<As, B0>, OpBinaryMul<As, B0>>::value && ...), int> = 0>
+		 std::enable_if_t<!distribute_adds_predicate<OpAdd<As...>, B0>, int> = 0>
 	auto distribute_adds(OpAdd<As...> const& a, B0 const& b, std::index_sequence<Is...>)
 	{
 		return ((expr::get<Is>(a) * b) + ...);

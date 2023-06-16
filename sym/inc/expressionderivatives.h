@@ -108,6 +108,7 @@ struct SymbolicDerivative<expr::variational_t<DynamicVariable<NamedData<G>>>> : 
 		return name.name;
 	}
 	
+	DynamicIndex index;
 	NamedData<void*> name;
 
 #else
@@ -116,9 +117,10 @@ struct SymbolicDerivative<expr::variational_t<DynamicVariable<NamedData<G>>>> : 
 	SymbolicDerivative(DynamicIndex const& index) : index{ index } {}
 	SymbolicDerivative(DynamicVariable<NamedData<G>> const& var) : index{ var } {}
 
+	DynamicIndex index;
+
 #endif
 
-	DynamicIndex index;
 };
 
 template<size_t Z, typename G>

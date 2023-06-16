@@ -42,7 +42,6 @@
 #include "proc.h"
 #endif
 
-
 #undef BUFFER_LENGTH_R4
 #undef BUFFER_LENGTH_R2
 #undef BUFFER_LENGTH_R1

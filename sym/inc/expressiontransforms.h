@@ -3681,11 +3681,11 @@ namespace expr::transform
 				if constexpr (sizeof...(G_Fs) > 0)
 				{
 					auto subbed_case = swap_grid<Sgs...>(std::get<size_t(N)>(term.data().cases), std::get<Is>(gs)...);
-					return expr::pow<X>(subbed_case);
+					return expr::pow_x<X>(subbed_case);
 				}
 				else
 				{
-					return expr::pow<X>(std::get<size_t(N)>(term.data().cases));
+					return expr::pow_x<X>(std::get<size_t(N)>(term.data().cases));
 				}
 			}
 			else
@@ -3810,26 +3810,71 @@ namespace expr::transform
 		return e;
 	}
 
-	template<typename Sg, typename V, typename... Gs, exp_key_t... Xs, typename G_F>
-	auto swap_grid(OpTerms<V, Term<Gs, Xs>...> const& e, G_F&& g)
+	template<bool symbolic_case_flag, bool index_flag, typename Sg>
+	struct swap_grid_terms_redirect;
+
+	template<typename Sg>
+	struct swap_grid_terms_redirect<false, false, Sg>
 	{
-		if constexpr (expr::factor_count<SymbolicCaseSwap<>, Sg>::value > 0)
-		{
-			using mask_t = std::integer_sequence<bool, (expr::factor_count<Sg, Gs>::value > 0)...>;
-			auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
-			return c * swap_terms_case(e, Sg{}, std::make_index_sequence<sizeof...(Gs)>{}, mask_t{}, std::forward<G_F>(g));
-		}
-		else if constexpr (expr::has_selected_index<Sg, OpTerms<V, Term<Gs, Xs>...>>)
-		{
-			using matching_ids_t = symphas::internal::select_all_i_<Sg, op_types_t<OpTerms<V, Term<Gs, Xs>...>>>;
-			return symphas::internal::swap_matching_i(e, matching_ids_t{}, std::forward<G_F>(g));
-		}
-		else
+		template<typename V, typename... Gs, exp_key_t... Xs, typename G_F>
+		auto operator()(OpTerms<V, Term<Gs, Xs>...> const& e, G_F&& g)
 		{
 			using mask_t = std::integer_sequence<bool, (expr::factor_count<Sg, Gs>::value > 0)...>;
 			auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
 			return c * swap_terms(e, std::make_index_sequence<sizeof...(Gs)>{}, mask_t{}, std::forward<G_F>(g));
 		}
+	};
+
+	template<typename Sg>
+	struct swap_grid_terms_redirect<true, false, Sg>
+	{
+		template<typename V, typename... Gs, exp_key_t... Xs, typename G_F>
+		auto operator()(OpTerms<V, Term<Gs, Xs>...> const& e, G_F&& g)
+		{
+			using mask_t = std::integer_sequence<bool, (expr::factor_count<Sg, Gs>::value > 0)...>;
+			auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
+			return c * swap_terms_case(e, Sg{}, std::make_index_sequence<sizeof...(Gs)>{}, mask_t{}, std::forward<G_F>(g));
+		}
+	};
+
+	template<typename Sg>
+	struct swap_grid_terms_redirect<false, true, Sg>
+	{
+		template<typename V, typename... Gs, exp_key_t... Xs, typename G_F>
+		auto operator()(OpTerms<V, Term<Gs, Xs>...> const& e, G_F&& g)
+		{
+			using matching_ids_t = symphas::internal::select_all_i_<Sg, op_types_t<OpTerms<V, Term<Gs, Xs>...>>>;
+			return symphas::internal::swap_matching_i(e, matching_ids_t{}, std::forward<G_F>(g));
+		}
+	};
+
+
+	template<typename Sg, typename V, typename... Gs, exp_key_t... Xs, typename G_F>
+	auto swap_grid(OpTerms<V, Term<Gs, Xs>...> const& e, G_F&& g)
+	{
+		constexpr bool symbolic_case_flag = expr::factor_count<SymbolicCaseSwap<>, Sg>::value > 0;
+		constexpr bool index_flag = expr::has_selected_index<Sg, OpTerms<V, Term<Gs, Xs>...>>;
+		//return e;
+		return swap_grid_terms_redirect<symbolic_case_flag, index_flag, Sg>{}(e, std::forward<G_F>(g));
+
+
+		//if constexpr (expr::factor_count<SymbolicCaseSwap<>, Sg>::value > 0)
+		//{
+		//	using mask_t = std::integer_sequence<bool, (expr::factor_count<Sg, Gs>::value > 0)...>;
+		//	auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
+		//	return c * swap_terms_case(e, Sg{}, std::make_index_sequence<sizeof...(Gs)>{}, mask_t{}, std::forward<G_F>(g));
+		//}
+		//else if constexpr (expr::has_selected_index<Sg, OpTerms<V, Term<Gs, Xs>...>>)
+		//{
+		//	using matching_ids_t = symphas::internal::select_all_i_<Sg, op_types_t<OpTerms<V, Term<Gs, Xs>...>>>;
+		//	return symphas::internal::swap_matching_i(e, matching_ids_t{}, std::forward<G_F>(g));
+		//}
+		//else
+		//{
+		//	using mask_t = std::integer_sequence<bool, (expr::factor_count<Sg, Gs>::value > 0)...>;
+		//	auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
+		//	return c * swap_terms(e, std::make_index_sequence<sizeof...(Gs)>{}, mask_t{}, std::forward<G_F>(g));
+		//}
 	}
 
 	namespace
@@ -6706,17 +6751,31 @@ namespace symphas::internal
 		return OpIdentity{};
 	}
 
-	template<int N0, int P0, int... P0s, expr::exp_key_t X0, expr::exp_key_t... Xs, typename G_F>
-	auto swap_matching_i(OpTermsList<Term<expr::symbols::i_<N0, P0>, X0>, Term<expr::symbols::i_<N0, P0s>, Xs>...> const& e, G_F&& g)
-	{
-		return expr::pow<X0>(expr::transform::swap_grid<expr::symbols::i_<N0, P0>>(expr::symbols::i_<N0, P0>{}, std::forward<G_F>(g)))
-			* swap_matching_i(expr::terms_after_first(e), std::forward<G_F>(g));
-	}
+	//template<int N0, int... P0s, expr::exp_key_t... Xs, typename G_F>
+	//auto swap_matching_i(OpTermsList<> const& e, G_F&& g)
+	//{
+	//	return expr::pow<X0>(expr::transform::swap_grid<expr::symbols::i_<N0, P0>>(expr::symbols::i_<N0, P0>{}, std::forward<G_F>(g)))
+	//		* swap_matching_i(expr::terms_after_first(e), std::forward<G_F>(g));
+	//}
 
-	template<typename V, int N0, int P0, int... P0s, expr::exp_key_t X0, expr::exp_key_t... Xs, typename G_F>
-	auto swap_matching_i(OpTerms<OpIdentity, Term<expr::symbols::i_<N0, P0>, X0>, Term<expr::symbols::i_<N0, P0s>, Xs>...> const& e, G_F&& g)
+	//template<int N0, int P0, expr::exp_key_t X0, typename G_F>
+	//auto swap_matching_i(OpTermsList<Term<expr::symbols::i_<N0, P0>, X0>> const& e, G_F&& g)
+	//{
+	//	return expr::pow_x<X0>(expr::transform::swap_grid<expr::symbols::i_<N0, P0>>(expr::symbols::i_<N0, P0>{}, std::forward<G_F>(g)));
+	//}
+
+	//template<int N0, int P0, int... P0s, expr::exp_key_t X0, expr::exp_key_t... Xs, typename G_F>
+	//auto swap_matching_i(OpTermsList<Term<expr::symbols::i_<N0, P0s>, Xs>...> const& e, G_F&& g)
+	//{
+	//	return (expr::pow_x<Xs>(expr::transform::swap_grid<expr::symbols::i_<N0, P0s>>(expr::symbols::i_<N0, P0>{}, std::forward<G_F>(g))) * ...);
+	//		//* swap_matching_i(expr::terms_after_first(e), std::forward<G_F>(g));
+	//}
+
+	template<int N0, int... P0s, expr::exp_key_t... Xs, typename G_F>
+	auto swap_matching_i(OpTerms<OpIdentity, Term<expr::symbols::i_<N0, P0s>, Xs>...> const& e, G_F&& g)
 	{
-		return swap_matching_i(*static_cast<OpTermsList<Term<expr::symbols::i_<N0, P0>, X0>, Term<expr::symbols::i_<N0, P0s>, Xs>...> const*>(&e), std::forward<G_F>(g));
+		return (expr::pow_x<Xs>(expr::transform::swap_grid<expr::symbols::i_<N0, P0s>>(expr::symbols::i_<N0, P0s>{}, std::forward<G_F>(g))) * ...);
+		//return swap_matching_i(*static_cast<OpTermsList<Term<expr::symbols::i_<N0, P0s>, Xs>...> const*>(&e), std::forward<G_F>(g));
 	}
 
 	template<typename E, int N0, int... P0s, typename G_F>

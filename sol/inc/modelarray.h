@@ -1047,7 +1047,7 @@ public:
 	 *
 	 * \tparam Type is the type to match and copy into.
 	 */
-	template<typename Type, size_t I, typename std::enable_if_t<std::is_same<Type, type_of_S<>>::value, int> = 0>
+	template<typename Type, size_t I, typename std::enable_if_t<std::is_same<Type, type_of_S<I>>::value, int> = 0>
 	void copy_field_type_values(Type* into) const
 	{
 		copy_field_values<I>(into);
@@ -1063,7 +1063,7 @@ public:
 	 *
 	 * \tparam Type is the type to match and copy into.
 	 */
-	template<typename Type, size_t I, typename std::enable_if_t<!std::is_same<Type, type_of_S<>>::value, int> = 0>
+	template<typename Type, size_t I, typename std::enable_if_t<!std::is_same<Type, type_of_S<I>>::value, int> = 0>
 	void copy_field_type_values(Type*) const {}
 
 	//! Return the values of the `N`-th field as a Grid. 
@@ -1518,7 +1518,7 @@ protected:
 		{
 			new(&ptr[i]) SolverSystemApplied(tdata[i], vdata[i], bdata[i], i);
 		}
-		for (iter_type i = std::min(data_len, len); i < len; ++i)
+		for (iter_type i = (iter_type)std::min(data_len, len); i < len; ++i)
 		{
 			new(&ptr[i]) SolverSystemApplied(tdata[0], vdata[0], bdata[0], i);
 		}

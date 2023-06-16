@@ -81,7 +81,7 @@ namespace expr
 		expr_name_arr(len_type len = 0) :
 			value{ (len > 0) ? new char[len] {} : nullptr } {}
 		expr_name_arr(expr_name_arr<0> const& other) :
-			expr_name_arr((other.value != nullptr) ? std::strlen(other.value) : 0)
+			expr_name_arr((other.value != nullptr) ? len_type(std::strlen(other.value)) : 0)
 		{
 			if (value != nullptr)
 			{
@@ -2362,7 +2362,7 @@ namespace expr
 	{
 
 		size_t LL = std::strlen(subscript);
-		expr_name_arr out(L0 + L1 + LL + 3);
+		expr_name_arr out(len_type(L0 + L1 + LL + 3));
 		for (iter_type i = 0; i < L0; ++i)
 		{
 			out.value[i] = term[i];
@@ -2404,7 +2404,7 @@ namespace expr
 		len_type len = 0;
 		for (const char* name : names)
 		{
-			len += std::strlen(name) + 1;
+			len += (len_type)std::strlen(name) + 1;
 		}
 
 		expr_name_arr list_str(len);
@@ -2438,21 +2438,21 @@ namespace expr
 	struct symbolic_eval_print
 	{
 		template<typename E>
-		size_t operator()(FILE* out, T const&, OpExpression<E> const& e)
+		size_t operator()(FILE* out, T const&, E const& e)
 		{
-			return (*static_cast<E const*>(&e)).print(out);
+			return e.print(out);
 		}
 
 		template<typename E>
-		size_t operator()(char* out, T const&, OpExpression<E> const& e)
+		size_t operator()(char* out, T const&, E const& e)
 		{
-			return (*static_cast<E const*>(&e)).print(out);
+			return e.print(out);
 		}
 
 		template<typename E>
-		size_t operator()(T const&, OpExpression<E> const& e)
+		size_t operator()(T const&, E const& e)
 		{
-			return (*static_cast<E const*>(&e)).print_length();
+			return e.print_length();
 		}
 	};
 
@@ -2517,32 +2517,32 @@ namespace expr
 	struct symbolic_eval_print<NoiseData<nt, T, D>>
 	{
 		template<typename E>
-		size_t operator()(FILE* out, NoiseData<nt, T, D> const&, OpExpression<E> const& e)
+		size_t operator()(FILE* out, NoiseData<nt, T, D> const&, E const& e)
 		{
 			size_t n = 0;
 			n += noise_name_print<nt>{}(out);
 			n += fprintf(out, "%s", SYEX_NOISE_A);
-			n += (*static_cast<E const*>(&e)).print(out);
+			n += e.print(out);
 			n += fprintf(out, "%s", SYEX_NOISE_B);
 			return n;
 		}
 
 		template<typename E>
-		size_t operator()(char* out, NoiseData<nt, T, D> const&, OpExpression<E> const& e)
+		size_t operator()(char* out, NoiseData<nt, T, D> const&, E const& e)
 		{
 			size_t n = 0;
 			n += noise_name_print<nt>{}(out + n);
 			n += sprintf(out + n, "%s", SYEX_NOISE_A);
-			n += (*static_cast<E const*>(&e)).print(out + n);
+			n += e.print(out + n);
 			n += sprintf(out + n, "%s", SYEX_NOISE_B);
 			return n;
 		}
 
 		template<typename E>
-		size_t operator()(NoiseData<nt, T, D> const&, OpExpression<E> const& e)
+		size_t operator()(NoiseData<nt, T, D> const&, E const& e)
 		{
 			return noise_name_print<nt>{}() + STR_ARR_LEN(SYEX_NOISE_A SYEX_NOISE_B)
-				+ (*static_cast<E const*>(&e)).print_length();
+				+ e.print_length();
 		}
 	};
 
@@ -2551,11 +2551,11 @@ namespace expr
 	struct symbolic_eval_print<SymbolicListIndex<E0>>
 	{
 		template<typename E>
-		size_t operator()(FILE* out, SymbolicListIndex<E0> const& data, OpExpression<E> const& e)
+		size_t operator()(FILE* out, SymbolicListIndex<E0> const& data, E const& e)
 		{
 			size_t n = 0;
 			n += fprintf(out, "%s", SYEX_ARRAY_A);
-			n += (*static_cast<E const*>(&e)).print(out);
+			n += e.print(out);
 			n += fprintf(out, "%s", SYEX_ARRAY_B SYEX_ARRAY_SUBSCRIPT_A);
 			n += data.e.print(out);
 			n += fprintf(out, "%s", SYEX_ARRAY_SUBSCRIPT_B);
@@ -2563,11 +2563,11 @@ namespace expr
 		}
 
 		template<typename E>
-		size_t operator()(char* out, SymbolicListIndex<E0> const& data, OpExpression<E> const& e)
+		size_t operator()(char* out, SymbolicListIndex<E0> const& data, E const& e)
 		{
 			size_t n = 0;
 			n += sprintf(out + n, "%s", SYEX_ARRAY_A);
-			n += (*static_cast<E const*>(&e)).print(out + n);
+			n += e.print(out + n);
 			n += sprintf(out + n, "%s", SYEX_ARRAY_B SYEX_ARRAY_SUBSCRIPT_A);
 			n += data.e.print(out + n);
 			n += sprintf(out + n, "%s", SYEX_ARRAY_SUBSCRIPT_B);
@@ -2575,9 +2575,9 @@ namespace expr
 		}
 
 		template<typename E>
-		size_t operator()(SymbolicListIndex<E0> const& data, OpExpression<E> const& e)
+		size_t operator()(SymbolicListIndex<E0> const& data, E const& e)
 		{
-			return data.e.print_length() + (*static_cast<E const*>(&e)).print_length()
+			return data.e.print_length() + e.print_length()
 				+ STR_ARR_LEN(SYEX_ARRAY_A SYEX_ARRAY_B SYEX_ARRAY_SUBSCRIPT_A SYEX_ARRAY_SUBSCRIPT_B);
 		}
 	};
@@ -2817,36 +2817,36 @@ namespace expr
 		}
 
 		template<typename E0>
-		size_t operator()(FILE* out, sum_t const& sum, OpExpression<E0> const& e)
+		size_t operator()(FILE* out, sum_t const& sum, E0 const& e)
 		{
 			size_t n = 0;
 			n += fprintf(out, SYEX_SUM_SYMBOL);
 			n += print_limits(out, sum.limits, std::make_index_sequence<sizeof...(I0s)>{});
 			n += fprintf(out, SYEX_SUM_A);
-			n += (*static_cast<E0 const*>(&e)).print(out);
+			n += e.print(out);
 			n += fprintf(out, SYEX_SUM_B);
 			return n;
 		}
 
 		template<typename E0>
-		size_t operator()(char* out, sum_t const& sum, OpExpression<E0> const& e)
+		size_t operator()(char* out, sum_t const& sum, E0 const& e)
 		{
 			size_t n = 0;
 			n += sprintf(out, SYEX_SUM_SYMBOL);
 			n += print_limits(out + n, sum.limits, std::make_index_sequence<sizeof...(I0s)>{});
 			n += sprintf(out + n, SYEX_SUM_A);
-			n += (*static_cast<E0 const*>(&e)).print(out + n);
+			n += e.print(out + n);
 			n += sprintf(out + n, SYEX_SUM_B);
 			return n;
 		}
 
 		template<typename E0>
-		size_t operator()(sum_t const& sum, OpExpression<E0> const& e)
+		size_t operator()(sum_t const& sum, E0 const& e)
 		{
 			size_t n = 0;
 			n += STR_ARR_LEN(SYEX_SUM_SYMBOL SYEX_SUM_A SYEX_SUM_B);
 			n += print_limits_length(sum.limits, std::make_index_sequence<sizeof...(I0s)>{});
-			n += (*static_cast<E const*>(&e)).print_length();
+			n += e.print_length();
 			return n;
 		}
 	};
@@ -2858,38 +2858,38 @@ namespace expr
 	struct integral_print
 	{
 		template<typename E, typename T0>
-		size_t operator()(FILE* out, T const& domain, OpExpression<E> const& e)
+		size_t operator()(FILE* out, T const& domain, E const& e)
 		{
 			size_t n = 0;
 			n += fprintf(out, SYEX_INTEGRAL_SYMBOL);
 			n += fprintf(out, SYEX_INTEGRAL_LIM_A "%s" SYEX_INTEGRAL_LIM_SEP "%s" SYEX_INTEGRAL_LIM_B, "", "");
 			n += fprintf(out, expr::get_op_name(domain));
 			n += fprintf(out, SYEX_INTEGRAL_A);
-			n += (*static_cast<E const*>(&e)).print(out);
+			n += e.print(out);
 			n += fprintf(out, SYEX_INTEGRAL_B);
 			return n;
 		}
 
 		template<typename E>
-		size_t operator()(char* out, T const& domain, OpExpression<E> const& e)
+		size_t operator()(char* out, T const& domain, E const& e)
 		{
 			size_t n = 0;
 			n += sprintf(out + n, SYEX_INTEGRAL_SYMBOL);
 			n += sprintf(out + n, SYEX_INTEGRAL_LIM_A "%s" SYEX_INTEGRAL_LIM_SEP "%s" SYEX_INTEGRAL_LIM_B, "", "");
 			n += fprintf(out, expr::get_op_name(domain));
 			n += sprintf(out + n, SYEX_INTEGRAL_A);
-			n += (*static_cast<E const*>(&e)).print(out + n);
+			n += e.print(out + n);
 			n += sprintf(out + n, SYEX_INTEGRAL_B);
 			return n;
 		}
 
 		template<typename E>
-		size_t operator()(symphas::grid_info const&, OpExpression<E> const& e)
+		size_t operator()(symphas::grid_info const&, E const& e)
 		{
 			size_t n = 0;
 			n += STR_ARR_LEN(SYEX_INTEGRAL_SYMBOL SYEX_INTEGRAL_LIM_A SYEX_INTEGRAL_LIM_SEP SYEX_INTEGRAL_LIM_B
 				SYEX_INTEGRAL_DOMAIN_SYM SYEX_INTEGRAL_INTEGRATION_SYM SYEX_INTEGRAL_A SYEX_INTEGRAL_B);
-			n += (*static_cast<E const*>(&e)).print_length();
+			n += e.print_length();
 			return n;
 		}
 	};
@@ -2898,38 +2898,38 @@ namespace expr
 	struct integral_print<expr::variational_t<T>>
 	{
 		template<typename E>
-		size_t operator()(FILE* out, symphas::grid_info const&, OpExpression<E> const& e)
+		size_t operator()(FILE* out, symphas::grid_info const&, E const& e)
 		{
 			size_t n = 0;
 			n += fprintf(out, SYEX_INTEGRAL_SYMBOL);
 			n += fprintf(out, SYEX_INTEGRAL_LIM_A "%s" SYEX_INTEGRAL_LIM_SEP "%s" SYEX_INTEGRAL_LIM_B, SYEX_INTEGRAL_DOMAIN_SYM, "");
 			n += fprintf(out, SYEX_INTEGRAL_INTEGRATION_SYM);
 			n += fprintf(out, SYEX_INTEGRAL_A);
-			n += (*static_cast<E const*>(&e)).print(out);
+			n += e.print(out);
 			n += fprintf(out, SYEX_INTEGRAL_B);
 			return n;
 		}
 
 		template<typename E>
-		size_t operator()(char* out, symphas::grid_info const&, OpExpression<E> const& e)
+		size_t operator()(char* out, symphas::grid_info const&, E const& e)
 		{
 			size_t n = 0;
 			n += sprintf(out + n, SYEX_INTEGRAL_SYMBOL);
 			n += sprintf(out + n, SYEX_INTEGRAL_LIM_A "%s" SYEX_INTEGRAL_LIM_SEP "%s" SYEX_INTEGRAL_LIM_B, SYEX_INTEGRAL_DOMAIN_SYM, "");
 			n += sprintf(out + n, SYEX_INTEGRAL_INTEGRATION_SYM);
 			n += sprintf(out + n, SYEX_INTEGRAL_A);
-			n += (*static_cast<E const*>(&e)).print(out + n);
+			n += e.print(out + n);
 			n += sprintf(out + n, SYEX_INTEGRAL_B);
 			return n;
 		}
 
 		template<typename E>
-		size_t operator()(symphas::grid_info const&, OpExpression<E> const& e)
+		size_t operator()(symphas::grid_info const&, E const& e)
 		{
 			size_t n = 0;
 			n += STR_ARR_LEN(SYEX_INTEGRAL_SYMBOL SYEX_INTEGRAL_LIM_A SYEX_INTEGRAL_LIM_SEP SYEX_INTEGRAL_LIM_B
 				SYEX_INTEGRAL_DOMAIN_SYM SYEX_INTEGRAL_INTEGRATION_SYM SYEX_INTEGRAL_A SYEX_INTEGRAL_B);
-			n += (*static_cast<E const*>(&e)).print_length();
+			n += e.print_length();
 			return n;
 		}
 	};

@@ -73,6 +73,7 @@
 #if THREADS > 1
 #define MULTITHREAD
 #endif
+#define MULTITHREAD_TRIGGER_COUNT 128
 
 //! \endcond
 

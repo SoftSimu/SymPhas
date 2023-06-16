@@ -23,6 +23,13 @@
 #include <mutex>
 
 
+namespace symphas::internal
+{
+	struct nameidstore;
+}
+
+DLLIO std::vector<symphas::internal::nameidstore> nameid_list{};
+
 void symphas::io::copy_data_file_name(const char* dir, const char* data_name, int index, size_t id, DataFileType type, char* out)
 {
 	if (type == DataFileType::NAMED_DATA)
@@ -228,11 +235,11 @@ namespace symphas::internal
 	 */
 	struct nameidstore
 	{
-		nameidstore(const char* str, size_t id) : id{ id }, name{}, entry_index{ 0 }
+		nameidstore(const char* str, size_t id) : id{ id }, name{ (str && std::strlen(str) > 0) ? new char[std::strlen(str) + 1] : nullptr }, entry_index{ 0 }
 		{
-			if (str)
+			if (name)
 			{
-				std::strncpy(name, str, sizeof(name) / sizeof(char) - 1);
+				std::strcpy(name, str);
 			}
 		}
 		nameidstore() : nameidstore(nullptr, 0) {}
@@ -261,6 +268,11 @@ namespace symphas::internal
 			swap(first.entry_index, second.entry_index);
 		}
 
+		~nameidstore()
+		{
+			delete[] name;
+		}
+
 		/* comparison between nameid stores only considers the name itself, rather than
 		 * both name and id matching, since only name uniquely differentiates files
 		 * if the format later changes to include id, then this can compare on the id as well
@@ -271,7 +283,7 @@ namespace symphas::internal
 		}
 
 		size_t id;
-		char name[BUFFER_LENGTH_R4];
+		char* name;// [BUFFER_LENGTH_R4] ;
 		int entry_index;
 	};
 
@@ -286,7 +298,6 @@ void symphas::io::write_postproc_plot_file(const char* (*sets), len_type n, cons
 
 	/* contains the list of all the name/id combinations which have been written by the function
 	 */
-	static std::vector<nameidstore> nameid_list;
 
 
 	/* if there is no unique name (since comparison only checks name), then a new file

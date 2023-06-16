@@ -999,7 +999,7 @@ public:
 		pp.set_time_step(dt);
 		pp.set_modifiers(modifiers);
 
-		size_t parameter_len = std::max({ intervals_len, bdata_len, tdata_len });
+		iter_type parameter_len = (iter_type)std::max({ intervals_len, bdata_len, tdata_len });
 		if (field_len > parameter_len)
 		{
 			for (iter_type i = parameter_len; i < field_len; --i)

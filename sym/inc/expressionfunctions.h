@@ -359,30 +359,57 @@ namespace expr
 	}
 	
 	template<size_t N, size_t D, bool flag, typename E>
-	auto pow(E const& e)
+	auto pow(OpExpression<E> const& e)
 	{
 		if constexpr (flag)
 		{
-			return expr::inverse(expr::pow<N, D, false>(e));
+			return expr::inverse(expr::pow<N, D, false>(*static_cast<E const*>(&e)));
 		}
 		else
 		{
 			if constexpr (D == 1)
 			{
-				return expr::pow<N>(e);
+				return expr::pow<N>(*static_cast<E const*>(&e));
 			}
 			else
 			{
-				return expr::make_pow<expr::Xk<N, D, false>>(e);
+				return expr::make_pow<expr::Xk<N, D, false>>(*static_cast<E const*>(&e));
+			}
+		}
+	}
+
+	template<size_t N, size_t D, bool flag, typename E>
+	auto pow(OpOperator<E> const& e)
+	{
+		if constexpr (flag)
+		{
+			return expr::inverse(expr::pow<N, D, false>(*static_cast<E const*>(&e)));
+		}
+		else
+		{
+			if constexpr (D == 1)
+			{
+				return expr::pow<N>(*static_cast<E const*>(&e));
+			}
+			else
+			{
+				return expr::make_pow<expr::Xk<N, D, false>>(*static_cast<E const*>(&e));
 			}
 		}
 	}
 
 	template<expr::exp_key_t X, typename E>
-	auto pow(E const& e)
+	auto pow_x(OpExpression<E> const& e)
 	{
-		return pow<expr::_Xk_t<X>::N, expr::_Xk_t<X>::D, expr::_Xk_t<X>::sign>(e);
+		return pow<expr::_Xk_t<X>::N, expr::_Xk_t<X>::D, expr::_Xk_t<X>::sign>(*static_cast<E const*>(&e));
 	}
+
+	template<expr::exp_key_t X, typename E>
+	auto pow_x(OpOperator<E> const& e)
+	{
+		return pow<expr::_Xk_t<X>::N, expr::_Xk_t<X>::D, expr::_Xk_t<X>::sign>(*static_cast<E const*>(&e));
+	}
+
 }
 
 

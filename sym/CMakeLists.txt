@@ -24,6 +24,7 @@ set(PRINTABLE_EQUATIONS YES CACHE BOOL "if yes, all expressions will have a prin
 if(PRINTABLE_EQUATIONS)
 	list(APPEND ADD_DEFINITIONS PRINTABLE_EQUATIONS)
 endif()
+message(STATUS "symbolic expression printing is ${PRINTABLE_EQUATIONS}")
 
 
 add_library(symphas_sym_o OBJECT ${SOURCES_SYM})

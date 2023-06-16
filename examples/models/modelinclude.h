@@ -36,7 +36,7 @@ namespace simulate
 }
 
 
-#ifdef DEBUG
+#ifdef BASIC_MODELS
 
 #include "modelmacros.h"
 
@@ -63,8 +63,8 @@ LINK_WITH_NAME(CONV, CONVOLUTION)
 
 #else
 
-#include "advancedmodeldefs.h"
-#include "pfcdefs.h"
+//#include "advancedmodeldefs.h"
+//#include "pfcdefs.h"
 #include "modeldefs.h"
 //#include "modelacmms.h"
 #endif

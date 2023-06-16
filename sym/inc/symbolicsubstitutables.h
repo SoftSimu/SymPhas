@@ -117,24 +117,51 @@ namespace symphas::internal
 		}
 	}
 
+	template<typename T0>
+	using const_arr_type = const T0*;
+	template<typename T0>
+	using arr_type = T0*;
+
+
+
 
 	template<typename T0>
-	auto _make_symbolic_data(const T0*&& arg, len_type len)
+	auto _make_symbolic_data(const_arr_type<T0>&&arg, len_type len)
 	{
 		return SymbolicDataArray<T0>(const_cast<T0*>(arg), len, true);
 	}
 
 	template<typename T0>
-	auto _make_symbolic_data(const T0*& arg, len_type len)
+	auto _make_symbolic_data(const_arr_type<T0> &arg, len_type len)
 	{
 		return SymbolicDataArray<T0>(const_cast<T0*&>(arg), len, false);
 	}
 
-	template<typename T0>
-	auto _make_symbolic_data(const T0* const &arg, len_type len)
+	/*template<typename T0>
+	auto _make_symbolic_data(const_arr_type<T0> const& arg, len_type len)
 	{
 		return SymbolicDataArray<T0>(const_cast<T0*&>(arg), len, false);
+	}*/
+
+
+
+	template<typename T0>
+	auto _make_symbolic_data(arr_type<T0>&& arg, len_type len)
+	{
+		return SymbolicDataArray<T0>(arg, len, true);
 	}
+
+	template<typename T0>
+	auto _make_symbolic_data(arr_type<T0>& arg, len_type len)
+	{
+		return SymbolicDataArray<T0>(arg, len, false);
+	}
+
+	//template<typename T0>
+	//auto _make_symbolic_data(arr_type<T0> const& arg, len_type len)
+	//{
+	//	return SymbolicDataArray<T0>(const_cast<arr_type<T0>*&>(arg), len, false);
+	//}
 
 	template<typename... T0s>
 	auto _make_symbolic_data(std::tuple<T0s...>&& arg, len_type len)
@@ -224,7 +251,7 @@ namespace symphas::internal
 	template<typename T0>
 	auto make_symbolic_data(T0 const& arg, len_type len)
 	{
-		return _make_symbolic_data(const_cast<T0&>(arg), len);
+		return make_symbolic_data(const_cast<T0&>(arg), len);
 	}
 
 	template<typename T0>

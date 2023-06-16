@@ -735,7 +735,7 @@ namespace symphas::internal
 	}
 
 	//! Perform back substitution on the dictionary to update it.
-	template<typename... Ss, typename... S0s, typename... Es>
+	template<typename... Ss, typename... Es>
 	auto self_complete(types_list<std::pair<Ss, Es>...> const& dict)
 	{
 		return types_list<std::pair<Ss, decltype(make_all_substitutions(dict, Es{}))>...>{};
@@ -2050,12 +2050,12 @@ namespace expr
 		return update_stencil_dictionary(dict, symphas::lib::types_list<E0s...>{});
 	}
 
-	template<typename... Symbols, typename... Es, size_t N, typename... E0s>
-	auto update_stencil_dictionary(types_list<std::pair<Symbols, Es>...> const& dict,
-		stencil_vector_type<N, 0, symphas::lib::types_list<stencil_vector_type<N - 1, 0, E0s>...>>)
-	{
-		return update_stencil_dictionary(dict, symphas::lib::types_list<stencil_vector_type<N - 1, 0, E0s>...>{});
-	}
+	//template<typename... Symbols, typename... Es, size_t N, typename... E0s>
+	//auto update_stencil_dictionary(types_list<std::pair<Symbols, Es>...> const& dict,
+	//	stencil_vector_type<N, 0, symphas::lib::types_list<stencil_vector_type<N - 1, 0, E0s>...>>)
+	//{
+	//	return update_stencil_dictionary(dict, symphas::lib::types_list<stencil_vector_type<N - 1, 0, E0s>...>{});
+	//}
 
 }
 

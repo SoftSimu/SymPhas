@@ -707,7 +707,7 @@ protected:
 	template<size_t I, template<typename, size_t> typename G, typename T0>
 	void fill_initial_data(PhaseFieldSystem<G, T0, D> const& system, symphas::problem_parameters_type& parameters) const
 	{
-		parameters.set_initial_data(init_data_functor(system.as_grid()), I);
+		parameters.set_initial_data(symphas::init_data_functor(system.as_grid()), I);
 	}
 
 	template<size_t... Is>

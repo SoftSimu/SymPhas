@@ -643,7 +643,7 @@ R"~(
 				symphas::io::copy_data_file_name(
 					DATA_DIR_RELATIVE_PLOT, 
 					save.next_save(save.get_start()), 
-					id, 
+					get_system_id(id, model),
 					DataFileType::SOLUTION_DATA, 
 					data_loc);
 
@@ -729,7 +729,7 @@ R"~(
 		{
 			char fid[BUFFER_LENGTH_R2];
 			snprintf(fid, BUFFER_LENGTH_R2, POSTFIX_ID_FMT, id);
-			symphas::io::copy_data_file_name(DATA_DIR_RELATIVE_PLOT, save.get_stop(), id, DataFileType::SOLUTION_DATA, data_loc);
+			symphas::io::copy_data_file_name(DATA_DIR_RELATIVE_PLOT, save.get_stop(), get_system_id(id, model), DataFileType::SOLUTION_DATA, data_loc);
 
 			/* in the case of a single output file, the correct index from the
 			 * list of saved data needs to be loaded
