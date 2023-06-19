@@ -83,6 +83,17 @@ DEFINE_MODEL_FIELD_NAMES_FORMAT(CELL_MIGRATION, "\\phi_{%d}")
 #undef vel
 #undef tau
 
+
+//
+//MODEL(MBM, (SCALARS(4)),
+//	FREE_ENERGY((ALL_CONSERVED(ii)),
+//		integral(SUM(ii)(LANDAU_FE(op_ii))))
+//)
+//LINK_WITH_NAME(MBM, MODELB_MANY)
+//DEFINE_MODEL_FIELD_NAMES(MBM, ("A", "B", "C", "D"))
+//
+
+
 //
 //MODEL(CELL_MIGRATION, (MANY(CANCER_CELL, 1), MANY(NORMAL_CELL, CONFIGURATION)),
 //	FREE_ENERGY((EQUATION_OF(ii)(-_2 * DF_(ii) - val<60> * kappa / (xi * lambda2_(ii)) * integral(op_ii * grad(op_ii) * SUM(jj != ii)(op_jj * op_jj)) * grad(op_ii))),

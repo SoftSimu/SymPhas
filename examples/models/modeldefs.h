@@ -148,7 +148,7 @@ LINK_WITH_NAME(Turing, TURING)
 /*
 
 MODEL(COUPLING4, (SCALARS(4)),
-	FREE_ENERGY((ALL_NONCONSERVED),
+	FREE_ENERGY((ALL_NONCONSERVED(ii)),
 		integral(SUM(ii)(LANDAU_FE(op_ii)) + _4 * SUM(ii, jj != ii)(op_ii * op_jj * op_jj) + op(1)))
 )
 LINK_WITH_NAME(COUPLING4, MODEL_COUPLING4)
