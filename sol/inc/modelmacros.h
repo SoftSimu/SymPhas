@@ -839,8 +839,8 @@ const static size_t DEFAULT_MODE_N = N;
 
 #define EQUATION_OF(FIELD_N) symphas::internal::special_dynamics_select<decltype(FIELD_N)>{}.select<int(FIELD_N)>(FIELD_N)
 
-#define ALL_CONSERVED EQUATION_OF(expr::symbols::i_<0, 0>{})(CONSERVED)
-#define ALL_NONCONSERVED EQUATION_OF(expr::symbols::i_<0, 0>{})(NONCONSERVED)
+#define ALL_CONSERVED(I) EQUATION_OF(I)(CONSERVED)
+#define ALL_NONCONSERVED(I) EQUATION_OF(I)(NONCONSERVED)
 
 
 #ifdef USING_MODEL_SELECTION

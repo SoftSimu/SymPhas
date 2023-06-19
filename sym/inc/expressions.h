@@ -248,14 +248,14 @@ namespace expr
 		}
 
 		symphas::internal::data_iterator it(std::forward<assign_type>(data));
-		if (len < MULTITHREAD_TRIGGER_COUNT)
-		{
-			for (iter_type i = 0; i < len; i++)
-			{
-				it[i] = static_cast<const E*>(&e)->eval(i);
-			}
-		}
-		else
+		//if (len < MULTITHREAD_TRIGGER_COUNT)
+		//{
+		//	for (iter_type i = 0; i < len; i++)
+		//	{
+		//		it[i] = static_cast<const E*>(&e)->eval(i);
+		//	}
+		//}
+		//else
 		{
 #if defined(EXECUTION_HEADER_AVAILABLE) 
 			std::copy(std::execution::par,

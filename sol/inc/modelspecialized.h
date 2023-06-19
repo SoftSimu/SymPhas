@@ -575,13 +575,27 @@ namespace symphas::internal
 		special_dynamics(OpExpression<E> const& e) : e{ *static_cast<E const*>(&e) } {}
 		special_dynamics(OpOperator<E> const& e) : e{ *static_cast<E const*>(&e) } {}
 		special_dynamics(I) {}
+		special_dynamics() {}
+
+		template<size_t N0>
+		auto select() const
+		{
+			return special_dynamics<N0, I, E>(e);
+		}
 
 		E e;
 	};
 
 	// Specifies the dynamics for a single field.
 	template<size_t N, symphas::internal::DynamicType dynamic>
-	struct special_dynamics<N, void, dynamics_key_t<dynamic>> {};
+	struct special_dynamics<N, void, dynamics_key_t<dynamic>> 
+	{
+		template<size_t N0>
+		auto select() const
+		{
+			return special_dynamics<N0, void, dynamics_key_t<dynamic>>();
+		}
+	};
 
 	// Specifies the dynamics for a single field.
 	template<size_t N, typename E>
@@ -589,6 +603,14 @@ namespace symphas::internal
 	{
 		special_dynamics(OpExpression<E> const& e) : e{ *static_cast<E const*>(&e) } {}
 		special_dynamics(OpOperator<E> const& e) : e{ *static_cast<E const*>(&e) } {}
+		special_dynamics() : e{ *static_cast<E const*>(&e) } {}
+
+		template<size_t N0>
+		auto select() const
+		{
+			return special_dynamics<N0, void, E>(e);
+		}
+
 		E e;
 	};
 
@@ -598,6 +620,7 @@ namespace symphas::internal
 	{
 		special_dynamics(I) {}
 		special_dynamics(std::index_sequence<N>, I) {}
+		special_dynamics() {}
 
 		template<typename E0>
 		auto operator()(OpExpression<E0> const& e)
@@ -623,6 +646,7 @@ namespace symphas::internal
 	struct special_dynamics<N, void, void>
 	{
 		special_dynamics(std::index_sequence<N>) {}
+		special_dynamics() {}
 
 		template<typename E0>
 		auto operator()(OpExpression<E0> const& e)
@@ -985,7 +1009,15 @@ namespace symphas::internal
 		template<typename U_D, typename model_t, typename F, typename Sp>
 		auto operator()(U_D const& dop, model_t const& model, OpExpression<F> const& fe, Sp const& solver)
 		{
-			return apply_dynamics<dynamic>::operator()(dop, *static_cast<F const*>(&fe), solver);
+			using df_v_type = Variable<N, expr::symbols::diff_F_symbol>;
+
+			auto evolution = substitute_for_dynamics(
+				symphas::lib::types_list<df_v_type>{}, OpTerm<OpIdentity, df_v_type>{},
+				*static_cast<F const*>(&fe),
+				all_ops(model, symphas::lib::types_list<df_v_type>{}));
+
+			//return apply_dynamics<symphas::internal::DynamicType::NONCONSERVED>{}(dop, evolution, solver);
+			return apply_dynamics<dynamic>{}(dop, evolution, solver);
 		}
 	};
 	
@@ -1023,8 +1055,13 @@ namespace symphas::internal
 		auto operator()(U_D const& dop, model_t const& model, OpExpression<F> const& fe, Sp const& solver)
 		{
 			using df_v_types = select_dFE_t<expr::op_types_t<E>>;
-			return (dop = 
-				substitute_for_dynamics(df_v_types{}, e, *static_cast<F const*>(&fe), all_ops(model, df_v_types{})));
+
+			auto evolution = substitute_for_dynamics(
+				df_v_types{}, e,
+				*static_cast<F const*>(&fe),
+				all_ops(model, df_v_types{}));
+
+			return (dop = evolution);
 		}
 
 		E e;
@@ -1287,12 +1324,16 @@ protected:
 		std::index_sequence<Is...>) const
 	{
 		using namespace symphas::internal;
+		auto dys = std::make_tuple(dynamics_ts{}...);
+
 		return parent_trait::make_equations(
-			apply_special_dynamics(std::get<dynamics_rule_N<Is, symphas::lib::types_list<dynamics_ts...>>>(dynamics))(
-				dop<Is>(),
-				*this,
-				*static_cast<E const*>(&e),
-				solver)...);
+			apply_special_dynamics(
+				std::get<dynamics_rule_N<Is, symphas::lib::types_list<dynamics_ts...>>>(dynamics)
+				.template select<Is>())(
+					dop<Is>(),
+					*this,
+					*static_cast<E const*>(&e),
+					solver)...);
 	}
 
 };

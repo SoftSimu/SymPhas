@@ -33,6 +33,8 @@
 
 namespace symphas::internal
 {
+
+
 	template<typename T>
 	struct data_value_type
 	{
@@ -141,6 +143,103 @@ namespace symphas::internal
 	};
 
 
+
+	template<typename G>
+	struct iterator_difference_type
+	{
+		iterator_difference_type(G* ptr, iter_type pos = 0) : ptr{ ptr }, pos{ pos } {}
+		iterator_difference_type() : iterator_difference_type(nullptr, 0) {}
+
+		bool operator==(iterator_difference_type<G> const& other) const
+		{
+			return ptr == other.ptr && pos == other.pos;
+		}
+
+		bool operator==(size_t value) const
+		{
+			return pos == value;
+		}
+
+		//! Comparison with another iterator.
+		/*!
+		 * Greater than comparison with another iterator.
+		 * Compares the current position.
+		 */
+		bool operator>(iterator_difference_type<G> const& other) const
+		{
+			return pos > other.pos && ptr == other.ptr;
+		}
+
+		bool operator>(size_t value) const
+		{
+			return pos > value;
+		}
+
+		//! Dereference the iterator.
+		inline decltype(auto) operator+(iterator_difference_type<G> const& other)
+		{
+			iterator_difference_type<G> diff(*this);
+			diff.pos += other.pos;
+			return diff;
+		};
+
+		//! Dereference the iterator.
+		inline decltype(auto) operator-(iterator_difference_type<G> const& other)
+		{
+			iterator_difference_type<G> diff(*this);
+			diff.pos -= other.pos;
+			return diff;
+		};
+
+		//! Dereference the iterator.
+		inline decltype(auto) operator+(iter_type offset)
+		{
+			iterator_difference_type<G> diff(*this);
+			diff.pos += offset;
+			return diff;
+		};
+
+		//! Dereference the iterator.
+		inline decltype(auto) operator-(iter_type offset)
+		{
+			iterator_difference_type<G> diff(*this);
+			diff.pos += offset;
+			return diff;
+		};
+
+		//! Dereference the iterator.
+		inline decltype(auto) operator/(size_t div)
+		{
+			iterator_difference_type<G> diff(*this);
+			diff.pos /= div;
+			return diff;
+		};
+
+		//! Prefix decrement, returns itself.
+		iterator_difference_type<G>& operator--()
+		{
+			--pos;
+			return *this;
+		}
+
+		//! Prefix decrement, returns itself.
+		iterator_difference_type<G>& operator++()
+		{
+			++pos;
+			return *this;
+		}
+
+		explicit operator size_t() const
+		{
+			return size_t(pos);
+		}
+
+		G* ptr;
+		iter_type pos;
+
+	};
+
+
 	//! An iterator used to evaluate an expression on its underlying data.
 	/*!
 	 * Implements the forward iterator functionality, in order
@@ -156,9 +255,15 @@ namespace symphas::internal
 		using iterator_category = std::random_access_iterator_tag;
 		using value_type = typename data_value_type<G>::type;
 		using reference_type = typename data_value_type<G>::ref;
-		using difference_type = int;
+		using difference_type = iterator_difference_type<G>;
 		using pointer = value_type*;
 		using reference = int;
+
+	protected:
+
+		data_iterator() : ptr{} {}
+
+	public:
 
 		//! Create an iterator starting at the given position.
 		/*!
@@ -168,10 +273,10 @@ namespace symphas::internal
 		 * \param pos The index of the underlying data in the expression
 		 * which is the first index in the iterator.
 		 */
-		data_iterator(difference_type pos = 0)
-			: e_ptr{ nullptr }, pos{ pos } {
-			printf("N%d\n", pos);
-			printf("N%p\n", e_ptr);
+		data_iterator(difference_type ptr)
+			: ptr{ ptr } 
+		{
+			//printf("N%p\n", ptr.ptr);
 		}
 
 		//! Create an iterator starting at the given position.
@@ -183,8 +288,8 @@ namespace symphas::internal
 		 * \param pos The index of the underlying data in the expression
 		 * which is the first index in the iterator.
 		 */
-		explicit data_iterator(G& data, difference_type pos = 0)
-			: e_ptr{ &data }, pos{pos} {}
+		explicit data_iterator(G& data, iter_type pos = 0)
+			: ptr{ &data, pos } {}
 
 		//! Create an iterator starting at the given position.
 		/*!
@@ -195,17 +300,16 @@ namespace symphas::internal
 		 * \param pos The index of the underlying data in the expression
 		 * which is the first index in the iterator.
 		 */
-		explicit data_iterator(G* data, difference_type pos = 0)
-			: e_ptr{ data }, pos{ pos } {}
+		explicit data_iterator(G* data, iter_type pos = 0)
+			: ptr{ data, pos } {}
 
 		data_iterator(data_iterator<G> const& other) :
-			data_iterator(other.e_ptr, other.pos) {}
+			data_iterator(other.ptr) {}
 		data_iterator(data_iterator<G>&& other) :
-			data_iterator(other.e_ptr, other.pos) {}
+			data_iterator(other.ptr) {}
 		data_iterator<G>& operator=(data_iterator<G> other)
 		{
-			e_ptr = other.e_ptr;
-			pos = other.pos;
+			ptr = other.ptr;
 			return *this;
 		}
 
@@ -213,15 +317,15 @@ namespace symphas::internal
 		//! Prefix increment, returns itself.
 		data_iterator<G>& operator++()
 		{
-			++pos;
+			++ptr.pos;
 			return *this;
 		}
 
 		//! Postfix increment, return a copy before the increment.
-		data_iterator<G> operator++(difference_type)
+		data_iterator<G> operator++(int)
 		{
 			data_iterator<G> it = *this;
-			++pos;
+			++ptr.pos;
 			return it;
 		}
 
@@ -229,28 +333,29 @@ namespace symphas::internal
 		//! Prefix decrement, returns itself.
 		data_iterator<G>& operator--()
 		{
-			--pos;
+			--ptr.pos;
 			return *this;
 		}
 
 		//! Postfix decrement, return a copy before the increment.
-		data_iterator<G> operator--(difference_type)
+		data_iterator<G> operator--(int)
 		{
 			data_iterator<G> it = *this;
-			--pos;
+			--ptr.pos;
 			return it;
 		}
 
-
-		data_iterator<G>& operator+=(difference_type offset)
+		template<typename G0>
+		data_iterator<G>& operator+=(iterator_difference_type<G0> offset)
 		{
-			pos += offset;
+			ptr.pos += offset.pos;
 			return *this;
 		}
 
-		data_iterator<G>& operator-=(difference_type offset)
+		template<typename G0>
+		data_iterator<G>& operator-=(iterator_difference_type<G0> offset)
 		{
-			pos -= offset;
+			ptr.pos -= offset.pos;
 			return *this;
 		}
 
@@ -259,19 +364,19 @@ namespace symphas::internal
 		//! Dereference the iterator.
 		inline decltype(auto) operator*()
 		{
-			return data_value_type<G>{}(e_ptr, pos);
+			return data_value_type<G>{}(ptr.ptr, ptr.pos);
 		};
 
 		//! Dereference past the iterator.
-		inline decltype(auto) operator[](difference_type given_pos)
+		inline decltype(auto) operator[](iter_type given_pos)
 		{
-			return data_value_type<G>{}(e_ptr, pos + given_pos);
+			return data_value_type<G>{}(ptr.ptr, ptr.pos + given_pos);
 		}
 
 		//! Member access of the iterated expression.
 		inline G* operator->()
 		{
-			return e_ptr;
+			return ptr.ptr;
 		};
 
 
@@ -282,8 +387,7 @@ namespace symphas::internal
 		 */
 		bool operator==(data_iterator<G> const& other) const
 		{
-			return pos == other.pos
-				&& e_ptr == other.e_ptr;
+			return ptr == other.ptr;
 		}
 
 		//! Inequality comparison with another iterator.
@@ -303,8 +407,7 @@ namespace symphas::internal
 		 */
 		bool operator>(data_iterator<G> const& other) const
 		{
-			return pos > other.pos
-				&& e_ptr == other.e_ptr;
+			return ptr > other.ptr;
 		}
 
 		//! Comparison with another iterator.
@@ -341,30 +444,32 @@ namespace symphas::internal
 		//! Convertible to the difference type of two iterators.
 		operator difference_type() const
 		{
-			return pos;
+			return ptr;
 		}
 
 		//! Add two iterators.
-		difference_type operator+(data_iterator<G> const& rhs)
+		difference_type operator+(data_iterator<G> const& rhs) const
 		{
-			return pos + rhs;
+			return ptr + rhs;
 		}
 
 		//! Subtract two iterators.
-		difference_type operator-(data_iterator<G> const& rhs)
+		difference_type operator-(data_iterator<G> const& rhs) const
 		{
-			return pos - rhs;
+			return ptr - rhs;
 		}
 
 		//! Add an offset from the iterator.
-		data_iterator<G> operator+(difference_type offset)
+		template<typename G0>
+		data_iterator<G> operator+(iterator_difference_type<G0> offset) const
 		{
 			data_iterator<G> it = *this;
 			return it += offset;
 		}
 
 		//! Subtract an offset from the iterator.
-		data_iterator<G> operator-(difference_type offset)
+		template<typename G0>
+		data_iterator<G> operator-(iterator_difference_type<G0> offset) const
 		{
 			data_iterator<G> it = *this;
 			return it -= offset;
@@ -373,18 +478,18 @@ namespace symphas::internal
 		//! Add an offset from the left hand side to an iterator.
 		friend difference_type operator+(difference_type offset, data_iterator<G> rhs)
 		{
-			return offset + rhs.pos;
+			return offset + rhs.ptr;
 		}
 
 		//! Subtract an offset from the left hand side to an iterator.
 		friend difference_type operator-(difference_type offset, data_iterator<G> rhs)
 		{
-			return offset - rhs.pos;
+			return offset - rhs.ptr;
 		}
 
-
-		G* e_ptr;				//!< Pointer to the expression that is iterated.
-		difference_type pos;	//!< Current index of iteration.
+		difference_type ptr;
+		//G* ptr;				//!< Pointer to the expression that is iterated.
+		//difference_type pos;	//!< Current index of iteration.
 	};
 
 	template<typename G>
@@ -393,4 +498,7 @@ namespace symphas::internal
 	template<typename G>
 	data_iterator(G*, int)->data_iterator<G>;
 }
+
+
+
 

@@ -32,6 +32,9 @@
 template<typename G>
 struct SymbolicDerivative
 {
+	SymbolicDerivative() {}
+	SymbolicDerivative(G) {}
+
 	template<Axis ax, size_t O, typename T>
 	decltype(auto) generalized_derivative(T&& e, iter_type n) const
 	{
@@ -178,6 +181,8 @@ template<typename G>
 SymbolicDerivative(DynamicVariable<G>) -> SymbolicDerivative<expr::variational_t<DynamicVariable<G>>>;
 template<size_t Z, typename G>
 SymbolicDerivative(Variable<Z, G>) -> SymbolicDerivative<expr::variational_t<Variable<Z, G>>>;
+template<typename E>
+SymbolicDerivative(E) -> SymbolicDerivative<E>;
 
 template<typename V, typename E, typename G>
 using OpFunctionalDerivative = OpDerivative<std::index_sequence<1>, V, E, SymbolicFunctionalDerivative<G>>;

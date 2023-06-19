@@ -1362,12 +1362,48 @@ namespace expr
 
 		};
 
+
+
+
+		template<typename Dd1, typename Dd2, typename V1, typename V2, typename E, typename Sp1, typename Sp2>
+		auto apply_operator_derivative_nested(OpDerivative<Dd1, V1, OpDerivative<Dd2, V2, E, Sp1>, Sp2> const& e)
+		{
+			return e;
+		}
+
+		template<typename Dd1, typename V1, typename E, typename Sp2>
+		auto apply_operator_derivative_nested(OpDerivative<Dd1, V1, E, Sp2> const& e)
+		{
+			return expr::apply_operators(e);
+		}
 	}
+
+	//! Distribute operators so they are applied to individual expressions.
+	/*!
+	 * For expressions that are derivatives of derivatives, the outermost
+	 * derivatives might need to be distributed to the rest of the expression.
+	 * Additionally, all derivatives which are applied to expressions that
+	 * are linear combinations are distributed.
+	 *
+	 * \param e The expression which is distributed.
+	 */
+	//template<typename Dd1, size_t N, typename V1, typename V2, typename E, typename Sp1, typename Sp2>
+	//auto apply_operators(OpDerivative<Dd1, V1, OpDerivative<std::index_sequence<N>, V2, E, SymbolicDerivative<Sp1>>, Sp2> const& e);
+
+
+	//template<typename Dd1, size_t N, typename V1, typename V2, typename E, typename Sp1, typename Sp2>
+	//auto apply_operators(OpDerivative<Dd1, V1, OpDerivative<std::index_sequence<N>, V2, E, SymbolicDerivative<Sp1>>, Sp2> const& e)
+	//{
+	//	return e;
+	//}
+
+
+
 
 	template<typename Dd1, typename Dd2, typename V1, typename V2, typename E, typename Sp1, typename Sp2>
 	auto apply_operators(OpDerivative<Dd1, V1, OpDerivative<Dd2, V2, E, Sp1>, Sp2> const& e)
 	{
-		return e;
+		return apply_operator_derivative_nested(expr::coeff(e) * expr::make_derivative<Dd1>(expr::apply_operators(expr::get_enclosed_expression(e)), e.solver));
 	}
 
 	template<bool parity1, bool parity2, size_t order1, size_t order2, Axis ax1, Axis ax2>
@@ -7604,8 +7640,10 @@ namespace expr
 			std::tuple<Gs...> const& args, std::index_sequence<Ns...>)
 		{
 			auto expr = sum.data.substitute_placeholders(sum.f);
-			return coeff * expr::coeff(sum) * (expr::transform::swap_grid<Vs>(
-				apply_operators_sum(sum.data, apply_operators(expr::make_derivative<O, GGs>(expr, std::get<Ns>(symbols))), std::get<Ns>(symbols)), std::get<Ns>(args))
+			return coeff * expr::coeff(sum) * 
+				(expr::transform::swap_grid<Vs>(
+					apply_operators_sum(sum.data, apply_operators(expr::make_derivative<O, GGs>(expr, std::get<Ns>(symbols))), std::get<Ns>(symbols)), 
+					std::get<Ns>(args))
 					+ ...);
 		}
 
@@ -7678,7 +7716,7 @@ namespace expr
 						constexpr size_t Z0 = symphas::lib::seq_index_value<0, vs_seq>::value;
 
 						auto dvs = std::make_tuple(
-							expr::transform::swap_grid<Z0>(GG{}, GridSymbol<expr::symbols::v_id_type<expr::symbols::i_<I0s, P0s>>, D>{})...);
+							SymbolicDerivative{ expr::transform::swap_grid<Z0>(GG{}, GridSymbol<expr::symbols::v_id_type<expr::symbols::i_<I0s, P0s>>, D>{}) }...);
 						auto args = get_args<Z0>(sum.data.substitution, std::make_index_sequence<sizeof...(Ts)>{});
 						return apply_operators_sum_multiple<expr::symbols::v_id_type<expr::symbols::i_<I0s, P0s>>...>(
 							std::index_sequence<O>{}, coeff, sum, dvs, args, std::make_index_sequence<sizeof...(Ts)>{});
@@ -7686,7 +7724,7 @@ namespace expr
 					else
 					{
 						auto dvs = std::make_tuple(
-							expr::transform::swap_grid(op_types_t<GG>{}, GG{}, GridSymbol<expr::symbols::v_id_type<expr::symbols::i_<I0s, P0s>>, D>{})...);
+							SymbolicDerivative{ expr::transform::swap_grid(op_types_t<GG>{}, GG{}, GridSymbol<expr::symbols::v_id_type<expr::symbols::i_<I0s, P0s>>, D>{}) }...);
 						//auto dvs = symphas::lib::types_list<
 						//	decltype(expr::transform::swap_grid(op_types_t<GG>{}, std::declval<GG>(), GridSymbol<expr::symbols::v_id_type<expr::symbols::i_<I0s, P0s>>, D>{}))... > {};
 						auto args = get_args(sum.data.substitution, std::make_index_sequence<sizeof...(Ts)>{});
