@@ -61,9 +61,12 @@ namespace symphas::internal
 		 * \param pos The index of the underlying data in the expression
 		 * which is the first index in the iterator.
 		 */
-        template<typename specialized_difference>
-		expression_iterator(iterator_difference_type_impl<specialized_difference> const& ptr = {})
+        template<typename specialized_difference = iterator_difference_type<const E>>
+		expression_iterator(iterator_difference_type_impl<specialized_difference> const& ptr)
 			: ptr{ *static_cast<specialized_difference const*>(&ptr) } {}
+
+		expression_iterator(difference_type pos = {})
+			: ptr{ pos } {}
 
 		//! Create an iterator starting at the given position.
 		/*!
@@ -299,9 +302,12 @@ namespace symphas::internal
 		 * \param pos The index of the underlying data in the expression
 		 * which is the first index in the iterator.
 		 */
-        template<typename specialized_difference>
-		expression_iterator_selection(iterator_difference_type_impl<specialized_difference> const& ptr = {})
+        template<typename specialized_difference = iterator_selection_difference_type<const E>>
+		expression_iterator_selection(iterator_difference_type_impl<specialized_difference> const& ptr)
 			: ptr{ *static_cast<specialized_difference const*>(&ptr) } {}
+		
+		expression_iterator_selection(difference_type pos = {})
+			: ptr{ pos } {}
 		//expression_iterator_selection(difference_type ptr = {})
 			//: ptr{ ptr } {}
 

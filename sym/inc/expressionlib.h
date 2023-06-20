@@ -4119,6 +4119,12 @@ namespace expr
 		return OpIdentity{};
 	}
 
+	template<typename T, typename I>
+	auto coeff(OpCoeff<T, I> const& e)
+	{
+		return e;
+	}
+
 	inline auto coeff(OpVoid)
 	{
 		return OpVoid{};

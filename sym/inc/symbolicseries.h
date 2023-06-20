@@ -4599,7 +4599,7 @@ struct SymbolicSeries<Op, Substitution<SymbolicDataArray<Ts>...>,
 		const DynamicIndex(&index)[sizeof...(IIs) + 2],
 		expr::series_limits<T1s, T2s> const&... limits) :
 		parent_type(e, limits...), substitution{ substitution },
-		result{ expr::data_dimensions(substitution) }
+		result{ func_storage_t(expr::data_dimensions(substitution)) }
 		//persistent{ sizeof...(IIs) + 2, get_length(std::make_index_sequence<sizeof...(IIs) + 2>{}) }
 	{
 		std::copy(index, index + sizeof...(IIs) + 2, this->index);
@@ -4893,7 +4893,7 @@ struct SymbolicSeries<Op, Substitution<SymbolicDataArray<T>>,
 		const DynamicIndex(&index)[1],
 		expr::series_limits<T1, T2> const& limit) :
 		parent_type(e, limit), substitution{ substitution },
-		result{ expr::data_dimensions(substitution) }
+		result{ func_storage_t(expr::data_dimensions(substitution)) }
 	{
 		this->index[0] = index[0];
 	}

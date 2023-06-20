@@ -212,7 +212,7 @@ struct OpIntegral<V, E, expr::variational_t<T>> : OpExpression<OpIntegral<V, E, 
 
 	auto update()
 	{
-		auto len = domain.num_points();
+		auto len = expr::data_length(e);
 		if (len > 0)
 		{
 			auto iter_data = expr::eval_iters(e);

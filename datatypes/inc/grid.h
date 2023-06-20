@@ -1466,17 +1466,17 @@ namespace grid
 	 * is performed point-wise for all data points.
 	 */
 	template<typename T, typename S>
-	void copy(MultiBlock<1, T> const& grid, any_vector_t<S, 1>* out)
+	void copy(MultiBlock<1, T> const& from, any_vector_t<S, 1>* to)
 	{
 		std::for_each(
 #ifdef EXECUTION_HEADER_AVAILABLE
 			std::execution::par_unseq,
 #endif
-			out, out + grid.len,
+			to, to + from.len,
 			[&] (auto& e) {
-				size_t i = &e - out;
+				size_t i = &e - to;
 				e = any_vector_t<T, 1>{
-					grid(Axis::X)[i] };
+					from(Axis::X)[i] };
 			});
 	}
 
@@ -1486,18 +1486,18 @@ namespace grid
 	 * is performed point-wise for all data points.
 	 */
 	template<typename T, typename S>
-	void copy(MultiBlock<2, T> const& grid, any_vector_t<S, 2>* out)
+	void copy(MultiBlock<2, T> const& from, any_vector_t<S, 2>* to)
 	{
 		std::for_each(
 #ifdef EXECUTION_HEADER_AVAILABLE
 			std::execution::par_unseq,
 #endif
-			out, out + grid.len,
+			to, to + from.len,
 			[&] (auto& e) {
-				size_t i = &e - out;
+				size_t i = &e - to;
 				e = any_vector_t<T, 2>{
-					grid(Axis::X)[i],
-					grid(Axis::Y)[i] };
+					from(Axis::X)[i],
+					from(Axis::Y)[i] };
 			});
 	}
 
@@ -1507,19 +1507,19 @@ namespace grid
 	 * is performed point-wise for all data points.
 	 */
 	template<typename T, typename S>
-	void copy(MultiBlock<3, T> const& grid, any_vector_t<S, 3>* out)
+	void copy(MultiBlock<3, T> const& from, any_vector_t<S, 3>* to)
 	{
 		std::for_each(
 #ifdef EXECUTION_HEADER_AVAILABLE
 			std::execution::par_unseq,
 #endif
-			out, out + grid.len,
+			to, to + from.len,
 			[&] (auto& e) {
-				size_t i = &e - out;
+				size_t i = &e - to;
 				e = any_vector_t<S, 3>{
-					grid(Axis::X)[i],
-					grid(Axis::Y)[i],
-					grid(Axis::Z)[i] };
+					from(Axis::X)[i],
+					from(Axis::Y)[i],
+					from(Axis::Z)[i] };
 			});
 	}
 
@@ -1529,13 +1529,13 @@ namespace grid
 	 * given values, correctly transcribing all values.
 	 */
 	template<typename S, typename T>
-	void fill(const S* in, Block<T>& out)
+	void copy(const S* from, Block<T>& to)
 	{
 		std::copy(
 #ifdef EXECUTION_HEADER_AVAILABLE
 			std::execution::par_unseq,
 #endif
-			in, in + out.len, out.values);
+			from, from + to.len, to.values);
 	}
 
 
@@ -1545,16 +1545,16 @@ namespace grid
 	 * is performed point-wise for all data points.
 	 */
 	template<typename S, typename T>
-	void fill(const any_vector_t<S, 1>* in, MultiBlock<1, T>& out)
+	void copy(const any_vector_t<S, 1>* from, MultiBlock<1, T>& to)
 	{
 		std::for_each(
 #ifdef EXECUTION_HEADER_AVAILABLE
 			std::execution::par_unseq,
 #endif
-			in, in + out.len,
+			from, from + to.len,
 			[&] (auto& e) {
-				size_t i = &e - in;
-				out(Axis::X)[i] = e[0];
+				size_t i = &e - from;
+				to(Axis::X)[i] = e[0];
 			});
 	}
 
@@ -1564,17 +1564,17 @@ namespace grid
 	 * is performed point-wise for all data points.
 	 */
 	template<typename S, typename T>
-	void fill(const any_vector_t<S, 2>* in, MultiBlock<2, T>& out)
+	void copy(const any_vector_t<S, 2>* from, MultiBlock<2, T>& to)
 	{
 		std::for_each(
 #ifdef EXECUTION_HEADER_AVAILABLE
 			std::execution::par_unseq,
 #endif
-			in, in + out.len,
+			from, from + to.len,
 			[&] (auto& e) {
-				size_t i = &e - in;
-				out(Axis::X)[i] = e[0];
-				out(Axis::Y)[i] = e[1];
+				size_t i = &e - from;
+				to(Axis::X)[i] = e[0];
+				to(Axis::Y)[i] = e[1];
 			});
 	}
 
@@ -1584,21 +1584,63 @@ namespace grid
 	 * is performed point-wise for all data points.
 	 */
 	template<typename S, typename T>
-	void fill(const any_vector_t<S, 3>* in, MultiBlock<3, T>& out)
+	void copy(const any_vector_t<S, 3>* from, MultiBlock<3, T>& to)
 	{
 		std::for_each(
 #ifdef EXECUTION_HEADER_AVAILABLE
 			std::execution::par_unseq,
 #endif
-			in, in + out.len,
+			from, from + to.len,
 			[&] (auto& e) {
-				size_t i = &e - in;
-				out(Axis::X)[i] = e[0];
-				out(Axis::Y)[i] = e[1];
-				out(Axis::Z)[i] = e[2];
+				size_t i = &e - from;
+				to(Axis::X)[i] = e[0];
+				to(Axis::Y)[i] = e[1];
+				to(Axis::Z)[i] = e[2];
 			});
 	}
 
+
+	//! Copies the system data into the given array.
+	/*!
+	 * The values of the grid are filled with their index.
+	 */
+	template<typename T>
+	void fill(T* data, len_type len, T value)
+	{
+		std::fill(
+#ifdef EXECUTION_HEADER_AVAILABLE
+			std::execution::par_unseq,
+#endif
+			data, data + len, value);
+	}
+
+	//! Copies the system data into the given array.
+	/*!
+	 * The values of the grid are filled with their index.
+	 */
+	template<typename T, typename S>
+	void fill(Block<T>& grid, S value)
+	{
+		std::fill(
+#ifdef EXECUTION_HEADER_AVAILABLE
+			std::execution::par_unseq,
+#endif
+			grid.values, grid.values + grid.len, value);
+	}
+
+	//! Copies the system data into the given array.
+	/*!
+	 * The values of the grid are filled with their index.
+	 */
+	template<typename T, size_t N, typename S>
+	void fill(MultiBlock<N, T>& grid, any_vector_t<S, N> value)
+	{
+		std::fill(
+#ifdef EXECUTION_HEADER_AVAILABLE
+			std::execution::par_unseq,
+#endif
+			grid.values, grid.values + grid.len, value);
+	}
 
 	//! Copies the system data into the given array.
 	/*!
@@ -1693,11 +1735,10 @@ namespace grid
 
 	//! Copies the system data into the given array.
 	/*!
-	 * The values of the system data block are copied into a new one. The copy
-	 * is performed point-wise for all data points.
+	 * The values of the grid are filled with their index.
 	 */
 	template<typename T>
-	void fill_n(T* data, len_type len, scalar_t min, scalar_t max)
+	void fill_n(T* data, len_type len)
 	{
 		std::for_each(
 #ifdef EXECUTION_HEADER_AVAILABLE
@@ -1711,11 +1752,10 @@ namespace grid
 
 	//! Copies the system data into the given array.
 	/*!
-	 * The values of the system data block are copied into a new one. The copy
-	 * is performed point-wise for all data points.
+	 * The values of the grid are filled with their index.
 	 */
 	template<typename T>
-	void fill_n(Block<T>& grid, scalar_t min, scalar_t max)
+	void fill_n(Block<T>& grid)
 	{
 		std::for_each(
 #ifdef EXECUTION_HEADER_AVAILABLE
@@ -1729,11 +1769,10 @@ namespace grid
 
 	//! Copies the system data into the given array.
 	/*!
-	 * The values of the system data block are copied into a new one. The copy
-	 * is performed point-wise for all data points.
+	 * The values of the grid are filled with their index.
 	 */
 	template<typename T, size_t N>
-	void fill_n(MultiBlock<N, T>& grid, scalar_t min, scalar_t max)
+	void fill_n(MultiBlock<N, T>& grid)
 	{
 		for (iter_type i = 0; i < N; ++i)
 		{

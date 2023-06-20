@@ -122,7 +122,14 @@ struct OpSymbolicEval<V, SymbolicSeries<Ss...>, SymbolicFunction<E, Variable<Ns,
 
 public:
 
-	auto eval(iter_type n = 0) const
+	auto eval() const
+	{
+		auto result = data.eval();
+		expr::result(expr::make_term(value, result), result);
+		return result;
+	}
+
+	auto eval(iter_type n) const
 	{
 		return expr::eval(value) * data.eval(n);
 	}

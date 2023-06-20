@@ -383,7 +383,14 @@ namespace grid
 
 		operator T () const
 		{
-			return data[0];
+			if (n > 0)
+			{
+				return data[0];
+			}
+			else
+			{
+				return 0;
+			}
 		}
 
 		std::tuple<T, T, T> _3() const
