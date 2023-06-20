@@ -28,6 +28,7 @@
 
 #include <tuple>
 
+#include "gridinfo.h"
 #include "expressionlib.h"
 
 
@@ -561,6 +562,9 @@ namespace expr
 	template<typename V, typename sub_t, typename E, typename... Ts>
 	auto data_list(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e);
 	//! Specialization based on expr::vars.
+	template<typename... Ts>
+	auto data_list(Substitution<Ts...> const& e);
+	//! Specialization based on expr::vars.
 	template<typename V, typename E, typename... Ts, int... I0s, int... P0s, typename E0, typename... T0s, typename B, typename C>
 	auto data_list(OpSum<V, E, Substitution<SymbolicDataArray<Ts>...>, 
 		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, SymbolicFunction<E0, T0s...>, B, C> const& e);
@@ -745,6 +749,18 @@ namespace expr
 	auto data_list(OpSymbolicEval<V, NoiseData<nt, T, D>, SymbolicFunction<E, Ts...>> const& e)
 	{
 		return std::tuple_cat(data_list(e.f.e), data_list(e.data));
+	}
+
+	template<typename... Ts, size_t... Is>
+	auto data_list(Substitution<Ts...> const& e, std::index_sequence<Is...>)
+	{
+		return std::make_tuple(data_list(std::get<Is>(e))...);
+	}
+
+	template<typename... Ts>
+	auto data_list(Substitution<Ts...> const& e)
+	{
+		return data_list(e, std::make_index_sequence<sizeof...(Ts)>{});
 	}
 
 	template<typename V, typename E, typename... Ts, int... I0s, int... P0s, typename E0, typename... T0s, typename B, typename C>
@@ -935,6 +951,9 @@ namespace expr
 	template<typename V, expr::NoiseType nt, typename T, size_t D, typename E, typename... Ts>
 	grid::dim_list data_dimensions(OpSymbolicEval<V, NoiseData<nt, T, D>, SymbolicFunction<E, Ts...>> const& e);
 	//! Specialization based on expr::data_dimensions(E const&).
+	template<typename... Ts>
+	grid::dim_list data_dimensions(Substitution<Ts...> const& e);
+	//! Specialization based on expr::data_dimensions(E const&).
 	template<typename V, typename E, typename... Ts, int... I0s, int... P0s, typename E0, typename... T0s, typename B, typename C>
 	grid::dim_list data_dimensions(OpSum<V, E, Substitution<SymbolicDataArray<Ts>...>, 
 		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, SymbolicFunction<E0, T0s...>, B, C> const& e);
@@ -1085,6 +1104,25 @@ namespace expr
 		return data_dimensions(e.data);
 	}
 
+	template<typename... Ts>
+	grid::dim_list data_dimensions(Substitution<Ts...> const& e, std::index_sequence<>)
+	{
+		return {};
+	}
+
+	template<typename... Ts, size_t I0, size_t... Is>
+	grid::dim_list data_dimensions(Substitution<Ts...> const& e, std::index_sequence<I0, Is...>)
+	{
+		auto dims = data_dimensions_data(std::get<I0>(e));
+		return (dims.n > 0) ? dims : data_dimensions(e, std::index_sequence<Is...>{});
+	}
+
+	template<typename... Ts>
+	grid::dim_list data_dimensions(Substitution<Ts...> const& e)
+	{
+		return data_dimensions(e, std::make_index_sequence<sizeof...(Ts)>{});
+	}
+
 	template<typename V, typename E, typename... Ts, int... I0s, int... P0s, typename E0, typename... T0s, typename B, typename C>
 	grid::dim_list data_dimensions(OpSum<V, E, Substitution<SymbolicDataArray<Ts>...>, 
 		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, SymbolicFunction<E0, T0s...>, B, C> const& e)
@@ -1229,6 +1267,9 @@ namespace expr
 	//! Specialization based on expr::data_length(E const&).
 	template<typename V, expr::NoiseType nt, typename T, size_t D, typename E, typename... Ts>
 	len_type data_length(OpSymbolicEval<V, NoiseData<nt, T, D>, SymbolicFunction<E, Ts...>> const& e);
+	//! Specialization based on expr::data_length(E const&).
+	template<typename... Ts>
+	len_type data_length(Substitution<Ts...> const& e);
 	//! Specialization based on expr::data_length(E const&).
 	template<typename V, typename E, typename... Ts, int... I0s, int... P0s, typename E0, typename... T0s, typename B, typename C>
 	len_type data_length(OpSum<V, E, Substitution<SymbolicDataArray<Ts>...>, 
@@ -1392,6 +1433,25 @@ namespace expr
 		return data_length(e.data);
 	}
 
+	template<typename... Ts>
+	len_type data_length(Substitution<Ts...> const& e, std::index_sequence<>)
+	{
+		return data_len_data(0);
+	}
+
+	template<typename... Ts, size_t I0, size_t... Is>
+	len_type data_length(Substitution<Ts...> const& e, std::index_sequence<I0, Is...>)
+	{
+		auto len = data_len_data(std::get<I0>(e));
+		return (len > 0) ? len : data_length(e, std::index_sequence<Is...>{});
+	}
+
+	template<typename... Ts>
+	len_type data_length(Substitution<Ts...> const& e)
+	{
+		return data_length(e, std::make_index_sequence<sizeof...(Ts)>{});
+	}
+
 	template<typename V, typename E, typename... Ts, int... I0s, int... P0s, typename E0, typename... T0s, typename B, typename C>
 	len_type data_length(OpSum<V, E, Substitution<SymbolicDataArray<Ts>...>, 
 		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, SymbolicFunction<E0, T0s...>, B, C> const& e)
@@ -1533,6 +1593,9 @@ namespace expr
 	//! Specialization based on expr::eval_iters(E const&).
 	template<typename V, expr::NoiseType nt, typename T, size_t D, typename E, typename... Ts>
 	std::pair<iter_type*, len_type> eval_iters(OpSymbolicEval<V, NoiseData<nt, T, D>, SymbolicFunction<E, Ts...>> const& e);
+	//! Specialization based on expr::eval_iters(E const&).
+	template<typename... Ts>
+	std::pair<iter_type*, len_type> eval_iters(Substitution<Ts...> const& e);
 	//! Specialization based on expr::eval_iters(E const&).
 	template<typename V, typename E, typename... Ts, int... I0s, int... P0s, typename E0, typename... T0s, typename B, typename C>
 	std::pair<iter_type*, len_type> eval_iters(OpSum<V, E, Substitution<SymbolicDataArray<Ts>...>,
@@ -1677,6 +1740,25 @@ namespace expr
 	std::pair<iter_type*, len_type> eval_iters(OpSymbolicEval<V, NoiseData<nt, T, D>, SymbolicFunction<E, Ts...>> const& e)
 	{
 		return eval_iters(e.data);
+	}
+
+	template<typename... Ts>
+	std::pair<iter_type*, len_type> eval_iters(Substitution<Ts...> const& e, std::index_sequence<>)
+	{
+		return eval_iters(0);
+	}
+
+	template<typename... Ts, size_t I0, size_t... Is>
+	std::pair<iter_type*, len_type> eval_iters(Substitution<Ts...> const& e, std::index_sequence<I0, Is...>)
+	{
+		auto [iters0, n0] = eval_iters_data(std::get<I0>(e));
+		return (n0 > 0) ? std::make_pair(iters0, n0) : eval_iters(e, std::index_sequence<Is...>{});
+	}
+
+	template<typename... Ts>
+	std::pair<iter_type*, len_type> eval_iters(Substitution<Ts...> const& e)
+	{
+		return eval_iters(e, std::make_index_sequence<sizeof...(Ts)>{});
 	}
 
 	template<typename V, typename E, typename... Ts, int... I0s, int... P0s, typename E0, typename... T0s, typename B, typename C>

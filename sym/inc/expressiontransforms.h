@@ -116,27 +116,27 @@ namespace expr::prune
 		//		symphas::lib::types_list<expr::symbols::v_id_type<Is>...>
 		//	>>& e);
 
-		template<typename V, typename... Ts>
-		void _update(OpTerms<V, Ts...>& e);
-
-        template<typename G, expr::exp_key_t X>
-        void _update(Term<G, X>& e);
 		template<typename... Ts>
-		void _update(SymbolicCase<Ts...>& e);
-        template<size_t Z, typename G>
-        void _update(Variable<Z, G>& e);
-        template<typename G>
-        void _update(NamedData<G>& e);
-        template<Axis ax, typename G>
-        void _update(VectorComponent<ax, G>& e);
-        template<typename G>
-        void _update(symphas::ref<G>& e);
+		void _update(OpTerms<Ts...>& e);
+
+		template<typename G, expr::exp_key_t X>
+		void _update(Term<G, X>& e);
+		//template<typename... Ts>
+		//void _update(SymbolicCase<Ts...>& e);
+		//template<size_t Z, typename G>
+		//void _update(Variable<Z, G>& e);
+		//template<typename G>
+		//void _update(NamedData<G>& e);
+		//template<Axis ax, typename G>
+		//void _update(VectorComponent<ax, G>& e);
+		//template<typename G>
+		//void _update(symphas::ref<G>& e);
 
 
-        template<expr::NoiseType nt, typename T, size_t D>
-        void _update(NoiseData<nt, T, D>& e);
-        template<typename T>
-        void _update(SymbolicData<T>&);
+		template<expr::NoiseType nt, typename T, size_t D>
+		void _update(NoiseData<nt, T, D>& e);
+		template<typename T>
+		void _update(SymbolicData<T>&);
 
 		template<typename V, typename E>
 		void _update(OpExponential<V, E>& e)
@@ -219,7 +219,7 @@ namespace expr::prune
 		void _update(OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G>>& e) {}
 
 		template<typename Dd, typename V, typename G, typename Sp>
-		void _update(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp>& e) 
+		void _update(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp>& e)
 		{
 			e.update();
 		}
@@ -234,6 +234,7 @@ namespace expr::prune
 		template<typename V, typename E, typename T>
 		void _update(OpIntegral<V, E, T>& e)
 		{
+			expr::prune::update(expr::get_enclosed_expression(e));
 			e.update();
 		}
 
@@ -247,15 +248,9 @@ namespace expr::prune
 		}
 
 		template<typename... Es>
-		void _update(OpAddList<Es...>& e)
-		{
-			_update(e, std::make_index_sequence<sizeof...(Es)>{});
-		}
-
-		template<typename... Es>
 		void _update(OpAdd<Es...>& e)
 		{
-			_update(*static_cast<OpAddList<Es...>*>(&e));
+			_update(*static_cast<OpAddList<Es...>*>(&e), std::make_index_sequence<sizeof...(Es)>{});
 		}
 
 		template<typename A1, typename A2>
@@ -285,11 +280,11 @@ namespace expr::prune
 		template<typename A1, typename A2, typename E>
 		void _update(OpCombination<A1, A2, E>& e)
 		{
-			_update(e.combination);
-			if constexpr (expr::has_state<E>::value)
-			{
-				_update(expr::get_enclosed_expression(e));
-			}
+			//_update(e.combination);
+			//_update(expr::get_enclosed_expression(e));
+			//if constexpr (expr::has_state<E>::value)
+			//{
+			//}
 			e.update();
 		}
 
@@ -303,11 +298,11 @@ namespace expr::prune
 		template<typename A1, typename A2, typename E>
 		void _update(OpChain<A1, A2, E>& e)
 		{
-			_update(e.combination);
-			if constexpr (expr::has_state<E>::value)
-			{
-				_update(expr::get_enclosed_expression(e));
-			}
+			//_update(e.combination);
+			//if constexpr (expr::has_state<E>::value)
+			//{
+			//	_update(expr::get_enclosed_expression(e));
+			//}
 			e.update();
 		}
 
@@ -318,77 +313,66 @@ namespace expr::prune
 			e.update();
 		}
 
-		template<typename G0, expr::exp_key_t X0>
-		void _update(OpTermsList<Term<G0, X0>>& e);
-
-		template<typename G0, expr::exp_key_t X0, typename G1, expr::exp_key_t X1, typename... Gs, expr::exp_key_t... Xs>
-		void _update(OpTermsList<Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...>& e)
+		template<typename... Ts, size_t... Is>
+		void _update(OpTermsList<Ts...>& e, std::index_sequence<Is...>)
 		{
-			_update(expr::get<0>(e));
-			_update(expr::terms_after_n<0>(e));
+			(_update(expr::get<Is>(e)), ...);
 		}
 
-		template<typename G0, expr::exp_key_t X0>
-		void _update(OpTermsList<Term<G0, X0>>& e)
-        {
-			_update(expr::get<0>(e));
-        }
-
-		template<typename V, typename... Ts>
-		void _update(OpTerms<V, Ts...>& e)
+		template<typename... Ts>
+		void _update(OpTerms<Ts...>& e)
 		{
-			_update(expr::get<0>(e));
-			_update(*static_cast<OpTermsList<Ts...>*>(&e));
+			//_update(*static_cast<OpTermsList<Ts...>*>(&e), std::make_index_sequence<sizeof...(Ts)>{});
 		}
 
 
 		template<typename G, expr::exp_key_t X>
 		void _update(Term<G, X>& e)
 		{
-			_update(e.data());
+			//_update(e.data());
 		}
 
 		template<typename... Ts>
 		void _update(SymbolicCase<Ts...>& e) {}
 
-        template<size_t Z, typename G>
-        void _update(Variable<Z, G>& e)
-        {
-            _update(*static_cast<G*>(&e));
-        }
+        //template<size_t Z, typename G>
+        //void _update(Variable<Z, G>& e)
+        //{
+        //    _update(*static_cast<G*>(&e));
+        //}
 
-        template<typename G>
-        void _update(NamedData<G>& e)
-        {
-            _update(*static_cast<G*>(&e));
-        }
+        //template<typename G>
+        //void _update(NamedData<G>& e)
+        //{
+        //    _update(*static_cast<G*>(&e));
+        //}
 
-        template<Axis ax, typename G>
-        void _update(VectorComponent<ax, G>& e)
-        {
-            _update(*static_cast<G*>(&e));
-        }
+        //template<Axis ax, typename G>
+        //void _update(VectorComponent<ax, G>& e)
+        //{
+        //    _update(*static_cast<G*>(&e));
+        //}
 
-        template<typename G>
-        void _update(symphas::ref<G>& e)
-        {
-            _update(e.get());
-        }
+        //template<typename G>
+        //void _update(symphas::ref<G>& e)
+        //{
+        //    _update(e.get());
+        //}
 
-        template<expr::NoiseType nt, typename T, size_t D>
-        void _update(NoiseData<nt, T, D>& data)
-        {
-            data.update();
-        }
+        //template<expr::NoiseType nt, typename T, size_t D>
+        //void _update(NoiseData<nt, T, D>& data)
+        //{
+        //    data.update();
+        //}
 
-        template<typename T>
-        void _update(SymbolicData<T>& data)
-        {
-			if (data.data != nullptr)
-			{
-				_update(*data.data);
-			}
-        }
+   //     template<typename T>
+   //     void _update(SymbolicData<T>& data)
+   //     {
+			//if (data.data != nullptr)
+			//{
+			//	_update(*data.data);
+			//}
+   //     }
 
 	}
 

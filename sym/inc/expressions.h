@@ -156,11 +156,24 @@ namespace expr
 		auto& e0 = *static_cast<const E*>(&e);
 		if (!len)
 		{
-			len = expr::data_length(*static_cast<E const*>(&e));
+			len = 0;
 		}
 
+//		symphas::internal::data_iterator_select it(std::forward<assign_type>(data), inners);
+//
+//#if defined(EXECUTION_HEADER_AVAILABLE) 
+//		std::copy(std::execution::par,
+//			static_cast<const E*>(&e)->begin(inners),
+//			static_cast<const E*>(&e)->end(inners, len), it);
+//#else
+//		for (iter_type i = 0; i < len; i++)
+//		{
+//			it[i] = static_cast<const E*>(&e)->eval(i);
+//		}
+//#endif
+		
 		symphas::internal::data_iterator it(std::forward<assign_type>(data));
-
+		
 		std::for_each(
 #ifdef EXECUTION_HEADER_AVAILABLE
 			std::execution::par_unseq, 
@@ -1808,7 +1821,7 @@ struct OpCoeff<T, DynamicIndex> :
 		return expr::make_literal(data[i]);
 	}
 
-	auto fix()
+	auto& fix()
 	{
 		index = DynamicIndex(index.index());
 		return *this;

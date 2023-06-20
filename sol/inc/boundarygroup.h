@@ -263,7 +263,14 @@ BoundaryGroup<T, D>::BoundaryGroup(BoundaryGroup<T, D> const& other)
 	for (iter_type i = 0; i < D * 2; ++i)
 	{
 		types[i] = other.types[i];
-		boundaries[i] = other.boundaries[i]->new_copy();
+		if (other.boundaries[i] != nullptr)
+		{
+			boundaries[i] = other.boundaries[i]->new_copy();
+		}
+		else
+		{
+			boundaries[i] = nullptr;
+		}
 	}
 }
 

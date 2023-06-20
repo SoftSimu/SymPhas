@@ -196,7 +196,7 @@ struct OpIntegral<V, E, expr::variational_t<T>> : OpExpression<OpIntegral<V, E, 
 {
 	using result_t = expr::eval_type_t<E>;
 
-	OpIntegral() : value{ V{} }, domain{ T{} }, data{}, e{} {}
+	OpIntegral() : value{ V{} }, domain{ symphas::grid_info{ nullptr, 0 } }, data{}, e{} {}
 	OpIntegral(V value, E const& e, symphas::grid_info const& domain) 
 		: value{ value }, domain{ domain }, data{ result_t{} }, e{ e } {}
 
@@ -212,34 +212,33 @@ struct OpIntegral<V, E, expr::variational_t<T>> : OpExpression<OpIntegral<V, E, 
 
 	auto update()
 	{
-		auto len = expr::data_length(e);
+		auto len = domain.num_points();
 		if (len > 0)
 		{
-			expr::prune::update(e);
-
 			auto iter_data = expr::eval_iters(e);
 			iter_type* iters = iter_data.first;
 			len_type n = iter_data.second;
 
 			if (n > 0)
 			{
-				data = e.eval(iters[0]);
-
-//#				pragma omp parallel for reduction (+:data)
-				for (iter_type i = 1; i < n; ++i)
-				{
-					data += e.eval(iters[i]);
-				}
+				data = std::reduce(
+#ifdef EXECUTION_HEADER_AVAILABLE
+					std::execution::par_unseq,
+#endif
+					static_cast<const E*>(&e)->begin(iters),
+					static_cast<const E*>(&e)->end(iters, n), result_t{}
+				);
 			}
 			else
 			{
-				data = e.eval(0);
+				data = std::reduce(
+#ifdef EXECUTION_HEADER_AVAILABLE
+					std::execution::par_unseq,
+#endif
+					static_cast<const E*>(&e)->begin(),
+					static_cast<const E*>(&e)->end(len), result_t{}
+				);
 
-//#				pragma omp parallel for reduction (+:data)
-				for (iter_type i = 1; i < len; ++i)
-				{
-					data += e.eval(i);
-				}
 			}
 
 			double r = 1;
@@ -398,7 +397,7 @@ namespace symphas::internal
 	template<typename V, typename E>
 	inline auto make_integral::get(V const& v, OpExpression<E> const& e, symphas::grid_info const& domain)
 	{
-		return OpIntegral<V, E, expr::variational_t<void>>(v, *static_cast<E const*>(&e), domain);
+		return OpIntegral<V, E, expr::variational_t<symphas::grid_info>>(v, *static_cast<E const*>(&e), domain);
 	}
 
 	template<typename V, typename E, typename T>
@@ -410,7 +409,7 @@ namespace symphas::internal
 	template<typename V, typename E>
 	inline auto make_integral::get(V const& v, OpOperator<E> const& e, symphas::grid_info const& domain)
 	{
-		return OpIntegral<V, E, expr::variational_t<void>>(v, *static_cast<E const*>(&e), domain);
+		return OpIntegral<V, E, expr::variational_t<symphas::grid_info>>(v, *static_cast<E const*>(&e), domain);
 	}
 }
 

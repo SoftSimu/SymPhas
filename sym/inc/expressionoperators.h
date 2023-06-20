@@ -1352,7 +1352,6 @@ public:
 
 	inline auto update()
 	{
-		expr::prune::update(expr::get_enclosed_expression(eval_expr));
 		expr::prune::update(eval_expr);
 	}
 

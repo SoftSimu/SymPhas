@@ -169,6 +169,34 @@ struct OpExpression
 	{
 		return symphas::internal::expression_iterator<E>(cast(), len);
 	}
+
+
+	//! Return an iterator the beginning of the data.
+	/*!
+	 * For the data related to the expression, return an iterator
+	 * representing the beginning of the data, used when evaluating
+	 * the expression.
+	 */
+	symphas::internal::expression_iterator_selection<E> begin(iter_type* iters) const
+	{
+		return symphas::internal::expression_iterator_selection<E>(cast(), iters);
+	}
+
+
+	//! Return an iterator the end of the data.
+	/*!
+	 * For the data related to the expression, return an iterator
+	 * representing the end of the data, used when evaluating
+	 * the expression. The end point has to be provided, as the length
+	 * of the data is not known directly by the expression.
+	 *
+	 * \param len The end point of the data, for the end iterator to
+	 * point to.
+	 */
+	symphas::internal::expression_iterator_selection<E> end(iter_type* iters, len_type len) const
+	{
+		return symphas::internal::expression_iterator_selection<E>(cast(), iters, len);
+	}
 };
 
 // **************************************************************************************
@@ -2453,6 +2481,35 @@ namespace symphas::internal
 	};
 }
 
+namespace expr
+{
+
+	//! Used to identify the representative base type of a data type.
+	/*!
+	 * A struct based on type traits that prunes, from a given type, the underlying
+	 * data object for all the used op-type wrappers. Typically used in identifying
+	 * whether something satisfies an identity or getting the original object type
+	 * of an expression data.
+	 *
+	 * By default, it returns the type of the object that it is given, but for
+	 * the data of OpTerms, including data using types where there is the
+	 * underlying or inherited data object which should represent it as the base
+	 * type, it is returned instead.
+	 *
+	 * This type trait is used for identities in multiplication and division
+	 * because it is specialized for those types.
+	 */
+	template<typename A, typename Enable = void>
+	struct base_data_type
+	{
+		using type = A;
+	};
+
+	template<typename A, typename Enable = void>
+	using base_data_t = typename base_data_type<A, Enable>::type;
+
+}
+
 
 //! Return the type of the grid in the expression as a complete grid.
 template<typename E>
@@ -2468,9 +2525,9 @@ struct expr::storage_type
 	template<template<typename, size_t> typename enc_type>
 	struct grid_class_wrap 
 	{
-		using type = enc_type<
+		using type = expr::base_data_t<enc_type<
 			expr::eval_type_t<E>,
-			expr::grid_dim<E>::value>;
+			expr::grid_dim<E>::value>>;
 	};
 
 	struct block_class_wrap
@@ -2533,6 +2590,12 @@ struct expr::storage_type
 
 public:
 	using type = typename std::invoke_result_t<decltype(&expr::storage_type<E>::pack_grid), check_t>::type;
+};
+
+template<typename E, typename... Ts>
+struct expr::storage_type<SymbolicFunction<E, Ts...>>
+{
+	using type = typename storage_type<E>::type;
 };
 
 

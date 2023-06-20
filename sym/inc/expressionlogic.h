@@ -211,7 +211,8 @@ SYEX_IMPL_DEFINE_BASE_DATA((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPE), decltype(a
  * the instance itself, or the instance cast to a different type.
  */
 #define DEFINE_BASE_DATA_INHERITED(TEMPLATES, TYPE, PARENT_TYPE) \
-DEFINE_BASE_DATA_REDIRECT((SINGLE_ARG TEMPLATES), (SINGLE_ARG PARENT_TYPE), (SINGLE_ARG TYPE))
+DEFINE_BASE_DATA_REDIRECT((SINGLE_ARG TEMPLATES), (SINGLE_ARG PARENT_TYPE), (SINGLE_ARG TYPE)) \
+DEFINE_BASE_TYPE((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPE), (SINGLE_ARG PARENT_TYPE))
 
 //! Define a new base data access method for an array type.
 /*!
@@ -345,7 +346,7 @@ RESTRICT_COMMUTATIVITY((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPES COMMA typename 
 template<SINGLE_ARG TEMPLATE> \
 struct expr::base_data_type<SINGLE_ARG TYPE> \
 { \
-	using type = PARENT; \
+	using type = SINGLE_ARG PARENT; \
 };
 
 
@@ -365,7 +366,7 @@ struct expr::base_data_type<SINGLE_ARG TYPE> \
  * \param CONDITION The compile-time condition under which the base type will be valid.
  */
 #define DEFINE_BASE_TYPE_CONDITION(TEMPLATE, TYPE, PARENT, CONDITION) \
-DEFINE_BASE_TYPE(TEMPLATE, TYPE COMMA typename std::enable_if_t<(CONDITION) COMMA int>, PARENT)
+DEFINE_BASE_TYPE(TEMPLATE, TYPE COMMA typename std::enable_if_t<(CONDITION) COMMA int>, (SINGLE_ARG PARENT))
 
 
 
@@ -414,7 +415,7 @@ namespace expr::symbols { \
 struct TYPE ## _symbol : Symbol {}; \
 using TYPE = OpTerm<OpIdentity, TYPE ## _symbol>; } \
 DEFINE_SYMBOL_ID((), (expr::symbols::TYPE ## _symbol), return #TYPE) \
-DEFINE_BASE_TYPE((), (expr::symbols:: TYPE), expr::symbols::TYPE ## _symbol) \
+DEFINE_BASE_TYPE((), (expr::symbols:: TYPE), (expr::symbols::TYPE ## _symbol)) \
 ALLOW_COMBINATION((), (expr::symbols::TYPE ## _symbol)) \
 //DEFINE_BASE_DATA((), (expr::symbols::TYPE ## _symbol), expr::symbols::Symbol{}, expr::symbols::Symbol{})
 
@@ -423,7 +424,7 @@ namespace expr::symbols { \
 template<SINGLE_ARG TEMPLATES> struct TYPE ## _symbol : Symbol {}; \
 template<SINGLE_ARG TEMPLATES> using TYPE = OpTerm<OpIdentity, TYPE ## _symbol<SINGLE_ARG TYPES>>; } \
 DEFINE_SYMBOL_ID(TEMPLATES, (expr::symbols::TYPE ## _symbol<SINGLE_ARG TYPES>), return ID) \
-DEFINE_BASE_TYPE(TEMPLATES, (expr::symbols:: TYPE<SINGLE_ARG TYPES>), expr::symbols::TYPE ## _symbol<SINGLE_ARG TYPES>) \
+DEFINE_BASE_TYPE(TEMPLATES, (expr::symbols:: TYPE<SINGLE_ARG TYPES>), (expr::symbols::TYPE ## _symbol<SINGLE_ARG TYPES>)) \
 ALLOW_COMBINATION(TEMPLATES, (expr::symbols::TYPE ## _symbol<SINGLE_ARG TYPES>)) \
 
 
@@ -1014,29 +1015,6 @@ namespace expr
 namespace expr
 {
 
-	//! Used to identify the representative base type of a data type.
-	/*!
-	 * A struct based on type traits that prunes, from a given type, the underlying
-	 * data object for all the used op-type wrappers. Typically used in identifying
-	 * whether something satisfies an identity or getting the original object type
-	 * of an expression data.
-	 *
-	 * By default, it returns the type of the object that it is given, but for
-	 * the data of OpTerms, including data using types where there is the
-	 * underlying or inherited data object which should represent it as the base
-	 * type, it is returned instead.
-	 *
-	 * This type trait is used for identities in multiplication and division
-	 * because it is specialized for those types.
-	 */
-	template<typename A, typename Enable = void>
-	struct base_data_type
-	{
-		using type = A;
-	};
-
-	template<typename A, typename Enable = void>
-	using base_data_t = typename base_data_type<A, Enable>::type;
 
 	// *************************************************************************
 
@@ -1274,7 +1252,7 @@ namespace expr
 		}
 		else
 		{
-			return eval(e);
+			return BaseData<T>::get(e, n);
 		}
 	}
 

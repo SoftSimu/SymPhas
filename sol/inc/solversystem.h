@@ -681,8 +681,8 @@ inline SolverSystemSpectral<vector_t<D>, D>::~SolverSystemSpectral()
 }
 
 
-DEFINE_BASE_DATA_INHERITED((typename T, size_t D), (SolverSystemFD<T, D>), (BoundarySystem<T, D>))
-DEFINE_BASE_DATA_INHERITED((typename T, size_t D), (SolverSystemSpectral<T, D>), (System<T, D>))
+DEFINE_BASE_DATA_INHERITED((typename T, size_t D), (SolverSystemFD<T, D>), (BoundaryGrid<T, D>))
+DEFINE_BASE_DATA_INHERITED((typename T, size_t D), (SolverSystemSpectral<T, D>), (Grid<T, D>))
 
 
 

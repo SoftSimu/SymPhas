@@ -965,8 +965,6 @@ public:
 		return grid::select_grid_index(dims)(Block<T>::values, (std::forward<Ts>(rest) + THICKNESS)...);
 	}
 
-protected:
-
 #ifdef MULTITHREAD
 	constexpr BoundaryGrid() : Grid<T, D>(), inners{ nullptr }, len_inner{ 0 } {}
 #else
@@ -1041,8 +1039,6 @@ public:
 		return grid::select_grid_index(dims)(Block<T>::values, x + THICKNESS, y + THICKNESS, z + THICKNESS);
 	}
 
-protected:
-
 #ifdef MULTITHREAD
 	constexpr BoundaryGrid() : Grid<T, 3>(), inners{ nullptr }, len_inner{ 0 } {}
 #else
@@ -1111,8 +1107,6 @@ public:
 		return grid::select_grid_index(dims)(Block<T>::values, x + THICKNESS, y + THICKNESS);
 	}
 
-protected:
-
 #ifdef MULTITHREAD
 	constexpr BoundaryGrid() : Grid<T, 2>(), inners{ nullptr }, len_inner{ 0 } {}
 #else
@@ -1176,8 +1170,6 @@ public:
 	{
 		return grid::select_grid_index(dims)(Block<T>::values, x + THICKNESS);
 	}
-
-protected:
 
 
 #ifdef MULTITHREAD

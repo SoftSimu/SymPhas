@@ -577,12 +577,6 @@ namespace symphas::internal
 		special_dynamics(I) {}
 		special_dynamics() {}
 
-		template<size_t N0>
-		auto select() const
-		{
-			return special_dynamics<N0, I, E>(e);
-		}
-
 		E e;
 	};
 
@@ -590,11 +584,6 @@ namespace symphas::internal
 	template<size_t N, symphas::internal::DynamicType dynamic>
 	struct special_dynamics<N, void, dynamics_key_t<dynamic>> 
 	{
-		template<size_t N0>
-		auto select() const
-		{
-			return special_dynamics<N0, void, dynamics_key_t<dynamic>>();
-		}
 	};
 
 	// Specifies the dynamics for a single field.
@@ -604,12 +593,6 @@ namespace symphas::internal
 		special_dynamics(OpExpression<E> const& e) : e{ *static_cast<E const*>(&e) } {}
 		special_dynamics(OpOperator<E> const& e) : e{ *static_cast<E const*>(&e) } {}
 		special_dynamics() : e{ *static_cast<E const*>(&e) } {}
-
-		template<size_t N0>
-		auto select() const
-		{
-			return special_dynamics<N0, void, E>(e);
-		}
 
 		E e;
 	};
@@ -1006,6 +989,12 @@ namespace symphas::internal
 			: apply_dynamics<dynamic>() {}
 		apply_special_dynamics(dynamics_key_t<dynamic>) {}
 
+		template<size_t N0>
+		auto select() const
+		{
+			return apply_special_dynamics<special_dynamics<N0, void, dynamics_key_t<dynamic>>>(dynamics_key_t<dynamic>{});
+		}
+
 		template<typename U_D, typename model_t, typename F, typename Sp>
 		auto operator()(U_D const& dop, model_t const& model, OpExpression<F> const& fe, Sp const& solver)
 		{
@@ -1024,7 +1013,14 @@ namespace symphas::internal
 	template<size_t N, typename I0, typename E>
 	struct apply_special_dynamics<special_dynamics<N, I0, E>>
 	{
+		apply_special_dynamics(E const& e) : e{ e } {}
 		apply_special_dynamics(special_dynamics<N, I0, E> const& e) : e{ e.e } {}
+
+		template<size_t N0>
+		auto select() const
+		{
+			return apply_special_dynamics<special_dynamics<N0, I0, E>>(e);
+		}
 
 		template<typename U_D, typename model_t, typename F, typename Sp>
 		auto operator()(U_D const& dop, model_t const& model, OpExpression<F> const& fe, Sp const& solver)
@@ -1049,7 +1045,14 @@ namespace symphas::internal
 	template<size_t N, typename E>
 	struct apply_special_dynamics<special_dynamics<N, void, E>>
 	{
+		apply_special_dynamics(E const& e) : e{ e } {}
 		apply_special_dynamics(special_dynamics<N, void, E> const& e) : e{ e.e } {}
+
+		template<size_t N0>
+		auto select() const
+		{
+			return apply_special_dynamics<special_dynamics<N0, void, E>>(e);
+		}
 
 		template<typename U_D, typename model_t, typename F, typename Sp>
 		auto operator()(U_D const& dop, model_t const& model, OpExpression<F> const& fe, Sp const& solver)
@@ -1328,8 +1331,7 @@ protected:
 
 		return parent_trait::make_equations(
 			apply_special_dynamics(
-				std::get<dynamics_rule_N<Is, symphas::lib::types_list<dynamics_ts...>>>(dynamics)
-				.template select<Is>())(
+				std::get<dynamics_rule_N<Is, symphas::lib::types_list<dynamics_ts...>>>(dynamics)).template select<Is>()(
 					dop<Is>(),
 					*this,
 					*static_cast<E const*>(&e),

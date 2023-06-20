@@ -3138,6 +3138,97 @@ namespace symphas::internal
 			expr::symbols::v_id_type<expr::symbols::i_<I0, P0>>{});
 	}
 
+	template<typename S>
+	struct substitution_data_index
+	{
+		static const size_t value = 1;
+	};
+	
+	template<>
+	struct substitution_data_index<SymbolicDataArray<expr::symbols::Symbol>>
+	{
+		static const size_t value = 0;
+	};
+
+	template<typename G0, typename... Gs>
+	struct substitution_data_index<symphas::lib::types_list<SymbolicDataArray<G0>, SymbolicDataArray<Gs>...>>
+	{
+		static const size_t value = (substitution_data_index<SymbolicDataArray<G0>>::value + ...
+			+ substitution_data_index<SymbolicDataArray<Gs>>::value);
+	};
+
+	template<typename... Gs>
+	struct substitution_data_index<Substitution<SymbolicDataArray<Gs>...>>
+	{
+		static const size_t value = substitution_data_index<symphas::lib::types_list<SymbolicDataArray<Gs>...>>::value;
+	};
+
+
+	template<size_t N, typename S>
+	struct substitution_data_index_count
+	{
+		static const size_t value = substitution_data_index<S>::value;
+	};
+
+	template<size_t N, typename... Gs>
+	struct substitution_data_index_count<N, symphas::lib::types_list<SymbolicDataArray<Gs>...>>
+	{
+		static const size_t value = substitution_data_index<symphas::lib::types_before_index<N, SymbolicDataArray<Gs>...>>::value;
+	};
+
+	template<>
+	struct substitution_data_index<symphas::lib::types_list<>>
+	{
+		static const size_t value = 0;
+	};
+
+	template<int N, typename T, typename... Gs, int I0, int P0, size_t L>
+	void update_data_of_index(
+		T& data,
+		SymbolicDataArray<std::tuple<Gs...>> const& substitution0,
+		expr::symbols::v_id_type<expr::symbols::i_<I0, P0>>,
+		iter_type(&offsets)[L])
+	{
+		data.set_data(substitution0.data[P0 + offsets[N]]);
+	}
+
+	template<int N, typename T, typename G, int I0, int P0, size_t L>
+	void update_data_of_index(
+		T& data,
+		SymbolicDataArray<G> const& substitution0,
+		expr::symbols::v_id_type<expr::symbols::i_<I0, P0>>,
+		iter_type(&offsets)[L])
+	{
+		data.set_data(SymbolicData(&(substitution0.data[P0 + offsets[N]]), false));
+	}
+
+	template<int N, typename T, int I0, int P0, size_t L>
+	void update_data_of_index(
+		T& data,
+		SymbolicDataArray<expr::symbols::Symbol> const& substitution0,
+		expr::symbols::v_id_type<expr::symbols::i_<I0, P0>>,
+		iter_type(&offsets)[L]) {}
+
+	template<int N, typename T, int I0, int P0, size_t L>
+	void update_data_of_index(
+		T& data,
+		Substitution<> const& substitution,
+		expr::symbols::v_id_type<expr::symbols::i_<I0, P0>>,
+		iter_type(&offsets)[L]) {}
+
+	template<int N, typename T, typename... Gs, int I0, int P0, size_t L>
+	void update_data_of_index(
+		T& data,
+		Substitution<SymbolicDataArray<Gs>...> const& substitution,
+		expr::symbols::v_id_type<expr::symbols::i_<I0, P0>>,
+		iter_type(&offsets)[L])
+	{
+		update_data_of_index<N>(
+			data,
+			std::get<size_t(N)>(substitution),
+			expr::symbols::v_id_type<expr::symbols::i_<I0, P0>>{},
+			offsets);
+	}
 
 
 
@@ -3151,10 +3242,20 @@ namespace symphas::internal
 	template<size_t... Ms, size_t N>
 	auto args_for_indices(
 		iter_type(&offsets)[N],
-		iter_type(&values)[N],
+		iter_type(&starts)[N],
 		std::index_sequence<Ms...>)
 	{
-		return std::make_tuple((values[Ms])...);
+		return std::make_tuple((offsets[Ms] + starts[Ms])...);
+	}
+
+	template<size_t N0, typename... Ts, size_t... Ms, size_t N>
+	auto update_indices(
+		std::tuple<Ts...>& data,
+		iter_type(&offsets)[N],
+		iter_type(&starts)[N],
+		std::index_sequence<Ms...>)
+	{
+		return ((std::get<N0 + Ms>(data) = (offsets[Ms] + starts[Ms])), ...);
 	}
 
 	template<typename... T0s, int... I0s, int... P0s, int... I00s, int... P00s>
@@ -3167,6 +3268,24 @@ namespace symphas::internal
 		return std::tuple_cat(
 			select_data_of_index<symphas::lib::index_of_value<int, I00s, I0s...>>
 			(substitution, expr::symbols::v_id_type<expr::symbols::i_<I00s, P00s>>{}, offsets)...);
+	}
+
+
+	template<typename... Ts, typename... T0s, int... I0s, int... P0s, int... I00s, int... P00s>
+	void update_placeholders(
+		std::tuple<Ts...>& data,
+		Substitution<SymbolicDataArray<T0s>...> const& substitution,
+		symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<I00s, P00s>>...>,
+		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
+		iter_type(&offsets)[sizeof...(I0s)])
+	{
+		using sub_list = symphas::lib::select_types<
+			symphas::lib::sorted_seq<std::index_sequence<symphas::lib::index_of_value<int, I00s, I0s...>...>>, 
+			SymbolicDataArray<T0s>...>;
+
+		(update_data_of_index<symphas::lib::index_of_value<int, I00s, I0s...>>(
+			std::get<substitution_data_index_count<symphas::lib::index_of_value<int, I00s, I00s...>, sub_list>::value>(data), 
+			substitution, expr::symbols::v_id_type<expr::symbols::i_<I00s, P00s>>{}, offsets), ...);
 	}
 
 	template<size_t D, int I0, int P0>
@@ -3227,31 +3346,49 @@ namespace symphas::internal
 		symphas::lib::types_list<expr::symbols::v_id_type<Is>...>,
 		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
 		iter_type(&offsets)[sizeof...(I0s)],
-		iter_type(&values)[sizeof...(I0s)])
+		iter_type(&starts)[sizeof...(I0s)])
 	{
 		using v_id_types = symphas::lib::types_list<expr::symbols::v_id_type<Is>...>;
 		using id_types = symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>;
 
 		return std::tuple_cat(
 			args_for_placeholders(substitution, v_id_types{}, id_types{}, offsets),
-			args_for_indices(offsets, values, std::make_index_sequence<sizeof...(I0s)>{}));
+			args_for_indices(offsets, starts, std::make_index_sequence<sizeof...(I0s)>{}));
 	}
 
-	template<typename E0, typename... T0s>
-	static auto _get_function_list(SymbolicFunction<E0, T0s...>)
+
+	template<typename... Ts, typename... T0s, int... I00s, int... P00s, int... I0s, int... P0s>
+	auto update_arg_list(
+		std::tuple<Ts...>& data,
+		Substitution<SymbolicDataArray<T0s>...> const& substitution,
+		symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<I00s, P00s>>...>,
+		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
+		iter_type(&offsets)[sizeof...(I0s)],
+		iter_type(&starts)[sizeof...(I0s)])
 	{
-		return SymbolicFunctionArray<E0, T0s...>(0);
+		using v_id_types = symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<I00s, P00s>>...>;
+		using id_types = symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>;
+
+		using sub_list = symphas::lib::select_types<std::index_sequence<symphas::lib::index_of_value<int, I00s, I0s...>...>, SymbolicDataArray<T0s>...>;
+		constexpr size_t N0 = substitution_data_index<sub_list>::value;
+
+		update_placeholders(data, substitution, v_id_types{}, id_types{}, offsets);
+		update_indices<N0>(data, offsets, starts, std::make_index_sequence<sizeof...(I0s)>{});
+
+		//return std::tuple_cat(
+		//	args_for_placeholders(substitution, v_id_types{}, id_types{}, offsets),
+		//	args_for_indices(offsets, starts, std::make_index_sequence<sizeof...(I0s)>{}));
 	}
 
 	template<typename S, size_t... Ns, typename... T0s>
-	static auto _get_function_list(SymbolicTemplate<S, Ns...> const& tmpl, std::tuple<T0s...>)
+	static auto _get_function(SymbolicTemplate<S, Ns...> const& tmpl, std::tuple<T0s...>)
 	{
-		return _get_function_list(expr::function_of(expr::symbols::arg<Ns, T0s>...) = tmpl);
+		return (expr::function_of(expr::symbols::arg<Ns, T0s>...) = tmpl);
 	}
 
 	template<typename Op, typename E, typename... Ts, int... I0s, int... P0s,
 		typename... T1s, typename... T2s>
-	auto _get_function_list(
+	auto _get_function(
 		SymbolicSeries<Op, E, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>> const& series,
 		std::tuple<expr::series_limits<T1s, T2s>...> const& limits,
 		Substitution<SymbolicDataArray<Ts>...> const& substitution)
@@ -3270,8 +3407,23 @@ namespace symphas::internal
 			DynamicIndex index[sizeof...(I0s)];
 			auto tmpl = series.get_template(&index[0], limits, v_id_types{});
 			auto args = expanded_arg_list(substitution, v_id_types{}, id_types{});
-			return _get_function_list(tmpl, args);
+			return _get_function(tmpl, args);
 		}
+	}
+
+	template<typename A, typename B, typename C>
+	auto get_function(
+		A const& series,
+		B const& limits,
+		C const& substitution)
+	{
+		return _get_function(series, limits, substitution);
+	}
+
+	template<typename E0, typename... T0s>
+	static auto _get_function_list(SymbolicFunction<E0, T0s...>)
+	{
+		return SymbolicFunctionArray<E0, T0s...>(0);
 	}
 
 	template<typename A, typename B, typename C>
@@ -3280,8 +3432,9 @@ namespace symphas::internal
 		B const& limits,
 		C const& substitution)
 	{
-		return _get_function_list(series, limits, substitution);
+		return _get_function_list(_get_function(series, limits, substitution));
 	}
+
 }
 
 
@@ -4407,24 +4560,25 @@ protected:
 
 
 
-template<typename Op, typename... Ts, typename E, int... I0s, int... P0s,
+template<typename Op, typename... Ts, typename E, 
+	int I0, int P0, int I1, int P1, int... IIs, int... PPs,
 	typename... T1s, typename... T2s, typename... Is>
 struct SymbolicSeries<Op, Substitution<SymbolicDataArray<Ts>...>,
 	symphas::lib::types_list<E,
-		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
+		symphas::lib::types_list<expr::symbols::i_<I0, P0>, expr::symbols::i_<I1, P1>, expr::symbols::i_<IIs, PPs>...>,
 		symphas::lib::types_list<expr::series_limits<T1s, T2s>...>,
 		symphas::lib::types_list<expr::symbols::v_id_type<Is>...>
 	>> :
 	SymbolicSeries<Op, void,
 		symphas::lib::types_list<E,
-			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
+			symphas::lib::types_list<expr::symbols::i_<I0, P0>, expr::symbols::i_<I1, P1>, expr::symbols::i_<IIs, PPs>...>,
 			symphas::lib::types_list<expr::series_limits<T1s, T2s>...>,
 			symphas::lib::types_list<expr::symbols::v_id_type<Is>...>>>
 {
 
 	using parent_type = SymbolicSeries<Op, void,
 		symphas::lib::types_list<E,
-		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
+		symphas::lib::types_list<expr::symbols::i_<I0, P0>, expr::symbols::i_<I1, P1>, expr::symbols::i_<IIs, PPs>...>,
 		symphas::lib::types_list<expr::series_limits<T1s, T2s>...>,
 		symphas::lib::types_list<expr::symbols::v_id_type<Is>...>>>;
 	using parent_type::e;
@@ -4433,7 +4587,7 @@ struct SymbolicSeries<Op, Substitution<SymbolicDataArray<Ts>...>,
 
 	using this_type = SymbolicSeries<Op, Substitution<SymbolicDataArray<Ts>...>,
 		symphas::lib::types_list<E,
-		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
+		symphas::lib::types_list<expr::symbols::i_<I0, P0>, expr::symbols::i_<I1, P1>, expr::symbols::i_<IIs, PPs>...>,
 		symphas::lib::types_list<expr::series_limits<T1s, T2s>...>,
 		symphas::lib::types_list<expr::symbols::v_id_type<Is>...>
 		>>;
@@ -4442,20 +4596,21 @@ struct SymbolicSeries<Op, Substitution<SymbolicDataArray<Ts>...>,
 	SymbolicSeries(
 		E const& e,
 		Substitution<SymbolicDataArray<Ts>...> const& substitution,
-		const DynamicIndex(&index)[sizeof...(I0s)],
+		const DynamicIndex(&index)[sizeof...(IIs) + 2],
 		expr::series_limits<T1s, T2s> const&... limits) :
 		parent_type(e, limits...), substitution{ substitution },
-		persistent{ sizeof...(I0s), get_length(std::make_index_sequence<sizeof...(I0s)>{}) }
+		result{ expr::data_dimensions(substitution) }
+		//persistent{ sizeof...(IIs) + 2, get_length(std::make_index_sequence<sizeof...(IIs) + 2>{}) }
 	{
-		std::copy(index, index + sizeof...(I0s), this->index);
+		std::copy(index, index + sizeof...(IIs) + 2, this->index);
 	}
 
 
 protected:
 
-	template<int I0, int... P00s>
+	template<int I00, int... P00s>
 	auto offsets_for_index(
-		symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<I0, P00s>>...>) const
+		symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<I00, P00s>>...>) const
 	{
 		return std::integer_sequence<int, P00s...>{};
 	}
@@ -4468,17 +4623,16 @@ protected:
 	}
 
 	template<size_t... Ms>
-	auto index_values(
-		iter_type(&values)[sizeof...(I0s)],
-		iter_type(&offsets)[sizeof...(I0s)],
+	auto start_values(
+		iter_type(&starts)[sizeof...(IIs) + 2],
 		std::index_sequence<Ms...>) const
 	{
-		((values[Ms] = offsets[Ms] + symphas::internal::check_limit_range(
-			symphas::internal::limit_start(std::integer_sequence<int, I0s...>{}, limits, std::get<Ms>(limits))
+		((starts[Ms] = symphas::internal::check_limit_range(
+			symphas::internal::limit_start(std::integer_sequence<int, I0, I1, IIs...>{}, limits, std::get<Ms>(limits))
 		)), ...);
 	}
 
-	template<typename E0, typename... T0s>
+	/*template<typename E0, typename... T0s>
 	auto eval_series(SymbolicFunctionArray<E0, T0s...> const& persistent, iter_type n) const
 	{
 		using namespace symphas::internal;
@@ -4497,9 +4651,9 @@ protected:
 		{
 			return Op{}(typename SymbolicFunctionArray<E0, T0s...>::eval_type{});
 		}
-	}
+	}*/
 
-	template<typename E0, typename... T0s>
+	/*template<typename E0, typename... T0s>
 	auto eval_series(SymbolicFunctionArray<E0, T0s...> const& persistent) const
 	{
 		using namespace symphas::internal;
@@ -4519,67 +4673,67 @@ protected:
 		{
 			return Op{}(typename SymbolicFunctionArray<E0, T0s...>::eval_type{});
 		}
-	}
+	}*/
 
 	//! Evaluates for only one element.
 	template<size_t N, typename E0, typename... T0s>
-	auto build_series_evals(SymbolicFunction<E0, T0s...>& f, iter_type(&offsets)[sizeof...(I0s)],
-		SymbolicFunction<E0, T0s...>** fs, iter_type** set_offsets) const
+	//auto build_series_evals(
+	void eval_series(
+		SymbolicFunction<E0, T0s...>& f, 
+		iter_type (&starts)[sizeof...(IIs) + 2], iter_type (&offsets)[sizeof...(IIs) + 2])
 	{
 		using namespace symphas::internal;
 		using std::swap;
 
-		using id_types = symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>;
+		using id_types = symphas::lib::types_list<expr::symbols::i_<I0, P0>, expr::symbols::i_<I1, P1>, expr::symbols::i_<IIs, PPs>...>;
 		using v_id_types = symphas::lib::types_list<expr::symbols::v_id_type<Is>...>;
 
-		len_type pos = 0;
-
-		if constexpr (N >= sizeof...(I0s))
+		if constexpr (N < sizeof...(IIs) + 2)
 		{
-			return pos;
-		}
-		else
-		{
-			auto& index_mutable = const_cast<DynamicIndex(&)[sizeof...(I0s)]>(index);
-
-
-			iter_type values[sizeof...(I0s)]{};
-			index_values(values, offsets, std::make_index_sequence<sizeof...(I0s)>{});
+			auto& index_mutable = const_cast<DynamicIndex(&)[sizeof...(IIs) + 2]>(index);
 
 			auto lim = std::get<N>(limits);
-			auto offset = compute_offset(std::integer_sequence<int, I0s...>{}, limits, lim, offsets)
-				+ symphas::lib::seq_index_value<N, std::integer_sequence<int, P0s...>>::value;
+			auto offset = compute_offset(std::integer_sequence<int, I0, I1, IIs...>{}, limits, lim, offsets)
+				+ symphas::lib::seq_index_value<N, std::integer_sequence<int, P0, P1, PPs...>>::value;
 
 			offsets[N] = expr::eval(offset);
-			auto range = limit_range(std::integer_sequence<int, I0s...>{}, limits, lim, offsets)/* - offset*/;
-
-			for (iter_type i = 0; i < range; ++i)
+			auto range = limit_range(std::integer_sequence<int, I0, I1, IIs...>{}, limits, lim, offsets)/* - offset*/;
+			
+			if constexpr (N == sizeof...(IIs) + 1)
 			{
-				if constexpr (N == sizeof...(I0s) - 1)
+				auto term = expr::make_term(result);
+				auto len = expr::data_length(result);
+
+				for (iter_type i = 0; i < range; ++i)
 				{
-					for (iter_type n = 0; n < sizeof...(I0s); ++n)
+					for (iter_type n = 0; n < sizeof...(IIs) + 2; ++n)
 					{
 						index_mutable[n] = (int)offsets[n];
 					}
 
-					auto args0 = symphas::internal::expanded_arg_list(substitution, v_id_types{}, id_types{}, offsets, values);
-					std::copy(offsets, offsets + sizeof...(I0s), set_offsets[pos]);
-					
-					fs[pos]->set_data_tuple(args0);
-					expr::transform::fix_coeffs(fs[pos]->e);
+					symphas::internal::update_arg_list(f.data, substitution, v_id_types{}, id_types{}, offsets, starts);
+					expr::result(Op{}(term, f.e), result, len);
 
-					++pos;
+					//auto args0 = symphas::internal::expanded_arg_list(substitution, v_id_types{}, id_types{}, offsets, starts);
+					//std::copy(offsets, offsets + sizeof...(IIs) + 2, set_offsets[pos]);
+					
+					//fs[pos]->set_data_tuple(args0);
+					//expr::transform::fix_coeffs(fs[pos]->e);
+					//
+					//++pos;
+					++offsets[N];
 				}
-				else
+			}
+			else
+			{
+				for (iter_type i = 0; i < range; ++i)
 				{
-					pos += build_series_evals<N + 1>(f, offsets, fs + pos, set_offsets);
+					eval_series<N + 1>(f, starts, offsets);
+					++offsets[N];
 				}
-				offsets[N] += 1;
-				values[N] += 1;
 			}
 			offsets[N] = expr::eval(offset);
 		}
-		return pos;
 	}
 
 	template<size_t... Ns>
@@ -4595,16 +4749,33 @@ public:
 	void update_function_list(SymbolicFunction<E0, T0s...>& f, 
 		SymbolicFunctionArray<E0, T0s...>& persistent) const
 	{
-		iter_type offsets[sizeof...(I0s)]{};
-		auto len = build_series_evals<0>(f, offsets, persistent.data, persistent.offsets);
-		persistent.len = len;
+		//iter_type offsets[sizeof...(IIs) + 2]{};
+		//iter_type starts[sizeof...(IIs) + 2]{};
+		//start_values(starts, std::make_index_sequence<sizeof...(IIs) + 2>{});
+		//
+		//auto len = build_series_evals<0>(f, starts, offsets, persistent.data, persistent.offsets);
+		//persistent.len = len;
+	}
+	
+	template<typename E0, typename... T0s>
+	void eval_series(SymbolicFunction<E0, T0s...>& f)
+	{
+		iter_type offsets[sizeof...(IIs) + 2]{};
+		iter_type starts[sizeof...(IIs) + 2]{};
+		start_values(starts, std::make_index_sequence<sizeof...(IIs) + 2>{});
+		
+		auto len = expr::data_length(result);
+		expr::result(Op{}(), result, len);
+
+		eval_series<0>(f, starts, offsets);
 	}
 
 	template<typename E0, typename... T0s>
 	void update(SymbolicFunction<E0, T0s...>& f) 
 	{
-		persistent.init(f);
-		update_function_list(f, persistent);
+		//persistent.init(f);
+		//update_function_list(f, persistent);
+		eval_series(f);
 	}
 
 	template<typename... T0s>
@@ -4634,8 +4805,8 @@ public:
 	template<typename E0, typename... T0s>
 	auto substitute_placeholders(SymbolicFunction<E0, T0s...> const& f) const
 	{
-		using id_types = symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>;
-		using t_list = symphas::lib::types_before_index<sizeof...(T0s) - sizeof...(I0s), T0s...>;
+		using id_types = symphas::lib::types_list<expr::symbols::i_<I0, P0>, expr::symbols::i_<I1, P1>, expr::symbols::i_<IIs, PPs>...>;
+		using t_list = symphas::lib::types_before_index<sizeof...(T0s) - sizeof...(IIs) - 2, T0s...>;
 
 		auto vs = grid_symbols(t_list{});
 		auto is = id_types{};
@@ -4647,27 +4818,261 @@ public:
 
 	auto eval() const
 	{
-		return eval_series(persistent);
+		return expr::eval(result);// eval_series(persistent);
 	}
 
 	auto eval(iter_type n) const
 	{
-		return eval_series(persistent, n);
+		return expr::eval(result, n);// eval_series(persistent, n);
 	}
 
 	Substitution<SymbolicDataArray<Ts>...> substitution;
 
-	using func_list_t = std::invoke_result_t<
+	/*using func_list_t = std::invoke_result_t<
 		decltype(&symphas::internal::get_function_list<
-			SymbolicSeries<Op, E, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>>,
+			SymbolicSeries<Op, E, symphas::lib::types_list<expr::symbols::i_<I0, P0>, expr::symbols::i_<I1, P1>, expr::symbols::i_<IIs, PPs>...>>,
 			std::tuple<expr::series_limits<T1s, T2s>...>,
 			Substitution<SymbolicDataArray<Ts>...>>),
-		SymbolicSeries<Op, E, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>>,
+		SymbolicSeries<Op, E, symphas::lib::types_list<expr::symbols::i_<I0, P0>, expr::symbols::i_<I1, P1>, expr::symbols::i_<IIs, PPs>...>>,
 		std::tuple<expr::series_limits<T1s, T2s>...>,
 		Substitution<SymbolicDataArray<Ts>...>>;
 
-	func_list_t persistent;
-	DynamicIndex index[sizeof...(I0s)];
+	func_list_t persistent;*/
+
+	using func_t = std::invoke_result_t<
+		decltype(&symphas::internal::get_function<
+			SymbolicSeries<Op, E, symphas::lib::types_list<expr::symbols::i_<I0, P0>, expr::symbols::i_<I1, P1>, expr::symbols::i_<IIs, PPs>...>>,
+			std::tuple<expr::series_limits<T1s, T2s>...>,
+			Substitution<SymbolicDataArray<Ts>...>>),
+		SymbolicSeries<Op, E, symphas::lib::types_list<expr::symbols::i_<I0, P0>, expr::symbols::i_<I1, P1>, expr::symbols::i_<IIs, PPs>...>>,
+		std::tuple<expr::series_limits<T1s, T2s>...>,
+		Substitution<SymbolicDataArray<Ts>...>>;
+	using func_storage_t = expr::storage_t<func_t>;
+	func_storage_t result;
+
+	DynamicIndex index[sizeof...(IIs) + 2];
+};
+
+
+
+template<typename Op, typename T, typename E, int I0, int P0,
+	typename T1, typename T2, typename... Is>
+struct SymbolicSeries<Op, Substitution<SymbolicDataArray<T>>,
+	symphas::lib::types_list<E,
+		symphas::lib::types_list<expr::symbols::i_<I0, P0>>,
+		symphas::lib::types_list<expr::series_limits<T1, T2>>,
+		symphas::lib::types_list<expr::symbols::v_id_type<Is>...>
+	>> :
+	SymbolicSeries<Op, void,
+	symphas::lib::types_list<E,
+		symphas::lib::types_list<expr::symbols::i_<I0, P0>>,
+		symphas::lib::types_list<expr::series_limits<T1, T2>>,
+		symphas::lib::types_list<expr::symbols::v_id_type<Is>...>>>
+{
+
+	using parent_type = SymbolicSeries<Op, void,
+		symphas::lib::types_list<E,
+			symphas::lib::types_list<expr::symbols::i_<I0, P0>>,
+			symphas::lib::types_list<expr::series_limits<T1, T2>>,
+			symphas::lib::types_list<expr::symbols::v_id_type<Is>...>>>;
+	using parent_type::e;
+	using parent_type::limits;
+	using parent_type::dims;
+
+	using this_type = SymbolicSeries<Op, Substitution<SymbolicDataArray<T>>,
+		symphas::lib::types_list<E,
+			symphas::lib::types_list<expr::symbols::i_<I0, P0>>,
+			symphas::lib::types_list<expr::series_limits<T1, T2>>,
+			symphas::lib::types_list<expr::symbols::v_id_type<Is>...>
+		>>;
+
+	SymbolicSeries() = default;
+	SymbolicSeries(
+		E const& e,
+		Substitution<SymbolicDataArray<T>> const& substitution,
+		const DynamicIndex(&index)[1],
+		expr::series_limits<T1, T2> const& limit) :
+		parent_type(e, limit), substitution{ substitution },
+		result{ expr::data_dimensions(substitution) }
+	{
+		this->index[0] = index[0];
+	}
+
+
+protected:
+
+	template<typename E0, typename... T0s>
+	auto eval_series(SymbolicFunction<E0, T0s...>& f)
+	{
+		using namespace symphas::internal;
+		using std::swap;
+
+		using id_types = symphas::lib::types_list<expr::symbols::i_<I0, P0>>;
+		using v_id_types = symphas::lib::types_list<expr::symbols::v_id_type<Is>...>;
+
+		auto lim = std::get<0>(limits);
+		len_type pos = 0;
+		auto& index_mutable = const_cast<DynamicIndex(&)[1]>(index);
+
+		iter_type offsets[1]{};
+		iter_type starts[1]{ 
+			symphas::internal::check_limit_range(
+				symphas::internal::limit_start(std::integer_sequence<int, I0>{}, limits, lim)) };
+
+		auto offset = compute_offset(std::integer_sequence<int, I0>{}, limits, lim, offsets) + P0;
+
+		offsets[0] = expr::eval(offset);
+		auto range = limit_range(std::integer_sequence<int, I0>{}, limits, lim, offsets)/* - offset*/;
+
+		auto term = expr::make_term(result);
+		auto len = expr::data_length(result);
+
+		for (iter_type i = 0; i < range; ++i)
+		{
+			index_mutable[0] = (int)offsets[0];
+			symphas::internal::update_arg_list(f.data, substitution, v_id_types{}, id_types{}, offsets, starts);
+			expr::result(Op{}(term, f.e), result, len);
+
+			++offsets[0];
+		}
+	}
+
+	//! Evaluates for only one element.
+	/*
+	template<size_t N, typename E0, typename... T0s>
+	auto build_series_evals(SymbolicFunction<E0, T0s...>& f,
+		iter_type(&starts)[sizeof...(I0s)], iter_type(&offsets)[sizeof...(I0s)],
+		SymbolicFunction<E0, T0s...>** fs, iter_type** set_offsets) const
+	{
+		using namespace symphas::internal;
+		using std::swap;
+
+		using id_types = symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>;
+		using v_id_types = symphas::lib::types_list<expr::symbols::v_id_type<Is>...>;
+
+		len_type pos = 0;
+
+		if constexpr (N >= sizeof...(I0s))
+		{
+			return pos;
+		}
+		else
+		{
+			auto& index_mutable = const_cast<DynamicIndex(&)[sizeof...(I0s)]>(index);
+
+			auto lim = std::get<N>(limits);
+			auto offset = compute_offset(std::integer_sequence<int, I0s...>{}, limits, lim, offsets)
+				+ symphas::lib::seq_index_value<N, std::integer_sequence<int, P0s...>>::value;
+
+			offsets[N] = expr::eval(offset);
+			auto range = limit_range(std::integer_sequence<int, I0s...>{}, limits, lim, offsets);
+
+			for (iter_type i = 0; i < range; ++i)
+			{
+				if constexpr (N == sizeof...(I0s) - 1)
+				{
+					for (iter_type n = 0; n < sizeof...(I0s); ++n)
+					{
+						index_mutable[n] = (int)offsets[n];
+					}
+
+					auto args0 = symphas::internal::expanded_arg_list(substitution, v_id_types{}, id_types{}, offsets, starts);
+					std::copy(offsets, offsets + sizeof...(I0s), set_offsets[pos]);
+
+					fs[pos]->set_data_tuple(args0);
+					expr::transform::fix_coeffs(fs[pos]->e);
+
+					++pos;
+				}
+				else
+				{
+					pos += build_series_evals<N + 1>(f, starts, offsets, fs + pos, set_offsets);
+				}
+				offsets[N] += 1;
+			}
+			offsets[N] = expr::eval(offset);
+		}
+		return pos;
+	}*/
+
+
+public:
+
+
+	template<typename E0, typename... T0s>
+	void update(SymbolicFunction<E0, T0s...>& f)
+	{
+		auto len = expr::data_length(result);
+		expr::result(Op{}(), result, len);
+		eval_series(f);
+		//persistent.set_data_tuple(f.data);
+		//persistent.init(f);
+		//update_function_list(f, persistent);
+	}
+
+	template<typename... T0s>
+	auto grid_symbols(symphas::lib::types_list<T0s...>) const
+	{
+		return symphas::lib::types_list<GridSymbol<expr::symbols::v_id_type<Is>, expr::grid_dim<T0s>::value>...>{};
+	}
+
+
+	template<int... I00s, int... P00s, size_t... Ds, int... I01s, int... P01s>
+	auto substitute_placeholders(
+		symphas::lib::types_list<GridSymbol<expr::symbols::v_id_type<expr::symbols::i_<I00s, P00s>>, Ds>...>,
+		symphas::lib::types_list<expr::symbols::i_<I01s, P01s>...>) const
+	{
+		if constexpr (sizeof...(I00s) > 0)
+		{
+			return expr::apply_operators(
+				expr::transform::swap_grid<expr::symbols::v_id_type<expr::symbols::i_<I00s, P00s>>...>
+				(e, GridSymbol<expr::symbols::v_id_type<expr::symbols::i_<I00s, P00s>>, Ds>{}...));
+		}
+		else
+		{
+			return e;
+		}
+	}
+
+	template<typename E0, typename... T0s>
+	auto substitute_placeholders(SymbolicFunction<E0, T0s...> const& f) const
+	{
+		using id_types = symphas::lib::types_list<expr::symbols::i_<I0, P0>>;
+		using t_list = symphas::lib::types_before_index<sizeof...(T0s) - 1, T0s...>;
+
+		auto vs = grid_symbols(t_list{});
+		auto is = id_types{};
+
+		return substitute_placeholders(vs, is);
+	}
+
+	auto eval() const
+	{
+		return expr::eval(result);// eval_series(const_cast<func_t&>(persistent));
+	}
+
+	auto eval(iter_type n) const
+	{
+		return expr::eval(result, n);// eval_series(const_cast<func_t&>(persistent), n);
+	}
+
+	Substitution<SymbolicDataArray<T>> substitution;
+
+	using func_t = std::invoke_result_t<
+		decltype(&symphas::internal::get_function<
+			SymbolicSeries<Op, E, symphas::lib::types_list<expr::symbols::i_<I0, P0>>>,
+			std::tuple<expr::series_limits<T1, T2>>,
+			Substitution<SymbolicDataArray<T>>>),
+		SymbolicSeries<Op, E, symphas::lib::types_list<expr::symbols::i_<I0, P0>>>,
+		std::tuple<expr::series_limits<T1, T2>>,
+		Substitution<SymbolicDataArray<T>>>;
+	using func_storage_t = expr::storage_t<func_t>;
+
+	//func_t persistent;
+	func_storage_t result;
+
+	DynamicIndex index[1];
+
 };
 
 

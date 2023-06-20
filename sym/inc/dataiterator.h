@@ -143,11 +143,170 @@ namespace symphas::internal
 	};
 
 
+	template<typename specialized_iterator>
+	struct iterator_difference_type_impl
+	{
+		iterator_difference_type_impl(iter_type pos) : pos{ pos } {}
+
+		bool operator<(specialized_iterator const& other) const
+		{
+			return pos < other.pos;
+		}
+
+		bool operator<(size_t value) const
+		{
+			return pos < value;
+		}
+
+		//! Dereference the iterator.
+		inline decltype(auto) operator+(specialized_iterator const& other) const
+		{
+			specialized_iterator diff(cast());
+			diff.pos += other.pos;
+			return diff;
+		};
+
+		//! Dereference the iterator.
+		inline decltype(auto) operator-(specialized_iterator const& other) const
+		{
+			specialized_iterator diff(cast());
+			diff.pos -= other.pos;
+			return diff;
+		};
+
+		//! Dereference the iterator.
+		inline decltype(auto) operator+(iter_type offset) const
+		{
+			specialized_iterator diff(cast());
+			diff.pos += offset;
+			return diff;
+		};
+
+		//! Dereference the iterator.
+		inline decltype(auto) operator-(iter_type offset) const
+		{
+			specialized_iterator diff(cast());
+			diff.pos += offset;
+			return diff;
+		};
+
+		//! Dereference the iterator.
+		inline decltype(auto) operator/(size_t div) const
+		{
+			specialized_iterator diff(cast());
+			diff.pos /= div;
+			return diff;
+		};
+
+		//! Dereference the iterator.
+		inline decltype(auto) operator/(specialized_iterator const& div) const
+		{
+			specialized_iterator diff(cast());
+			diff.pos /= div.pos;
+			return diff;
+		};
+
+		//! Dereference the iterator.
+		inline decltype(auto) operator%(size_t div) const
+		{
+			specialized_iterator diff(cast());
+			diff.pos %= div;
+			return diff;
+		};
+
+		//! Dereference the iterator.
+		inline decltype(auto) operator%(specialized_iterator const& div) const
+		{
+			specialized_iterator diff(cast());
+			diff.pos %= div.pos;
+			return diff;
+		};
+
+		//! Dereference the iterator.
+		inline decltype(auto) operator*(size_t div) const
+		{
+			specialized_iterator diff(cast());
+			diff.pos *= div;
+			return diff;
+		};
+
+		//! Dereference the iterator.
+		inline decltype(auto) operator*(specialized_iterator const& div) const
+		{
+			specialized_iterator diff(cast());
+			diff.pos *= div.pos;
+			return diff;
+		};
+
+		//! Dereference the iterator.
+		specialized_iterator& operator+=(specialized_iterator const& other)
+		{
+			pos += other.pos;
+			return cast();
+		};
+
+		//! Dereference the iterator.
+		specialized_iterator& operator-=(specialized_iterator const& other)
+		{
+			pos -= other.pos;
+			return cast();
+		};
+
+		//! Dereference the iterator.
+		specialized_iterator& operator+=(iter_type offset)
+		{
+			pos += offset;
+			return cast();
+		};
+
+		//! Dereference the iterator.
+		specialized_iterator& operator-=(iter_type offset)
+		{
+			pos += offset;
+			return cast();
+		};
+
+		//! Prefix decrement, returns itself.
+		specialized_iterator& operator--()
+		{
+			--pos;
+			return cast();
+		}
+
+		//! Prefix decrement, returns itself.
+		specialized_iterator& operator++()
+		{
+			++pos;
+			return cast();
+		}
+
+		explicit operator size_t() const
+		{
+			return size_t(pos);
+		}
+
+		specialized_iterator& cast()
+		{
+			return *static_cast<specialized_iterator*>(this);
+		}
+
+		const specialized_iterator& cast() const
+		{
+			return *static_cast<specialized_iterator const*>(this);
+		}
+
+		iter_type pos;
+
+	};
 
 	template<typename G>
-	struct iterator_difference_type
+	struct iterator_difference_type : iterator_difference_type_impl<iterator_difference_type<G>>
 	{
-		iterator_difference_type(G* ptr, iter_type pos = 0) : ptr{ ptr }, pos{ pos } {}
+		using parent_type = iterator_difference_type_impl<iterator_difference_type<G>>;
+		using parent_type::pos;
+
+		iterator_difference_type(iter_type pos) : iterator_difference_type(nullptr, pos) {}
+		iterator_difference_type(G* ptr, iter_type pos) : parent_type(pos), ptr{ ptr } {}
 		iterator_difference_type() : iterator_difference_type(nullptr, 0) {}
 
 		bool operator==(iterator_difference_type<G> const& other) const
@@ -175,70 +334,50 @@ namespace symphas::internal
 			return pos > value;
 		}
 
-		//! Dereference the iterator.
-		inline decltype(auto) operator+(iterator_difference_type<G> const& other)
-		{
-			iterator_difference_type<G> diff(*this);
-			diff.pos += other.pos;
-			return diff;
-		};
-
-		//! Dereference the iterator.
-		inline decltype(auto) operator-(iterator_difference_type<G> const& other)
-		{
-			iterator_difference_type<G> diff(*this);
-			diff.pos -= other.pos;
-			return diff;
-		};
-
-		//! Dereference the iterator.
-		inline decltype(auto) operator+(iter_type offset)
-		{
-			iterator_difference_type<G> diff(*this);
-			diff.pos += offset;
-			return diff;
-		};
-
-		//! Dereference the iterator.
-		inline decltype(auto) operator-(iter_type offset)
-		{
-			iterator_difference_type<G> diff(*this);
-			diff.pos += offset;
-			return diff;
-		};
-
-		//! Dereference the iterator.
-		inline decltype(auto) operator/(size_t div)
-		{
-			iterator_difference_type<G> diff(*this);
-			diff.pos /= div;
-			return diff;
-		};
-
-		//! Prefix decrement, returns itself.
-		iterator_difference_type<G>& operator--()
-		{
-			--pos;
-			return *this;
-		}
-
-		//! Prefix decrement, returns itself.
-		iterator_difference_type<G>& operator++()
-		{
-			++pos;
-			return *this;
-		}
-
-		explicit operator size_t() const
-		{
-			return size_t(pos);
-		}
-
 		G* ptr;
-		iter_type pos;
 
 	};
 
+
+	template<typename G>
+	struct iterator_selection_difference_type : iterator_difference_type_impl<iterator_selection_difference_type<G>>
+	{
+		using parent_type = iterator_difference_type_impl<iterator_selection_difference_type<G>>;
+		using parent_type::pos;
+
+		iterator_selection_difference_type(iter_type pos) : iterator_selection_difference_type(nullptr, nullptr, pos) {}
+		iterator_selection_difference_type(G* ptr, iter_type* iters, iter_type pos) : parent_type(pos), ptr{ ptr }, iters{ iters } {}
+		iterator_selection_difference_type() : iterator_selection_difference_type(nullptr, nullptr, 0) {}
+
+
+		bool operator==(iterator_selection_difference_type<G> const& other) const
+		{
+			return ptr == other.ptr && pos == other.pos;
+		}
+
+		bool operator==(size_t value) const
+		{
+			return pos == value;
+		}
+
+		//! Comparison with another iterator.
+		/*!
+		 * Greater than comparison with another iterator.
+		 * Compares the current position.
+		 */
+		bool operator>(iterator_selection_difference_type<G> const& other) const
+		{
+			return pos > other.pos && ptr == other.ptr;
+		}
+
+		bool operator>(size_t value) const
+		{
+			return pos > value;
+		}
+
+		G* ptr;
+		iter_type* iters;
+	};
 
 	//! An iterator used to evaluate an expression on its underlying data.
 	/*!
@@ -250,6 +389,7 @@ namespace symphas::internal
 	template<typename G>
 	class data_iterator
 	{
+
 	public:
 
 		using iterator_category = std::random_access_iterator_tag;
@@ -259,11 +399,6 @@ namespace symphas::internal
 		using pointer = value_type*;
 		using reference = int;
 
-	protected:
-
-		data_iterator() : ptr{} {}
-
-	public:
 
 		//! Create an iterator starting at the given position.
 		/*!
@@ -273,7 +408,7 @@ namespace symphas::internal
 		 * \param pos The index of the underlying data in the expression
 		 * which is the first index in the iterator.
 		 */
-		data_iterator(difference_type ptr)
+		data_iterator(difference_type ptr = {})
 			: ptr{ ptr } 
 		{
 			//printf("N%p\n", ptr.ptr);
@@ -309,7 +444,8 @@ namespace symphas::internal
 			data_iterator(other.ptr) {}
 		data_iterator<G>& operator=(data_iterator<G> other)
 		{
-			ptr = other.ptr;
+			using std::swap;
+			swap(ptr, other.ptr);
 			return *this;
 		}
 
@@ -497,6 +633,258 @@ namespace symphas::internal
 
 	template<typename G>
 	data_iterator(G*, int)->data_iterator<G>;
+
+
+
+	//! An iterator used to evaluate an expression on its underlying data.
+	/*!
+	 * Implements the forward iterator functionality, in order
+	 * to support parallelization using the standard library.
+	 *
+	 * \tparam G The expression type which is evaluated.
+	 */
+	template<typename G>
+	class data_iterator_select
+	{
+
+	public:
+
+		using iterator_category = std::random_access_iterator_tag;
+		using value_type = typename data_value_type<G>::type;
+		using reference_type = typename data_value_type<G>::ref;
+		using difference_type = iterator_selection_difference_type<G>;
+		using pointer = value_type*;
+		using reference = int;
+
+
+		//! Create an iterator starting at the given position.
+		/*!
+		 * Create an iterator over an expression starting at the given
+		 * position.
+		 *
+		 * \param pos The index of the underlying data in the expression
+		 * which is the first index in the iterator.
+		 */
+		data_iterator_select(difference_type ptr = {})
+			: ptr{ ptr }
+		{
+			//printf("N%p\n", ptr.ptr);
+		}
+
+		//! Create an iterator starting at the given position.
+		/*!
+		 * Create an iterator over an expression starting at the given
+		 * position. The expression is explicitly given.
+		 *
+		 * \param data The expression for this iterator.
+		 * \param pos The index of the underlying data in the expression
+		 * which is the first index in the iterator.
+		 */
+		explicit data_iterator_select(G& data, iter_type* iters, iter_type pos = 0)
+			: ptr{ &data, iters, pos } {}
+
+		//! Create an iterator starting at the given position.
+		/*!
+		 * Create an iterator over an expression starting at the given
+		 * position. The expression is explicitly given.
+		 *
+		 * \param data The expression for this iterator.
+		 * \param pos The index of the underlying data in the expression
+		 * which is the first index in the iterator.
+		 */
+		explicit data_iterator_select(G* data, iter_type* iters, iter_type pos = 0)
+			: ptr{ data, iters, pos } {}
+
+		data_iterator_select(data_iterator_select<G> const& other) :
+			data_iterator_select(other.ptr) {}
+		data_iterator_select(data_iterator_select<G>&& other) :
+			data_iterator_select(other.ptr) {}
+		data_iterator_select<G>& operator=(data_iterator_select<G> other)
+		{
+			using std::swap;
+			swap(ptr, other.ptr);
+			return *this;
+		}
+
+
+		//! Prefix increment, returns itself.
+		data_iterator_select<G>& operator++()
+		{
+			++ptr.pos;
+			return *this;
+		}
+
+		//! Postfix increment, return a copy before the increment.
+		data_iterator_select<G> operator++(int)
+		{
+			data_iterator_select<G> it = *this;
+			++ptr.pos;
+			return it;
+		}
+
+
+		//! Prefix decrement, returns itself.
+		data_iterator_select<G>& operator--()
+		{
+			--ptr.pos;
+			return *this;
+		}
+
+		//! Postfix decrement, return a copy before the increment.
+		data_iterator_select<G> operator--(int)
+		{
+			data_iterator_select<G> it = *this;
+			--ptr.pos;
+			return it;
+		}
+
+		template<typename G0>
+		data_iterator_select<G>& operator+=(iterator_difference_type<G0> offset)
+		{
+			ptr.pos += offset.pos;
+			return *this;
+		}
+
+		template<typename G0>
+		data_iterator_select<G>& operator-=(iterator_difference_type<G0> offset)
+		{
+			ptr.pos -= offset.pos;
+			return *this;
+		}
+
+
+
+		//! Dereference the iterator.
+		inline decltype(auto) operator*()
+		{
+			return data_value_type<G>{}(ptr.ptr, ptr.iters[ptr.pos]);
+		};
+
+		//! Dereference past the iterator.
+		inline decltype(auto) operator[](iter_type given_pos)
+		{
+			return data_value_type<G>{}(ptr.ptr, ptr.iters[ptr.pos + given_pos]);
+		}
+
+		//! Member access of the iterated expression.
+		inline G* operator->()
+		{
+			return ptr.ptr;
+		};
+
+
+		//! Equality comparison with another iterator.
+		/*!
+		 * Equality comparison with another iterator.
+		 * Compares the current position.
+		 */
+		bool operator==(data_iterator_select<G> const& other) const
+		{
+			return ptr == other.ptr;
+		}
+
+		//! Inequality comparison with another iterator.
+		/*!
+		 * Inequality comparison with another iterator.
+		 * Compares the current position.
+		 */
+		bool operator!=(data_iterator_select<G> const& other) const
+		{
+			return !(*this == other);
+		}
+
+		//! Comparison with another iterator.
+		/*!
+		 * Greater than comparison with another iterator.
+		 * Compares the current position.
+		 */
+		bool operator>(data_iterator_select<G> const& other) const
+		{
+			return ptr > other.ptr;
+		}
+
+		//! Comparison with another iterator.
+		/*!
+		 * Less than comparison with another iterator.
+		 * Compares the current position.
+		 */
+		bool operator<(data_iterator_select<G> const& other) const
+		{
+			return other > *this;
+		}
+
+		//! Comparison with another iterator.
+		/*!
+		 * Greater than or equal to comparison with another iterator.
+		 * Compares the current position.
+		 */
+		bool operator>=(data_iterator_select<G> const& other) const
+		{
+			return !(*this < other);
+		}
+
+		//! Comparison with another iterator.
+		/*!
+		 * Less than or equal to comparison with another iterator.
+		 * Compares the current position.
+		 */
+		bool operator<=(data_iterator_select<G> const& other) const
+		{
+			return !(*this > other);
+		}
+
+
+		//! Convertible to the difference type of two iterators.
+		operator difference_type() const
+		{
+			return ptr;
+		}
+
+		//! Add two iterators.
+		difference_type operator+(data_iterator_select<G> const& rhs) const
+		{
+			return ptr + rhs;
+		}
+
+		//! Subtract two iterators.
+		difference_type operator-(data_iterator_select<G> const& rhs) const
+		{
+			return ptr - rhs;
+		}
+
+		//! Add an offset from the iterator.
+		template<typename G0>
+		data_iterator_select<G> operator+(iterator_difference_type<G0> offset) const
+		{
+			data_iterator_select<G> it = *this;
+			return it += offset;
+		}
+
+		//! Subtract an offset from the iterator.
+		template<typename G0>
+		data_iterator_select<G> operator-(iterator_difference_type<G0> offset) const
+		{
+			data_iterator_select<G> it = *this;
+			return it -= offset;
+		}
+
+		//! Add an offset from the left hand side to an iterator.
+		friend difference_type operator+(difference_type offset, data_iterator_select<G> rhs)
+		{
+			return offset + rhs.ptr;
+		}
+
+		//! Subtract an offset from the left hand side to an iterator.
+		friend difference_type operator-(difference_type offset, data_iterator_select<G> rhs)
+		{
+			return offset - rhs.ptr;
+		}
+
+		difference_type ptr;
+		//G* ptr;				//!< Pointer to the expression that is iterated.
+		//difference_type pos;	//!< Current index of iteration.
+	};
+
 }
 
 
