@@ -48,7 +48,7 @@ namespace symphas::internal
 
 		using iterator_category = std::random_access_iterator_tag;
 		using value_type = std::invoke_result_t<decltype(&E::eval), E, iter_type>;
-		using difference_type = iterator_difference_type<const E>;
+		using difference_type = std::ptrdiff_t;//iterator_difference_type<const E>;
 		using pointer = value_type*;
 		using reference = int;
 
@@ -61,8 +61,9 @@ namespace symphas::internal
 		 * \param pos The index of the underlying data in the expression
 		 * which is the first index in the iterator.
 		 */
-		expression_iterator(difference_type ptr = {})
-			: ptr{ ptr } {}
+        template<typename specialized_difference>
+		expression_iterator(iterator_difference_type_impl<specialized_difference> const& ptr = {})
+			: ptr{ *static_cast<specialized_difference const*>(&ptr) } {}
 
 		//! Create an iterator starting at the given position.
 		/*!
@@ -73,7 +74,7 @@ namespace symphas::internal
 		 * \param pos The index of the underlying data in the expression
 		 * which is the first index in the iterator.
 		 */
-		explicit expression_iterator(OpExpression<E> const& e, iter_type pos = 0)
+		explicit expression_iterator(OpExpression<E> const& e, difference_type pos = {})
 			: ptr{ static_cast<E const*>(&e), pos } {}
 
 
@@ -121,17 +122,15 @@ namespace symphas::internal
 		}
 
 
-		template<typename E0>
-		expression_iterator<E>& operator+=(iterator_difference_type<E0> offset)
+		expression_iterator<E>& operator+=(difference_type offset)
 		{
-			ptr.pos += offset.pos;
+			ptr.pos += offset;
 			return *this;
 		}
 
-		template<typename E0>
-		expression_iterator<E>& operator-=(iterator_difference_type<E0> offset)
+		expression_iterator<E>& operator-=(difference_type offset)
 		{
-			ptr.pos -= offset.pos;
+			ptr.pos -= offset;
 			return *this;
 		}
 
@@ -140,13 +139,13 @@ namespace symphas::internal
 		//! Dereference the iterator.
 		inline value_type operator*() const
 		{
-			return (ptr.ptr)->eval(ptr.pos);
+			return (ptr.ptr)->eval(iter_type(ptr.pos));
 		};
 
 		//! Dereference past the iterator.
 		inline value_type operator[](difference_type given_pos) const
 		{
-			return (ptr.ptr)->eval(ptr.pos + ptr.given_pos);
+			return (ptr.ptr)->eval(iter_type(ptr.pos + given_pos));
 		}
 
 		//! Member access of the iterated expression.
@@ -227,46 +226,48 @@ namespace symphas::internal
 		//! Add two iterators.
 		difference_type operator+(expression_iterator<E> const& rhs) const
 		{
-			return ptr + rhs;
+			return difference_type(ptr + rhs.ptr);
 		}
 
 		//! Subtract two iterators.
 		difference_type operator-(expression_iterator<E> const& rhs) const
 		{
-			return ptr - rhs;
+			return difference_type(ptr - rhs.ptr);
 		}
 
 		//! Add an offset from the iterator.
-		template<typename E0>
-		expression_iterator<E> operator+(iterator_difference_type<E0> offset) const
+		expression_iterator<E> operator+(difference_type offset) const
 		{
-			expression_iterator<E> it = *this;
+			expression_iterator<E> it(*this);
 			return it += offset;
 		}
 
 		//! Subtract an offset from the iterator.
-		template<typename E0>
-		expression_iterator<E> operator-(iterator_difference_type<E0> offset) const
+		expression_iterator<E> operator-(difference_type offset) const
 		{
-			expression_iterator<E> it = *this;
+			expression_iterator<E> it(*this);
 			return it -= offset;
 		}
 
 		//! Add an offset from the left hand side to an iterator.
-		friend difference_type operator+(difference_type offset, expression_iterator<E> rhs)
+		friend expression_iterator<E> operator+(difference_type offset, expression_iterator<E> const& rhs)
 		{
-			return offset + rhs.ptr;
+            auto result(rhs);
+            rhs.ptr = rhs.ptr + offset;
+            return result;
 		}
 
 		//! Subtract an offset from the left hand side to an iterator.
-		friend difference_type operator-(difference_type offset, expression_iterator<E> rhs)
+		friend expression_iterator<E> operator-(difference_type offset, expression_iterator<E> const& rhs)
 		{
-			return offset - rhs.ptr;
+            auto result(rhs);
+            rhs.ptr = -rhs.ptr + offset;
+            return result;
 		}
 
 
 		//E const* e_ptr;		//!< Pointer to the expression that is iterated.
-		difference_type ptr;	//!< Current index of iteration.
+		iterator_difference_type<const E> ptr; //difference_type ptr;	//!< Current index of iteration.
 	};
 
 
@@ -285,7 +286,7 @@ namespace symphas::internal
 
 		using iterator_category = std::random_access_iterator_tag;
 		using value_type = std::invoke_result_t<decltype(&E::eval), E, iter_type>;
-		using difference_type = iterator_selection_difference_type<const E>;
+		using difference_type = std::ptrdiff_t;//iterator_selection_difference_type<const E>;
 		using pointer = value_type*;
 		using reference = int;
 
@@ -298,8 +299,11 @@ namespace symphas::internal
 		 * \param pos The index of the underlying data in the expression
 		 * which is the first index in the iterator.
 		 */
-		expression_iterator_selection(difference_type ptr = {})
-			: ptr{ ptr } {}
+        template<typename specialized_difference>
+		expression_iterator_selection(iterator_difference_type_impl<specialized_difference> const& ptr = {})
+			: ptr{ *static_cast<specialized_difference const*>(&ptr) } {}
+		//expression_iterator_selection(difference_type ptr = {})
+			//: ptr{ ptr } {}
 
 		//! Create an iterator starting at the given position.
 		/*!
@@ -310,7 +314,7 @@ namespace symphas::internal
 		 * \param pos The index of the underlying data in the expression
 		 * which is the first index in the iterator.
 		 */
-		explicit expression_iterator_selection(OpExpression<E> const& e, iter_type* iters, iter_type pos = 0)
+		explicit expression_iterator_selection(OpExpression<E> const& e, iter_type* iters, difference_type pos = {})
 			: ptr{ static_cast<E const*>(&e), iters, pos } {}
 
 
@@ -358,17 +362,15 @@ namespace symphas::internal
 		}
 
 
-		template<typename E0>
-		expression_iterator_selection<E>& operator+=(iterator_difference_type<E0> offset)
+		expression_iterator_selection<E>& operator+=(difference_type offset)
 		{
-			ptr.pos += offset.pos;
+			ptr.pos += offset;
 			return *this;
 		}
 
-		template<typename E0>
-		expression_iterator_selection<E>& operator-=(iterator_difference_type<E0> offset)
+		expression_iterator_selection<E>& operator-=(difference_type offset)
 		{
-			ptr.pos -= offset.pos;
+			ptr.pos -= offset;
 			return *this;
 		}
 
@@ -383,7 +385,7 @@ namespace symphas::internal
 		//! Dereference past the iterator.
 		inline value_type operator[](difference_type given_pos) const
 		{
-			return (ptr.ptr)->eval(ptr.iters[ptr.pos + ptr.given_pos]);
+			return (ptr.ptr)->eval(ptr.iters[ptr.pos + given_pos]);
 		}
 
 		//! Member access of the iterated expression.
@@ -464,47 +466,50 @@ namespace symphas::internal
 		//! Add two iterators.
 		difference_type operator+(expression_iterator_selection<E> const& rhs) const
 		{
-			return ptr + rhs;
+			return difference_type(ptr + rhs.ptr);
 		}
 
 		//! Subtract two iterators.
 		difference_type operator-(expression_iterator_selection<E> const& rhs) const
 		{
-			return ptr - rhs;
+			return difference_type(ptr - rhs.ptr);
 		}
 
 		//! Add an offset from the iterator.
-		template<typename E0>
-		expression_iterator_selection<E> operator+(iterator_difference_type<E0> offset) const
+		//template<typename E0>
+		expression_iterator_selection<E> operator+(difference_type offset) const
 		{
 			expression_iterator_selection<E> it = *this;
 			return it += offset;
 		}
 
 		//! Subtract an offset from the iterator.
-		template<typename E0>
-		expression_iterator_selection<E> operator-(iterator_difference_type<E0> offset) const
+		//template<typename E0>
+		expression_iterator_selection<E> operator-(difference_type offset) const
 		{
 			expression_iterator_selection<E> it = *this;
 			return it -= offset;
 		}
 
 		//! Add an offset from the left hand side to an iterator.
-		friend difference_type operator+(difference_type offset, expression_iterator_selection<E> rhs)
+		friend expression_iterator_selection<E> operator+(difference_type offset, expression_iterator_selection<E> rhs)
 		{
-			return offset + rhs.ptr;
+            auto result(rhs);
+            rhs.ptr = rhs.ptr + offset;
+            return result;
 		}
 
 		//! Subtract an offset from the left hand side to an iterator.
-		friend difference_type operator-(difference_type offset, expression_iterator_selection<E> rhs)
+		friend expression_iterator_selection<E> operator-(difference_type offset, expression_iterator_selection<E> rhs)
 		{
-			return offset - rhs.ptr;
+            auto result(rhs);
+            rhs.ptr = -rhs.ptr + offset;
+            return result;
 		}
 
 
 		//E const* e_ptr;		//!< Pointer to the expression that is iterated.
-		difference_type ptr;	//!< Current index of iteration.
-		iter_type* iters;
+		iterator_selection_difference_type<const E> ptr;//difference_type ptr;	//!< Current index of iteration.
 	};
 
 }
