@@ -532,7 +532,7 @@ auto operator*(any_row_vector_t<T, D> const& lhs, any_vector_t<S, D> const& rhs)
 	any_vector_t<T, D> lhs0;
 	for (iter_type i = 0; i < D; ++i)
 	{
-		lhs0 = lhs[i];
+		lhs0[i] = lhs[0][i];
 	}
 
 	using namespace std;

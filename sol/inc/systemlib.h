@@ -815,6 +815,25 @@ namespace symphas
         {
             return bdata;
         }
+
+		//! Get the list of initial data.
+		inline symphas::init_data_type* get_initial_data()
+		{
+			return tdata;
+		}
+
+		//! Get the list of interval data.
+		inline symphas::interval_data_type* get_interval_data()
+		{
+			return vdata;
+		}
+
+		//! Get the list of boundary data.
+		inline symphas::b_data_type* get_boundary_data()
+		{
+			return bdata;
+		}
+
     
         //! Get the length of the data elements.
         inline const size_t length() const

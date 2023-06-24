@@ -434,7 +434,7 @@ namespace expr
 	 * \param v The value to give to the literal.
 	 */
 	template<typename T>
-	constexpr auto make_literal(T const& v);
+	constexpr decltype(auto) make_literal(T const& v);
 
 	//! Constructs a fraction with the given values.
 	/*!
@@ -1497,6 +1497,12 @@ namespace expr
 			return {};
 		}
 
+		template<typename T0, typename... Ts>
+		static constexpr auto _infer_dimension(Substitution<T0, Ts...>)
+		{
+			return std::index_sequence<grid_dim<T0>::value>{};
+		}
+
 		template<typename T>
 		static constexpr auto _infer_dimension(SymbolicData<T>)
 		{
@@ -1570,7 +1576,7 @@ namespace expr
 	template<typename E>
 	struct storage_type;
 	template<typename E>
-	using storage_t = typename storage_type<E>::type;
+	using storage_type_t = typename storage_type<E>::type;
 
 	template<typename G>
 	struct parent_storage_type;
@@ -2217,18 +2223,26 @@ struct expr::op_types<SymbolicData<T>>
 	using type = typename symphas::lib::types_list<T>;
 };
 
+
+//! Get the expression that the OpConvolution applies to.
+template<typename... Ts>
+struct expr::op_types<SymbolicDataArray<std::tuple<Ts...>>>
+{
+	using type = typename symphas::lib::combine_types_unique<Ts...>::type;
+};
+
 //! Get the expression that the OpConvolution applies to.
 template<typename T>
 struct expr::op_types<SymbolicDataArray<T>>
 {
-	using type = typename symphas::lib::types_list<T>;
+	using type = T;
 };
 
 //! Get the expression that the OpConvolution applies to.
 template<typename... Ts>
-struct expr::op_types<SymbolicDataArray<std::tuple<Term<Ts>...>>>
+struct expr::op_types<Substitution<Ts...>>
 {
-	using type = typename symphas::lib::combine_types_unique<Ts...>::type;
+	using type = typename symphas::lib::combine_types_unique<typename op_types<Ts>::type...>::type;
 };
 
 //! Get the expression that the OpConvolution applies to.
@@ -2516,11 +2530,11 @@ template<typename E>
 struct expr::storage_type
 {
 	using data_t = symphas::lib::type_at_index<0, symphas::lib::unroll_types_list<expr::term_types_t<E>>>;
-	using storage_t = typename symphas::internal::get_first_storage_type<expr::term_types_t<E>>::type;
+	using storage_type_t = typename symphas::internal::get_first_storage_type<expr::term_types_t<E>>::type;
 	using check_t = std::conditional_t<
-		std::is_same<storage_t, void>::value, 
+		std::is_same<storage_type_t, void>::value, 
 			std::conditional_t<std::is_same<data_t, void>::value, expr::symbols::Symbol, data_t>, 
-			storage_t>;
+			storage_type_t>;
 
 	template<template<typename, size_t> typename enc_type>
 	struct grid_class_wrap 
@@ -4120,7 +4134,13 @@ namespace expr
 	}
 
 	template<typename T, typename I>
-	auto coeff(OpCoeff<T, I> const& e)
+	OpCoeff<T, I> const& coeff(OpCoeff<T, I> const& e)
+	{
+		return e;
+	}
+
+	template<typename T, typename I>
+	OpCoeff<T, I>& coeff(OpCoeff<T, I>& e)
 	{
 		return e;
 	}
@@ -4131,49 +4151,49 @@ namespace expr
 	}
 
 	template<typename T, size_t... Ns>
-	auto coeff(OpTensor<T, Ns...> const& tensor);
+	decltype(auto) coeff(OpTensor<T, Ns...> const& tensor);
 	template<typename... Es, size_t... Is>
-	auto coeff(OpAdd<Es...> const& e, std::index_sequence<Is...>);
+	decltype(auto) coeff(OpAdd<Es...> const& e, std::index_sequence<Is...>);
 
 	template<typename E, typename std::enable_if_t<has_coeff<E>, int> = 0>
-	auto coeff(OpExpression<E> const& e)
+	decltype(auto) coeff(OpExpression<E> const& e)
 	{
 		return expr::make_literal((*static_cast<E const*>(&e)).value);
 	}
 
 	template<typename E, typename std::enable_if_t<has_coeff<E>, int> = 0>
-	auto coeff(OpOperator<E> const& e)
+	decltype(auto) coeff(OpOperator<E> const& e)
 	{
 		return expr::make_literal((*static_cast<E const*>(&e)).value);
 	}
 
 	template<typename E, typename std::enable_if_t<!has_coeff<E>, int> = 0>
-	auto coeff(OpOperator<E> const& e)
+	decltype(auto) coeff(OpOperator<E> const& e)
 	{
 		return OpIdentity{};
 	}
 
 	template<typename E,
 		typename std::enable_if_t<(!has_coeff<E> && expr::is_coeff<E>), int> = 0>
-	constexpr auto coeff(OpExpression<E> const& e)
+	constexpr decltype(auto) coeff(OpExpression<E> const& e)
 	{
 		return *static_cast<E const*>(&e);
 	}
 
     template<typename G0, expr::exp_key_t X0>
-    auto coeff(Term<G0, X0> const& term)
+    decltype(auto) coeff(Term<G0, X0> const& term)
     {
         return OpIdentity{};
     }
 
 	template<typename... Vs>
-	auto coeff(OpTerms<Vs...> const& e)
+	decltype(auto) coeff(OpTerms<Vs...> const& e)
 	{
 		return expr::coeff(e.term);
 	}
 
 	template<typename A, typename B>
-	constexpr auto coeff(OpBinaryMul<A, B> const& e)
+	constexpr decltype(auto) coeff(OpBinaryMul<A, B> const& e)
 	{
 		return coeff(e.a);
 	}
@@ -4185,10 +4205,9 @@ namespace expr
 	//}
 
 	template<typename... Es, typename std::enable_if_t<(is_coeff<Es> && ...), int> = 0>
-	auto coeff(OpAdd<Es...> const& e)
+	decltype(auto) coeff(OpAdd<Es...> const& e)
 	{
 		return e;
-		//return coeff(e, std::make_index_sequence<sizeof...(Es)>{});
 	}
 
 	template<typename E, typename Enable>
@@ -4337,10 +4356,28 @@ struct expr::eval_type
 		}
 	}
 
+	template<typename T0>
+	static auto _get_eval(SymbolicDataArray<T0> const& e)
+	{
+		return typename eval_type<OpTerm<OpIdentity, T0>>::type{};
+	}
+
+	template<typename T0, typename... Ts>
+	static auto _get_eval(SymbolicDataArray<std::tuple<T0, Ts...>> const& e)
+	{
+		return typename eval_type<OpTerm<OpIdentity, T0>>::type{};
+	}
+
+	template<typename T0, typename... Ts>
+	static auto _get_eval(Substitution<T0, Ts...> const& e) -> typename eval_type<T0>::type
+	{
+		return {};
+	}
+
 	template<typename E0>
 	static auto _get_eval(OpExpression<E0> const& e)
 	{
-		return static_cast<E const*>(&e)->eval(0);
+		return static_cast<E0 const*>(&e)->eval(0);
 	}
 
 	template<typename G, expr::exp_key_t X>
@@ -4352,7 +4389,7 @@ struct expr::eval_type
 	template<typename E0>
 	static auto _get_eval(OpOperator<E0> const& e)
 	{
-		return static_cast<E const*>(&e)->eval(0);
+		return static_cast<E0 const*>(&e)->eval(0);
 	}
 
 	static auto _get_eval(...)
@@ -4383,6 +4420,8 @@ public:
 	template<size_t D>
 	static constexpr size_t rank_ = (D == 0) ? rank : (D == 1) ? rank_1 : 0;
 };
+
+
 
 
 

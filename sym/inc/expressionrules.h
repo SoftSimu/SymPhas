@@ -29,7 +29,6 @@
 #include <cassert>
 
 #include "expressions.h"
-//#include "symbolicdata.h"
 
 // ******************************************************************************************
 
@@ -109,9 +108,23 @@ auto operator*(expr::symbols::Symbol, any_vector_t<T, D> const& b)
 
 //! Multiplication between the identity expression and a vector.
 template<typename T, size_t D>
+auto operator*(expr::symbols::Symbol, any_row_vector_t<T, D> const& b)
+{
+	return any_row_vector_t<expr::symbols::Symbol, D>{};
+}
+
+//! Multiplication between the identity expression and a vector.
+template<typename T, size_t D>
 auto operator*(any_vector_t<T, D> const& a, expr::symbols::Symbol)
 {
 	return any_vector_t<expr::symbols::Symbol, D>{};
+}
+
+//! Multiplication between the identity expression and a vector.
+template<typename T, size_t D>
+auto operator*(any_row_vector_t<T, D> const& a, expr::symbols::Symbol)
+{
+	return any_row_vector_t<expr::symbols::Symbol, D>{};
 }
 
 //! Multiplication between the identity expression and a vector.
@@ -1224,7 +1237,6 @@ auto operator/(E, expr::symbols::Symbol)
 {
     return expr::symbols::Symbol{};
 }
-
 
 
 //! Addition between a primitive value and the identity expression.

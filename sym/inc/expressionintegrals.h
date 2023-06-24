@@ -29,6 +29,7 @@
 #include "expressionsprint.h"
 #include "expressionproperties.h"
 #include "expressionaggregates.h"
+#include "expressionrules.h"
 
 
 namespace symphas::internal
@@ -225,8 +226,8 @@ struct OpIntegral<V, E, expr::variational_t<T>> : OpExpression<OpIntegral<V, E, 
 #ifdef EXECUTION_HEADER_AVAILABLE
 					std::execution::par_unseq,
 #endif
-					static_cast<const E*>(&e)->begin(iters),
-					static_cast<const E*>(&e)->end(iters, n), result_t{}
+					e.begin(iters),
+					e.end(iters, n), result_t{}
 				);
 			}
 			else
@@ -235,12 +236,11 @@ struct OpIntegral<V, E, expr::variational_t<T>> : OpExpression<OpIntegral<V, E, 
 #ifdef EXECUTION_HEADER_AVAILABLE
 					std::execution::par_unseq,
 #endif
-					static_cast<const E*>(&e)->begin(),
-					static_cast<const E*>(&e)->end(len), result_t{}
+					e.begin(),
+					e.end(len), result_t{}
 				);
 
 			}
-
 			double r = 1;
 			for (auto width : domain.get_widths())
 			{

@@ -151,13 +151,8 @@ namespace expr
 #ifdef MULTITHREAD
 
 	template<typename E, typename assign_type>
-	void result_interior(OpExpression<E> const& e, assign_type&& data, iter_type* inners, len_type len = 0)
+	void result_interior(OpExpression<E> const& e, assign_type&& data, iter_type* inners, len_type len)
 	{
-		auto& e0 = *static_cast<const E*>(&e);
-		if (!len)
-		{
-			len = 0;
-		}
 
 //		symphas::internal::data_iterator_select it(std::forward<assign_type>(data), inners);
 //
@@ -253,36 +248,36 @@ namespace expr
 	 * \param len The number of elements in the array.
 	 */
 	template<typename E, typename assign_type>
-	void result(OpExpression<E> const& e, assign_type&& data, len_type len = 0)
+	void result(OpExpression<E> const& e, assign_type&& data, len_type len)
 	{
-		if (!len)
+		symphas::internal::data_iterator it(std::forward<assign_type>(data));
+#if defined(EXECUTION_HEADER_AVAILABLE) 
+		std::copy(std::execution::par,
+			static_cast<const E*>(&e)->begin(),
+			static_cast<const E*>(&e)->end(len), it);
+#else
+		for (iter_type i = 0; i < len; i++)
 		{
-			len = expr::data_length(*static_cast<E const*>(&e));
+			it[i] = static_cast<const E*>(&e)->eval(i);
+		}
+#endif
+	}
+
+	template<typename E, typename assign_type>
+	void result(OpExpression<E> const& e, assign_type&& data)
+	{
+		auto [iters, n] = expr::eval_iters(*static_cast<E const*>(&e));
+		if (n > 0)
+		{
+			result_interior(*static_cast<E const*>(&e), std::forward<assign_type>(data), iters, n);
+		}
+		else
+		{
+			result(*static_cast<E const*>(&e), std::forward<assign_type>(data), expr::data_length(*static_cast<E const*>(&e)));
 		}
 
-		symphas::internal::data_iterator it(std::forward<assign_type>(data));
-		//if (len < MULTITHREAD_TRIGGER_COUNT)
-		//{
-		//	for (iter_type i = 0; i < len; i++)
-		//	{
-		//		it[i] = static_cast<const E*>(&e)->eval(i);
-		//	}
-		//}
-		//else
-		{
-#if defined(EXECUTION_HEADER_AVAILABLE) 
-			std::copy(std::execution::par,
-				static_cast<const E*>(&e)->begin(),
-				static_cast<const E*>(&e)->end(len), it);
-#else
-			for (iter_type i = 0; i < len; i++)
-			{
-				it[i] = static_cast<const E*>(&e)->eval(i);
-			}
-#endif
-		}
 	}
-	
+
 	//! See result(OpExpression<E> const&, T*, len_type).
 	/*!
 	 * The given expression is evaluated at every point of the grid and the
@@ -649,7 +644,7 @@ protected:
 namespace expr
 {
 	template<typename T, size_t... Ns>
-	auto coeff(OpTensor<T, Ns...> const& tensor)
+	decltype(auto) coeff(OpTensor<T, Ns...> const& tensor)
 	{
 		return symphas::internal::tensor_cast::cast(tensor);
 	}
@@ -834,6 +829,115 @@ struct OpLiteral : OpExpression<OpLiteral<T>>
 #endif
 
 };
+
+
+//! Representation of a constant.
+/*!
+ * Stores a single value of any type.
+ *
+ * \tparam T The type of constant being stored.
+ */
+
+template<typename T, size_t D>
+struct OpLiteral<any_vector_t<T, D>> : OpExpression<OpLiteral<any_vector_t<T, D>>>
+{
+	any_vector_t<T, D> value;
+
+	OpLiteral(any_vector_t<T, D> value) : value{ value } {}
+	constexpr OpLiteral() : value{ any_vector_t<T, D>{} } {}
+
+	inline T eval(iter_type = 0) const
+	{
+		return value;
+	}
+
+	operator const any_vector_t<T, D>& () const
+	{
+		return value;
+	}
+
+	operator any_vector_t<T, D>& ()
+	{
+		return value;
+	}
+
+
+	//auto operator^(size_t exp) const
+	//{
+	//	return expr::make_literal(std::pow(value, exp));
+	//}
+
+	template<typename S>
+	auto operator*(OpLiteral<S> const& other) const
+	{
+		return expr::make_literal(value * other.value);
+	}
+
+	auto operator*(OpLiteral<T> const& other) const
+	{
+		return expr::make_literal(value * other.value);
+	}
+
+	template<typename S>
+	auto operator-(OpLiteral<S> const& a) const
+	{
+		auto v = expr::make_literal(value - a.value);
+		return v;
+	}
+
+	template<typename S>
+	auto operator*(OpLiteral<S>&& other) const
+	{
+		return expr::make_literal(value * other.value);
+	}
+
+	auto operator*(OpLiteral<T>&& other) const
+	{
+		return expr::make_literal(value * other.value);
+	}
+
+	template<typename S>
+	auto operator-(OpLiteral<S>&& a) const
+	{
+		auto v = expr::make_literal(value - a.value);
+		return v;
+	}
+
+
+	auto operator-() const
+	{
+		return expr::make_literal(-value);
+	}
+
+	template<typename S>
+	auto operator+(OpLiteral<S> const& a) const
+	{
+		auto v = expr::make_literal(value + a.value);
+		return v;
+	}
+
+
+#ifdef PRINTABLE_EQUATIONS
+
+	size_t print(FILE* out) const
+	{
+		return expr::print_with_coeff(out, value);
+	}
+
+	size_t print(char* out) const
+	{
+		return expr::print_with_coeff(out, value);
+	}
+
+	size_t print_length() const
+	{
+		return expr::coeff_print_length(value);
+	}
+
+#endif
+
+};
+
 
 #ifdef PRINTABLE_EQUATIONS
 
@@ -1179,21 +1283,21 @@ auto operator*(OpLiteral<T> const& a, OpNegFractionLiteral<N, D>)
 
 //! Specialized version which returns multiplicative identity.
 template<>
-inline auto expr::make_literal<OpIdentity>(OpIdentity const&)
+inline decltype(auto) expr::make_literal<OpIdentity>(OpIdentity const&)
 {
 	return OpIdentity{};
 }
 
 //! Specialized version which returns negative multiplicative identity.
 template<>
-inline auto expr::make_literal<OpNegIdentity>(OpNegIdentity const&)
+inline decltype(auto) expr::make_literal<OpNegIdentity>(OpNegIdentity const&)
 {
 	return OpNegIdentity{};
 }
 
 //! Specialized version which returns additive identity.
 template<>
-inline auto expr::make_literal<OpVoid>(OpVoid const&)
+inline decltype(auto) expr::make_literal<OpVoid>(OpVoid const&)
 {
 	return OpVoid{};
 }
@@ -1346,7 +1450,7 @@ auto expr::make_filled_row_vector()
 }
 
 template<typename T>
-constexpr auto expr::make_literal(T const& v)
+constexpr decltype(auto) expr::make_literal(T const& v)
 {
 	if constexpr (expr::is_fraction<T>)
 	{
@@ -1528,6 +1632,29 @@ struct DynamicIndex : OpExpression<DynamicIndex>
 		other.is_local = false;
 	}
 
+	void fix(iter_type index)
+	{
+		DynamicIndex fixed(std::move(index));
+		swap(*this, fixed);
+	}
+
+	void fix(DynamicIndex fixed)
+	{
+		swap(*this, fixed);
+	}
+
+	void fix(DynamicIndexSet fixed);
+
+	bool same(DynamicIndex other)
+	{
+		return data == other.data;
+	}
+
+	bool same(iter_type *other)
+	{
+		return data == other;
+	}
+
 	~DynamicIndex()
 	{
 		if (is_local || clear)
@@ -1535,6 +1662,8 @@ struct DynamicIndex : OpExpression<DynamicIndex>
 			delete data;
 		}
 	}
+
+	friend struct DynamicIndexSet;
 
 protected:
 
@@ -1545,6 +1674,39 @@ protected:
 	bool clear;						//!< Delete the underlying data on destruction of this object.
 };
 
+struct DynamicIndexSet
+{
+
+	DynamicIndexSet() : index{ 0 }, value{ 0 } {}
+	DynamicIndexSet(DynamicIndex index, iter_type value) : index{ index.data }, value{ std::move(value) } {}
+	DynamicIndexSet(DynamicIndex index, iter_type *value) : index{ index.data }, value{ *value } {}
+
+	operator bool()
+	{
+		return *index == value.index();
+	}
+
+	iter_type *index;
+	DynamicIndex value;
+};
+
+inline auto operator==(DynamicIndex const& index, iter_type value)
+{
+	return DynamicIndexSet(index, value);
+}
+
+inline auto operator==(DynamicIndex const& index, iter_type *value)
+{
+	return DynamicIndexSet(index, value);
+}
+
+inline void DynamicIndex::fix(DynamicIndexSet fixed)
+{
+	if (same(fixed.index))
+	{
+		fix(fixed.value);
+	}
+}
 
 namespace symphas::internal
 {
@@ -1792,7 +1954,7 @@ struct OpCoeff<T, DynamicIndex> :
 	OpCoeff(DynamicIndex const& index, symphas::internal::coeff_data<T> const& data) : data{ data }, index{index} {}
 	OpCoeff(DynamicIndex const& index, symphas::internal::coeff_data<T>&& data) : data{ std::move(data) }, index{ index } {}
 
-	constexpr OpCoeff() : OpCoeff(nullptr, 0) {}
+	constexpr OpCoeff() : OpCoeff({}, 0) {}
 
 	auto eval(iter_type n = 0) const
 	{
@@ -1827,6 +1989,12 @@ struct OpCoeff<T, DynamicIndex> :
 		return *this;
 	}
 
+	auto& fix(DynamicIndexSet const& set)
+	{
+		index.fix(set);
+		return *this;
+	}
+
 #ifdef PRINTABLE_EQUATIONS
 	size_t print(FILE* out) const
 	{
@@ -1854,6 +2022,7 @@ struct OpCoeff<void, I> {};
 
 template<>
 struct OpCoeff<void, DynamicIndex> {};
+
 
 //template<>
 //struct OpCoeff<void, void>

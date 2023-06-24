@@ -1061,7 +1061,7 @@ namespace expr
 template<typename Dd, typename V, typename E, typename Sp>
 struct OpDerivative : OpExpression<OpDerivative<Dd, V, E, Sp>>
 {
-	using result_grid = expr::storage_t<E>;
+	using result_grid = expr::storage_type_t<E>;
 
 	static const size_t order = Dd::order;		//!< The order of this derivative.
 	static const Axis axis = Dd::axis;			//!< The axis of this derivative.
@@ -1167,7 +1167,7 @@ template<typename Dd, typename V, typename G, typename Sp>
 struct OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> : OpExpression<OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp>>, Dd
 {
 	using E = OpTerm<OpIdentity, G>;
-	using result_grid = expr::storage_t<E>;
+	using result_grid = expr::storage_type_t<E>;
 
 	using Dd::order;
 	using Dd::axis;
@@ -1191,7 +1191,7 @@ struct OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> : OpExpression<OpDerivativ
 
 	void update()
 	{
-		expr::prune::update(data);
+		//expr::prune::update(data);
 	}
 
 

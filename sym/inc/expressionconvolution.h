@@ -719,7 +719,7 @@ public:
 
 	void update()
 	{
-		expr::prune::update(data);
+		//expr::prune::update(data);
 		symphas::dft::fftw_execute(compute.p_in_out);
 
 		auto f = [&](iter_type ft_i, iter_type i)

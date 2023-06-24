@@ -231,7 +231,6 @@ namespace expr
 
 }
 
-
 template<typename E>
 auto operator+(E, expr::symbols::Symbol);
 template<typename E>
@@ -240,6 +239,13 @@ template<typename E>
 auto operator*(E, expr::symbols::Symbol);
 template<typename E>
 auto operator/(E, expr::symbols::Symbol);
+namespace expr::symbols
+{
+	using ::operator+;
+	using ::operator-;
+	using ::operator*;
+	using ::operator/;
+}
 
 /*!
  * \defgroup Op Symbolic Algebra Objects
@@ -287,6 +293,7 @@ struct DynamicVariable;
 template<typename G>
 struct NamedData;
 struct DynamicIndex;
+struct DynamicIndexSet;
 
 template<typename T, size_t D>
 using GridSymbol = GridData<expr::symbols::SymbolType<T>, D>;

@@ -113,18 +113,25 @@ namespace expr
 
 	template<typename T, typename V, typename G>
 	auto limit_0(expr::series_limits<OpTerm<V, G>, T> const& limit);
-	template<typename T1, typename T2>
-	auto limit_0(expr::series_limits<T1, T2> const& limit);
 	template<typename T, typename V, typename G>
 	auto limit_1(expr::series_limits<T, OpTerm<V, G>> const& limit);
+	template<typename T, typename V, typename G>
+	auto limit_0(expr::series_limits<OpTerm<V, G>, T>& limit);
+	template<typename T, typename V, typename G>
+	auto limit_1(expr::series_limits<T, OpTerm<V, G>>& limit);
 	template<typename T1, typename T2>
-	auto limit_1(expr::series_limits<T1, T2> const& limit);
+	const auto& limit_0(expr::series_limits<T1, T2> const& limit);
+	template<typename T1, typename T2>
+	const auto& limit_1(expr::series_limits<T1, T2> const& limit);
+	template<typename T1, typename T2>
+	auto& limit_0(expr::series_limits<T1, T2>& limit);
+	template<typename T1, typename T2>
+	auto& limit_1(expr::series_limits<T1, T2>& limit);
 
 	using sum_op = symphas::internal::ReduceOp<symphas::internal::SeriesOp::ADD>;
 
 	namespace symbols
 	{
-		
 		template<int N, int P = 0>
 		struct i_;
 
@@ -165,7 +172,6 @@ namespace expr
     struct case_entry {};
 
 }
-
 
 template<typename... Ts>
 struct SymbolicCase;

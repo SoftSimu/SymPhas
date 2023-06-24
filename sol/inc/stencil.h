@@ -69,8 +69,8 @@ namespace symphas
 		}
 		else
 		{
-			stride[0] = -dims[0];
-			stride[1] = 1;
+			stride[0] = dims[0];
+			stride[1] = -1;
 		}
 	}
 
@@ -85,15 +85,15 @@ namespace symphas
 		}
 		else if constexpr (ax == Axis::Y)
 		{
-			stride[0] = -dims[0];
-			stride[1] = 1;
+			stride[0] = dims[0];
+			stride[1] = -1;
 			stride[2] = dims[0] * dims[1];
 		}
 		else
 		{
 			stride[0] = -dims[0] * dims[1];
 			stride[1] = dims[0];
-			stride[2] = 1;
+			stride[2] = -1;
 		}
 	}
 }
@@ -441,7 +441,7 @@ struct GeneralizedStencil
 		typename = std::enable_if_t<((ax == Axis::Z) ? (DD == 3) : (ax == Axis::Y) ? (DD >= 2) : (ax == Axis::X) ? (DD >= 1) : false), int>*/>
 	auto apply_directional(T* const v) const
 	{
-		len_type stride = (ax == Axis::Z) ? (dims[0] * dims[1]) : (ax == Axis::Y) ? dims[1] : 1;
+		len_type stride = (ax == Axis::Z) ? (dims[0] * dims[1]) : (ax == Axis::Y) ? dims[0] : 1;
 		static symphas::internal::GeneratedStencilApply stencil(expr::get_central_space_stencil<OD, OA, 1>());
 
 #ifdef DEBUG

@@ -1147,6 +1147,7 @@ public:
 	void update_systems(double time)
 	{
 		this->time = time;
+#		pragma omp parallel for
 		for (iter_type i = 0; i < len; ++i)
 		{
 			_s[i].update(index, time);
@@ -1164,6 +1165,7 @@ public:
 	{
 		++index;
 		solver.dt = dt;
+#		pragma omp parallel for
 		for (iter_type i = 0; i < len; ++i)
 		{
 			solver.step(system(i));

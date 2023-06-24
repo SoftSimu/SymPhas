@@ -1370,13 +1370,13 @@ namespace expr
 	template<typename Dd, typename V, typename G, typename Sp>
 	len_type data_length(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> const& e)
 	{
-		return data_len_data(expr::get_enclosed_expression(e));
+		return data_length(expr::get_enclosed_expression(e));
 	}
 
 	template<typename V, typename E, typename T>
 	len_type data_length(OpIntegral<V, E, T> const& e)
 	{
-		return data_len_data(expr::get_enclosed_expression(e));
+		return data_length(expr::get_enclosed_expression(e));
 	}
 
 	template<typename A1, typename A2, typename E>
@@ -1679,7 +1679,7 @@ namespace expr
 	template<typename Dd, typename V, typename G, typename Sp>
 	std::pair<iter_type*, len_type> eval_iters(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> const& e)
 	{
-		return eval_iters_data(expr::get_enclosed_expression(e));
+		return eval_iters(expr::get_enclosed_expression(e));
 	}
 
 	template<typename V, typename E, typename T>
@@ -1733,7 +1733,7 @@ namespace expr
 	template<expr::NoiseType nt, typename T, size_t D>
 	std::pair<iter_type*, len_type> eval_iters(NoiseData<nt, T, D> const& e)
 	{
-		return eval_iters_data(e.e);
+		return eval_iters_data(e);
 	}
 
 	template<typename V, expr::NoiseType nt, typename T, size_t D, typename E, typename... Ts>

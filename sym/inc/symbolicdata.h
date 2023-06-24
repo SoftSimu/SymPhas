@@ -25,7 +25,8 @@
 
 #pragma once
 
-#include "expressiontransforms.h"
+#include "symbolicprototypes.h"
+#include "expressions.h"
 
 
 /*!
@@ -328,330 +329,235 @@ struct expr::base_data_type<expr::symbols::i_<N0, P0>>
 	using type = expr::symbols::i_<N0, P0>;
 };
 
-template<int N, int P, typename E>
-auto operator+(expr::symbols::i_<N, P>, E const& e)
+namespace expr::symbols
 {
-	return expr::symbols::i_op_type<N, P>{} + e;
-}
 
-template<int N, int P, typename E>
-auto operator+(E const& e, expr::symbols::i_<N, P>)
-{
-	return e + expr::symbols::i_op_type<N, P>{};
-}
-
-template<int N0, int P0, int N1, int P1>
-auto operator+(expr::symbols::i_<N0, P0>, expr::symbols::i_<N1, P1>)
-{
-	return expr::symbols::i_op_type<N0, P0>{} + expr::symbols::i_op_type<N1, P1>{};
-}
-
-template<int N, int P, typename E>
-auto operator-(expr::symbols::i_<N, P>, E const& e)
-{
-	return expr::symbols::i_op_type<N, P>{} - e;
-}
-
-template<int N, int P, typename E>
-auto operator-(E const& e, expr::symbols::i_<N, P>)
-{
-	return e - expr::symbols::i_op_type<N, P>{};
-}
-
-template<int N0, int P0, int N1, int P1>
-auto operator-(expr::symbols::i_<N0, P0>, expr::symbols::i_<N1, P1>)
-{
-	return expr::symbols::i_op_type<N0, P0>{} - expr::symbols::i_op_type<N1, P1>{};
-}
-
-template<int N, int P, typename E>
-auto operator*(expr::symbols::i_<N, P>, E const& e)
-{
-	return expr::symbols::i_op_type<N, P>{} *e;
-}
-
-template<int N, int P, typename E>
-auto operator*(E const& e, expr::symbols::i_<N, P>)
-{
-	return e * expr::symbols::i_op_type<N, P>{};
-}
-
-template<int N0, int P0, int N1, int P1>
-auto operator*(expr::symbols::i_<N0, P0>, expr::symbols::i_<N1, P1>)
-{
-	return expr::symbols::i_op_type<N0, P0>{} * expr::symbols::i_op_type<N1, P1>{};
-}
-
-template<int N, int P, typename E>
-auto operator/(expr::symbols::i_<N, P>, E const& e)
-{
-	return expr::symbols::i_op_type<N, P>{} / e;
-}
-
-template<int N, int P, typename E>
-auto operator/(E const& e, expr::symbols::i_<N, P>)
-{
-	return e / expr::symbols::i_op_type<N, P>{};
-}
-
-template<int N0, int P0, int N1, int P1>
-auto operator/(expr::symbols::i_<N0, P0>, expr::symbols::i_<N1, P1>)
-{
-	return expr::symbols::i_op_type<N0, P0>{} / expr::symbols::i_op_type<N1, P1>{};
-}
-
-template<int N, int P>
-auto operator*(expr::symbols::i_<N, P>, OpIdentity)
-{
-	return expr::symbols::i_<N, P>{};
-}
-
-template<int N, int P>
-auto operator*(OpIdentity, expr::symbols::i_<N, P>)
-{
-	return expr::symbols::i_<N, P>{};
-}
-
-
-template<int N, int P>
-auto operator+(expr::symbols::i_<N, P>, OpVoid)
-{
-	return expr::symbols::i_op_type<N, P>{};
-}
-
-template<int N, int P>
-auto operator+(OpVoid, expr::symbols::i_<N, P>)
-{
-	return expr::symbols::i_op_type<N, P>{};
-}
-
-template<int N, int P>
-auto operator-(expr::symbols::i_<N, P>, OpVoid)
-{
-	return expr::symbols::i_op_type<N, P>{};
-}
-
-template<int N, int P>
-auto operator-(OpVoid, expr::symbols::i_<N, P>)
-{
-	return expr::symbols::i_op_type<N, P>{};
-}
-
-template<int N, int P>
-auto operator*(expr::symbols::i_<N, P>, OpVoid)
-{
-	return OpVoid{};
-}
-
-template<int N, int P>
-auto operator*(OpVoid, expr::symbols::i_<N, P>)
-{
-	return OpVoid{};
-}
-
-template<int N, int P>
-auto operator/(OpVoid, expr::symbols::i_<N, P>)
-{
-	return OpVoid{};
-}
-
-
-template<int N, int P>
-auto operator+(expr::symbols::i_<N, P>, OpIdentity)
-{
-	return expr::symbols::i_op_type<N, P + 1>{};
-}
-
-template<int N, int P>
-auto operator+(expr::symbols::i_<N, P>, OpNegIdentity)
-{
-	return expr::symbols::i_op_type<N, P - 1>{};
-}
-
-template<int N, int P, size_t N0>
-auto operator+(expr::symbols::i_<N, P>, OpFractionLiteral<N0, 1>)
-{
-	return expr::symbols::i_op_type<N, P + N0>{};
-}
-
-template<int N, int P, size_t N0>
-auto operator+(expr::symbols::i_<N, P>, OpNegFractionLiteral<N0, 1>)
-{
-	return expr::symbols::i_op_type<N, P - N0>{};
-}
-
-template<int N, int P>
-auto operator-(expr::symbols::i_<N, P>, OpIdentity)
-{
-	return expr::symbols::i_op_type<N, P>{} + OpNegIdentity{};
-}
-
-template<int N, int P>
-auto operator-(expr::symbols::i_<N, P>, OpNegIdentity)
-{
-	return expr::symbols::i_op_type<N, P>{} + OpIdentity{};
-}
-
-template<int N, int P, size_t N0>
-auto operator-(expr::symbols::i_<N, P>, OpFractionLiteral<N0, 1>)
-{
-	return expr::symbols::i_op_type<N, P>{} + OpNegFractionLiteral<N0, 1>{};
-}
-
-template<int N, int P, size_t N0>
-auto operator-(expr::symbols::i_<N, P>, OpNegFractionLiteral<N0, 1>)
-{
-	return expr::symbols::i_op_type<N, P>{} + OpFractionLiteral<N0, 1>{};
-}
-
-template<int N, int P>
-auto operator+(OpIdentity, expr::symbols::i_<N, P>)
-{
-	return expr::symbols::i_op_type<N, P + 1>{};
-}
-
-template<int N, int P>
-auto operator+(OpNegIdentity, expr::symbols::i_<N, P>)
-{
-	return expr::symbols::i_op_type<N, P - 1>{};
-}
-
-template<int N, int P, size_t N0>
-auto operator+(OpFractionLiteral<N0, 1>, expr::symbols::i_<N, P>)
-{
-	return expr::symbols::i_op_type<N, P + N0>{};
-}
-
-template<int N, int P, size_t N0>
-auto operator+(OpNegFractionLiteral<N0, 1>, expr::symbols::i_<N, P>)
-{
-	return expr::symbols::i_op_type<N, P - N0>{};
-}
-
-template<int N, int P>
-auto operator-(OpIdentity, expr::symbols::i_<N, P>)
-{
-	return expr::symbols::i_op_type<N, -P + 1>{};
-}
-
-template<int N, int P>
-auto operator-(OpNegIdentity, expr::symbols::i_<N, P>)
-{
-	return expr::symbols::i_op_type<N, -P - 1>{};
-}
-
-template<int N, int P, size_t N0>
-auto operator-(OpFractionLiteral<N0, 1>, expr::symbols::i_<N, P>)
-{
-	return expr::symbols::i_op_type<N, -P + N0>{};
-}
-
-template<int N, int P, size_t N0>
-auto operator-(OpNegFractionLiteral<N0, 1>, expr::symbols::i_<N, P>)
-{
-	return expr::symbols::i_op_type<N, -P - N0>{};
-}
-
-
-template<typename E0, typename... T0s>
-struct SymbolicFunctionArray
-{
-	using f_type = SymbolicFunction<E0, T0s...>;
-	using eval_type = std::invoke_result_t<decltype(&f_type::eval), f_type, iter_type>;
-
-	SymbolicFunctionArray(len_type n = 0, len_type len = 0) :
-		data{ (len > 0) ? new f_type * [len] : nullptr },
-		offsets{ (len > 0) ? new iter_type * [len] {} : nullptr },
-		len{ len }, n{ n }
+	template<int N, int P, typename E>
+	auto operator+(expr::symbols::i_<N, P>, E const& e)
 	{
-		for (iter_type i = 0; i < len; ++i)
-		{
-			offsets[i] = new iter_type[n]{};
-			data[i] = nullptr;
-		}
+		return expr::symbols::i_op_type<N, P>{} + e;
 	}
 
-	void init(f_type const& f)
+	template<int N, int P, typename E>
+	auto operator+(E const& e, expr::symbols::i_<N, P>)
 	{
-		if (data != nullptr)
-		{
-			if (data[0] == nullptr)
-			{
-				for (iter_type i = 0; i < len; ++i)
-				{
-					data[i] = new f_type(f);
-				}
-			}
-		}
+		return e + expr::symbols::i_op_type<N, P>{};
 	}
 
-	SymbolicFunctionArray(SymbolicFunctionArray const& other) :
-		data{ (other.len > 0) ? new f_type * [other.len] : nullptr },
-		offsets{ (other.len > 0) ? new iter_type * [other.len] : nullptr },
-		len{ other.len }, n{ other.n }
+	template<int N0, int P0, int N1, int P1>
+	auto operator+(expr::symbols::i_<N0, P0>, expr::symbols::i_<N1, P1>)
 	{
-		for (iter_type i = 0; i < len; ++i)
-		{
-			data[i] = (other.data[i] != nullptr) ? new f_type(*other.data[i]) : nullptr;
-			offsets[i] = new iter_type[n];
-			std::copy(other.offsets[i], other.offsets[i] + n, offsets[i]);
-		}
+		return expr::symbols::i_op_type<N0, P0>{} + expr::symbols::i_op_type<N1, P1>{};
 	}
 
-	SymbolicFunctionArray(SymbolicFunctionArray&& other) : SymbolicFunctionArray()
+	template<int N, int P, typename E>
+	auto operator-(expr::symbols::i_<N, P>, E const& e)
 	{
-		swap(*this, other);
+		return expr::symbols::i_op_type<N, P>{} - e;
 	}
 
-	SymbolicFunctionArray<E0, T0s...> operator=(SymbolicFunctionArray<E0, T0s...> other)
+	template<int N, int P, typename E>
+	auto operator-(E const& e, expr::symbols::i_<N, P>)
 	{
-		swap(*this, other);
-		return *this;
+		return e - expr::symbols::i_op_type<N, P>{};
 	}
 
-	friend void swap(SymbolicFunctionArray<E0, T0s...>& first, SymbolicFunctionArray<E0, T0s...>& second)
+	template<int N0, int P0, int N1, int P1>
+	auto operator-(expr::symbols::i_<N0, P0>, expr::symbols::i_<N1, P1>)
 	{
-		std::swap(first.data, second.data);
-		std::swap(first.offsets, second.offsets);
-		std::swap(first.len, second.len);
-		std::swap(first.n, second.n);
+		return expr::symbols::i_op_type<N0, P0>{} - expr::symbols::i_op_type<N1, P1>{};
+	}
+
+	template<int N, int P, typename E>
+	auto operator*(expr::symbols::i_<N, P>, E const& e)
+	{
+		return expr::symbols::i_op_type<N, P>{} *e;
+	}
+
+	template<int N, int P, typename E>
+	auto operator*(E const& e, expr::symbols::i_<N, P>)
+	{
+		return e * expr::symbols::i_op_type<N, P>{};
+	}
+
+	template<int N0, int P0, int N1, int P1>
+	auto operator*(expr::symbols::i_<N0, P0>, expr::symbols::i_<N1, P1>)
+	{
+		return expr::symbols::i_op_type<N0, P0>{} *expr::symbols::i_op_type<N1, P1>{};
+	}
+
+	template<int N, int P, typename E>
+	auto operator/(expr::symbols::i_<N, P>, E const& e)
+	{
+		return expr::symbols::i_op_type<N, P>{} / e;
+	}
+
+	template<int N, int P, typename E>
+	auto operator/(E const& e, expr::symbols::i_<N, P>)
+	{
+		return e / expr::symbols::i_op_type<N, P>{};
+	}
+
+	template<int N0, int P0, int N1, int P1>
+	auto operator/(expr::symbols::i_<N0, P0>, expr::symbols::i_<N1, P1>)
+	{
+		return expr::symbols::i_op_type<N0, P0>{} / expr::symbols::i_op_type<N1, P1>{};
+	}
+
+	template<int N, int P>
+	auto operator*(expr::symbols::i_<N, P>, OpIdentity)
+	{
+		return expr::symbols::i_<N, P>{};
+	}
+
+	template<int N, int P>
+	auto operator*(OpIdentity, expr::symbols::i_<N, P>)
+	{
+		return expr::symbols::i_<N, P>{};
 	}
 
 
-	const auto& operator[](iter_type i) const
+	template<int N, int P>
+	auto operator+(expr::symbols::i_<N, P>, OpVoid)
 	{
-		return *data[i];
+		return expr::symbols::i_op_type<N, P>{};
 	}
 
-	template<size_t N>
-	const auto& operator()(DynamicIndex(&index)[N], iter_type i) const
+	template<int N, int P>
+	auto operator+(OpVoid, expr::symbols::i_<N, P>)
 	{
-		for (iter_type j = 0; j < n; ++j)
-		{
-			index[j] = offsets[i][j];
-		}
-		return *data[i];
+		return expr::symbols::i_op_type<N, P>{};
 	}
 
-	~SymbolicFunctionArray()
+	template<int N, int P>
+	auto operator-(expr::symbols::i_<N, P>, OpVoid)
 	{
-		if (data != nullptr)
-		{
-			for (iter_type i = 0; i < len; ++i)
-			{
-				delete data[i];
-			}
-			delete[] data;
-		}
+		return expr::symbols::i_op_type<N, P>{};
 	}
 
-	f_type** data;
-	iter_type** offsets;
-	len_type len;
-	len_type n;
+	template<int N, int P>
+	auto operator-(OpVoid, expr::symbols::i_<N, P>)
+	{
+		return expr::symbols::i_op_type<N, P>{};
+	}
+
+	template<int N, int P>
+	auto operator*(expr::symbols::i_<N, P>, OpVoid)
+	{
+		return OpVoid{};
+	}
+
+	template<int N, int P>
+	auto operator*(OpVoid, expr::symbols::i_<N, P>)
+	{
+		return OpVoid{};
+	}
+
+	template<int N, int P>
+	auto operator/(OpVoid, expr::symbols::i_<N, P>)
+	{
+		return OpVoid{};
+	}
 
 
-};
+	template<int N, int P>
+	auto operator+(expr::symbols::i_<N, P>, OpIdentity)
+	{
+		return expr::symbols::i_op_type<N, P + 1>{};
+	}
+
+	template<int N, int P>
+	auto operator+(expr::symbols::i_<N, P>, OpNegIdentity)
+	{
+		return expr::symbols::i_op_type<N, P - 1>{};
+	}
+
+	template<int N, int P, size_t N0>
+	auto operator+(expr::symbols::i_<N, P>, OpFractionLiteral<N0, 1>)
+	{
+		return expr::symbols::i_op_type<N, P + N0>{};
+	}
+
+	template<int N, int P, size_t N0>
+	auto operator+(expr::symbols::i_<N, P>, OpNegFractionLiteral<N0, 1>)
+	{
+		return expr::symbols::i_op_type<N, P - N0>{};
+	}
+
+	template<int N, int P>
+	auto operator-(expr::symbols::i_<N, P>, OpIdentity)
+	{
+		return expr::symbols::i_op_type<N, P>{} + OpNegIdentity{};
+	}
+
+	template<int N, int P>
+	auto operator-(expr::symbols::i_<N, P>, OpNegIdentity)
+	{
+		return expr::symbols::i_op_type<N, P>{} + OpIdentity{};
+	}
+
+	template<int N, int P, size_t N0>
+	auto operator-(expr::symbols::i_<N, P>, OpFractionLiteral<N0, 1>)
+	{
+		return expr::symbols::i_op_type<N, P>{} + OpNegFractionLiteral<N0, 1>{};
+	}
+
+	template<int N, int P, size_t N0>
+	auto operator-(expr::symbols::i_<N, P>, OpNegFractionLiteral<N0, 1>)
+	{
+		return expr::symbols::i_op_type<N, P>{} + OpFractionLiteral<N0, 1>{};
+	}
+
+	template<int N, int P>
+	auto operator+(OpIdentity, expr::symbols::i_<N, P>)
+	{
+		return expr::symbols::i_op_type<N, P + 1>{};
+	}
+
+	template<int N, int P>
+	auto operator+(OpNegIdentity, expr::symbols::i_<N, P>)
+	{
+		return expr::symbols::i_op_type<N, P - 1>{};
+	}
+
+	template<int N, int P, size_t N0>
+	auto operator+(OpFractionLiteral<N0, 1>, expr::symbols::i_<N, P>)
+	{
+		return expr::symbols::i_op_type<N, P + N0>{};
+	}
+
+	template<int N, int P, size_t N0>
+	auto operator+(OpNegFractionLiteral<N0, 1>, expr::symbols::i_<N, P>)
+	{
+		return expr::symbols::i_op_type<N, P - N0>{};
+	}
+
+	template<int N, int P>
+	auto operator-(OpIdentity, expr::symbols::i_<N, P>)
+	{
+		return expr::symbols::i_op_type<N, -P + 1>{};
+	}
+
+	template<int N, int P>
+	auto operator-(OpNegIdentity, expr::symbols::i_<N, P>)
+	{
+		return expr::symbols::i_op_type<N, -P - 1>{};
+	}
+
+	template<int N, int P, size_t N0>
+	auto operator-(OpFractionLiteral<N0, 1>, expr::symbols::i_<N, P>)
+	{
+		return expr::symbols::i_op_type<N, -P + N0>{};
+	}
+
+	template<int N, int P, size_t N0>
+	auto operator-(OpNegFractionLiteral<N0, 1>, expr::symbols::i_<N, P>)
+	{
+		return expr::symbols::i_op_type<N, -P - N0>{};
+	}
+}
+
+
 
 
 
@@ -965,10 +871,10 @@ namespace symphas::internal
 
 template<typename... Ts>
 struct SymbolicDataArray<std::tuple<Ts...>>
-	: SymbolicDataArray<SymbolicData<expr::storage_t<OpAdd<OpTerm<OpIdentity, Ts>...>>>>
+	: SymbolicDataArray<SymbolicData<expr::storage_type_t<OpAdd<OpTerm<OpIdentity, Ts>...>>>>
 {
 	using tuple_type = std::tuple<Ts...>;
-	using storage_type = expr::storage_t<OpAdd<OpTerm<OpIdentity, Ts>...>>;
+	using storage_type = expr::storage_type_t<OpAdd<OpTerm<OpIdentity, Ts>...>>;
 	using parent_type = SymbolicDataArray<SymbolicData<storage_type>>;
 
 	using parent_type::parent_type;
@@ -1063,10 +969,10 @@ struct SymbolicDataArray<std::tuple<Ts...>>
 
 template<typename... Ts>
 struct SymbolicDataArray<std::tuple<NamedData<Ts>...>>
-	: SymbolicDataArray<NamedData<SymbolicData<expr::storage_t<OpAdd<OpTerm<OpIdentity, Ts>...>>>>>
+	: SymbolicDataArray<NamedData<SymbolicData<expr::storage_type_t<OpAdd<OpTerm<OpIdentity, Ts>...>>>>>
 {
 	using tuple_type = std::tuple<Ts...>;
-	using storage_type = expr::storage_t<OpAdd<OpTerm<OpIdentity, Ts>...>>;
+	using storage_type = expr::storage_type_t<OpAdd<OpTerm<OpIdentity, Ts>...>>;
 	using parent_type = SymbolicDataArray<NamedData<SymbolicData<storage_type>>>;
 
 	using parent_type::parent_type;
@@ -1541,6 +1447,7 @@ namespace expr
 		return expr::eval(*value.data);
 	}
 }
+
 
 
  //! @}

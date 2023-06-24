@@ -2207,13 +2207,6 @@ namespace expr
 		size_t n = print_tensor(out, T(value), p_seq{}, n_seq{});
 		n += fprintf(out, "%s", expr);
 		return n;
-
-		//size_t len = coeff_print_length(value) + 1;
-		//char* buffer = new char[len];
-		//print_with_coeff(buffer, "", value);
-		//size_t n = fprintf(out, "%s%s", buffer, expr);
-		//delete[] buffer;
-		//return n;
 	}
 
 	template<typename... Ts>

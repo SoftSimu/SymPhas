@@ -36,6 +36,7 @@
 #include "expressionfunctions.h"
 #include "expressionconvolution.h"
 #include "expressionrules.h"
+#include "symbolicdata.h"
 //#include "expressionproperties.h"
 
 namespace expr
@@ -2921,6 +2922,16 @@ namespace expr::transform
 		}
 
 
+		template<typename V, typename... Gs, exp_key_t... Xs, size_t... Ns>
+		auto select_index(OpTerms<V, Term<Gs, Xs>...> const& e,
+			std::index_sequence<Ns...>, DynamicIndexSet g)
+		{
+			using namespace symphas::lib;
+
+			((expr::get<Ns + 1>(const_cast<OpTerms<V, Term<Gs, Xs>...>&>(e)).data().fix(g)), ...);
+			return e;
+		}
+
 		template<typename V, typename... Gs, exp_key_t... Xs, size_t... Is, bool... fs, typename G_F>
 		decltype(auto) swap_terms(OpTerms<V, Term<Gs, Xs>...> const& e, std::index_sequence<Is...>, std::integer_sequence<bool, fs...>, G_F&& g)
 		{
@@ -3688,6 +3699,9 @@ namespace expr::transform
 	template<typename Sg, typename T, typename I, size_t... Ns, typename G_F>
 	auto swap_grid(OpTensor<OpCoeff<T, I>, Ns...> const& coeff, G_F&& g);
 
+	template<typename Sg, typename G_F>
+	auto swap_grid(DynamicIndex const& data, G_F&& g);
+
 	namespace
 	{
 
@@ -3750,7 +3764,7 @@ namespace expr::transform
 				return expr::make_term(expr::terms_after_first(e));
 			}
 		}
-
+		
 		template<typename V, typename... Gs, exp_key_t... Xs, size_t... Is, bool... fs, typename G_F>
 		decltype(auto) swap_terms_case(OpTerms<V, Term<Gs, Xs>...> const& e, SymbolicCaseSwap<>,
 			std::index_sequence<Is...>, std::integer_sequence<bool, fs...>, G_F&& g)
@@ -3768,6 +3782,30 @@ namespace expr::transform
 			if constexpr (swap_seq_t::size() > 0)
 			{
 				return pick_terms(e, swap_seq_t{}, std::forward<G_F>(g));
+			}
+			else
+			{
+				return expr::make_term(expr::terms_after_first(e));
+			}
+		}
+
+		template<typename V, typename... Gs, exp_key_t... Xs, size_t... Is, bool... fs>
+		decltype(auto) swap_terms_case(OpTerms<V, Term<Gs, Xs>...> const& e, DynamicIndexSet,
+			std::index_sequence<Is...>, std::integer_sequence<bool, fs...>, DynamicIndexSet g)
+		{
+			using namespace symphas::lib;
+
+			using swap_seq_t = seq_join_t<
+				std::index_sequence<>,
+				std::conditional_t<
+					fs,
+					std::index_sequence<Is>,
+					std::index_sequence<>>...
+				>;
+
+			if constexpr (swap_seq_t::size() > 0)
+			{
+				return select_index(e, swap_seq_t{}, g);
 			}
 			else
 			{
@@ -3868,13 +3906,22 @@ namespace expr::transform
 		}
 	};
 
+	//template<typename Sg>
+	//struct swap_grid_terms_redirect<false, false, true, Sg>
+	//{
+	//	template<typename V, typename... Gs, exp_key_t... Xs, typename G_F>
+	//	auto operator()(OpTerms<V, Term<Gs, Xs>...> const& e, G_F&& g)
+	//	{
+	//		auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
+	//		return c * symphas::internal::fix_dynamic_indices(e, std::make_index_sequence<sizeof...(Gs)>{}, std::forward<G_F>(g));
+	//	}
+	//};
 
 	template<typename Sg, typename V, typename... Gs, exp_key_t... Xs, typename G_F>
 	auto swap_grid(OpTerms<V, Term<Gs, Xs>...> const& e, G_F&& g)
 	{
-		constexpr bool symbolic_case_flag = expr::factor_count<SymbolicCaseSwap<>, Sg>::value > 0;
+		constexpr bool symbolic_case_flag = expr::factor_count<SymbolicCaseSwap<>, Sg>::value > 0 || std::is_same<Sg, DynamicIndexSet>::value;
 		constexpr bool index_flag = expr::has_selected_index<Sg, OpTerms<V, Term<Gs, Xs>...>>;
-		//return e;
 		return swap_grid_terms_redirect<symbolic_case_flag, index_flag, Sg>{}(e, std::forward<G_F>(g));
 
 
@@ -3903,6 +3950,26 @@ namespace expr::transform
 		auto swap_grid_adds(OpAdd<Es...> const& e, G_F&& g, std::index_sequence<Is...>)
 		{
 			return (swap_grid<Sg>(expr::get<Is>(e), std::forward<G_F>(g)) + ... + OpVoid{});
+		}
+
+
+		template<typename Sg, typename G, typename G_F>
+		auto swap_grid_solver(SymbolicFunctionalDerivative<DynamicVariable<G>> const& solver, G_F&& g)
+		{
+			return SymbolicFunctionalDerivative<DynamicVariable<G>>(swap_grid<Sg>(solver.index, std::forward<G_F>(g)));
+		}
+
+
+		template<typename Sg, typename G, typename G_F>
+		auto swap_grid_solver(SymbolicDerivative<DynamicVariable<G>> const& solver, G_F&& g)
+		{
+			return SymbolicDerivative<DynamicVariable<G>>(swap_grid<Sg>(solver.index, std::forward<G>(g)));
+		}
+
+		template<typename Sg, typename S, typename G_F>
+		decltype(auto) swap_grid_solver(S const& solver, G_F&& g)
+		{
+			return solver;
 		}
 	}
 
@@ -3945,19 +4012,22 @@ namespace expr::transform
 	template<typename Sg, size_t O, typename V, typename Sp, typename G_F>
 	auto swap_grid(OpOperatorDerivative<O, V, Sp> const& e, G_F&& g)
 	{
-		return e;
+		auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
+		return c * expr::make_operator_derivative<O>(swap_grid_solver<Sg>(e.solver, std::forward<G_F>(g)));
 	}
 
 	template<typename Sg, Axis ax, size_t O, typename V, typename Sp, typename G_F>
 	auto swap_grid(OpOperatorDirectionalDerivative<ax, O, V, Sp> const& e, G_F&& g)
 	{
-		return e;
+		auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
+		return c * expr::make_operator_directional_derivative<ax, O>(swap_grid_solver<Sg>(e.solver, std::forward<G_F>(g)));
 	}
 
 	template<typename Sg, size_t... Os, typename V, typename Sp, typename G_F>
 	auto swap_grid(OpOperatorMixedDerivative<V, Sp, Os...> const& e, G_F&& g)
 	{
-		return e;
+		auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
+		return c * expr::make_operator_mixed_derivative<Os...>(swap_grid_solver<Sg>(e.solver, std::forward<G_F>(g)));
 	}
 
 	template<typename Sg, typename A1, typename A2, typename G_F>
@@ -3991,14 +4061,14 @@ namespace expr::transform
 		constexpr Axis axis = OpDerivative<Dd, V, E, Sp>::axis;
 		auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
 		return c * expr::make_derivative<Dd>(
-			swap_grid<Sg>(expr::get_enclosed_expression(e), std::forward<G_F>(g)), e.solver);
+			swap_grid<Sg>(expr::get_enclosed_expression(e), std::forward<G_F>(g)), swap_grid_solver<Sg>(e.solver, std::forward<G_F>(g)));
 	}
 
 	template<typename Sg, size_t O, typename V, typename E, typename GG, typename G_F>
 	auto swap_grid(OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<GG>> const& e, G_F&& g)
 	{
 		auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
-		return c * expr::make_derivative<O, GG>(swap_grid<Sg>(expr::get_enclosed_expression(e), std::forward<G_F>(g)), e.solver);
+		return c * expr::make_derivative<O, GG>(swap_grid<Sg>(expr::get_enclosed_expression(e), std::forward<G_F>(g)), swap_grid_solver<Sg>(e.solver, std::forward<G_F>(g)));
 	}
 
 	template<typename Sg, typename V, typename E, typename T, typename G_F>
@@ -4224,7 +4294,7 @@ namespace expr::transform
 	auto swap_grid(OpSymbolicEval<V, SymbolicListIndex<E0, K>, SymbolicFunction<E, Ts...>> const& e, G_F&& g)
 	{
 		auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
-		if constexpr (expr::factor_count<Sg, K>::value > 0)
+		if constexpr (expr::factor_count<Sg, K>::value > 0 || expr::factor_count<Sg, SymbolicListIndex<E0, K>>::value > 0)
 		{
 			auto substitution = swap_grid_symbolic<Sg>(e.data, std::forward<G_F>(g));
 			auto ev = symphas::internal::make_symbolic_eval(OpIdentity{}, substitution, e.f);
@@ -4334,6 +4404,18 @@ namespace expr::transform
 			return const_cast<OpCoeff<T, DynamicIndex>&>(coeff).fix();
 		}
 
+		template<typename T>
+		auto handle_coeff_swap(OpCoeff<T, DynamicIndex> const& coeff, DynamicIndexSet const& set)
+		{
+			return const_cast<OpCoeff<T, DynamicIndex>&>(coeff).fix(set);
+		}
+
+		template<typename T, typename I>
+		auto handle_coeff_swap(OpCoeff<T, I> const& coeff, DynamicIndexSet const& set)
+		{
+			return coeff;
+		}
+
 		//template<typename T, int N, size_t N0>
 		//auto handle_coeff_swap(OpCoeff<T, expr::symbols::i_<N, 0>> const& coeff, expr::symbols::placeholder_N_symbol_<N0> const&)
 		//{
@@ -4347,10 +4429,20 @@ namespace expr::transform
 		//}
 	}
 
+	template<typename Sg, typename G_F>
+	auto swap_grid(DynamicIndex const& data, G_F&& g)
+	{
+		if constexpr (std::is_same<Sg, DynamicIndexSet>::value)
+		{
+			const_cast<DynamicIndex&>(data).fix(std::forward<G_F>(g));
+		}
+		return data;
+	}
+
 	template<typename Sg, typename T, typename I, typename G_F>
 	auto swap_grid(OpCoeff<T, I> const& coeff, G_F&& g)
 	{
-		if constexpr (expr::factor_count<Sg, OpCoeff<T, I>>::value > 0)
+		if constexpr (expr::factor_count<Sg, OpCoeff<T, I>>::value > 0 || std::is_same<Sg, DynamicIndexSet>::value)
 		{
 			return handle_coeff_swap(coeff, std::forward<G_F>(g));
 		}
@@ -4363,9 +4455,9 @@ namespace expr::transform
 	template<typename Sg, typename T, typename I, size_t... Ns, typename G_F>
 	auto swap_grid(OpTensor<OpCoeff<T, I>, Ns...> const& coeff, G_F&& g)
 	{
-		if constexpr (expr::factor_count<Sg, OpCoeff<T, I>>::value > 0)
+		if constexpr (expr::factor_count<Sg, OpCoeff<T, I>>::value > 0 || std::is_same<Sg, DynamicIndexSet>::value)
 		{
-			return expr::make_tensor<Ns...>(handle_coeff_swap(coeff, std::forward<G_F>(g)));
+			return expr::make_tensor<Ns...>(handle_coeff_swap(static_cast<OpCoeff<T, I> const&>(coeff), std::forward<G_F>(g)));
 		}
 		else
 		{
@@ -4430,18 +4522,33 @@ namespace expr::transform
 		return swap_grid<Sgs...>(std::forward<E>(e), std::forward<G_F>(g));
 	}
 
+}
 
+namespace expr
+{
 
 	template<typename E>
-	auto fix_coeffs(OpExpression<E>& e)
+	auto fix_index(OpExpression<E>& e, DynamicIndexSet set)
 	{
-		swap_grid<OpCoeffSwap<DynamicIndex>>(*static_cast<E const*>(&e), OpCoeffSwap<DynamicIndex>{});
+		expr::transform::swap_grid<DynamicIndexSet>(*static_cast<E const*>(&e), set);
 	}
 
 	template<typename E>
-	auto fix_coeffs(OpOperator<E>& e)
+	auto fix_index(OpOperator<E>& e, DynamicIndexSet set)
 	{
-		swap_grid<OpCoeffSwap<DynamicIndex>>(*static_cast<E const*>(&e), OpCoeffSwap<DynamicIndex>{});
+		expr::transform::swap_grid<DynamicIndexSet>(*static_cast<E const*>(&e), set);
+	}
+
+	template<typename E>
+	auto fix_coeff(OpExpression<E>& e)
+	{
+		expr::transform::swap_grid<OpCoeffSwap<DynamicIndex>>(*static_cast<E const*>(&e));
+	}
+
+	template<typename E>
+	auto fix_coeff(OpOperator<E>& e)
+	{
+		expr::transform::swap_grid<OpCoeffSwap<DynamicIndex>>(*static_cast<E const*>(&e));
 	}
 }
 

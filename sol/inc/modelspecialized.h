@@ -412,11 +412,11 @@ struct ModelApplied<D, Sp>::ArrayType<S, Ts...>::Specialized : eq_type
 
     using this_type = typename ModelApplied<D, Sp>::template ArrayType<S, Ts...>::template Specialized<Eq, eq_type>;
 
-	using eqs = std::tuple_element_t<0, typename std::invoke_result_t<decltype(&parent_type::make_equations), parent_type>>;
+	using eqs = std::invoke_result_t<decltype(&parent_type::make_equations), parent_type>;
 	eqs equations;
 
 	Specialized(double const* coeff, size_t num_coeff, symphas::problem_parameters_type const& parameters) :
-		parent_type(coeff, num_coeff, parameters), equations{ std::get<0>(parent_type::make_equations()) } {}
+		parent_type(coeff, num_coeff, parameters), equations{ parent_type::make_equations() } {}
 	Specialized(symphas::problem_parameters_type const& parameters) : Specialized(nullptr, 0, parameters) {}
 
     /*
@@ -435,12 +435,14 @@ struct ModelApplied<D, Sp>::ArrayType<S, Ts...>::Specialized : eq_type
 
 	void equation()
 	{
-		for (iter_type i = 0; i < M::len; ++i)
+#		pragma omp parallel for
+		for (iter_type i = 0; i < parent_type::len; ++i)
 		{
-			eq_type::index = i;
-			M::solver.equation(equations);
+			M::solver.equation(equations[i]);
 		}
 	}
+
+	~Specialized() { parent_type::delete_equations(equations); }
 
 protected:
 
@@ -883,11 +885,11 @@ namespace symphas::internal
 	template<typename E0, typename F, typename... S>
 	auto substitute_for_dynamics(
 		symphas::lib::types_list<>,
-		OpExpression<E0> const& dyn0,
-		OpExpression<F> const& fe,
+		E0 const& dyn0,
+		F const& fe,
 		std::tuple<S...> const& ops)
 	{
-		return *static_cast<E0 const*>(&dyn0);
+		return dyn0;
 	}
 
 	template<size_t N, size_t... Ns, typename E0, typename F, typename... S>
@@ -895,51 +897,52 @@ namespace symphas::internal
 		symphas::lib::types_list<
 			Variable<N, expr::symbols::diff_F_symbol>,
 			Variable<Ns, expr::symbols::diff_F_symbol>...>,
-		OpExpression<E0> const& dyn0,
-		OpExpression<F> const& fe,
+		E0 const& dyn0,
+		F const& fe,
 		std::tuple<S...> const& ops)
 	{
 		return expr::transform::swap_grid<Variable<N, expr::symbols::diff_F_symbol>, Variable<Ns, expr::symbols::diff_F_symbol>...>
-			(*static_cast<E0 const*>(&dyn0), 
-				expr::make_functional_derivative(*static_cast<F const*>(&fe), std::get<0>(ops)),
-				expr::make_functional_derivative(*static_cast<F const*>(&fe), std::get<symphas::lib::index_of_value<size_t, Ns, Ns...> + 1>(ops))...);
+			(dyn0,
+				expr::make_functional_derivative(fe, std::get<0>(ops)),
+				expr::make_functional_derivative(fe, std::get<symphas::lib::index_of_value<size_t, Ns, Ns...> + 1>(ops))...);
 	}
 	
 	template<size_t NN, typename E0>
 	auto substitute_for_dynamics(
 		symphas::lib::types_list<>,
-		OpExpression<E0> const& dyn0)
+		E0 const& dyn0)
 	{
-		return *static_cast<E0 const*>(&dyn0);
+		return dyn0;
 	}
+
 
 	template<size_t NN, int N, int... Ps, typename E0>
 	auto substitute_for_dynamics(
 		symphas::lib::types_list<expr::symbols::diff_F_i_symbol<expr::symbols::i_<N, Ps>>...>,
-		OpExpression<E0> const& dyn0)
+		E0 const& dyn0)
 	{
 		return expr::transform::swap_grid<expr::symbols::diff_F_i_symbol<expr::symbols::i_<N, Ps>>...>
-			(*static_cast<E0 const*>(&dyn0), expr::make_term<NN + size_t(Ps)>(expr::symbols::diff_F_symbol{})...);
+			(dyn0, expr::make_term<NN + size_t(Ps)>(expr::symbols::diff_F_symbol{})...);
 	}
 
 	template<size_t N, int N0, int... Q0s, int... P0s, typename E0, typename model_t>
 	auto substitute_ops(
 		symphas::lib::types_list<expr::symbols::i_<N0, Q0s>...>,
 		symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<N0, P0s>>...>,
-		OpExpression<E0> const& eq,
+		E0 const& eq,
 		model_t const& model)
 	{
 		if constexpr (model_num_parameters<model_t>::value > 0)
 		{
 			auto e0 = expr::transform::swap_grid<OpCoeffSwap<expr::symbols::i_<N0, Q0s>>...>
-				(*static_cast<E0 const*>(&eq), val<size_t(Q0s) + 1>...);
+				(eq, val<size_t(Q0s) + 1>...);
 			return expr::transform::swap_grid<expr::symbols::i_<N0, Q0s>..., expr::symbols::v_id_type<expr::symbols::i_<N0, P0s>>...>
 				(e0, expr::val<size_t(Q0s) + 1>..., model.template op<N + size_t(P0s)>()...);
 		}
 		else
 		{
 			auto e0 = expr::transform::swap_grid<OpCoeffSwap<expr::symbols::i_<N0, Q0s>>...>
-				(*static_cast<E0 const*>(&eq), model.index);
+				(eq, model.index);
 			return expr::transform::swap_grid<expr::symbols::i_<N0, Q0s>..., expr::symbols::v_id_type<expr::symbols::i_<N0, P0s>>...>
 				(e0, model.index + expr::val<size_t(Q0s) + 1>..., model.template op<N + size_t(P0s)>()...);
 		}
@@ -949,20 +952,19 @@ namespace symphas::internal
 	auto substitute_ops(
 		symphas::lib::types_list<>,
 		symphas::lib::types_list<>,
-		OpExpression<E0> const& eq,
+		E0 const& eq,
 		model_t const& model)
 	{
-		return (*static_cast<E0 const*>(&eq));
+		return eq;
 	}
 
 	template<size_t N, typename I0, typename model_t, typename E0>
-	auto substitute_ops(model_t const& model, OpExpression<E0> const& with_fes)
+	auto substitute_ops(model_t const& model, E0 const& with_fes)
 	{
 		using v_types = select_v_i_<I0, expr::op_types_t<E0>>;
 		using i_types = select_all_i_<I0, expr::op_types_t<OpAdd<E0, OpTerm<OpIdentity, I0>>>>;
-		return substitute_ops<N>(i_types{}, v_types{}, *static_cast<E0 const*>(&with_fes), model);
+		return substitute_ops<N>(i_types{}, v_types{}, with_fes, model);
 	}
-
 
 	template<typename model_t, size_t N, size_t... Ns>
 	auto all_ops(model_t const& model, symphas::lib::types_list<
@@ -1453,20 +1455,50 @@ struct TraitEquation<enclosing_type, symphas::internal::MakeEquation<ArrayModel<
 				solver));
 	}
 
-	template<typename... As>
-	auto make_equations(As&& ...as) const
+	template<typename Dd, typename Ee>
+	auto make_equations(std::pair<Dd, Ee> const& a) const
 	{
-		//return _make_equations(update_placeholders(std::forward<As>(as))...);
-		return _make_equations(std::forward<As>(as)...);
+		using this_type = TraitEquation<enclosing_type, symphas::internal::MakeEquation<ArrayModel<D, Sp, S, Ts...>>>;
+		using scheme_type = std::invoke_result_t<decltype(&this_type::_make_equations<std::pair<Dd, Ee>>), this_type, std::pair<Dd, Ee>>;
+
+		auto [d, e] = a;
+		auto e2(e);
+		auto d2(d);
+		expr::printe(e, "given equation");
+
+		void* ptr = operator new[](parent_trait::len * sizeof(scheme_type));
+		scheme_type* eqns = static_cast<scheme_type*>(ptr);
+
+		for (iter_type i = 0; i < parent_trait::len; ++i)
+		{
+			//const_cast<DynamicIndex&>(index) = i;
+			expr::fix_index(e, index == i);
+			expr::fix_index(d, index == i);
+			new(&eqns[i]) scheme_type(_make_equations(std::make_pair(d, e)));
+
+			e = e2;
+			d = d2;
+		}
+		return eqns;
 	}
+
 
 protected:
 
-	template<typename... As>
-	auto _make_equations(As const& ...as) const
+	template<typename scheme_type>
+	void delete_equations(scheme_type* eqns)
 	{
-		((..., expr::printe(as.second, "given equation")));
-		return solver.template form_expr_all<model_num_parameters<parent_trait>::value>(parent_trait::systems_tuple(), as...);
+		for (int i = parent_trait::len - 1; i >= 0; --i)
+		{
+			eqns[i].~scheme_type();
+		}
+		operator delete[](eqns);
+	}
+
+	template<typename A>
+	auto _make_equations(A const& a) const
+	{
+		return solver.template form_expr_one<model_num_parameters<parent_trait>::value>(parent_trait::systems_tuple(), a);
 	}
 
 	template<size_t I = 0>

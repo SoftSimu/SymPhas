@@ -1658,6 +1658,12 @@ struct expr::factor_count<OpCoeffSwap<expr::symbols::i_<N, P>>, OpCoeff<T, expr:
 	static const size_t value = 1;
 };
 
+template<typename T, size_t N>
+struct expr::factor_count<expr::symbols::placeholder_N_symbol_<N>, OpCoeff<T, expr::symbols::placeholder_N_symbol_<N>>>
+{
+	static const size_t value = 1;
+};
+
 //
 //template<typename T, typename I>
 //struct expr::factor_count<I, OpCoeff<T, I>>
@@ -1758,6 +1764,27 @@ struct expr::factor_count<Variable<Y>, Variable<Z, VectorComponent<ax1, F>>>
 //! Specialization based on expr::factor_count;
 template<size_t Y, size_t Z, Axis ax0, typename G, typename F>
 struct expr::factor_count<Variable<Y, VectorComponent<ax0, G>>, Variable<Z, F>>
+{
+	static const size_t value = 0;
+};
+
+//! Specialization based on expr::factor_count;
+template<typename G>
+struct expr::factor_count<DynamicIndexSet, DynamicVariable<G>>
+{
+	static const size_t value = 1;
+};
+
+//! Specialization based on expr::factor_count;
+template<typename E, typename K>
+struct expr::factor_count<DynamicIndexSet, SymbolicListIndex<E, K>>
+{
+	static const size_t value = 1;
+};
+
+//! Specialization based on expr::factor_count;
+template<typename K>
+struct expr::factor_count<DynamicIndexSet, SymbolicListIndex<void, K>>
 {
 	static const size_t value = 0;
 };
