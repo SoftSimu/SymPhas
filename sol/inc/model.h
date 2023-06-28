@@ -70,7 +70,7 @@ protected:
 
 	Model()
 		: _s{ construct_systems({}, {}, {}, 0) }, solver{ Sp::make_solver() }, coeff{ nullptr }, num_coeff{ 0 }, 
-		index{ params::start_index }, time{ 0 }
+		index{ params::start_index }, time{ 0 }, plot_type{ symphas::ModelModifiers::PLOT_DEFAULT }
 #ifdef VTK_ON
 		, viz_update{ nullptr }
 #endif 
@@ -102,7 +102,7 @@ public:
 	Model(double const* coeff, size_t num_coeff, symphas::problem_parameters_type const& parameters) :
 		_s{ construct_systems(parameters.get_initial_data(), parameters.get_interval_data(), parameters.get_boundary_data(), parameters.length()) },
 		solver{ Sp::make_solver(get_updated_parameters(parameters)) }, coeff{ (num_coeff > 0) ? new double[num_coeff] : nullptr },
-		num_coeff{ num_coeff }, index{ parameters.index }, time{ parameters.time }
+		num_coeff{ num_coeff }, index{ parameters.index }, time{ parameters.time }, plot_type{ parameters.get_modifier() }
 #ifdef VTK_ON
 		, viz_update{ nullptr }
 #endif
@@ -123,7 +123,7 @@ public:
 
 	Model(Model<D, Sp, S...> const& other) : 
 		_s{ other._s }, solver{ other.solver }, coeff{ (other.num_coeff > 0) ? new double[other.num_coeff] : nullptr }, 
-		num_coeff{ other.num_coeff }, index{ other.index }, time{ other.time }
+		num_coeff{ other.num_coeff }, index{ other.index }, time{ other.time }, plot_type{ other.plot_type }
 #ifdef VTK_ON
 		, viz_update{ nullptr }
 #endif
@@ -587,6 +587,8 @@ protected:
 
 	//! The current simulation time.
 	double time;
+
+	symphas::ModelModifiers plot_type;
 
 #ifdef VTK_ON
 

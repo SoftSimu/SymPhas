@@ -557,7 +557,8 @@ namespace symphas
 	{
 		PLOT_DEFAULT,
 		PLOT_MAX,
-		PLOT_MIN
+		PLOT_MIN,
+		PLOT_CONTOURS
 	};
 
     //! Representation of the problem parameters for a phase field model.
