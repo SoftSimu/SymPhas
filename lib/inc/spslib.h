@@ -2472,13 +2472,26 @@ namespace symphas::lib
 		template<size_t I>
 		bool check_one_same(zip_iterator<Ts...> const& b) const
 		{
-			return std::get<I>(data) + n == std::get<I>(b.data) + b.n;
+			if (n == b.n)
+			{
+				return std::get<I>(data) == std::get<I>(b.data);
+			}
+			else
+			{
+				return std::get<I>(b.data) - std::get<I>(data) == b.n - n;
+			}
 		}
 
 		template<size_t... Is>
 		decltype(auto) get_data(std::index_sequence<Is...>) const
 		{
-			return std::make_tuple(*(std::get<Is>(data) + n)...);
+			return std::tie(std::get<Is>(data)[n]...);
+		}
+
+		template<size_t... Is>
+		decltype(auto) get_data(std::index_sequence<Is...>)
+		{
+			return std::tie(std::get<Is>(data)[n]...);
 		}
 		
 	protected:
@@ -2492,6 +2505,7 @@ namespace symphas::lib
 	public:
 		
 		std::tuple<std::invoke_result_t<decltype(&zip_iterator<Ts...>::begin<Ts>), Ts>...> data;
+		//std::tuple<std::invoke_result_t<decltype(&zip_iterator<Ts...>::begin<Ts>), Ts>...> ends;
 		iter_type n;
 
 	};
@@ -2502,8 +2516,20 @@ namespace symphas::lib
 	{
 
 		zip_container(T0 const& t0, Ts const&... ts) :
-			iter{ t0, ts... }, len{ static_cast<len_type>(std::end(t0) - std::begin(t0) + 1) } {}
+			iter{ t0, ts... }, len{ static_cast<len_type>(std::end(t0) - std::begin(t0)) } {}
 
+
+		auto begin()
+		{
+			return iter;
+		}
+
+		auto end()
+		{
+			zip_iterator end(iter);
+			end.n = len;
+			return end;
+		}
 
 		auto begin() const
 		{
@@ -2532,6 +2558,17 @@ namespace symphas::lib
 		{
 		}
 
+		auto begin()
+		{
+			return iter;
+		}
+
+		auto end()
+		{
+			zip_iterator end(iter);
+			end.n = len;
+			return end;
+		}
 
 		auto begin() const
 		{
@@ -2551,13 +2588,13 @@ namespace symphas::lib
 
 	protected:
 
-		auto get_iter()
+		auto get_iter() const
 		{
 			return get_iter(std::make_index_sequence<1 + sizeof...(Ts)>{});
 		}
 		
 		template<size_t... Is>
-		auto get_iter(std::index_sequence<Is...>)
+		auto get_iter(std::index_sequence<Is...>) const
 		{
 			return zip_iterator(std::get<Is>(data)...);
 		}
