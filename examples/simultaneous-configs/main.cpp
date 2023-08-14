@@ -16,15 +16,6 @@ MODEL(EX, (SCALAR),
 //LINK_WITH_NAME(MA, MODELA)
 #endif
 
-#ifdef UNIT_TEST
-
-#include "testnextsavedefines.h"
-#include "testcell.h"
-#include "testdimension.h"
-#include "testexpression.h"
-
-#endif
-
 
 int main(int argc, char* argv[])
 {
@@ -80,7 +71,6 @@ int main(int argc, char* argv[])
 
 #	else
 
-	
 	Time t("entire simulation");
 
 	if (argc == 1)
@@ -90,11 +80,10 @@ int main(int argc, char* argv[])
 	}
 	symphas::init(argv[1], argv + 2, argc - 2);
 
-
 #	ifdef USING_CONF
 	simulate::initiate(symphas::conf::config().get_model_name(), symphas::conf::config().get_coeff_list(), symphas::conf::config().coeff_count());
 #	else
-	//simulate::initiate("MODELA", nullptr, 0);
+	simulate::initiate("MODELA", nullptr, 0);
 #	endif
 #	endif
 
