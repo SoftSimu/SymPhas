@@ -22,7 +22,7 @@ int  main(int argc , char* argv [])
 	symphas::init_data_type tdata{ Inside::UNIFORM, { -1, 1 } };
 	symphas::interval_data_type vdata;
 	symphas::interval_element_type interval;
-	interval.set_count(0, 128, 128);
+	interval.set_count(128);
 
 	bdata[Side::LEFT] = BoundaryType::PERIODIC;
 	bdata[Side::RIGHT] = BoundaryType::PERIODIC;
