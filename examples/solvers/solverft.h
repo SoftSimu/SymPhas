@@ -50,7 +50,7 @@ NEW_SOLVER_WITH_STENCIL(SolverFT)
 	template<typename S>
 	void step(S &sys) const
 	{
- 		expr::result_interior(expr::make_term(sys.as_grid()) + expr::make_term(dt, sys.dframe), sys);
+		expr::result(expr::make_term(sys.as_grid()) + expr::make_term(dt, sys.dframe), sys.as_grid(), expr::iterable_domain(sys.as_grid()));
 	}
 
 
@@ -62,9 +62,9 @@ NEW_SOLVER_WITH_STENCIL(SolverFT)
 	template<typename S, typename E>
 	inline void equation(std::pair<S, E>& r) const
 	{
-		auto& [sys, equation] = r;
-		expr::prune::update(equation);
-		expr::result_interior(equation, sys.get().dframe);
+		TIME_THIS_CONTEXT_LIFETIME(solverft_equation);
+		expr::prune::update<expr::not_<expr::matches_series>>(r.second);
+		expr::result_by_term<expr::matches_series, expr::matches_integral>(r.second, r.first.get().dframe);
 	}
 
 	/*
@@ -79,6 +79,7 @@ NEW_SOLVER_WITH_STENCIL(SolverFT)
 	{
 		auto [sys, equation] = e;
 		auto eq_ft = expr::apply_operators(equation);
+		expr::prune::update(eq_ft);
 		expr::printe(eq_ft, "scheme");
 		return std::make_pair(sys, eq_ft);
 	}
@@ -116,7 +117,7 @@ NEW_SOLVER_WITH_STENCIL(SolverFT)
 			for (iter_type i = 0; i < dim; ++i)
 			{
 				Axis side = symphas::index_to_axis(i);
-				dims[i] = parameters.get_interval_data()[0].at(side).get_count() + 2 * THICKNESS;
+				dims[i] = parameters.get_interval_data()[0].at(side).get_count() + 2 * BOUNDARY_DEPTH;
 			}
 
 			auto s = this_type{ dims, h };
@@ -145,7 +146,7 @@ NEW_SOLVER_WITH_STENCIL(SolverFT)
 			expr::prune::update(equation);
 		}
 
-		expr::result_interior(equation, expr::BaseData<G>::get(grid));
+		expr::result(equation, expr::BaseData<G>::get(grid));
 	}
 
 	template<typename G, typename E>
@@ -157,13 +158,14 @@ NEW_SOLVER_WITH_STENCIL(SolverFT)
 			expr::prune::update(equation);
 		}
 
-		expr::result_interior(equation, expr::BaseData<G>::get(grid));
+		expr::result(equation, expr::BaseData<G>::get(grid));
 	}
 
 };
 
 
-ASSOCIATE_SOLVER_SYSTEM_TYPE(SolverFT, SolverSystemFD)
+ASSOCIATE_SELECTABLE_SOLVER_SYSTEM_TYPE(SolverFT, SolverSystemFD)
+ASSOCIATE_SELECTABLE_SOLVER_SYSTEM_TYPE(SolverFT, SolverSystemFDwSD)
 ASSOCIATE_PROVISIONAL_SYSTEM_TYPE(SolverFT, ProvisionalSystemFD)
 SYMPHAS_SOLVER_ALL_SUPPORTED(SolverFT)
 
