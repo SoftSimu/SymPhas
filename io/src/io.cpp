@@ -82,7 +82,8 @@ DLLIO bool params::single_output_file = true;
 DLLIO bool params::single_input_file = true;
 DLLIO char* params::checkpoint = nullptr;
 DLLIO int params::checkpoint_count = 10;
-
+DLLIO bool* params::single_io_file[2] { &params::single_input_file, &params::single_output_file };
+DLLIO WriterType* params::io_type[2] { &params::reader, &params::writer };
 
 bool add_io_params(param_map_type& param_map)
 {
@@ -102,14 +103,12 @@ bool add_io_params(param_map_type& param_map)
 	param_map["checkpoint"] = std::make_pair(&checkpoint, new param_assign<char*>);
 	param_map["checkpoint-count"] = std::make_pair(&checkpoint_count, new param_assign<int>);
 
-	using param_io_file_arr = bool*[2];
-	param_map["single_io_file"] = std::make_pair(
-		param_io_file_arr{ &single_input_file, &single_output_file },
+	param_map["single-io-file"] = std::make_pair(
+		params::single_io_file,
 		new param_assign_multiple<bool, 2>);
 
-	using param_io_arr = WriterType*[2];
-	param_map["io_type"] = std::make_pair(
-		param_io_arr{ &reader, &writer },
+	param_map["io-type"] = std::make_pair(
+		params::io_type,
 		new param_assign_multiple<WriterType, 2>);
 
 

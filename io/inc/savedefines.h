@@ -55,21 +55,7 @@
 
 namespace symphas::io
 {
-
-	void write_data_entry(FILE* out, int data);
-	void write_data_entry(FILE* out, scalar_t data);
-	void write_data_entry(FILE* out, complex_t data);
-	template<typename T, size_t N>
-	void write_data_entry(FILE* out, T(&data)[N]);
-	void write_data_entry(FILE* out, axis_2d_type data);
-	void write_data_entry(FILE* out, axis_3d_type data);
-
-	template<typename... Ts, size_t... Is>
-	void write_data_entry(FILE* out, std::tuple<Ts...> const& data, std::index_sequence<Is...>);
-	template<typename... Ts>
-	void write_data_entry(FILE* out, std::tuple<Ts...> const& data);
-
-
+	
 	//! Default method for saving a list of points to a file.
 	/*!
 	 * Save a list of points to a file.

@@ -70,9 +70,8 @@ target_compile_definitions(symphas_io_o PUBLIC USING_IO PRIVATE IO_EXPORTS ${XDR
 
 if(USE_LATEX_FORMAT)
 	target_compile_definitions(symphas_io_o PUBLIC LATEX_PLOT)
-else()
-	message(STATUS "not using LaTeX formats")
 endif()
+message(STATUS "LaTeX formats is ${USE_LATEX_FORMAT}")
 
 add_library(symphas_io SHARED)
 target_link_libraries(symphas_io PUBLIC symphas_io_o)

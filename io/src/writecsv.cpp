@@ -185,10 +185,10 @@ void symphas::io::csv::save_grid_plotting(const vector_t<3>* grid, symphas::io::
 					dz = v.v[2] / m;
 
 				fprintf(f,
-					"\"%." DATA_OUTPUT_ACCURACY_STR "f "
-					"%." DATA_OUTPUT_ACCURACY_STR "f "
-					"%." DATA_OUTPUT_ACCURACY_STR "f "
-					"%." DATA_OUTPUT_ACCURACY_STR "f\"",
+					"\"%" DATA_OUTPUT_ACCURACY_STR "f "
+					"%" DATA_OUTPUT_ACCURACY_STR "f "
+					"%" DATA_OUTPUT_ACCURACY_STR "f "
+					"%" DATA_OUTPUT_ACCURACY_STR "f\"",
 					dx, dy, dz, m);
 					
 				if (i < L - 1)
@@ -224,9 +224,9 @@ void symphas::io::csv::save_grid_plotting(const vector_t<2>* grid, symphas::io::
 					dy = v.v[1] / m;
 
 				fprintf(f,
-					"\"%." DATA_OUTPUT_ACCURACY_STR "f "
-					"%." DATA_OUTPUT_ACCURACY_STR "f "
-					"%." DATA_OUTPUT_ACCURACY_STR "f\"",
+					"\"%" DATA_OUTPUT_ACCURACY_STR "f "
+					"%" DATA_OUTPUT_ACCURACY_STR "f "
+					"%" DATA_OUTPUT_ACCURACY_STR "f\"",
 					dx, dy, m);
 
 				if (i < L - 1)
@@ -260,7 +260,7 @@ void symphas::io::csv::save_grid_plotting(const vector_t<1>* grid, symphas::io::
 				vector_t<1> v = grid[ii];
 
 				fprintf(f,
-					"\"%." DATA_OUTPUT_ACCURACY_STR "f\"",
+					"\"%" DATA_OUTPUT_ACCURACY_STR "f\"",
 					v.v[0]);
 
 				if (i < L - 1)
@@ -298,10 +298,10 @@ void symphas::io::csv::save_grid_plotting(const scalar_ptr_t(&grid)[3], symphas:
 					dz = grid[2][ii] / m;
 
 				fprintf(f,
-					"\"%." DATA_OUTPUT_ACCURACY_STR "f "
-					"%." DATA_OUTPUT_ACCURACY_STR "f "
-					"%." DATA_OUTPUT_ACCURACY_STR "f "
-					"%." DATA_OUTPUT_ACCURACY_STR "f\"",
+					"\"%" DATA_OUTPUT_ACCURACY_STR "f "
+					"%" DATA_OUTPUT_ACCURACY_STR "f "
+					"%" DATA_OUTPUT_ACCURACY_STR "f "
+					"%" DATA_OUTPUT_ACCURACY_STR "f\"",
 					dx, dy, dz, m);
 
 				if (i < L - 1)
@@ -336,9 +336,9 @@ void symphas::io::csv::save_grid_plotting(const scalar_ptr_t(&grid)[2], symphas:
 					dy = grid[1][ii] / m;
 
 				fprintf(f,
-					"\"%." DATA_OUTPUT_ACCURACY_STR "f "
-					"%." DATA_OUTPUT_ACCURACY_STR "f "
-					"%." DATA_OUTPUT_ACCURACY_STR "f\"",
+					"\"%" DATA_OUTPUT_ACCURACY_STR "f "
+					"%" DATA_OUTPUT_ACCURACY_STR "f "
+					"%" DATA_OUTPUT_ACCURACY_STR "f\"",
 					dx, dy, m);
 
 				if (i < L - 1)
@@ -371,7 +371,7 @@ void symphas::io::csv::save_grid_plotting(const scalar_ptr_t(&grid)[1], symphas:
 
 
 				fprintf(f,
-					"\"%." DATA_OUTPUT_ACCURACY_STR "f\"",
+					"\"%" DATA_OUTPUT_ACCURACY_STR "f\"",
 					grid[0][ii]);
 
 				if (i < L - 1)

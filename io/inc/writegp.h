@@ -152,7 +152,6 @@ SINGLE_ALIGN_V_MARGIN / 2 + (COLORBOX_BOTTOM_PADDING / MULTI_HEIGHT_RATIO(1)), \
 
 // ****************************************************************************
 
-
 //! \endcond
 
 namespace symphas::io
@@ -167,6 +166,7 @@ namespace symphas::io
 
 namespace symphas::io::gp
 {
+
 	namespace alignment
 	{
 
@@ -377,10 +377,10 @@ R"~(
 	void print_plot_ranges(FILE* gnu, symphas::interval_data_type const& intervals)
 	{
 		fprintf(gnu, gnuset,
-			INTERVAL_X0, INTERVAL_Xn,
-			INTERVAL_Y0, INTERVAL_Yn,
-			INTERVAL_X0, INTERVAL_Xn - INTERVAL_X0, INTERVAL_Xn,
-			INTERVAL_Y0, INTERVAL_Yn - INTERVAL_Y0, INTERVAL_Yn
+			DOMAIN_X0, DOMAIN_Xn,
+			DOMAIN_Y0, DOMAIN_Yn,
+			DOMAIN_X0, DOMAIN_Xn - DOMAIN_X0, DOMAIN_Xn,
+			DOMAIN_Y0, DOMAIN_Yn - DOMAIN_Y0, DOMAIN_Yn
 		);
 	}
 
@@ -389,8 +389,8 @@ R"~(
 	inline void print_plot_ranges<1>(FILE* gnu, symphas::interval_data_type const& intervals)
 	{
 		fprintf(gnu, gnuset_1,
-			INTERVAL_X0, INTERVAL_Xn - INTERVAL_Xh,
-			INTERVAL_X0, INTERVAL_Xn - INTERVAL_X0, INTERVAL_Xn - INTERVAL_Xh
+			DOMAIN_X0, DOMAIN_Xn - INTERVAL_Xh,
+			DOMAIN_X0, DOMAIN_Xn - DOMAIN_X0, DOMAIN_Xn - INTERVAL_Xh
 		);
 	}
 
@@ -491,11 +491,24 @@ R"~(
 	}
 	//! Get the string corresponding to the gnuplot input format for the data.
 	template<size_t D, typename... S>
-	void get_plot_fmt(const char* (*gnu_set))
+	void get_plot_fmt(const char* (*gnu_set), symphas::lib::types_list<symphas::internal::field_array_t<void>, S...>)
 	{
 		get_plot_fmt<D, symphas::internal::non_parameterized_type<S>...>(gnu_set, std::make_index_sequence<sizeof...(S)>{});
 	}
 
+	//! Get the string corresponding to the gnuplot input format for the data.
+	template<size_t D, typename S0, typename... S>
+	void get_plot_fmt(const char* (*gnu_set), symphas::lib::types_list<S0, S...>)
+	{
+		get_plot_fmt<D, symphas::internal::non_parameterized_type<S0>, symphas::internal::non_parameterized_type<S>...>(gnu_set, std::make_index_sequence<sizeof...(S)>{});
+	}
+
+	//! Get the string corresponding to the gnuplot input format for the data.
+	template<size_t D, typename... S>
+	void get_plot_fmt(const char* (*gnu_set))
+	{
+		get_plot_fmt<D>(gnu_set, symphas::lib::types_list<S...>{});
+	}
 
 
 
@@ -512,15 +525,15 @@ R"~(
 
 
 	template<size_t N, size_t D, typename Sp, typename S0, typename... S>
-	size_t get_system_offset(symphas::internal::field_array_t<S0>, Model<D, Sp, S...> const& model)
-	{
-		return model.len - (sizeof...(S) - (1 + N));
-	}
-
-	template<size_t N, size_t D, typename Sp, typename S0, typename... S>
 	size_t get_system_offset(S0, Model<D, Sp, S...> const& model)
 	{
 		return 1;
+	}
+
+	template<size_t N, size_t D, typename Sp, typename S0, typename... S>
+	size_t get_system_offset(symphas::internal::field_array_t<S0>, Model<D, Sp, S...> const& model)
+	{
+		return model.template num_fields<N>();
 	}
 
 	template<size_t D, typename Sp, typename... S, size_t... Is>
@@ -539,6 +552,38 @@ R"~(
 
 	template<size_t D, typename Sp, typename... S>
 	size_t get_system_id(size_t index, Model<D, Sp, S...> const& model)
+	{
+		return get_system_id(index, model, std::make_index_sequence<sizeof...(S)>{});
+	}
+
+	template<size_t N, size_t D, typename Sp, typename S0, typename... S>
+	size_t get_system_offset(S0, ArrayModel<D, Sp, S...> const& model)
+	{
+		return 1;
+	}
+
+	template<size_t N, size_t D, typename Sp, typename S0, typename... S>
+	size_t get_system_offset(symphas::internal::field_array_t<S0>, ArrayModel<D, Sp, S...> const& model)
+	{
+		return model.template num_fields<N>();
+	}
+
+	template<size_t D, typename Sp, typename... S, size_t... Is>
+	size_t get_system_id(size_t index, ArrayModel<D, Sp, S...> const& model, std::index_sequence<Is...>)
+	{
+		size_t offsets[sizeof...(Is)];
+		((offsets[Is] = get_system_offset<Is>(S{}, model)), ...);
+
+		size_t id = 0;
+		for (size_t i = 0; i < index; ++i)
+		{
+			id += offsets[i];
+		}
+		return id;
+	}
+
+	template<size_t D, typename Sp, typename... S>
+	size_t get_system_id(size_t index, ArrayModel<D, Sp, S...> const& model)
 	{
 		return get_system_id(index, model, std::make_index_sequence<sizeof...(S)>{});
 	}
@@ -696,6 +741,14 @@ R"~(
 	template<>
 	inline void finalize_plot_arrangement<1>(char*) {}
 
+	template<typename M>
+	constexpr size_t model_type_len = 0;
+
+	template<size_t D, typename Sp, typename... S>
+	constexpr size_t model_type_len<Model<D, Sp, S...>> = sizeof...(S);
+
+	template<size_t D, typename Sp, typename... S>
+	constexpr size_t model_type_len<ArrayModel<D, Sp, S...>> = sizeof...(S);
 
 	template<size_t D, typename Sp, typename... S>
 	void write_plot_config(Model<D, Sp, S...> const& model, const char* directory, const char* const* names, SaveParams const& save)
@@ -718,14 +771,14 @@ R"~(
 		print_plot_ranges<D>(gnu, intervals);
 
 		char gnuplot[BUFFER_LENGTH_L3];
-		const char* sets[sizeof...(S)];
+		const char* sets[model_type_len<Model<D, Sp, S...>>];
 		get_plot_fmt<D, S...>(sets);
-		print_plot_arrangement<sizeof...(S)>(gnuplot, BUFFER_LENGTH_L3);
+		print_plot_arrangement<model_type_len<Model<D, Sp, S...>>>(gnuplot, BUFFER_LENGTH_L3);
 
 		char setcat[BUFFER_LENGTH_L2];
 
 		// copy over the names of the systems for given system number
-		for (size_t id = 0; id < sizeof...(S); ++id)
+		for (size_t id = 0; id < model_type_len<Model<D, Sp, S...>>; ++id)
 		{
 			char fid[BUFFER_LENGTH_R2];
 			snprintf(fid, BUFFER_LENGTH_R2, POSTFIX_ID_FMT, id);
@@ -747,7 +800,7 @@ R"~(
 		}
 		std::strcat(gnuplot, gnu_end);
 
-		finalize_plot_arrangement<sizeof...(S)>(gnuplot);
+		finalize_plot_arrangement<model_type_len<Model<D, Sp, S...>>>(gnuplot);
 
 		fprintf(gnu, "%s", gnuplot);
 		fclose(gnu);

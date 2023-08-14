@@ -73,13 +73,13 @@ symphas::grid_info symphas::io::gp::read_header(FILE* f, int* index)
 
 
 		/* the output of the intervals always goes x, y, z
-			* keep checking size of dimension and print corresponding interval
-			*/
+		 * keep checking size of dimension and print corresponding interval
+		 */
 
 		double left, right;
 		for (iter_type i = 0; i < dim; ++i)
 		{
-			if (fscanf(f, "%lf", &left) + fscanf(f, "%lf", &right) != 2)
+			if (fscanf(f, "%lf %lf", &left, &right) != 2)
 			{
 				if (index)
 				{
@@ -88,16 +88,35 @@ symphas::grid_info symphas::io::gp::read_header(FILE* f, int* index)
 				return { nullptr, dim };
 			}
 			ginfo.at(symphas::index_to_axis(i)).set_count(left, right, dims[i]);
+			ginfo.at(symphas::index_to_axis(i)).interval_to_domain();
 		}
 
 		delete[] dims;
 	}
-		
+
+	int get;
+	bool index_scanned = (fscanf(f, "%d", &get) == 1);
+
 	if (index)
 	{
-		if (fscanf(f, "%d", index) != 1)
+		*index = (index_scanned) ? get : BAD_INDEX;
+	}
+
+	char token;
+	if (fscanf(f, " %c", &token) == 1 && token == CONFIG_OPTION_PREFIX_C)
+	{
+		for (iter_type i = 0; i < ginfo.dimension(); ++i)
 		{
-			*index = BAD_INDEX;
+			double interval[2]{};
+			if (fscanf(f, "%lf %lf", interval, interval + 1) != 2)
+			{
+				if (index)
+				{
+					*index = BAD_INDEX;
+				}
+				return { nullptr, ginfo.dimension() };
+			}
+			ginfo.at(symphas::index_to_axis(i)).set_interval(interval[0], interval[1]);
 		}
 	}
 
@@ -110,80 +129,74 @@ symphas::grid_info symphas::io::gp::read_header(FILE* f, int* index)
 template<>
 void symphas::io::gp::read_block(scalar_t* grid, symphas::grid_info ginfo, FILE* f)
 {
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
-	len_type L = ginfo.at(Axis::X).get_count();
+	auto helper = symphas::io::gp::new_helper(ginfo);
 
-	for (iter_type k = 0; k < N; k++)
+	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
-		for (iter_type j = 0; j < M; j++)
+		for (iter_type j = 0; j < GP_HELPER_LENY; j++)
 		{
-			for (iter_type i = 0; i < L; i++)
+			for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 			{
-				iter_type ii = i + j * L + k * L * M;
+				iter_type ii = GP_HELPER_INDEX({ i, j, k });
 				fscanf(f, "%lf", grid + ii);
 			}
 		}
 	}
+	symphas::io::gp::free_helper(helper);
 }
 
 template<>
 void symphas::io::gp::read_block(complex_t* grid, symphas::grid_info ginfo, FILE* f)
 {
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
-	len_type L = ginfo.at(Axis::X).get_count();
+	auto helper = symphas::io::gp::new_helper(ginfo);
 
-	for (iter_type k = 0; k < N; k++)
+	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
-		for (iter_type j = 0; j < M; j++)
+		for (iter_type j = 0; j < GP_HELPER_LENY; j++)
 		{
-			for (iter_type i = 0; i < L; i++)
+			for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 			{
-				iter_type ii = i + j * L + k * L * M;
+				iter_type ii = GP_HELPER_INDEX({ i, j, k });
 				double re, im;
 				fscanf(f, "%lf %lf", &re, &im);
 				grid[ii] = complex_t{ re, im };
 			}
 		}
 	}
+	symphas::io::gp::free_helper(helper);
 }
 
 template<>
 void symphas::io::gp::read_block(double_arr2*grid, symphas::grid_info ginfo, FILE* f)
 {
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
-	len_type L = ginfo.at(Axis::X).get_count();
+	auto helper = symphas::io::gp::new_helper(ginfo);
 
-	for (iter_type k = 0; k < N; k++)
+	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
-		for (iter_type j = 0; j < M; j++)
+		for (iter_type j = 0; j < GP_HELPER_LENY; j++)
 		{
-			for (iter_type i = 0; i < L; i++)
+			for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 			{
-				iter_type ii = i + j * L + k * L * M;
+				iter_type ii = GP_HELPER_INDEX({ i, j, k });
 				fscanf(f, "%lf %lf", grid[ii], grid[ii] + 1);
 			}
 		}
 	}
-
+	symphas::io::gp::free_helper(helper);
 }
 
 template<>
 void symphas::io::gp::read_block(vector_t<3>* grid, symphas::grid_info ginfo, FILE* f)
 {
-	len_type N = ginfo.at(Axis::Z).get_count();
-	len_type M = ginfo.at(Axis::Y).get_count();
-	len_type L = ginfo.at(Axis::X).get_count();
+	auto helper = symphas::io::gp::new_helper(ginfo);
 
-	for (iter_type k = 0; k < N; k++)
+	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
-		for (iter_type j = 0; j < M; j++)
+		for (iter_type j = 0; j < GP_HELPER_LENY; j++)
 		{
-			for (iter_type i = 0; i < L; i++)
+			for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 			{
-				iter_type ii = i + (j * L) + (k * L * M);
+				iter_type ii = GP_HELPER_INDEX({ i, j, k });
 				double m, dx, dy, dz;
 
 				fscanf(f,
@@ -194,17 +207,18 @@ void symphas::io::gp::read_block(vector_t<3>* grid, symphas::grid_info ginfo, FI
 			}
 		}
 	}
-
+	symphas::io::gp::free_helper(helper);
 }
 
 template<>
 void symphas::io::gp::read_block(vector_t<2>* grid, symphas::grid_info ginfo, FILE* f)
 {
-	for (iter_type j = 0; j < ginfo.at(Axis::Y).get_count(); j++)
+	auto helper = symphas::io::gp::new_helper(ginfo);
+	for (iter_type j = 0; j < GP_HELPER_LENY; j++)
 	{
-		for (iter_type i = 0; i < ginfo.at(Axis::X).get_count(); i++)
+		for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 		{
-			iter_type ii = i + j * ginfo.at(Axis::X).get_count();
+			iter_type ii = GP_HELPER_INDEX({ i, j });
 			double m, dx, dy;
 
 			fscanf(f,
@@ -214,36 +228,35 @@ void symphas::io::gp::read_block(vector_t<2>* grid, symphas::grid_info ginfo, FI
 			grid[ii] = vector_t<2>{ dx * m, dy * m };
 		}
 	}
-
+	symphas::io::gp::free_helper(helper);
 }
 
 
 template<>
 void symphas::io::gp::read_block(vector_t<1>* grid, symphas::grid_info ginfo, FILE* f)
 {
-	for (iter_type i = 0; i < ginfo.at(Axis::X).get_count(); i++)
+	auto helper = symphas::io::gp::new_helper(ginfo);
+	for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 	{
+		iter_type ii = GP_HELPER_INDEX({ i });
 		double m;
 		fscanf(f, "%lf", &m);
-		grid[i] = vector_t<1>{ m };
+		grid[ii] = vector_t<1>{ m };
 	}
-
+	symphas::io::gp::free_helper(helper);
 }
 
 template<>
 void symphas::io::gp::read_block(scalar_ptr_t(&grid)[3], symphas::grid_info ginfo, FILE* f)
 {
-	len_type N = ginfo.at(Axis::Z).get_count();
-	len_type M = ginfo.at(Axis::Y).get_count();
-	len_type L = ginfo.at(Axis::X).get_count();
-
-	for (iter_type k = 0; k < N; k++)
+	auto helper = symphas::io::gp::new_helper(ginfo);
+	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
-		for (iter_type j = 0; j < M; j++)
+		for (iter_type j = 0; j < GP_HELPER_LENY; j++)
 		{
-			for (iter_type i = 0; i < L; i++)
+			for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 			{
-				iter_type ii = i + (j * L) + (k * L * M);
+				iter_type ii = GP_HELPER_INDEX({ i, j });
 				double m, dx, dy, dz;
 
 				fscanf(f,
@@ -256,17 +269,18 @@ void symphas::io::gp::read_block(scalar_ptr_t(&grid)[3], symphas::grid_info ginf
 			}
 		}
 	}
-
+	symphas::io::gp::free_helper(helper);
 }
 
 template<>
 void symphas::io::gp::read_block(scalar_ptr_t(&grid)[2], symphas::grid_info ginfo, FILE* f)
 {
-	for (iter_type j = 0; j < ginfo.at(Axis::Y).get_count(); j++)
+	auto helper = symphas::io::gp::new_helper(ginfo);
+	for (iter_type j = 0; j < GP_HELPER_LENY; j++)
 	{
-		for (iter_type i = 0; i < ginfo.at(Axis::X).get_count(); i++)
+		for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 		{
-			iter_type ii = i + j * ginfo.at(Axis::X).get_count();
+			iter_type ii = GP_HELPER_INDEX({ i, j });
 			double m, dx, dy;
 
 			fscanf(f,
@@ -277,20 +291,22 @@ void symphas::io::gp::read_block(scalar_ptr_t(&grid)[2], symphas::grid_info ginf
 			grid[1][ii] = dy * m;
 		}
 	}
-
+	symphas::io::gp::free_helper(helper);
 }
 
 
 template<>
 void symphas::io::gp::read_block(scalar_ptr_t(&grid)[1], symphas::grid_info ginfo, FILE* f)
 {
-	for (iter_type i = 0; i < ginfo.at(Axis::X).get_count(); i++)
+	auto helper = symphas::io::gp::new_helper(ginfo);
+	for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 	{
+		iter_type ii = GP_HELPER_INDEX({ i });
 		double m;
 		fscanf(f, "%lf", &m);
-		grid[0][i] = m;
+		grid[0][ii] = m;
 	}
-
+	symphas::io::gp::free_helper(helper);
 }
 
 

@@ -200,8 +200,8 @@ unset output
 	void print_plot_ranges(FILE* gnu, symphas::interval_data_type const& intervals)
 	{
 		fprintf(gnu, gnuset,
-			INTERVAL_X0, INTERVAL_Xn - INTERVAL_Xh,
-			INTERVAL_Y0, INTERVAL_Yn - INTERVAL_Yh
+			DOMAIN_X0, DOMAIN_Xn - INTERVAL_Xh,
+			DOMAIN_Y0, DOMAIN_Yn - INTERVAL_Yh
 		);
 	}
 
@@ -210,7 +210,7 @@ unset output
 	inline void print_plot_ranges<1>(FILE* gnu, symphas::interval_data_type const& intervals)
 	{
 		fprintf(gnu, gnuset_1,
-			INTERVAL_X0, INTERVAL_Xn - INTERVAL_Xh
+			DOMAIN_X0, DOMAIN_Xn - INTERVAL_Xh
 		);
 	}
 
@@ -270,8 +270,8 @@ unset output
 		print_plot_ranges<D>(gnu, intervals);
 
 		fprintf(gnu, gnu_term, 
-			std::min(MAX_RESOLUTION, PIXEL_MULTIPLIER * model.template system<0>().get_info().INTERVAL_Xc),
-			std::min(MAX_RESOLUTION, PIXEL_MULTIPLIER * model.template system<0>().get_info().INTERVAL_Yc));
+			std::min(MAX_RESOLUTION, PIXEL_MULTIPLIER * model.template system<0>().get_info().DOMAIN_Xc),
+			std::min(MAX_RESOLUTION, PIXEL_MULTIPLIER * model.template system<0>().get_info().DOMAIN_Yc));
 
 		// copy over the names of the systems for given system number
 		for (size_t id = 0; id < sizeof...(S); ++id)

@@ -38,6 +38,10 @@ template<typename F> inline symphas::grid_info read_header(F* f, iter_type* inde
 namespace symphas::io::gp
 {
 
+	struct gp_plotting_helper;
+	gp_plotting_helper* new_helper(symphas::io::write_info const& winfo, symphas::grid_info const& ginfo);
+	void free_helper(gp_plotting_helper* helper);
+
 	//! Open the file which was written in the gnuplot (plain text) format.
 	FILE* open_gpgridf(const char* name);
 

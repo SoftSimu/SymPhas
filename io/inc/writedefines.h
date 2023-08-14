@@ -28,6 +28,7 @@
 
 #include "io.h"
 #include "plottername.h"
+#include "gridfunctions.h"
 
 namespace symphas::internal
 {
@@ -47,6 +48,8 @@ namespace symphas::internal
  */
 template<size_t D, typename Sp, typename... S>
 struct Model;
+template<size_t D, typename Sp, typename... Ts>
+using ArrayModel = Model<D, Sp, symphas::internal::field_array_t<void>, Ts...>;
 
 
 /* the generic format of an output file that is written by the program
@@ -117,6 +120,18 @@ struct Model;
 
 namespace symphas::io
 {
+	void write_data_entry(FILE* out, int data);
+	void write_data_entry(FILE* out, scalar_t data);
+	void write_data_entry(FILE* out, complex_t data);
+	template<typename T, size_t N>
+	void write_data_entry(FILE* out, T(&data)[N]);
+	void write_data_entry(FILE* out, axis_2d_type data);
+	void write_data_entry(FILE* out, axis_3d_type data);
+
+	template<typename... Ts, size_t... Is>
+	void write_data_entry(FILE* out, std::tuple<Ts...> const& data, std::index_sequence<Is...>);
+	template<typename... Ts>
+	void write_data_entry(FILE* out, std::tuple<Ts...> const& data);
 
 	//! Information about the data file to be written.
 	/*!
@@ -127,7 +142,7 @@ namespace symphas::io
 	struct write_info
 	{
 		write_info(const char* dir_str_ptr, iter_type index, size_t id, DataFileType type) : 
-			dir_str_ptr{ dir_str_ptr }, index{ index }, id{ id }, type{ type } {}
+			dir_str_ptr{ dir_str_ptr }, index{ index }, id{ id }, type{ type }, intervals{} {}
 		write_info(const char* dir_str_ptr, iter_type index, size_t id) : 
 			write_info{ dir_str_ptr, index, id, DataFileType::GENERIC_DATA } {}
 
@@ -135,10 +150,23 @@ namespace symphas::io
 		write_info(size_t id) : write_info{ ".", 0, id, DataFileType::GENERIC_DATA } {}
 		write_info() : write_info{ ".", 0, 0, DataFileType::GENERIC_DATA } {}
 
+		using interval_t = std::map<Axis, double[2]>;
+
+		auto domain_left(Axis ax) const
+		{
+			return intervals.at(ax)[0];
+		}
+
+		auto domain_right(Axis ax) const
+		{
+			return intervals.at(ax)[1];
+		}
+
 		const char* dir_str_ptr;	//!< Pointer (unowned) to the string specifying directory name.
 		iter_type index;			//!< The solution index at which the data is saved.
 		size_t id;					//!< The ID of the grid being written.
 		DataFileType type;			//!< The type of data that is written, typically this should be phase field data.
+		interval_t intervals;		//!< Extent of the global domain in the spatial axes.
 	};
 
 
@@ -392,6 +420,28 @@ namespace symphas::io
 
 
 
+
+	template<typename T, size_t D>
+	void print_grid(FILE* out, Grid<T, D> const& grid);
+	template<typename T, size_t D>
+	void print_grid(Grid<T, D> const& grid);
+	template<typename T, size_t D>
+	void print_grid(FILE* out, RegionalGrid<T, D> const& grid);
+	template<typename T, size_t D>
+	void print_grid(RegionalGrid<T, D> const& grid);
+	template<typename T, size_t D>
+	void print_region(FILE* out, RegionalGrid<T, D> const& grid);
+	template<typename T, size_t D>
+	void print_region(RegionalGrid<T, D> const& grid);
+
+	template<size_t D>
+	void print_region(FILE* out, grid::region_interval<D> const& region, char inside = 'X', char outside = '.');
+	template<size_t D>
+	void print_region(FILE* out, grid::region_interval_multiple<D> const& region, char inside = 'X', char outside = '.');
+	template<size_t D>
+	void print_region(grid::region_interval<D> const& region, char inside = 'X', char outside = '.');
+	template<size_t D>
+	void print_region(grid::region_interval_multiple<D> const& region, char inside = 'X', char outside = '.');
 
 
 }

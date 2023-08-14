@@ -22,46 +22,30 @@
 #include "writegpc.h"
 
 
-
-
-
 /*
  * functions to write data from the grid to a file
  */
 void symphas::io::gp::col::save_grid_plotting(const scalar_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
-	
-	double dZ = (ginfo.dimension() < 3) ? 0 : ginfo.INTERVAL_Zh;
-	double dY = (ginfo.dimension() < 2) ? 0 : ginfo.INTERVAL_Yh;
-	double dX = ginfo.INTERVAL_Xh;
-	double h[]{ dX, dY, dZ };
+	auto helper = symphas::io::gp::new_helper(winfo, ginfo);
 
-	double Z0 = (ginfo.dimension() < 3) ? 0 : ginfo.INTERVAL_Z0;
-	double Y0 = (ginfo.dimension() < 2) ? 0 : ginfo.INTERVAL_Y0;
-	double X0 = ginfo.INTERVAL_X0;
-	double p0[]{ X0, Y0, Z0 };
-
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
-	len_type L = ginfo.at(Axis::X).get_count();
-
-	iter_type index = 0;
-	for (iter_type k = 0; k < N; k++)
+	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
-		for (iter_type j = 0; j < M; j++)
+		for (iter_type j = 0; j < GP_HELPER_LENY; j++)
 		{
-			for (iter_type i = 0; i < L; i++)
+			for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 			{
-				iter_type p[]{ i, j, k };
-				for (len_type n = 0; n < ginfo.dimension(); ++n)
+				for (auto const& [axis, _] : ginfo)
 				{
-					fprintf(f, "%." AXIS_OUTPUT_ACCURACY_STR "f ", p0[n] + h[n] * p[n]);
+					fprintf(f, "%." AXIS_OUTPUT_ACCURACY_STR "f ", GP_HELPER_POS(axis, { i, j, k }));
 				}
-				fprintf(f, "%lE\n", grid[index++]);
+				iter_type ii = GP_HELPER_INDEX({ i, j, k });
+				fprintf(f, "%lE\n", grid[ii]);
 			}
 		}
 	}
+	symphas::io::gp::free_helper(helper);
 	fprintf(f, "\n");
 	fclose(f);
 }
@@ -69,38 +53,24 @@ void symphas::io::gp::col::save_grid_plotting(const scalar_t* grid, symphas::io:
 void symphas::io::gp::col::save_grid_plotting(const complex_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
+	auto helper = symphas::io::gp::new_helper(winfo, ginfo);
 
-	double dZ = (ginfo.dimension() < 3) ? 0 : ginfo.INTERVAL_Zh;
-	double dY = (ginfo.dimension() < 2) ? 0 : ginfo.INTERVAL_Yh;
-	double dX = ginfo.INTERVAL_Xh;
-	double h[]{ dX, dY, dZ };
-
-	double Z0 = (ginfo.dimension() < 3) ? 0 : ginfo.INTERVAL_Z0;
-	double Y0 = (ginfo.dimension() < 2) ? 0 : ginfo.INTERVAL_Y0;
-	double X0 = ginfo.INTERVAL_X0;
-	double p0[]{ X0, Y0, Z0 };
-
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
-	len_type L = ginfo.at(Axis::X).get_count();
-
-	iter_type index = 0;
-	for (iter_type k = 0; k < N; k++)
+	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
-		for (iter_type j = 0; j < M; j++)
+		for (iter_type j = 0; j < GP_HELPER_LENY; j++)
 		{
-			for (iter_type i = 0; i < L; i++)
+			for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 			{
-				iter_type p[]{ i, j, k };
-				for (len_type n = 0; n < ginfo.dimension(); ++n)
+				for (auto const& [axis, _] : ginfo)
 				{
-					fprintf(f, "%." AXIS_OUTPUT_ACCURACY_STR "f ", p0[n] + h[n] * p[n]);
+					fprintf(f, "%." AXIS_OUTPUT_ACCURACY_STR "f ", GP_HELPER_POS(axis, { i, j, k }));
 				}
-				fprintf(f, "%lE+i%lE\n", grid[index].real(), grid[index].imag());
-				++index;
+				iter_type ii = GP_HELPER_INDEX({ i, j, k });
+				fprintf(f, "%lE+i%lE\n", grid[ii].real(), grid[ii].imag());
 			}
 		}
 	}
+	symphas::io::gp::free_helper(helper);
 	fprintf(f, "\n");
 	fclose(f);
 }
@@ -108,39 +78,24 @@ void symphas::io::gp::col::save_grid_plotting(const complex_t* grid, symphas::io
 void symphas::io::gp::col::save_grid_plotting(const double_arr2 *grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
+	auto helper = symphas::io::gp::new_helper(winfo, ginfo);
 
-	double dZ = (ginfo.dimension() < 3) ? 0 : ginfo.INTERVAL_Zh;
-	double dY = (ginfo.dimension() < 2) ? 0 : ginfo.INTERVAL_Yh;
-	double dX = ginfo.INTERVAL_Xh;
-	double h[]{ dX, dY, dZ };
-
-	double Z0 = (ginfo.dimension() < 3) ? 0 : ginfo.INTERVAL_Z0;
-	double Y0 = (ginfo.dimension() < 2) ? 0 : ginfo.INTERVAL_Y0;
-	double X0 = ginfo.INTERVAL_X0;
-	double p0[]{ X0, Y0, Z0 };
-
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
-	len_type L = ginfo.at(Axis::X).get_count();
-
-	iter_type index = 0;
-	for (iter_type k = 0; k < N; k++)
+	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
-		for (iter_type j = 0; j < M; j++)
+		for (iter_type j = 0; j < GP_HELPER_LENY; j++)
 		{
-			for (iter_type i = 0; i < L; i++)
+			for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 			{
-				iter_type p[]{ i, j, k };
-				for (len_type n = 0; n < ginfo.dimension(); ++n)
+				for (auto const& [axis, _] : ginfo)
 				{
-					fprintf(f, "%." AXIS_OUTPUT_ACCURACY_STR "f ", p0[n] + h[n] * p[n]);
+					fprintf(f, "%." AXIS_OUTPUT_ACCURACY_STR "f ", GP_HELPER_POS(axis, { i, j, k }));
 				}
-
-				fprintf(f, "%lE %lE\n", grid[index][0], grid[index][1]);
-				++index;
+				iter_type ii = GP_HELPER_INDEX({ i, j, k });
+				fprintf(f, "%lE %lE\n", grid[ii][0], grid[ii][1]);
 			}
 		}
 	}
+	symphas::io::gp::free_helper(helper);
 	fprintf(f, "\n");
 	fclose(f);
 }
@@ -148,35 +103,21 @@ void symphas::io::gp::col::save_grid_plotting(const double_arr2 *grid, symphas::
 void symphas::io::gp::col::save_grid_plotting(const vector_t<3>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
+	auto helper = symphas::io::gp::new_helper(winfo, ginfo);
 
-	double dZ = (ginfo.dimension() < 3) ? 0 : ginfo.INTERVAL_Zh;
-	double dY = (ginfo.dimension() < 2) ? 0 : ginfo.INTERVAL_Yh;
-	double dX = ginfo.INTERVAL_Xh;
-	double h[]{ dX, dY, dZ };
-
-	double Z0 = (ginfo.dimension() < 3) ? 0 : ginfo.INTERVAL_Z0;
-	double Y0 = (ginfo.dimension() < 2) ? 0 : ginfo.INTERVAL_Y0;
-	double X0 = ginfo.INTERVAL_X0;
-	double p0[]{ X0, Y0, Z0 };
-
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
-	len_type L = ginfo.at(Axis::X).get_count();
-
-	iter_type index = 0;
-	for (iter_type k = 0; k < N; k++)
+	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
-		for (iter_type j = 0; j < M; j++)
+		for (iter_type j = 0; j < GP_HELPER_LENY; j++)
 		{
-			for (iter_type i = 0; i < L; i++)
+			for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 			{
-				iter_type p[]{ i, j, k };
-				for (len_type n = 0; n < ginfo.dimension(); ++n)
+				for (auto const& [axis, _] : ginfo)
 				{
-					fprintf(f, "%." AXIS_OUTPUT_ACCURACY_STR "f ", p0[n] + h[n] * p[n]);
+					fprintf(f, "%." AXIS_OUTPUT_ACCURACY_STR "f ", GP_HELPER_POS(axis, { i, j, k }));
 				}
 
-				vector_t<3> const &v = grid[index++];
+				iter_type ii = GP_HELPER_INDEX({ i, j, k });
+				vector_t<3> const &v = grid[ii];
 
 				double m = sqrt(v.v[0] * v.v[0] + v.v[1] * v.v[1] + v.v[2] * v.v[2]),
 					dx = v.v[0] / m,
@@ -184,14 +125,15 @@ void symphas::io::gp::col::save_grid_plotting(const vector_t<3>* grid, symphas::
 					dz = v.v[2] / m;
 
 				fprintf(f,
-					"%." DATA_OUTPUT_ACCURACY_STR "f "
-					"%." DATA_OUTPUT_ACCURACY_STR "f "
-					"%." DATA_OUTPUT_ACCURACY_STR "f "
-					"%." DATA_OUTPUT_ACCURACY_STR "f\n",
+					"%" DATA_OUTPUT_ACCURACY_STR "f "
+					"%" DATA_OUTPUT_ACCURACY_STR "f "
+					"%" DATA_OUTPUT_ACCURACY_STR "f "
+					"%" DATA_OUTPUT_ACCURACY_STR "f\n",
 					dx, dy, dz, m);
 			}
 		}
 	}
+	symphas::io::gp::free_helper(helper);
 	fprintf(f, "\n\n");
 	fclose(f);
 }
@@ -199,48 +141,35 @@ void symphas::io::gp::col::save_grid_plotting(const vector_t<3>* grid, symphas::
 void symphas::io::gp::col::save_grid_plotting(const vector_t<2>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
+	auto helper = symphas::io::gp::new_helper(winfo, ginfo);
 
-	double dZ = (ginfo.dimension() < 3) ? 0 : ginfo.INTERVAL_Zh;
-	double dY = (ginfo.dimension() < 2) ? 0 : ginfo.INTERVAL_Yh;
-	double dX = ginfo.INTERVAL_Xh;
-	double h[]{ dX, dY, dZ };
-
-	double Z0 = (ginfo.dimension() < 3) ? 0 : ginfo.INTERVAL_Z0;
-	double Y0 = (ginfo.dimension() < 2) ? 0 : ginfo.INTERVAL_Y0;
-	double X0 = ginfo.INTERVAL_X0;
-	double p0[]{ X0, Y0, Z0 };
-
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
-	len_type L = ginfo.at(Axis::X).get_count();
-
-	iter_type index = 0;
-	for (iter_type k = 0; k < N; k++)
+	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
-		for (iter_type j = 0; j < M; j++)
+		for (iter_type j = 0; j < GP_HELPER_LENY; j++)
 		{
-			for (iter_type i = 0; i < L; i++)
+			for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 			{
-				iter_type p[]{ i, j, k };
-				for (len_type n = 0; n < ginfo.dimension(); ++n)
+				for (auto const& [axis, _] : ginfo)
 				{
-					fprintf(f, "%." AXIS_OUTPUT_ACCURACY_STR "f ", p0[n] + h[n] * p[n]);
+					fprintf(f, "%." AXIS_OUTPUT_ACCURACY_STR "f ", GP_HELPER_POS(axis, { i, j, k }));
 				}
 
-				vector_t<2> const &v = grid[index++];
+				iter_type ii = GP_HELPER_INDEX({ i, j, k });
+				vector_t<2> const &v = grid[ii];
 
 				double m = sqrt(v.v[0] * v.v[0] + v.v[1] * v.v[1]),
 					dx = v.v[0] / m,
 					dy = v.v[1] / m;
 
 				fprintf(f,
-					"%." DATA_OUTPUT_ACCURACY_STR "f "
-					"%." DATA_OUTPUT_ACCURACY_STR "f "
-					"%." DATA_OUTPUT_ACCURACY_STR "f\n",
+					"%" DATA_OUTPUT_ACCURACY_STR "f "
+					"%" DATA_OUTPUT_ACCURACY_STR "f "
+					"%" DATA_OUTPUT_ACCURACY_STR "f\n",
 					dx, dy, m);
 			}
 		}
 	}
+	symphas::io::gp::free_helper(helper);
 	fprintf(f, "\n\n");
 	fclose(f);
 }
@@ -249,39 +178,26 @@ void symphas::io::gp::col::save_grid_plotting(const vector_t<2>* grid, symphas::
 void symphas::io::gp::col::save_grid_plotting(const vector_t<1>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
+	auto helper = symphas::io::gp::new_helper(winfo, ginfo);
 
-	double dZ = (ginfo.dimension() < 3) ? 0 : ginfo.INTERVAL_Zh;
-	double dY = (ginfo.dimension() < 2) ? 0 : ginfo.INTERVAL_Yh;
-	double dX = ginfo.INTERVAL_Xh;
-	double h[]{ dX, dY, dZ };
-
-	double Z0 = (ginfo.dimension() < 3) ? 0 : ginfo.INTERVAL_Z0;
-	double Y0 = (ginfo.dimension() < 2) ? 0 : ginfo.INTERVAL_Y0;
-	double X0 = ginfo.INTERVAL_X0;
-	double p0[]{ X0, Y0, Z0 };
-
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
-	len_type L = ginfo.at(Axis::X).get_count();
-
-	iter_type index = 0;
-	for (iter_type k = 0; k < N; k++)
+	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
-		for (iter_type j = 0; j < M; j++)
+		for (iter_type j = 0; j < GP_HELPER_LENY; j++)
 		{
-			for (iter_type i = 0; i < L; i++)
+			for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 			{
-				iter_type p[]{ i, j, k };
-				for (len_type n = 0; n < ginfo.dimension(); ++n)
+				for (auto const& [axis, _] : ginfo)
 				{
-					fprintf(f, "%." AXIS_OUTPUT_ACCURACY_STR "f ", p0[n] + h[n] * p[n]);
+					fprintf(f, "%." AXIS_OUTPUT_ACCURACY_STR "f ", GP_HELPER_POS(axis, { i, j, k }));
 				}
                 
-                const vector_t<1> &data = grid[index++];
-				fprintf(f, 	"%." DATA_OUTPUT_ACCURACY_STR "f\n", *data.v);
+				iter_type ii = GP_HELPER_INDEX({ i, j, k });
+				const vector_t<1> &data = grid[ii];
+				fprintf(f, 	"%" DATA_OUTPUT_ACCURACY_STR "f\n", *data.v);
 			}
 		}
 	}
+	symphas::io::gp::free_helper(helper);
 	fprintf(f, "\n\n");
 	fclose(f);
 }
@@ -290,50 +206,36 @@ void symphas::io::gp::col::save_grid_plotting(const vector_t<1>* grid, symphas::
 void symphas::io::gp::col::save_grid_plotting(const scalar_ptr_t(&grid)[3], symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
+	auto helper = symphas::io::gp::new_helper(winfo, ginfo);
 
-	double dZ = (ginfo.dimension() < 3) ? 0 : ginfo.INTERVAL_Zh;
-	double dY = (ginfo.dimension() < 2) ? 0 : ginfo.INTERVAL_Yh;
-	double dX = ginfo.INTERVAL_Xh;
-	double h[]{ dX, dY, dZ };
-
-	double Z0 = (ginfo.dimension() < 3) ? 0 : ginfo.INTERVAL_Z0;
-	double Y0 = (ginfo.dimension() < 2) ? 0 : ginfo.INTERVAL_Y0;
-	double X0 = ginfo.INTERVAL_X0;
-	double p0[]{ X0, Y0, Z0 };
-
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
-	len_type L = ginfo.at(Axis::X).get_count();
-
-	iter_type index = 0;
-	for (iter_type k = 0; k < N; k++)
+	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
-		for (iter_type j = 0; j < M; j++)
+		for (iter_type j = 0; j < GP_HELPER_LENY; j++)
 		{
-			for (iter_type i = 0; i < L; i++)
+			for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 			{
-				iter_type p[]{ i, j, k };
-				for (len_type n = 0; n < ginfo.dimension(); ++n)
+				for (auto const& [axis, _] : ginfo)
 				{
-					fprintf(f, "%." AXIS_OUTPUT_ACCURACY_STR "f ", p0[n] + h[n] * p[n]);
+					fprintf(f, "%." AXIS_OUTPUT_ACCURACY_STR "f ", GP_HELPER_POS(axis, { i, j, k }));
 				}
 
-				double m = sqrt(grid[0][index] * grid[0][index] + grid[1][index] * grid[1][index] + grid[2][index] * grid[2][index]),
-					dx = grid[0][index] / m,
-					dy = grid[1][index] / m,
-					dz = grid[2][index] / m;
+				iter_type ii = GP_HELPER_INDEX({ i, j, k });
+				double m = sqrt(grid[0][ii] * grid[0][ii] + grid[1][ii] * grid[1][ii] + grid[2][ii] * grid[2][ii]),
+					dx = grid[0][ii] / m,
+					dy = grid[1][ii] / m,
+					dz = grid[2][ii] / m;
 
 				fprintf(f,
-					"%." DATA_OUTPUT_ACCURACY_STR "f "
-					"%." DATA_OUTPUT_ACCURACY_STR "f "
-					"%." DATA_OUTPUT_ACCURACY_STR "f "
-					"%." DATA_OUTPUT_ACCURACY_STR "f\n",
+					"%" DATA_OUTPUT_ACCURACY_STR "f "
+					"%" DATA_OUTPUT_ACCURACY_STR "f "
+					"%" DATA_OUTPUT_ACCURACY_STR "f "
+					"%" DATA_OUTPUT_ACCURACY_STR "f\n",
 					dx, dy, dz, m);
 
-				index++;
 			}
 		}
 	}
+	symphas::io::gp::free_helper(helper);
 	fprintf(f, "\n\n");
 	fclose(f);
 }
@@ -341,48 +243,34 @@ void symphas::io::gp::col::save_grid_plotting(const scalar_ptr_t(&grid)[3], symp
 void symphas::io::gp::col::save_grid_plotting(const scalar_ptr_t(&grid)[2], symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
+	auto helper = symphas::io::gp::new_helper(winfo, ginfo);
 
-	double dZ = (ginfo.dimension() < 3) ? 0 : ginfo.INTERVAL_Zh;
-	double dY = (ginfo.dimension() < 2) ? 0 : ginfo.INTERVAL_Yh;
-	double dX = ginfo.INTERVAL_Xh;
-	double h[]{ dX, dY, dZ };
-
-	double Z0 = (ginfo.dimension() < 3) ? 0 : ginfo.INTERVAL_Z0;
-	double Y0 = (ginfo.dimension() < 2) ? 0 : ginfo.INTERVAL_Y0;
-	double X0 = ginfo.INTERVAL_X0;
-	double p0[]{ X0, Y0, Z0 };
-
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
-	len_type L = ginfo.at(Axis::X).get_count();
-
-	iter_type index = 0;
-	for (iter_type k = 0; k < N; k++)
+	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
-		for (iter_type j = 0; j < M; j++)
+		for (iter_type j = 0; j < GP_HELPER_LENY; j++)
 		{
-			for (iter_type i = 0; i < L; i++)
+			for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 			{
-				iter_type p[]{ i, j, k };
-				for (len_type n = 0; n < ginfo.dimension(); ++n)
+				for (auto const& [axis, _] : ginfo)
 				{
-					fprintf(f, "%." AXIS_OUTPUT_ACCURACY_STR "f ", p0[n] + h[n] * p[n]);
+					fprintf(f, "%." AXIS_OUTPUT_ACCURACY_STR "f ", GP_HELPER_POS(axis, { i, j, k }));
 				}
 
-				double m = sqrt(grid[0][index] * grid[0][index] + grid[1][index] * grid[1][index]),
-					dx = grid[0][index] / m,
-					dy = grid[1][index] / m;
+				iter_type ii = GP_HELPER_INDEX({ i, j, k });
+				double m = sqrt(grid[0][ii] * grid[0][ii] + grid[1][ii] * grid[1][ii]),
+					dx = grid[0][ii] / m,
+					dy = grid[1][ii] / m;
 
 				fprintf(f,
-					"%." DATA_OUTPUT_ACCURACY_STR "f "
-					"%." DATA_OUTPUT_ACCURACY_STR "f "
-					"%." DATA_OUTPUT_ACCURACY_STR "f\n",
+					"%" DATA_OUTPUT_ACCURACY_STR "f "
+					"%" DATA_OUTPUT_ACCURACY_STR "f "
+					"%" DATA_OUTPUT_ACCURACY_STR "f\n",
 					dx, dy, m);
 
-				index++;
 			}
 		}
 	}
+	symphas::io::gp::free_helper(helper);
 	fprintf(f, "\n\n");
 	fclose(f);
 }
@@ -391,38 +279,24 @@ void symphas::io::gp::col::save_grid_plotting(const scalar_ptr_t(&grid)[2], symp
 void symphas::io::gp::col::save_grid_plotting(const scalar_ptr_t(&grid)[1], symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
+	auto helper = symphas::io::gp::new_helper(winfo, ginfo);
 
-	double dZ = (ginfo.dimension() < 3) ? 0 : ginfo.INTERVAL_Zh;
-	double dY = (ginfo.dimension() < 2) ? 0 : ginfo.INTERVAL_Yh;
-	double dX = ginfo.INTERVAL_Xh;
-	double h[]{ dX, dY, dZ };
-
-	double Z0 = (ginfo.dimension() < 3) ? 0 : ginfo.INTERVAL_Z0;
-	double Y0 = (ginfo.dimension() < 2) ? 0 : ginfo.INTERVAL_Y0;
-	double X0 = ginfo.INTERVAL_X0;
-	double p0[]{ X0, Y0, Z0 };
-
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
-	len_type L = ginfo.at(Axis::X).get_count();
-
-	iter_type index = 0;
-	for (iter_type k = 0; k < N; k++)
+	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
-		for (iter_type j = 0; j < M; j++)
+		for (iter_type j = 0; j < GP_HELPER_LENY; j++)
 		{
-			for (iter_type i = 0; i < L; i++)
+			for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 			{
-				iter_type p[]{ i, j, k };
-				for (len_type n = 0; n < ginfo.dimension(); ++n)
+				for (auto const& [axis, _] : ginfo)
 				{
-					fprintf(f, "%." AXIS_OUTPUT_ACCURACY_STR "f ", p0[n] + h[n] * p[n]);
+					fprintf(f, "%." AXIS_OUTPUT_ACCURACY_STR "f ", GP_HELPER_POS(axis, { i, j, k }));
 				}
-
-				fprintf(f, "%." DATA_OUTPUT_ACCURACY_STR "f\n", grid[0][index++]);
+				iter_type ii = GP_HELPER_INDEX({ i, j, k });
+				fprintf(f, "%" DATA_OUTPUT_ACCURACY_STR "f\n", grid[0][ii]);
 			}
 		}
 	}
+	symphas::io::gp::free_helper(helper);
 	fprintf(f, "\n\n");
 	fclose(f);
 }

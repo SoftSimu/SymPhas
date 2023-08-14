@@ -51,13 +51,13 @@ int symphas::io::read_grid(T* (&values)[N], symphas::io::read_info const& rinfo)
 
 inline symphas::grid_info symphas::io::read_header(symphas::io::read_info const& rinfo, iter_type* index)
 {
-	SWITCH_IO_READ(read_header(rinfo, index), { {} })
+	SWITCH_IO_READ(read_header(rinfo, index), grid::dim_list())
 }
 
 template<typename F>
 inline symphas::grid_info symphas::io::read_header(F* f, iter_type* index)
 {
-	SWITCH_IO_READ(read_header(f, index), { {} })
+	SWITCH_IO_READ(read_header(f, index), grid::dim_list())
 }
 
 

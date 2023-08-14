@@ -28,39 +28,36 @@
 template<>
 void symphas::io::gp::col::read_block(scalar_t* grid, symphas::grid_info ginfo, FILE* f)
 {
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
-	len_type L = ginfo.at(Axis::X).get_count();
+	auto helper = symphas::io::gp::new_helper(ginfo);
 
-	for (iter_type k = 0; k < N; k++)
+	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
-		for (iter_type j = 0; j < M; j++)
+		for (iter_type j = 0; j < GP_HELPER_LENY; j++)
 		{
-			for (iter_type i = 0; i < L; i++)
+			for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 			{
 				for (len_type n = 0; n < ginfo.dimension(); ++n)
 				{
 					fscanf(f, "%*f");
 				}
-				iter_type ii = i + j * L + k * L * M;
+				iter_type ii = GP_HELPER_INDEX({ i, j, k });
 				fscanf(f, "%lf", grid + ii);
 			}
 		}
 	}
+	symphas::io::gp::free_helper(helper);
 }
 
 template<>
 void symphas::io::gp::col::read_block(complex_t* grid, symphas::grid_info ginfo, FILE* f)
 {
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
-	len_type L = ginfo.at(Axis::X).get_count();
+	auto helper = symphas::io::gp::new_helper(ginfo);
 
-	for (iter_type k = 0; k < N; k++)
+	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
-		for (iter_type j = 0; j < M; j++)
+		for (iter_type j = 0; j < GP_HELPER_LENY; j++)
 		{
-			for (iter_type i = 0; i < L; i++)
+			for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 			{
 				for (len_type n = 0; n < ginfo.dimension(); ++n)
 				{
@@ -69,50 +66,48 @@ void symphas::io::gp::col::read_block(complex_t* grid, symphas::grid_info ginfo,
 				double re, im;
 				fscanf(f, "%lf+i%lf", &re, &im);
 
-				iter_type ii = i + j * L + k * L * M;
+				iter_type ii = GP_HELPER_INDEX({ i, j, k });
 				grid[ii] = complex_t{ re, im };
 			}
 		}
 	}
+	symphas::io::gp::free_helper(helper);
 }
 
 
 template<>
 void symphas::io::gp::col::read_block(double_arr2*grid, symphas::grid_info ginfo, FILE* f)
 {
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
-	len_type L = ginfo.at(Axis::X).get_count();
+	auto helper = symphas::io::gp::new_helper(ginfo);
 
-	for (iter_type k = 0; k < N; k++)
+	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
-		for (iter_type j = 0; j < M; j++)
+		for (iter_type j = 0; j < GP_HELPER_LENY; j++)
 		{
-			for (iter_type i = 0; i < L; i++)
+			for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 			{
 				for (len_type n = 0; n < ginfo.dimension(); ++n)
 				{
 					fscanf(f, "%*f");
 				}
-				iter_type ii = i + j * L + k * L * M;
+				iter_type ii = GP_HELPER_INDEX({ i, j, k });
 				fscanf(f, "%lf %lf", grid[ii], grid[ii] + 1);
 			}
 		}
 	}
+	symphas::io::gp::free_helper(helper);
 }
 
 template<>
 void symphas::io::gp::col::read_block(vector_t<3>* grid, symphas::grid_info ginfo, FILE* f)
 {
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
-	len_type L = ginfo.at(Axis::X).get_count();
+	auto helper = symphas::io::gp::new_helper(ginfo);
 
-	for (iter_type k = 0; k < N; k++)
+	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
-		for (iter_type j = 0; j < M; j++)
+		for (iter_type j = 0; j < GP_HELPER_LENY; j++)
 		{
-			for (iter_type i = 0; i < L; i++)
+			for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 			{
 				for (len_type n = 0; n < ginfo.dimension(); ++n)
 				{
@@ -125,25 +120,24 @@ void symphas::io::gp::col::read_block(vector_t<3>* grid, symphas::grid_info ginf
 					"%lf %lf %lf %lf",
 					&dx, &dy, &dz, &m);
 
-				iter_type ii = i + j * L + k * L * M;
+				iter_type ii = GP_HELPER_INDEX({ i, j, k });
 				grid[ii] = vector_t<3>{ dx * m, dy * m, dz * m };
 			}
 		}
 	}
+	symphas::io::gp::free_helper(helper);
 }
 
 template<>
 void symphas::io::gp::col::read_block(vector_t<2>* grid, symphas::grid_info ginfo, FILE* f)
 {
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
-	len_type L = ginfo.at(Axis::X).get_count();
+	auto helper = symphas::io::gp::new_helper(ginfo);
 
-	for (iter_type k = 0; k < N; k++)
+	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
-		for (iter_type j = 0; j < M; j++)
+		for (iter_type j = 0; j < GP_HELPER_LENY; j++)
 		{
-			for (iter_type i = 0; i < L; i++)
+			for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 			{
 				for (len_type n = 0; n < ginfo.dimension(); ++n)
 				{
@@ -156,26 +150,25 @@ void symphas::io::gp::col::read_block(vector_t<2>* grid, symphas::grid_info ginf
 					"%lf %lf %lf",
 					&dx, &dy, &m);
 
-				iter_type ii = i + j * L + k * L * M;
+				iter_type ii = GP_HELPER_INDEX({ i, j, k });
 				grid[ii] = vector_t<2>{ dx * m, dy * m };
 			}
 		}
 	}
+	symphas::io::gp::free_helper(helper);
 }
 
 
 template<>
 void symphas::io::gp::col::read_block(vector_t<1>* grid, symphas::grid_info ginfo, FILE* f)
 {
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
-	len_type L = ginfo.at(Axis::X).get_count();
+	auto helper = symphas::io::gp::new_helper(ginfo);
 
-	for (iter_type k = 0; k < N; k++)
+	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
-		for (iter_type j = 0; j < M; j++)
+		for (iter_type j = 0; j < GP_HELPER_LENY; j++)
 		{
-			for (iter_type i = 0; i < L; i++)
+			for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 			{
 				for (len_type n = 0; n < ginfo.dimension(); ++n)
 				{
@@ -184,26 +177,25 @@ void symphas::io::gp::col::read_block(vector_t<1>* grid, symphas::grid_info ginf
 				double m;
 				fscanf(f, "%lf ", &m);
 
-				iter_type ii = i + j * L + k * L * M;
+				iter_type ii = GP_HELPER_INDEX({ i, j, k });
 				grid[ii] = vector_t<1>{ m };
 			}
 		}
 	}
+	symphas::io::gp::free_helper(helper);
 }
 
 
 template<>
 void symphas::io::gp::col::read_block(scalar_ptr_t(&grid)[3], symphas::grid_info ginfo, FILE* f)
 {
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
-	len_type L = ginfo.at(Axis::X).get_count();
+	auto helper = symphas::io::gp::new_helper(ginfo);
 
-	for (iter_type k = 0; k < N; k++)
+	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
-		for (iter_type j = 0; j < M; j++)
+		for (iter_type j = 0; j < GP_HELPER_LENY; j++)
 		{
-			for (iter_type i = 0; i < L; i++)
+			for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 			{
 				for (len_type n = 0; n < ginfo.dimension(); ++n)
 				{
@@ -216,27 +208,26 @@ void symphas::io::gp::col::read_block(scalar_ptr_t(&grid)[3], symphas::grid_info
 					"%lf %lf %lf %lf",
 					&dx, &dy, &dz, &m);
 
-				iter_type ii = i + j * L + k * L * M;
+				iter_type ii = GP_HELPER_INDEX({ i, j, k });
 				grid[0][ii] = dx * m;
 				grid[1][ii] = dy * m;
 				grid[2][ii] = dz * m;
 			}
 		}
 	}
+	symphas::io::gp::free_helper(helper);
 }
 
 template<>
 void symphas::io::gp::col::read_block(scalar_ptr_t(&grid)[2], symphas::grid_info ginfo, FILE* f)
 {
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
-	len_type L = ginfo.at(Axis::X).get_count();
+	auto helper = symphas::io::gp::new_helper(ginfo);
 
-	for (iter_type k = 0; k < N; k++)
+	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
-		for (iter_type j = 0; j < M; j++)
+		for (iter_type j = 0; j < GP_HELPER_LENY; j++)
 		{
-			for (iter_type i = 0; i < L; i++)
+			for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 			{
 				for (len_type n = 0; n < ginfo.dimension(); ++n)
 				{
@@ -249,27 +240,26 @@ void symphas::io::gp::col::read_block(scalar_ptr_t(&grid)[2], symphas::grid_info
 					"%lf %lf %lf",
 					&dx, &dy, &m);
 
-				iter_type ii = i + j * L + k * L * M;
+				iter_type ii = GP_HELPER_INDEX({ i, j, k });
 				grid[0][ii] = dx * m;
 				grid[1][ii] = dy * m;
 			}
 		}
 	}
+	symphas::io::gp::free_helper(helper);
 }
 
 
 template<>
 void symphas::io::gp::col::read_block(scalar_ptr_t(&grid)[1], symphas::grid_info ginfo, FILE* f)
 {
-	len_type N = (ginfo.dimension() < 3) ? 1 : ginfo.at(Axis::Z).get_count();
-	len_type M = (ginfo.dimension() < 2) ? 1 : ginfo.at(Axis::Y).get_count();
-	len_type L = ginfo.at(Axis::X).get_count();
+	auto helper = symphas::io::gp::new_helper(ginfo);
 
-	for (iter_type k = 0; k < N; k++)
+	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
-		for (iter_type j = 0; j < M; j++)
+		for (iter_type j = 0; j < GP_HELPER_LENY; j++)
 		{
-			for (iter_type i = 0; i < L; i++)
+			for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 			{
 				for (len_type n = 0; n < ginfo.dimension(); ++n)
 				{
@@ -278,11 +268,12 @@ void symphas::io::gp::col::read_block(scalar_ptr_t(&grid)[1], symphas::grid_info
 				double m;
 				fscanf(f, "%lf ", &m);
 
-				iter_type ii = i + j * L + k * L * M;
+				iter_type ii = GP_HELPER_INDEX({ i, j, k });
 				grid[0][ii] = m;
 			}
 		}
 	}
+	symphas::io::gp::free_helper(helper);
 }
 
 

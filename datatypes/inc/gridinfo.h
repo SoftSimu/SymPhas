@@ -791,6 +791,21 @@ public:
 		return length;
 	}
 
+	//! Gives the number of cells in the entire grid in discrete space.
+	/*!
+	 * Gives the number of cells in the entire grid in discrete space.
+	 * This is computed using the lengths of all the intervals.
+	 */
+	len_type num_interval_points()
+	{
+		len_type length = 1;
+		for (iter_type i = 0; i < dimension(); ++i)
+		{
+			length *= at(symphas::index_to_axis(i)).get_interval_count();
+		}
+		return length;
+	}
+
 
 	//! Gives the spacing of the intervals.
 	/*!

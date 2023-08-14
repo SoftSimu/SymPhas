@@ -36,6 +36,72 @@
 
 
 
+// ****************************************************************************
+
+#define GP_HELPER_LEN(AXIS) helper->get_interval_len(AXIS)
+#define GP_HELPER_LENX GP_HELPER_LEN(Axis::X)
+#define GP_HELPER_LENY GP_HELPER_LEN(Axis::Y)
+#define GP_HELPER_LENZ GP_HELPER_LEN(Axis::Z)
+
+#define GP_HELPER_POS(AXIS, ...) helper->get_position(AXIS, __VA_ARGS__)
+#define GP_HELPER_POSX(...) GP_HELPER_POS(Axis::X, __VA_ARGS__)
+#define GP_HELPER_POSY(...) GP_HELPER_POS(Axis::Y, __VA_ARGS__)
+#define GP_HELPER_POSZ(...) GP_HELPER_POS(Axis::Z, __VA_ARGS__)
+
+#define GP_HELPER_INDEX(...) helper->get_index(__VA_ARGS__)
+
+namespace symphas::io
+{
+	struct write_info;
+}
+
+namespace symphas::io::gp
+{
+
+	struct gp_plotting_helper
+	{
+		virtual size_t get_dim() const = 0;
+		virtual len_type get_len(iter_type n) const = 0;
+		virtual len_type get_index(const len_type(&coords)[3]) const = 0;
+		virtual len_type get_index(const len_type(&coords)[2]) const = 0;
+		virtual len_type get_index(const len_type(&coords)[1]) const = 0;
+		virtual len_type get_index(std::initializer_list<len_type> const&) const = 0;
+		virtual double get_position(Axis ax, const len_type(&coords)[3]) const = 0;
+		virtual double get_position(Axis ax, const len_type(&coords)[2]) const = 0;
+		virtual double get_position(Axis ax, const len_type(&coords)[1]) const = 0;
+		virtual double get_position(Axis ax, std::initializer_list<len_type> const&) const = 0;
+		virtual double get_position(Axis ax, len_type coord) const = 0;
+		virtual ~gp_plotting_helper() {};
+
+		len_type get_interval_len(Axis ax) const
+		{
+			int n = this->get_dim();
+			int n0 = symphas::axis_to_index(ax);
+
+			if (n0 >= n)
+			{
+				return 1;
+			}
+			else
+			{
+				return this->get_len(n0);
+			}
+		}
+	};
+
+	template<size_t D>
+	struct gp_plotting_helper_specialized;
+
+	gp_plotting_helper* new_helper(symphas::io::write_info const& winfo, symphas::grid_info const& ginfo);
+	gp_plotting_helper* new_helper(symphas::grid_info ginfo);
+	inline void free_helper(gp_plotting_helper* helper)
+	{
+		delete helper;
+	}
+}
+
+// ****************************************************************************
+
 
 using double_arr2 = double[2];
 using scalar_ptr_t = scalar_t*;
@@ -69,6 +135,12 @@ using T_ptr_t = T*;
 //! Relative location of the backup configuration, format string.
 #define BACKUP_CONFIG_LOC_FMT "%s/" CHECKPOINT_DIR "/" BACKUP_CONFIG_NAME "." CONFIG_EXTENSION
 
+
+//! The character used to prefix special options in the configuration.
+#define CONFIG_OPTION_PREFIX @
+
+//! Character usage of #CONFIG_OPTION_PREFIX
+#define CONFIG_OPTION_PREFIX_C (STR(CONFIG_OPTION_PREFIX)[0])
 
 
 /*
@@ -106,12 +178,18 @@ using T_ptr_t = T*;
 
 //! Number of decimals specified in the phase field data output.
 #define DATA_OUTPUT_ACCURACY 5
+#define CHECKPOINT_OUTPUT_ACCURACY 10
 
 //! Stringified #AXIS_OUTPUT_ACCURACY
 #define AXIS_OUTPUT_ACCURACY_STR STR(AXIS_OUTPUT_ACCURACY)
 
 //! Stringified #DATA_OUTPUT_ACCURACY
-#define DATA_OUTPUT_ACCURACY_STR STR(DATA_OUTPUT_ACCURACY)
+#define DATA_OUTPUT_ACCURACY_STR "." STR(DATA_OUTPUT_ACCURACY)
+#define DATA_OUTPUT_FORMAT_STR "f"
+
+//! Stringified #CHECKPOINT_OUTPUT_ACCURACY
+#define CHECKPOINT_OUTPUT_ACCURACY_STR "." STR(CHECKPOINT_OUTPUT_ACCURACY)
+#define CHECKPOINT_OUTPUT_FORMAT_STR "E"
 
 //! The compression ratio for printing data with the XDR utility.
 constexpr double XDR_COORD_COMPRESSION = 1E5;
@@ -231,6 +309,9 @@ namespace params
 	 * saved throughout the execution of the solution
 	 */
 	DLLIO extern int checkpoint_count;
+
+	DLLIO extern bool* single_io_file[2];
+	DLLIO extern WriterType* io_type[2];
 
 }
 
