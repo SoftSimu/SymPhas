@@ -507,13 +507,13 @@ auto operator+(OpOperator<E1> const& a, OpExpression<E2> const& b)
 template<typename E1, typename E2>
 auto operator-(OpExpression<E1> const& a, OpOperator<E2> const& b)
 {
-	return expr::make_add(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b));
+	return expr::make_add(*static_cast<E1 const*>(&a), -*static_cast<E2 const*>(&b));
 }
 
 template<typename E1, typename E2>
 auto operator-(OpOperator<E1> const& a, OpExpression<E2> const& b)
 {
-	return expr::make_add(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b));
+	return expr::make_add(*static_cast<E1 const*>(&a), -*static_cast<E2 const*>(&b));
 }
 
 template<typename E1, typename E2>
@@ -945,16 +945,15 @@ struct OpOperatorCombination : OpOperator<OpOperatorCombination<A1, A2>>
 	template<typename E>
 	auto apply_impl(OpExpression<E> const& e) const
 	{
-		//if constexpr (expr::is_symbol<expr::eval_type_t<E>>)
-		//{
-		//	return OpOperatorChain(*this, *static_cast<E const*>(&e));
-		//}
-		//else
-		{
-			return OpCombination(*this, *static_cast<E const*>(&e));
-		}
+		return OpCombination(*this, *static_cast<E const*>(&e));
 	}
 
+
+	//! Apply the chain operation to an expression.
+	inline auto apply_impl(OpVoid) const
+	{
+		return OpVoid{};
+	}
 	
 	A1 f; //!< Operator on the left of the plus sign.
 	A2 g; //!< Operator on the right of the plus sign.
@@ -1053,10 +1052,17 @@ public:
 		combination{ combination },
 		eval_expr_f{ make_eval_expr(combination.f, e) }, eval_expr_g{ make_eval_expr(combination.g, e) }, e{ e } {}
 
+
+	template<typename... condition_ts>
+	inline auto update(symphas::lib::types_list<condition_ts...>)
+	{
+		expr::prune::update<condition_ts...>(eval_expr_f);
+		expr::prune::update<condition_ts...>(eval_expr_g);
+	}
+
 	inline auto update()
 	{
-		expr::prune::update(eval_expr_f);
-		expr::prune::update(eval_expr_g);
+		update(symphas::lib::types_list<>{});
 	}
 
 	inline auto eval(iter_type n) const
@@ -1188,14 +1194,13 @@ struct OpOperatorChain : OpOperator<OpOperatorChain<A1, A2>>
 	template<typename E>
 	auto apply_impl(OpExpression<E> const& e) const
 	{
-		//if constexpr (std::is_same<expr::symbols::Symbol, expr::eval_type_t<E>>::value)
-		//{
-		//	return ::OpOperatorChain(*this, *static_cast<E const*>(&e));
-		//}
-		//else
-		{
-			return OpChain(*this, *static_cast<E const*>(&e));
-		}
+		return OpChain(*this, *static_cast<E const*>(&e));
+	}
+
+	//! Apply the chain operation to an expression.
+	inline auto apply_impl(OpVoid) const
+	{
+		return OpVoid{};
 	}
 
 
@@ -1310,6 +1315,27 @@ auto operator*(coeff_t const& a, OpOperatorCombination<A1, A2> const& b)
 	return a * b.f + a * b.g;
 }
 
+namespace symphas::internal
+{
+
+	template<typename A1, typename A2, typename E>
+	auto _get_eval_expr(OpOperatorChain<A1, A2> const& combination, E const& e)
+	{
+		return combination.f(combination.g(e));
+	}
+
+	template<typename A1, typename E>
+	auto _get_eval_expr(OpOperatorChain<A1, OpIdentity> const& combination, E const& e)
+	{
+		return expr::make_mul(combination.f, e);
+	}
+
+	template<typename C, typename E>
+	auto get_eval_expr(C const& combination, E const& e)
+	{
+		return _get_eval_expr(combination, e);
+	}
+}
 
 
 //! A concrete operator chain of two general operators.
@@ -1327,17 +1353,12 @@ struct OpChain : OpExpression<OpChain<A1, A2, E>>
 
 protected:
 
-	auto get_eval_expr(OpOperatorChain<A1, A2> const& combination, E e)
-	{
-		return combination.f(combination.g(e));
-	}
-
-	using expr_type = std::invoke_result_t<decltype(&OpChain<A1, A2, E>::get_eval_expr), OpChain<A1, A2, E>, OpOperatorChain<A1, A2>, E>;
+	using expr_type = std::invoke_result_t<decltype(&symphas::internal::get_eval_expr<OpOperatorChain<A1, A2>, E>), OpOperatorChain<A1, A2>, E>;
 	expr_type eval_expr;		//!< The result of applying the outer operator to the inner.
 
 public:
 
-	OpChain() : combination{}, eval_expr{}, e{} {}
+	OpChain() : eval_expr{}, combination{}, e{} {}
 
 	//! Create the combination of two operators applied to an expression.
 	/*!
@@ -1350,9 +1371,16 @@ public:
 		eval_expr{ get_eval_expr(combination, e) },
 		combination{ combination }, e{ e } {}
 
+
+	template<typename... condition_ts>
+	inline auto update(symphas::lib::types_list<condition_ts...>)
+	{
+		expr::prune::update<condition_ts...>(eval_expr);
+	}
+
 	inline auto update()
 	{
-		expr::prune::update(eval_expr);
+		update(symphas::lib::types_list<>{});
 	}
 
 	inline auto eval(iter_type n) const
@@ -1405,6 +1433,19 @@ public:
 
 };
 
+
+
+template<typename coeff_t, typename V, typename std::enable_if_t<(expr::is_coeff<coeff_t>), int> = 0>
+auto operator*(coeff_t const& value, OpOperatorChain<V, OpIdentity> const& combination)
+{
+	return (value * combination.f) * OpOperatorChain(OpIdentity{}, OpIdentity{});
+}
+
+template<typename coeff_t, typename std::enable_if_t<(expr::is_coeff<coeff_t>), int> = 0>
+auto operator*(coeff_t const& value, OpOperatorChain<OpIdentity, OpIdentity> const& combination)
+{
+	return OpOperatorChain(value, OpIdentity{});
+}
 
 template<typename coeff_t, typename A1, typename A2, typename E,
 	typename std::enable_if_t<(expr::is_coeff<coeff_t> && !expr::is_tensor<coeff_t>), int> = 0>
@@ -1546,6 +1587,10 @@ struct OpPow : OpExpression<OpPow<X, V, E>>
 
 namespace expr
 {
+
+	template<expr::exp_key_t X, typename E>
+	auto pow_x(OpExpression<E> const& e);
+
 	//! Constructs the expression representing an expression to a power.
 	/*!
 	 * Directly constructs the exponent expression of an
@@ -1555,16 +1600,38 @@ namespace expr
 	 * \param e The expression.
 	 */
 	template<expr::exp_key_t X, typename V, typename E>
-	auto make_pow(V const& value, E const& e)
+	auto make_pow(V const& value, OpExpression<E> const& e)
 	{
-		if constexpr (X == expr::Xk<1>)
+		if constexpr (expr::is_coeff<E>)
 		{
-			return e;
+			return value * expr::pow_x<X>(*static_cast<E const*>(&e));
+		}
+		else if constexpr (X == expr::Xk<0>)
+		{
+			return value;
+		}
+		else if constexpr (X == expr::Xk<1>)
+		{
+			return value * *static_cast<E const*>(&e);
 		}
 		else
 		{
-			return OpPow<X, V, E>(value, e);
+			return OpPow<X, V, E>(value, *static_cast<E const*>(&e));
 		}
+	}
+
+	//! Constructs the expression representing an expression to a power.
+	/*!
+	 * Directly constructs the exponent expression of an
+	 * expression without applying any rules.
+	 *
+	 * \param value The coefficient.
+	 * \param e The expression.
+	 */
+	template<expr::exp_key_t X, typename V, typename V0, typename... Gs, expr::exp_key_t... Xs>
+	auto make_pow(V const& value, OpTerms<V0, Term<Gs, Xs>...> const& e)
+	{
+		return value * expr::pow_x<X>(e);
 	}
 
 	//! Constructs the expression representing an expression to a power.
@@ -1845,10 +1912,16 @@ struct OpMap : OpExpression<OpMap<G, V, E>>
 	 * result. Then update the GridPair object, which has been linked with the
 	 * result in the constructor.
 	 */
-	void update()
+	template<typename... condition_ts>
+	void update(symphas::lib::types_list<condition_ts...>)
 	{
 		expr::result(e, data.src, data.len);
 		data.update();
+	}
+
+	void update()
+	{
+		update(symphas::lib::types_list<>{});
 	}
 
 	auto operator-() const
@@ -1939,6 +2012,8 @@ struct OpMap<void, V, E> : OpExpression<OpMap<void, V, E>>
 	 * result. Then update the GridPair object, which has been linked with the
 	 * result in the constructor.
 	 */
+	template<typename... condition_ts>
+	void update(symphas::lib::types_list<condition_ts...>) {}
 	void update() {}
 
 	auto operator-() const
@@ -2286,6 +2361,8 @@ struct OpMap<symphas::internal::HCTS, OpIdentity, E> : OpExpression<OpMap<sympha
 		return expr::eval_fftw_hcts<D>{}(n, e, dims);
 	}
 
+	template<typename... condition_ts>
+	void update(symphas::lib::types_list<condition_ts...>) {}
 	void update() {}
 
 	auto operator-() const
@@ -2401,6 +2478,8 @@ struct OpMap<symphas::internal::STHC, OpIdentity, E> : OpExpression<OpMap<sympha
 		return expr::eval_fftw_sthc<D>{}(n, e, dims);
 	}
 
+	template<typename... condition_ts>
+	void update(symphas::lib::types_list<condition_ts...>) {}
 	void update() {}
 
 	auto operator-() const
@@ -2492,6 +2571,8 @@ struct OpMap<VectorComponent<ax>, V, E> : OpExpression<OpMap<VectorComponent<ax>
 		return e.eval(n)[symphas::axis_to_index(ax)];
 	}
 
+	template<typename... condition_ts>
+	void update(symphas::lib::types_list<condition_ts...>) {}
 	void update() {}
 
 	auto operator-() const

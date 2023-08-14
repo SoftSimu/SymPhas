@@ -313,7 +313,8 @@ public:
 	/*!
 	 * Update the convolution by computing the result into the stored grid.
 	 */
-	void update()
+	template<typename... condition_ts>
+	void update(symphas::lib::types_list<condition_ts...>)
 	{
 		// compute the result of the expressions and update the grids
 		expr::result(a, data_a.values, data_a.len);
@@ -342,6 +343,11 @@ public:
 		{
 			grid::scale(g0);
 		}
+	}
+
+	void update()
+	{
+		update(symphas::lib::types_list<>{});
 	}
 
 protected:
@@ -527,7 +533,8 @@ public:
 	/*!
 	 * Update the convolution by computing the result into the stored grid.
 	 */
-	void update()
+	template<typename... condition_ts>
+	void update(symphas::lib::types_list<condition_ts...>)
 	{
 		expr::result(e, data.values, data.len);
 		symphas::dft::fftw_execute(compute.p_in_out);
@@ -543,6 +550,11 @@ public:
 		grid::scale(g0);
 	}
 
+
+	void update()
+	{
+		update(symphas::lib::types_list<>{});
+	}
 
 protected:
 	
@@ -717,7 +729,8 @@ public:
 	friend auto& expr::get_result_data(OpConvolution<V0, GaussianSmoothing<D0>, OpTerm<OpIdentity, G0>>&);
 
 
-	void update()
+	template<typename... condition_ts>
+	void update(symphas::lib::types_list<condition_ts...>)
 	{
 		//expr::prune::update(data);
 		symphas::dft::fftw_execute(compute.p_in_out);
@@ -732,6 +745,12 @@ public:
 		symphas::dft::iterate_rc<G_T, D>(f, g0.dims);
 		symphas::dft::fftw_execute(compute.p_out_in);
 		grid::scale(g0);
+	}
+
+
+	void update()
+	{
+		update(symphas::lib::types_list<>{});
 	}
 
 protected:

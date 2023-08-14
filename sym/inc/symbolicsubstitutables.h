@@ -144,6 +144,11 @@ namespace symphas::internal
 	}*/
 
 
+	template<typename T0>
+	auto _make_symbolic_data(NamedData<T0*> arg, len_type len)
+	{
+		return SymbolicDataArray<NamedData<T0*>>(arg, len, false);
+	}
 
 	template<typename T0>
 	auto _make_symbolic_data(arr_type<T0>&& arg, len_type len)
@@ -489,7 +494,8 @@ struct SymbolicFunction<E, Variable<ArgNs, Ts>...>
 {
 	using this_type = SymbolicFunction<E, Variable<ArgNs, Ts>...>;
 	
-	SymbolicFunction() : data{} {}
+	SymbolicFunction() : 
+		data{}, e{ symphas::internal::substitute_args(E{}, data, std::index_sequence<ArgNs...>{}, std::make_index_sequence<sizeof...(Ts)>{}) } {}
 
 	template<typename T>
 	using arg_type = typename std::invoke_result_t<decltype(&symphas::internal::construct_arg<T>), T>;
@@ -535,7 +541,9 @@ struct SymbolicFunction<E, Variable<ArgNs, Ts>...>
 		using std::swap;
 		//swap(static_cast<parent_type&>(first), static_cast<parent_type&>(second));
 		swap(first.data, second.data);
-		swap(first.e, second.e);
+		auto first_expr = first.e;
+		first.e = symphas::internal::substitute_args(second.e, first.data, std::index_sequence<ArgNs...>{}, std::make_index_sequence<sizeof...(Ts)>{});
+		second.e = symphas::internal::substitute_args(first_expr, second.data, std::index_sequence<ArgNs...>{}, std::make_index_sequence<sizeof...(Ts)>{});
 	}
 
 protected:
@@ -716,51 +724,57 @@ struct SymbolicFunctionArray
 	using eval_type = std::invoke_result_t<decltype(&f_type::eval), f_type, iter_type>;
 
 	SymbolicFunctionArray(len_type n = 0, len_type len = 0) :
-		data{ (len > 0) ? new f_type * [len] : nullptr },
-		offsets{ (len > 0) ? new iter_type * [len] {} : nullptr },
-		len{ len }, n{ n }
+		data{ nullptr },
+		offsets_data{ nullptr },
+		len{ len }, n{ n } {}
+
+
+	template<typename E, size_t... Ns, typename... Ts, int... I0s, int... P0s>
+	void init_one(iter_type i, SymbolicFunction<E, Variable<Ns, Ts>...> const& f, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>)
 	{
-		for (iter_type i = 0; i < len; ++i)
+		DynamicIndex index[sizeof...(I0s)]{};
+		for (iter_type j = 0; j < sizeof...(I0s); ++j)
 		{
-			offsets[i] = new iter_type[n]{};
-			data[i] = nullptr;
+			index[j] = DynamicIndex(offsets_data[i * n + j]);
 		}
+
+		auto ff = (expr::function_of(Variable<Ns, Ts>{}...)
+			= symphas::internal::swapped_coeffs<0>(f.e, index, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>{}));
+		ff.set_data_tuple(f.data);
+		swap(data[i], ff);
 	}
 
 	template<typename E, size_t... Ns, typename... Ts, int... I0s, int... P0s>
-	void init(SymbolicFunction<E, Variable<Ns, Ts>...> const& f, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>)
+	void reallocate(SymbolicFunction<E, Variable<Ns, Ts>...> const& f, len_type len, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>)
 	{
-		if (data != nullptr)
-		{
-			if (data[0] == nullptr)
-			{
-				for (iter_type i = 0; i < len; ++i)
-				{
-					DynamicIndex index[sizeof...(I0s)]{};
-					for (iter_type j = 0; j < sizeof...(I0s); ++j)
-					{
-						index[j] = DynamicIndex(offsets[i][j]);
-					}
+		this->len = len;
+		delete[] data;
+		delete[] offsets_data;
 
-					auto ff = (expr::function_of(Variable<Ns, Ts>{}...)
-						= symphas::internal::swapped_coeffs<0>(f.e, index, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>{}));
-					ff.set_data_tuple(f.data);
-					data[i] = new f_type(ff);
-				}
-			}
+		data = new f_type[len]{};
+		offsets_data = new iter_type[n * len]{};
+		for (iter_type i = 0; i < len; ++i)
+		{
+			init_one(i, f, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>{});
 		}
 	}
 
 	SymbolicFunctionArray(SymbolicFunctionArray const& other) :
-		data{ (other.len > 0) ? new f_type * [other.len] : nullptr },
-		offsets{ (other.len > 0) ? new iter_type * [other.len] : nullptr },
+		data{ (other.data != nullptr && other.len > 0) ? new f_type[other.len]{} : nullptr },
+		offsets_data{ (other.offsets_data != nullptr && other.len * other.n > 0) ? new iter_type[other.len * other.n]{} : nullptr },
 		len{ other.len }, n{ other.n }
 	{
-		for (iter_type i = 0; i < len; ++i)
+		if (other.offsets_data != nullptr)
 		{
-			data[i] = (other.data[i] != nullptr) ? new f_type(*other.data[i]) : nullptr;
-			offsets[i] = new iter_type[n];
-			std::copy(other.offsets[i], other.offsets[i] + n, offsets[i]);
+			std::copy(other.offsets_data, other.offsets_data + len * n, offsets_data);
+			std::copy(other.data, other.data + len, data);
+			for (iter_type i = 0; i < len; ++i)
+			{
+				for (iter_type n0 = 0; n0 < n; ++n0)
+				{
+					expr::fix_index(data[i].e, DynamicIndex(other.offsets_data[i * n + n0]) == (offsets_data + i * n + n0));
+				}
+			}
 		}
 	}
 
@@ -778,7 +792,7 @@ struct SymbolicFunctionArray
 	friend void swap(SymbolicFunctionArray<E0, T0s...>& first, SymbolicFunctionArray<E0, T0s...>& second)
 	{
 		std::swap(first.data, second.data);
-		std::swap(first.offsets, second.offsets);
+		std::swap(first.offsets_data, second.offsets_data);
 		std::swap(first.len, second.len);
 		std::swap(first.n, second.n);
 	}
@@ -786,7 +800,7 @@ struct SymbolicFunctionArray
 
 	const auto& operator[](iter_type i) const
 	{
-		return *data[i];
+		return data[i];
 	}
 
 	template<size_t N>
@@ -794,31 +808,94 @@ struct SymbolicFunctionArray
 	{
 		for (iter_type j = 0; j < n; ++j)
 		{
-			index[j] = offsets[i][j];
+			index[j] = offsets_data[i * n + j];
 		}
-		return *data[i];
+		return data[i];
 	}
 
 	~SymbolicFunctionArray()
 	{
 		if (data != nullptr)
 		{
-			for (iter_type i = 0; i < len; ++i)
-			{
-				delete data[i];
-			}
 			delete[] data;
+			delete[] offsets_data;
 		}
 	}
 
-	f_type** data;
-	iter_type** offsets;
+	f_type* data;
+	iter_type* offsets_data;
 	len_type len;
 	len_type n;
 
-
 };
 
+//! The purpose of this persistent object is storing only offsets related to a series
+/*!
+ * The idea is that a series boils down to being an object that represents the
+ * sum of a list of expressions which only differ by the indices of summation. By storing
+ * only those indicies, a.k.a offsets, the process of evaluating and summing the list should
+ * be relatively quick compared to other methods.
+ */
+template<typename E0, typename... T0s>
+struct SymbolicFunctionOffsets
+{
+	using f_type = SymbolicFunction<E0, T0s...>;
+	using eval_type = std::invoke_result_t<decltype(&f_type::eval), f_type, iter_type>;
+
+	SymbolicFunctionOffsets() :
+		/*e{}, */offsets_data{ nullptr }, len{ 0 }, n{ 0 }
+	{}
+
+	template<int... I0s, int... P0s>
+	void reallocate(len_type len, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>)
+	{
+		n = len_type(sizeof...(I0s));
+		this->len = len;
+
+		delete[] offsets_data;
+		offsets_data = new iter_type[len * n]{};
+	}
+
+	SymbolicFunctionOffsets(SymbolicFunctionOffsets const& other) :
+		/*e{ other.e }, offsets{ (other.len > 0) ? new iter_type*[other.len] : nullptr },*/
+		offsets_data{ (other.len * other.n > 0) ? new iter_type[other.len * other.n] : nullptr },
+		len{ other.len }, n{ other.n }
+	{
+		std::copy(other.offsets_data, other.offsets_data + len * n, offsets_data);
+	}
+
+	SymbolicFunctionOffsets(SymbolicFunctionOffsets&& other) : SymbolicFunctionOffsets()
+	{
+		swap(*this, other);
+	}
+
+	SymbolicFunctionOffsets<E0, T0s...> operator=(SymbolicFunctionOffsets<E0, T0s...> other)
+	{
+		swap(*this, other);
+		return *this;
+	}
+
+	friend void swap(SymbolicFunctionOffsets<E0, T0s...>& first, SymbolicFunctionOffsets<E0, T0s...>& second)
+	{
+		std::swap(first.offsets_data, second.offsets_data);
+		//std::swap(first.e, second.e);
+		std::swap(first.len, second.len);
+		std::swap(first.n, second.n);
+	}
+
+
+
+	~SymbolicFunctionOffsets()
+	{
+		delete[] offsets_data;
+	}
+
+	iter_type* offsets_data;
+	//f_type e;
+	len_type len;
+	len_type n;
+
+};
 
 
 

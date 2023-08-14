@@ -361,7 +361,7 @@ auto operator/(OpCoeff<T1, I> const& a, OpLiteral<T2> const& b)
 template<typename T, typename I, typename coeff_t, std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
 auto operator+(OpCoeff<T, I> const& a, coeff_t const& b)
 {
-	auto result = expr::init_coeff_from<T, I>(a);
+	auto result = expr::init_coeff_from<add_result_t<T, coeff_t>, I>(a);
 	for (iter_type i = 0; i < a.data.len; ++i)
 	{
 		result.data[i] = a.data[i] + b;
@@ -372,7 +372,7 @@ auto operator+(OpCoeff<T, I> const& a, coeff_t const& b)
 template<typename T, typename I, typename coeff_t, std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
 auto operator-(OpCoeff<T, I> const& a, coeff_t const& b)
 {
-	auto result = expr::init_coeff_from<T, I>(a);
+	auto result = expr::init_coeff_from<sub_result_t<T, coeff_t>, I>(a);
 	for (iter_type i = 0; i < a.data.len; ++i)
 	{
 		result.data[i] = a.data[i] - b;
@@ -383,7 +383,7 @@ auto operator-(OpCoeff<T, I> const& a, coeff_t const& b)
 template<typename T, typename I, typename coeff_t, std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
 auto operator*(OpCoeff<T, I> const& a, coeff_t const& b)
 {
-	auto result = expr::init_coeff_from<T, I>(a);
+	auto result = expr::init_coeff_from<mul_result_t<T, coeff_t>, I>(a);
 	for (iter_type i = 0; i < a.data.len; ++i)
 	{
 		result.data[i] = a.data[i] * b;
@@ -394,7 +394,7 @@ auto operator*(OpCoeff<T, I> const& a, coeff_t const& b)
 template<typename T, typename I, typename coeff_t, std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
 auto operator/(OpCoeff<T, I> const& a, coeff_t const& b)
 {
-	auto result = expr::init_coeff_from<T, I>(a);
+	auto result = expr::init_coeff_from<div_result_t<T, coeff_t>, I>(a);
 	for (iter_type i = 0; i < a.data.len; ++i)
 	{
 		result.data[i] = a.data[i] / b;
@@ -402,10 +402,21 @@ auto operator/(OpCoeff<T, I> const& a, coeff_t const& b)
 	return result;
 }
 
+template<typename T1, typename I, typename T2, size_t... Ns>
+auto operator*(OpCoeff<T1, I> const& a, OpTensor<T2, Ns...> const& b)
+{
+	auto result = expr::init_coeff_from<mul_result_t<T1, T2>, I>(a);
+	for (iter_type i = 0; i < a.data.len; ++i)
+	{
+		result.data[i] = a.data[i] * T2(b);
+	}
+	return expr::make_tensor<Ns...>(result);
+}
+
 template<typename T, typename I, typename coeff_t, std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
 auto operator+(coeff_t const& a, OpCoeff<T, I> const& b)
 {
-	auto result = expr::init_coeff_from<T, I>(b);
+	auto result = expr::init_coeff_from<add_result_t<coeff_t, T>, I>(b);
 	for (iter_type i = 0; i < b.data.len; ++i)
 	{
 		result.data[i] = a + b.data[i];
@@ -416,7 +427,7 @@ auto operator+(coeff_t const& a, OpCoeff<T, I> const& b)
 template<typename T, typename I, typename coeff_t, std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
 auto operator-(coeff_t const& a, OpCoeff<T, I> const& b)
 {
-	auto result = expr::init_coeff_from<T, I>(b);
+	auto result = expr::init_coeff_from<sub_result_t<coeff_t, T>, I>(b);
 	for (iter_type i = 0; i < b.data.len; ++i)
 	{
 		result.data[i] = a - b.data[i];
@@ -427,7 +438,7 @@ auto operator-(coeff_t const& a, OpCoeff<T, I> const& b)
 template<typename T, typename I, typename coeff_t, std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
 auto operator*(coeff_t const& a, OpCoeff<T, I> const& b)
 {
-	auto result = expr::init_coeff_from<T, I>(b);
+	auto result = expr::init_coeff_from<mul_result_t<coeff_t, T>, I > (b);
 	for (iter_type i = 0; i < b.data.len; ++i)
 	{
 		result.data[i] = a * b.data[i];
@@ -438,7 +449,7 @@ auto operator*(coeff_t const& a, OpCoeff<T, I> const& b)
 template<typename T, typename I, typename coeff_t, std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
 auto operator/(coeff_t const& a, OpCoeff<T, I> const& b)
 {
-	auto result = expr::init_coeff_from<T, I>(b);
+	auto result = expr::init_coeff_from<div_result_t<coeff_t, T>, I>(b);
 	for (iter_type i = 0; i < b.data.len; ++i)
 	{
 		result.data[i] = a / b.data[i];
@@ -2025,18 +2036,35 @@ auto operator-(OpDerivative<Dd, A, OpTerm<OpIdentity, G>, Sp> const& a, OpDeriva
 }
 
 //! Addition of two variables with data that can be combined.
-template<typename A, typename B, typename E, typename T, typename std::enable_if<expr::is_combinable<E>, int>::type = 0>
+template<typename A, typename B, typename E, typename T>
 auto operator+(OpIntegral<A, E, T> const& a, OpIntegral<B, E, T> const& b)
 {
-	return (expr::coeff(a) + expr::coeff(b)) * OpIntegral<OpIdentity, E, T>(OpIdentity{}, expr::get_enclosed_expression(a));
+	return (expr::coeff(a) + expr::coeff(b)) * OpIntegral<OpIdentity, E, T>(OpIdentity{}, expr::get_enclosed_expression(a), a.domain);
 }
 
 //! Subtraction of two variables with data that can be combined.
-template<typename A, typename B, typename E, typename T, typename std::enable_if<expr::is_combinable<E>, int>::type = 0>
+template<typename A, typename B, typename E, typename T>
 auto operator-(OpIntegral<A, E, T> const& a, OpIntegral<B, E, T> const& b)
 {
-	return (expr::coeff(a) - expr::coeff(b)) * OpIntegral<OpIdentity, E, T>(OpIdentity{}, expr::get_enclosed_expression(a));
+	return (expr::coeff(a) - expr::coeff(b)) * OpIntegral<OpIdentity, E, T>(OpIdentity{}, expr::get_enclosed_expression(a), a.domain);
 }
+
+//! Subtraction of two variables with data that can be combined.
+//template<typename V1, typename V2, typename E, typename T>
+//auto operator*(OpIntegral<V1, E, T> const& a, OpIntegral<V2, E, T> const& b)
+//{
+//	return (expr::coeff(a) * expr::coeff(b)) * expr::make_pow<2>(OpIntegral<OpIdentity, E, T>(OpIdentity{}, expr::get_enclosed_expression(a), a.domain));
+//}
+
+
+
+
+//! Subtraction of two variables with data that can be combined.
+//template<typename V1, typename V2, typename E1, typename E2, typename E3, typename T, typename std::enable_if<expr::is_combinable<E1>, int>::type = 0>
+//auto operator+(OpBinaryMul<OpIntegral<V1, E1, T>, E2> const& a, OpBinaryMul<OpIntegral<V1, E1, T>, E3> const& b)
+//{
+//	return expr::make_mul(a.a, (a.b + b.b));
+//}
 
 
 /*
@@ -2436,31 +2464,59 @@ auto operator*(OpIdentity const& a, OpAdd<Bs...> const& b)
 
 
 //! Distributing a literal into the first operand in multiplication expression.
-template<typename T, typename B1, typename B2>
-auto operator*(OpLiteral<T> const& a, OpBinaryMul<B1, B2> const& b)
+//template<typename T, typename B1, typename B2>
+//auto operator*(OpLiteral<T> const& a, OpBinaryMul<B1, B2> const& b)
+//{
+//	return expr::make_mul(a * b.a, b.b);
+//}
+
+//! Distributing a literal into the first operand in division expression.
+//template<typename T, typename B1, typename B2>
+//auto operator*(OpLiteral<T> const& a, OpBinaryDiv<B1, B2> const& b)
+//{
+//	return expr::make_div(a * b.a, b.b);
+//}
+
+//! Distributing a literal into the first operand in multiplication expression.
+template<typename coeff_t, typename B1, typename B2, typename std::enable_if_t<(expr::is_coeff<coeff_t> && expr::eval_type<coeff_t>::rank == 0), int> = 0>
+auto operator*(coeff_t const& coeff, OpBinaryMul<B1, B2> const& b)
 {
-	return expr::make_mul(a * b.a, b.b);
+	return expr::make_mul(coeff * b.a, b.b);
 }
 
 //! Distributing a literal into the first operand in division expression.
-template<typename T, typename B1, typename B2>
-auto operator*(OpLiteral<T> const& a, OpBinaryDiv<B1, B2> const& b)
+template<typename coeff_t, typename B1, typename B2, typename std::enable_if_t<(expr::is_coeff<coeff_t>&& expr::eval_type<coeff_t>::rank == 0), int> = 0>
+auto operator*(coeff_t const& coeff, OpBinaryDiv<B1, B2> const& b)
 {
-	return expr::make_div(a * b.a, b.b);
+	return expr::make_div(coeff * b.a, b.b);
 }
 
 //! Distributing a literal into the first operand in multiplication expression.
-template<typename coeff_t, typename B1, typename B2, typename std::enable_if_t<(expr::is_fraction<coeff_t>), int> = 0>
-auto operator*(coeff_t, OpBinaryMul<B1, B2> const& b)
+template<typename B1, typename B2>
+auto operator*(OpIdentity, OpBinaryMul<B1, B2> const& b)
 {
-	return expr::make_mul(coeff_t{} * b.a, b.b);
+	return b;
 }
 
 //! Distributing a literal into the first operand in division expression.
-template<typename coeff_t, typename B1, typename B2, typename std::enable_if_t<(expr::is_fraction<coeff_t>), int> = 0>
-auto operator*(coeff_t, OpBinaryDiv<B1, B2> const& b)
+template<typename B1, typename B2>
+auto operator*(OpIdentity, OpBinaryDiv<B1, B2> const& b)
 {
-	return expr::make_div(coeff_t{} * b.a, b.b);
+	return b;
+}
+
+//! Distributing a literal into the first operand in multiplication expression.
+template<typename B1, typename B2>
+auto operator*(OpVoid, OpBinaryMul<B1, B2> const& b)
+{
+	return OpVoid{};
+}
+
+//! Distributing a literal into the first operand in division expression.
+template<typename B1, typename B2>
+auto operator*(OpVoid, OpBinaryDiv<B1, B2> const& b)
+{
+	return OpVoid{};
 }
 
 namespace symphas::internal
@@ -2907,6 +2963,11 @@ auto operator*(OpOperator<E> const& a, OpBinaryDiv<B1, OpTerms<V, Term<Gs, Xs>..
 	return (*static_cast<E const*>(&a)).operator()(b);
 }
 
+template<typename V, typename E1, typename E2>
+auto operator+(OpChain<V, OpIdentity, E1> const& a, OpChain<V, OpIdentity, E2> const& b)
+{
+	return (a.combination)(expr::get_enclosed_expression(a) + expr::get_enclosed_expression(b));
+}
 
 /*
  *

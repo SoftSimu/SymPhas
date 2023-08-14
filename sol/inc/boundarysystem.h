@@ -30,6 +30,25 @@
 #include "expressionlogic.h"
 
 
+#ifdef SOL_EXPORTS
+#define DLLSOL DLLEXPORT
+#else
+#define DLLSOL DLLIMPORT
+#endif
+
+namespace params
+{
+	DLLSOL extern double regional_resize_factor;
+	DLLSOL extern double regional_resize_time;
+	DLLSOL extern double regional_resize_cutoff_eps;
+}
+
+#define REGIONAL_GRID_RESIZE_FACTOR params::regional_resize_factor
+#define REGIONAL_GRID_RESIZE_TIME params::regional_resize_time
+#define REGIONAL_GRID_CUTOFF_EPS params::regional_resize_cutoff_eps
+
+bool add_solution_params(param_map_type& param_map);
+
 //! Representation of a phase field and associated characteristics.
 /*!
  * Specialization based on a phase field system in which boundaries must be
@@ -91,8 +110,8 @@ protected:
 		{
 			for (auto& [_, interval] : vdata)
 			{
-				interval.set_count(
-					interval.get_count() + 2 * THICKNESS);
+				interval.set_count(interval.get_count() + 2 * BOUNDARY_DEPTH);
+				interval.interval_to_domain();
 			}
 		}
 		return vdata;
@@ -100,14 +119,130 @@ protected:
 
 };
 
-
-
-
-
 template<typename T, size_t D>
 void PhaseFieldSystem<BoundaryGrid, T, D>::update(iter_type index, double time)
 {
-	BoundaryGroup<T, D>::template update_boundaries(*this, index, time);
+	BoundaryGroup<T, D>::update_boundaries(*this, index, time);
+}
+
+
+
+//! Representation of a phase field and associated characteristics.
+/*!
+ * Specialization based on a phase field system in which boundaries must be
+ * managed. See ::PhaseFieldSystem.
+ *
+ * When the phase field is created, it will automatically populate the phase
+ * field values from the given initial conditions.
+ *
+ * The phase field is based on a PersistenSystemData, meaning it has the ability
+ * to persist its data to a file if the **io** module is enabled.
+ *
+ * \tparam T The type of the phase field.
+ * \tparam D The dimension of the phase field.
+ */
+template<typename T, size_t D>
+struct PhaseFieldSystem<RegionalGrid, T, D> : PersistentSystemData<RegionalGrid<T, D>>, BoundaryGroup<T, D>
+{
+	using parent_type = PersistentSystemData<RegionalGrid<T, D>>;
+	using parent_type::info;
+
+
+
+	//! Given the system information, generate the phase field.
+	/*!
+	 * Given the system information, generate the phase field. This includes
+	 * populating the values of the field from the initial conditions.
+	 * This also includes setting the boundary conditions of the system.
+	 *
+	 * \param tdata The information about the initial conditions of the
+	 * phase field system.
+	 * \param vdata The interval data about the system.
+	 * \param bdata The information about the boundary conditions of the phase
+	 * field system.
+	 * \param id A special identifier number. This does not have to be unique,
+	 * but should be unique between different systems in the same model.
+	 */
+	PhaseFieldSystem(symphas::init_data_type const& tdata, symphas::interval_data_type const& vdata, symphas::b_data_type const& bdata, size_t id = 0);
+
+	//! Update the system to prepare for the next solver iteration.
+	/*!
+	 * Update the system to prepare for the next solver iteration. The values
+	 * on the boundaries are updated based on the solution index and solution
+	 * time. The way the boundaries are updated is based on the boundary
+	 * types, and is implemented higher in the class heirarchy.
+	 *
+	 * \param index The solution index.
+	 * \param time The solution time.
+	 */
+	void update(iter_type index = 0, double time = 0);
+
+
+protected:
+
+	PhaseFieldSystem();
+
+	symphas::interval_data_type get_extended_intervals(symphas::interval_data_type vdata)
+	{
+		if (params::extend_boundary)
+		{
+			for (auto& [_, interval] : vdata)
+			{
+				interval.set_count(interval.get_count() + 2 * BOUNDARY_DEPTH);
+				interval.interval_to_domain();
+			}
+		}
+		return vdata;
+	}
+
+
+	iter_type next_resize;
+	double resize_delta;
+	T cutoff;
+};
+
+namespace grid
+{
+	template<typename T, size_t D>
+	auto min_value(RegionalGrid<T, D> const& grid)
+	{
+		symphas::data_iterator it(grid.values);
+		auto e = std::min_element(it, it + grid.region.len);
+		return std::min(*e, grid.empty);
+	}
+}
+
+template<typename T, size_t D>
+void PhaseFieldSystem<RegionalGrid, T, D>::update(iter_type index, double time)
+{
+	if (next_resize == 0)
+	{
+		auto min0 = grid::min_value(*this);
+		cutoff = min0 + REGIONAL_GRID_CUTOFF_EPS;
+		RegionalGrid<T, D>::empty = min0;
+
+		grid::resize_adjust_region(*this, cutoff, REGIONAL_GRID_RESIZE_FACTOR);
+
+		for (auto& [axis, interval] : info)
+		{
+			iter_type i = symphas::axis_to_index(axis);
+			double offset = RegionalGrid<T, D>::region.boundary_size * interval.width();
+			interval.set_interval(
+				RegionalGrid<T, D>::region.origin[i] * interval.width() + offset,
+				(RegionalGrid<T, D>::region.origin[i] + RegionalGrid<T, D>::region.dims[i] - 1) * interval.width() - offset);
+		}
+		++next_resize;
+	}
+	else
+	{
+		iter_type current_resize = iter_type(time / resize_delta);
+		if (current_resize >= next_resize)
+		{
+			grid::adjust_region(*this, cutoff);
+			next_resize = current_resize + 1;
+		}
+	}
+	BoundaryGroup<T, D>::update_boundaries(*this, index, time);
 }
 
 
@@ -123,45 +258,50 @@ PhaseFieldSystem<BoundaryGrid, T, D>::PhaseFieldSystem(
 	symphas::b_data_type const& bdata, size_t id) :
 	parent_type{ get_extended_intervals(vdata), id }, BoundaryGroup<T, D>{ info.intervals, bdata }
 {
-	symphas::internal::populate_tdata(tdata, *static_cast<Grid<T, D>*>(this), &info, id);
+	grid::region_interval<D> region(parent_type::dims, BOUNDARY_DEPTH);
+	symphas::internal::populate_tdata(tdata, *static_cast<Grid<T, D>*>(this), &info, region, id);
 }
 
 template<typename T, size_t D>
 using BoundarySystem = PhaseFieldSystem<BoundaryGrid, T, D>;
 
 
+template<typename T, size_t D>
+PhaseFieldSystem<RegionalGrid, T, D>::PhaseFieldSystem() : 
+	parent_type{}, BoundaryGroup<T, D>{},
+	next_resize{ 0 }, resize_delta{ REGIONAL_GRID_RESIZE_TIME }, cutoff{}
+{}
 
-
-
-namespace expr
+template<typename T, size_t D>
+PhaseFieldSystem<RegionalGrid, T, D>::PhaseFieldSystem(
+	symphas::init_data_type const& tdata,
+	symphas::interval_data_type const& vdata,
+	symphas::b_data_type const& bdata, size_t id) :
+	parent_type{ get_extended_intervals(vdata), id }, BoundaryGroup<T, D>{ info.intervals, bdata }, 
+	next_resize{ 0 }, resize_delta{ REGIONAL_GRID_RESIZE_TIME }, cutoff{}
 {
-
-
-#ifdef MULTITHREAD
-
-	//! Specialization based on expr::result_interior(OpExpression<E> const&, T*, len_type(&)[3]).
-	template<typename T, size_t D, typename E>
-	void result_interior(OpExpression<E> const& e, BoundaryGrid<T, D>& grid)
+	if (grid::has_subdomain(vdata))
 	{
-		expr::result_interior(*static_cast<const E*>(&e), grid, grid.inners, grid.len_inner);
+		grid::resize_adjust_region(*this, vdata);
 	}
 
-
-#else
-
-	//! Specialization based on expr::result_interior(OpExpression<E> const&, T*, len_type(&)[3]).
-	template<typename T, size_t D, typename E>
-	void result_interior(OpExpression<E> const& e, BoundaryGrid<T, D>& grid)
-	{
-		expr::result_interior(*static_cast<const E*>(&e), gri, grid.dims);
-	}
-
-#endif
-
+	grid::region_interval<D> region(RegionalGrid<T, D>::region.dims, RegionalGrid<T, D>::region.boundary_size);
+	symphas::internal::populate_tdata(tdata, *static_cast<Grid<T, D>*>(this), &info, region, id);
 }
 
+template<typename T, size_t D>
+using RegionalSystem = PhaseFieldSystem<RegionalGrid, T, D>;
+
+
+
 DEFINE_SYMBOL_ID((typename T, size_t D), (BoundaryGrid<T, D>), return data.values)
+DEFINE_SYMBOL_ID((typename T, size_t D), (RegionalGrid<T, D>), return data.values)
 DEFINE_BASE_DATA_INHERITED((template<typename, size_t> typename grid_t, typename T, size_t D), (PhaseFieldSystem<grid_t, T, D>), (grid_t<T, D>))
 
 
 
+namespace symphas::internal
+{
+	template<template<typename, size_t> typename G, typename T, size_t D>
+	struct data_value_type<PhaseFieldSystem<G, T, D>> : data_value_type<G<T, D>> {};
+}

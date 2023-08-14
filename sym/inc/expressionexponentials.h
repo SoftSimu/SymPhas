@@ -251,6 +251,12 @@ namespace expr
 	{
 		return symphas::internal::make_exponential::template get(*static_cast<E const*>(&a));
 	}
+
+	template<typename E>
+	auto make_exponential(OpExpression<E> const& a)
+	{
+		return exp(*static_cast<E const*>(&a));
+	}
 }
 
 

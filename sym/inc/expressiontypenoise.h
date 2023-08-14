@@ -579,9 +579,15 @@ public:
 		return symphas::internal::make_symbolic_eval(-value, data, f);
 	}
 
-	void update()
+	template<typename... condition_ts>
+	void update(symphas::lib::types_list<condition_ts...>)
 	{
 		data.update(f.e, f.data);
+	}
+
+	void update()
+	{
+		update(symphas::lib::types_list<>{});
 	}
 
 #ifdef PRINTABLE_EQUATIONS

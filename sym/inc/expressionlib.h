@@ -33,7 +33,6 @@
 #include "gridfunctions.h"
 #include "gridpair.h"
 #include "expressioniterator.h"
-#include "dataiterator.h"
 #include "indexseqhelpers.h"
 #include "symbolicprototypes.h"
 
@@ -43,6 +42,163 @@
 
 #define DERIV_MAX_ORDER 12				//!< Maximum order a derivative can be.
 
+
+namespace expr
+{
+	template<typename E>
+	len_type data_length_for_iterator(OpExpression<E> const& e);
+
+	template<typename T>
+	struct iterator_policy_expression;
+
+	template<>
+	struct iterator_policy_expression<symphas::sequential_iterator_policy>
+	{
+		template<typename E>
+		using type = expression_iterator<E>;
+
+		template<typename E, size_t D>
+		static auto begin(OpExpression<E> const& e, len_type begin_pos = 0)
+		{
+			return expression_iterator(*static_cast<E const*>(&e), begin_pos);
+		}
+
+		template<typename E, size_t D>
+		static auto end(OpExpression<E> const& e, len_type end_pos = 0)
+		{
+			return expression_iterator(*static_cast<E const*>(&e), end_pos);
+		}
+
+		template<typename E>
+		static auto begin(OpExpression<E> const& e, grid::region_size const& interval)
+		{
+			return expression_iterator(*static_cast<E const*>(&e));
+		}
+
+		template<typename E>
+		static auto end(OpExpression<E> const& e, grid::region_size const& interval)
+		{
+			return expression_iterator(*static_cast<E const*>(&e), interval.len);
+		}
+	};
+
+	template<>
+	struct iterator_policy_expression<symphas::selection_iterator_policy>
+	{
+		template<typename E>
+		using type = expression_iterator_selection<E>;
+
+		template<typename E, size_t D>
+		static auto begin(OpExpression<E> const& e, grid::region_index_list<D> const& iters)
+		{
+			return expression_iterator_selection(*static_cast<E const*>(&e), iters.iters);
+		}
+
+		template<typename E, size_t D>
+		static auto end(OpExpression<E> const& e, grid::region_index_list<D> const& iters)
+		{
+			return expression_iterator_selection(*static_cast<E const*>(&e), iters.iters, iters.len);
+		}
+	};
+
+	template<>
+	struct iterator_policy_expression<symphas::region_iterator_policy>
+	{
+		template<typename E, size_t D>
+		using type = expression_iterator_region<E, D>;
+
+		template<typename E, size_t D>
+		static auto begin(OpExpression<E> const& e, grid::region_interval<D> const& interval)
+		{
+			return expression_iterator_region(*static_cast<E const*>(&e), interval);
+		}
+
+		template<typename E, size_t D>
+		static auto end(OpExpression<E> const& e, grid::region_interval<D> const& interval)
+		{
+			return expression_iterator_region(*static_cast<E const*>(&e), interval, grid::length<D>(interval));
+		}
+
+		template<typename E>
+		static auto begin(OpExpression<E> const& e, grid::region_interval<0> const& interval)
+		{
+			return expression_iterator(*static_cast<E const*>(&e));
+		}
+
+		template<typename E>
+		static auto end(OpExpression<E> const& e, grid::region_interval<0> const& interval)
+		{
+			return expression_iterator(*static_cast<E const*>(&e), 1);
+		}
+
+		template<typename E>
+		static auto begin(OpExpression<E> const& e, grid::region_size const& interval)
+		{
+			return expression_iterator(*static_cast<E const*>(&e));
+		}
+
+		template<typename E>
+		static auto end(OpExpression<E> const& e, grid::region_size const& interval)
+		{
+			return expression_iterator(*static_cast<E const*>(&e), interval.len);
+		}
+	};
+
+	template<>
+	struct iterator_policy_expression<symphas::group_iterator_policy>
+	{
+		template<typename E, size_t D>
+		using type = expression_iterator_group<E, D>;
+
+		template<typename E, size_t D>
+		static auto begin(OpExpression<E> const& e, grid::region_interval<D> const& interval)
+		{
+			return expression_iterator_group(*static_cast<E const*>(&e), interval);
+		}
+
+		template<typename E, size_t D>
+		static auto end(OpExpression<E> const& e, grid::region_interval<D> const& interval)
+		{
+			len_type len = grid::length<D>(interval);
+			if (len > 0)
+			{
+				return expression_iterator_group(*static_cast<E const*>(&e), interval, len / (interval[0][1] - interval[0][0]));
+			}
+			else
+			{
+				return expression_iterator_group(*static_cast<E const*>(&e), interval, len);
+			}
+		}
+
+		template<typename E>
+		static auto begin(OpExpression<E> const& e, grid::region_interval<0> const& interval)
+		{
+			return expression_iterator(*static_cast<E const*>(&e));
+		}
+
+		template<typename E>
+		static auto end(OpExpression<E> const& e, grid::region_interval<0> const& interval)
+		{
+			return expression_iterator(*static_cast<E const*>(&e), 1);
+		}
+
+		template<typename E>
+		static auto begin(OpExpression<E> const& e, grid::region_size const& interval)
+		{
+			return expression_iterator(*static_cast<E const*>(&e));
+		}
+
+		template<typename E>
+		static auto end(OpExpression<E> const& e, grid::region_size const& interval)
+		{
+			return expression_iterator(*static_cast<E const*>(&e), interval.len);
+		}
+	};
+
+
+	template<typename T>
+	using iterator_policy_t = typename iterator_policy_expression<T>::type;
+}
 
  //! Base expression object which is inherited from with the CRTP technique.
  /*
@@ -149,9 +305,9 @@ struct OpExpression
 	 * representing the beginning of the data, used when evaluating
 	 * the expression.
 	 */
-	symphas::internal::expression_iterator<E> begin() const
+	expr::expression_iterator<E> begin() const
 	{
-		return symphas::internal::expression_iterator<E>(cast());
+		return expr::expression_iterator<E>(cast());
 	}
 
 
@@ -165,9 +321,66 @@ struct OpExpression
 	 * \param len The end point of the data, for the end iterator to
 	 * point to.
 	 */
-	symphas::internal::expression_iterator<E> end(len_type len) const
+	expr::expression_iterator<E> end(len_type len) const
 	{
-		return symphas::internal::expression_iterator<E>(cast(), len);
+		return expr::expression_iterator<E>(cast(), len);
+	}
+	
+		
+	//! Return an iterator the beginning of the data.
+	/*!
+	 * For the data related to the expression, return an iterator
+	 * representing the beginning of the data, used when evaluating
+	 * the expression.
+	 */
+	template<size_t D>
+	expr::expression_iterator_region<E, D> begin(grid::region_interval<D> const& interval) const
+	{
+		return expr::expression_iterator_region<E, D>(cast(), interval);
+	}
+
+
+	//! Return an iterator the end of the data.
+	/*!
+	 * For the data related to the expression, return an iterator
+	 * representing the end of the data, used when evaluating
+	 * the expression. The end point has to be provided, as the length
+	 * of the data is not known directly by the expression.
+	 *
+	 * \param len The end point of the data, for the end iterator to
+	 * point to.
+	 */
+	template<size_t D>
+	expr::expression_iterator_region<E, D> end(grid::region_interval<D> const& interval) const
+	{
+		return expr::expression_iterator_region<E, D>(cast(), interval, grid::length<D>(interval));
+	}
+
+	//! Return an iterator the beginning of the data.
+	/*!
+	 * For the data related to the expression, return an iterator
+	 * representing the beginning of the data, used when evaluating
+	 * the expression.
+	 */
+	expr::expression_iterator_selection<E> begin(iter_type* iters) const
+	{
+		return expr::expression_iterator_selection<E>(cast(), iters);
+	}
+
+
+	//! Return an iterator the end of the data.
+	/*!
+	 * For the data related to the expression, return an iterator
+	 * representing the end of the data, used when evaluating
+	 * the expression. The end point has to be provided, as the length
+	 * of the data is not known directly by the expression.
+	 *
+	 * \param len The end point of the data, for the end iterator to
+	 * point to.
+	 */
+	expr::expression_iterator_selection<E> end(iter_type* iters, len_type len) const
+	{
+		return expr::expression_iterator_selection<E>(cast(), iters, len);
 	}
 
 
@@ -177,9 +390,10 @@ struct OpExpression
 	 * representing the beginning of the data, used when evaluating
 	 * the expression.
 	 */
-	symphas::internal::expression_iterator_selection<E> begin(iter_type* iters) const
+	template<typename picked_iterator_t, typename arg_t>
+	auto begin(picked_iterator_t, arg_t&& data = arg_t{}) const
 	{
-		return symphas::internal::expression_iterator_selection<E>(cast(), iters);
+		return expr::iterator_policy_expression<picked_iterator_t>::begin(cast(), std::forward<arg_t>(data));
 	}
 
 
@@ -193,9 +407,10 @@ struct OpExpression
 	 * \param len The end point of the data, for the end iterator to
 	 * point to.
 	 */
-	symphas::internal::expression_iterator_selection<E> end(iter_type* iters, len_type len) const
+	template<typename picked_iterator_t, typename arg_t>
+	auto end(picked_iterator_t, arg_t&& data = arg_t{}) const
 	{
-		return symphas::internal::expression_iterator_selection<E>(cast(), iters, len);
+		return expr::iterator_policy_expression<picked_iterator_t>::end(cast(), std::forward<arg_t>(data));
 	}
 };
 
@@ -526,7 +741,18 @@ namespace expr
 	 * \param e The expression.
 	 */
 	template<expr::exp_key_t X, typename V, typename E>
-	auto make_pow(V const& value, E const& e);
+	auto make_pow(V const& value, OpExpression<E> const& e);
+
+	//! Constructs the expression representing an expression to a power.
+	/*!
+	 * Directly constructs the exponent expression of an
+	 * expression without applying any rules.
+	 *
+	 * \param value The coefficient.
+	 * \param e The expression.
+	 */
+	template<expr::exp_key_t X, typename V, typename V0, typename... Gs, expr::exp_key_t... Xs>
+	auto make_pow(V const& value, OpTerms<V0, Term<Gs, Xs>...> const& e);
 
 	//! Constructs the expression representing an expression to a power.
 	/*!
@@ -1109,6 +1335,13 @@ namespace expr
 	};
 
 	//! Specialization for Variable type. See expr::original_data_type.
+	template<size_t Z, typename T>
+	struct original_data_type<Variable<Z, T*>>
+	{
+		using type = typename original_data_type<T>::type;
+	};
+
+	//! Specialization for Variable type. See expr::original_data_type.
 	template<typename T>
 	struct original_data_type<DynamicVariable<T>>
 	{
@@ -1481,6 +1714,12 @@ namespace expr
 
 		template<typename T, size_t D>
 		static constexpr std::index_sequence<D> _infer_dimension(BoundaryGrid<T, D>)
+		{
+			return {};
+		}
+
+		template<typename T, size_t D>
+		static constexpr std::index_sequence<D> _infer_dimension(RegionalGrid<T, D>)
 		{
 			return {};
 		}
@@ -1971,6 +2210,14 @@ struct expr::grid_dim<NamedData<G>>
 //! Specialization based on expr::grid_dim.
 template<size_t Z, typename G>
 struct expr::grid_dim<Variable<Z, G>>
+{
+	static const size_t dimension = expr::grid_dim<G>::dimension;
+	static const size_t value = dimension;
+};
+
+//! Specialization based on expr::grid_dim.
+template<size_t Z, typename G>
+struct expr::grid_dim<Variable<Z, G*>>
 {
 	static const size_t dimension = expr::grid_dim<G>::dimension;
 	static const size_t value = dimension;
@@ -4269,9 +4516,6 @@ namespace symphas::internal
 template<typename E>
 struct expr::eval_type
 {
-
-
-
 	template<typename T, size_t D>
 	static constexpr std::index_sequence<1> _get_rank_1(any_vector_t<T, D> const&)
 	{
@@ -4358,6 +4602,12 @@ struct expr::eval_type
 
 	template<typename T0>
 	static auto _get_eval(SymbolicDataArray<T0> const& e)
+	{
+		return typename eval_type<OpTerm<OpIdentity, T0>>::type{};
+	}
+
+	template<typename T0>
+	static auto _get_eval(SymbolicDataArray<NamedData<T0*>> const& e)
 	{
 		return typename eval_type<OpTerm<OpIdentity, T0>>::type{};
 	}

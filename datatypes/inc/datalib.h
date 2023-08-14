@@ -263,12 +263,6 @@ namespace symphas
 			return data.first;
 		}
 
-		//! Get the reference to the dependent data array.
-		std::shared_ptr<Y[]>& data_y()
-		{
-			return data.second;
-		}
-
 		//! Get the reference to the independent data.
 		const X& data_x() const
 		{
@@ -276,9 +270,27 @@ namespace symphas
 		}
 
 		//! Get the reference to the dependent data array.
+		std::shared_ptr<Y[]>& data_y()
+		{
+			return data.second;
+		}
+
+		//! Get the reference to the dependent data array.
 		std::shared_ptr<Y[]> const& data_y() const
 		{
 			return data.second;
+		}
+
+		//! Get the reference to the dependent data array.
+		Y* field_y()
+		{
+			return data.second.get();
+		}
+
+		//! Get the reference to the dependent data array.
+		const Y* field_y() const
+		{
+			return data.second.get();
 		}
 
 		//! Get the length of the dependent data array.
@@ -450,6 +462,30 @@ namespace symphas
 		std::shared_ptr<Y[]> const& data_y() const
 		{
 			return data.second;
+		}
+
+		//! Get the reference to the dependent data array.
+		X* field_x()
+		{
+			return data.first.get();
+		}
+
+		//! Get the reference to the dependent data array.
+		const X* field_x() const
+		{
+			return data.first.get();
+		}
+
+		//! Get the reference to the dependent data array.
+		Y* field_y()
+		{
+			return data.second.get();
+		}
+
+		//! Get the reference to the dependent data array.
+		const Y* field_y() const
+		{
+			return data.second.get();
 		}
 
 		//! Get the length of the dependent data array.
@@ -709,13 +745,13 @@ namespace symphas::lib
 	 * \param len The length of the data series that is transformed.
 	 */
 	template<typename Y,
-		typename = decltype(symphas::dft::dft(std::declval<Y*>(), std::declval<complex_t*>(), std::declval<len_type>(), std::declval<bool>()))>
+		typename = decltype(symphas::dft::dft(std::declval<Y*>(), std::declval<complex_t*>(), std::declval<len_type>(), std::declval<len_type>(), std::declval<bool>()))>
 	auto fourier_transform(const axis_2d_type* data_x, const Y* data_y, const len_type len, bool backward = false)
 	{
 		axis_2d_type* dft_x = new axis_2d_type[len];
 		complex_t* dft_y = new complex_t[len];
 
-		auto [L, M] = symphas::lib::get_dimensions<2>(data_x, len);
+		auto [L, M] = symphas::lib::get_dimensions<2>(data_x, len)._2();
 		symphas::dft::dft(data_y, dft_y, L, M, backward);
 		symphas::dft::fill_x_axis(dft_x, data_x, len);
 
@@ -733,7 +769,7 @@ namespace symphas::lib
 	 * \param len The length of the data series that is transformed.
 	 */
 	template<typename Y,
-		typename = decltype(symphas::dft::dft(std::declval<Y*>(), std::declval<complex_t*>(), std::declval<len_type>(), std::declval<bool>()))>
+		typename = decltype(symphas::dft::dft(std::declval<Y*>(), std::declval<complex_t*>(), std::declval<len_type>(), std::declval<len_type>(), std::declval<len_type>(), std::declval<bool>()))>
 	auto fourier_transform(const axis_3d_type* data_x, const Y* data_y, const len_type len, bool backward = false)
 	{
 		axis_3d_type* dft_x = new axis_3d_type[len];
@@ -798,11 +834,10 @@ namespace symphas::lib
 	 * 
 	 * \param data The data which is transformed.
 	 */
-	template<typename X, typename Y,
-		typename = decltype(fourier_transform(decltype(std::declval<Field<X, Y*>>())::data_x(), decltype(std::declval<Field<X, Y*>>())::y, std::declval<len_type>(), std::declval<bool>()))>
+	template<typename X, typename Y>
 	auto fourier_transform(Field<X, Y*> const& data, bool backward = false)
 	{
-		return fourier_transform(data.data_x(), data.y, data.length(), backward);
+		return fourier_transform(data.data_x(), data.field_y(), data.length(), backward);
 	}
 
 	//! Computes a new Fourier transformed field.
@@ -812,11 +847,10 @@ namespace symphas::lib
 	 *
 	 * \param data The data which is transformed.
 	 */
-	template<typename X, typename Y,
-		typename = decltype(fourier_transform(decltype(std::declval<Field<X*, Y*>>())::x, decltype(std::declval<Field<X*, Y*>>())::y, std::declval<len_type>(), std::declval<bool>())) >
+	template<typename X, typename Y>
 	auto fourier_transform(Field<X*, Y*> const& data, bool backward = false)
 	{
-		return fourier_transform(data.x, data.y, data.length(), backward);
+		return fourier_transform(data.field_x(), data.field_y(), data.length(), backward);
 	}
 }
 
@@ -2091,8 +2125,7 @@ namespace symphas::lib
 		symphas::interval_data_type intervals;
 		for (iter_type i = 0; i < D; ++i)
 		{
-			symphas::interval_element_type interval;
-			interval.set_interval(0, dims[i] - 1, 1);
+			symphas::interval_element_type interval(0, dims[i] - 1, 1);
 			intervals[symphas::index_to_axis(i)] = interval;
 		}
 

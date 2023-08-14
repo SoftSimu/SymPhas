@@ -27,6 +27,7 @@
 
 
 #include "dft.h"
+#include "spslibfftw.h"
 
 
 struct fftw_plan_s;
@@ -1089,8 +1090,7 @@ namespace symphas::dft
 	 * 
 	 * \tparam D The dimension of the system.
 	 */
-	template<size_t D, typename T, typename C,
-		typename = decltype(dft<D>(std::declval<T>(), std::declval<C>(), std::declval<len_type*>(), std::declval<bool>()))>
+	template<size_t D, typename T, typename C>
 	void dft(T&& in, C&& out, std::initializer_list<len_type> dims, bool backward = false)
 	{
 		dft<D>(std::forward<T>(in), std::forward<C>(out), dims.begin(), backward);
@@ -1106,8 +1106,7 @@ namespace symphas::dft
 	 * \param[out] out The result of the Fourier transform of \p in.
 	 * \param L The length of the input array.
 	 */
-	template<typename T, typename C, 
-		typename = decltype(dft<1>(std::declval<T>(), std::declval<C>(), std::declval<len_type*>(), std::declval<bool>()))>
+	template<typename T, typename C>
 	void dft(T&& in, C&& out, len_type L, bool backward = false)
 	{
 		dft<1>(std::forward<T>(in), std::forward<C>(out), &L, backward);
@@ -1124,11 +1123,11 @@ namespace symphas::dft
 	 * \param L The length of the \f$x\f$-axis.
 	 * \param M The length of the \f$y\f$-axis.
 	 */
-	template<typename T, typename C,
-		typename = decltype(dft<2>(std::declval<T>(), std::declval<C>(), std::declval<len_type*>(), std::declval<bool>()))>
+	template<typename T, typename C>
 	void dft(T&& in, C&& out, len_type L, len_type M, bool backward = false)
 	{
-		dft<2>(std::forward<T>(in), std::forward<C>(out), { L, M }, backward);
+		len_type dims[2]{ L, M };
+		dft<2>(std::forward<T>(in), std::forward<C>(out), dims, backward);
 	}
 
 	//! An arbitrary Fourier transform chosen based on the argument types.
@@ -1143,11 +1142,11 @@ namespace symphas::dft
 	 * \param M The length of the \f$y\f$-axis.
 	 * \param N The length of the \f$z\f$-axis.
 	 */
-	template<typename T, typename C,
-		typename = decltype(dft<3>(std::declval<T>(), std::declval<C>(), std::declval<len_type*>(), std::declval<bool>()))>
+	template<typename T, typename C>
 	void dft(T&& in, C&& out, len_type L, len_type M, len_type N, bool backward = false)
 	{
-		dft<3>(std::forward<T>(in), std::forward<C>(out), { L, M, N }, backward);
+		len_type dims[3]{ L, M, N };
+		dft<3>(std::forward<T>(in), std::forward<C>(out), dims, backward);
 	}
 
 

@@ -112,7 +112,7 @@ public:
 struct SystemInfo
 {
 	//! Create an empty system information instance.
-	SystemInfo() : info{ {} }, id{ 0 } {}
+	SystemInfo() : info{ grid::dim_list() }, id{ 0 } {}
 
 
 	//! Create a new system information instance.
@@ -276,8 +276,8 @@ struct SystemData<BoundaryGrid<T, D>> : BoundaryGrid<T, D>, SystemInfo
 				Axis ax = symphas::index_to_axis(i);
 				auto& interval = info.intervals.at(ax);
 
-				interval.set_count(
-					dims[i] - 2 * THICKNESS);
+				interval.set_count(dims[i] - 2 * BOUNDARY_DEPTH);
+				interval.interval_to_domain();
 			}
 		}
 	}
@@ -338,6 +338,106 @@ protected:
 	SystemData() : BoundaryGrid<T, D>{}, SystemInfo{ { {} }, 0 } {}
 };
 
+
+
+//! Maintains grid data and associated information.
+/*!
+ * Maintains grid data and parameters, and defines the ability to use data
+ * persistence by saving a snapshot. Specialization implementing
+ * a system with boundaries.
+ *
+ * See SystemData<Grid<T, D>>.
+ */
+template<typename T, size_t D>
+struct SystemData<RegionalGrid<T, D>> : RegionalGrid<T, D>, SystemInfo
+{
+	using SystemInfo::id;
+	using SystemInfo::info;
+
+	using RegionalGrid<T, D>::region;
+	using RegionalGrid<T, D>::dims;
+	using RegionalGrid<T, D>::len;
+	using RegionalGrid<T, D>::as_grid;
+
+
+	//! Create a system data instance.
+	/*!
+	 * Data for a phase field system is generated, resulting in a new
+	 * grid instance and information defining that grid.
+	 */
+	SystemData(symphas::interval_data_type const& vdata, size_t id) :
+		RegionalGrid<T, D>{ grid::construct<::RegionalGrid, T, D>(vdata) },
+		SystemInfo{ { vdata }, id }
+	{
+		if (!info.intervals.empty())
+		{
+			for (iter_type i = 0; i < D; ++i)
+			{
+				Axis ax = symphas::index_to_axis(i);
+				auto& interval = info.intervals.at(ax);
+				double boundary = region.boundary_size * interval.width();
+
+				interval.set_count(dims[i] - 2 * BOUNDARY_DEPTH);
+				interval.set_interval(interval.left() + boundary, interval.right() - boundary);
+			}
+		}
+	}
+
+	//! Get the grid representation of this system.
+	/*!
+	 * Get the grid representation of this system, which will return the
+	 * underlying grid with boundaries.
+	 */
+	operator const RegionalGrid<T, D>& () const
+	{
+		return as_grid();
+	}
+
+	//! Get the grid representation of this system.
+	/*!
+	 * Get the grid representation of this system, which will return the
+	 * underlying grid with boundaries.
+	 */
+	operator RegionalGrid<T, D>& ()
+	{
+		return as_grid();
+	}
+
+	//! Get the number of elements of true data.
+	/*!
+	 * The elements which are considered true data are the interior domain,
+	 * that is, all non-boundary elements. Return the count of these elements.
+	 */
+	auto length() const
+	{
+		return grid::length_interior<D>(dims);
+	}
+
+	//! Copies the system data into the given array.
+	/*!
+	 * The values of the system data block are copied into a new one. The copy
+	 * is performed point-wise for all interior points, meaning points not on
+	 * the boundary.
+	 */
+	void persist(T* out) const
+	{
+		grid::copy_interior(*this, out);
+	}
+
+	//! Copies the input data into the system values.
+	/*!
+	 * The values of the system data block are initialized from the
+	 * given values, correctly transcribing all values.
+	 */
+	void fill(const T* in) const
+	{
+		grid::fill_interior(in, *this, dims);
+	}
+
+protected:
+
+	SystemData() : RegionalGrid<T, D>{}, SystemInfo{ { {} }, 0 } {}
+};
 
 
 
@@ -457,7 +557,7 @@ struct PersistentSystemData<G<T, D>> : SystemData<G<T, D>>
 	using field_type = symphas::FieldAxis<D, T*>;
 	operator field_type() const
 	{
-		auto values = std::make_shared<T[]>(length());
+		auto values = std::shared_ptr<T[]>(new T[length()]);
 		persist(values.get());
 
 		return {
@@ -476,6 +576,155 @@ protected:
 	PersistentSystemData() : PersistentSystemData{ {}, 0 } {}
 
 	WriteParallel<T> writer;
+};
+
+
+//! Maintains grid data parameters as well as a snapshot.
+/*!
+ * Maintains grid data parameters, and contains implementations used in data
+ * persistence.
+ *
+ * The snapshot may be written to disk only if IO is enabled,
+ * otherwise no write utility would be available. The snapshot and write utility
+ * are available through the object WriteParallel, which is conditionally
+ * compiled if IO is enabled.
+ */
+template<typename T, size_t D>
+struct PersistentSystemData<RegionalGrid<T, D>> : SystemData<RegionalGrid<T, D>>
+{
+	using parent_type = SystemData<RegionalGrid<T, D>>;
+
+	using parent_type::len;
+	using parent_type::dims;
+	using parent_type::id;
+	using parent_type::info;
+	using parent_type::persist;
+	using parent_type::length;
+	using parent_type::values;
+	using parent_type::region;
+
+	//! Create a system that can persist data to disk.
+	/*!
+	 * Data for a phase field system is generated, resulting in a new
+	 * grid instance and information defining that grid.
+	 */
+	PersistentSystemData(symphas::interval_data_type const& vdata, size_t id) :
+		parent_type(vdata, id) {}
+
+
+	void write(symphas::io::write_info w, symphas::grid_info g) const
+	{
+
+		for (auto& [axis, interval] : g)
+		{
+			w.intervals[axis][0] = interval.domain_left();
+			w.intervals[axis][1] = interval.domain_right();
+		}
+
+		for (auto& [axis, interval] : g)
+		{
+			interval.domain_to_interval();
+
+			double offset = region.boundary_size * interval.width();
+			interval.set_domain(interval.domain_left() - offset, interval.domain_right() + offset);
+		}
+
+		symphas::io::save_grid_plotting(values, w, g);
+	}
+
+	//void persist() const
+	//{
+	//	persist(writer.get_snapshot().values);
+	//}
+
+	//! Writes the current snapshot to the disk if IO is enabled.
+	/*!
+	 * The current snapshot is written to disk if the IO macro keyword is
+	 * defined. The snapshot should be updated using persist before writing.
+	 */
+	void write(const char* dir, iter_type index) const
+	{
+		symphas::io::write_info w{ dir, index, id, DataFileType::SOLUTION_DATA };
+		symphas::grid_info g{ info };
+		write(w, g);
+	}
+
+	//! Writes the current snapshot to the disk if IO is enabled.
+	/*!
+	 * The current snapshot is written to disk if the IO macro keyword is
+	 * defined. The snapshot should be updated using persist before writing.
+	 *
+	 * \param dir The directory to which the data file is saved.
+	 * \param name The name of the file to save to disk.
+	 */
+	void write(const char* dir, const char* name, iter_type index) const
+	{
+		char* write_loc = new char[std::strlen(dir) + std::strlen(name) + 2];
+		snprintf(write_loc, BUFFER_LENGTH, "%s/%s", dir, name);
+
+		symphas::io::write_info w{ write_loc, index, id, DataFileType::NAMED_DATA };
+		symphas::grid_info g{ info };
+		write(w, g);
+
+		delete[] write_loc;
+	}
+
+	//! Save the data information to disk.
+	/*!
+	 * The system data is saved to a disk.
+	 *
+	 * \param dir The directory to which the data file is saved.
+	 */
+	inline void save(const char* dir, iter_type index) const
+	{
+		write(dir, index);
+	}
+
+	//! Save the data information to disk with a name.
+	/*!
+	 * The system data is saved to a disk.
+	 *
+	 * \param dir The directory to which the data file is saved.
+	 * \param name The name of the file to save to disk.
+	 */
+	inline void save(const char* dir, const char* name, iter_type index) const
+	{
+		write(dir, name, index);
+	}
+
+
+	//! Get a copy of the snapshot.
+	/*!
+	 * This updates the member snapshot data with the current system values,
+	 * and copies the snapshot n the snapshot and returns it.
+	 */
+	Block<T> get_snapshot() const
+	{
+		Block<T> snapshot(length());
+		persist(snapshot.values);
+		return snapshot;
+	}
+
+	using field_type = symphas::FieldAxis<D, T*>;
+	operator field_type() const
+	{
+		auto values = std::shared_ptr<T[]>(new T[length()]);
+		persist(values.get());
+
+		return {
+			std::shared_ptr<axis_nd_t<D>[]>(std::move(symphas::lib::new_system_axis_list<D>(info.intervals))),
+			values,
+			length() };
+	}
+
+	field_type as_field() const
+	{
+		return *this;
+	}
+
+protected:
+
+	PersistentSystemData() : PersistentSystemData{ {}, 0 } {}
 };
 
 #include "writedefines.h"
@@ -552,13 +801,166 @@ struct PersistentSystemData<G<T, D>> : SystemData<G<T, D>>
 
 namespace symphas
 {
-
+	
 	enum ModelModifiers
 	{
 		PLOT_DEFAULT,
 		PLOT_MAX,
 		PLOT_MIN,
 		PLOT_CONTOURS
+	};
+
+	template<typename T>
+	struct stride_type : iterator_type_impl<stride_type<T>,
+		std::forward_iterator_tag,
+		T,
+		T&,
+		std::ptrdiff_t,
+		T*,
+		T&>
+	{
+
+	protected:
+
+		stride_type(T* data, len_type stride, len_type len, std::ptrdiff_t ptr) :
+			data{ data }, stride{ stride }, len{ len }, ptr{ ptr } {}
+
+	public:
+
+		stride_type(T* data, len_type stride, len_type len) :
+			data{ data }, stride{ stride }, len{ len }, ptr{ 0 } {}
+
+
+		auto begin() const
+		{
+			return stride_type<T>(data, stride, len, 0);
+		}
+
+		auto end() const
+		{
+			return stride_type<T>(data, stride, len, len);
+		}
+
+		const auto& operator[](iter_type i) const
+		{
+			return data[(ptr + i) * stride];
+		}
+
+		auto& operator[](iter_type i)
+		{
+			return data[(ptr + i) * stride];
+		}
+
+		const auto& operator*() const
+		{
+			return data[ptr * stride];
+		}
+
+		auto& operator*()
+		{
+			return data[ptr * stride];
+		}
+
+		T* data;
+		len_type stride;
+		len_type len;
+		std::ptrdiff_t ptr;
+	};
+
+	//! Manages a list of time steps and times they are applied at.
+	struct time_step_list
+	{
+
+
+		double* t_dts;			//!< The times at which the time steps apply.
+		size_t dts_len;			//!< The number of time steps;
+
+		time_step_list(double dt = 1.0, double time = 0) : t_dts{ new double[2] { time, dt } }, dts_len{ 1 } {}
+		time_step_list(double* dts, double* t_dts, size_t dts_len) :
+			t_dts{ (dts_len > 0) ? new double[dts_len * 2] {} : nullptr }, dts_len{ dts_len }
+		{
+			for (iter_type i = 0; i < dts_len; ++i)
+			{
+				this->t_dts[i * 2] = t_dts[i];
+				this->t_dts[i * 2 + 1] = dts[i];
+			}
+		}
+
+		time_step_list(time_step_list const& other) :
+			t_dts{ (other.dts_len > 0) ? new double[other.dts_len * 2] {} : nullptr }, dts_len{ other.dts_len }
+		{
+			std::copy(other.t_dts, other.t_dts + other.dts_len * 2, t_dts);
+		}
+
+		time_step_list(time_step_list&& other) : time_step_list(nullptr, nullptr, 0) 
+		{
+			swap(*this, other);
+		}
+
+		time_step_list& operator=(time_step_list other)
+		{
+			swap(*this, other);
+			return *this;
+		}
+
+		friend void swap(time_step_list& first, time_step_list& second)
+		{
+			using std::swap;
+			swap(first.t_dts, second.t_dts);
+			swap(first.dts_len, second.dts_len);
+		}
+
+		//! Provide the time step used in the solution of the problem.
+		void set_time_step(double dt, double time = 0, bool insert = true);
+
+		//! Clear all the time steps and replace it with one time step set at the default value.
+		void clear_time_steps(double default_dt = 1.);
+
+		//! Provide the time step used in the solution of the problem.
+		void set_time_steps(const double* dts, const double* t_dts, size_t dts_len);
+
+		inline auto get_time_steps() const
+		{
+			symphas::lib::array_container<double> steps(dts_len);
+			for (iter_type i = 0; i < dts_len; ++i)
+			{
+				steps[i] = t_dts[i * 2 + 1];
+			}
+			return steps;
+		}
+
+		inline auto get_times_of_steps() const
+		{
+			symphas::lib::array_container<double> times(dts_len);
+			for (iter_type i = 0; i < dts_len; ++i)
+			{
+				times[i] = t_dts[i * 2];
+			}
+			return times;
+		}
+
+		inline size_t get_num_time_steps() const
+		{
+			return dts_len;
+		}
+
+		double get_time_step(double time = 0) const;
+
+		auto begin() const
+		{
+			return symphas::lib::zip(stride_type(t_dts, 2, dts_len), stride_type(t_dts + 1, 2, dts_len)).begin();
+		}
+
+		auto end() const
+		{
+			return symphas::lib::zip(stride_type(t_dts, 2, dts_len), stride_type(t_dts + 1, 2, dts_len)).end();
+		}
+
+
+		~time_step_list()
+		{
+			delete[] t_dts;
+		}
 	};
 
     //! Representation of the problem parameters for a phase field model.
@@ -583,20 +985,23 @@ namespace symphas
         symphas::init_data_type* tdata;			//!< Data for the initial conditions of each system.
         symphas::interval_data_type* vdata;		//!< Data for the intervals of each system.
         symphas::b_data_type* bdata;			//!< Boundary data for each system.
+		len_type* num_fields;
     
         //! Number of elements in the data arrays.
         /*!
          * Number of elements in the data arrays which must match the number of
          * systems in the problem these parameters represent.
          */
-        size_t len;
+		size_t len;
+		size_t num_fields_len;
     
-        double dt;								//!< The time discretization.
-		size_t modifiers;						//!< A bit string of modifiers.
+		symphas::time_step_list dt_list;		//!< The list of time steps;
+		size_t* modifiers;						//!< A bit string of modifiers.
     
         problem_parameters_type() : 
-            tdata{ nullptr }, vdata{ nullptr }, bdata{ nullptr }, 
-            len{ 0 }, dt{ 1.0 }, modifiers{ 0 }, time{ TIME_INIT }, index{ params::start_index } {}
+            tdata{ nullptr }, vdata{ nullptr }, bdata{ nullptr },
+			num_fields{ new len_type[1]{ len_type(0) } },
+			len{ 0 }, num_fields_len{ 0 }, modifiers{ nullptr }, time{ TIME_INIT }, index{ params::start_index } {}
     
     public:
     
@@ -614,9 +1019,24 @@ namespace symphas
             tdata{ (len > 0) ? new symphas::init_data_type[len] : nullptr }, 
 			vdata{ (len > 0) ? new symphas::interval_data_type[len] : nullptr }, 
 			bdata{ (len > 0) ? new symphas::b_data_type[len] : nullptr },
-			len{ len }, dt{ 1.0 }, modifiers{ 0 },
-			time { TIME_INIT }, index{ params::start_index } {}
+			num_fields{ new len_type[1]{ len_type(len) } },
+			len{ len }, num_fields_len{ 1 }, dt_list{},
+			modifiers{ new size_t[1]{} }, time { TIME_INIT }, index{ params::start_index } {}
     
+		problem_parameters_type(len_type* num_fields, size_t num_fields_len) : 
+			problem_parameters_type((num_fields != nullptr && num_fields_len > 0) ? std::reduce(num_fields, num_fields + num_fields_len) : 0)
+		{
+			if (num_fields_len > 0)
+			{
+				delete[] this->num_fields;
+				this->num_fields = new len_type[num_fields_len]{};
+				this->num_fields_len = num_fields_len;
+				std::copy(num_fields, num_fields + num_fields_len, this->num_fields);
+
+				modifiers = new size_t[num_fields_len]{};
+			}
+		}
+
         problem_parameters_type(problem_parameters_type const& other);
     
         problem_parameters_type(problem_parameters_type&& other) noexcept : problem_parameters_type()
@@ -629,59 +1049,35 @@ namespace symphas
             return *this;
         }
 
-		void set_modifier(ModelModifiers m)
+		void set_modifier(ModelModifiers m, iter_type i = 0)
 		{
-			modifiers |= (1ull << static_cast<size_t>(m));
+			modifiers[i] |= (1ull << static_cast<size_t>(m));
 		}
 
-		void unset_modifier(ModelModifiers m)
+		void set_modifier(const char* str, iter_type i = 0);
+
+		void unset_modifier(ModelModifiers m, iter_type i = 0)
 		{
-			modifiers &= ~(1ull << static_cast<size_t>(m));
+			modifiers[i] &= ~(1ull << static_cast<size_t>(m));
 		}
 
-		bool check_modifier(ModelModifiers m) const
+		bool check_modifier(ModelModifiers m, iter_type i = 0) const
 		{
-			return ((1ull << static_cast<size_t>(m)) & modifiers);
+			return ((1ull << static_cast<size_t>(m)) & modifiers[i]);
 		}
 
-		void set_modifiers(const char* str)
+		void set_modifiers(const char* const* str, size_t n);
+
+		ModelModifiers get_modifier(iter_type i = 0) const
 		{
-			if (str)
-			{
-				size_t next = 0;
-				size_t end = std::strlen(str);
-				char buffer[BUFFER_LENGTH_R2];
-
-
-				std::map<std::string, ModelModifiers> map = {
-					{ "plot.default" , ModelModifiers::PLOT_MAX },
-					{ "plot.max" , ModelModifiers::PLOT_MAX },
-					{ "plot.min" , ModelModifiers::PLOT_MIN } };
-
-				while (next < end)
-				{
-					sscanf(str, "%s %zn", buffer, &next);
-					for (auto [k, v] : map)
-					{
-						if (k == buffer)
-						{
-							set_modifier(v);
-						}
-					}
-				}
-			}
-		}
-
-		ModelModifiers get_modifier() const
-		{
-			if (modifiers == 0)
+			if (modifiers[i] == 0)
 			{
 				return ModelModifiers::PLOT_DEFAULT;
 			}
 			else
 			{
 				bool flag = false;
-				size_t value = modifiers;
+				size_t value = modifiers[i];
 				int n = -1;
 
 				while (!flag)
@@ -791,13 +1187,57 @@ namespace symphas
                 throw std::out_of_range("given boundary data element larger than list length\n");
             }
         }
-    
-    
+
+		//! Set a list of number of fields, when the number of fields is runtime-configuration.
+		/*
+		 * Set the number of fields of each field type that will be initialized in a model 
+		 * When a model has multiple order parameters types that can have their total count set 
+		 * from the configuration, the count will be taken from the parameter set here. The order
+		 * of the lengths corresponds to the order of the configurable fields. If the
+		 * length of the given list is smaller than the number of systems
+		 * represented by this object, the remaining elements will be initialized
+		 * to the first of this list.
+		 *
+		 * \param num_fields_set The list of field lengths to set. The i-th element
+		 * in the given list applies to the i-th phase-field type for configurable field counts.
+		 * \param n The length of the list.
+		 */
+		void set_num_fields(len_type* num_fields_set, size_t n);
+		inline void set_num_fields(len_type* num_fields_set)
+		{
+			set_num_fields(num_fields_set, num_fields_len - 1);
+		}
+		inline void set_num_fields(len_type num_fields_set, iter_type i)
+		{
+			if (i < num_fields_len)
+			{
+				len_type diff = num_fields_set - num_fields[i];
+				num_fields[i] = num_fields_set;
+				len += diff;
+			}
+			else
+			{
+				throw std::out_of_range("given field length element larger than list length\n");
+			}
+		}
+		void set_num_fields(len_type num_fields_set)
+		{
+			set_num_fields(num_fields_set, 0);
+		}
+
         //! Provide the time step used in the solution of the problem.
-        inline void set_time_step(double dt)
-        {
-            this->dt = dt;
-        }
+		inline void set_time_step(double dt, double time = 0);
+
+		//! Provide the time step used in the solution of the problem.
+		inline void set_time_steps(const double* dts, const double* t_dts, size_t dts_len);
+
+		//! Provide the time step used in the solution of the problem.
+		inline void set_time_steps(symphas::time_step_list const& list)
+		{
+			dt_list = list;
+		}
+
+		inline void clear_time_steps(double default_dt = 1.);
     
         //! Get the list of initial data.
         inline const symphas::init_data_type* get_initial_data() const
@@ -835,6 +1275,82 @@ namespace symphas
 			return bdata;
 		}
 
+		inline const len_type* get_num_fields() const
+		{
+			return num_fields;
+		}
+
+		inline const size_t get_num_fields_len() const
+		{
+			return num_fields_len;
+		}
+
+		inline len_type* get_num_fields()
+		{
+			return num_fields;
+		}
+
+		inline auto get_time_steps() const
+		{
+			return dt_list.get_time_steps();
+		}
+
+		inline auto get_times_of_steps() const
+		{
+			return dt_list.get_times_of_steps();
+		}
+
+		inline size_t get_num_time_steps() const
+		{
+			return dt_list.get_num_time_steps();
+		}
+
+		inline const auto& get_time_step_list() const
+		{
+			return dt_list;
+		}
+
+		inline auto& get_time_step_list()
+		{
+			return dt_list;
+		}
+
+		inline symphas::grid_info get_grid_info_entry(iter_type n)
+		{
+			if (n < len)
+			{
+				return { vdata[n] };
+			}
+			else
+			{
+				return { nullptr, get_dimension() };
+			}
+		}
+
+		inline decltype(auto) get_dims_entry(iter_type n)
+		{
+			if (n < len)
+			{
+				return get_grid_info_entry(n).get_dims();
+			}
+			else
+			{
+				return grid::dim_list(nullptr, get_dimension());
+			}
+		}
+
+		using modifier_list_type = symphas::lib::array_container<symphas::ModelModifiers>;
+
+		inline auto get_modifiers() const
+		{
+			modifier_list_type modifier_list(num_fields_len);
+			for (iter_type i = 0; i < num_fields_len; ++i)
+			{
+				modifier_list[i] = get_modifier(i);
+			}
+			return modifier_list;
+		}
+
     
         //! Get the length of the data elements.
         inline const size_t length() const
@@ -843,9 +1359,9 @@ namespace symphas
         }
     
         //! Provide the time step used in the solution of the problem.
-        inline double get_time_step() const
+        inline double get_time_step(double time = 0) const
         {
-            return dt;
+            return dt_list.get_time_step(time);
         }
     
         //! Get the dimension represented by the parameters.
@@ -895,7 +1411,7 @@ namespace symphas
                 pp.set_boundary_data(get_boundary_data(), len);
                 pp.set_initial_data(get_initial_data(), len);
                 pp.set_interval_data(get_interval_data(), len);
-                pp.set_time_step(dt);
+                pp.set_time_steps(dt_list);
                 pp.time = time;
                 pp.index = index;
                 swap(pp, *this);
@@ -920,10 +1436,9 @@ namespace symphas::internal
 
 	template<typename T, size_t D>
 	void populate_tdata(symphas::init_data_type const& tdata, 
-		Grid<T, D>& data, [[maybe_unused]] symphas::grid_info* info, [[maybe_unused]] size_t id)
+		Grid<T, D>& data, [[maybe_unused]] symphas::grid_info* info, grid::region_interval<D> const& region, [[maybe_unused]] size_t id)
 	{
-
-		if (!InitialConditions<T, D>{ tdata, info->intervals, data.dims }.initialize(data.values, id))
+		if (!InitialConditions<T, D>{ tdata, info->intervals, data.dims }.initialize(data.values, region, id))
 		{
 			fprintf(SYMPHAS_ERR, "the given initial condition algorithm is not valid\n");
 		}
@@ -931,12 +1446,10 @@ namespace symphas::internal
 
 	template<typename T, size_t D>
 	void populate_tdata(symphas::init_data_type const& tdata,
-		Grid<any_vector_t<T, D>, D>& data, [[maybe_unused]] symphas::grid_info* info, [[maybe_unused]] size_t id)
+		Grid<any_vector_t<T, D>, D>& data, [[maybe_unused]] symphas::grid_info* info, grid::region_interval<D> const& region, [[maybe_unused]] size_t id)
 	{
 		any_vector_t<T, D>* values = new any_vector_t<T, D>[data.len];
-
-
-		if (!InitialConditions<any_vector_t<T, D>, D>{ tdata, info->intervals, data.dims }.initialize(values, id))
+		if (!InitialConditions<any_vector_t<T, D>, D>{ tdata, info->intervals, data.dims }.initialize(values, region, id))
 		{
 			fprintf(SYMPHAS_ERR, "the given initial condition algorithm is not valid\n");
 		}
@@ -951,6 +1464,14 @@ namespace symphas::internal
 		}
 	}
 
+
+
+	template<typename T, size_t D>
+	void populate_tdata(symphas::init_data_type const& tdata,
+		Grid<T, D>& data, [[maybe_unused]] symphas::grid_info* info, [[maybe_unused]] size_t id)
+	{
+		populate_tdata(tdata, data, info, grid::region_interval<D>(info->get_dims()), id);
+	}
 }
 
 

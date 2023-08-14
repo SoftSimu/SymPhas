@@ -57,6 +57,9 @@ struct BoundaryGroup
 	BoundaryGroup(BoundaryGroup<T, D>&&) noexcept;
 	BoundaryGroup<T, D>& operator=(BoundaryGroup<T, D>);
 
+	template<template<typename, size_t> typename G, size_t... Is>
+	void update_boundaries(G<T, D>& grid, iter_type index, double time, std::index_sequence<Is...>);
+
 
 	//! Update the boundaries of a grid.
 	/*!
@@ -67,8 +70,24 @@ struct BoundaryGroup
 	 * \param index The current solution index.
 	 * \param time The current time of the solution data.
 	 */
-	template<size_t I = D * 2 - 1>
-	void update_boundaries(Grid<T, D> &grid, iter_type index, double time);
+	void update_boundaries(Grid<T, D> &grid, iter_type index, double time)
+	{
+		update_boundaries(grid, index, time, std::make_index_sequence<D * 2>{});
+	}
+
+	//! Update the boundaries of a regional grid.
+	/*!
+	 * Iterate over the sides and update all the boundaries
+	 * in this object based on the type of the boundary.
+	 *
+	 * \param grid The grid to which the boundaries apply.
+	 * \param index The current solution index.
+	 * \param time The current time of the solution data.
+	 */
+	void update_boundaries(RegionalGrid<T, D>& grid, iter_type index, double time)
+	{
+		update_boundaries(grid, index, time, std::make_index_sequence<D * 2>{});
+	}
 
 
 	friend void swap(BoundaryGroup<T, D>& first, BoundaryGroup<T, D>& second)
@@ -192,8 +211,8 @@ namespace symphas::internal
 			if (types[left] == BoundaryType::PERIODIC)
 			{
 				BoundaryType select_type
-					= (types[top] == BoundaryType::PERIODIC) ? BoundaryType::PERIODIC3AA
-					: (types[front] == BoundaryType::PERIODIC) ? BoundaryType::PERIODIC3A
+					= (types[top] == BoundaryType::PERIODIC) ? BoundaryType::PERIODIC3XY
+					: (types[front] == BoundaryType::PERIODIC) ? BoundaryType::PERIODIC3XZ
 					: BoundaryType::PERIODIC0;
 				types[left] = select_type;
 				types[right] = select_type;
@@ -201,8 +220,8 @@ namespace symphas::internal
 			else if (types[top] == BoundaryType::PERIODIC)
 			{
 				BoundaryType select_type
-					= (types[front] == BoundaryType::PERIODIC) ? BoundaryType::PERIODIC3AA
-					: (types[left] == BoundaryType::PERIODIC) ? BoundaryType::PERIODIC3A
+					= (types[front] == BoundaryType::PERIODIC) ? BoundaryType::PERIODIC3XY
+					: (types[left] == BoundaryType::PERIODIC) ? BoundaryType::PERIODIC3XZ
 					: BoundaryType::PERIODIC0;
 				types[top] = select_type;
 				types[bottom] = select_type;
@@ -210,8 +229,8 @@ namespace symphas::internal
 			else if (types[front] == BoundaryType::PERIODIC)
 			{
 				BoundaryType select_type
-					= (types[top] == BoundaryType::PERIODIC) ? BoundaryType::PERIODIC3AA
-					: (types[left] == BoundaryType::PERIODIC) ? BoundaryType::PERIODIC3A
+					= (types[top] == BoundaryType::PERIODIC) ? BoundaryType::PERIODIC3XY
+					: (types[left] == BoundaryType::PERIODIC) ? BoundaryType::PERIODIC3XZ
 					: BoundaryType::PERIODIC0;
 				types[front] = select_type;
 				types[back] = select_type;
@@ -304,8 +323,8 @@ namespace symphas::internal
 	template<size_t I>
 	struct update_boundary_call
 	{
-		template<typename B, typename T, size_t D>
-		void operator()(B* boundaries, BoundaryType types[D * 2], Grid<T, D>& grid, iter_type, double time)
+		template<typename B, template<typename, size_t> typename G, typename T, size_t D>
+		void operator()(B* boundaries, BoundaryType types[D * 2], G<T, D>& grid, iter_type, double time)
 		{
 			if (types[I] == BoundaryType::OPEN)
 			{
@@ -321,11 +340,11 @@ namespace symphas::internal
 				{
 					switch (types[I])
 					{
-					case BoundaryType::PERIODIC3A:
-						symphas::internal::update_boundary<BoundaryType::PERIODIC3A, symphas::index_to_side(I), D - 1>{}(boundaries[I], grid);
+					case BoundaryType::PERIODIC3XZ:
+						symphas::internal::update_boundary<BoundaryType::PERIODIC3XZ, symphas::index_to_side(I), D - 1>{}(boundaries[I], grid);
 						break;
-					case BoundaryType::PERIODIC3AA:
-						symphas::internal::update_boundary<BoundaryType::PERIODIC3AA, symphas::index_to_side(I), D - 1>{}(boundaries[I], grid);
+					case BoundaryType::PERIODIC3XY:
+						symphas::internal::update_boundary<BoundaryType::PERIODIC3XY, symphas::index_to_side(I), D - 1>{}(boundaries[I], grid);
 						break;
 					case BoundaryType::PERIODIC0:
 						symphas::internal::update_boundary<BoundaryType::PERIODIC0, symphas::index_to_side(I), D - 1>{}(boundaries[I], grid);
@@ -359,39 +378,17 @@ namespace symphas::internal
 		}
 	};
 
-
-	template<size_t I>
-	struct update_boundary_recurse;
-
-	template<>
-	struct update_boundary_recurse<0>
-	{
-		template<typename B, typename T, size_t D>
-		void operator()(B* boundaries, BoundaryType types[D * 2], Grid<T, D>& grid, iter_type index, double time)
-		{
-			update_boundary_call<0>{}(boundaries, types, grid, index, time);
-		}
-	};
-
-	template<size_t I>
-	struct update_boundary_recurse
-	{
-		template<typename B, typename T, size_t D>
-		void operator()(B* boundaries, BoundaryType types[D * 2], Grid<T, D>& grid, iter_type index, double time)
-		{
-			update_boundary_call<I>{}(boundaries, types, grid, index, time);
-			update_boundary_recurse<I - 1>{}(boundaries, types, grid, index, time);
-		}
-	};
 }
 
 
 template<typename T, size_t D>
-template<size_t I>
-void BoundaryGroup<T, D>::update_boundaries(Grid<T, D> &grid, iter_type index, double time)
+template<template<typename, size_t> typename G, size_t... Is>
+void BoundaryGroup<T, D>::update_boundaries(G<T, D>& grid, iter_type index, double time, std::index_sequence<Is...>)
 {
-	symphas::internal::update_boundary_recurse<I>{}(boundaries, types, grid, index, time);
+	(symphas::internal::update_boundary_call<Is>{}(boundaries, types, grid, index, time), ...);
 }
+
+
 
 
 

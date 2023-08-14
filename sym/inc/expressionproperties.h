@@ -36,24 +36,44 @@ namespace expr
 {
 	namespace
 	{
+		template<size_t D>
+		struct data_length_type
+		{
+			len_type len;
+
+			operator len_type() const
+			{
+				return len;
+			}
+		};
+
+		template<>
+		struct data_length_type<0>
+		{
+			operator len_type() const
+			{
+				return 1;
+			}
+		};
+
 		//! Obtains the data_len from the Block compatible instance.
 		template<typename T>
-		len_type data_len_cast(Block<T> const* data)
+		data_length_type<1> data_len_cast(Block<T> const* data)
 		{
-			return data->len;
+			return { data->len };
 		}
 
 		//! Obtains the data_len from the Block compatible instance.
 		template<typename T, size_t D>
-		len_type data_len_cast(GridData<T, D> const* data)
+		data_length_type<D> data_len_cast(GridData<T, D> const* data)
 		{
-			return grid::length<D>(data->dims);
+			return { grid::length<D>(data->dims) };
 		}
 
 		//! The data_len of a typical data object is 1.
-		inline len_type data_len_cast(...)
+		inline data_length_type<0> data_len_cast(...)
 		{
-			return 1;
+			return {};
 		}
 
 
@@ -368,144 +388,226 @@ namespace expr
 			return data_dimensions_data(data, std::make_index_sequence<sizeof...(Ts)>{});
 		}
 
+		using namespace grid;
 
 
-		//! Obtains the eval_iters from the Block compatible instance.
+		template<size_t D>
+		auto iterable_domain_union(
+			region_interval<D> const& first)
+		{
+			return first;
+		}
+
+		template<typename T>
+		auto iterable_domain_intersection(
+			T&& first)
+		{
+			return std::forward<T>(first);
+		}
+
+		template<typename T0, typename T1, typename... Ts>
+		auto iterable_domain_intersection(
+			T0&& first,
+			T1&& second,
+			Ts&&... rest)
+		{
+			return std::forward<T0>(first) / (std::forward<T1>(second) / ... / std::forward<Ts>(rest));
+		}
+
+		template<typename T>
+		auto iterable_domain_union(
+			T&& first)
+		{
+			return std::forward<T>(first);
+		}
+
+		template<typename T0, typename T1, typename... Ts>
+		auto iterable_domain_union(
+			T0&& first,
+			T1&& second,
+			Ts&&... rest)
+		{
+			return std::forward<T0>(first) + (std::forward<T1>(second) + ... + std::forward<Ts>(rest));
+		}
+
+
+		//! Obtains the iterable_domain from the Block compatible instance.
 		template<typename T, size_t D>
-		std::pair<iter_type*, len_type> eval_iters_cast(BoundaryGrid<T, D> const* data)
+		auto iterable_domain_cast(Grid<T, D> const* data)
 		{
-			return std::make_pair(data->inners, data->len_inner);
+			return grid::get_iterable_domain(*data);
+		}
+
+		//! Obtains the iterable_domain from the Block compatible instance.
+		template<typename T, size_t D>
+		auto iterable_domain_cast(BoundaryGrid<T, D> const* data)
+		{
+			return grid::get_iterable_domain(*data);
+		}
+
+		//! Obtains the iterable_domain from the Block compatible instance.
+		template<typename T, size_t D>
+		auto iterable_domain_cast(RegionalGrid<T, D> const* data)
+		{
+			region_interval_multiple<D> regions(data->dims, data->region.boundary_size);
+			return regions += grid::get_iterable_domain(*data);
 		}
 
 
-		//! The eval_iters of a typical data object is 1.
-		inline std::pair<iter_type*, len_type> eval_iters_cast(...)
+		//! The iterable_domain of a typical data object is 1.
+		inline auto iterable_domain_cast(data_length_type<0> len)
 		{
-			return std::make_pair(nullptr, 0);
+			return region_interval<0>{};
 		}
 
+		//! The iterable_domain of a typical data object is 1.
+		template<size_t D>
+		auto iterable_domain_cast(data_length_type<D> len)
+		{
+			return region_size(len);
+		}
 
-		//! Specialization based on expr::eval_iters_data().
+		//! The iterable_domain of a typical data object is 1.
+		template<typename T>
+		inline auto iterable_domain_cast(Block<T> const* data)
+		{
+			return iterable_domain_cast(grid::get_iterable_domain(*data));
+		}
+
+		//! The iterable_domain of a typical data object is 1.
+		inline auto iterable_domain_cast(...)
+		{
+			return region_interval<0>{};
+		}
+
+		//! The iterable_domain of a typical data object is 1.
+		inline auto iterable_domain_cast(int)
+		{
+			return region_interval<0>{};
+		}
+
+		//! Specialization based on expr::iterable_domain_data().
 		template<typename G>
-		std::pair<iter_type*, len_type> eval_iters_data(symphas::ref<G> const& data);
+		auto iterable_domain_data(symphas::ref<G> const& data);
 		//! Specialization based on expr::data_dimensions_data().
 		template<typename G>
-		std::pair<iter_type*, len_type> eval_iters_data(NamedData<G> const& data);
-		//! Specialization based on expr::eval_iters_data().
+		auto iterable_domain_data(NamedData<G> const& data);
+		//! Specialization based on expr::iterable_domain_data().
 		template<size_t Z, typename G>
-		std::pair<iter_type*, len_type> eval_iters_data(Variable<Z, G> const& data);
-		//! Specialization based on expr::eval_iters_data().
+		auto iterable_domain_data(Variable<Z, G> const& data);
+		//! Specialization based on expr::iterable_domain_data().
 		template<size_t Z, typename G>
-		std::pair<iter_type*, len_type> eval_iters_data(Variable<Z, G> const& data);
-		//! Specialization based on expr::eval_iters_data().
+		auto iterable_domain_data(Variable<Z, G> const& data);
+		//! Specialization based on expr::iterable_domain_data().
 		template<Axis ax, typename G>
-		std::pair<iter_type*, len_type> eval_iters_data(VectorComponent<ax, G> const& data);
-		//! Specialization based on expr::eval_iters_data().
+		auto iterable_domain_data(VectorComponent<ax, G> const& data);
+		//! Specialization based on expr::iterable_domain_data().
 		template<typename T>
-		std::pair<iter_type*, len_type> eval_iters_data(SymbolicData<T> const& data);
-		//! Specialization based on expr::eval_iters_data().
+		auto iterable_domain_data(SymbolicData<T> const& data);
+		//! Specialization based on expr::iterable_domain_data().
 		template<typename T>
-		std::pair<iter_type*, len_type> eval_iters_data(SymbolicDataArray<T> const& data);
-		//! Specialization based on expr::eval_iters_data().
+		auto iterable_domain_data(SymbolicDataArray<T> const& data);
+		//! Specialization based on expr::iterable_domain_data().
 		template<typename... Ts>
-		std::pair<iter_type*, len_type> eval_iters_data(SymbolicTermArray<Ts...> const& data);
+		auto iterable_domain_data(SymbolicTermArray<Ts...> const& data);
 
 
-		//! Specialization based on expr::eval_iters_data().
+		//! Specialization based on expr::iterable_domain_data().
 		template<typename... Ts>
-		std::pair<iter_type*, len_type> eval_iters_data(SymbolicTermArray<Ts...> const& data, std::index_sequence<>)
+		auto iterable_domain_data(SymbolicTermArray<Ts...> const& data, std::index_sequence<>)
 		{
-            return eval_iters_cast(0);
+            return iterable_domain_cast(0);
 		}
 
-		//! Specialization based on expr::eval_iters_data().
-		template<typename... Ts, size_t I0, size_t... Is>
-		std::pair<iter_type*, len_type> eval_iters_data(SymbolicTermArray<Ts...> const& data, std::index_sequence<I0, Is...>)
+		//! Specialization based on expr::iterable_domain_data().
+		template<typename... Ts, size_t... Is>
+		auto iterable_domain_data(SymbolicTermArray<Ts...> const& data, std::index_sequence<Is...>)
 		{
-			auto [iters0, n0] = eval_iters_data(data.data[I0]);
-			return (n0 > 0) ? std::make_pair(iters0, n0) : eval_iters_data(data, std::index_sequence<Is...>{});
+			return iterable_domain_union(iterable_domain_data(expr::get<Is>(data))...);
+			//auto [iters0, n0] = iterable_domain_data(data.data[I0]);
+			//return (n0 > 0) ? std::make_pair(iters0, n0) : iterable_domain_data(data, std::index_sequence<Is...>{});
 		}
 
-		//! Determines the eval_iters of the data.
+		//! Determines the iterable_domain of the data.
 		/*!
-		 * Determines the eval_iters by attempting to
+		 * Determines the iterable_domain by attempting to
 		 * implicitly cast the given type to a one compatible with getting
-		 * the eval_iters.
+		 * the iterable_domain.
 		 */
 		template<typename T>
-		std::pair<iter_type*, len_type> eval_iters_data(T const& data)
+		auto iterable_domain_data(T const& data)
 		{
-			return eval_iters_cast(&data);
+			return iterable_domain_cast(&data);
 		}
 
-		//! Specialization based on expr::eval_iters_data().
+		//! Specialization based on expr::iterable_domain_data().
 		template<typename G>
-		std::pair<iter_type*, len_type> eval_iters_data(symphas::ref<G> const& data)
+		auto iterable_domain_data(symphas::ref<G> const& data)
 		{
-			return eval_iters_data(data.get());
+			return iterable_domain_data(data.get());
 		}
 
-		//! Specialization based on expr::eval_iters_data().
+		//! Specialization based on expr::iterable_domain_data().
 		template<typename G>
-		std::pair<iter_type*, len_type> eval_iters_data(NamedData<G> const& data)
+		auto iterable_domain_data(NamedData<G> const& data)
 		{
-			return eval_iters_data(static_cast<G const&>(data));
+			return iterable_domain_data(static_cast<G const&>(data));
 		}
 
-		//! Specialization based on expr::eval_iters_data().
+		//! Specialization based on expr::iterable_domain_data().
 		template<size_t Z, typename G>
-		std::pair<iter_type*, len_type> eval_iters_data(Variable<Z, G> const& data)
+		auto iterable_domain_data(Variable<Z, G> const& data)
 		{
-			return eval_iters_data(*static_cast<G const*>(&data));
+			return iterable_domain_data(*static_cast<G const*>(&data));
 		}
 
-		//! Specialization based on expr::eval_iters_data().
+		//! Specialization based on expr::iterable_domain_data().
 		template<typename G>
-		std::pair<iter_type*, len_type> eval_iters_data(DynamicVariable<G> const& data)
+		auto iterable_domain_data(DynamicVariable<G> const& data)
 		{
-			return eval_iters_data(data.get());
+			return iterable_domain_data(data.get());
 		}
 
-		//! Specialization based on expr::eval_iters_data().
+		//! Specialization based on expr::iterable_domain_data().
 		template<Axis ax, typename G>
-		std::pair<iter_type*, len_type> eval_iters_data(VectorComponent<ax, G> const& data)
+		auto iterable_domain_data(VectorComponent<ax, G> const& data)
 		{
-			return eval_iters_data(*static_cast<G const*>(&data));
+			return iterable_domain_data(*static_cast<G const*>(&data));
 		}
 
-		//! Specialization based on expr::eval_iters_data().
+		//! Specialization based on expr::iterable_domain_data().
 		template<typename T>
-		std::pair<iter_type*, len_type> eval_iters_data(SymbolicData<T> const& data)
+		auto iterable_domain_data(SymbolicData<T> const& data)
 		{
 			if (data.data)
 			{
-				return eval_iters_data(*data.data);
+				return iterable_domain_data(*data.data);
 			}
 			else
 			{
-				return eval_iters_data(0);
+				return iterable_domain_data(T{});
 			}
 		}
 
-		//! Specialization based on expr::eval_iters_data().
+		//! Specialization based on expr::iterable_domain_data().
 		template<typename T>
-		std::pair<iter_type*, len_type> eval_iters_data(SymbolicDataArray<T> const& data)
+		auto iterable_domain_data(SymbolicDataArray<T> const& data)
 		{
 			if (data.data)
 			{
-				return eval_iters_data(*data.data);
+				return iterable_domain_data(*data.data);
 			}
 			else
 			{
-				return eval_iters_data(0);
+				return iterable_domain_data(T{});
 			}
 		}
 
-		//! Specialization based on expr::eval_iters_data().
+		//! Specialization based on expr::iterable_domain_data().
 		template<typename... Ts>
-		std::pair<iter_type*, len_type> eval_iters_data(SymbolicTermArray<Ts...> const& data)
+		auto iterable_domain_data(SymbolicTermArray<Ts...> const& data)
 		{
-			return eval_iters_data(data, std::make_index_sequence<sizeof...(Ts)>{});
+			return iterable_domain_data(data, std::make_index_sequence<sizeof...(Ts)>{});
 		}
 
 
@@ -1547,298 +1649,348 @@ namespace expr
 	 * returned.
 	 */
 	template<typename E>
-	std::pair<iter_type*, len_type> eval_iters(E const& e);
-	//! Specialization based on expr::eval_iters(E const&).
+	auto iterable_domain(E const& e);
+	//! Specialization based on expr::iterable_domain(E const&).
 	template<typename E>
-	std::pair<iter_type*, len_type> eval_iters(OpExpression<E> const& e);
-	//! Specialization based on expr::eval_iters(E const&).
+	auto iterable_domain(OpExpression<E> const& e);
+	//! Specialization based on expr::iterable_domain(E const&).
 	template<typename... Gs, expr::exp_key_t... Xs>
-	std::pair<iter_type*, len_type> eval_iters(OpTermsList<Term<Gs, Xs>...> const& e);
-	//! Specialization based on expr::eval_iters(E const&).
+	auto iterable_domain(OpTermsList<Term<Gs, Xs>...> const& e);
+	//! Specialization based on expr::iterable_domain(E const&).
 	template<typename V, typename... Gs, expr::exp_key_t... Xs>
-	std::pair<iter_type*, len_type> eval_iters(OpTerms<V, Term<Gs, Xs>...> const& e);
-	//! Specialization based on expr::eval_iters(E const&).
+	auto iterable_domain(OpTerms<V, Term<Gs, Xs>...> const& e);
+	//! Specialization based on expr::iterable_domain(E const&).
 	template<typename Dd, typename V, typename E, typename Sp>
-	std::pair<iter_type*, len_type> eval_iters(OpDerivative<Dd, V, E, Sp> const& e);
-	//! Specialization based on expr::eval_iters(E const&).
+	auto iterable_domain(OpDerivative<Dd, V, E, Sp> const& e);
+	//! Specialization based on expr::iterable_domain(E const&).
 	template<typename V, typename E, typename T>
-	std::pair<iter_type*, len_type> eval_iters(OpIntegral<V, E, T> const& e);
-	//! Specialization based on expr::eval_iters(E const&).
+	auto iterable_domain(OpIntegral<V, E, T> const& e);
+	//! Specialization based on expr::iterable_domain(E const&).
 	template<typename Dd, typename V, typename G, typename Sp>
-	std::pair<iter_type*, len_type> eval_iters(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> const& e);
-	//! Specialization based on expr::eval_iters(E const&).
+	auto iterable_domain(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> const& e);
+	//! Specialization based on expr::iterable_domain(E const&).
+	template<size_t O, typename V, typename E, typename Sp>
+	auto iterable_domain(OpDerivative<std::index_sequence<O>, V, E, Sp> const& e);
+	//! Specialization based on expr::iterable_domain(E const&).
+	template<size_t O, typename V, typename G, typename Sp>
+	auto iterable_domain(OpDerivative<std::index_sequence<O>, V, OpTerm<OpIdentity, G>, Sp> const& e);
+	//! Specialization based on expr::iterable_domain(E const&).
 	template<typename A1, typename A2, typename E>
-	std::pair<iter_type*, len_type> eval_iters(OpCombination<A1, A2, E> const& e);
-	//! Specialization based on expr::eval_iters(E const&).
+	auto iterable_domain(OpCombination<A1, A2, E> const& e);
+	//! Specialization based on expr::iterable_domain(E const&).
 	template<typename A1, typename A2, typename E>
-	std::pair<iter_type*, len_type> eval_iters(OpChain<A1, A2, E> const& e);
-	//! Specialization based on expr::eval_iters(E const&).
+	auto iterable_domain(OpChain<A1, A2, E> const& e);
+	//! Specialization based on expr::iterable_domain(E const&).
 	template<typename V, typename E>
-	std::pair<iter_type*, len_type> eval_iters(OpExponential<V, E> const& e);
-	//! Specialization based on expr::eval_iters(E const&).
+	auto iterable_domain(OpExponential<V, E> const& e);
+	//! Specialization based on expr::iterable_domain(E const&).
 	template<expr::exp_key_t X, typename V, typename E>
-	std::pair<iter_type*, len_type> eval_iters(OpPow<X, V, E> const& e);
-	//! Specialization based on expr::eval_iters(E const&).
+	auto iterable_domain(OpPow<X, V, E> const& e);
+	//! Specialization based on expr::iterable_domain(E const&).
 	template<auto f, typename V, typename E>
-	std::pair<iter_type*, len_type> eval_iters(OpFunctionApply<f, V, E> const& e);
-	//! Specialization based on expr::eval_iters(E const&).
+	auto iterable_domain(OpFunctionApply<f, V, E> const& e);
+	//! Specialization based on expr::iterable_domain(E const&).
 	template<typename V, typename E, typename F, typename Arg0, typename... Args>
-	std::pair<iter_type*, len_type> eval_iters(OpFunction<V, E, F, Arg0, Args...> const& e);
-	//! Specialization based on expr::eval_iters(E const&).
+	auto iterable_domain(OpFunction<V, E, F, Arg0, Args...> const& e);
+	//! Specialization based on expr::iterable_domain(E const&).
 	template<typename V, typename sub_t, typename E, typename... Ts>
-	std::pair<iter_type*, len_type> eval_iters(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e);
-	//! Specialization based on expr::eval_iters(E const&).
+	auto iterable_domain(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e);
+	//! Specialization based on expr::iterable_domain(E const&).
 	template<expr::NoiseType nt, typename T, size_t D>
-	std::pair<iter_type*, len_type> eval_iters(NoiseData<nt, T, D> const& e);
-	//! Specialization based on expr::eval_iters(E const&).
+	auto iterable_domain(NoiseData<nt, T, D> const& e);
+	//! Specialization based on expr::iterable_domain(E const&).
 	template<typename V, expr::NoiseType nt, typename T, size_t D, typename E, typename... Ts>
-	std::pair<iter_type*, len_type> eval_iters(OpSymbolicEval<V, NoiseData<nt, T, D>, SymbolicFunction<E, Ts...>> const& e);
-	//! Specialization based on expr::eval_iters(E const&).
+	auto iterable_domain(OpSymbolicEval<V, NoiseData<nt, T, D>, SymbolicFunction<E, Ts...>> const& e);
+	//! Specialization based on expr::iterable_domain(E const&).
 	template<typename... Ts>
-	std::pair<iter_type*, len_type> eval_iters(Substitution<Ts...> const& e);
-	//! Specialization based on expr::eval_iters(E const&).
+	auto iterable_domain(Substitution<Ts...> const& e);
+	//! Specialization based on expr::iterable_domain(E const&).
 	template<typename V, typename E, typename... Ts, int... I0s, int... P0s, typename E0, typename... T0s, typename B, typename C>
-	std::pair<iter_type*, len_type> eval_iters(OpSum<V, E, Substitution<SymbolicDataArray<Ts>...>,
+	auto iterable_domain(OpSum<V, E, Substitution<SymbolicDataArray<Ts>...>,
 		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, SymbolicFunction<E0, T0s...>, B, C> const& e);
-	//! Specialization based on expr::eval_iters(E const&).
+	//! Specialization based on expr::iterable_domain(E const&).
 	template<typename V, typename E1, typename E2>
-	std::pair<iter_type*, len_type> eval_iters(OpConvolution<V, E1, E2> const& e);
-	//! Specialization based on expr::eval_iters(E const&).
+	auto iterable_domain(OpConvolution<V, E1, E2> const& e);
+	//! Specialization based on expr::iterable_domain(E const&).
 	template<size_t D>
-	std::pair<iter_type*, len_type> eval_iters(GaussianSmoothing<D> const& e);
-	//! Specialization based on expr::eval_iters(E const&).
+	auto iterable_domain(GaussianSmoothing<D> const& e);
+	//! Specialization based on expr::iterable_domain(E const&).
 	template<typename V, size_t D, typename E>
-	std::pair<iter_type*, len_type> eval_iters(OpConvolution<V, GaussianSmoothing<D>, E> const& e);
-	//! Specialization based on expr::eval_iters(E const&).
+	auto iterable_domain(OpConvolution<V, GaussianSmoothing<D>, E> const& e);
+	//! Specialization based on expr::iterable_domain(E const&).
 	template<typename G, typename V, typename E>
-	std::pair<iter_type*, len_type> eval_iters(OpMap<G, V, E> const& e);
-	//! Specialization based on expr::eval_iters(E const&).
+	auto iterable_domain(OpMap<G, V, E> const& e);
+	//! Specialization based on expr::iterable_domain(E const&).
 	template<typename... Es>
-	std::pair<iter_type*, len_type> eval_iters(OpAdd<Es...> const& e);
-	//! Specialization based on expr::eval_iters(E const&).
+	auto iterable_domain(OpAdd<Es...> const& e);
+	//! Specialization based on expr::iterable_domain(E const&).
 	template<typename E1, typename E2>
-	std::pair<iter_type*, len_type> eval_iters(OpBinaryMul<E1, E2> const& e);
-	//! Specialization based on expr::eval_iters(E const&).
+	auto iterable_domain(OpBinaryMul<E1, E2> const& e);
+	//! Specialization based on expr::iterable_domain(E const&).
 	template<typename E1, typename E2>
-	std::pair<iter_type*, len_type> eval_iters(OpBinaryDiv<E1, E2> const& e);
-
+	auto iterable_domain(OpBinaryDiv<E1, E2> const& e);
 
 	//! Obtain the length of the data in the expression.
 	/*!
 	 * Return the data_len of the underlying data set.
-	 * Chooses the appropriate expr::eval_iters() between two expressions.
+	 * Chooses the appropriate expr::iterable_domain() between two expressions.
 	 * This standardizes the choosing procedure for binary expressions.
 	 */
 	template<typename E1, typename E2>
-	std::pair<iter_type*, len_type> eval_iters(OpExpression<E1> const& a, OpExpression<E2> const& b);
+	auto iterable_domain(OpExpression<E1> const& a, OpExpression<E2> const& b);
 	template<typename E1, typename E2>
-	std::pair<iter_type*, len_type> eval_iters(OpOperator<E1> const& a, OpOperator<E2> const& b);
+	auto iterable_domain(OpOperator<E1> const& a, OpOperator<E2> const& b);
 	template<typename E1, typename E2>
-	std::pair<iter_type*, len_type> eval_iters(OpExpression<E1> const& a, OpOperator<E2> const& b);
+	auto iterable_domain(OpExpression<E1> const& a, OpOperator<E2> const& b);
 	template<typename E1, typename E2>
-	std::pair<iter_type*, len_type> eval_iters(OpOperator<E1> const& a, OpExpression<E2> const& b);
+	auto iterable_domain(OpOperator<E1> const& a, OpExpression<E2> const& b);
 
 	template<typename E>
-	std::pair<iter_type*, len_type> eval_iters(E const& e)
+	auto iterable_domain(E const& e)
 	{
-		return eval_iters_data(e);
+		return iterable_domain_data(e);
 	}
 
 	template<typename E>
-	std::pair<iter_type*, len_type> eval_iters(OpExpression<E> const& e)
+	auto iterable_domain(OpExpression<E> const& e)
 	{
-		return eval_iters(*static_cast<E const*>(&e));
+		return iterable_domain(*static_cast<E const*>(&e));
+	}
+
+	template<typename... Gs, expr::exp_key_t... Xs, size_t... Is>
+	auto iterable_domain(OpTermsList<Term<Gs, Xs>...> const& e, std::index_sequence<Is...>)
+	{
+		return iterable_domain_intersection(iterable_domain(expr::get<Is>(e).data())...);
 	}
 
 	template<typename... Gs, expr::exp_key_t... Xs>
-	std::pair<iter_type*, len_type> eval_iters(OpTermsList<Term<Gs, Xs>...> const& e)
+	auto iterable_domain(OpTermsList<Term<Gs, Xs>...> const& e)
 	{
-		auto [iters0, n0] = eval_iters(e.term.data());
-		return (n0 > 0) ? std::make_pair(iters0, n0) : eval_iters(expr::terms_after_first(e));
+		return iterable_domain(e, std::make_index_sequence<sizeof...(Gs)>{});
+		//auto [iters0, n0] = iterable_domain(e.term.data());
+		//return (n0 > 0) ? std::make_pair(iters0, n0) : iterable_domain(expr::terms_after_first(e));
 	}
 
 	template<typename V, typename... Gs, expr::exp_key_t... Xs>
-	std::pair<iter_type*, len_type> eval_iters(OpTerms<V, Term<Gs, Xs>...> const& e)
+	auto iterable_domain(OpTerms<V, Term<Gs, Xs>...> const& e)
 	{
 		if constexpr (expr::has_coeff<OpTerms<V, Term<Gs, Xs>...>>)
 		{
-			return eval_iters(*static_cast<OpTermsList<Term<Gs, Xs>...> const*>(&e));
+			return iterable_domain(*static_cast<OpTermsList<Term<Gs, Xs>...> const*>(&e));
 		}
 		else
 		{
-			return eval_iters(*static_cast<OpTermsList<V, Term<Gs, Xs>...> const*>(&e));
+			return iterable_domain(*static_cast<OpTermsList<V, Term<Gs, Xs>...> const*>(&e));
 		}
 	}
 
 	template<typename Dd, typename V, typename E, typename Sp>
-	std::pair<iter_type*, len_type> eval_iters(OpDerivative<Dd, V, E, Sp> const& e)
+	auto iterable_domain(OpDerivative<Dd, V, E, Sp> const& e)
 	{
-		return eval_iters_data(expr::get_result_data(e));
+		return iterable_domain_data(expr::get_result_data(e));
 	}
 
 	template<typename Dd, typename V, typename G, typename Sp>
-	std::pair<iter_type*, len_type> eval_iters(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> const& e)
+	auto iterable_domain(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> const& e)
 	{
-		return eval_iters(expr::get_enclosed_expression(e));
+		return iterable_domain(expr::get_enclosed_expression(e));
+	}
+
+	template<size_t O, typename V, typename E, typename Sp>
+	auto iterable_domain(OpDerivative<std::index_sequence<O>, V, E, Sp> const& e)
+	{
+		return iterable_domain_data(expr::get_enclosed_expression(e));
+	}
+
+	template<size_t O, typename V, typename G, typename Sp>
+	auto iterable_domain(OpDerivative<std::index_sequence<O>, V, OpTerm<OpIdentity, G>, Sp> const& e)
+	{
+		return iterable_domain(expr::get_enclosed_expression(e));
 	}
 
 	template<typename V, typename E, typename T>
-	std::pair<iter_type*, len_type> eval_iters(OpIntegral<V, E, T> const& e)
+	auto iterable_domain(OpIntegral<V, E, T> const& e)
 	{
-		return eval_iters_data(expr::get_enclosed_expression(e));
+		return grid::region_interval<0>{};
 	}
 
 	template<typename A1, typename A2, typename E>
-	std::pair<iter_type*, len_type> eval_iters(OpCombination<A1, A2, E> const& e)
+	auto iterable_domain(OpCombination<A1, A2, E> const& e)
 	{
-		return eval_iters(e.e);
+		return iterable_domain(e.e);
 	}
 
 	template<typename A1, typename A2, typename E>
-	std::pair<iter_type*, len_type> eval_iters(OpChain<A1, A2, E> const& e)
+	auto iterable_domain(OpChain<A1, A2, E> const& e)
 	{
-		return eval_iters(e.e);
+		return iterable_domain(e.e);
 	}
 
 	template<typename V, typename E>
-	std::pair<iter_type*, len_type> eval_iters(OpExponential<V, E> const& e)
+	auto iterable_domain(OpExponential<V, E> const& e)
 	{
-		return eval_iters(e.e);
+		return iterable_domain(e.e);
 	}
 
 	template<expr::exp_key_t X, typename V, typename E>
-	std::pair<iter_type*, len_type> eval_iters(OpPow<X, V, E> const& e)
+	auto iterable_domain(OpPow<X, V, E> const& e)
 	{
-		return eval_iters(expr::get_enclosed_expression(e));
+		return iterable_domain(expr::get_enclosed_expression(e));
 	}
 
 	template<auto f, typename V, typename E>
-	std::pair<iter_type*, len_type> eval_iters(OpFunctionApply<f, V, E> const& e)
+	auto iterable_domain(OpFunctionApply<f, V, E> const& e)
 	{
-		return eval_iters(e.e);
+		return iterable_domain(e.e);
 	}
 
 	template<typename V, typename E, typename F, typename Arg0, typename... Args>
-	std::pair<iter_type*, len_type> eval_iters(OpFunction<V, E, F, Arg0, Args...> const& e)
+	auto iterable_domain(OpFunction<V, E, F, Arg0, Args...> const& e)
 	{
-		return eval_iters(e.e);
+		return iterable_domain(e.e);
 	}
 
 	template<typename V, typename sub_t, typename E, typename... Ts>
-	std::pair<iter_type*, len_type> eval_iters(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e)
+	auto iterable_domain(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e)
 	{
-		return eval_iters(expr::get_enclosed_expression(e));
+		return iterable_domain(expr::get_enclosed_expression(e));
 	}
 
 	template<expr::NoiseType nt, typename T, size_t D>
-	std::pair<iter_type*, len_type> eval_iters(NoiseData<nt, T, D> const& e)
+	auto iterable_domain(NoiseData<nt, T, D> const& e)
 	{
-		return eval_iters_data(e);
+		return iterable_domain_data(e);
 	}
 
 	template<typename V, expr::NoiseType nt, typename T, size_t D, typename E, typename... Ts>
-	std::pair<iter_type*, len_type> eval_iters(OpSymbolicEval<V, NoiseData<nt, T, D>, SymbolicFunction<E, Ts...>> const& e)
+	auto iterable_domain(OpSymbolicEval<V, NoiseData<nt, T, D>, SymbolicFunction<E, Ts...>> const& e)
 	{
-		return eval_iters(e.data);
+		return iterable_domain(e.data);
 	}
 
 	template<typename... Ts>
-	std::pair<iter_type*, len_type> eval_iters(Substitution<Ts...> const& e, std::index_sequence<>)
+	auto iterable_domain(Substitution<Ts...> const& e, std::index_sequence<>)
 	{
-		return eval_iters(0);
+		return iterable_domain_data(0);
 	}
 
-	template<typename... Ts, size_t I0, size_t... Is>
-	std::pair<iter_type*, len_type> eval_iters(Substitution<Ts...> const& e, std::index_sequence<I0, Is...>)
+	template<typename... Ts, size_t... Is>
+	auto iterable_domain(Substitution<Ts...> const& e, std::index_sequence<Is...>)
 	{
-		auto [iters0, n0] = eval_iters_data(std::get<I0>(e));
-		return (n0 > 0) ? std::make_pair(iters0, n0) : eval_iters(e, std::index_sequence<Is...>{});
+		return iterable_domain_union(iterable_domain_data(std::get<Is>(e))...);
+		//auto [iters0, n0] = iterable_domain_data(std::get<I0>(e));
+		//return (n0 > 0) ? std::make_pair(iters0, n0) : ;
 	}
 
 	template<typename... Ts>
-	std::pair<iter_type*, len_type> eval_iters(Substitution<Ts...> const& e)
+	auto iterable_domain(Substitution<Ts...> const& e)
 	{
-		return eval_iters(e, std::make_index_sequence<sizeof...(Ts)>{});
+		return iterable_domain(e, std::make_index_sequence<sizeof...(Ts)>{});
 	}
 
 	template<typename V, typename E, typename... Ts, int... I0s, int... P0s, typename E0, typename... T0s, typename B, typename C>
-	std::pair<iter_type*, len_type> eval_iters(OpSum<V, E, Substitution<SymbolicDataArray<Ts>...>,
+	auto iterable_domain(OpSum<V, E, Substitution<SymbolicDataArray<Ts>...>,
 		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, SymbolicFunction<E0, T0s...>, B, C> const& e)
 	{
-		auto [iters0, n0] = eval_iters(expr::get_enclosed_expression(e));
-		return (n0 > 0) ? std::make_pair(iters0, n0) : eval_iters(e.data.substitution);
+		if (e.data.persistent.len > 0)
+		{
+			auto region = iterable_domain(e.data.persistent[0].e);
+			for (iter_type i = 1; i < e.data.persistent.len; ++i)
+			{
+				region += iterable_domain(e.data.persistent[i].e);
+			}
+			return region;
+		}
+		else
+		{
+			auto region = iterable_domain(e.f.e);
+			return region / region_empty{};
+		}
 	}
 
 	template<typename V, typename E1, typename E2>
-	std::pair<iter_type*, len_type> eval_iters(OpConvolution<V, E1, E2> const& e)
+	auto iterable_domain(OpConvolution<V, E1, E2> const& e)
 	{
-		return eval_iters(e.a, e.b);
+		return iterable_domain(e.a, e.b);
 	}
 
 	template<typename V, size_t D, typename E>
-	std::pair<iter_type*, len_type> eval_iters(OpConvolution<V, GaussianSmoothing<D>, E> const& e)
+	auto iterable_domain(OpConvolution<V, GaussianSmoothing<D>, E> const& e)
 	{
-		return eval_iters(expr::get_enclosed_expression(e), e.smoother);
+		return iterable_domain(expr::get_enclosed_expression(e), e.smoother);
 	}
 
 	template<typename G, typename V, typename E>
-	std::pair<iter_type*, len_type> eval_iters(OpMap<G, V, E> const& e)
+	auto iterable_domain(OpMap<G, V, E> const& e)
 	{
-		return eval_iters(expr::get_enclosed_expression(e));
+		return iterable_domain(expr::get_enclosed_expression(e));
 	}
 
 	template<size_t D>
-	std::pair<iter_type*, len_type> eval_iters(GaussianSmoothing<D> const& e)
+	auto iterable_domain(GaussianSmoothing<D> const& e)
 	{
-		return eval_iters_data(e.data);
+		return iterable_domain_data(e.data);
+	}
+
+	template<typename... Es, size_t... Is>
+	auto iterable_domain(OpAdd<Es...> const& e, std::index_sequence<Is...>)
+	{
+		return iterable_domain_union(iterable_domain(expr::get<Is>(e))...);
 	}
 
 	template<typename... Es>
-	std::pair<iter_type*, len_type> eval_iters(OpAdd<Es...> const& e)
+	auto iterable_domain(OpAdd<Es...> const& e)
 	{
-		auto [iters0, n0] = eval_iters(expr::get<0>(e));
-		return (n0 > 0) ? std::make_pair(iters0, n0) : eval_iters(expr::terms_after_first(e));
+		return iterable_domain(e, std::make_index_sequence<sizeof...(Es)>{});
+		//auto [iters0, n0] = iterable_domain(expr::get<0>(e));
+		//return (n0 > 0) ? std::make_pair(iters0, n0) : iterable_domain(expr::terms_after_first(e));
 	}
 
 
 	template<typename E1, typename E2>
-	std::pair<iter_type*, len_type> eval_iters(OpBinaryMul<E1, E2> const& e)
+	auto iterable_domain(OpBinaryMul<E1, E2> const& e)
 	{
-		return eval_iters(e.a, e.b);
+		return iterable_domain_intersection(iterable_domain(e.a), iterable_domain(e.b));
+		//return iterable_domain(e.a, e.b);
 	}
 
 	template<typename E1, typename E2>
-	std::pair<iter_type*, len_type> eval_iters(OpBinaryDiv<E1, E2> const& e)
+	auto iterable_domain(OpBinaryDiv<E1, E2> const& e)
 	{
-		return eval_iters(e.a, e.b);
+		return iterable_domain_intersection(iterable_domain(e.a), iterable_domain(e.b));
+		//return iterable_domain(e.a, e.b);
 	}
 
 	template<typename E1, typename E2>
-	std::pair<iter_type*, len_type> eval_iters(OpExpression<E1> const& a, OpExpression<E2> const& b)
+	auto iterable_domain(OpExpression<E1> const& a, OpExpression<E2> const& b)
 	{
-		auto [iters0, n0] = eval_iters(*static_cast<const E1*>(&a));
-		return (n0 > 0) ? std::make_pair(iters0, n0) : eval_iters(*static_cast<const E2*>(&b));
+		return iterable_domain_union(iterable_domain(*static_cast<const E1*>(&a)), iterable_domain(*static_cast<const E2*>(&b)));
+		//auto [iters0, n0] = iterable_domain(*static_cast<const E1*>(&a));
+		//return (n0 > 0) ? std::make_pair(iters0, n0) : iterable_domain(*static_cast<const E2*>(&b));
 	}
 
 	template<typename E1, typename E2>
-	std::pair<iter_type*, len_type> eval_iters(OpOperator<E1> const& a, OpOperator<E2> const& b)
+	auto iterable_domain(OpOperator<E1> const& a, OpOperator<E2> const& b)
 	{
-		auto [iters0, n0] = eval_iters(*static_cast<const E1*>(&a));
-		return (n0 > 0) ? std::make_pair(iters0, n0) : eval_iters(*static_cast<const E2*>(&b));
+		return iterable_domain_union(iterable_domain(*static_cast<const E1*>(&a)), iterable_domain(*static_cast<const E2*>(&b)));
+		//auto [iters0, n0] = iterable_domain(*static_cast<const E1*>(&a));
+		//return (n0 > 0) ? std::make_pair(iters0, n0) : iterable_domain(*static_cast<const E2*>(&b));
 	}
 
 	template<typename E1, typename E2>
-	std::pair<iter_type*, len_type> eval_iters(OpExpression<E1> const& a, OpOperator<E2> const& b)
+	auto iterable_domain(OpExpression<E1> const& a, OpOperator<E2> const& b)
 	{
-		auto [iters0, n0] = eval_iters(*static_cast<const E1*>(&a));
-		return (n0 > 0) ? std::make_pair(iters0, n0) : eval_iters(*static_cast<const E2*>(&b));
+		return iterable_domain_union(iterable_domain(*static_cast<const E1*>(&a)), iterable_domain(*static_cast<const E2*>(&b)));
+		//auto [iters0, n0] = iterable_domain(*static_cast<const E1*>(&a));
+		//return (n0 > 0) ? std::make_pair(iters0, n0) : iterable_domain(*static_cast<const E2*>(&b));
 	}
 
 	template<typename E1, typename E2>
-	std::pair<iter_type*, len_type> eval_iters(OpOperator<E1> const& a, OpExpression<E2> const& b)
+	auto iterable_domain(OpOperator<E1> const& a, OpExpression<E2> const& b)
 	{
-		auto [iters0, n0] = eval_iters(*static_cast<const E1*>(&a));
-		return (n0 > 0) ? std::make_pair(iters0, n0) : eval_iters(*static_cast<const E2*>(&b));
+		return iterable_domain_union(iterable_domain(*static_cast<const E1*>(&a)), iterable_domain(*static_cast<const E2*>(&b)));
+		//auto [iters0, n0] = iterable_domain(*static_cast<const E1*>(&a));
+		//return (n0 > 0) ? std::make_pair(iters0, n0) : iterable_domain(*static_cast<const E2*>(&b));
 	}
 
 
@@ -1896,4 +2048,15 @@ namespace expr
 	constexpr auto independent_variables_of = decltype(get_independent_variables(std::declval<E>())){};
 
 }
+
+
+template<typename E>
+len_type expr::data_length_for_iterator(OpExpression<E> const& e)
+{
+	return data_length(*static_cast<E const*>(&e));
+}
+
+
+
+
 

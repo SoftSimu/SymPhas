@@ -61,6 +61,23 @@ struct SolverSystemFD : BoundarySystem<T, D>
 };
 
 
+template<typename T, size_t D>
+struct SolverSystemFDwSD : RegionalSystem<T, D>
+{
+	using RegionalSystem<T, D>::dims;
+
+	RegionalGrid<T, D> dframe;		// the working grid for the solver
+	SolverSystemFDwSD(symphas::init_data_type const& tdata, symphas::interval_data_type const& vdata, symphas::b_data_type const& bdata, size_t id = 0) :
+		RegionalSystem<T, D>(tdata, vdata, bdata, id), dframe{ dims } {}
+	SolverSystemFDwSD() : RegionalSystem<T, D>(), dframe{ 0 } {}
+
+	inline void update(iter_type index, double time)
+	{
+		RegionalSystem<T, D>::update(index, time);
+		dframe.adjust(RegionalSystem<T, D>::region);
+	}
+};
+
 
 //! The phase field system used by the spectral solver. 
 /*!
@@ -681,6 +698,7 @@ inline SolverSystemSpectral<vector_t<D>, D>::~SolverSystemSpectral()
 }
 
 
+DEFINE_BASE_DATA_INHERITED((typename T, size_t D), (SolverSystemFDwSD<T, D>), (RegionalGrid<T, D>))
 DEFINE_BASE_DATA_INHERITED((typename T, size_t D), (SolverSystemFD<T, D>), (BoundaryGrid<T, D>))
 DEFINE_BASE_DATA_INHERITED((typename T, size_t D), (SolverSystemSpectral<T, D>), (Grid<T, D>))
 

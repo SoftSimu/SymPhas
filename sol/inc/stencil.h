@@ -50,54 +50,6 @@
  */
 
 
-namespace symphas
-{
-
-	template<Axis ax>
-	void set_stride(len_type(&stride)[1], len_type const* dims)
-	{
-		stride[0] = 1;
-	}
-
-	template<Axis ax>
-	void set_stride(len_type(&stride)[2], len_type const* dims)
-	{
-		if constexpr (ax == Axis::X)
-		{
-			stride[0] = 1;
-			stride[1] = dims[0];
-		}
-		else
-		{
-			stride[0] = dims[0];
-			stride[1] = -1;
-		}
-	}
-
-	template<Axis ax>
-	void set_stride(len_type(&stride)[3], len_type const* dims)
-	{
-		if constexpr (ax == Axis::X)
-		{
-			stride[0] = 1;
-			stride[1] = dims[0];
-			stride[2] = dims[0] * dims[1];
-		}
-		else if constexpr (ax == Axis::Y)
-		{
-			stride[0] = dims[0];
-			stride[1] = -1;
-			stride[2] = dims[0] * dims[1];
-		}
-		else
-		{
-			stride[0] = -dims[0] * dims[1];
-			stride[1] = dims[0];
-			stride[2] = -1;
-		}
-	}
-}
-
 
 
 // ******************************************************************************************
@@ -153,7 +105,7 @@ struct Stencil
 	auto applied_generalized_derivative(G<T, D> const& grid, iter_type n) const
 	{
 		len_type stride[D];
-		symphas::set_stride<ax>(stride, cast().dims);
+		grid::get_stride<ax>(stride, cast().dims);
 		return cast().template apply<O>(grid.values + n, stride);
 	}
 
@@ -162,7 +114,7 @@ struct Stencil
 	auto applied_laplacian(G<T, D> const& grid, iter_type n) const
 	{
 		len_type stride[D];
-		symphas::set_stride<Axis::X>(stride, cast().dims);
+		grid::get_stride<Axis::X>(stride, cast().dims);
 		return laplacian(grid.values + n, stride);
 	}
 
@@ -171,7 +123,7 @@ struct Stencil
 	auto applied_bilaplacian(G<T, D> const& grid, iter_type n) const
 	{
 		len_type stride[D];
-		symphas::set_stride<Axis::X>(stride, cast().dims);
+		grid::get_stride<Axis::X>(stride, cast().dims);
 		return bilaplacian(grid.values + n, stride);
 	}
 
@@ -180,7 +132,7 @@ struct Stencil
 	auto applied_gradlaplacian(G<T, D> const& grid, iter_type n) const
 	{
 		len_type stride[D];
-		symphas::set_stride<ax>(stride, cast().dims);
+		grid::get_stride<ax>(stride, cast().dims);
 		return gradlaplacian(grid.values + n, stride);
 	}
 
@@ -189,8 +141,118 @@ struct Stencil
 	auto applied_gradient(G<T, D> const& grid, iter_type n) const
 	{
 		len_type stride[D];
-		symphas::set_stride<ax>(stride, cast().dims);
+		grid::get_stride<ax>(stride, cast().dims);
 		return gradient(grid.values + n, stride);
+	}
+
+
+	template<Axis ax, size_t O, typename T, size_t D>
+	auto applied_generalized_directional_derivative(RegionalGrid<T, D> const& grid, iter_type n) const
+	{
+		auto v = grid[n];
+		if (!v.clear)
+		{
+			return cast().template apply_directional<ax, O>(v.value);
+		}
+		else
+		{
+			return grid.empty;
+		}
+	}
+
+	template<size_t... Os, typename T, size_t D>
+	auto applied_generalized_mixed_derivative(RegionalGrid<T, D> const& grid, iter_type n) const
+	{
+		auto v = grid[n];
+		if (!v.clear)
+		{
+			return cast().template apply_mixed<Os...>(v.value);
+		}
+		else
+		{
+			return grid.empty;
+		}
+	}
+
+	template<Axis ax, size_t O, typename T, size_t D>
+	auto applied_generalized_derivative(RegionalGrid<T, D> const& grid, iter_type n) const
+	{
+		auto v = grid[n];
+		if (!v.clear)
+		{
+			len_type stride[D];
+			grid::get_stride<ax>(stride, grid.region.dims);
+			return cast().template apply<O>(v.value, stride);
+		}
+		else
+		{
+			return grid.empty;
+		}
+	}
+
+	template<typename T, size_t D>
+	auto applied_laplacian(RegionalGrid<T, D> const& grid, iter_type n) const
+	{
+		auto v = grid[n];
+		if (!v.clear)
+		{
+			len_type stride[D];
+			grid::get_stride<Axis::X>(stride, grid.region.dims);
+			return laplacian(v.value, stride);
+		}
+		else
+		{
+			return grid.empty;
+		}
+	}
+
+	template<typename T, size_t D>
+	auto applied_bilaplacian(RegionalGrid<T, D> const& grid, iter_type n) const
+	{
+		auto v = grid[n];
+		if (!v.clear)
+		{
+			len_type stride[D];
+			grid::get_stride<Axis::X>(stride, grid.region.dims);
+			return bilaplacian(v.value, stride);
+		}
+		else
+		{
+			return grid.empty;
+		}
+	}
+
+	template<Axis ax, typename T, size_t D>
+	auto applied_gradlaplacian(RegionalGrid<T, D> const& grid, iter_type n) const
+	{
+		auto v = grid[n];
+		if (!v.clear)
+		{
+			len_type stride[D];
+			grid::get_stride<ax>(stride, grid.region.dims);
+			return gradlaplacian(v.value, stride);
+		}
+		else
+		{
+			return grid.empty;
+		}
+	}
+
+
+	template<Axis ax, typename T, size_t D>
+	auto applied_gradient(RegionalGrid<T, D> const& grid, iter_type n) const
+	{
+		auto v = grid[n];
+		if (!v.clear)
+		{
+			len_type stride[D];
+			grid::get_stride<ax>(stride, grid.region.dims);
+			return gradient(v.value, stride);
+		}
+		else
+		{
+			return grid.empty;
+		}
 	}
 
 
@@ -210,7 +272,7 @@ struct Stencil
 	auto applied_generalized_derivative(VectorComponentData<ax, T*, D> const& data, iter_type n) const
 	{
 		len_type stride[D];
-		symphas::set_stride<ax>(stride, cast().dims);
+		grid::get_stride<ax>(stride, cast().dims);
 		return cast().template apply<O>(data.values + n, stride);
 	}
 
@@ -218,7 +280,7 @@ struct Stencil
 	auto applied_laplacian(VectorComponentData<ax, T*, D> const& data, iter_type n) const
 	{
 		len_type stride[D];
-		symphas::set_stride<Axis::X>(stride, cast().dims);
+		grid::get_stride<Axis::X>(stride, cast().dims);
 		return laplacian(data.values + n, stride);
 	}
 
@@ -226,7 +288,7 @@ struct Stencil
 	auto applied_bilaplacian(VectorComponentData<ax, T*, D> const& data, iter_type n) const
 	{
 		len_type stride[D];
-		symphas::set_stride<Axis::X>(stride, cast().dims);
+		grid::get_stride<Axis::X>(stride, cast().dims);
 		return bilaplacian(data.values + n, stride);
 	}
 
@@ -234,7 +296,7 @@ struct Stencil
 	auto applied_gradlaplacian(VectorComponentData<ax, T*, D> const& data, iter_type n) const
 	{
 		len_type stride[D];
-		symphas::set_stride<ax>(stride, cast().dims);
+		grid::get_stride<ax>(stride, cast().dims);
 		return gradlaplacian(data.values + n, stride);
 	}
 
@@ -242,7 +304,7 @@ struct Stencil
 	auto applied_gradient(VectorComponentData<ax, T*, D> const& data, iter_type n) const
 	{
 		len_type stride[D];
-		symphas::set_stride<ax>(stride, cast().dims);
+		grid::get_stride<ax>(stride, cast().dims);
 		return gradient(data.values + n, stride);
 	}
 
@@ -366,25 +428,43 @@ namespace symphas::internal
 		static symphas::internal::GeneratedStencilApply stencil{ expr::get_central_space_stencil<OD, OA, 3>() };
 		return stencil(v, stride, divh);
 	}
-	
+
 #else
 
-	template<size_t OD, size_t OA, typename T>
-	auto apply_generalized_derivative(T* const v, double divh, const len_type(&dims)[1])
+	struct no_derivative_message_printed
 	{
-		return *v;
+		no_derivative_message_printed(size_t OD, size_t OA, size_t D)
+		{
+			fprintf(SYMPHAS_ERR, "no derivative of order %zd accuracy %zd available in dimension %zd\n", OD, OA, D);
+		}
+	};
+
+	template<size_t OD, size_t OA, size_t D>
+	void print_no_derivative_message()
+	{
+		static no_derivative_message_printed message{ OD, OA, D };
+	}
+
+
+	template<size_t OD, size_t OA, typename T>
+	auto apply_generalized_derivative(T* const v, double divh, const len_type(&stride)[1])
+	{
+		print_no_derivative_message<OD, OA, 1>();
+		return T{};
 	}
 
 	template<size_t OD, size_t OA, typename T>
-	auto apply_generalized_derivative(T* const v, double divh, const len_type(&dims)[2])
+	auto apply_generalized_derivative(T* const v, double divh, const len_type(&stride)[2])
 	{
-		return *v;
+		print_no_derivative_message<OD, OA, 2>();
+		return T{};
 	}
 
 	template<size_t OD, size_t OA, typename T>
-	auto apply_generalized_derivative(T* const v, double divh, const len_type(&dims)[3])
+	auto apply_generalized_derivative(T* const v, double divh, const len_type(&stride)[3])
 	{
-		return *v;
+		print_no_derivative_message<OD, OA, 3>();
+		return T{};
 	}
 
 #endif
@@ -465,7 +545,7 @@ struct GeneralizedStencil
 	auto apply_mixed(T* const v) const
 	{
 		len_type stride[DD];
-		symphas::set_stride<Axis::X>(stride, dims);
+		grid::get_stride<Axis::X>(stride, dims);
 		static symphas::internal::GeneratedStencilApply stencil(expr::get_central_space_mixed_stencil<OA>(std::index_sequence<OD1, OD2, OD3>{}));
 
 #ifdef DEBUG
@@ -489,7 +569,7 @@ struct GeneralizedStencil
 	auto apply_mixed(T* const v) const
 	{
 		len_type stride[DD];
-		symphas::set_stride<Axis::X>(stride, dims);
+		grid::get_stride<Axis::X>(stride, dims);
 		static symphas::internal::GeneratedStencilApply stencil(expr::get_central_space_mixed_stencil<OA>(std::index_sequence<OD1, OD2>{}));
 
 #ifdef DEBUG
@@ -512,7 +592,7 @@ struct GeneralizedStencil
 	auto apply_mixed(T* const v) const
 	{
 		len_type stride[DD];
-		symphas::set_stride<Axis::X>(stride, dims);
+		grid::get_stride<Axis::X>(stride, dims);
 		static symphas::internal::GeneratedStencilApply stencil(expr::get_central_space_stencil<OD1, OA, 1>());
 
 #ifdef DEBUG
@@ -534,7 +614,7 @@ struct GeneralizedStencil
 	auto gradient(T* const v) const
 	{
 		len_type stride[DD]{};
-		symphas::set_stride<Axis::X>(stride, dims);
+		grid::get_stride<Axis::X>(stride, dims);
 		return apply<1>(v, stride);
 	}
 };

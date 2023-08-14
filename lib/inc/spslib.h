@@ -53,7 +53,7 @@
 
 //#include "symphasthread.h"
 #include "definitions.h"
-
+#include "timer.h"
 
 #ifdef FILESYSTEM_HEADER_AVAILABLE
 #include <filesystem>
@@ -171,17 +171,18 @@ namespace grid
 	template<size_t D>
 	len_type length(len_type const* dimensions);
 
+
 	//! Specialization of grid::length(len_type const*).
 	template<>
 	inline len_type length<1>(len_type const* dimensions)
 	{
-		return ((dimensions != nullptr) ? dimensions[0] : 0);
+		return ((dimensions != nullptr) ? std::max(0, dimensions[0]) : 0);
 	}
 
 	template<size_t D>
 	len_type length(len_type const* dimensions)
 	{
-		return ((dimensions != nullptr) ? dimensions[D - 1] : 0) * length<D - 1>(dimensions);
+		return ((dimensions != nullptr) ? std::max(0, dimensions[D - 1]) : 0) * length<D - 1>(dimensions);
 	}
 
 	inline len_type length(len_type const* dimensions, size_t dimension)
@@ -189,7 +190,7 @@ namespace grid
 		len_type len = 1;
 		for (iter_type i = 0; i < dimension; ++i)
 		{
-			len *= dimensions[i];
+			len *= std::max(0, dimensions[i]);
 		}
 		return len;
 	}
@@ -350,11 +351,26 @@ namespace symphas::math
 		return pow(std::forward<T>(base), std::forward<E>(exponent));
 	}
 
+
+	template<typename T, size_t... Is>
+	auto pow(T const& base, std::index_sequence<Is...>)
+	{
+		auto f = [&] (size_t) { return base; };
+		return (f(Is) * ...);
+	}
+
 	template<size_t N, typename T>
 	auto pow(T const& base)
 	{
-		//using symphas::math::pow;
-		return pow(base, N);
+		if constexpr (N <= 6)
+		{
+			return pow(base, std::make_index_sequence<N>{});
+		}
+		else
+		{
+			//using symphas::math::pow;
+			return pow(base, N);
+		}
 	}
 
 	template<size_t O, typename T, size_t D>
@@ -1487,6 +1503,19 @@ namespace symphas::lib
 	template<typename... Seqs>
 	using intersect_seq_t = typename intersect_seq_result<Seqs...>::type;
 
+
+	template<typename T, typename Seq>
+	struct change_seq_type_impl;
+
+	template<typename T, typename T0, T0... Is>
+	struct change_seq_type_impl<T, std::integer_sequence<T0, Is...>>
+	{
+		using type = std::integer_sequence<T, T(Is)...>;
+	};
+
+	template<typename T, typename Seq>
+	using change_seq_type_t = typename change_seq_type_impl<T, Seq>::type;
+
 	//! Returns whether there is the given value in the sequence.
 	/*!
 	 * Returns true if the value `N` is in the given sequence.
@@ -2104,6 +2133,16 @@ namespace symphas::lib
 	using sorted_seq = typename sorted_seq_impl<Seq0>::type;
 
 
+	//! Puts the nth value of all sequences into the result.
+	template<size_t N, typename... Ts>
+	struct nth_value_of_seqs
+	{
+		using type = std::integer_sequence<bool, symphas::lib::seq_index_value<N, Ts>::value...>;
+	};
+
+	template<size_t N, typename... Ts>
+	using nth_value_of_seqs_t = typename nth_value_of_seqs<N, Ts...>::type;
+
 	//! Collect and count like types from a tuple list.
 	/*!
 	 * Give the list of types, the list is made unique and number of times
@@ -2200,6 +2239,35 @@ namespace symphas::lib
 	{
 		using type = typename cc_like_types<expand_types_list<Gs...>>::type;
 	};
+
+	template<bool flag, size_t N, size_t D, size_t I, typename T0, typename... Ts>
+	struct nth_periodic_shift_impl;
+
+	template<size_t N, size_t D, typename T0, typename... Ts>
+	struct nth_periodic_shift_impl<true, N, D, D, T0, Ts...>
+	{
+		using type = typename nth_value_of_seqs<N, T0, Ts...>::type;
+	};
+
+	template<size_t N, size_t D, size_t I, typename T0, typename... Ts>
+	struct nth_periodic_shift_impl<false, N, D, I, T0, Ts...>
+	{
+		using type = typename nth_periodic_shift_impl<D == I + 1, N, D, I + 1,
+			symphas::lib::seq_join_t<T0, T0>,
+			symphas::lib::seq_join_t<Ts, Ts>...,
+			symphas::lib::seq_join_t<symphas::lib::seq_repeating_value_t<T0::size(), bool, 0>, symphas::lib::seq_repeating_value_t<T0::size(), bool, 1>>
+		>::type;
+	};
+
+	template<size_t N, size_t D>
+	struct nth_periodic_shift
+	{
+		using type = typename nth_periodic_shift_impl<D == 1, N, D, 1, std::integer_sequence<bool, 0, 1>>::type;
+	};
+
+	template<size_t N, size_t D>
+	using nth_periodic_shift_t = typename nth_periodic_shift<N, D>::type;
+
 
 	namespace
 	{
@@ -2409,6 +2477,59 @@ namespace symphas::lib
 
 	}
 
+
+
+	template<typename data_type>
+	struct basic_forward_iterator_container;
+
+
+	template<typename data_type>
+	struct basic_forward_iterator
+	{
+		using iterator_category = std::forward_iterator_tag;
+		using difference_type = int;
+		using value_type = basic_forward_iterator_container<data_type>;
+		using pointer = value_type*;
+		using reference = int;
+
+		template<typename T>
+		basic_forward_iterator(T&& data, iter_type pos = 0) :
+			ptr{ std::forward<T>(data), pos } {}
+
+		basic_forward_iterator_container<data_type> operator*() const
+		{
+			return ptr;
+		}
+
+		// Prefix increment
+		basic_forward_iterator& operator++()
+		{
+			++ptr.pos;
+			return *this;
+		}
+
+		// Postfix increment
+		basic_forward_iterator operator++(int)
+		{
+			basic_forward_iterator tmp = *this;
+			++(*this);
+			return tmp;
+		}
+
+		friend bool operator==(basic_forward_iterator const& a, basic_forward_iterator const& b)
+		{
+			return a.ptr.pos == b.ptr.pos;
+		}
+
+		friend bool operator!=(basic_forward_iterator const& a, basic_forward_iterator const& b)
+		{
+			return !(a == b);
+		}
+
+		basic_forward_iterator_container<data_type> ptr;
+	};
+
+
 	template<typename... Ts>
 	struct zip_iterator
 	{
@@ -2429,9 +2550,12 @@ namespace symphas::lib
 		{ 
 			return get_data(seq{});
 		}
-		
-		//pointer operator->() { return m_ptr; }
 
+		decltype(auto) operator[](iter_type offset) const
+		{
+			return get_data(seq{}, offset);
+		}
+		
 		// Prefix increment
 		zip_iterator<Ts...>& operator++() 
 		{ 
@@ -2483,15 +2607,15 @@ namespace symphas::lib
 		}
 
 		template<size_t... Is>
-		decltype(auto) get_data(std::index_sequence<Is...>) const
+		decltype(auto) get_data(std::index_sequence<Is...>, iter_type offset = 0) const
 		{
-			return std::tie(std::get<Is>(data)[n]...);
+			return std::tie(std::get<Is>(data)[n + offset]...);
 		}
 
 		template<size_t... Is>
-		decltype(auto) get_data(std::index_sequence<Is...>)
+		decltype(auto) get_data(std::index_sequence<Is...>, iter_type offset = 0)
 		{
-			return std::tie(std::get<Is>(data)[n]...);
+			return std::tie(std::get<Is>(data)[n + offset]...);
 		}
 		
 	protected:
@@ -2505,7 +2629,6 @@ namespace symphas::lib
 	public:
 		
 		std::tuple<std::invoke_result_t<decltype(&zip_iterator<Ts...>::begin<Ts>), Ts>...> data;
-		//std::tuple<std::invoke_result_t<decltype(&zip_iterator<Ts...>::begin<Ts>), Ts>...> ends;
 		iter_type n;
 
 	};
@@ -3049,6 +3172,87 @@ namespace symphas::lib
 			std::declval<Lists>()...));
 
 	};
+
+	template<typename T>
+	struct array_container
+	{
+		T* data;
+		size_t n;
+
+		array_container() : array_container(0) {}
+		array_container(size_t n) : data{ (n > 0) ? new T[n]{} : nullptr }, n{ n } {}
+		array_container(const T* data, size_t n) : array_container(n)
+		{
+			if (data)
+			{
+				for (iter_type i = 0; i < n; ++i)
+				{
+					this->data[i] = data[i];
+				}
+			}
+		}
+
+		array_container(array_container<T> const& other) noexcept : array_container(other.data, other.n) {}
+
+		array_container(array_container<T>&& other) noexcept : array_container()
+		{
+			swap(*this, other);
+		}
+
+		~array_container()
+		{
+			delete[] data;
+		}
+
+		operator const T* () const
+		{
+			return data;
+		}
+
+		operator T* ()
+		{
+			return data;
+		}
+
+		T& operator[](iter_type i)
+		{
+			return data[i];
+		}
+
+		const T& operator[](iter_type i) const
+		{
+			return data[i];
+		}
+
+		friend void swap(array_container<T>& first, array_container<T>& second)
+		{
+			using std::swap;
+			swap(first.data, second.data);
+			swap(first.n, second.n);
+		}
+
+		const T* begin() const
+		{
+			return data;
+		}
+
+		const T* end() const
+		{
+			return data + n;
+		}
+
+		T* begin()
+		{
+			return data;
+		}
+
+		T* end()
+		{
+			return data + n;
+		}
+
+	};
+
 
 	// **************************************************************************************
 
@@ -3725,6 +3929,10 @@ namespace symphas::lib
 
 	template<Axis... axs>
 	struct axis_list {};
+
+	template<Side... sides>
+	struct side_list {};
+
 
 	//! Put the first `D` axes in a types list.
 	/*!

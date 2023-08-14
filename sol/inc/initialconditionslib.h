@@ -30,7 +30,7 @@
 #include <random>
 
 #include "params.h"
-#include "grid.h"
+#include "gridfunctions.h"
 
 
 //! The width of a distribution when using randomness.
@@ -287,19 +287,27 @@ namespace symphas::internal
 	extern std::map<const char*, InsideTag, symphas::internal::any_case_comparator> init_tag_key_map;
 
 
+	template<typename T, size_t D>
+	using ic_iterator_difference_type = symphas::internal::iterator_region_difference_type<T, D>;
+	//struct ic_iterator_difference_type : 
+	//{
+	//	using parent_type = symphas::internal::iterator_region_difference_type<T, D>;
+	//	using parent_type::parent_type;
+	//
+	//
+	//};
+
 	template<typename T, size_t D, typename E = InitialConditionsData<D>>
-	class ic_iterator
+	struct ic_iterator : symphas::iterator_type_impl<ic_iterator<T, D, E>,
+		std::random_access_iterator_tag,
+		T,
+		T&,
+		std::ptrdiff_t,
+		T*,
+		int
+	>
 	{
-
-		//using E = InitialConditionsData<D>;
-
-	public:
-
-		using iterator_category = std::random_access_iterator_tag;
-		using value_type = T;
-		using difference_type = int;
-		using pointer = T*;
-		using reference = int;
+		using difference_type = std::ptrdiff_t;
 
 		//! Create an iterator starting at the given position.
 		/*!
@@ -310,202 +318,37 @@ namespace symphas::internal
 		 * \param pos The index of the underlying data in the expression
 		 * which is the first index in the iterator.
 		 */
-		explicit ic_iterator(Axis ax, T* values, E const& e, difference_type pos = 0)
-			: fill{}, init{ static_cast<E const*>(&e) }, pos{ pos }, ax{ ax }, values{ values } {}
+		explicit ic_iterator(Axis ax, T* values, E const& e, grid::region_interval<D> const& interval, difference_type pos = 0)
+			: ptr{ values, interval, pos }, init{ static_cast<E const*>(&e) }, ax{ ax } {}
 
+		explicit ic_iterator(Axis ax, T* values, E const& e, grid::region_extent<D> const& region, difference_type pos = 0)
+			: ptr{ values, region, pos }, init{ static_cast<E const*>(&e) }, ax{ ax } {}
 
-		ic_iterator(ic_iterator<T, D> const& other) :
-			ic_iterator(other.ax, other.values, *other.init, other.pos) {}
-		ic_iterator(ic_iterator<T, D>&& other) :
-			ic_iterator(other.ax, other.values, *other.init, other.pos) {}
-		ic_iterator<T, D>& operator=(ic_iterator<T, D> other)
-		{
-			fill = other.fill;
-			init = other.init;
-			pos = other.pos;
-			ax = other.ax;
-			values = other.values;
-			return *this;
-		}
-
-		//! Prefix increment, returns itself.
-		ic_iterator<T, D, E>& operator++()
-		{
-			++pos;
-			return *this;
-		}
-
-		//! Postfix increment, return a copy before the increment.
-		ic_iterator<T, D, E> operator++(difference_type)
-		{
-			ic_iterator<T, D, E> it = *this;
-			++pos;
-			return it;
-		}
-
-
-		//! Prefix decrement, returns itself.
-		ic_iterator<T, D, E>& operator--()
-		{
-			--pos;
-			return *this;
-		}
-
-		//! Postfix decrement, return a copy before the increment.
-		ic_iterator<T, D, E> operator--(difference_type)
-		{
-			ic_iterator<T, D, E> it = *this;
-			--pos;
-			return it;
-		}
-
-
-		ic_iterator<T, D, E>& operator+=(difference_type offset)
-		{
-			pos += offset;
-			return *this;
-		}
-
-		ic_iterator<T, D, E>& operator-=(difference_type offset)
-		{
-			pos -= offset;
-			return *this;
-		}
-
+		explicit ic_iterator(Axis ax, T* values, E const& e, symphas::interval_data_type const& interval, difference_type pos = 0)
+			: ic_iterator(ax, values, e, grid::region_interval<D>(interval), pos) {}
 
 
 		//! Dereference the iterator.
-		inline value_type operator*() const
+		inline T operator*() const
 		{
-			return fill(ax, values[pos], (*init)[pos]);
-		};
+			return value_fill<T>{}(ax, ptr.ptr[*ptr], (*init)[ptr.pos]);
+		}
 
 		//! Dereference past the iterator.
-		inline value_type operator[](difference_type given_pos) const
+		inline T operator[](difference_type given_pos) const
 		{
-			return fill(ax, values[pos + given_pos], (*init)[pos + given_pos]);
+			return value_fill<T>{}(ax, ptr.ptr[ptr[given_pos]], (*init)[ptr.pos + given_pos]);
 		}
 
 		//! Member access of the iterated expression.
 		inline E* operator->() const
 		{
 			return init;
-		};
-
-
-		//! Equality comparison with another iterator.
-		/*!
-		 * Equality comparison with another iterator.
-		 * Compares the current position.
-		 */
-		bool operator==(ic_iterator<T, D, E> const& other) const
-		{
-			return pos == other.pos
-				&& init == other.init;
 		}
 
-		//! Inequality comparison with another iterator.
-		/*!
-		 * Inequality comparison with another iterator.
-		 * Compares the current position.
-		 */
-		bool operator!=(ic_iterator<T, D, E> const& other) const
-		{
-			return !(*this == other);
-		}
-
-		//! Comparison with another iterator.
-		/*!
-		 * Greater than comparison with another iterator.
-		 * Compares the current position.
-		 */
-		bool operator>(ic_iterator<T, D, E> const& other) const
-		{
-			return pos > other.pos
-				&& init == other.init;
-		}
-
-		//! Comparison with another iterator.
-		/*!
-		 * Less than comparison with another iterator.
-		 * Compares the current position.
-		 */
-		bool operator<(ic_iterator<T, D, E> const& other) const
-		{
-			return other > *this;
-		}
-
-		//! Comparison with another iterator.
-		/*!
-		 * Greater than or equal to comparison with another iterator.
-		 * Compares the current position.
-		 */
-		bool operator>=(ic_iterator<T, D, E> const& other) const
-		{
-			return !(*this < other);
-		}
-
-		//! Comparison with another iterator.
-		/*!
-		 * Less than or equal to comparison with another iterator.
-		 * Compares the current position.
-		 */
-		bool operator<=(ic_iterator<T, D, E> const& other) const
-		{
-			return !(*this > other);
-		}
-
-
-
-		//! Convertible to the difference type of two iterators.
-		operator difference_type() const
-		{
-			return pos;
-		}
-
-		//! Add two iterators.
-		difference_type operator+(ic_iterator<T, D, E> const& rhs)
-		{
-			return pos + rhs;
-		}
-
-		//! Subtract two iterators.
-		difference_type operator-(ic_iterator<T, D, E> const& rhs)
-		{
-			return pos - rhs;
-		}
-
-		//! Add an offset from the iterator.
-		ic_iterator<T, D, E> operator+(difference_type offset)
-		{
-			ic_iterator<T, D, E> it = *this;
-			return it += offset;
-		}
-
-		//! Subtract an offset from the iterator.
-		ic_iterator<T, D, E> operator-(difference_type offset)
-		{
-			ic_iterator<T, D, E> it = *this;
-			return it -= offset;
-		}
-
-		//! Add an offset from the left hand side to an iterator.
-		friend difference_type operator+(difference_type offset, ic_iterator<T, D, E> rhs)
-		{
-			return offset + rhs.pos;
-		}
-
-		//! Subtract an offset from the left hand side to an iterator.
-		friend difference_type operator-(difference_type offset, ic_iterator<T, D, E> rhs)
-		{
-			return offset - rhs.pos;
-		}
-
-		value_fill<T> fill;		//!< Method to return the correct type from the generation result.
+		symphas::internal::ic_iterator_difference_type<T, D> ptr;
 		E const* init;			//!< Pointer to the initial conditions generator.
-		difference_type pos;	//!< Current index of iteration.
 		Axis ax;				//!< Axis of the entries to fill. If NONE, all entries are initialized.
-		T* values;				//!< Pointer to the values that will be filled.
 	};
 
 
@@ -579,6 +422,9 @@ namespace symphas
 	{
 		double* gp;			//!< The generation parameters for the algorithm generating the values.
 		size_t N;			//!< The number of parameters.
+
+		template<typename... Ts>
+		init_data_parameters(double param0, Ts... params) : gp{ new double[sizeof...(Ts) + 1] {param0, (double)params...} }, N{ sizeof...(Ts) + 1 } {}
 
 		init_data_parameters(size_t N = NUM_INIT_CONSTANTS) : gp{ (N > 0) ? new double[N] {0} : nullptr }, N{ N } {}
 		init_data_parameters(init_data_parameters const& other) : init_data_parameters(other.N)
@@ -742,19 +588,54 @@ namespace symphas
 	struct init_data_functor<void>
 	{
 		//! Initializes a list of scalar values.
-		virtual void initialize(scalar_t* values, len_type const* dims, size_t dimension) {}
+		virtual void initialize(scalar_t* values, grid::region_interval<1> const& interval) const = 0;
+
+		//! Initializes a list of scalar values.
+		virtual void initialize(scalar_t* values, grid::region_interval<2> const& interval) const = 0;
+
+		//! Initializes a list of scalar values.
+		virtual void initialize(scalar_t* values, grid::region_interval<3> const& interval) const = 0;
 
 		//! Initializes a list of complex values.
-		virtual void initialize(complex_t* values, len_type const* dims, size_t dimension) {}
+		virtual void initialize(complex_t* values, grid::region_interval<1> const& interval) const = 0;
+
+		//! Initializes a list of complex values.
+		virtual void initialize(complex_t* values, grid::region_interval<2> const& interval) const = 0;
+
+		//! Initializes a list of complex values.
+		virtual void initialize(complex_t* values, grid::region_interval<3> const& interval) const = 0;
 
 		//! Initializes a list of 1 dimensional vector values.
-		virtual void initialize(vector_t<1>* values, len_type const* dims, size_t dimension) {}
+		virtual void initialize(vector_t<1>* values, grid::region_interval<1> const& interval) const = 0;
 
 		//! Initializes a list of 2 dimensional vector values.
-		virtual void initialize(vector_t<2>* values, len_type const* dims, size_t dimension) {}
+		virtual void initialize(vector_t<2>* values, grid::region_interval<2> const& interval) const = 0;
 
 		//! Initializes a list of 3 dimensional vector values.
-		virtual void initialize(vector_t<3>* values, len_type const* dims, size_t dimension) {}
+		virtual void initialize(vector_t<3>* values, grid::region_interval<3> const& interval) const = 0;
+
+
+		//! Initializes a list of scalar values.
+		void initialize(scalar_t* values, const len_type* dims, size_t dimension)
+		{
+			if (dimension == 1)
+			{
+				initialize(values, grid::region_interval<1>((len_type[1]) { dims[0] }));
+			}
+			else if (dimension == 2)
+			{
+				initialize(values, grid::region_interval<2>((len_type[2]) { dims[0], dims[1] }));
+			}
+			else if (dimension == 3)
+			{
+				initialize(values, grid::region_interval<3>((len_type[3]) { dims[0], dims[1], dims[2] }));
+			}
+			else
+			{
+				throw;
+			}
+		}
+
 
 		//! Generate a copy of the functor.
 		virtual init_data_functor<void>* make_copy() const = 0;
@@ -763,8 +644,77 @@ namespace symphas
 
 	};
 
+	
+	template<typename init_data_functor_specialized>
+	struct init_data_functor_impl : init_data_functor<void>
+	{
+		//! Initializes a list of scalar values.
+		void initialize(scalar_t* values, grid::region_interval<1> const& interval) const override
+		{
+			cast().initialize(values, interval, 1);
+		}
+
+		//! Initializes a list of scalar values.
+		void initialize(scalar_t* values, grid::region_interval<2> const& interval) const override
+		{
+			cast().initialize(values, interval, 2);
+		}
+
+		//! Initializes a list of scalar values.
+		void initialize(scalar_t* values, grid::region_interval<3> const& interval) const override
+		{
+			cast().initialize(values, interval, 3);
+		}
+
+		//! Initializes a list of complex values.
+		void initialize(complex_t* values, grid::region_interval<1> const& interval) const override
+		{
+			cast().initialize(values, interval, 1);
+		}
+
+		//! Initializes a list of complex values.
+		void initialize(complex_t* values, grid::region_interval<2> const& interval) const override
+		{
+			cast().initialize(values, interval, 2);
+		}
+
+		//! Initializes a list of complex values.
+		void initialize(complex_t* values, grid::region_interval<3> const& interval) const override
+		{
+			cast().initialize(values, interval, 3);
+		}
+
+		//! Initializes a list of 1 dimensional vector values.
+		void initialize(vector_t<1>* values, grid::region_interval<1> const& interval) const override
+		{
+			cast().initialize(values, interval, 1);
+		}
+
+		//! Initializes a list of 2 dimensional vector values.
+		void initialize(vector_t<2>* values, grid::region_interval<2> const& interval) const override
+		{
+			cast().initialize(values, interval, 2);
+		}
+
+		//! Initializes a list of 3 dimensional vector values.
+		void initialize(vector_t<3>* values, grid::region_interval<3> const& interval) const override
+		{
+			cast().initialize(values, interval, 3);
+		}
+
+		const init_data_functor_specialized& cast() const
+		{
+			return *static_cast<init_data_functor_specialized const*>(this);
+		}
+
+		init_data_functor<void>* make_copy() const override
+		{
+			return new init_data_functor_specialized(cast());
+		}
+	};
+
 	template<typename F>
-	struct init_data_functor : init_data_functor<void>
+	struct init_data_functor : init_data_functor_impl<init_data_functor<F>>
 	{
 		using parent_type = init_data_functor<void>;
 		using ret_type = std::invoke_result_t<F, iter_type, len_type const*, size_t>;
@@ -773,20 +723,18 @@ namespace symphas
 		/*!
 		 * Create the initial condition algorithm based on a functor.
 		 */
-		init_data_functor(F f) : parent_type(), f{ f } {}
+		init_data_functor(F f) : f{ f } {}
 
-		void initialize(ret_type* values, len_type const* dims, size_t dimension) override
+		template<size_t D>
+		void initialize(ret_type* values, grid::region_interval<D> const& interval)
 		{
+			auto it = symphas::data_iterator_region(values, interval);
+
 #			pragma omp parallel for
-			for (iter_type n = 0; n < grid::length(dims, dimension); ++n)
+			for (iter_type n = 0; n < grid::length<D>(interval); ++n)
 			{
-				values[n] = f(n, dims, dimension);
+				*it++ = f(n, interval.dims, D);
 			}
-		}
-
-		init_data_functor<void>* make_copy() const override
-		{
-			return new init_data_functor<F>(*this);
 		}
 
 		F f;
@@ -794,7 +742,7 @@ namespace symphas
 
 
 	template<typename T>
-	struct init_data_functor<Block<T>> : init_data_functor<void>
+	struct init_data_functor<Block<T>> : init_data_functor_impl<init_data_functor<Block<T>>>
 	{
 		using parent_type = init_data_functor<void>;
 
@@ -802,31 +750,52 @@ namespace symphas
 		/*!
 		 * Create the initial condition algorithm based on a functor.
 		 */
-		init_data_functor(Block<T> const& source) : parent_type(), source{ &source } {}
+		init_data_functor(Block<T> const& source) : source{ &source } {}
 
-		void initialize(T* values, len_type const* dims, size_t dimension) override
+		template<size_t D>
+		void initialize(T* values, grid::region_interval<D> const& interval)
 		{
-			len_type len = std::min(source->len, grid::length(dims, dimension));
-#			pragma omp parallel for
-			for (iter_type n = 0; n < len; ++n)
-			{
-				values[n] = source->values[n];
-			}
-		}
-
-		init_data_functor<void>* make_copy() const override
-		{
-			return new init_data_functor<Block<T>>(*this);
+			auto it = symphas::data_iterator_region(values, interval);
+			std::copy(symphas::data_iterator(source), symphas::data_iterator(source, grid::length<D>(interval)), it);
 		}
 
 		Block<T> const* source;
 	};
 
 
+	template<size_t N, typename T>
+	struct init_data_functor<MultiBlock<N, T>> : init_data_functor_impl<init_data_functor<MultiBlock<N, T>>>
+	{
+		using parent_type = init_data_functor<void>;
+
+		//! Create the initial condition algorithm based on a functor.
+		/*!
+		 * Create the initial condition algorithm based on a functor.
+		 */
+		init_data_functor(MultiBlock<N, T> const& source) : source{ &source } {}
+
+		template<size_t D>
+		void initialize(T* values, grid::region_interval<D> const& interval)
+		{
+			auto it = symphas::data_iterator_region(values, interval);
+			std::copy(symphas::data_iterator(source), symphas::data_iterator(source, grid::length<D>(interval)), it);
+		}
+
+		MultiBlock<N, T> const* source;
+	};
+
 	template<typename T, size_t D>
 	init_data_functor(Grid<T, D>)->init_data_functor<Block<T>>;
 	template<typename T, size_t D>
 	init_data_functor(BoundaryGrid<T, D>)->init_data_functor<Block<T>>;
+	template<typename T, size_t D>
+	init_data_functor(RegionalGrid<T, D>) -> init_data_functor<Block<T>>;
+	template<typename T, size_t D>
+	init_data_functor(Grid<any_vector_t<T, D>, D>) -> init_data_functor<MultiBlock<D, T>>;
+	template<typename T, size_t D>
+	init_data_functor(BoundaryGrid<any_vector_t<T, D>, D>) -> init_data_functor<MultiBlock<D, T>>;
+	template<typename T, size_t D>
+	init_data_functor(RegionalGrid<any_vector_t<T, D>, D>) -> init_data_functor<MultiBlock<D, T>>;
 	template<typename T>
 	init_data_functor(Block<T>)->init_data_functor<Block<T>>;
 
@@ -2269,7 +2238,7 @@ namespace symphas::internal
 	template<typename F>
 	auto get_function_value(iter_type n, F f, const len_type(&dims)[1], symphas::interval_data_type vdata, const double* params, double zero_at_left = false)
 	{
-		double x = (n % dims[0]) * vdata[Axis::X].width();
+		double x = (n % dims[0]) * vdata[Axis::X].width() + vdata[Axis::X].left();
 
 		return params[0] * f(x * params[1]);
 	}
@@ -2277,8 +2246,8 @@ namespace symphas::internal
 	template<typename F>
 	auto get_function_value(iter_type n, F f, const len_type(&dims)[2], symphas::interval_data_type vdata, const double* params, double zero_at_left = false)
 	{
-		double x = (n % dims[0]) * vdata[Axis::X].width();
-		double y = (n / dims[0]) * vdata[Axis::Y].width();
+		double x = (n % dims[0]) * vdata[Axis::X].width() + vdata[Axis::X].left();
+		double y = (n / dims[0]) * vdata[Axis::Y].width() + vdata[Axis::Y].left();
 
 		return params[0] * f(x * params[1] + y * params[2]);
 	}
@@ -2286,9 +2255,9 @@ namespace symphas::internal
 	template<typename F>
 	auto get_function_value(iter_type n, F f, const len_type(&dims)[3], symphas::interval_data_type vdata, const double* params, double zero_at_left = false)
 	{
-		double x = (n % dims[0]) * vdata[Axis::X].width();
-		double y = ((n / dims[0]) % dims[1]) * vdata[Axis::Y].width();
-		double z = (n / (dims[1] * dims[2])) * vdata[Axis::Y].width();
+		double x = (n % dims[0]) * vdata[Axis::X].width() + vdata[Axis::X].left();
+		double y = ((n / dims[0]) % dims[1]) * vdata[Axis::Y].width() + vdata[Axis::Y].left();
+		double z = (n / (dims[1] * dims[2])) * vdata[Axis::Z].width() + vdata[Axis::Z].left();
 
 		return params[0] * f(x * params[1] + y * params[2] + z * params[3]);
 	}
@@ -2296,7 +2265,7 @@ namespace symphas::internal
 	template<typename F>
 	auto get_function_value_A(iter_type n, F f, const len_type(&dims)[1], symphas::interval_data_type vdata, const double* params, double zero_at_left = false)
 	{
-		double x = (n % dims[0]) * vdata[Axis::X].width();
+		double x = (n % dims[0]) * vdata[Axis::X].width() + vdata[Axis::X].left();
 
 		return params[0] * f(x * params[1]);
 	}
@@ -2304,8 +2273,8 @@ namespace symphas::internal
 	template<typename F>
 	auto get_function_value_A(iter_type n, F f, const len_type(&dims)[2], symphas::interval_data_type vdata, const double* params, double zero_at_left = false)
 	{
-		double x = (n % dims[0]) * vdata[Axis::X].width();
-		double y = (n / dims[0]) * vdata[Axis::Y].width();
+		double x = (n % dims[0]) * vdata[Axis::X].width() + vdata[Axis::X].left();
+		double y = (n / dims[0]) * vdata[Axis::Y].width() + vdata[Axis::Y].left();
 
 		return params[0] * (f(x * params[1]) + f(y * params[2]));
 	}
@@ -2313,9 +2282,9 @@ namespace symphas::internal
 	template<typename F>
 	auto get_function_value_A(iter_type n, F f, const len_type(&dims)[3], symphas::interval_data_type vdata, const double* params, double zero_at_left = false)
 	{
-		double x = (n % dims[0]) * vdata[Axis::X].width();
-		double y = ((n / dims[0]) % dims[1]) * vdata[Axis::Y].width();
-		double z = (n / (dims[1] * dims[2])) * vdata[Axis::Y].width();
+		double x = (n % dims[0]) * vdata[Axis::X].width() + vdata[Axis::X].left();
+		double y = ((n / dims[0]) % dims[1]) * vdata[Axis::Y].width() + vdata[Axis::Y].left();
+		double z = (n / (dims[1] * dims[2])) * vdata[Axis::Z].width() + vdata[Axis::Z].left();
 
 		return params[0] * (f(x * params[1]) + f(y * params[2]) + f(z * params[3]));
 	}

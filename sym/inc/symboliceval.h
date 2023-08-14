@@ -139,9 +139,15 @@ public:
 		return symphas::internal::make_symbolic_eval(-value, data, f);
 	}
 
-	void update()
+	template<typename... condition_ts>
+	void update(symphas::lib::types_list<condition_ts...>)
 	{
 		data.update(f);
+	}
+
+	void update()
+	{
+		update(symphas::lib::types_list<>{});
 	}
 
 #ifdef PRINTABLE_EQUATIONS
@@ -200,6 +206,8 @@ struct OpSymbolicEval<V, expr::symbols::i_<N, P>, SymbolicFunction<E, Variable<N
 		return symphas::internal::make_symbolic_eval(-value, data, f);
 	}
 
+	template<typename... condition_ts>
+	void update(symphas::lib::types_list<condition_ts...>) {}
 	void update() {}
 
 	template<typename E0>
@@ -304,15 +312,16 @@ struct OpSymbolicEval<V, SymbolicListIndex<E0, K>, SymbolicFunction<E, Variable<
 		return symphas::internal::make_symbolic_eval(-value, data, f);
 	}
 
-	void update()
+	template<typename... condition_ts>
+	void update(symphas::lib::types_list<condition_ts...>)
 	{
 		index = data.e.eval();
-		expr::prune::update(list[index.index() - data.start()]->e);
-		//for (iter_type i = 0; i < data.length(); ++i)
-		//{
-		//	index = i + data.start();
-		//	expr::prune::update(list[i]->e);
-		//}
+		expr::prune::update<condition_ts...>(list[index.index() - data.start()]->e);
+	}
+
+	void update()
+	{
+		update(symphas::lib::types_list<>{});
 	}
 
 	//template<int N, int P>

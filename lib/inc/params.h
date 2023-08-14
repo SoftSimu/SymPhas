@@ -308,8 +308,8 @@ namespace params
 	/*!
 	 * Whether or not to extend the boundary when creating the boundary grid.
 	 * choosing this to be true means that the grid sides are increased
-	 * by THICKNESS units (logically and in memory) rather than having the
-	 * interior be THICKNESS units less on each side from the given dimensions.
+	 * by BOUNDARY_DEPTH units (logically and in memory) rather than having the
+	 * interior be BOUNDARY_DEPTH units less on each side from the given dimensions.
 	 * 
 	 * Briefly, this value will either:
 	 * - shrink the dimensions of the simulated 

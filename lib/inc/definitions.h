@@ -342,11 +342,26 @@ template<auto A, auto B>
 constexpr auto fixed_min<A, B> = (A < B) ? A : B;
 template<auto A>
 constexpr auto fixed_min<A> = A;
+
 template<int I>
 constexpr int fixed_abs = (I < 0) ? -I : I;
 template<int I>
 constexpr int fixed_sign = (I < 0) ? -1 : 1;
 
+
+template<size_t B, size_t... Ps>
+constexpr size_t fixed_pow = fixed_pow<B, fixed_pow<Ps...>>;
+
+template<size_t B>
+constexpr size_t fixed_pow<B> = B;
+template<size_t P>
+constexpr size_t fixed_pow<1, P> = fixed_pow<1>;
+template<size_t B>
+constexpr size_t fixed_pow<B, 0> = fixed_pow<1>;
+template<size_t B>
+constexpr size_t fixed_pow<B, 1> = fixed_pow<B>;
+template<size_t B, size_t P>
+constexpr size_t fixed_pow<B, P> = fixed_pow<B, P / 2> * fixed_pow<B, P - P / 2>;
 
 
 template<size_t N, size_t D, size_t... Rest>
@@ -393,14 +408,23 @@ inline const char* ORDER_PARAMETER_NAME_EXTRA_FMT =
  * Assigns names to variables in order to be neatly displayed. Any variable
  * can be named.
  */
+#ifdef LATEX_PLOT
+inline const char* VARIABLE_NAMES[] = {};
+#else
 inline const char* VARIABLE_NAMES[] = { "Q", "W", "U", "V" };
+#endif
 
 //! Default format of variable name when other names have been assigned.
 /*!
  * Uses a format to name a variable when all the other names have already been
  * assigned.
  */
+
+#ifdef LATEX_PLOT
+inline const char* VARIABLE_NAME_EXTRA_FMT = "\\varphi_{%d}";
+#else
 inline const char* VARIABLE_NAME_EXTRA_FMT = "v%d";
+#endif
 
 
 
@@ -441,6 +465,23 @@ enum class Axis
 	S,		//!< The angle of spherical coordinates.
 	R,		//!< The radius of polar or spherical coordinates.
 	NONE	//!< No axis is specified.
+};
+
+//! Values for labeling the sides of a grid.
+/*!
+ * Global names that are used to refer to the sides of a grid, in use cases such
+ * as labeling the boundaries of a grid. The order of the enumerated values
+ *
+ * The sides listed in this enumeration apply for grids up to 3 dimensions.
+ */
+enum class Side
+{
+	LEFT, 
+	RIGHT, 
+	TOP, 
+	BOTTOM,
+	FRONT, 
+	BACK
 };
 
 

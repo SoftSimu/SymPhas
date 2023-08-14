@@ -24,7 +24,6 @@ list(REMOVE_ITEM SOURCES_SOL "${CMAKE_CURRENT_SOURCE_DIR}/src/colormap.cpp")
 option(USE_VTK "Use the VTK graphics library to display phase field" OFF)
 set(CUSTOM_SYS_IMPLEMENTATION_HEADER "" CACHE STRING "the header for additional implementations of solver and provisional systems")
 set(MODEL_CALL_FUNCTION "" CACHE STRING "a function templated on the specialized model type")
-set(GENERATE_UNDEFINED_STENCILS OFF CACHE BOOL "generates stencil coefficients during compile time (may dramatically increase compile time and resources)")
 
 
 if(USE_VTK)
@@ -74,25 +73,50 @@ if(CUSTOM_SYS_IMPLEMENTATION_HEADER)
 endif()
 
 if(MODEL_CALL_FUNCTION)
+
 	list(APPEND ADD_DEFINITIONS MODEL_APPLY_CALL=${MODEL_CALL_FUNCTION})
 	message(STATUS "model selection list is defined using definition MODEL_APPLY_CALL set to '${MODEL_CALL_FUNCTION}'")
 
-	set(BASIC_STENCILS ON CACHE BOOL "compile model selection list with only the basic stencils")
-	if(NOT BASIC_STENCILS)
+
+	set(AVAILABLE_DIMENSIONS "2" CACHE STRING "comma separated list of dimensions available to simulate (may dramatically increase compile time and resources)")
+	set(AVAILABLE_STENCILS_BASIC_ONLY ON CACHE BOOL "compile model selection list with only the basic stencils")
+	set(AVAILABLE_STENCILS_AUTOGENERATION OFF CACHE BOOL "generates stencil coefficients during compile time (may dramatically increase compile time and resources)")
+
+	string(REPLACE "," ";" DIMENSION_LIST ${AVAILABLE_DIMENSIONS})
+
+	foreach(DIMENSION ${DIMENSION_LIST})
+		set(AVAILABLE_STENCIL_ACCURACY_${DIMENSION}D "2" CACHE STRING "defines the list of accuracies available for the finite difference stencil in ${DIMENSION}D")
+	endforeach()
+
+
+	if(NOT AVAILABLE_STENCILS_BASIC_ONLY)
 		list(APPEND ADD_DEFINITIONS ALL_STENCILS)
-		message(STATUS "building with all stencils available")
+		message(STATUS "stencils: building with all stencils available")
 	else()
-		message(STATUS "building with basic stencils")
+		message(STATUS "stencils: building with basic stencils")
 	endif()
+	
+	if(AVAILABLE_STENCILS_AUTOGENERATION)
+		list(APPEND ADD_DEFINITIONS GENERATE_UNDEFINED_STENCILS_ON)
+		message(STATUS "stencils: autogenerating required stencils")
+	endif()
+
+	
+	foreach(DIMENSION ${DIMENSION_LIST})
+		string(REPLACE "," ";" ACCURACY_LIST ${AVAILABLE_STENCIL_ACCURACY_${DIMENSION}D})
+		list(APPEND ADD_DEFINITIONS ORDER_LIST_${DIMENSION}D=${AVAILABLE_STENCIL_ACCURACY_${DIMENSION}D})
+		message(STATUS "stencils: available ${DIMENSION}D accuracy is {${ACCURACY_LIST}}")
+	endforeach()
+
+	list(APPEND ADD_DEFINITIONS AVAILABLE_DIMENSIONS=${AVAILABLE_DIMENSIONS})
+
 else()
 	message(STATUS "model selection tree is not defined because no definition was given to MODEL_APPLY_CALL")
 endif()
 
 message(STATUS "definitions added to module 'sol' are ${ADD_DEFINITIONS}")
 
-if(${GENERATE_UNDEFINED_STENCILS})
-	list(APPEND ADD_DEFINITIONS GENERATE_UNDEFINED_STENCILS_ON)
-endif()
+
 
 add_library(symphas_sol_o OBJECT ${SOURCES_SOL})
 target_include_directories(symphas_sol_o PUBLIC 
@@ -102,6 +126,7 @@ target_include_directories(symphas_sol_o PUBLIC
 	$<INSTALL_INTERFACE:include>)
 target_link_libraries(symphas_sol_o PUBLIC symphas_sym PUBLIC ${ADD_LIBRARIES})
 target_compile_definitions(symphas_sol_o PUBLIC ${ADD_DEFINITIONS})
+target_compile_definitions(symphas_sol_o PRIVATE SOL_EXPORTS)
 
 if(USE_IO)
 	target_link_libraries(symphas_sol_o PUBLIC symphas_io)

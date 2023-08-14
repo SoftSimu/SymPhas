@@ -206,11 +206,11 @@ namespace symphas::internal
 		InitialConditionsData<D>* operator()(
 			symphas::init_entry_type const& init,
 			symphas::interval_data_type const& vdata,
-			len_type const* dims) const
+			len_type const* origin) const
 		{
 			if (init.in == in)
 			{
-				return check_tags_start(init, vdata, dims, typename tags_for_init_value<in>::type{});
+				return check_tags_start(init, vdata, origin, typename tags_for_init_value<in>::type{});
 			}
 			else
 			{
@@ -223,26 +223,26 @@ namespace symphas::internal
 		InitialConditionsData<D>* check_tags(
 			symphas::init_entry_type const& init,
 			symphas::interval_data_type const& vdata,
-			len_type const* dims) const
+			len_type const* origin) const
 		{
-			return new InitialConditionsAlg<D, in>(init, vdata, dims);
+			return new InitialConditionsAlg<D, in>(init, vdata, grid::interior_dimensions(vdata));
 		}
 
 		template<typename... other_tag_types, InsideTag... tags>
 		InitialConditionsData<D>* check_tags(
 			symphas::init_entry_type const& init,
 			symphas::interval_data_type const& vdata,
-			len_type const* dims,
+			len_type const* origin,
 			init_tag_values_list<tags...>, other_tag_types... other_tags) const
 		{
 			size_t check_tag = build_intag(tags...);
 			if (init.intag == check_tag)
 			{
-				return new InitialConditionsAlg<D, in, tags...>(init, vdata, dims);
+				return new InitialConditionsAlg<D, in, tags...>(init, vdata, grid::interior_dimensions(vdata));
 			}
 			else
 			{
-				return check_tags(init, vdata, dims, other_tags...);
+				return check_tags(init, vdata, origin, other_tags...);
 			}
 		}
 
@@ -250,10 +250,10 @@ namespace symphas::internal
 		InitialConditionsData<D>* check_tags_start(
 			symphas::init_entry_type const& init,
 			symphas::interval_data_type const& vdata,
-			len_type const* dims,
+			len_type const* origin,
 			symphas::lib::types_list<tag_tuple_types...>) const
 		{
-			return check_tags(init, vdata, dims, tag_tuple_types{}...);
+			return check_tags(init, vdata, origin, tag_tuple_types{}...);
 		}
 
 		
@@ -2849,9 +2849,9 @@ struct InitialConditions
 	InitialConditions(
 		symphas::init_data_type const& tdata,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims
+		len_type const* origin
 	) :
-		data{ get_data(tdata, vdata, dims) }
+		data{ get_data(tdata, vdata, origin) }
 	{}
 
 	~InitialConditions()
@@ -2862,35 +2862,35 @@ struct InitialConditions
 		}
 	}
 
-	auto begin(Axis ax, T* values) const
+	auto begin(Axis ax, T* values, grid::region_interval<D> const& interval) const
 	{
-		return symphas::internal::ic_iterator<T, D>(ax, values, *(data.at(ax)));
+		return symphas::internal::ic_iterator<T, D>(ax, values, *(data.at(ax)), interval);
 	}
 
-	auto end(Axis ax, T* values) const
+	auto end(Axis ax, T* values, grid::region_interval<D> const& interval) const
 	{
-		return symphas::internal::ic_iterator<T, D>(ax, values, *(data.at(ax)), grid::length<D>(data.at(ax)->dims));
+		return symphas::internal::ic_iterator<T, D>(ax, values, *(data.at(ax)), interval, grid::length<D>(interval));
 	}
 
-	bool initialize(T* values, size_t id = 0) const
+	bool initialize(T* values, grid::region_interval<D> const& interval, size_t id = 0) const
 	{
 		bool initialized = true;
 		if (data.find(Axis::NONE) != data.end())
 		{
-			initialized = initialize(Axis::NONE, values, id);
+			initialized = initialize(Axis::NONE, values, interval, id);
 		}
 
 		for (auto const& [key, entry] : data)
 		{
 			if (key != Axis::NONE)
 			{
-				initialized = initialized && initialize(key, values, id);
+				initialized = initialized && initialize(key, values, interval, id);
 			}
 		}
 		return initialized;
 	}
 
-	bool initialize(Axis ax, T* values, size_t id = 0) const
+	bool initialize(Axis ax, T* values, grid::region_interval<D> const& interval, size_t id = 0) const
 	{
 		// If the initial conditions are not set, then nothing is done.
 		if (data.at(ax)->init.in == Inside::NONE)
@@ -2901,7 +2901,7 @@ struct InitialConditions
 			}
 			else if (symphas::internal::tag_bit_compare(data.at(ax)->init.intag, InsideTag::DEFAULT))
 			{
-				data.at(ax)->init.f_init->initialize(values, data.at(ax)->dims, D);
+				data.at(ax)->init.f_init->initialize(values, interval);
 				return true;
 			}
 			else
@@ -2920,13 +2920,13 @@ struct InitialConditions
 			for (iter_type n = 0; n < D; ++n)
 			{
 				auto file_dims = ginfo.get_dims();
-				if (file_dims[n] != data.at(ax)->dims[n])
+				if (file_dims[n] != interval.dims[n])
 				{
 					Axis ax0 = symphas::index_to_axis(n);
 					fprintf(SYMPHAS_WARN, "%c-dimension read from file header (%d) is inconsistent with "
 						"system dimension that is being initialized (%d)\n",
 						(ax0 == Axis::X) ? 'x' : (ax0 == Axis::Y) ? 'y' : (ax0 == Axis::Z) ? 'z' : '0',
-						file_dims[n], data.at(ax)->dims[n]);
+						file_dims[n], interval.dims[n]);
 
 					return false;
 				}
@@ -2946,17 +2946,18 @@ struct InitialConditions
 		else if (data.at(ax)->init.in == Inside::EXPRESSION)
 		{
 			return match_init_expr<D>(data.at(ax)->init.expr_data.get_name(), ax, values,
-				data.at(ax)->dims, data.at(ax)->vdata, data.at(ax)->init.expr_data.get_coeff(), data.at(ax)->init.expr_data.get_num_coeff());
+				interval, data.at(ax)->vdata, data.at(ax)->init.expr_data.get_coeff(), data.at(ax)->init.expr_data.get_num_coeff());
 		}
 		else
 		{
 			if (*this)
 			{
+				auto it = symphas::data_iterator_region(values, interval);
 				std::copy(
 #ifdef EXECUTION_HEADER_AVAILABLE
 					std::execution::par_unseq,
 #endif
-					begin(ax, values), end(ax, values), values);
+					begin(ax, values, interval), end(ax, values, interval), it);
 
 			}
 			else
@@ -2985,7 +2986,7 @@ protected:
 	auto get_data(
 		symphas::init_data_type const& tdata,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims)
+		len_type const* origin)
 	{
 		std::map<Axis, InitialConditionsData<D>*> data0;
 		for (auto& [key, entry] : tdata)
@@ -2993,12 +2994,12 @@ protected:
 			InitialConditionsData<D>* init;
 			if (entry.in == Inside::NONE)
 			{
-				init = next_ic(entry, vdata, dims,
+				init = next_ic(entry, vdata, origin,
 					symphas::internal::init_values_list<>{});
 			}
 			else
 			{
-				init = next_ic(entry, vdata, dims,
+				init = next_ic(entry, vdata, origin,
 					symphas::internal::init_values_list<
 					ALL_INSIDE_GEN_VALUES
 					>{});
@@ -3014,23 +3015,23 @@ protected:
 	InitialConditionsData<D>* next_ic(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims,
+		len_type const* origin,
 		symphas::internal::init_values_list<>)
 	{
-		return new InitialConditionsAlg<D, Inside::NONE, InsideTag::NONE>(init, vdata, dims);
+		return new InitialConditionsAlg<D, Inside::NONE, InsideTag::NONE>(init, vdata, grid::interior_dimensions(vdata));
 	}
 
 	template<Inside in0, Inside... ins>
 	InitialConditionsData<D>* next_ic(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims,
+		len_type const* origin,
 		symphas::internal::init_values_list<in0, ins...>)
 	{
-		InitialConditionsData<D>* ic = icd_type<in0>{}(init, vdata, dims);
+		InitialConditionsData<D>* ic = icd_type<in0>{}(init, vdata, origin);
 		if (!ic)
 		{
-			return next_ic(init, vdata, dims, symphas::internal::init_values_list<ins...>{});
+			return next_ic(init, vdata, origin, symphas::internal::init_values_list<ins...>{});
 		}
 		else
 		{

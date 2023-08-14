@@ -97,6 +97,12 @@ namespace expr
 	{
 		return make_domain_integral(OpIdentity{}, std::forward<A>(a), info);
 	}
+
+	template<typename A>
+	auto make_domain_integral(A&& a)
+	{
+		return make_domain_integral(OpIdentity{}, std::forward<A>(a), symphas::grid_info(expr::data_dimensions(std::forward<A>(a))));
+	}
 }
 
 
@@ -130,18 +136,7 @@ struct OpIntegral : OpExpression<OpIntegral<V, E, T>>
 
 	auto update()
 	{
-		auto len = expr::data_length(e);
-		if (len > 0)
-		{
-			expr::prune::update(e);
-			data = e.eval(0);
-
-//#			pragma omp parallel for reduction (+:data)
-			for (iter_type i = 1; i < len; ++i)
-			{
-				data += e.eval(i);
-			}
-		}
+		data = expr::result_sum(e);
 	}
 
 #ifdef PRINTABLE_EQUATIONS
@@ -199,7 +194,7 @@ struct OpIntegral<V, E, expr::variational_t<T>> : OpExpression<OpIntegral<V, E, 
 
 	OpIntegral() : value{ V{} }, domain{ symphas::grid_info{ nullptr, 0 } }, data{}, e{} {}
 	OpIntegral(V value, E const& e, symphas::grid_info const& domain) 
-		: value{ value }, domain{ domain }, data{ result_t{} }, e{ e } {}
+		: value{ value }, domain{ domain }, data{ result_t{} }, e{ e }, normalization{ 1. / domain.element_area() } {}
 
 	inline auto eval(iter_type n = 0) const
 	{
@@ -211,43 +206,15 @@ struct OpIntegral<V, E, expr::variational_t<T>> : OpExpression<OpIntegral<V, E, 
 		return expr::make_domain_integral(-value, e, domain);
 	}
 
+	template<typename... condition_ts>
+	auto update(symphas::lib::types_list<condition_ts...>)
+	{
+		data = normalization * expr::result_sum_by_term<expr::matching_in_mul<expr::matches_series>>(e);//expr::result_sum(e);//
+	}
+
 	auto update()
 	{
-		auto len = expr::data_length(e);
-		if (len > 0)
-		{
-			auto iter_data = expr::eval_iters(e);
-			iter_type* iters = iter_data.first;
-			len_type n = iter_data.second;
-
-			if (n > 0)
-			{
-				data = std::reduce(
-#ifdef EXECUTION_HEADER_AVAILABLE
-					std::execution::par_unseq,
-#endif
-					e.begin(iters),
-					e.end(iters, n), result_t{}
-				);
-			}
-			else
-			{
-				data = std::reduce(
-#ifdef EXECUTION_HEADER_AVAILABLE
-					std::execution::par_unseq,
-#endif
-					e.begin(),
-					e.end(len), result_t{}
-				);
-
-			}
-			double r = 1;
-			for (auto width : domain.get_widths())
-			{
-				r *= width;
-			}
-			expr::result(expr::make_term(1. / r, data), data);
-		}
+		update(symphas::lib::types_list<>{});
 	}
 
 #ifdef PRINTABLE_EQUATIONS
@@ -286,6 +253,7 @@ protected:
 
 	result_t data;						//!< Grid storing the resulting values.
 	E e;								//!< expression object specifying grid values
+	double normalization;
 };
 
 
@@ -358,14 +326,14 @@ template<typename coeff_t, typename V2, typename E2, typename T2,
 	typename std::enable_if_t<(expr::is_coeff<coeff_t> && !expr::is_tensor<V2>), int> = 0>
 auto operator*(coeff_t const& value, OpIntegral<V2, E2, T2> const& b)
 {
-	return expr::make_integral(value * b.value, expr::get_enclosed_expression(b), b.domain);
+	return expr::make_integral((value * b.value) * expr::get_enclosed_expression(b), b.domain);
 }
 
 template<typename coeff_t, typename tensor_t, typename E2, typename T2,
 	typename std::enable_if_t<(expr::is_coeff<coeff_t>&& expr::is_tensor<tensor_t>), int> = 0>
 auto operator*(coeff_t const& value, OpIntegral<tensor_t, E2, T2> const& b)
 {
-	return (value * b.value) * expr::make_integral(OpIdentity{}, expr::get_enclosed_expression(b), b.domain);
+	return expr::make_integral((value * b.value) * expr::get_enclosed_expression(b), b.domain);
 }
 
 
@@ -373,14 +341,14 @@ template<typename coeff_t, typename V2, typename E2, typename T2,
 	typename std::enable_if_t<(expr::is_coeff<coeff_t> && !expr::is_tensor<V2>), int> = 0>
 auto operator*(coeff_t const& value, OpIntegral<V2, E2, expr::variational_t<T2>> const& b)
 {
-	return expr::make_domain_integral(value * b.value, expr::get_enclosed_expression(b), b.domain);
+	return expr::make_domain_integral((value * b.value) * expr::get_enclosed_expression(b), b.domain);
 }
 
 template<typename coeff_t, typename tensor_t, typename E2, typename T2,
 	typename std::enable_if_t<(expr::is_coeff<coeff_t> && expr::is_tensor<tensor_t>), int> = 0>
 auto operator*(coeff_t const& value, OpIntegral<tensor_t, E2, expr::variational_t<T2>> const& b)
 {
-	return (value * b.value) * expr::make_domain_integral(OpIdentity{}, expr::get_enclosed_expression(b), b.domain);
+	return expr::make_domain_integral((value * b.value) * expr::get_enclosed_expression(b), b.domain);
 }
 
 

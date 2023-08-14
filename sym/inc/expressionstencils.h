@@ -2419,7 +2419,7 @@ namespace symphas::internal
 		size_t print(char* out)
 		{
 			size_t n = 0;
-			n += OpBinaryDiv<Nt, Dt>{}.print(out);
+			n += (Nt{} / Dt{}).print(out);
 			n += expr::symbols::internal::S1<N>{}.print(out + n);
 			return n;
 		}
@@ -2427,14 +2427,14 @@ namespace symphas::internal
 		size_t print(FILE* out)
 		{
 			size_t n = 0;
-			n += OpBinaryDiv<Nt, Dt>{}.print(out);
+			n += (Nt{} / Dt{}).print(out);
 			n += expr::symbols::internal::S1<N>{}.print(out);
 			return n;
 		}
 
 		size_t print_length()
 		{
-			return OpBinaryDiv<Nt, Dt>{}.print_length() + expr::symbols::internal::S1<N>{}.print_length();
+			return (Nt{} / Dt{}).print_length() + expr::symbols::internal::S1<N>{}.print_length();
 		}
 	};
 
@@ -2454,7 +2454,7 @@ namespace symphas::internal
 		size_t print(char* out)
 		{
 			size_t n = 0;
-			n += OpBinaryDiv<Nt, Dt>{}.print(out);
+			n += (Nt{} / Dt{}).print(out);
 			n += expr::symbols::internal::S2<N0, N1>{}.print(out + n);
 			return n;
 		}
@@ -2462,14 +2462,14 @@ namespace symphas::internal
 		size_t print(FILE* out)
 		{
 			size_t n = 0;
-			n += OpBinaryDiv<Nt, Dt>{}.print(out);
+			n += (Nt{} / Dt{}).print(out);
 			n += expr::symbols::internal::S2<N0, N1>{}.print(out);
 			return n;
 		}
 
 		size_t print_length()
 		{
-			return OpBinaryDiv<Nt, Dt>{}.print_length() + expr::symbols::internal::S2<N0, N1>{}.print_length();
+			return (Nt{} / Dt{}).print_length() + expr::symbols::internal::S2<N0, N1>{}.print_length();
 		}
 	};
 
@@ -2489,7 +2489,7 @@ namespace symphas::internal
 		size_t print(char* out)
 		{
 			size_t n = 0;
-			n += OpBinaryDiv<Nt, Dt>{}.print(out);
+			n += (Nt{} / Dt{}).print(out);
 			n += expr::symbols::internal::S3<N0, N1, N2>{}.print(out + n);
 			return n;
 		}
@@ -2497,14 +2497,14 @@ namespace symphas::internal
 		size_t print(FILE* out)
 		{
 			size_t n = 0;
-			n += OpBinaryDiv<Nt, Dt>{}.print(out);
+			n += (Nt{} / Dt{}).print(out);
 			n += expr::symbols::internal::S3<N0, N1, N2>{}.print(out);
 			return n;
 		}
 
 		size_t print_length()
 		{
-			return OpBinaryDiv<Nt, Dt>{}.print_length() + expr::symbols::internal::S3<N0, N1, N2>{}.print_length();
+			return (Nt{} / Dt{}).print_length() + expr::symbols::internal::S3<N0, N1, N2>{}.print_length();
 		}
 	};
 

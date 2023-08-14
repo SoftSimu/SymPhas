@@ -48,10 +48,13 @@
 struct StencilParams
 {
 	constexpr StencilParams(unsigned short ord, unsigned short ptl, unsigned short ptg, unsigned short ptb)
-		: ord{ ord }, ptl{ ptl }, ptg{ ptg }, ptb{ ptb } {}
-	StencilParams() : ord{ 0 }, ptl{ 0 }, ptg{ 0 }, ptb{ 0 } {}
+		: type{ 0 }, ord{ ord }, ptl{ ptl }, ptg{ ptg }, ptb{ ptb } {}
+	constexpr StencilParams(unsigned short type, unsigned short ord, unsigned short ptl, unsigned short ptg, unsigned short ptb)
+		: type{ type }, ord{ ord }, ptl{ ptl }, ptg{ ptg }, ptb{ ptb } {}
+	StencilParams() : type{ 0 }, ord{ 0 }, ptl{ 0 }, ptg{ 0 }, ptb{ 0 } {}
 
 	unsigned short
+		type,	//!< The type of system used for the solver.
 		ord,	//!< Order of accuracy for the stencils.
 		ptl,	//!< Number of cells involved in the Laplacian stencil.
 		ptg,	//!< Number of cells involved in the gradlaplacian stencil.
@@ -176,6 +179,74 @@ namespace symphas::internal
 		//auto gradient(T* const, const len_type(&)[2]) const;
 	};
 
+
+	template<size_t D, typename stencil_t>
+	struct StencilDefaultStride
+	{
+		template<size_t O, typename T, std::enable_if_t<(O % 2 == 0), int> = 0>
+		inline auto apply(T* const v)
+		{
+			len_type stride[D];
+			grid::get_stride<Axis::X>(stride, cast().dims);
+			return cast().template apply<O>(v, stride);
+		}
+
+		template<size_t O, Axis ax, typename T, std::enable_if_t<(O % 2 == 1), int> = 0>
+		inline auto apply(T* const v)
+		{
+			len_type stride[D];
+			grid::get_stride<ax>(stride, cast().dims);
+			return cast().template apply<O>(v, stride);
+		}
+
+		//! Laplacian (2nd order derivative) of the field.
+		template<Axis ax, typename T>
+		inline auto gradient(T* const v) const
+		{
+			len_type stride[D];
+			grid::get_stride<ax>(stride, cast().dims);
+			return cast().gradient(v, stride);
+		}
+
+		//! Gradlaplacian (gradient of the laplacian) of the field.
+		template<Axis ax, typename T>
+		inline auto gradlaplacian(T* const v) const
+		{
+			len_type stride[D];
+			grid::get_stride<ax>(stride, cast().dims);
+			return cast().gradlaplacian(v, stride);
+		}
+
+		//! Laplacian (2nd order derivative) of the field.
+		template<typename T>
+		inline auto laplacian(T* const v) const
+		{
+			len_type stride[D];
+			grid::get_stride<Axis::X>(stride, cast().dims);
+			return cast().laplacian(v, stride);
+		}
+
+		//! Bilaplacian (4th order derivative) of the field.
+		template<typename T>
+		inline auto bilaplacian(T* const v) const
+		{
+			len_type stride[D];
+			grid::get_stride<Axis::X>(stride, cast().dims);
+			return cast().bilaplacian(v, stride);
+		}
+
+
+		stencil_t& cast()
+		{
+			return *static_cast<stencil_t*>(this);
+		}
+
+		stencil_t const& cast() const
+		{
+			return *static_cast<stencil_t const*>(this);
+		}
+	};
+
 	/*template<>
 	inline auto StencilBase2d4h::gradient<scalar_t>(scalar_t* const v, const len_type (&stride)[2]) const
 	{
@@ -194,14 +265,24 @@ namespace symphas::internal
  * \tparam G The number of points for the gradlaplacian.
  */
 template <size_t L, size_t G, size_t B>
-struct Stencil1d2h : symphas::internal::StencilBase1d2h, Stencil<Stencil1d2h<L, G, B>>
+struct Stencil1d2h : 
+	symphas::internal::StencilBase1d2h, Stencil<Stencil1d2h<L, G, B>>,
+	symphas::internal::StencilDefaultStride<1, Stencil1d2h<L, G, B>>
 {
 	using parent_type = Stencil<Stencil1d2h<L, G, B>>;
 	using base_type = symphas::internal::StencilBase1d2h;
-	
+	using base_derivatives = symphas::internal::StencilDefaultStride<2, Stencil1d2h<L, G, B>>;
+
 	using base_type::base_type;
 	using base_type::gradient;
+	using base_type::apply;
 	using base_type::dims;
+
+	using base_derivatives::laplacian;
+	using base_derivatives::bilaplacian;
+	using base_derivatives::gradlaplacian;
+	using base_derivatives::gradient;
+	using base_derivatives::apply;
 
 	//! Laplacian (2nd order derivative) of the field.
 	template<typename T>
@@ -238,14 +319,24 @@ struct Stencil1d2h : symphas::internal::StencilBase1d2h, Stencil<Stencil1d2h<L, 
  * \tparam G The number of points for the gradlaplacian.
  */
 template <size_t L, size_t G, size_t B>
-struct Stencil2d2h : symphas::internal::StencilBase2d2h, Stencil<Stencil2d2h<L, G, B>>
+struct Stencil2d2h : 
+	symphas::internal::StencilBase2d2h, Stencil<Stencil2d2h<L, G, B>>, 
+	symphas::internal::StencilDefaultStride<2, Stencil2d2h<L, G, B>>
 {
 	using base_type = symphas::internal::StencilBase2d2h;
 	using parent_type = Stencil<Stencil2d2h<L, G, B>>;
+	using base_derivatives = symphas::internal::StencilDefaultStride<2, Stencil2d2h<L, G, B>>;
 
 	using base_type::base_type;
 	using base_type::gradient;
+	using base_type::apply;
 	using base_type::dims;
+
+	using base_derivatives::laplacian;
+	using base_derivatives::bilaplacian;
+	using base_derivatives::gradlaplacian;
+	using base_derivatives::gradient;
+	using base_derivatives::apply;
 
 	//! Laplacian (2nd order derivative) of the field.
 	template<typename T>
@@ -281,14 +372,24 @@ struct Stencil2d2h : symphas::internal::StencilBase2d2h, Stencil<Stencil2d2h<L, 
  * \tparam G The number of points for the gradlaplacian.
  */
 template <size_t L, size_t G, size_t B>
-struct Stencil3d2h : symphas::internal::StencilBase3d2h, Stencil<Stencil3d2h<L, G, B>>
+struct Stencil3d2h : 
+	symphas::internal::StencilBase3d2h, Stencil<Stencil3d2h<L, G, B>>,
+	symphas::internal::StencilDefaultStride<3, Stencil3d2h<L, G, B>>
 {
 	using base_type = symphas::internal::StencilBase3d2h;
 	using parent_type = Stencil<Stencil3d2h<L, G, B>>;
+	using base_derivatives = symphas::internal::StencilDefaultStride<3, Stencil3d2h<L, G, B>>;
 
 	using base_type::base_type;
 	using base_type::gradient;
+	using base_type::apply;
 	using base_type::dims;
+
+	using base_derivatives::laplacian;
+	using base_derivatives::bilaplacian;
+	using base_derivatives::gradlaplacian;
+	using base_derivatives::gradient;
+	using base_derivatives::apply;
 
 	//! Laplacian (2nd order derivative) of the field.
 	template<typename T>
@@ -326,15 +427,24 @@ struct Stencil3d2h : symphas::internal::StencilBase3d2h, Stencil<Stencil3d2h<L, 
  * \tparam G The number of points for the gradlaplacian.
  */
 template <size_t L, size_t G, size_t B>
-struct Stencil2d4h : symphas::internal::StencilBase2d4h, Stencil<Stencil2d4h<L, G, B>>
+struct Stencil2d4h : 
+	symphas::internal::StencilBase2d4h, Stencil<Stencil2d4h<L, G, B>>,
+	symphas::internal::StencilDefaultStride<2, Stencil2d4h<L, G, B>>
 {
 	using base_type = symphas::internal::StencilBase2d4h;
 	using parent_type = Stencil<Stencil2d4h<L, G, B>>;
+	using base_derivatives = symphas::internal::StencilDefaultStride<2, Stencil2d4h<L, G, B>>;
 
 	using base_type::base_type;
 	using base_type::gradient;
+	using base_type::apply;
 	using base_type::dims;
 
+	using base_derivatives::laplacian;
+	using base_derivatives::bilaplacian;
+	using base_derivatives::gradlaplacian;
+	using base_derivatives::gradient;
+	using base_derivatives::apply;
 
 	//! Laplacian (2nd order derivative) of the field.
 	template<typename T>
@@ -480,9 +590,25 @@ MAKE_STENCIL_POINT_LIST(3, 3, 2, (10))
 
 #endif
 
-//#define AVAILABLE_DIMENSIONS 1,2,3
+#ifndef AVAILABLE_DIMENSIONS
 #define AVAILABLE_DIMENSIONS 2
+#endif
 
+#ifndef ALL_STENCILS
+
+#ifdef ORDER_LIST_1D
+MAKE_AVAILABLE_ORDER_LIST(2, (ORDER_LIST_1D))
+#endif
+
+#ifdef ORDER_LIST_2D
+MAKE_AVAILABLE_ORDER_LIST(2, (ORDER_LIST_2D))
+#endif
+
+#ifdef ORDER_LIST_3D
+MAKE_AVAILABLE_ORDER_LIST(3, (ORDER_LIST_3D))
+#endif
+
+#endif
 
 namespace symphas::lib::internal
 {
@@ -592,8 +718,8 @@ namespace symphas::internal
 	using dim_ord_list_t = symphas::lib::types_list<
 		symphas::lib::types_list<std::index_sequence<Ds>, typename symphas::internal::OrderList<Ds>::type>...>;
 
-	template<size_t D, size_t O>
-	using cross_list_t = symphas::lib::CrossProductList<std::index_sequence<D>, std::index_sequence<O>,
+	template<size_t N, size_t D, size_t O>
+	using cross_list_t = symphas::lib::CrossProductList<std::index_sequence<N>, std::index_sequence<D>, std::index_sequence<O>,
 		typename symphas::internal::StencilPointList<2, D, O>::type,
 		typename symphas::internal::StencilPointList<3, D, O>::type,
 		typename symphas::internal::StencilPointList<4, D, O>::type>;
@@ -612,45 +738,45 @@ struct DefaultStencil
 {
 protected:
 
-	template<size_t D>
+	template<size_t N, size_t D>
 	auto search_ord(std::index_sequence<>) const
 	{
 		return StencilParams{};
 	}
 
-	template<size_t D, size_t O, size_t... Os>
+	template<size_t N, size_t D, size_t O, size_t... Os>
 	auto search_ord(std::index_sequence<O, Os...>) const
 	{
 		if (parameters[1] == O)
 		{
-			using pl = typename symphas::internal::cross_list_t<D, O>::template row<0>;
+			using pl = typename symphas::internal::cross_list_t<N, D, O>::template row<0>;
 			return StencilParams{ O,
-				static_cast<unsigned short>(symphas::lib::internal::seq_value<2>(pl{})),
 				static_cast<unsigned short>(symphas::lib::internal::seq_value<3>(pl{})),
-				static_cast<unsigned short>(symphas::lib::internal::seq_value<4>(pl{})) };
+				static_cast<unsigned short>(symphas::lib::internal::seq_value<4>(pl{})),
+				static_cast<unsigned short>(symphas::lib::internal::seq_value<5>(pl{})) };
 		}
 		else
 		{
-			return search_ord<D>(std::index_sequence<Os...>{});
+			return search_ord<N, D>(std::index_sequence<Os...>{});
 		}
 	}
 
-	template<typename... Ts>
+	template<size_t N, typename... Ts>
 	auto search_dim(symphas::lib::types_list<>) const
 	{
 		return StencilParams{};
 	}
 
-	template<size_t D, size_t... Ns, typename... Seqs>
+	template<size_t N, size_t D, size_t... Ns, typename... Seqs>
 	auto search_dim(symphas::lib::types_list<symphas::lib::types_list<std::index_sequence<D>, std::index_sequence<Ns...>>, Seqs...>) const
 	{
 		if (parameters[0] == D)
 		{
-			return search_ord<D>(std::index_sequence<Ns...>{});
+			return search_ord<N, D>(std::index_sequence<Ns...>{});
 		}
 		else
 		{
-			return search_dim(symphas::lib::types_list<Seqs...>{});
+			return search_dim<N>(symphas::lib::types_list<Seqs...>{});
 		}
 	}
 
@@ -663,7 +789,7 @@ public:
 
 	auto operator()() const
 	{
-		return search_dim(symphas::internal::dim_ord_list_t<AVAILABLE_DIMENSIONS>{});
+		return search_dim<0>(symphas::internal::dim_ord_list_t<AVAILABLE_DIMENSIONS>{});
 	}
 };
 

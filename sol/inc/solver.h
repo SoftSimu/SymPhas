@@ -31,11 +31,6 @@
 #include "expressiontypeincludes.h"
 #include "systemlib.h"
 
-template<typename Sp>
-struct Solver;
-
-
-
 
 namespace symphas::internal
 {
@@ -58,17 +53,66 @@ namespace symphas::internal
 	struct solver_supported_systems;
 
 
-	template<typename T>
+	template<typename T, size_t N = 0>
 	struct solver_system_type_match;
 
 	template<typename T>
 	struct provisional_system_type_match;
 
+	/*!
+	 * Primary object using recursive inheritance in order to
+	 * define a member variable and return one of incremented value.
+	 *
+	 * A higher order index is given on the next usage by overloading
+	 * the function for which the terminating point is instantiated. below
+	 * it is never defined, because only the return type matters
+	 */
+	template<typename Sp, size_t N>
+	struct solver_count_index : solver_count_index<Sp, N - 1>
+	{
+		static const size_t value = N + 1;
+	};
+
+	//! Base specialization to terminate the recursive inheritance.
+	/*!
+	 * Base specialization which terminates the recursive inheritance for
+	 * incrementing model indices.
+	 */
+	template<typename Sp>
+	struct solver_count_index<Sp, 0>
+	{
+		static const size_t value = 1;
+	};
+
+	template<typename Sp>
+	constexpr solver_count_index<Sp, 0> solver_counter(solver_count_index<Sp, 0>);
 
 }
 
 namespace symphas
 {
+	namespace internal
+	{
+
+		//! Associates a selectable solver system type to a solver specialization.
+		/*!
+		 * When a new solver is defined, a different solver system type may be
+		 * desired to support its functionality.
+		 *
+		 * Solver systems are typically used to store temporary information about
+		 * the solution in order to time evolve the phase fields on the next
+		 * iteration, and we may wish to associate a particular solver system
+		 * implementation with the solver we are using.
+		 */
+		template<typename T>
+		constexpr size_t solver_system_type_index = 0;
+
+		template<typename T>
+		struct solver_id;
+
+		template<typename T>
+		using solver_id_t = typename solver_id<T>::type;
+	}
 
 	//! Allows a type to be used by the solver.
 	/*!
@@ -82,6 +126,7 @@ namespace symphas
 	{
 		static const bool value = symphas::internal::solver_supported_type_match<typename T::id_type, Ty>::value;
 	};
+
 
 	//! Associates a solver system type to a solver specialization.
 	/*!
@@ -97,7 +142,10 @@ namespace symphas
 	struct solver_system_type
 	{
 		template<typename Ty, size_t D>
-		using type = typename symphas::internal::solver_system_type_match<typename T::id_type>::template type<Ty, D>;
+		using type = typename symphas::internal::solver_system_type_match<
+			typename T::id_type, 
+			internal::solver_system_type_index<T>
+		>::template type<Ty, D>;
 	};
 
 	//! Associates a provisional system type to a solver specialization.
@@ -234,8 +282,29 @@ namespace symphas
  * the solver in the time evolution of the phase fields.
  */
 #define ASSOCIATE_SOLVER_SYSTEM_TYPE(SOLVER_NAME, SYSTEM_TYPE) \
-template<> struct symphas::internal::solver_system_type_match<solver_id_type_ ## SOLVER_NAME> \
+template<> struct symphas::internal::solver_system_type_match<solver_id_type_ ## SOLVER_NAME, 0> \
 { template<typename Ty, size_t D> using type = SYSTEM_TYPE<Ty, D>; };
+
+ //! Used in assigning unique names to solver types for indexing.
+ /*!
+  * The naming format of a solver types index is defined. Each index name has
+  * to be different and requires a prefix.
+  */
+#define SOLVER_INDEX_NAME(PREFIX_NAME) __SOLVER ## PREFIX_NAME ## _index
+#define SOLVER_MAX_VARIATIONS 4
+
+ //! Associate the solver system type to a specialized solver.
+ /*!
+  * The solver system will contain the phase field data and be used by
+  * the solver in the time evolution of the phase fields.
+  */
+#define ASSOCIATE_SELECTABLE_SOLVER_SYSTEM_TYPE(SOLVER_NAME, SYSTEM_TYPE) \
+namespace symphas::internal { \
+constexpr size_t SOLVER_INDEX_NAME(SYSTEM_TYPE) = decltype(solver_counter(solver_count_index<solver_id_type_ ## SOLVER_NAME, SOLVER_MAX_VARIATIONS>{}))::value; \
+template<> struct solver_system_type_match<solver_id_type_ ## SOLVER_NAME, SOLVER_INDEX_NAME(SYSTEM_TYPE) - 1> { \
+template<typename Ty, size_t D> using type = SYSTEM_TYPE<Ty, D>; }; \
+constexpr solver_count_index<solver_id_type_ ## SOLVER_NAME, SOLVER_INDEX_NAME(SYSTEM_TYPE)> \
+	solver_counter(solver_count_index<solver_id_type_ ## SOLVER_NAME, SOLVER_INDEX_NAME(SYSTEM_TYPE)>); }
 
 //! Associate the provisional system type to a specialized solver.
 /*!
@@ -285,10 +354,13 @@ struct symphas::internal::solver_supported_type_match<solver_id_type_ ## SOLVER_
  */
 #define NEW_SOLVER_WITH_STENCIL(NAME) \
 struct solver_id_type_ ## NAME; \
-template<typename stencil_t> \
-struct NAME : Solver<NAME<stencil_t>>, stencil_t { \
-	using this_type = NAME<stencil_t>; \
-	using parent_type = Solver<this_type>; \
+template<typename stencil_t, size_t N = 0> struct NAME; \
+template<typename stencil_t, size_t N> struct symphas::internal::solver_id<NAME<stencil_t, N>> { using type = solver_id_type_ ## NAME; }; \
+template<typename stencil_t, size_t N> constexpr size_t symphas::internal::solver_system_type_index<NAME<stencil_t, N>> = N; \
+template<typename stencil_t, size_t N> \
+struct NAME : Solver<NAME<stencil_t, N>, N>, stencil_t { \
+	using this_type = NAME<stencil_t, N>; \
+	using parent_type = Solver<this_type, N>; \
 	using parent_type::parent_type; \
 	using parent_type::generalized_derivative; \
 	using parent_type::laplacian; \
@@ -309,8 +381,13 @@ struct NAME : Solver<NAME<stencil_t>>, stencil_t { \
 
 #define NEW_SOLVER(NAME, ...) \
 struct solver_id_type_ ## NAME; \
-struct NAME : Solver<NAME>, NoStencil { \
-	using parent_type = Solver<NAME>; \
+template<size_t N = 0> struct NAME; \
+template<size_t N> struct symphas::internal::solver_id<NAME<N>> { using type = solver_id_type_ ## NAME; }; \
+template<size_t N> constexpr size_t symphas::internal::solver_system_type_index<NAME<N>> = N; \
+template<size_t N> \
+struct NAME : Solver<NAME<N>, N>, NoStencil { \
+	using parent_type = Solver<NAME<N>, N>; \
+	using parent_type::dt; \
 	using parent_type::generalized_derivative; \
 	using parent_type::laplacian; \
 	using parent_type::bilaplacian; \
@@ -384,7 +461,7 @@ struct NoStencil
  *
  * \param Sp The specialized solver.
  */
-template<typename Sp>
+template<typename Sp, size_t N>
 struct Solver
 {
 
@@ -723,7 +800,7 @@ struct Solver
 		return *static_cast<Sp*>(this);
 	}
 
-	friend void swap(Solver<Sp>& first, Solver<Sp>& second)
+	friend void swap(Solver<Sp, N>& first, Solver<Sp, N>& second)
 	{
 		using std::swap;
 		swap(*static_cast<Sp*>(&first), *static_cast<Sp*>(&second));
@@ -907,9 +984,9 @@ namespace symphas::internal
 //	return sp.template generalized_derivative<ax, O>(std::forward<G>(e), n);
 //}
 
-template<typename Sp>
+template<typename Sp, size_t N>
 template<Axis ax, size_t O>
-struct Solver<Sp>::derivative
+struct Solver<Sp, N>::derivative
 {
 	template<typename G>
 	auto operator()(Sp const& sp, G&& e, iter_type n) const
@@ -923,9 +1000,9 @@ struct Solver<Sp>::derivative
 };
 
 
-template<typename Sp>
+template<typename Sp, size_t N>
 template<Axis ax, size_t O>
-struct Solver<Sp>::directional_derivative
+struct Solver<Sp, N>::directional_derivative
 {
 	template<typename G>
 	auto operator()(Sp const& sp, G&& e, iter_type n) const
@@ -962,9 +1039,9 @@ namespace symphas::internal
 	};
 }
 
-template<typename Sp>
+template<typename Sp, size_t N>
 template<size_t... Os>
-struct Solver<Sp>::mixed_derivative
+struct Solver<Sp, N>::mixed_derivative
 {
 	template<typename G>
 	auto operator()(Sp const& sp, G&& e, iter_type n) const
@@ -1033,7 +1110,7 @@ struct symphas::internal::solver_supported_systems
 };
 
 
-template<typename T>
+template<typename T, size_t N>
 struct symphas::internal::solver_system_type_match
 {
 	template<typename Ty, size_t D>

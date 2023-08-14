@@ -32,6 +32,21 @@
 
 #include "definitions.h"
 
+#ifdef PRINT_TIMINGS_INLINE
+
+#define TIME_THIS_CONTEXT_ONCE(NAME) \
+symphas::TimerReport NAME ## _timer(SYMPHAS_LOG, #NAME);
+#define TIME_THIS_CONTEXT_LIFETIME(NAME) \
+static symphas::TimerReport NAME ## _timer_report(SYMPHAS_LOG, #NAME); symphas::TimerContext NAME ## _timer(&NAME ## _timer_report);
+
+#else
+
+#define TIME_THIS_CONTEXT_ONCE(NAME, ...) 
+#define TIME_THIS_CONTEXT_LIFETIME(NAME, ...) 
+
+#endif
+
+
 namespace symphas
 {
 	//! Measures the time in a given block of code.
@@ -47,15 +62,17 @@ namespace symphas
 	 * 
 	 * \tparam Ts... The types of the format arguments.
 	 */
-	template<typename... Ts>
 	struct Time
 	{
-		std::chrono::time_point<std::chrono::steady_clock> start_s;
 		const char* desc;
 		FILE* out;
+		std::chrono::time_point<std::chrono::steady_clock> start_s;
 
-		Time(FILE* out, const char* str, Ts... args) : start_s{ std::chrono::steady_clock::now() }, desc{ get_desc(str, args...) }, out{ out } {}
-		Time(const char* str, Ts... args) : Time(SYMPHAS_LOG, str, args...) {}
+		template<typename... Ts>
+		Time(FILE* out, const char* str, Ts&&... args) : desc{ get_desc(str, std::forward<Ts>(args)...) }, out{ out }, start_s{ std::chrono::steady_clock::now() } {}
+		template<typename... Ts>
+		Time(const char* str, Ts&&... args) : Time(SYMPHAS_LOG, str, std::forward<Ts>(args)...) {}
+		Time() : Time(nullptr) {}
 
 		double current_duration()
 		{
@@ -65,47 +82,102 @@ namespace symphas
 
 		~Time()
 		{
-			fprintf(out, "time for %-35s: %lf s\n", desc, current_duration());
-			delete[] desc;
+			if (desc != nullptr)
+			{
+				fprintf(out, "time for %-38s: %12.6lf s\n", desc, current_duration());
+				delete[] desc;
+			}
 		}
 
 	protected:
 
 		static const int DESC_LEN = 1024;
 
-		const char* get_desc(const char* fmt, Ts... args)
+		template<typename... Ts>
+		const char* get_desc(const char* fmt, Ts&&... args)
 		{
-			char* desc0 = new char[DESC_LEN] {};
-			snprintf(desc0, DESC_LEN, fmt, args...);
-			return desc0;
+			if (fmt == nullptr)
+			{
+				return nullptr;
+			}
+			else
+			{
+				char* desc0 = new char[DESC_LEN] {};
+				snprintf(desc0, DESC_LEN, fmt, std::forward<Ts>(args)...);
+				return desc0;
+			}
 		}
 	};
 
-	//! Measures the time in a given block of code.
-	/*!
-	 * See ::Time. No parameters are provided for formatting, so no output
-	 * is generated upon object destruction.
-	 */
-	template<>
-	struct Time<void>
-	{
-		std::chrono::time_point<std::chrono::steady_clock> start_s;
 
-		Time() : start_s{ std::chrono::steady_clock::now() } {}
+	struct TimerReport
+	{
+		const char* desc;
+		FILE* out;
+		std::chrono::nanoseconds count_s;
+		int num;
+
+		template<typename... Ts>
+		TimerReport(FILE* out, const char* str, Ts&&... args) : desc{ get_desc(str, std::forward<Ts>(args)...) }, out{ out }, count_s{ 0 }, num{ 0 } {}
+
+		template<typename... Ts>
+		TimerReport(const char* str, Ts&&... args) : TimerReport(SYMPHAS_LOG, str, std::forward<Ts>(args)...) {}
+
+		TimerReport() : TimerReport("<unspecified>") {}
+
+		void operator+=(std::chrono::nanoseconds const& add_count)
+		{
+			count_s += add_count;
+			++num;
+		}
 
 		double current_duration()
 		{
-			auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_s);
+			auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(count_s);
 			return duration.count() / 1000.0;
+		}
+
+		~TimerReport()
+		{
+			if (desc != nullptr)
+			{
+				fprintf(out, "report '%-48s': %12.6lf s; N=%d\n", desc, current_duration(), num);
+				delete[] desc;
+			}
+		}
+
+	protected:
+
+		static const int DESC_LEN = 1024;
+
+		template<typename... Ts>
+		const char* get_desc(const char* fmt, Ts&&... args)
+		{
+			if (fmt == nullptr)
+			{
+				return nullptr;
+			}
+			else
+			{
+				char* desc0 = new char[DESC_LEN] {};
+				snprintf(desc0, DESC_LEN, fmt, std::forward<Ts>(args)...);
+				return desc0;
+			}
 		}
 	};
 
-	template<typename... Ts>
-	Time(FILE*, const char*, Ts...)->Time<Ts...>;
 
-	template<typename... Ts>
-	Time(const char*, Ts...)->Time<Ts...>;
+	struct TimerContext
+	{
+		TimerContext(TimerReport* report) : report{ report }, start_s{ std::chrono::steady_clock::now() } {}
 
-	Time()->Time<void>;
+		~TimerContext()
+		{
+			report->operator+=(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - start_s));
+		}
+
+		TimerReport* report;
+		std::chrono::time_point<std::chrono::steady_clock> start_s;
+	};
 }
 

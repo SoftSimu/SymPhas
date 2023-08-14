@@ -70,7 +70,7 @@ protected:
 
 	Model()
 		: _s{ construct_systems({}, {}, {}, 0) }, solver{ Sp::make_solver() }, coeff{ nullptr }, num_coeff{ 0 }, 
-		index{ params::start_index }, time{ 0 }, plot_type{ symphas::ModelModifiers::PLOT_DEFAULT }
+		index{ params::start_index }, time{ 0 }
 #ifdef VTK_ON
 		, viz_update{ nullptr }
 #endif 
@@ -102,7 +102,7 @@ public:
 	Model(double const* coeff, size_t num_coeff, symphas::problem_parameters_type const& parameters) :
 		_s{ construct_systems(parameters.get_initial_data(), parameters.get_interval_data(), parameters.get_boundary_data(), parameters.length()) },
 		solver{ Sp::make_solver(get_updated_parameters(parameters)) }, coeff{ (num_coeff > 0) ? new double[num_coeff] : nullptr },
-		num_coeff{ num_coeff }, index{ parameters.index }, time{ parameters.time }, plot_type{ parameters.get_modifier() }
+		num_coeff{ num_coeff }, index{ parameters.index }, time{ parameters.time }
 #ifdef VTK_ON
 		, viz_update{ nullptr }
 #endif
@@ -123,7 +123,7 @@ public:
 
 	Model(Model<D, Sp, S...> const& other) : 
 		_s{ other._s }, solver{ other.solver }, coeff{ (other.num_coeff > 0) ? new double[other.num_coeff] : nullptr }, 
-		num_coeff{ other.num_coeff }, index{ other.index }, time{ other.time }, plot_type{ other.plot_type }
+		num_coeff{ other.num_coeff }, index{ other.index }, time{ other.time }
 #ifdef VTK_ON
 		, viz_update{ nullptr }
 #endif
@@ -588,8 +588,6 @@ protected:
 	//! The current simulation time.
 	double time;
 
-	symphas::ModelModifiers plot_type;
-
 #ifdef VTK_ON
 
 	std::thread viz_thread;
@@ -666,6 +664,29 @@ protected:
 				interval.left(),
 				interval.right(),
 				system.dims[i]);
+
+			interval.domain_to_interval();
+
+		}
+
+		parameters.set_interval_data(intervals, I);
+	}
+
+	template<size_t I, typename T0>
+	void fill_interval_data(PhaseFieldSystem<RegionalGrid, T0, D> const& system, symphas::problem_parameters_type& parameters) const
+	{
+		auto intervals = system.get_info().intervals;
+		for (iter_type i = 0; i < D; ++i)
+		{
+			Axis ax = symphas::index_to_axis(i);
+			auto& interval = intervals.at(ax);
+
+			interval.set_count(
+				interval.left(),
+				interval.right(),
+				system.dims[i]);
+
+			interval.domain_to_interval();
 		}
 
 		parameters.set_interval_data(intervals, I);
@@ -693,6 +714,21 @@ protected:
 
 	template<size_t I, typename T0>
 	void fill_boundary_data(PhaseFieldSystem<BoundaryGrid, T0, D> const& system, symphas::problem_parameters_type& parameters) const
+	{
+		symphas::b_data_type bdata;
+
+		for (iter_type i = 0; i < D * 2; ++i)
+		{
+			Side side = symphas::index_to_side(i);
+			BoundaryType type = system.types[i];
+			bdata[side] = system.boundaries[i]->get_parameters();
+		}
+
+		parameters.set_boundary_data(bdata, I);
+	}
+
+	template<size_t I, typename T0>
+	void fill_boundary_data(PhaseFieldSystem<RegionalGrid, T0, D> const& system, symphas::problem_parameters_type& parameters) const
 	{
 		symphas::b_data_type bdata;
 

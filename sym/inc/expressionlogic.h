@@ -253,7 +253,7 @@ DEFINE_BASE_DATA((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPE), (data.DATA_NAME), (d
  * See #DEFINE_BASE_DATA and #DEFINE_SYMBOL_ID
  */
 #define ADD_EXPR_TYPE(TEMPLATES, TYPE, DATA_NAME) \
-DEFINE_BASE_DATA((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPE), data[n], data.data_NAME) \
+DEFINE_BASE_DATA((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPE), data[n], data.DATA_NAME) \
 DEFINE_SYMBOL_ID((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPE), return data.DATA_NAME)
 
 //! Defines a new type of object to be used as data in expressions.
@@ -297,16 +297,45 @@ struct expr::grid_can_combine<SINGLE_ARG TYPES> \
 #define ALLOW_COMBINATION_CONDITION(TEMPLATES, TYPES, CONDITION) \
 ALLOW_COMBINATION((SINGLE_ARG TEMPLATES), (SINGLE_ARG TYPES) COMMA typename std::enable_if_t<(CONDITION) COMMA int>)
 
+
 //! Restrict adding a type to nonlinear variables when multiplying.
+/*!
+ * Application of #RESTRICT_MULTIPLICATION_CONDITION without condition.
+ */
+#define RESTRICT_COMMUTATIVITY_ONLY(TEMPLATES, TYPES) \
+template<SINGLE_ARG TEMPLATES> \
+struct expr::grid_can_commute<SINGLE_ARG TYPES, SINGLE_ARG TYPES, int> \
+{ \
+	static const bool value = false; \
+};
+
+ //! Restrict adding a type to nonlinear variables when multiplying.
+ /*!
+  * Application of #RESTRICT_MULTIPLICATION_CONDITION without condition.
+  */
+#define RESTRICT_COMMUTATIVITY_BETWEEN(TEMPLATES, TYPES_1, TYPES_2) \
+template<SINGLE_ARG TEMPLATES> \
+struct expr::grid_can_commute<SINGLE_ARG TYPES_1, SINGLE_ARG TYPES_2, int> \
+{ \
+	static const bool value = false; \
+}; \
+template<SINGLE_ARG TEMPLATES> \
+struct expr::grid_can_commute<SINGLE_ARG TYPES_2, SINGLE_ARG TYPES_1, int> \
+{ \
+	static const bool value = false; \
+};
+
+
+//! Restrict commutating.
 /*!
  * Application of #RESTRICT_MULTIPLICATION_CONDITION without condition.
  */
 #define RESTRICT_COMMUTATIVITY(TEMPLATES, TYPES) \
 template<SINGLE_ARG TEMPLATES> \
-struct expr::grid_can_commute<SINGLE_ARG TYPES> \
+struct expr::grid_can_commute_all<SINGLE_ARG TYPES> \
 { \
 	static const bool value = false; \
-};
+}; \
 
 //! Restrict adding a type to nonlinear variables when multiplying.
 /*!
@@ -1018,6 +1047,11 @@ namespace expr
 
 	// *************************************************************************
 
+	template<typename A>
+	struct grid_can_commute_all
+	{
+		static const bool value = true;
+	};
 
 	//! Indicates whether a data can commute. 
 	/*!
@@ -1030,7 +1064,7 @@ namespace expr
 	template<typename A, typename B, typename Enable = int>
 	struct grid_can_commute
 	{
-		static const bool value = true;
+		static const bool value = grid_can_commute_all<A>::value && grid_can_commute_all<B>::value;
 	};
 
 	template<template<typename, size_t> typename G, typename T, typename S, size_t D>
@@ -1170,6 +1204,12 @@ namespace expr
 
 			static const bool value = decltype(_get_value(std::declval<E>()))::value;
 		};
+
+		template<typename G>
+		struct check_is_expression<DynamicVariable<G>>
+		{
+			static const bool value = false;
+		};
 	}
 
 	template<typename E>
@@ -1199,6 +1239,10 @@ namespace expr
 	//! Specialization based on expr::is_combinable.
 	template<size_t Z, typename G>
 	constexpr bool is_combinable<Variable<Z, G>> = true;
+
+	//! Specialization based on expr::is_combinable.
+	template<size_t Z, typename G>
+	constexpr bool is_combinable<DynamicVariable<Variable<Z, G*>>> = true;
 
 	//! Specialization based on expr::is_combinable.
 	template<typename T, size_t D>
@@ -1269,6 +1313,7 @@ namespace expr
 
 DEFINE_BASE_DATA((typename T, size_t D), (Grid<T, D>), (T)data[n], data)
 DEFINE_BASE_DATA((typename T, size_t D), (BoundaryGrid<T, D>), (T)data[n], data)
+DEFINE_BASE_DATA((typename T, size_t D), (RegionalGrid<T, D>), (T)data[n], data)
 //DEFINE_BASE_DATA((template<typename, size_t> typename F, typename T, size_t D), (F<T, D>), data.as_grid()[n], data.as_grid())
 
 
@@ -1317,6 +1362,16 @@ namespace expr
 	struct SymbolID<Variable<Z, G>>
 	{
 		static decltype(auto) get(Variable<Z, G> const& data)
+		{
+			return SymbolID<G>::get(data);
+		}
+	};
+
+	//! Specialization based on SymbolID.
+	template<size_t Z, typename G>
+	struct SymbolID<Variable<Z, G*>>
+	{
+		static decltype(auto) get(Variable<Z, G*> const& data)
 		{
 			return SymbolID<G>::get(data);
 		}
@@ -1405,6 +1460,28 @@ namespace expr
 	};
 
 	//! Specialization based on BaseData.
+	template<size_t Z, typename T>
+	struct BaseData<Variable<Z, T*>>
+	{
+		static decltype(auto) get(Variable<Z, T*> const& data, iter_type n)
+		{
+			return BaseData<T>::get(*data.data, n);
+		}
+		static decltype(auto) get(Variable<Z, T*> const& data)
+		{
+			return BaseData<T>::get(*data.data);
+		}
+		static decltype(auto) get(Variable<Z, T*>& data, iter_type n)
+		{
+			return BaseData<T>::get(*data.data, n);
+		}
+		static decltype(auto) get(Variable<Z, T*>& data)
+		{
+			return BaseData<T>::get(*data.data);
+		}
+	};
+
+	//! Specialization based on BaseData.
 	template<typename T>
 	struct BaseData<DynamicVariable<T>>
 	{
@@ -1443,6 +1520,28 @@ namespace expr
 			return BaseData<T>::get(data.get(), n);
 		}
 		static decltype(auto) get(DynamicVariable<NamedData<T*>>& data)
+		{
+			return BaseData<T>::get(data.get());
+		}
+	};
+
+	//! Specialization based on BaseData.
+	template<size_t Z, typename T>
+	struct BaseData<DynamicVariable<Variable<Z, T*>>>
+	{
+		static decltype(auto) get(DynamicVariable<Variable<Z, T*>> const& data, iter_type n)
+		{
+			return BaseData<T>::get(data.get(), n);
+		}
+		static decltype(auto) get(DynamicVariable<Variable<Z, T*>> const& data)
+		{
+			return BaseData<T>::get(data.get());
+		}
+		static decltype(auto) get(DynamicVariable<Variable<Z, T*>>& data, iter_type n)
+		{
+			return BaseData<T>::get(data.get(), n);
+		}
+		static decltype(auto) get(DynamicVariable<Variable<Z, T*>>& data)
 		{
 			return BaseData<T>::get(data.get());
 		}
@@ -1794,6 +1893,13 @@ template<size_t Y, size_t Z>
 struct expr::factor_count<Variable<Y, symphas::internal::exclusive_swap>, Variable<Z>>
 {
 	static const size_t value = expr::factor_count<Variable<Y>, Variable<Z>>::value;
+};
+
+//! Specialization based on expr::factor_count;
+template<size_t Y, size_t Z, typename G>
+struct expr::factor_count<DynamicVariable<Variable<Y, G*>>, DynamicVariable<Variable<Z, G*>>>
+{
+	static const size_t value = expr::factor_count<Variable<Y>, Variable<Z, G>>::value;
 };
 
 namespace symphas::internal

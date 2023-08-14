@@ -59,27 +59,27 @@ namespace symphas::internal
 
 	template<
 		template<size_t, typename> typename Model,
-		template<typename> typename Solver,
-		size_t D, size_t O, size_t... Ps,
+		template<typename, size_t = 0> typename Solver,
+		size_t N, size_t D, size_t O, size_t... Ps,
 		typename... Ts
 	>
-	auto run_model_call(std::index_sequence<D, O, Ps...>, Ts&& ...args)
+	auto run_model_call(std::index_sequence<N, D, O, Ps...>, Ts&& ...args)
 	{
 		const char* names[]{ "laplacian", "gradlaplacian", "bilaplacian" };
 		size_t values[]{ Ps... };
 		print_stencil_message(names, values);
 
 		using type = typename SelfSelectingStencil<D, O>::template Points<Ps...>;
-		return MODEL_APPLY_CALL<Model<D, Solver<type>>>(std::forward<Ts>(args)...);
+		return MODEL_APPLY_CALL<Model<D, Solver<type, N>>>(std::forward<Ts>(args)...);
 	}
 
 	template<
 		template<size_t, typename> typename Model, 
-		typename Solver, size_t D, typename... Ts
+		template<size_t> typename Solver, size_t N, size_t D, typename... Ts
 	>
-	auto run_model_call(Ts&& ...args)
+	auto run_model_call(std::index_sequence<N, D>, Ts&& ...args)
 	{
-		return MODEL_APPLY_CALL<Model<D, Solver>>(std::forward<Ts>(args)...);
+		return MODEL_APPLY_CALL<Model<D, Solver<N>>>(std::forward<Ts>(args)...);
 	}
 }
 
@@ -93,17 +93,17 @@ struct model_select
 
 	/* returns false if there is no model with the given name
 	 */
-	template<template<typename> typename AppliedSolver, typename... Ts>
+	template<template<typename, size_t> typename AppliedSolver, typename... Ts>
 	auto call(const char* name, Ts&& ...args)
 	{
-		constexpr int last_index = decltype(model_counter(model_count_index<255>{}))::value;
+		constexpr int last_index = decltype(symphas::internal::model_counter(symphas::internal::model_count_index<MAX_DEFINED_MODELS>{}))::value;
 		return model_call_wrapper<last_index - 1>::call<AppliedSolver>(dimension, stp, name, std::forward<Ts>(args)...);
 	}
 
-	template<typename AppliedSolver, typename... Ts>
+	template<template<size_t> typename AppliedSolver, typename... Ts>
 	auto call(const char* name, Ts&& ...args)
 	{
-		constexpr int last_index = decltype(model_counter(model_count_index<255>{}))::value;
+		constexpr int last_index = decltype(symphas::internal::model_counter(symphas::internal::model_count_index<MAX_DEFINED_MODELS>{}))::value;
 		return model_call_wrapper<last_index - 1>::call<AppliedSolver>(dimension, name, std::forward<Ts>(args)...);
 	}
 
@@ -154,22 +154,22 @@ struct init_expr_select
 	template<typename T>
 	auto call(
 		const char* name, Axis ax, T* values, 
-		len_type const* dims, symphas::interval_data_type const& vdata, double const* coeff, size_t num_coeff)
+		grid::region_interval<D> const& interval, symphas::interval_data_type const& vdata, double const* coeff, size_t num_coeff)
 	{
         using namespace symphas::internal;
 		constexpr int last_index = decltype(init_expr_counter(init_expr_count_index<255>{}))::value;
-		return init_expr_call_wrapper<D, last_index - 1>::template call(name, ax, values, dims, vdata, coeff, num_coeff);
+		return init_expr_call_wrapper<D, last_index - 1>::template call(name, ax, values, interval, vdata, coeff, num_coeff);
 	}
 };
 
 template<size_t D, typename T>
 bool match_init_expr(
 	const char* initname, Axis ax, T* values,
-	len_type const* dims, symphas::interval_data_type const& vdata, double const* coeff, size_t num_coeff)
+	grid::region_interval<D> const& interval, symphas::interval_data_type const& vdata, double const* coeff, size_t num_coeff)
 {
 	init_expr_select<D> ie;
 
-	if (ie.call(initname, ax, values, dims, vdata, coeff, num_coeff) < 0)
+	if (ie.call(initname, ax, values, interval, vdata, coeff, num_coeff) < 0)
 	{
 		fprintf(SYMPHAS_ERR, "unknown initialization equation provided, '%s'\n", initname);
 		return false;

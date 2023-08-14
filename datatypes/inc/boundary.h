@@ -83,8 +83,9 @@ enum class BoundaryType
 	NONE,				//!< Not a boundary type, for a "no-op" boundary or for error checking.
 	PERIODIC,			//!< Periodic boundaries, which tile the system.
 	PERIODIC0,			//!< Same as PERIODIC when used as a boundary parameter. In generating boundaries, represents sides that are only opposite.
-	PERIODIC3A,			//!< Same as PERIODIC when used as a boundary parameter. In generating boundaries, represents sides which have left adjacent
-	PERIODIC3AA			//!< Same as PERIODIC when used as a boundary parameter. In generating boundaries, represents sides which have top adjacent.
+	PERIODIC3XZ,		//!< Same as PERIODIC when used as a boundary parameter. Periodic in x and z (but not y).
+	PERIODIC3XY,		//!< Same as PERIODIC when used as a boundary parameter. Periodic in x and y (but not z).
+	PERIODIC3YZ			//!< Same as PERIODIC when used as a boundary parameter. Periodic in y and z (but not x).
 };
 
 
@@ -407,6 +408,14 @@ namespace grid
 			val = vector;
 		}
 
+		void update(carry_value<T> val, axis_coord_t, axis_coord_t, double time) const
+		{
+			if (!val.clear)
+			{
+				update(*val.value, 0, 0, time);
+			}
+		}
+
 		virtual ~BoundaryApplied() {}
 
 	};
@@ -476,6 +485,14 @@ namespace grid
 			val = vector;
 		}
 
+		void update(carry_value<T> val, axis_coord_t x, axis_coord_t, double time) const
+		{
+			if (!val.clear)
+			{
+				update(*val.value, x, 0, time);
+			}
+		}
+
 		virtual ~BoundaryApplied() {}
 
 	};
@@ -535,6 +552,14 @@ namespace grid
 			any_vector_t<T0, 3> vector = val;
 			this->update(vector, x, y, time);
 			val = vector;
+		}
+
+		void update(carry_value<T> val, axis_coord_t x, axis_coord_t y, double time) const
+		{
+			if (!val.clear)
+			{
+				update(*val.value, x, y, time);
+			}
 		}
 
 		virtual ~BoundaryApplied() {}
@@ -1545,11 +1570,11 @@ namespace symphas
 					double interval = 0;
 					if (side == Side::LEFT)
 					{
-						interval = INTERVAL_X0;
+						interval = DOMAIN_X0;
 					}
 					if (side == Side::RIGHT)
 					{
-						interval = INTERVAL_Xn;
+						interval = DOMAIN_Xn;
 					}
 
 					static_cast<b_default_type<T>*>(boundaries[symphas::side_to_index(side)])->init(interval);
@@ -1581,26 +1606,26 @@ namespace symphas
 
 					if (side == Side::TOP)
 					{
-						interval[0] = INTERVAL_X0;
-						interval[1] = INTERVAL_Xn;
+						interval[0] = DOMAIN_X0;
+						interval[1] = DOMAIN_Xn;
 						h = INTERVAL_Xh;
 					}
 					else if (side == Side::BOTTOM)
 					{
-						interval[0] = INTERVAL_X0;
-						interval[1] = INTERVAL_Xn;
+						interval[0] = DOMAIN_X0;
+						interval[1] = DOMAIN_Xn;
 						h = INTERVAL_Xh;
 					}
 					else if (side == Side::RIGHT)
 					{
-						interval[0] = INTERVAL_Y0;
-						interval[1] = INTERVAL_Yn;
+						interval[0] = DOMAIN_Y0;
+						interval[1] = DOMAIN_Yn;
 						h = INTERVAL_Yh;
 					}
 					else if (side == Side::LEFT)
 					{
-						interval[0] = INTERVAL_Y0;
-						interval[1] = INTERVAL_Yn;
+						interval[0] = DOMAIN_Y0;
+						interval[1] = DOMAIN_Yn;
 						h = INTERVAL_Yh;
 					}
 
@@ -1633,60 +1658,60 @@ namespace symphas
 
 					if (side == Side::RIGHT)
 					{
-						interval[0] = INTERVAL_Z0;
-						interval[1] = INTERVAL_Zn;
-						interval[2] = INTERVAL_Y0;
-						interval[3] = INTERVAL_Yn;
+						interval[0] = DOMAIN_Z0;
+						interval[1] = DOMAIN_Zn;
+						interval[2] = DOMAIN_Y0;
+						interval[3] = DOMAIN_Yn;
 
 						h[0] = INTERVAL_Zh;
 						h[1] = INTERVAL_Yh;
 					}
 					else if (side == Side::LEFT)
 					{
-						interval[0] = INTERVAL_Z0;
-						interval[1] = INTERVAL_Zn;
-						interval[2] = INTERVAL_Y0;
-						interval[3] = INTERVAL_Yn;
+						interval[0] = DOMAIN_Z0;
+						interval[1] = DOMAIN_Zn;
+						interval[2] = DOMAIN_Y0;
+						interval[3] = DOMAIN_Yn;
 
 						h[0] = INTERVAL_Zh;
 						h[1] = INTERVAL_Yh;
 					}
 					else if (side == Side::TOP)
 					{
-						interval[0] = INTERVAL_X0;
-						interval[1] = INTERVAL_Xn;
-						interval[2] = INTERVAL_Z0;
-						interval[3] = INTERVAL_Zn;
+						interval[0] = DOMAIN_X0;
+						interval[1] = DOMAIN_Xn;
+						interval[2] = DOMAIN_Z0;
+						interval[3] = DOMAIN_Zn;
 
 						h[0] = INTERVAL_Xh;
 						h[1] = INTERVAL_Zh;
 					}
 					else if (side == Side::BOTTOM)
 					{
-						interval[0] = INTERVAL_X0;
-						interval[1] = INTERVAL_Xn;
-						interval[2] = INTERVAL_Z0;
-						interval[3] = INTERVAL_Zn;
+						interval[0] = DOMAIN_X0;
+						interval[1] = DOMAIN_Xn;
+						interval[2] = DOMAIN_Z0;
+						interval[3] = DOMAIN_Zn;
 
 						h[0] = INTERVAL_Xh;
 						h[1] = INTERVAL_Zh;
 					}
 					else if (side == Side::FRONT)
 					{
-						interval[0] = INTERVAL_X0;
-						interval[1] = INTERVAL_Xn;
-						interval[2] = INTERVAL_Y0;
-						interval[3] = INTERVAL_Yn;
+						interval[0] = DOMAIN_X0;
+						interval[1] = DOMAIN_Xn;
+						interval[2] = DOMAIN_Y0;
+						interval[3] = DOMAIN_Yn;
 
 						h[0] = INTERVAL_Xh;
 						h[1] = INTERVAL_Yh;
 					}
 					else if (side == Side::BACK)
 					{
-						interval[0] = INTERVAL_Xn;
-						interval[1] = INTERVAL_X0;
-						interval[2] = INTERVAL_Yn;
-						interval[3] = INTERVAL_Y0;
+						interval[0] = DOMAIN_Xn;
+						interval[1] = DOMAIN_X0;
+						interval[2] = DOMAIN_Yn;
+						interval[3] = DOMAIN_Y0;
 
 						h[0] = INTERVAL_Xh;
 						h[1] = INTERVAL_Yh;

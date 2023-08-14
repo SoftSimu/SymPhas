@@ -26,6 +26,7 @@
 #pragma once
 
 #include <utility>
+#include <set>
 #include <array>
 
 #include "solver.h"
@@ -35,6 +36,8 @@
 
 namespace symphas::internal
 {
+	template<typename T>
+	struct field_array_t;
 
 	namespace parameterized
 	{
@@ -354,7 +357,7 @@ namespace symphas::internal
 
 		template<typename T0, typename... Ts>
 		parameterized_type(T0 parameter0, Ts... parameters) :
-			parameters{ (sizeof...(Ts) + 1 > 0) ? new double[sizeof...(Ts) + 1] {} : nullptr }, len{ sizeof...(Ts) + 1 }
+			parameters{ new double[sizeof...(Ts) + 1] {} }, len{ sizeof...(Ts) + 1 }
 		{
 			populate_parameters(std::make_index_sequence<sizeof...(Ts) + 1>{}, parameter0, parameters...);
 		}
@@ -446,6 +449,13 @@ namespace symphas::internal
 		using parent_type::parent_type;
 	};
 
+	template<typename T>
+	struct parameterized_type<field_array_t<T>, void> : parameterized_type<T, void>
+	{
+		using parent_type = parameterized_type<T, void>;
+		using parent_type::parent_type;
+	};
+
 	template<typename S>
 	struct parameterized_type<S, void> : parameterized_type<void, void>
 	{
@@ -471,7 +481,7 @@ namespace symphas::internal
 	struct model_field_parameters : model_field_parameters<M, void>, parameterized_type<void, void>
 	{
 		using parent_type = model_field_parameters<M, void>;
-		model_field_parameters(M const& m) : parent_type{ m }, parameterized_type<void, void>{ m->param(0) } {}
+		model_field_parameters(M const& m) : parent_type{ m }, parameterized_type<void, void>{ m.param(0) } {}
 	};
 
 	template<typename M>
@@ -534,10 +544,56 @@ namespace symphas::internal
 		using type = S;
 	};
 
+	template<typename S>
+	struct non_parameterized_type_impl<symphas::internal::field_array_t<S>>
+	{
+		using type = typename non_parameterized_type_impl<S>::type;
+	};
+
+	
+
 	template<typename T>
 	using non_parameterized_type = typename non_parameterized_type_impl<T>::type;
 
 }
+
+template<template<typename> typename M>
+struct model_field_name_format;
+
+template<template<typename> typename M>
+struct model_field_name_builder
+{
+	const char* operator()(int index) const
+	{
+		static char** names = build_names(model_field_name_format<M>::value);
+		return names[index];
+	}
+
+	decltype(auto) operator()() const
+	{
+		return model_field_name_format<M>::value;
+	}
+
+	char** build_names(const char* value) const
+	{
+		constexpr size_t len = 100;
+		char** names = new char* [len];
+		char buffer[100];
+		for (size_t i = 1; i <= len; ++i) {
+
+			sprintf(buffer, value, int(i));
+			names[i - 1] = new char[std::strlen(buffer) + 1];
+			std::strcpy(names[i - 1], buffer);
+		}
+		return names;
+	}
+
+	template<size_t N>
+	char** build_names(const char* (&list)[N]) const
+	{
+		return list;
+	}
+};
 
 //! Used to obtain names of phase fields for a given model.
 /*!
@@ -549,7 +605,7 @@ namespace symphas::internal
  * names unless specialized.
  */
 template<template<typename> typename M>
-struct model_field_name
+struct model_field_name_default
 {
 	//! Returns the name of the \f$i\f$-th phase field.
 	/*!
@@ -586,6 +642,8 @@ struct model_field_name
 	}
 };
 
+template<template<typename> typename M>
+struct model_field_name : model_field_name_default<M> {};
 
 
 // *****************************************************************************************
@@ -598,8 +656,8 @@ struct model_field_name
 
 
 
-template<size_t D, typename Sp, typename S, typename... Ts>
-using ArrayModel = Model<D, Sp, symphas::internal::field_array_t<S>, Ts...>;
+template<size_t D, typename Sp, typename... Ts>
+using ArrayModel = Model<D, Sp, symphas::internal::field_array_t<void>, Ts...>;
 
 template<size_t D, typename Sp, typename... S>
 struct Model;
@@ -607,8 +665,6 @@ struct Model;
 
 namespace symphas::internal
 {
-	template<typename T>
-	struct field_array_t;
 
 	template<typename S>
 	constexpr bool is_field_array_type = false;
@@ -617,14 +673,28 @@ namespace symphas::internal
 	template<typename T, typename S>
 	constexpr bool is_field_array_type<parameterized_type<T, S>> = is_field_array_type<S>;
 
-	template<ModelModifiers modifier = ModelModifiers::PLOT_DEFAULT>
+	template<typename S>
 	struct modifier_save
 	{
-		template<typename S>
-		void operator()(S* _s, len_type len, iter_type index, const char* dir) const
+		virtual void update(const S* _s, len_type len) = 0;
+		virtual void operator()(const S* _s, len_type len, iter_type index, const char* dir) const = 0;
+		virtual void operator()(const S* _s, len_type len, iter_type index, const char* dir, const char* name) const = 0;
+		virtual const S* get_first(const S* _s) const = 0;
+		virtual ~modifier_save() {}
+	};
+
+
+	template<typename S, ModelModifiers modifier = ModelModifiers::PLOT_DEFAULT>
+	struct modifier_save_apply : modifier_save<S>
+	{
+		modifier_save_apply(
+			const S* _s, len_type len, const symphas::interval_data_type* vdata, size_t N) : N{ N } {}
+
+		virtual void update(const S* _s, len_type len) override {}
+
+		virtual void operator()(const S* _s, len_type len, iter_type index, const char* dir) const override
 		{
-			S& output = get_output(_s);
-			if (dir)
+			if (len > 0)
 			{
 				for (iter_type i = 0; i < len; ++i)
 				{
@@ -633,53 +703,143 @@ namespace symphas::internal
 			}
 		}
 
-		template<typename S>
-		S& get_output(S* _s) const
+		virtual void operator()(const S* _s, len_type len, iter_type index, const char* dir, const char* name) const override
 		{
-			static S ss(_s[0]);
-			return ss;
+			if (len > 0)
+			{
+				char** names = new char*[len];
+				for (iter_type i = 0; i < len; ++i)
+				{
+					names[i] = new char[std::strlen(name) + symphas::lib::num_digits(i) + 1];
+					snprintf(names[i], BUFFER_LENGTH, "#%zd-%d-%s", N, i, name);
+				}
+
+				for (iter_type i = 0; i < len; ++i)
+				{
+					_s[i].save(dir, names[i], index);
+				}
+
+				for (iter_type i = 0; i < len; ++i)
+				{
+					delete[] names[i];
+				}
+				delete[] names;
+
+			}
 		}
+
+		virtual const S* get_first(const S* _s) const override
+		{
+			return _s;
+		}
+
+		size_t N;
 	};
 
-	template<>
-	struct modifier_save<ModelModifiers::PLOT_MAX>
+	template<typename S>
+	struct modifier_save_apply<S, ModelModifiers::PLOT_MAX> : modifier_save<S>
 	{
-		template<typename S>
-		void operator()(S* _s, len_type len, iter_type index, const char* dir) const
+		modifier_save_apply(
+			const S* _s, len_type len, const symphas::interval_data_type* vdata, size_t N) :
+			s_max{ symphas::init_data_type({{ Axis::NONE, Inside::CONSTANT }}), *vdata, symphas::b_data_type(), (len > 0) ? _s[0].id : -1 }, N{N} {}
+
+		virtual void update(const S* _s, len_type len) override
 		{
-			S& output = get_output(_s);
-			if (dir)
+			if (len > 0)
 			{
-#				pragma omp parallel for
-				for (iter_type n = 0; n < output.len; ++n)
+				for (iter_type n = 0; n < s_max.len; ++n)
 				{
-					output[n] = _s[0][n];
+					s_max[n] = _s[0][n];
 				}
 
 				for (iter_type i = 1; i < len; ++i)
 				{
+#					ifndef DEBUG
 #					pragma omp parallel for
-					for (iter_type n = 0; n < output.len; ++n)
+#					endif
+					for (iter_type n = 0; n < s_max.len; ++n)
 					{
-						output[n] = std::max(output[n], _s[i][n]);
+						s_max[n] = std::max(s_max[n], _s[i][n]);
 					}
 				}
-				output.save(dir, index);
 			}
 		}
 
-		template<typename S>
-		S& get_output(S* _s = nullptr) const
+		virtual void operator()(const S* _s, len_type len, iter_type index, const char* dir) const override
 		{
-			static S ss(_s[0]);
-			return ss;
+			if (len > 0)
+			{
+				s_max.save(dir, index);
+			}
 		}
+
+		virtual void operator()(const S* _s, len_type len, iter_type index, const char* dir, const char* name) const override
+		{
+			if (len > 0)
+			{
+				char* save_name = new char[std::strlen(name) + symphas::lib::num_digits(N) + 1];
+				snprintf(save_name, BUFFER_LENGTH, "#%zd-max-%s", N, name);
+
+				s_max.save(dir, save_name, index);
+				delete[] save_name;
+			}
+		}
+
+		virtual const S* get_first(const S* _s) const override
+		{
+			return &s_max;
+		}
+
+		S s_max;
+		size_t N;
 	};
 
+	template<typename... S>
+	struct list_array_types;
+
+	template<typename... array_ts, typename T, typename... Rest>
+	struct list_array_types<symphas::lib::types_list<array_ts...>, T, Rest...>
+	{
+		using type = typename list_array_types<
+			symphas::lib::expand_types_list<array_ts...,
+			std::conditional_t<
+				symphas::internal::is_field_array_type<T>,
+				symphas::lib::types_list<symphas::internal::non_parameterized_type<T>>,
+				symphas::lib::types_list<>>>,
+			Rest...>::type;
+	};
+
+	template<typename... array_ts>
+	struct list_array_types<symphas::lib::types_list<array_ts...>>
+	{
+		using type = symphas::lib::types_list<array_ts...>;
+	};
+
+	template<typename... S>
+	using list_array_t = typename list_array_types<symphas::lib::types_list<>, S...>::type;
 
 
-	template<size_t D, typename Sp, typename S, typename... Ts>
-	auto num_fields_as_literal(ArrayModel<D, Sp, S, Ts...> const& model)
+	template<typename Sp, size_t D, typename... S>
+	struct modifier_save_types;
+
+	template<typename Sp, size_t D, typename... array_ts>
+	struct modifier_save_types<Sp, D, symphas::lib::types_list<array_ts...>>
+	{
+		using type = std::tuple<modifier_save<typename symphas::solver_system_type<Sp>::template type<array_ts, D>>*...>;
+	};
+
+	template<typename Sp, size_t D, typename... S>
+	struct modifier_save_types
+	{
+		using type = typename modifier_save_types<Sp, D, list_array_t<S...>>::type;
+	};
+
+	template<typename Sp, size_t D, typename... S>
+	using modifier_save_t = typename modifier_save_types<Sp, D, S...>::type;
+
+
+	template<size_t D, typename Sp, typename... Ts>
+	auto num_fields_as_literal(ArrayModel<D, Sp, Ts...> const& model)
 	{
 		return expr::make_literal(model.len);
 	}
@@ -695,8 +855,8 @@ namespace symphas::internal
 namespace symphas
 {
 
-	template<size_t D, typename Sp, typename S, typename... Ts>
-	auto model_num_fields(ArrayModel<D, Sp, S, Ts...> const& model)
+	template<size_t D, typename Sp, typename... Ts>
+	auto model_num_fields(ArrayModel<D, Sp, Ts...> const& model)
 	{
 		return model.len;
 	}
@@ -718,10 +878,10 @@ namespace symphas
  * \tparam D The dimension of the phase field crystal problem.
  * \tparam Sp The solver type for numerically solving the phase field crystal
  * problem.
- * \tparam S... The types of the order parameters.
+ * \tparam Ts... The types of the order parameters.
  */
-template<size_t D, typename Sp, typename S, typename... Ts>
-struct Model<D, Sp, symphas::internal::field_array_t<S>, Ts...>
+template<size_t D, typename Sp, typename... Ts>
+struct Model<D, Sp, symphas::internal::field_array_t<void>, Ts...>
 {
 
 	//! Get the type of the phase-fields, takes an argument for comptability with other Model.
@@ -733,11 +893,9 @@ struct Model<D, Sp, symphas::internal::field_array_t<S>, Ts...>
 	 */
 	template<size_t N = 0>
 	using type_of_S = symphas::lib::type_at_index<N,
-		symphas::internal::non_parameterized_type<S>,
 		symphas::internal::non_parameterized_type<Ts>...>;
 
 	using all_field_types = symphas::lib::types_list<
-		symphas::internal::non_parameterized_type<S>,
 		symphas::internal::non_parameterized_type<Ts>...>;
 
 	template<typename Type>
@@ -746,23 +904,153 @@ struct Model<D, Sp, symphas::internal::field_array_t<S>, Ts...>
 	template<typename Type, size_t I = 0>
 	static constexpr int index_of_type = symphas::lib::nth_index_of_type<Type, I, symphas::lib::expand_types_list<all_field_types>>;
 
-	static constexpr size_t num_array_types = (
-		size_t(symphas::internal::is_field_array_type<symphas::internal::field_array_t<S>>)
-		+ ... + size_t(symphas::internal::is_field_array_type<Ts>));
+	static constexpr size_t num_array_types = (size_t(symphas::internal::is_field_array_type<Ts>) + ...);
 
 	//! The type of the system storing the phase fields, used by the solver.
-	using SolverSystemApplied = typename symphas::solver_system_type<Sp>::template type<type_of_S<>, D>;
-
+	template<size_t N = 0>
+	using SolverSystemApplied = typename symphas::solver_system_type<Sp>::template type<type_of_S<N>, D>;
+	using save_method_t = symphas::internal::modifier_save_t<Sp, D, Ts...>;
 
 protected:
 
+	template<size_t I>
+	void construct_save_type(
+		const symphas::interval_data_type* vdata)
+	{
+		size_t n = num_field_offset<I>();
+		len_type len = num_type_fields[I];
+
+		using namespace symphas::internal;
+		switch (plot_type[I])
+		{
+		case symphas::ModelModifiers::PLOT_DEFAULT:
+			(std::get<I>(save_method) = 
+				new modifier_save_apply<SolverSystemApplied<I>, symphas::ModelModifiers::PLOT_DEFAULT>(_s + n, len, vdata, I));
+			break;
+		case symphas::ModelModifiers::PLOT_MAX:
+			(std::get<I>(save_method) = 
+				new modifier_save_apply<SolverSystemApplied<I>, symphas::ModelModifiers::PLOT_MAX>(_s + n, len, vdata, I));
+			break;
+		case symphas::ModelModifiers::PLOT_MIN:
+			(std::get<I>(save_method) =
+				new modifier_save_apply<SolverSystemApplied<I>, symphas::ModelModifiers::PLOT_MIN>(_s + n, len, vdata, I));
+			break;
+		case symphas::ModelModifiers::PLOT_CONTOURS:
+			(std::get<I>(save_method) =
+				new modifier_save_apply<SolverSystemApplied<I>, symphas::ModelModifiers::PLOT_CONTOURS>(_s + n, len, vdata, I));
+			break;
+		default:
+			(std::get<I>(save_method) =
+				new modifier_save_apply<SolverSystemApplied<I>, symphas::ModelModifiers::PLOT_DEFAULT>(_s + n, len, vdata, I));
+		}
+	}
+
+	template<size_t... Is>
+	void construct_save_types(
+		const symphas::interval_data_type* vdata,
+		std::index_sequence<Is...>)
+	{
+		(construct_save_type<Is>(vdata), ...);
+	}
+
+	void construct_save_types(
+		const symphas::interval_data_type* vdata)
+	{
+		construct_save_types(vdata, std::make_index_sequence<num_array_types>{});
+	}
+
+	template<size_t I>
+	void apply_save_type(iter_type index, const char* dir) const
+	{
+		size_t n = num_field_offset<I>();
+		len_type len = num_type_fields[I];
+
+		std::get<I>(save_method)->operator()(_s + n, len, index, dir);
+	}
+
+	template<size_t... Is>
+	void apply_save_types(iter_type index, const char* dir, std::index_sequence<Is...>) const
+	{
+		(apply_save_type<Is>(index, dir), ...);
+	}
+
+	void apply_save_types(iter_type index, const char* dir) const
+	{
+		apply_save_types(index, dir, std::make_index_sequence<num_array_types>{});
+	}
+
+	template<size_t I>
+	void apply_save_type(iter_type index, const char* dir, const char* name) const
+	{
+		size_t n = num_field_offset<I>();
+		len_type len = num_type_fields[I];
+
+		std::get<I>(save_method)->operator()(_s + n, len, index, dir, name);
+	}
+
+	template<size_t... Is>
+	void apply_save_types(iter_type index, const char* dir, const char* name, std::index_sequence<Is...>) const
+	{
+		(apply_save_type<Is>(index, dir, name), ...);
+	}
+
+	void apply_save_types(iter_type index, const char* dir, const char* name) const
+	{
+		apply_save_types(index, dir, name, std::make_index_sequence<num_array_types>{});
+	}
+
+	template<size_t I>
+	void update_save_type() const
+	{
+		size_t n = num_field_offset<I>();
+		len_type len = num_type_fields[I];
+
+		std::get<I>(const_cast<save_method_t&>(save_method))->update(_s + n, len);
+	}
+
+	template<size_t... Is>
+	void update_save_types(std::index_sequence<Is...>) const
+	{
+		(update_save_type<Is>(), ...);
+	}
+
+	void update_save_types() const
+	{
+		update_save_types(std::make_index_sequence<num_array_types>{});
+	}
+
+
+	template<size_t I>
+	void delete_save_type()
+	{
+		delete std::get<I>(save_method);
+	}
+
+	template<size_t... Is>
+	void delete_save_types(std::index_sequence<Is...>)
+	{
+		(delete_save_type<Is>(), ...);
+	}
+
+	void delete_save_types()
+	{
+		delete_save_types(std::make_index_sequence<num_array_types>{});
+	}
+
 	Model()
 		: len{ 0 }, _s{ construct_systems({}, {}, {}, 0, 0) }, solver{ Sp::make_solver() }, coeff{ nullptr }, num_coeff{ 0 },
-		index{ params::start_index }, time{ 0 }, lens_{}, plot_type{ symphas::ModelModifiers::PLOT_DEFAULT }
+		index{ params::start_index }, time{ 0 }, num_type_fields{}, plot_type{}, save_method{}
 #ifdef VTK_ON
 		, viz_update{ nullptr }
 #endif 
-	{}
+	{
+		for (iter_type i = 0; i < num_array_types; ++i)
+		{
+			plot_type[i] = symphas::ModelModifiers::PLOT_DEFAULT;
+			num_type_fields[i] = 0;
+		}
+		construct_save_types({});
+	}
 
 public:
 
@@ -781,11 +1069,24 @@ public:
 		len{ static_cast<len_type>(parameters.length()) },
 		_s{ construct_systems(parameters.get_initial_data(), parameters.get_interval_data(), parameters.get_boundary_data(), parameters.length(), parameters.length()) },
 		solver{ Sp::make_solver(get_updated_parameters(parameters)) }, coeff{ (num_coeff > 0) ? new double[num_coeff] : nullptr },
-		num_coeff{ num_coeff }, index{ parameters.index }, time{ parameters.time }, lens_{}, plot_type{ parameters.get_modifier() }
+		num_coeff{ num_coeff }, index{ parameters.index }, time{ parameters.time }, 
+		num_type_fields{}, plot_type{}, save_method{}
 #ifdef VTK_ON
 		, viz_update{ nullptr }
 #endif
 	{
+		for (iter_type i = 0; i < std::min(num_array_types, parameters.get_num_fields_len()); ++i)
+		{
+			plot_type[i] = parameters.get_modifiers()[i];
+			num_type_fields[i] = parameters.get_num_fields()[i];
+		}
+		for (iter_type i = std::min(num_array_types, parameters.get_num_fields_len()); i < num_array_types; ++i)
+		{
+			plot_type[i] = symphas::ModelModifiers::PLOT_DEFAULT;
+			num_type_fields[i] = 0;
+		}
+
+		construct_save_types(parameters.get_interval_data());
 		std::copy(coeff, coeff + num_coeff, this->coeff);
 		visualize();
 	}
@@ -800,26 +1101,28 @@ public:
 	 */
 	Model(symphas::problem_parameters_type const& parameters) : Model(nullptr, 0, parameters) {}
 
-	Model(ArrayModel<D, Sp, S, Ts...> const& other) :
+	Model(ArrayModel<D, Sp, Ts...> const& other) :
 		len{ other.len },
 		_s{ construct_systems(other._s, other.len) }, solver{ other.solver }, coeff{ (other.num_coeff > 0) ? new double[other.num_coeff] : nullptr },
-		num_coeff{ other.num_coeff }, index{ other.index }, time{ other.time }, lens_{}, plot_type{ other.plot_type }
+		num_coeff{ other.num_coeff }, index{ other.index }, time{ other.time }, 
+		num_type_fields{}, plot_type{}, save_method{ other.save_method }
 #ifdef VTK_ON
 		, viz_update{ nullptr }
 #endif
 	{
 		std::copy(other._s, other._s + other.len, _s);
 		std::copy(other.coeff, other.coeff + other.num_coeff, coeff);
-		std::copy(other.lens_, other.lens_ + num_array_types, lens_);
+		std::copy(other.plot_type, other.plot_type + num_array_types, plot_type);
+		std::copy(other.num_type_fields, other.num_type_fields + num_array_types, num_type_fields);
 		visualize();
 	}
 
-	Model(ArrayModel<D, Sp, S, Ts...>&& other) noexcept : Model()
+	Model(ArrayModel<D, Sp, Ts...>&& other) noexcept : Model()
 	{
 		swap(*this, other);
 	}
 
-	ArrayModel<D, Sp, S, Ts...>& operator=(ArrayModel<D, Sp, S, Ts...> other)
+	ArrayModel<D, Sp, Ts...>& operator=(ArrayModel<D, Sp, Ts...> other)
 	{
 		swap(*this, other);
 		return *this;
@@ -828,20 +1131,20 @@ public:
 
 	~Model()
 	{
-		for (int i = len - 1; i >= 0; --i)
+		for (iter_type i = len - 1; i >= 0; --i)
 		{
-			_s[i].~SolverSystemApplied();
+			_s[i].~SolverSystemApplied<>();
 		}
 		operator delete[](_s);
+		delete_save_types();
 
 		devisualize();
 		delete[] coeff;
 	}
 
-	friend void swap(ArrayModel<D, Sp, S, Ts...>& first, ArrayModel<D, Sp, S, Ts...>& second)
+	friend void swap(ArrayModel<D, Sp, Ts...>& first, ArrayModel<D, Sp, Ts...>& second)
 	{
 		using std::swap;
-
 
 		swap(first.solver, second.solver);
 		swap(first._s, second._s);
@@ -850,8 +1153,9 @@ public:
 		swap(first.num_coeff, second.num_coeff);
 		swap(first.index, second.index);
 		swap(first.time, second.time);
-		swap(first.lens_, second.lens_);
-		swap(first.plot_type, second.timeplot_type);
+		swap(first.num_type_fields, second.num_type_fields);
+		swap(first.plot_type, second.plot_type);
+		swap(first.save_method, second.save_method);
 
 #ifdef VTK_ON
 		swap(first.viz_thread, second.viz_thread);
@@ -860,7 +1164,7 @@ public:
 	}
 
 	template<typename Sp0, typename = std::enable_if_t<!std::is_same<Sp, Sp0>::value, int>>
-	friend void swap(ArrayModel<D, Sp, S, Ts...>& first, ArrayModel<D, Sp0, S, Ts...>& second)
+	friend void swap(ArrayModel<D, Sp, Ts...>& first, ArrayModel<D, Sp0, Ts...>& second)
 	{
 		using std::swap;
 
@@ -870,8 +1174,9 @@ public:
 		swap(first.num_coeff, second.num_coeff);
 		swap(first.index, second.index);
 		swap(first.time, second.time);
-		swap(first.lens_, second.lens_);
-		swap(first.plot_type, second.timeplot_type);
+		swap(first.num_type_fields, second.num_type_fields);
+		swap(first.plot_type, second.plot_type);
+		swap(first.save_method, second.save_method);
 
 #ifdef VTK_ON
 		swap(first.viz_thread, second.viz_thread);
@@ -949,7 +1254,7 @@ public:
 	template<typename S0>
 	size_t num_fields() const
 	{
-		return num_fields<S0>(std::make_index_sequence<sizeof...(Ts) + 1>{});
+		return num_fields<S0>(std::make_index_sequence<sizeof...(Ts)>{});
 	}
 
 	//! Get the number of fields of the given types.
@@ -965,6 +1270,25 @@ public:
 	size_t num_fields() const
 	{
 		return num_fields<S0>() + num_fields<S1, Ss...>();
+	}
+
+	//! Get the number of fields for the ith type.
+	/*!
+	 * Return the number of fields which are used by type i.
+	 */
+	template<size_t N>
+	size_t num_fields() const
+	{
+		return num_field<N>();
+	}
+
+	//! Get the number of fields for the ith type.
+	/*!
+	 * Return the number of fields which are used by type i.
+	 */
+	size_t num_fields(iter_type i) const
+	{
+		return num_field(i);
 	}
 
 
@@ -1091,18 +1415,13 @@ public:
 	 */
 	void save_systems(const char* dir = nullptr) const
 	{
-		if (plot_type == symphas::ModelModifiers::PLOT_MAX)
+		update_save_types();
+		apply_save_types(index, dir);
+
+		iter_type n = num_field_offset<num_array_types>();
+		for (iter_type i = 0; i < len - n; ++i)
 		{
-			symphas::internal::modifier_save<symphas::ModelModifiers::PLOT_MAX>{}(_s, len, index, dir);
-		}
-		else
-		{
-			symphas::internal::modifier_save<>{}(_s, len, index, dir);
-		}
-		iter_type n = len - sizeof...(Ts);
-		for (iter_type i = 0; i < sizeof...(Ts); ++i)
-		{
-			_s[i + n].save(dir, i + 1);
+			_s[i + n].save(dir, index);
 		}
 	}
 
@@ -1116,26 +1435,27 @@ public:
 	 */
 	void save_systems(const char* dir, const char* name) const
 	{
-		if (plot_type == symphas::ModelModifiers::PLOT_MAX)
+		update_save_types();
+		apply_save_types(index, dir, name);
+
+		iter_type n = num_field_offset<num_array_types>();
+
+		char* names[sizeof...(Ts) - num_array_types];
+		for (iter_type i = 0; i < sizeof...(Ts) - num_array_types; ++i)
 		{
-			symphas::internal::modifier_save<symphas::ModelModifiers::PLOT_MAX>{}(_s, len, index, dir);
+			names[i] = new char[std::strlen(name) + symphas::lib::num_digits(n + i) + 1];
+			snprintf(names[i], BUFFER_LENGTH, "%d%s", n + i, name);
 		}
-		else
+		
+		for (iter_type i = 0; i < sizeof...(Ts) - num_array_types; ++i)
 		{
-			symphas::internal::modifier_save<>{}(_s, len, index, dir);
+			_s[i + n].save(dir, names[i], index);
 		}
-		iter_type n = len - sizeof...(Ts);
-		for (iter_type i = 0; i < sizeof...(Ts); ++i)
+
+		for (iter_type i = 0; i < sizeof...(Ts) - num_array_types; ++i)
 		{
-			_s[i + n].save(dir, index);
+			delete[] names[i];
 		}
-		//char* name = new char[std::strlen(name) + symphas::lib::num_digits(len) + 1];
-		//for (iter_type i = 0; i < len; ++i)
-		//{
-		//	snprintf(name, BUFFER_LENGTH, "%d%s", i, name);
-		//	_s[i].save(dir, name, index)));
-		//}
-		//delete[] name;
 	}
 
 	//! Updates each of the phase field systems.
@@ -1147,7 +1467,9 @@ public:
 	void update_systems(double time)
 	{
 		this->time = time;
+#		ifndef DEBUG
 #		pragma omp parallel for
+#		endif
 		for (iter_type i = 0; i < len; ++i)
 		{
 			_s[i].update(index, time);
@@ -1165,7 +1487,9 @@ public:
 	{
 		++index;
 		solver.dt = dt;
+#		ifndef DEBUG
 #		pragma omp parallel for
+#		endif
 		for (iter_type i = 0; i < len; ++i)
 		{
 			solver.step(system(i));
@@ -1204,7 +1528,7 @@ public:
 	template<size_t I>
 	auto& system()
 	{
-		return const_cast<SolverSystemApplied&>(static_cast<const ArrayModel<D, Sp, S, Ts...>&>(*this).system<I>());
+		return const_cast<SolverSystemApplied<>&>(static_cast<const ArrayModel<D, Sp, Ts...>&>(*this).system<I>());
 	}
 
 	//! Returns the underlying grid of the system at the given index.
@@ -1350,7 +1674,7 @@ public:
 	len_type len;						//!< Number of fields.
 
 protected:
-	SolverSystemApplied* _s;			//!< Container managing pointers to phase field data.
+	SolverSystemApplied<>* _s;			//!< Container managing pointers to phase field data.
 
 	Sp solver;							//! Solver for determining the phase field solution.
 
@@ -1379,10 +1703,9 @@ protected:
 	//! The current simulation time.
 	double time;
 
-	len_type lens_[num_array_types];				//!< Number of fields of each array type.
-
-	symphas::ModelModifiers plot_type;
-
+	len_type num_type_fields[num_array_types];				//!< Number of fields of each array type.
+	symphas::ModelModifiers plot_type[num_array_types];		//!< How array fields are plotted.
+	save_method_t save_method;
 
 #ifdef VTK_ON
 
@@ -1394,16 +1717,7 @@ protected:
 	{
 		if constexpr (std::is_same<type_of_S<>, scalar_t>::value)
 		{
-			SolverSystemApplied* ss;
-			if (plot_type == symphas::ModelModifiers::PLOT_MAX)
-			{
-				ss = &symphas::internal::modifier_save<symphas::ModelModifiers::PLOT_MAX>{}.get_output(_s);
-			}
-			else
-			{
-				ss = &symphas::internal::modifier_save<>{}.get_output(_s);
-			}
-
+			SolverSystemApplied<>* ss = std::get<0>(save_method)->get_first(_s);
 			if (params::viz_interval > 0)
 			{
 				viz_thread = std::thread([] (auto* viz_grid, int* index, auto** viz_update)
@@ -1465,6 +1779,27 @@ protected:
 				interval.left(),
 				interval.right(),
 				system.dims[i]);
+
+			interval.domain_to_interval();
+		}
+
+		parameters.set_interval_data(intervals, n);
+	}
+
+	void fill_interval_data(PhaseFieldSystem<RegionalGrid, type_of_S<>, D> const& system, symphas::problem_parameters_type& parameters, iter_type n) const
+	{
+		auto intervals = system.get_info().intervals;
+		for (iter_type i = 0; i < D; ++i)
+		{
+			Axis ax = symphas::index_to_axis(i);
+			auto& interval = intervals.at(ax);
+
+			interval.set_count(
+				interval.left(),
+				interval.right(),
+				system.dims[i]);
+
+			interval.domain_to_interval();
 		}
 
 		parameters.set_interval_data(intervals, n);
@@ -1505,6 +1840,21 @@ protected:
 		parameters.set_boundary_data(bdata, n);
 	}
 
+	template<typename T0>
+	void fill_boundary_data(PhaseFieldSystem<RegionalGrid, T0, D> const& system, symphas::problem_parameters_type& parameters, iter_type n) const
+	{
+		symphas::b_data_type bdata;
+
+		for (iter_type i = 0; i < D * 2; ++i)
+		{
+			Side side = symphas::index_to_side(i);
+			BoundaryType type = system.types[i];
+			bdata[side] = system.boundaries[i]->get_parameters();
+		}
+
+		parameters.set_boundary_data(bdata, n);
+	}
+
 	template<template<typename, size_t> typename G, typename T0>
 	void fill_initial_data(PhaseFieldSystem<G, T0, D> const& system, symphas::problem_parameters_type& parameters, iter_type n) const
 	{
@@ -1513,23 +1863,25 @@ protected:
 
 	auto construct_systems(const symphas::init_data_type* tdata, const symphas::interval_data_type* vdata, const symphas::b_data_type* bdata, size_t data_len, size_t len) const
 	{
-		void* systems = operator new[](len * sizeof(SolverSystemApplied));
-		SolverSystemApplied* ptr = static_cast<SolverSystemApplied*>(systems);
-
+		void* systems = operator new[](len * sizeof(SolverSystemApplied<>));
+		SolverSystemApplied<>* ptr = static_cast<SolverSystemApplied<>*>(systems);
+		
 		for (iter_type i = 0; i < std::min(data_len, len); ++i)
 		{
-			new(&ptr[i]) SolverSystemApplied(tdata[i], vdata[i], bdata[i], i);
+			new(&ptr[i]) SolverSystemApplied<>(tdata[i], vdata[i], bdata[i], i);
+			ptr[i].update(index, 0);
 		}
 		for (iter_type i = (iter_type)std::min(data_len, len); i < len; ++i)
 		{
-			new(&ptr[i]) SolverSystemApplied(tdata[0], vdata[0], bdata[0], i);
+			new(&ptr[i]) SolverSystemApplied<>(tdata[0], vdata[0], bdata[0], i);
+			ptr[i].update(index, 0);
 		}
 
 		return ptr;
 	}
 
-	template<typename other_sys_type, typename std::enable_if_t<!std::is_same<other_sys_type, SolverSystemApplied>::value, int> = 0>
-	SolverSystemApplied construct_system(other_sys_type const& system, iter_type n) const
+	template<typename other_sys_type, typename std::enable_if_t<!std::is_same<other_sys_type, SolverSystemApplied<>>::value, int> = 0>
+	SolverSystemApplied<> construct_system(other_sys_type const& system, iter_type n) const
 	{
 		symphas::b_data_type boundaries{};
 		for (iter_type i = 0; i < D * 2; ++i)
@@ -1540,7 +1892,7 @@ protected:
 		bool extend_boundary = params::extend_boundary;
 		params::extend_boundary = true;
 
-		auto new_system = SolverSystemApplied(
+		auto new_system = SolverSystemApplied<>(
 			symphas::init_data_type{}, system.info.intervals, boundaries, system.id);
 
 		params::extend_boundary = extend_boundary;
@@ -1556,16 +1908,16 @@ protected:
 
 
 	template<typename S0>
-	SolverSystemApplied* construct_systems(S0* const& systems, len_type len) const
+	SolverSystemApplied<>* construct_systems(S0* const& systems, len_type len) const
 	{
 		if (len > 0)
 		{
-			void* new_systems = operator new[](len * sizeof(SolverSystemApplied));
-			SolverSystemApplied* ptr = static_cast<SolverSystemApplied*>(new_systems);
+			void* new_systems = operator new[](len * sizeof(SolverSystemApplied<>));
+			SolverSystemApplied<>* ptr = static_cast<SolverSystemApplied<>*>(new_systems);
 
 			for (iter_type i = 0; i < len; ++i)
 			{
-				new(&ptr[i]) SolverSystemApplied(systems[i]);
+				new(&ptr[i]) SolverSystemApplied<>(systems[i]);
 			}
 			return ptr;
 		}
@@ -1575,18 +1927,14 @@ protected:
 		}
 	}
 
-	/*
-	 * for the I-th type field in the whole list of fields, execute
-	 * the given function
-	 */
-
+	//! Returns the number of fields corresponding to the field type at index N.
 	template<size_t N>
 	size_t num_field() const
 	{
-		using type_n = symphas::lib::type_at_index<N, symphas::internal::field_array_t<S>, Ts...>;
+		using type_n = symphas::lib::type_at_index<N, Ts...>;
 		if constexpr (symphas::internal::is_field_array_type<type_n>)
 		{
-			return len - sizeof...(Ts);
+			return num_type_fields[N];
 		}
 		else
 		{
@@ -1595,11 +1943,24 @@ protected:
 	}
 
 	template<size_t... Is>
+	size_t num_field(std::index_sequence<Is...>, iter_type i) const
+	{
+		return (((i == Is) ? ((symphas::internal::is_field_array_type<symphas::lib::type_at_index<Is, Ts...>>) ? num_type_fields[i] : 1) : 0) + ...);
+	}
+
+	//! Returns the number of fields corresponding to the field type at index i.
+	size_t num_field(iter_type i) const
+	{
+		return num_field(std::make_index_sequence<sizeof...(Ts)>{}, i);
+	}
+
+	template<size_t... Is>
 	size_t num_field_offset(std::index_sequence<Is...>) const
 	{
 		return (num_field<Is>() + ... + 0);
 	}
 
+	//! Returns the number of fields corresponding to the field type at index N.
 	template<size_t N>
 	size_t num_field_offset() const
 	{

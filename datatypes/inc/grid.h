@@ -29,9 +29,9 @@
 #include <iostream>
 #include <cassert>
 #include <random>
+#include <omp.h>
 
 #include "griditer.h"
-#include "gridinfo.h"
 
 #ifdef EXECUTION_HEADER_AVAILABLE
 #include <execution>
@@ -52,6 +52,145 @@
 
 namespace grid
 {
+	inline bool is_overlapping_compare(iter_type left0, iter_type left1, iter_type right0, iter_type right1)
+	{
+		return (right0 > left1 && right1 > left0);
+		//return ((std::max(region0[Is][0], region1[Is][0]) <= std::min(region0[Is][1], region1[Is][1])) && ...);
+	}
+
+	template<size_t D, size_t... Is>
+	bool is_overlapping(const iter_type(&region0)[D][2], const iter_type(&region1)[D][2], std::index_sequence<Is...>)
+	{
+		return (is_overlapping_compare(region0[Is][0], region1[Is][0], region0[Is][1], region1[Is][1]) && ...);
+	}
+
+	template<size_t D>
+	bool is_overlapping(const iter_type(&region0)[D][2], const iter_type(&region1)[D][2])
+	{
+		return is_overlapping(region0, region1, std::make_index_sequence<D>{});
+	}
+
+	template<size_t D, size_t... Is>
+	bool is_fully_overlapping(const iter_type(&region0)[D][2], const iter_type(&region1)[D][2], std::index_sequence<Is...>)
+	{
+		return ((region0[Is][0] <= region1[Is][0] && region0[Is][1] >= region1[Is][1]) && ...);
+	}
+
+	template<size_t D>
+	bool is_fully_overlapping(const iter_type(&region0)[D][2], const iter_type(&region1)[D][2])
+	{
+		return is_fully_overlapping(region0, region1, std::make_index_sequence<D>{});
+	}
+
+
+	inline bool is_contact_overlapping_compare(iter_type left0, iter_type left1, iter_type right0, iter_type right1)
+	{
+		return (right0 >= left1 && right1 >= left0);
+		//return ((std::max(region0[Is][0], region1[Is][0]) <= std::min(region0[Is][1], region1[Is][1])) && ...);
+	}
+
+	template<size_t D, size_t... Is>
+	bool is_contact_overlapping(const iter_type(&region0)[D][2], const iter_type(&region1)[D][2], std::index_sequence<Is...>)
+	{
+		return (is_contact_overlapping_compare(region0[Is][0], region1[Is][0], region0[Is][1], region1[Is][1]) && ...);
+	}
+
+	template<size_t D>
+	bool is_contact_overlapping(const iter_type(&region0)[D][2], const iter_type(&region1)[D][2])
+	{
+		return is_contact_overlapping(region0, region1, std::make_index_sequence<D>{});
+	}
+
+	template<size_t D>
+	void get_region_union(iter_type(&result)[D][2], const iter_type(&region0)[D][2], const iter_type(&region1)[D][2])
+	{
+		for (iter_type i = 0; i < D; ++i)
+		{
+			result[i][0] = std::min(region0[i][0], region1[i][0]);
+			result[i][1] = std::max(region0[i][1], region1[i][1]);
+		}
+	}
+
+	template<size_t D>
+	void get_region_intersection(iter_type(&result)[D][2], const iter_type(&region0)[D][2], const iter_type(&region1)[D][2])
+	{
+		for (iter_type i = 0; i < D; ++i)
+		{
+			result[i][0] = std::max(region0[i][0], region1[i][0]);
+			result[i][1] = std::min(region0[i][1], region1[i][1]);
+		}
+	}
+
+
+
+	// Explicit forms to allow implicit casting.
+
+	inline bool is_overlapping(const iter_type(&region0)[1][2], const iter_type(&region1)[1][2])
+	{
+		return is_overlapping<1>(region0, region1);
+	}
+	inline bool is_overlapping(const iter_type(&region0)[2][2], const iter_type(&region1)[2][2])
+	{
+		return is_overlapping<2>(region0, region1);
+	}
+	inline bool is_overlapping(const iter_type(&region0)[3][2], const iter_type(&region1)[3][2])
+	{
+		return is_overlapping<3>(region0, region1);
+	}
+
+	inline bool is_fully_overlapping(const iter_type(&region0)[1][2], const iter_type(&region1)[1][2])
+	{
+		return is_fully_overlapping<1>(region0, region1);
+	}
+	inline bool is_fully_overlapping(const iter_type(&region0)[2][2], const iter_type(&region1)[2][2])
+	{
+		return is_fully_overlapping<2>(region0, region1);
+	}
+	inline bool is_fully_overlapping(const iter_type(&region0)[3][2], const iter_type(&region1)[3][2])
+	{
+		return is_fully_overlapping<3>(region0, region1);
+	}
+
+	inline bool is_contact_overlapping(const iter_type(&region0)[1][2], const iter_type(&region1)[1][2])
+	{
+		return is_contact_overlapping<1>(region0, region1);
+	}
+	inline bool is_contact_overlapping(const iter_type(&region0)[2][2], const iter_type(&region1)[2][2])
+	{
+		return is_contact_overlapping<2>(region0, region1);
+	}
+	inline bool is_contact_overlapping(const iter_type(&region0)[3][2], const iter_type(&region1)[3][2])
+	{
+		return is_contact_overlapping<3>(region0, region1);
+	}
+
+	inline void get_region_union(iter_type(&result)[1][2], const iter_type(&region0)[1][2], const iter_type(&region1)[1][2])
+	{
+		get_region_union<1>(result, region0, region1);
+	}
+	inline void get_region_union(iter_type(&result)[2][2], const iter_type(&region0)[2][2], const iter_type(&region1)[2][2])
+	{
+		get_region_union<2>(result, region0, region1);
+	}
+	inline void get_region_union(iter_type(&result)[3][2], const iter_type(&region0)[3][2], const iter_type(&region1)[3][2])
+	{
+		get_region_union<3>(result, region0, region1);
+	}
+
+	inline void get_region_intersection(iter_type(&result)[1][2], const iter_type(&region0)[1][2], const iter_type(&region1)[1][2])
+	{
+		get_region_intersection<1>(result, region0, region1);
+	}
+	inline void get_region_intersection(iter_type(&result)[2][2], const iter_type(&region0)[2][2], const iter_type(&region1)[2][2])
+	{
+		get_region_intersection<2>(result, region0, region1);
+	}
+	inline void get_region_intersection(iter_type(&result)[3][2], const iter_type(&region0)[3][2], const iter_type(&region1)[3][2])
+	{
+		get_region_intersection<3>(result, region0, region1);
+	}
+
+
 
 	//! Compute the number of interior points.
 	/*!
@@ -63,19 +202,19 @@ namespace grid
 	 * \tparam D The dimension of the grid.
 	 */
 	template<size_t D>
-	len_type length_interior(len_type const* dimensions);
+	len_type length_interior(len_type const* dimensions, len_type boundary_size = BOUNDARY_DEPTH);
 
 	//! Specialization of grid::length_interior(len_type const*).
 	template<>
-	inline len_type length_interior<1>(len_type const* dimensions)
+	inline len_type length_interior<1>(len_type const* dimensions, len_type boundary_size)
 	{
-		return (dimensions != nullptr) ? std::max(0, dimensions[0] - THICKNESS - THICKNESS) : 0;
+		return (dimensions != nullptr) ? std::max(0, dimensions[0] - boundary_size - boundary_size) : 0;
 	}
 
 	template<size_t D>
-	len_type length_interior(len_type const* dimensions)
+	len_type length_interior(len_type const* dimensions, len_type boundary_size)
 	{
-		return ((dimensions != nullptr) ? std::max(0, (dimensions[D - 1] - THICKNESS - THICKNESS)) : 0) * length_interior<D - 1>(dimensions);
+		return ((dimensions != nullptr) ? std::max(0, (dimensions[D - 1] - boundary_size - boundary_size)) : 0) * length_interior<D - 1>(dimensions, boundary_size);
 	}
 
 
@@ -101,13 +240,202 @@ namespace grid
 	}
 
 
+	//! Return the total number of points in a grid.
+	/*!
+	 * Using the interval information about a grid, return the total number
+	 * of points.
+	 *
+	 * \param intervals The intervals that the grid spans.
+	 *
+	 * \tparam D The dimension of the grid.
+	 */
+	template<size_t D>
+	len_type length_interior(symphas::interval_data_type intervals)
+	{
+		len_type dimensions[D];
+		for (iter_type i = 0; i < D; ++i)
+		{
+			dimensions[i] = intervals.at(symphas::index_to_axis(i)).get_interval_count();
+		}
+
+		return length<D>(dimensions);
+	}
+
 }
 
 
+template<size_t N, typename T>
+struct multi_value;
+
+
+template<typename T>
+struct carry_value
+{
+	carry_value() : value{ &fallback }, fallback{ 0 }, clear{ true } {}
+	carry_value(T* value) : value{ value }, fallback{ 0 }, clear{ false } {}
+	carry_value(T value) : value{ &fallback }, fallback{ value }, clear{ true } {}
+
+	carry_value& operator=(T const& other)
+	{
+		*value = (!clear) ? other : *value;
+		return *this;
+	}
+
+	carry_value& operator=(carry_value<T> const& other)
+	{
+		*value = (!clear) ? *other.value : *value;
+		return *this;
+	}
+
+	T* value;
+	T fallback;
+	bool clear;
+
+	operator T () const
+	{
+		return *value;
+	}
+
+	inline bool is_valid() const
+	{
+		return !clear;
+	}
+};
 
 
 namespace grid
 {
+	template<size_t D, size_t... Is>
+	inline bool is_same(const len_type(&pos0)[D], const len_type(&pos1)[D], std::index_sequence<Is...>)
+	{
+		return ((pos0[Is] == pos1[Is]) && ...);
+	}
+
+	template<size_t D>
+	inline bool is_same(const len_type(&pos0)[D], const len_type(&pos1)[D])
+	{
+		return is_same(pos0, pos1, std::make_index_sequence<D>{});
+	}
+
+	inline iter_type position(iter_type n, len_type dim, const iter_type stride)
+	{
+		return (n / stride) % dim;
+	}
+
+	template<size_t D>
+	inline void get_grid_position(iter_type(&pos)[D], const len_type(&dims)[D], const len_type(&stride)[D], iter_type n)
+	{
+		for (iter_type i = 0; i < D; ++i)
+		{
+			pos[i] = (n / stride[i]) % dims[i];
+		}
+	}
+
+	inline void get_grid_position(iter_type(&pos)[1], const len_type(&dims)[1], iter_type n)
+	{
+		pos[0] = n;
+	}
+
+	inline void get_grid_position(iter_type(&pos)[2], const len_type(&dims)[2], iter_type n)
+	{
+		pos[0] = n % dims[0];
+		pos[1] = n / dims[0];
+	}
+
+	inline void get_grid_position(iter_type(&pos)[3], const len_type(&dims)[3], iter_type n)
+	{
+		pos[0] = n % dims[0];
+		pos[1] = (n / dims[0]) % dims[1];
+		pos[2] = (n / (dims[0] * dims[1]));
+	}
+
+	inline void get_grid_position_offset(iter_type(&pos)[1], const len_type(&dims)[1], const len_type(&offset)[1], iter_type n)
+	{
+		pos[0] = n + offset[0];
+	}
+
+	inline void get_grid_position_offset(iter_type(&pos)[3], const len_type(&dims)[3], const len_type(&offset)[3], iter_type n)
+	{
+		pos[0] = n % dims[0] + offset[0];
+		pos[1] = (n / dims[0]) % dims[1] + offset[1];
+		pos[2] = (n / (dims[0] * dims[1])) + offset[2];
+	}
+
+	template<size_t D>
+	void get_grid_position_offset(iter_type(&pos)[D], const len_type(&dims)[D], const len_type(&offset)[D], iter_type n)
+	{
+		get_grid_position(pos, dims, n);
+		for (iter_type i = 0; i < D; ++i)
+		{
+			pos[i] += offset[i];
+		}
+	}
+
+	template<size_t D>
+	void get_grid_position_offset(iter_type(&pos)[D], const len_type(&dims)[D], const len_type(&stride)[D], const len_type(&offset)[D], iter_type n)
+	{
+		get_grid_position(pos, dims, stride, n);
+		for (iter_type i = 0; i < D; ++i)
+		{
+			pos[i] += offset[i];
+		}
+	}
+
+	template<Axis ax = Axis::X>
+	void get_stride(len_type(&stride)[1], len_type const* dims)
+	{
+		stride[0] = 1;
+	}
+
+	template<Axis ax = Axis::X>
+	void get_stride(len_type(&stride)[2], len_type const* dims)
+	{
+		if constexpr (ax == Axis::X)
+		{
+			stride[0] = 1;
+			stride[1] = dims[0];
+		}
+		else
+		{
+			stride[0] = dims[0];
+			stride[1] = -1;
+		}
+	}
+
+	template<Axis ax = Axis::X>
+	void get_stride(len_type(&stride)[3], len_type const* dims)
+	{
+		if constexpr (ax == Axis::X)
+		{
+			stride[0] = 1;
+			stride[1] = dims[0];
+			stride[2] = dims[0] * dims[1];
+		}
+		else if constexpr (ax == Axis::Y)
+		{
+			stride[0] = dims[0];
+			stride[1] = -1;
+			stride[2] = dims[0] * dims[1];
+		}
+		else
+		{
+			stride[0] = -dims[0] * dims[1];
+			stride[1] = dims[0];
+			stride[2] = -1;
+		}
+	}
+
+	template<typename T, size_t D>
+	void adjust_region_to_from(
+		T* new_values, const iter_type(&new_origin)[D], const len_type(&new_dims)[D],
+		const T* old_values, const iter_type(&old_origin)[D], const len_type(&old_dims)[D],
+		const len_type(&global_dims)[D], T empty, len_type boundary_size = 0);
+
+	template<typename T, size_t D>
+	void adjust_origin_to_from(
+		T* (&values), const iter_type(&new_origin)[D], const iter_type(&old_origin)[D],
+		const len_type(&dims)[D], const len_type(&global_dims)[D], T empty, len_type boundary_size = 0);
+
 
 	namespace
 	{
@@ -132,7 +460,7 @@ namespace grid
 		template<>
 		inline void fill_inner_arr<0>(iter_type* (&inner_i), len_type const* dimensions, iter_type& index)
 		{
-			for (iter_type i = 0; i < dimensions[0] - THICKNESS - THICKNESS; ++i)
+			for (iter_type i = 0; i < dimensions[0] - BOUNDARY_DEPTH - BOUNDARY_DEPTH; ++i)
 			{
 				*(inner_i++) = index++;
 			}
@@ -141,8 +469,8 @@ namespace grid
 		template<>
 		inline void fill_inner_arr<1>(iter_type* (&inner_i), len_type const* dimensions, iter_type& index)
 		{
-			iter_type inc = THICKNESS + THICKNESS;
-			for (iter_type i = 0; i < dimensions[1] - THICKNESS - THICKNESS; ++i, index += inc)
+			iter_type inc = BOUNDARY_DEPTH + BOUNDARY_DEPTH;
+			for (iter_type i = 0; i < dimensions[1] - BOUNDARY_DEPTH - BOUNDARY_DEPTH; ++i, index += inc)
 			{
 				fill_inner_arr<0>(inner_i, dimensions, index);
 			}
@@ -151,8 +479,8 @@ namespace grid
 		template<size_t I>
 		void fill_inner_arr(iter_type* (&inner_i), len_type const* dimensions, iter_type& index)
 		{
-			iter_type inc = (THICKNESS + THICKNESS) * (dimensions[I - 2]);
-			for (iter_type i = 0; i < dimensions[I] - THICKNESS - THICKNESS; ++i, index += inc)
+			iter_type inc = (BOUNDARY_DEPTH + BOUNDARY_DEPTH) * (dimensions[I - 2]);
+			for (iter_type i = 0; i < dimensions[I] - BOUNDARY_DEPTH - BOUNDARY_DEPTH; ++i, index += inc)
 			{
 				fill_inner_arr<I - 1>(inner_i, dimensions, index);
 			}
@@ -166,13 +494,13 @@ namespace grid
 		template<>
 		inline iter_type get_init_index<1>(len_type const*)
 		{
-			return THICKNESS;
+			return BOUNDARY_DEPTH;
 		}
 
 		template<size_t D>
 		iter_type get_init_index(len_type const* dimensions)
 		{
-			return grid::length<D - 1>(dimensions) * THICKNESS + get_init_index<D - 1>(dimensions);
+			return grid::length<D - 1>(dimensions) * BOUNDARY_DEPTH + get_init_index<D - 1>(dimensions);
 		}
 
 
@@ -315,6 +643,22 @@ namespace grid
 		{
 			return values[n];
 		}
+
+		template<typename T>
+		multi_value<1, T> operator()(T* (&values)[1], iter_type n)
+		{
+			multi_value<1, T> value;
+			value[0] = values[0][n];
+			return value;
+		}
+
+		template<typename T>
+		multi_value<1, T> operator()(const T* (&values)[1], iter_type n)
+		{
+			multi_value<1, T> value;
+			value[0] = values[0][n];
+			return value;
+		}
 	};
 
 	template<>
@@ -333,6 +677,24 @@ namespace grid
 		const T& operator()(T const* values, iter_type x, iter_type y) const
 		{
 			return values[y * stride + x];
+		}
+
+		template<typename T>
+		multi_value<2, T> operator()(T* (&values)[2], iter_type x, iter_type y)
+		{
+			multi_value<2, T> value;
+			value[0] = operator()(values[0], x, y);
+			value[1] = operator()(values[1], x, y);
+			return value;
+		}
+
+		template<typename T>
+		multi_value<2, T> operator()(const T* (&values)[2], iter_type x, iter_type y)
+		{
+			multi_value<2, T> value;
+			value[0] = operator()(values[0], x, y);
+			value[1] = operator()(values[1], x, y);
+			return value;
 		}
 	};
 
@@ -353,10 +715,431 @@ namespace grid
 		{
 			return values[z * stride[1] + y * stride[0] + x];
 		}
+
+		template<typename T>
+		multi_value<3, T> operator()(T* (&values)[3], iter_type x, iter_type y, iter_type z)
+		{
+			multi_value<3, T> value;
+			value[0] = operator()(values[0], x, y, z);
+			value[1] = operator()(values[1], x, y, z);
+			value[2] = operator()(values[2], x, y, z);
+			return value;
+		}
+
+		template<typename T>
+		multi_value<3, T> operator()(const T* (&values)[3], iter_type x, iter_type y, iter_type z)
+		{
+			multi_value<3, T> value;
+			value[0] = operator()(values[0], x, y, z);
+			value[1] = operator()(values[1], x, y, z);
+			value[2] = operator()(values[2], x, y, z);
+			return value;
+		}
 	};
 
 	template<size_t D>
 	select_grid_index(const len_type(&)[D]) -> select_grid_index<D>;
+
+
+	inline bool is_in_region(iter_type pos, const iter_type dims)
+	{
+		return (pos >= 0 && pos < dims);
+	}
+
+	template<size_t D, size_t... Is>
+	bool is_in_region(const iter_type(&pos)[D], const iter_type(&dims)[D], std::index_sequence<Is...>)
+	{
+		return (is_in_region(pos[Is], dims[Is]) && ...);
+	}
+
+	template<size_t D>
+	bool is_in_region(const iter_type(&pos)[D], const iter_type(&dims)[D])
+	{
+		return is_in_region(pos, dims, std::make_index_sequence<D>{});
+	}
+
+	inline bool is_in_region_boundary(iter_type pos, iter_type dims, len_type boundary_size)
+	{
+		return (pos >= boundary_size && pos < dims - boundary_size);
+	}
+
+	template<size_t D, size_t... Is>
+	bool is_in_region(const iter_type(&pos)[D], const iter_type(&dims)[D], len_type boundary_size, std::index_sequence<Is...>)
+	{
+		return (is_in_region_boundary(pos[Is], dims[Is], boundary_size) && ...);
+	}
+
+	template<size_t D>
+	bool is_in_region(const iter_type(&pos)[D], const iter_type(&dims)[D], len_type boundary_size)
+	{
+		return is_in_region(pos, dims, boundary_size, std::make_index_sequence<D>{});
+	}
+
+	inline bool is_in_region_boundary(iter_type pos, iter_type dims, iter_type offset, len_type boundary_size)
+	{
+		return (pos >= offset + boundary_size && pos < offset + dims - boundary_size);
+	}
+
+	template<size_t D, size_t... Is>
+	bool is_in_region(const iter_type(&pos)[D], const iter_type(&dims)[D], const iter_type(&offset)[D], len_type boundary_size, std::index_sequence<Is...>)
+	{
+		return (is_in_region_boundary(pos[Is], dims[Is], offset[Is], boundary_size) && ...);
+	}
+
+	template<size_t D>
+	bool is_in_region(const iter_type(&pos)[D], const iter_type(&dims)[D], const iter_type(&offset)[D], len_type boundary_size)
+	{
+		return is_in_region(pos, dims, boundary_size, offset, std::make_index_sequence<D>{});
+	}
+
+	inline bool is_in_region(iter_type pos, iter_type left, iter_type right)
+	{
+		return (pos >= left && pos < right);
+	}
+
+	template<size_t D, size_t... Is>
+	bool is_in_region(const iter_type(&pos)[D], const iter_type(&intervals)[D][2], std::index_sequence<Is...>)
+	{
+		return (is_in_region(pos[Is], intervals[Is][0], intervals[Is][1]) && ...);
+	}
+
+	template<size_t D>
+	bool is_in_region(const iter_type(&pos)[D], const iter_type(&intervals)[D][2])
+	{
+		return is_in_region(pos, intervals, std::make_index_sequence<D>{});
+	}
+
+	template<size_t D, size_t... Is>
+	bool is_in_region(const iter_type(&intervals0)[D][2], const iter_type(&intervals1)[D][2], std::index_sequence<Is...>)
+	{
+		return is_in_region((iter_type[D]) { intervals0[Is][0]... }, intervals1, std::make_index_sequence<D>{})
+			&& is_in_region((iter_type[D]) { intervals0[Is][1]... }, intervals1, std::make_index_sequence<D>{});
+	}
+
+	template<size_t D>
+	bool is_in_region(const iter_type(&intervals0)[D][2], const iter_type(&intervals1)[D][2])
+	{
+		return is_in_region(intervals0, intervals1, std::make_index_sequence<D>{});
+	}
+
+	inline bool not_in_region(const iter_type pos, const iter_type dims)
+	{
+		return (pos < 0 || pos >= dims);
+	}
+
+	template<size_t D, size_t... Is>
+	bool not_in_region(const iter_type(&pos)[D], const iter_type(&dims)[D], std::index_sequence<Is...>)
+	{
+		return (not_in_region(pos[Is], dims[Is]) && ...);
+	}
+
+	template<size_t D>
+	bool not_in_region(const iter_type(&pos)[D], const iter_type(&dims)[D])
+	{
+		return not_in_region(pos, dims, std::make_index_sequence<D>{});
+	}
+
+	inline bool not_in_region_boundary(const iter_type pos, const iter_type dims, len_type boundary_size)
+	{
+		return (pos < boundary_size || pos >= dims - boundary_size);
+	}
+
+	template<size_t D, size_t... Is>
+	bool not_in_region(const iter_type(&pos)[D], const iter_type(&dims)[D], len_type boundary_size, std::index_sequence<Is...>)
+	{
+		return (not_in_region_boundary(pos[Is], dims[Is], boundary_size) || ...);
+	}
+
+	template<size_t D>
+	bool not_in_region(const iter_type(&pos)[D], const iter_type(&dims)[D], len_type boundary_size)
+	{
+		return not_in_region(pos, dims, boundary_size, std::make_index_sequence<D>{});
+	}
+
+	inline bool not_in_region(iter_type pos, iter_type left, iter_type right)
+	{
+		return (pos < left || pos >= right);
+	}
+
+	template<size_t D, size_t... Is>
+	bool not_in_region(const iter_type(&pos)[D], const iter_type(&intervals)[D][2], std::index_sequence<Is...>)
+	{
+		return (not_in_region(pos[Is], intervals[Is][0], intervals[Is][1]) || ...);
+	}
+
+	template<size_t D>
+	bool not_in_region(const iter_type(&pos)[D], const iter_type(&intervals)[D][2])
+	{
+		return not_in_region(pos, intervals, std::make_index_sequence<D>{});
+	}
+
+	template<size_t D, bool... Fs>
+	auto compute_periodic_stride(len_type(&stride)[D], const len_type(&dims)[D], std::integer_sequence<bool, Fs...>)
+	{
+		iter_type extend[]{ ((Fs) ? 2 : 1)... };
+
+		stride[0] = 1;
+		for (iter_type i = 1; i < D; ++i)
+		{
+			stride[i] = stride[i - 1] * dims[i - 1] * extend[i - 1];
+		}
+	}
+
+	template<size_t D, size_t N, size_t... Is>
+	auto compute_periodic_strides(len_type(&strides)[N][D], const len_type(&dims)[D], std::index_sequence<Is...>)
+	{
+		(compute_periodic_stride(strides[Is], dims, symphas::lib::nth_periodic_shift_t<Is, D>{}), ...);
+	}
+
+	template<size_t D, size_t N>
+	auto compute_periodic_strides(len_type(&strides)[N][D], const len_type(&dims)[D])
+	{
+		compute_periodic_strides(strides, dims, std::make_index_sequence<N>{});
+	}
+
+	//template<size_t I, size_t D, bool... Fs>
+	//auto compute_periodic_offset0(len_type(&offset), const len_type(&dims)[D], std::integer_sequence<bool, Fs...>)
+	//{
+	//	iter_type extend[]{ ((Fs) ? 1 : 0)... };
+	//	iter_type stride[D];
+	//	iter_type stride0[D];
+
+	//	compute_periodic_stride(stride, dims, std::integer_sequence<bool, Fs...>{});
+	//	get_stride(stride0, dims);
+
+	//	for (iter_type i = 0; i < D; ++i)
+	//	{
+	//		offset += dims[i] * stride[i]; //dims[i] * extend[i] * stride[i];
+	//	}
+	//}
+
+	//template<size_t D, size_t N, size_t... Is>
+	//auto compute_periodic_offsets(len_type(&offsets)[N][2], const len_type(&dims)[D], std::index_sequence<Is...>)
+	//{
+	//	(compute_periodic_offset0(offsets[Is][0], dims, get_periodic_shift<Is, D>()), ...);
+	//	(compute_periodic_offset1(offsets[Is][1], dims, get_periodic_shift<Is, D>()), ...);
+	//}
+
+	//template<size_t D, size_t N>
+	//auto compute_periodic_offsets(len_type(&offsets)[N][2], const len_type(&dims)[D])
+	//{
+	//	compute_periodic_offsets(offsets, dims, std::make_index_sequence<N>{});
+	//}
+
+	template<size_t D>
+	struct select_region
+	{
+		select_region() : stride{}, origin{}, dims{}, offset{}, len{}, boundary_size{} {}
+
+		select_region(const len_type(&origin)[D], const len_type(&dims)[D], len_type boundary_size = 0) :
+			stride{}, origin{}, dims{}, offset{}, len{}, boundary_size{ boundary_size }
+		{
+			update(origin, dims);
+		}
+
+		select_region(const len_type(&dims)[D], len_type boundary_size = 0) :
+			stride{}, origin{}, offset{}, len{}, boundary_size{ boundary_size }
+		{
+			iter_type origin[D]{};
+			update(origin, dims);
+		}
+		
+		auto update(const iter_type(&origin)[D])
+		{
+			for (iter_type i = 0; i < D; ++i)
+			{
+				this->origin[i] = origin[i];
+			}
+			offset = grid::index_from_position(origin, stride);
+		}
+
+		auto update(const iter_type(&origin)[D], const iter_type(&dims)[D])
+		{
+			this->stride[0] = 1;
+			this->origin[0] = origin[0];
+			this->dims[0] = dims[0];
+			for (iter_type i = 1; i < D; ++i)
+			{
+				this->stride[i] = stride[i - 1] * dims[i - 1];
+				this->origin[i] = origin[i];
+				this->dims[i] = dims[i];
+			}
+			offset = grid::index_from_position(origin, stride);
+			len = grid::length<D>(dims);
+		}
+
+
+		template<typename T>
+		inline carry_value<T> operator()(iter_type(&pos)[D], T* values, const iter_type(&domain_dims)[D], const T& empty) const
+		{
+			//if (is_in_region(pos, domain_dims, boundary_size))
+			//{
+				for (iter_type i = 0; i < D; ++i)
+				{
+					pos[i] = (pos[i] >= origin[i] + boundary_size) ? pos[i] - origin[i] : pos[i] - origin[i] + (domain_dims[i] - 2 * boundary_size);
+				}
+				if (is_in_region(pos, dims, boundary_size))
+				{
+					return &values[grid::index_from_position(pos, stride)];
+				}
+				else
+				{
+					return empty;
+				}
+			//}
+			//else
+			//{
+			//	for (iter_type i = 0; i < D; ++i)
+			//	{
+			//		// check if the region wraps in the first place
+			//		// if the region doesn't wrap, the boundary point may still coincide with the region.
+			//		if (origin[i] + dims[i] < domain_dims[i])
+			//		{
+			//			pos[i] -= origin[i];
+			//		}
+			//		else
+			//		{
+			//			pos[i] = (pos[i] < boundary_size) ? domain_dims[i] + pos[i] - 2 * boundary_size : domain_dims[i] - pos[i] + 2 * boundary_size;
+			//		}
+			//	}
+			//	if (is_in_region(pos, domain_dims, boundary_size))
+			//	{
+			//		return operator()(pos, values, domain_dims, empty);
+			//	}
+			//	else if (is_in_region(pos, dims))
+			//	{
+			//		return &values[grid::index_from_position(pos, stride)];
+			//	}
+			//	else
+			//	{
+			//		return empty;
+			//	}
+			//}
+		}
+
+		template<typename T>
+		inline carry_value<const T> operator()(iter_type(&pos)[D], const T* values, const iter_type(&domain_dims)[D], const T& empty) const
+		{
+			for (iter_type i = 0; i < D; ++i)
+			{
+				pos[i] = (pos[i] >= origin[i] + boundary_size) ? pos[i] - origin[i] : pos[i] - origin[i] + (domain_dims[i] - 2 * boundary_size);
+			}
+			if (is_in_region(pos, dims))
+			{
+				return &values[grid::index_from_position(pos, stride)];
+			}
+			else
+			{
+				return empty;
+			}
+		}
+
+		template<typename T>
+		inline decltype(auto) operator()(T* values, const iter_type(&domain_dims)[D], const T& empty, const iter_type(&pos)[D]) const
+		{
+			iter_type pos0[D]{};
+			for (iter_type i = 0; i < D; ++i) pos0[i] = pos[i];
+			return operator()(pos0, values, domain_dims, empty);
+		}
+
+		template<typename T>
+		inline decltype(auto) operator()(const T* values, const iter_type(&domain_dims)[D], const T& empty, const iter_type(&pos)[D]) const
+		{
+			iter_type pos0[D]{};
+			for (iter_type i = 0; i < D; ++i) pos0[i] = pos[i];
+			return operator()(pos0, values, domain_dims, empty);
+		}
+
+		//template<typename T>
+		//carry_value<const T> operator()(T const* values, const iter_type(&origin)[D], const iter_type(&dims)[D], const T& empty, iter_type (&pos)[D]) const
+		//{
+		//	for (iter_type i = 0; i < D; ++i)
+		//	{
+		//		pos[i] -= origin[i];
+		//	}
+		//
+		//	for (iter_type i = 0; i < D; ++i)
+		//	{
+		//		pos[i] = (pos[i] >= 0) ? pos[i] : ((pos[i] - boundary_size + domain_dims[i]) % domain_dims[i] + boundary_size);
+		//	}
+		//
+		//	if (is_in_region(pos, dims, boundary_size))
+		//	{
+		//		return &values[grid::index_from_position(pos, stride)];
+		//	}
+		//	else
+		//	{
+		//		return empty;
+		//	}
+		//}
+
+		template<typename T>
+		inline multi_value<D, T> operator()(iter_type n, T* (&values)[D], const iter_type(&domain_dims)[D], const T(&empty)[D])
+		{
+			multi_value<D, T> value;
+			for (iter_type i = 0; i < D; ++i)
+			{
+				value[i] = operator()(n, values[i], domain_dims, empty[i]);
+			}
+			return value;
+		}
+
+		template<typename T>
+		inline multi_value<D, T> operator()(iter_type n, const T* (&values)[D], const iter_type(&domain_dims)[D], const T(&empty)[D])
+		{
+			multi_value<D, T> value;
+			for (iter_type i = 0; i < D; ++i)
+			{
+				value[i] = operator()(n, values[i], domain_dims, empty[i]);
+			}
+			return value;
+		}
+
+		template<typename T>
+		inline multi_value<D, T> operator()(T* (&values)[D], const iter_type(&domain_dims)[D], const T(&empty)[D], const iter_type(&pos)[D])
+		{
+			multi_value<D, T> value;
+			iter_type pos0[D]{};
+			for (iter_type i = 0; i < D; ++i)
+			{
+				for (iter_type i = 0; i < D; ++i) pos0[i] = pos[i];
+				value[i] = operator()(pos0, values[i], domain_dims, empty[i]);
+			}
+			return value;
+		}
+
+		template<typename T>
+		inline multi_value<D, T> operator()(const T* (&values)[D], const iter_type(&domain_dims)[D], const T(&empty)[D], const iter_type(&pos)[D])
+		{
+			multi_value<D, T> value;
+			iter_type pos0[D]{};
+			for (iter_type i = 0; i < D; ++i)
+			{
+				for (iter_type i = 0; i < D; ++i) pos0[i] = pos[i];
+				value[i] = operator()(pos0, values[i], domain_dims, empty[i]);
+			}
+			return value;
+		}
+
+
+		template<typename T, typename T0, typename... Ts, std::enable_if_t<(std::is_same<Ts, iter_type>::value && ...), int> = 0>
+		decltype(auto) operator()(T&& values, const iter_type(&domain_dims)[D], T0 empty, iter_type coord0, Ts&&... coords) const
+		{
+			iter_type pos[D]{ coord0, std::forward<Ts>(coords)... };
+			return operator()(pos, std::forward<T>(values), domain_dims, empty);
+		}
+
+
+		len_type stride[D];
+		iter_type origin[D];
+		len_type dims[D];
+		len_type offset;
+		len_type len;
+		len_type boundary_size;
+	};
+
+	template<size_t D>
+	select_region(const len_type(&)[D], const len_type(&)[D], len_type boundary_size = 0) -> select_region<D>;
 
 }
 
@@ -667,15 +1450,6 @@ multi_value<N, T>& multi_value<N, T>::operator=(multi_value<N, T>&& other)
 template<size_t N, typename T>
 multi_value<N, T>& multi_value<N, T>::operator=(T const& other)
 {
-	//any_vector_t<T, N> vector = *this;
-	//auto m = abs(vector);
-	//for (iter_type i = 0; i < N; ++i)
-	//{
-	//	vector[i] = other * vector[i] / m;
-	//}
-
-	//*this = vector;
-	//return *this;
 	any_vector_t<T, N> vector;;
 	for (iter_type i = 0; i < N; ++i)
 	{
@@ -742,6 +1516,15 @@ private:
 		}
 	}
 
+	void set_dimensions(grid::dim_list dimensions)
+	{
+		std::fill(dims, dims + D, 0);
+		for (iter_type i = 0; i < dimensions.n; ++i)
+		{
+			dims[i] = dimensions[i];
+		}
+	}
+
 public:
 
 	len_type dims[D];		//!< Dimensions of the grid, arranged beginning from the horizontal coordinate.
@@ -783,7 +1566,7 @@ public:
 	}
 
 	template<typename... Ts, std::enable_if_t<(sizeof...(Ts) == D), int> = 0>
-	auto operator()(Ts&&... indices) const
+	decltype(auto) operator()(Ts&&... indices) const
 	{
 		return grid::select_grid_index(dims)(Block<T>::values, std::forward<Ts>(indices)...);
 	}
@@ -870,9 +1653,9 @@ public:
 	}
 
 	template<typename... Ts, std::enable_if_t<(sizeof...(Ts) == D), int> = 0>
-	auto operator()(Ts&&... rest) const
+	decltype(auto) operator()(Ts&&... rest) const
 	{
-		return grid::select_grid_index(dims)(Block<T>::values, std::forward<Ts>(rest)...);
+		return grid::select_grid_index(dims)(MultiBlock<D, T>::values, std::forward<Ts>(rest)...);
 	}
 
 protected:
@@ -903,51 +1686,10 @@ struct BoundaryGrid : Grid<T, D>
 	using parent_type = Grid<T, D>;
 	using parent_type::dims;
 
-#ifdef MULTITHREAD
-
-	iter_type* inners;
-	len_type len_inner;
-
-public:
 	BoundaryGrid(grid::dim_list dimensions) : BoundaryGrid(static_cast<const len_type*>(dimensions)) {}
-	BoundaryGrid(const len_type* dimensions) : Grid<T, D>{ dimensions }, len_inner{ grid::length_interior<D>(dims) }, inners{ grid::interior_indices_list<D>(dims) } {}
-	BoundaryGrid(Grid<T, D> const& other) : Grid<T, D>{ other }, len_inner{ grid::length_interior<D>(dims) }, inners{ grid::interior_indices_list<D>(dims) } {}
-	BoundaryGrid(Grid<T, D>&& other) noexcept : Grid<T, D>{ other }, len_inner{ grid::length_interior<D>(dims) }, inners{ grid::interior_indices_list<D>(dims) } {}
-
-/*
-	decltype(auto) operator[](iter_type i)
-	{
-		return parent_type::operator[](inners[i]);
-	}*/
-
-#else
-
-	BoundaryGrid(grid::dim_list dimensions) : Grid<T, D>{ dimensions } {}
+	BoundaryGrid(const len_type* dimensions) : Grid<T, D>{ dimensions } {}
 	BoundaryGrid(Grid<T, D> const& other) : Grid<T, D>{ other } {}
 	BoundaryGrid(Grid<T, D>&& other) noexcept : Grid<T, D>{ other } {}
-
-	decltype(auto) operator[](iter_type i)
-	{
-		iter_type index = 0;
-		for (iter_type n = 0; n < D; ++n)
-		{
-			len_type sz = 1;
-			len_type md = (n > 0) ? dims[D - n - 1] : 1;
-
-			for (iter_type m = 0; m < D - n - 1; ++m)
-			{
-				sz *= dims[m];
-			}
-			
-			iter_type ci = (i / sz) % md;
-			index += ci + THICKNESS;
-		}
-
-		return parent_type::operator[](index);
-	}
-
-#endif
-
 
 	const BoundaryGrid<T, D>& as_grid() const
 	{
@@ -960,17 +1702,12 @@ public:
 	}
 
 	template<typename... Ts, std::enable_if_t<(sizeof...(Ts) == D), int> = 0>
-	auto operator()(Ts&&... rest) const
+	decltype(auto) operator()(Ts&&... rest) const
 	{
-		return grid::select_grid_index(dims)(Block<T>::values, (std::forward<Ts>(rest) + THICKNESS)...);
+		return grid::select_grid_index(dims)(Block<T>::values, (std::forward<Ts>(rest) + BOUNDARY_DEPTH)...);
 	}
 
-#ifdef MULTITHREAD
-	constexpr BoundaryGrid() : Grid<T, D>(), inners{ nullptr }, len_inner{ 0 } {}
-#else
 	constexpr BoundaryGrid() : Grid<T, D>() {}
-#endif
-
 };
 
 
@@ -980,42 +1717,10 @@ struct BoundaryGrid<T, 3> : Grid<T, 3>
 	using parent_type = Grid<T, 3>;
 	using parent_type::dims;
 
-#ifdef MULTITHREAD
-
-	iter_type* inners;
-	len_type len_inner;
-
-public:
 	BoundaryGrid(grid::dim_list dimensions) : BoundaryGrid(static_cast<const len_type*>(dimensions)) {}
-	BoundaryGrid(const len_type* dimensions) : Grid<T, 3>(dimensions), inners{ grid::interior_indices_list<3>(dims) }, len_inner{ grid::length_interior<3>(dims) } {}
-	BoundaryGrid(Grid<T, 3> const& other) : Grid<T, 3>(other), inners{ grid::interior_indices_list<3>(dims) }, len_inner{ grid::length_interior<3>(dims) } {}
-	BoundaryGrid(Grid<T, 3>&& other) noexcept : Grid<T, 3>(other), inners{ grid::interior_indices_list<3>(dims) }, len_inner{ grid::length_interior<3>(dims) } {}
-
-	/*decltype(auto) operator[](iter_type i)
-	{
-		return parent_type::operator[](inners[i]);
-	}*/
-
-#else
-
-	BoundaryGrid(grid::dim_list dimensions) : Grid<T, 3>(dimensions) {}
+	BoundaryGrid(const len_type* dimensions) : Grid<T, 3>(dimensions) {}
 	BoundaryGrid(Grid<T, 3> const& other) : Grid<T, 3>(other) {}
 	BoundaryGrid(Grid<T, 3>&& other) noexcept : Grid<T, 3>(other) {}
-
-
-	decltype(auto) operator[](iter_type i)
-	{
-		iter_type xi = i % dims[0];
-		iter_type yi = (i / dims[0]) % dims[1];
-		iter_type zi = i / (dims[0] * dims[1]);
-		iter_type ii = (zi + THICKNESS) * dims[0] * dims[1] + (yi + THICKNESS) * dims[0] + (xi + THICKNESS);
-		return parent_type::operator[](ii);
-	}
-
-#endif
-
-
-
 
 	const BoundaryGrid<T, 3>& as_grid() const
 	{
@@ -1027,23 +1732,12 @@ public:
 		return *this;
 	}
 
-	//void copy_ptr_left(T** into);
-	//void copy_ptr_right(T** into);
-	//void copy_ptr_top(T** into);
-	//void copy_ptr_bottom(T** into);
-	//void copy_ptr_front(T** into);
-	//void copy_ptr_back(T** into);
-
-	auto operator()(iter_type x, iter_type y, iter_type z) const
+	decltype(auto) operator()(iter_type x, iter_type y, iter_type z) const
 	{
-		return grid::select_grid_index(dims)(Block<T>::values, x + THICKNESS, y + THICKNESS, z + THICKNESS);
+		return grid::select_grid_index(dims)(parent_type::values, x + BOUNDARY_DEPTH, y + BOUNDARY_DEPTH, z + BOUNDARY_DEPTH);
 	}
 
-#ifdef MULTITHREAD
-	constexpr BoundaryGrid() : Grid<T, 3>(), inners{ nullptr }, len_inner{ 0 } {}
-#else
 	constexpr BoundaryGrid() : Grid<T, 3>() {}
-#endif
 
 };
 
@@ -1054,42 +1748,10 @@ struct BoundaryGrid<T, 2> : Grid<T, 2>
 	using parent_type = Grid<T, 2>;
 	using parent_type::dims;
 
-#ifdef MULTITHREAD
-
-	iter_type* inners;
-	len_type len_inner;
-
-public:
-	BoundaryGrid(grid::dim_list dimensions) : BoundaryGrid(static_cast<const len_type*>(dimensions)) {}
-	BoundaryGrid(const len_type* dimensions) : Grid<T, 2>(dimensions), inners{ grid::interior_indices_list<2>(dims) }, len_inner{ grid::length_interior<2>(dims) } {}
-	BoundaryGrid(Grid<T, 2> const& other) : Grid<T, 2>(other), inners{ grid::interior_indices_list<2>(dims) }, len_inner{ grid::length_interior<2>(dims) } {}
-	BoundaryGrid(Grid<T, 2>&& other) noexcept : Grid<T, 2>(other), inners{ grid::interior_indices_list<2>(dims) }, len_inner{ grid::length_interior<2>(dims) } {}
-
-	//decltype(auto) operator[](iter_type i)
-	//{
-	//	return parent_type::operator[](inners[i]);
-	//}
-
-#else
-
 	BoundaryGrid(grid::dim_list dimensions) : Grid<T, 2>(dimensions) {}
+	BoundaryGrid(const len_type* dimensions) : Grid<T, 2>(dimensions) {}
 	BoundaryGrid(Grid<T, 2> const& other) : Grid<T, 2>(other) {}
 	BoundaryGrid(Grid<T, 2>&& other) noexcept : Grid<T, 2>(other) {}
-
-	decltype(auto) operator[](iter_type i)
-	{
-		iter_type xi = i % dims[0];
-		iter_type yi = i / dims[0];
-		iter_type ii = (yi + THICKNESS) * dims[0] + (xi + THICKNESS);
-		return parent_type::operator[](ii);
-	}
-
-#endif
-
-	//void copy_ptr_left(T** into);
-	//void copy_ptr_right(T** into);
-	//void copy_ptr_top(T** into);
-	//void copy_ptr_bottom(T** into);
 
 
 	const BoundaryGrid<T, 2>& as_grid() const
@@ -1102,17 +1764,12 @@ public:
 		return *this;
 	}
 
-	auto operator()(iter_type x, iter_type y) const
+	decltype(auto) operator()(iter_type x, iter_type y) const
 	{
-		return grid::select_grid_index(dims)(Block<T>::values, x + THICKNESS, y + THICKNESS);
+		return grid::select_grid_index(dims)(parent_type::values, x + BOUNDARY_DEPTH, y + BOUNDARY_DEPTH);
 	}
 
-#ifdef MULTITHREAD
-	constexpr BoundaryGrid() : Grid<T, 2>(), inners{ nullptr }, len_inner{ 0 } {}
-#else
 	constexpr BoundaryGrid() : Grid<T, 2>() {}
-#endif
-
 };
 
 
@@ -1122,35 +1779,15 @@ struct BoundaryGrid<T, 1> : Grid<T, 1>
 	using parent_type = Grid<T, 1>;
 	using parent_type::dims;
 
-#ifdef MULTITHREAD
-
-	iter_type* inners;
-	len_type len_inner;
-
-public:
 	BoundaryGrid(grid::dim_list dimensions) : BoundaryGrid(static_cast<const len_type*>(dimensions)) {}
-	BoundaryGrid(const len_type* dimensions) : Grid<T, 1>(dimensions), inners{ grid::interior_indices_list<1>(dims) }, len_inner{ grid::length_interior<1>(dims) } {}
-	BoundaryGrid(Grid<T, 1> const& other) : Grid<T, 1>(other), inners{ grid::interior_indices_list<1>(dims) }, len_inner{ grid::length_interior<1>(dims) } {}
-	BoundaryGrid(Grid<T, 1>&& other) noexcept : Grid<T, 1>(other), inners{ grid::interior_indices_list<1>(dims) }, len_inner{ grid::length_interior<1>(dims) } {}
-
-	//decltype(auto) operator[](iter_type i)
-	//{
-	//	return parent_type::operator[](inners[i]);
-	//}
-
-#else
-
-	BoundaryGrid(grid::dim_list dimensions) : Grid<T, 1>(dimensions) {}
+	BoundaryGrid(const len_type* dimensions) : Grid<T, 1>(dimensions) {}
 	BoundaryGrid(Grid<T, 1> const& other) : Grid<T, 1>(other) {}
 	BoundaryGrid(Grid<T, 1>&& other) noexcept : Grid<T, 1>(other) {}
 
 	decltype(auto) invalue(iter_type i)
 	{
-		return parent_type::operator[](i + THICKNESS);
+		return parent_type::operator[](i + BOUNDARY_DEPTH);
 	}
-
-#endif
-
 
 	const BoundaryGrid<T, 1>& as_grid() const
 	{
@@ -1162,22 +1799,213 @@ public:
 		return *this;
 	}
 
-	//void copy_ptr_left(T** into);
-	//void copy_ptr_right(T** into);
 
-
-	auto operator()(iter_type x) const
+	decltype(auto) operator()(iter_type x) const
 	{
-		return grid::select_grid_index(dims)(Block<T>::values, x + THICKNESS);
+		return grid::select_grid_index(dims)(parent_type::values, x + BOUNDARY_DEPTH);
 	}
 
 
-#ifdef MULTITHREAD
-	constexpr BoundaryGrid() : Grid<T, 1>(), inners{ nullptr }, len_inner{ 0 } {}
-#else
 	constexpr BoundaryGrid() : Grid<T, 1>() {}
-#endif
+};
 
+
+
+// ***********************************************************************************************
+
+#define REGIONAL_GRID_OUTER_VALUE 0
+
+//! A grid object of arbitrary dimension and arbitrary value type.
+/*!
+ * A grid object of arbitrary dimension and arbitrary value type.
+ * This grid implementation is an extension of the base ::Grid, but it
+ * is meant to sub-domain a larger domain when there are many fields.
+ * The grid
+ * forms the basis of a finite difference grid. Only manages its own
+ * dimensions and list of values. The values are inherited from ::Block, meaning
+ * that the data is flattened and is not `D`-dimensional in memory.
+ *
+ * \tparam T The value type of the underlying array.
+ * \tparam D The dimension of the grid.
+ */
+template<typename T, size_t D>
+struct RegionalGrid : Grid<T, D>
+{
+	using parent_type = Grid<T, D>;
+
+	T empty;
+	grid::select_region<D> region;
+
+public:
+	RegionalGrid(grid::dim_list dimensions, T empty = REGIONAL_GRID_OUTER_VALUE, len_type boundary_size = BOUNDARY_DEPTH) :
+		RegionalGrid(static_cast<const len_type*>(dimensions), empty, boundary_size) {}
+	RegionalGrid(const len_type* dimensions, T empty = REGIONAL_GRID_OUTER_VALUE, len_type boundary_size = BOUNDARY_DEPTH) :
+		parent_type{ dimensions }, empty{ empty }, region{ parent_type::dims, boundary_size } {}
+
+	RegionalGrid(Grid<T, D> const& other) :
+		parent_type{ other }, empty{ REGIONAL_GRID_OUTER_VALUE }, region{ parent_type::dims, BOUNDARY_DEPTH } {}
+	RegionalGrid(Grid<T, D>&& other) noexcept :
+		parent_type{ other }, empty{ REGIONAL_GRID_OUTER_VALUE }, region{ parent_type::dims, BOUNDARY_DEPTH } {}
+
+	RegionalGrid(RegionalGrid<T, D> const& other) : RegionalGrid(nullptr, other.empty, other.region.boundary_size)
+	{
+		using std::swap;
+
+		parent_type::len = other.len;
+		std::copy(other.dims, other.dims + D, parent_type::dims);
+		region = other.region;
+
+
+		Block<T> tmp(other.region.len);
+		std::copy(other.values, other.values + other.region.len, tmp.values);
+		swap(tmp.values, parent_type::values);
+	}
+
+	RegionalGrid(RegionalGrid<T, D>&& other) noexcept : RegionalGrid()
+	{
+		swap(*this, other);
+	}
+	RegionalGrid& operator=(RegionalGrid<T, D> other)
+	{
+		swap(*this, other);
+		return *this;
+	}
+
+	friend void swap(RegionalGrid<T, D>& first, RegionalGrid<T, D>& second)
+	{
+		using std::swap;
+		swap(static_cast<parent_type&>(first), static_cast<parent_type&>(second));
+		swap(first.empty, second.empty);
+		swap(first.region, second.region);
+	}
+
+
+	const RegionalGrid<T, D>& as_grid() const
+	{
+		return *this;
+	}
+
+	RegionalGrid<T, D>& as_grid()
+	{
+		return *this;
+	}
+
+	template<typename... Ts, std::enable_if_t<(sizeof...(Ts) == D), int> = 0>
+	decltype(auto) operator()(Ts&&... rest) const
+	{
+		return region(Block<T>::values, parent_type::dims, empty, (std::forward<Ts>(rest) + region.boundary_size)... );
+	}
+
+	decltype(auto) operator[](iter_type n) const
+	{
+		iter_type pos[D]{};
+		grid::get_grid_position(pos, parent_type::dims, n);
+		return region(pos, Block<T>::values, parent_type::dims, empty);
+	}
+
+	void adjust(const iter_type(&new_origin)[D])
+	{
+		grid::adjust_origin_to_from(parent_type::values, new_origin, region.origin, region.dims, parent_type::dims, empty, region.boundary_size);
+		region.update(new_origin);
+	}
+
+	void adjust(const iter_type(&new_origin)[D], const len_type(&new_dims)[D])
+	{
+		T* new_values = new T[grid::length<D>(new_dims)]{};
+		std::fill(
+#ifdef EXECUTION_HEADER_AVAILABLE
+			std::execution::par_unseq,
+#endif
+			new_values, new_values + grid::length<D>(new_dims), empty);
+		grid::adjust_region_to_from(new_values, new_origin, new_dims, parent_type::values, region.origin, region.dims, parent_type::dims, empty, region.boundary_size);
+
+		using std::swap;
+		swap(parent_type::values, new_values);
+		delete[] new_values;
+		
+		region.update(new_origin, new_dims);
+	}
+
+	void adjust(grid::select_region<D> const& other)
+	{
+		if (!grid::is_same(region.dims, other.dims)
+			|| !grid::is_same(region.origin, other.origin))
+		{
+			if (grid::is_same(region.dims, other.dims))
+			{
+				adjust(other.origin);
+			}
+			else
+			{
+				adjust(other.origin, other.dims);
+			}
+		}
+	}
+
+protected:
+
+	constexpr RegionalGrid() : parent_type(), empty{}, region {} {}
+};
+
+
+
+template<typename T, size_t D>
+struct RegionalGrid<any_vector_t<T, D>, D> : Grid<any_vector_t<T, D>, D>
+{
+	using parent_type = Grid<any_vector_t<T, D>, D>;
+
+	T empty;
+	grid::select_region<D> region;
+
+public:
+
+	RegionalGrid(grid::dim_list dimensions, T empty = REGIONAL_GRID_OUTER_VALUE, len_type boundary_size = BOUNDARY_DEPTH) :
+		RegionalGrid(static_cast<const len_type*>(dimensions), empty, boundary_size) {}
+	RegionalGrid(const len_type* dimensions, T empty = REGIONAL_GRID_OUTER_VALUE, len_type boundary_size = BOUNDARY_DEPTH) :
+		parent_type{ dimensions }, empty{ empty }, region{ parent_type::dims, boundary_size } {}
+
+	RegionalGrid(Grid<T, D> const& other) :
+		parent_type{ other }, empty{ REGIONAL_GRID_OUTER_VALUE }, region{ parent_type::dims, BOUNDARY_DEPTH } {}
+	RegionalGrid(Grid<T, D>&& other) noexcept :
+		parent_type{ other }, empty{ REGIONAL_GRID_OUTER_VALUE }, region{ parent_type::dims, BOUNDARY_DEPTH } {}
+
+
+	const RegionalGrid<any_vector_t<T, D>, D>& as_grid() const
+	{
+		return *this;
+	}
+
+	RegionalGrid<any_vector_t<T, D>, D>& as_grid()
+	{
+		return *this;
+	}
+
+	const T* axis(Axis ax) const
+	{
+		return parent_type::values[symphas::axis_to_index(ax)];
+	}
+
+	T* axis(Axis ax)
+	{
+		return parent_type::values[symphas::axis_to_index(ax)];
+	}
+
+
+	template<typename... Ts, std::enable_if_t<(sizeof...(Ts) == D), int> = 0>
+	decltype(auto) operator()(Ts&&... rest) const
+	{
+		return region(MultiBlock<D, T>::values, parent_type::dims, empty, (std::forward<Ts>(rest) + region.boundary_size)...);
+	}
+
+	decltype(auto) operator[](iter_type n) const
+	{
+		iter_type pos[D]{};
+		grid::get_grid_position(pos, parent_type::dims, n);
+		return region(pos, MultiBlock<D, T>::values, parent_type::dims, empty);
+	}
+
+
+	constexpr RegionalGrid() : parent_type() {}
 };
 
 
@@ -1186,199 +2014,11 @@ public:
 // **************************************************************************************
 
 
-//
-//template<typename T>
-//void BoundaryGrid<T, 3>::copy_ptr_left(T** into)
-//{
-//	ITER_GRID3_LEFT(into[ENTRY] = &parent_type::operator[](INDEX), dims[0], dims[1], dims[2]);
-//}
-//
-//template<typename T>
-//void BoundaryGrid<T, 3>::copy_ptr_right(T** into)
-//{
-//	ITER_GRID3_RIGHT(into[ENTRY] = values + INDEX, dims[0], dims[1], dims[2]);
-//}
-//
-//template<typename T>
-//void BoundaryGrid<T, 3>::copy_ptr_top(T** into)
-//{
-//	ITER_GRID3_TOP(into[ENTRY] = values + INDEX, dims[0], dims[1], dims[2]);
-//}
-//
-//template<typename T>
-//void BoundaryGrid<T, 3>::copy_ptr_bottom(T** into)
-//{
-//	ITER_GRID3_BOTTOM(into[ENTRY] = values + INDEX, dims[0], dims[1], dims[2]);
-//}
-//
-//template<typename T>
-//void BoundaryGrid<T, 3>::copy_ptr_front(T** into)
-//{
-//	ITER_GRID3_FRONT(into[ENTRY] = values + INDEX, dims[0], dims[1]);
-//}
-//
-//template<typename T>
-//void BoundaryGrid<T, 3>::copy_ptr_back(T** into)
-//{
-//	ITER_GRID3_BACK(into[ENTRY] = values + INDEX, dims[0], dims[1], dims[2]);
-//}
-//
-//template<typename T>
-//void BoundaryGrid<T, 2>::copy_ptr_left(T** into)
-//{
-//
-//	ITER_GRID2_LEFT(into[ENTRY] = values + INDEX, dims[0], dims[1]);
-//}
-//
-//template<typename T>
-//void BoundaryGrid<T, 2>::copy_ptr_right(T** into)
-//{
-//	ITER_GRID2_RIGHT(into[ENTRY] = values + INDEX, dims[0], dims[1]);
-//}
-//
-//template<typename T>
-//void BoundaryGrid<T, 2>::copy_ptr_top(T** into)
-//{
-//	ITER_GRID2_TOP(into[ENTRY] = values + INDEX, dims[0]);
-//}
-//
-//template<typename T>
-//void BoundaryGrid<T, 2>::copy_ptr_bottom(T** into)
-//{
-//	ITER_GRID2_BOTTOM(into[ENTRY] = values + INDEX, dims[0], dims[1]);
-//}
-//
-//template<typename T>
-//void BoundaryGrid<T, 1>::copy_ptr_left(T** into)
-//{
-//	ITER_GRID1_LEFT(into[ENTRY] = values + INDEX);
-//}
-//
-//template<typename T>
-//void BoundaryGrid<T, 1>::copy_ptr_right(T** into)
-//{
-//	ITER_GRID1_RIGHT(into[ENTRY] = values + INDEX, dims[0]);
-//}
-
-
-
-
-// **************************************************************************************
 
 namespace grid
 {
 	namespace
 	{
-
-		//! Copy the interior values of the grid into an array.
-		/*!
-		 * Fills the interior values of an array using ghost cells for the boundary.
-		 *
-		 * \tparam T Type of the array.
-		 * \tparam D The dimensions of the array.
-		 */
-		template<typename T, size_t D>
-		struct fill_interior_apply;
-
-		template<typename T>
-		struct fill_interior_apply<T, 1>
-		{
-			//! Copy an array into the interior values of another. 
-			/*!
-			 * \param input The grid from which the sequential values are copied.
-			 * \param output The array into which the values are transcribed in interior-based
-			 * sequencing.
-			 * \param dims The dimension of the interior region.
-			 */
-			void operator()(const T* input, Grid<T, 1> &output, const len_type* dims)
-			{
-				ITER_GRID1(output[INDEX] = input[ENTRY], dims[0])
-			}
-		};
-
-		template<typename T>
-		struct fill_interior_apply<T, 2>
-		{
-			//! Copy an array into the interior values of another. 
-			/*!
-			 * \param input The grid from which the sequential values are copied.
-			 * \param output The array into which the values are transcribed in interior-based
-			 * sequencing.
-			 * \param dims The dimension of the interior region.
-			 */
-			void operator()(const T* input, Grid<T, 2> &output, const len_type* dims)
-			{
-				ITER_GRID2(output[INDEX] = input[ENTRY], dims[0], dims[1])
-			}
-		};
-
-		template<typename T>
-		struct fill_interior_apply<T, 3>
-		{
-			//! Copy an array into the interior values of another. 
-			/*!
-			 * \param input The grid from which the sequential values are copied.
-			 * \param output The array into which the values are transcribed in interior-based
-			 * sequencing.
-			 * \param dims The dimension of the interior region.
-			 */
-			void operator()(const T* input, Grid<T, 3> &output, const len_type* dims)
-			{
-				ITER_GRID3(output[INDEX] = input[ENTRY], dims[0], dims[1], dims[2])
-			}
-		};
-
-		template<typename T>
-		struct fill_interior_apply<any_vector_t<T, 1>, 1>
-		{
-			//! Copy an array into the interior values of another. 
-			/*!
-			 * \param input The grid from which the sequential values are copied.
-			 * \param output The array into which the values are transcribed in interior-based
-			 * sequencing.
-			 * \param dims The dimension of the interior region.
-			 */
-			void operator()(const any_vector_t<T, 1>* input, Grid<any_vector_t<T, 1>, 1>& output, const len_type* dims)
-			{
-				ITER_GRID1(output.axis(Axis::X).values[INDEX] = input[ENTRY][0], dims[0])
-			}
-		};
-
-		template<typename T>
-		struct fill_interior_apply<any_vector_t<T, 2>, 2>
-		{
-			//! Copy an array into the interior values of another. 
-			/*!
-			 * \param input The grid from which the sequential values are copied.
-			 * \param output The array into which the values are transcribed in interior-based
-			 * sequencing.
-			 * \param dims The dimension of the interior region.
-			 */
-			void operator()(const any_vector_t<T, 2>* input, Grid<any_vector_t<T, 2>, 2>& output, const len_type* dims)
-			{
-				ITER_GRID2(output.axis(Axis::X).values[INDEX] = input[ENTRY][0], dims[0], dims[1])
-				ITER_GRID2(output.axis(Axis::Y).values[INDEX] = input[ENTRY][1], dims[0], dims[1])
-			}
-		};
-
-		template<typename T>
-		struct fill_interior_apply<any_vector_t<T, 3>, 3>
-		{
-			//! Copy an array into the interior values of another. 
-			/*!
-			 * \param input The grid from which the sequential values are copied.
-			 * \param output The array into which the values are transcribed in interior-based
-			 * sequencing.
-			 * \param dims The dimension of the interior region.
-			 */
-			void operator()(const any_vector_t<T, 3>* input, Grid<any_vector_t<T, 3>, 3>& output, const len_type* dims)
-			{
-				ITER_GRID3(output.axis(Axis::X).values[INDEX] = input[ENTRY][0], dims[0], dims[1], dims[2])
-				ITER_GRID3(output.axis(Axis::Y).values[INDEX] = input[ENTRY][1], dims[0], dims[1], dims[2])
-				ITER_GRID3(output.axis(Axis::Z).values[INDEX] = input[ENTRY][2], dims[0], dims[1], dims[2])
-			}
-		};
-
 
 		//! Create a new grid of the given primary type.
 		/*!
@@ -1421,484 +2061,11 @@ namespace grid
 				{
 					return apply<T, D>();
 				}
-
-				len_type dims[D]{ 0 };
-				for (iter_type i = 0; i < D; ++i)
-				{
-					Axis side = symphas::index_to_axis(i);
-					dims[i] = vdata.at(side).get_count();
-				}
-				return { dims };
+				return { symphas::grid_info(vdata).get_dims() };
 			}
 		};
 	}
 
-
-	//! Copies the system data into the given array.
-	/*!
-	 * The values of the system data block are copied into a new one. The copy
-	 * is performed point-wise for all data points.
-	 */
-	template<typename T, typename S>
-	void copy(Block<T> const& from, S* to)
-	{
-		std::copy(
-#ifdef EXECUTION_HEADER_AVAILABLE
-			std::execution::par_unseq,
-#endif
-			from.values, from.values + from.len, to);
-	}
-
-	//! Copies the system data into the given array.
-	/*!
-	 * The values of the system data block are copied into a new one. The copy
-	 * is performed point-wise for all data points.
-	 */
-	template<typename T, typename S>
-	void copy(Block<T> const& from, Block<S>& to)
-	{
-		copy(from, to.values);
-	}
-
-	//! Copies the system data into the given array.
-	/*!
-	 * The values of the system data block are copied into a new one. The copy
-	 * is performed point-wise for all data points.
-	 */
-	template<typename T, typename S>
-	void copy(MultiBlock<1, T> const& from, any_vector_t<S, 1>* to)
-	{
-		std::for_each(
-#ifdef EXECUTION_HEADER_AVAILABLE
-			std::execution::par_unseq,
-#endif
-			to, to + from.len,
-			[&] (auto& e) {
-				size_t i = &e - to;
-				e = any_vector_t<T, 1>{
-					from(Axis::X)[i] };
-			});
-	}
-
-	//! Copies the system data into the given array.
-	/*!
-	 * The values of the system data block are copied into a new one. The copy
-	 * is performed point-wise for all data points.
-	 */
-	template<typename T, typename S>
-	void copy(MultiBlock<2, T> const& from, any_vector_t<S, 2>* to)
-	{
-		std::for_each(
-#ifdef EXECUTION_HEADER_AVAILABLE
-			std::execution::par_unseq,
-#endif
-			to, to + from.len,
-			[&] (auto& e) {
-				size_t i = &e - to;
-				e = any_vector_t<T, 2>{
-					from(Axis::X)[i],
-					from(Axis::Y)[i] };
-			});
-	}
-
-	//! Copies the system data into the given array.
-	/*!
-	 * The values of the system data block are copied into a new one. The copy
-	 * is performed point-wise for all data points.
-	 */
-	template<typename T, typename S>
-	void copy(MultiBlock<3, T> const& from, any_vector_t<S, 3>* to)
-	{
-		std::for_each(
-#ifdef EXECUTION_HEADER_AVAILABLE
-			std::execution::par_unseq,
-#endif
-			to, to + from.len,
-			[&] (auto& e) {
-				size_t i = &e - to;
-				e = any_vector_t<S, 3>{
-					from(Axis::X)[i],
-					from(Axis::Y)[i],
-					from(Axis::Z)[i] };
-			});
-	}
-
-	//! Fills the block-type data with values from the array.
-	/*!
-	 * The values of the system data block are initialized from the
-	 * given values, correctly transcribing all values.
-	 */
-	template<typename S, typename T>
-	void copy(const S* from, Block<T>& to)
-	{
-		std::copy(
-#ifdef EXECUTION_HEADER_AVAILABLE
-			std::execution::par_unseq,
-#endif
-			from, from + to.len, to.values);
-	}
-
-
-	//! Fills the block-type data with values from the array.
-	/*!
-	 * The values of the system data block are copied into a new one. The copy
-	 * is performed point-wise for all data points.
-	 */
-	template<typename S, typename T>
-	void copy(const any_vector_t<S, 1>* from, MultiBlock<1, T>& to)
-	{
-		std::for_each(
-#ifdef EXECUTION_HEADER_AVAILABLE
-			std::execution::par_unseq,
-#endif
-			from, from + to.len,
-			[&] (auto& e) {
-				size_t i = &e - from;
-				to(Axis::X)[i] = e[0];
-			});
-	}
-
-	//! Fills the block-type data with values from the array.
-	/*!
-	 * The values of the system data block are copied into a new one. The copy
-	 * is performed point-wise for all data points.
-	 */
-	template<typename S, typename T>
-	void copy(const any_vector_t<S, 2>* from, MultiBlock<2, T>& to)
-	{
-		std::for_each(
-#ifdef EXECUTION_HEADER_AVAILABLE
-			std::execution::par_unseq,
-#endif
-			from, from + to.len,
-			[&] (auto& e) {
-				size_t i = &e - from;
-				to(Axis::X)[i] = e[0];
-				to(Axis::Y)[i] = e[1];
-			});
-	}
-
-	//! Copies the system data into the given array.
-	/*!
-	 * The values of the system data block are copied into a new one. The copy
-	 * is performed point-wise for all data points.
-	 */
-	template<typename S, typename T>
-	void copy(const any_vector_t<S, 3>* from, MultiBlock<3, T>& to)
-	{
-		std::for_each(
-#ifdef EXECUTION_HEADER_AVAILABLE
-			std::execution::par_unseq,
-#endif
-			from, from + to.len,
-			[&] (auto& e) {
-				size_t i = &e - from;
-				to(Axis::X)[i] = e[0];
-				to(Axis::Y)[i] = e[1];
-				to(Axis::Z)[i] = e[2];
-			});
-	}
-
-
-	//! Copies the system data into the given array.
-	/*!
-	 * The values of the grid are filled with their index.
-	 */
-	template<typename T>
-	void fill(T* data, len_type len, T value)
-	{
-		std::fill(
-#ifdef EXECUTION_HEADER_AVAILABLE
-			std::execution::par_unseq,
-#endif
-			data, data + len, value);
-	}
-
-	//! Copies the system data into the given array.
-	/*!
-	 * The values of the grid are filled with their index.
-	 */
-	template<typename T, typename S>
-	void fill(Block<T>& grid, S value)
-	{
-		std::fill(
-#ifdef EXECUTION_HEADER_AVAILABLE
-			std::execution::par_unseq,
-#endif
-			grid.values, grid.values + grid.len, value);
-	}
-
-	//! Copies the system data into the given array.
-	/*!
-	 * The values of the grid are filled with their index.
-	 */
-	template<typename T, size_t N, typename S>
-	void fill(MultiBlock<N, T>& grid, any_vector_t<S, N> value)
-	{
-		std::fill(
-#ifdef EXECUTION_HEADER_AVAILABLE
-			std::execution::par_unseq,
-#endif
-			grid.values, grid.values + grid.len, value);
-	}
-
-	//! Copies the system data into the given array.
-	/*!
-	 * The values of the system data block are copied into a new one. The copy
-	 * is performed point-wise for all data points.
-	 */
-	template<typename T>
-	void fill_random(T* data, len_type len, scalar_t min = 0, scalar_t max = 1)
-	{
-		std::random_device rd;
-		std::mt19937 gen(rd());
-		std::uniform_real_distribution<double> dist(min, max);
-
-		std::for_each(
-#ifdef EXECUTION_HEADER_AVAILABLE
-			std::execution::par_unseq,
-#endif
-			data, data + len,
-			[&] (auto& e) {
-				e = dist(gen);
-			});
-	}
-
-	//! Copies the system data into the given array.
-	/*!
-	 * The values of the system data block are copied into a new one. The copy
-	 * is performed point-wise for all data points.
-	 */
-	template<typename T>
-	void fill_random(Block<T>& grid, scalar_t min = 0, scalar_t max = 1)
-	{
-		std::random_device rd;
-		std::mt19937 gen(rd());
-		std::uniform_real_distribution<double> dist(min, max);
-
-		std::for_each(
-#ifdef EXECUTION_HEADER_AVAILABLE
-			std::execution::par_unseq,
-#endif
-			grid.values, grid.values + grid.len,
-			[&] (auto& e) {
-				e = dist(gen);
-			});
-	}
-
-
-	//! Copies the system data into the given array.
-	/*!
-	 * The values of the system data block are copied into a new one. The copy
-	 * is performed point-wise for all data points.
-	 */
-	inline void fill_random(Block<complex_t>& grid, scalar_t min = 0, scalar_t max = 1)
-	{
-		std::random_device rd;
-		std::mt19937 gen(rd());
-		std::uniform_real_distribution<double> dist(min, max);
-
-		std::for_each(
-#ifdef EXECUTION_HEADER_AVAILABLE
-			std::execution::par_unseq,
-#endif
-			grid.values, grid.values + grid.len,
-			[&] (auto& e) {
-				e = { dist(gen), dist(gen) };
-			});
-	}
-
-	//! Copies the system data into the given array.
-	/*!
-	 * The values of the system data block are copied into a new one. The copy
-	 * is performed point-wise for all data points.
-	 */
-	template<typename T, size_t N>
-	void fill_random(MultiBlock<N, T>& grid, scalar_t min = 0, scalar_t max = 1)
-	{
-		std::random_device rd;
-		std::mt19937 gen(rd());
-		std::uniform_real_distribution<double> dist(min, max);
-
-		for (iter_type i = 0; i < N; ++i)
-		{
-			std::for_each(
-#ifdef EXECUTION_HEADER_AVAILABLE
-				std::execution::par_unseq,
-#endif
-				grid.values[i], grid.values[i] + grid.len,
-				[&] (auto& e) {
-					e = dist(gen);
-				});
-		}
-	}
-
-	//! Copies the system data into the given array.
-	/*!
-	 * The values of the grid are filled with their index.
-	 */
-	template<typename T>
-	void fill_n(T* data, len_type len)
-	{
-		std::for_each(
-#ifdef EXECUTION_HEADER_AVAILABLE
-			std::execution::par_unseq,
-#endif
-			data, data + len,
-			[&] (auto& e) {
-				e = T(&e - data);
-			});
-	}
-
-	//! Copies the system data into the given array.
-	/*!
-	 * The values of the grid are filled with their index.
-	 */
-	template<typename T>
-	void fill_n(Block<T>& grid)
-	{
-		std::for_each(
-#ifdef EXECUTION_HEADER_AVAILABLE
-			std::execution::par_unseq,
-#endif
-			grid.values, grid.values + grid.len,
-			[&] (auto& e) {
-				e = T(&e - grid.values);
-			});
-	}
-
-	//! Copies the system data into the given array.
-	/*!
-	 * The values of the grid are filled with their index.
-	 */
-	template<typename T, size_t N>
-	void fill_n(MultiBlock<N, T>& grid)
-	{
-		for (iter_type i = 0; i < N; ++i)
-		{
-			std::for_each(
-#ifdef EXECUTION_HEADER_AVAILABLE
-				std::execution::par_unseq,
-#endif
-				grid.values[i], grid.values[i] + grid.len,
-				[&] (auto& e) {
-					e = T(&e - grid.values[i]);
-				});
-		}
-	}
-
-
-
-
-
-	//! Copy the interior values of the grid into an array.
-	/*!
-	 * The interior values of the given grid are copied into an array.
-	 * It is assumed that the array has enough space to store all the interior
-	 * values. For computing the number of interior points, see
-	 * grid::length_interior(len_type const*). The grid is 1-dimensional.
-	 *
-	 * \param input The grid from which the interior values are copied.
-	 * \param output The array into which the values are copied.
-	 */
-	template<typename T>
-	void copy_interior(Grid<T, 1> const& input, T* output)
-	{
-		ITER_GRID1(output[ENTRY] = input.values[INDEX], input.dims[0])
-	}
-
-
-	//! Copy the interior values of the grid into an array.
-	/*!
-	 * Implementation of copying interior values for a 2-dimensional Grid, see
-	 * grid::copy_interior(Grid<T, 1> const&, T*).
-	 *
-	 * \param input The grid from which the interior values are copied.
-	 * \param output The array into which the values are copied.
-	 */
-	template<typename T>
-	void copy_interior(Grid<T, 2> const& input, T* output)
-	{
-		ITER_GRID2(output[ENTRY] = input.values[INDEX], input.dims[0], input.dims[1]);
-	}
-
-	//! Copy the interior values of the grid into an array.
-	/*!
-	 * Implementation of copying interior values for a 3-dimensional Grid, see
-	 * grid::copy_interior(Grid<T, 1> const&, T*).
-	 *
-	 * \param input The grid from which the interior values are copied.
-	 * \param output The array into which the values are copied.
-	 */
-	template<typename T>
-	void copy_interior(Grid<T, 3> const& input, T* output)
-	{
-		ITER_GRID3(output[ENTRY] = input.values[INDEX], input.dims[0], input.dims[1], input.dims[2]);
-	}
-
-	//! Copy the interior values of the grid into an array.
-	/*!
-	 * The interior values of the given grid are copied into an array.
-	 * It is assumed that the array has enough space to store all the interior
-	 * values. For computing the number of interior points, see
-	 * grid::length_interior(len_type const*). The grid is 1-dimensional.
-	 *
-	 * \param input The grid from which the interior values are copied.
-	 * \param output The array into which the values are copied.
-	 */
-	template<typename T>
-	void copy_interior(Grid<any_vector_t<T, 1>, 1> const& input, any_vector_t<T, 1>* output)
-	{
-		ITER_GRID1(output[ENTRY][0] = input.axis(Axis::X)[INDEX], input.dims[0])
-	}
-
-
-	//! Copy the interior values of the grid into an array.
-	/*!
-	 * Implementation of copying interior values for a 2-dimensional Grid, see
-	 * grid::copy_interior(Grid<T, 1> const&, T*).
-	 *
-	 * \param input The grid from which the interior values are copied.
-	 * \param output The array into which the values are copied.
-	 */
-	template<typename T>
-	void copy_interior(Grid<any_vector_t<T, 2>, 2> const& input, any_vector_t<T, 2>* output)
-	{
-		ITER_GRID2(output[ENTRY][0] = input.axis(Axis::X)[INDEX], input.dims[0], input.dims[1]);
-		ITER_GRID2(output[ENTRY][1] = input.axis(Axis::Y)[INDEX], input.dims[0], input.dims[1]);
-	}
-
-	//! Copy the interior values of the grid into an array.
-	/*!
-	 * Implementation of copying interior values for a 3-dimensional Grid, see
-	 * grid::copy_interior(Grid<T, 1> const&, T*).
-	 *
-	 * \param input The grid from which the interior values are copied.
-	 * \param output The array into which the values are copied.
-	 */
-	template<typename T>
-	void copy_interior(Grid<any_vector_t<T, 3>, 3> const& input, any_vector_t<T, 3>* output)
-	{
-		ITER_GRID3(output[ENTRY][0] = input.axis(Axis::X)[INDEX], input.dims[0], input.dims[1], input.dims[2]);
-		ITER_GRID3(output[ENTRY][1] = input.axis(Axis::Y)[INDEX], input.dims[0], input.dims[1], input.dims[2]);
-		ITER_GRID3(output[ENTRY][2] = input.axis(Axis::Z)[INDEX], input.dims[0], input.dims[1], input.dims[2]);
-	}
-
-
-	//! Copy the interior values of the grid into an array.
-	/*!
-	 * Fills the interior values of an array using ghost cells for the boundary.
-	 *
-	 * \param input The grid from which the sequential values are copied.
-	 * \param output The array into which the values are transcribed in interior-based
-	 * sequencing.
-	 * \param dims The dimension of the interior region.
-	 */
-	template<typename T, size_t D>
-	void fill_interior(const T* input, Grid<T, D> &output, const len_type(&dims)[D])
-	{
-		fill_interior_apply<T, D>{}(input, output, dims);
-	}
 
 	//! Create a new grid with of the given base type and dimension.
 	/*!
@@ -2024,6 +2191,7 @@ namespace grid
 		static const size_t value = wrapped_type::value;
 
 	};
+
 
 }
 

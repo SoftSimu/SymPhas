@@ -29,6 +29,7 @@
 
 #include "expressions.h"
 #include "expressionlogic.h"
+#include "expressionsprint.h"
 
 
 namespace symphas::internal
@@ -443,6 +444,25 @@ struct Variable : G
 	Variable(G&& data) noexcept : G(std::move(data)) {}
 };
 
+template<size_t Z, typename G>
+struct Variable<Z, G*>
+{
+	constexpr Variable() : data{} {}
+	Variable(G* data) : data(data) {}
+
+	operator const G* () const 
+	{
+		return data;
+	}
+
+	operator G* ()
+	{
+		return data;
+	}
+
+	G* data;
+};
+
 //! Associates an identifier with a piece of data.
 /*!
  * Associates a template constant number with a given
@@ -499,8 +519,29 @@ struct DynamicVariable<NamedData<G*>> : DynamicIndex
 	NamedData<G*> data;
 };
 
+template<size_t Z, typename G>
+struct DynamicVariable<Variable<Z, G*>> : DynamicIndex
+{
+	constexpr DynamicVariable() : DynamicIndex(), data{ nullptr } {}
+	DynamicVariable(DynamicIndex const& index, Variable<Z, G*> const& data) : DynamicIndex(index), data{ data } {}
+
+	const auto& get() const
+	{
+		return data.data[*DynamicIndex::data];
+	}
+
+	auto& get()
+	{
+		return data.data[*DynamicIndex::data];
+	}
+
+	Variable<Z, G*> data;
+};
+
 template<typename G>
 DynamicVariable(DynamicIndex, NamedData<G*>) -> DynamicVariable<NamedData<G*>>;
+template<size_t Z, typename G>
+DynamicVariable(DynamicIndex, Variable<Z, G*>) -> DynamicVariable<Variable<Z, G*>>;
 
 
 namespace expr
@@ -1742,7 +1783,7 @@ namespace symphas::internal
 
 
 	template<typename G0, typename G1, typename T>
-	constexpr bool commutes_to = false;
+	constexpr int commutes_to = -1;
 
 	//! Indicates whether G0 can reach a G1 in Gs list through commuting.
 	/*!
@@ -1753,39 +1794,57 @@ namespace symphas::internal
 	 * If both conditions are met, then this statement will evaluate true.
 	 */
 	template<typename G0, typename G1, typename... Gs>
-	constexpr bool commutes_to<G0, G1, types_list<Gs...>> =
-		(index_of_type<G1, Gs...> >= 0)
-		? commutes_through<G0, types_before_index<fixed_max<0, index_of_type<G1, Gs...>>, Gs...>>
-		: false;
+	constexpr int commutes_to<G0, G1, types_list<Gs...>> =
+		(commutes_through<G0, types_before_index<fixed_max<0, index_of_type<G1, Gs...>>, Gs...>>)
+		? index_of_type<G1, Gs...>
+		: -1;
 
 	template<typename G1, typename T1, typename T2>
-	constexpr bool satisfies_combination = false;
+	constexpr int satisfies_identity = -1;
+
+	template<typename G1, typename... Gs, typename G2, typename... G2s>
+	constexpr int satisfies_identity<G1, types_list<Gs...>, types_list<G2, G2s...>> = 
+		(expr::has_identity<G1, G2>) 
+		? commutes_to<G1, G2, types_list<Gs..., G2s...>> - int(sizeof...(Gs))
+		: satisfies_identity<G1, types_list<Gs...>, types_list<G2s...>>; // will combine with a G2 if there is an identity
+
+	template<typename G1, typename... Gs>
+	constexpr int satisfies_identity<G1, types_list<Gs...>, types_list<>> = -1; // will combine with a G2 if there is an identity
+
+	template<typename G1, typename T1, typename T2>
+	constexpr int satisfies_combination = -1;
 
 	template<typename G1, typename... Gs, typename... G2s>
-	constexpr bool satisfies_combination<G1, types_list<Gs...>, types_list<G2s...>> = (
-		(expr::is_combinable<G1> && commutes_to<G1, G1, types_list<Gs..., G2s...>>)	// will combine with another G1 in G2s list
-		|| ((expr::has_identity<G1, G2s> && commutes_to<G1, G2s, types_list<Gs..., G2s...>>) || ...)); // will combine with a G2 if there is an identity
+	constexpr int satisfies_combination<G1, types_list<Gs...>, types_list<G2s...>> =
+		(expr::is_combinable<G1>)			// checks if G1 combines with another G1 in G2s list
+		? commutes_to<G1, G1, types_list<Gs..., G2s...>> - int(sizeof...(Gs))
+		: satisfies_identity<G1, types_list<Gs...>, types_list<G2s...>>;
 
 
 	template<typename... G1s, expr::exp_key_t... X1s, typename... G2s, expr::exp_key_t... X2s, size_t... Is, size_t... Js>
 	auto combine_terms(OpTerms<Term<G1s, X1s>...> const& a, OpTerms<Term<G2s, X2s>...> const& b, std::index_sequence<Is...>, std::index_sequence<Js...>)
 	{
-		using seq_a_mask = std::integer_sequence<bool, (
-			satisfies_combination<G1s,
-			types_after_at_index<Is + 1, G1s...>,
-			types_list<G2s...>>
-			)...>;
-		using seq_b_mask = std::integer_sequence<bool, (
-			satisfies_combination<G2s,
-			reverse_types_list<types_before_index<Js, G2s...>>,
-			reverse_types_list<types_list<G1s...>>>
+		using seq_a_match_b = std::integer_sequence<int, (
+			(satisfies_combination<G1s,
+				types_after_at_index<Is + 1, G1s...>,
+				types_list<G2s...>>)
 			)...>;
 
-		using seq_a_pick = symphas::lib::seq_join_t<std::index_sequence<>, std::conditional_t<symphas::lib::seq_index_value<Is, seq_a_mask>::value, std::index_sequence<Is>, std::index_sequence<>>...>;
-		using seq_a_pick_ = symphas::lib::seq_join_t<std::index_sequence<>, std::conditional_t<!symphas::lib::seq_index_value<Is, seq_a_mask>::value, std::index_sequence<Is>, std::index_sequence<>>...>;
+		using seq_a_pick = symphas::lib::seq_join_t<std::index_sequence<>,
+			std::conditional_t<
+				(symphas::lib::seq_index_value<Is, seq_a_match_b>::value >= 0),
+				std::index_sequence<Is>,
+				std::index_sequence<>>
+			...>;
+		using seq_b_pick = symphas::lib::seq_join_t<std::index_sequence<>,
+			std::conditional_t<
+				(symphas::lib::seq_index_value<Is, seq_a_match_b>::value >= 0),
+				std::index_sequence<(size_t)symphas::lib::seq_index_value<Is, seq_a_match_b>::value>,
+				std::index_sequence<>>
+			...>;
 
-		using seq_b_pick = symphas::lib::seq_join_t<std::index_sequence<>, std::conditional_t<symphas::lib::seq_index_value<Js, seq_b_mask>::value, std::index_sequence<Js>, std::index_sequence<>>...>;
-		using seq_b_pick_ = symphas::lib::seq_join_t<std::index_sequence<>, std::conditional_t<!symphas::lib::seq_index_value<Js, seq_b_mask>::value, std::index_sequence<Js>, std::index_sequence<>>...>;
+		using seq_a_pick_ = symphas::lib::filter_seq_t<std::index_sequence<Is...>, seq_a_pick>;
+		using seq_b_pick_ = symphas::lib::filter_seq_t<std::index_sequence<Js...>, seq_b_pick>;
 
 		return combine_terms(a, b, seq_a_pick_{}, seq_b_pick_{}, seq_a_pick{}, seq_b_pick{});
 	}
@@ -2338,5 +2397,77 @@ namespace expr
 	}
 
 }
+
+
+namespace symphas::internal
+{
+	template<typename T>
+	void update_dynamic_op_name(T* data, const char* const* names, len_type len)
+	{
+		for (iter_type i = 0; i < len; ++i)
+		{
+			char*& ptr = expr::get_op_name_reference(data);
+			if (std::strcmp(names[i], ptr) != 0)
+			{
+				char* cpy = new char[std::strlen(names[i]) + 1];
+				std::strcpy(cpy, names[i]);
+				std::swap(cpy, ptr);
+				delete[] cpy;
+			}
+		}
+	}
+
+	template<typename T>
+	char** format_dynamic_op_name(T* data, const char* format, DynamicIndex index)
+	{
+		char** names = new char* [index.end() - index.start() + 1];
+		for (iter_type i = index.start(); i <= index.end(); ++i)
+		{
+			names[i] = new char[std::strlen(format) - 1 + symphas::lib::num_digits(i)];
+			sprintf(names[i], format, i);
+		}
+		update_dynamic_op_name(data, names, index.end() - index.start() + 1);
+		return names;
+	}
+}
+
+
+namespace expr
+{
+
+	//! Gets the string name associated with the data.
+	template<typename G>
+	const char* get_op_name(DynamicVariable<NamedData<G*>> const& a)
+	{
+		char* s = std::strstr(a.data.name, "%d");
+		if (s != NULL)
+		{
+			static len_type start = a.start();
+			static len_type end = a.end();
+			static char** str = symphas::internal::format_dynamic_op_name(a.data.data, a.data.name, a);
+
+			if (a.index() > end || a.index() < start)
+			{
+				for (iter_type i = start; i <= end; ++i)
+				{
+					delete[] str[i];
+				}
+				delete[] str;
+
+				start = std::min(start, a.index());
+				end = std::max(end, a.index());
+				str = symphas::internal::format_dynamic_op_name(a.data.data, a.data.name, DynamicIndex(0, start, end));
+			}
+
+			return str[a.index()];
+		}
+		else
+		{
+			return a.data.name;
+		}
+	}
+}
+
+
 
 

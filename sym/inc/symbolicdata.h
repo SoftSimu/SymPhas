@@ -221,7 +221,6 @@ namespace expr
 			}
 
 
-
 			template<typename E>
 			auto operator>(E) const;
 			template<typename E>
@@ -247,35 +246,6 @@ namespace expr
 
 	}
 
-}
-
-
-template<int N, int P>
-template<typename E>
-auto expr::symbols::i_<N, P>::operator>=(E) const
-{
-	return this->operator=(E{});
-}
-
-template<int N, int P>
-template<typename E>
-auto expr::symbols::i_<N, P>::operator>(E) const
-{
-	return this->operator>(E{} + OpIdentity{});
-}
-
-template<int N, int P>
-template<typename E>
-auto expr::symbols::i_<N, P>::operator<=(E) const
-{
-	return this->operator=(OpIdentity{}) && this->operator=(E{});
-}
-
-template<int N, int P>
-template<typename E>
-auto expr::symbols::i_<N, P>::operator<(E) const
-{
-	return this->operator<=(E{} - OpIdentity{});
 }
 
 
@@ -307,6 +277,35 @@ auto operator&&(expr::symbols::index_eq_N<I0, N0>, expr::symbols::index_eq_N<I0,
 	return symphas::lib::types_list<index_eq_N<I0, N0>, index_eq_N<I0, N1>>{};
 }
 
+
+
+template<int N, int P>
+template<typename E>
+auto expr::symbols::i_<N, P>::operator>=(E) const
+{
+	return this->operator=(E{});
+}
+
+template<int N, int P>
+template<typename E>
+auto expr::symbols::i_<N, P>::operator>(E) const
+{
+	return this->operator>(E{} + OpIdentity{});
+}
+
+template<int N, int P>
+template<typename E>
+auto expr::symbols::i_<N, P>::operator<=(E) const
+{
+	return this->operator=(OpIdentity{}) && this->operator=(E{});
+}
+
+template<int N, int P>
+template<typename E>
+auto expr::symbols::i_<N, P>::operator<(E) const
+{
+	return this->operator<=(E{} - OpIdentity{});
+}
 
 DEFINE_SYMBOL_ID((size_t N), (expr::symbols::arg_t<N>), static char* name = expr::print_with_subscript<N>("arg").new_str(); return name;)
 ALLOW_COMBINATION((size_t N), (expr::symbols::arg_t<N>))
@@ -847,6 +846,31 @@ public:
 	}
 
 	len_type len;
+};
+
+//! Stores a list data that is used symbolically.
+/*!
+ * A list of data can be stored symbolically in an expression so that the expression can operate
+ * over multiple instances of a particular data, which can also be updated outside the expression.
+ * In other cases, set values can be passed, which will be copied into the SymbolicDataArray
+ * object and managed locally.
+ *
+ * In order to hold a copy, a reference to a data must be passed using std::ref().
+ */
+template<typename T>
+struct SymbolicDataArray<NamedData<T*>> : SymbolicDataArray<T>
+{
+	using parent_type = SymbolicDataArray<T>;
+	using parent_type::parent_type;
+
+	//! Takes a copy of the data and manages it locally within the SymbolicData.
+	SymbolicDataArray(len_type len) : parent_type(len) {}
+
+	//! Takes a copy of the data and manages it locally within the SymbolicData.
+	SymbolicDataArray(NamedData<T*> data, len_type len, bool is_local = true) :
+		parent_type(data.data, len, is_local), name{ data.name } {}
+
+	expr::expr_name_arr<> name;
 };
 
 namespace symphas::internal

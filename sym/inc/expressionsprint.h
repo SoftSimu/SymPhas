@@ -39,10 +39,6 @@
 #endif
 //! \endcond
 
-template<typename Sp>
-struct Solver;
-
-
 namespace symphas::internal
 {
 
@@ -80,8 +76,16 @@ namespace expr
 
 		expr_name_arr(len_type len = 0) :
 			value{ (len > 0) ? new char[len] {} : nullptr } {}
+		expr_name_arr(const char* value) :
+			value{ (std::strlen(value) > 0) ? new char[std::strlen(value) + 1] {} : nullptr} 
+		{
+			if (this->value != nullptr)
+			{
+				std::strcpy(this->value, value);
+			}
+		}
 		expr_name_arr(expr_name_arr<0> const& other) :
-			expr_name_arr((other.value != nullptr) ? len_type(std::strlen(other.value)) : 0)
+			expr_name_arr((other.value != nullptr) ? len_type(std::strlen(other.value) + 1) : 0)
 		{
 			if (value != nullptr)
 			{
@@ -116,7 +120,7 @@ namespace expr
 			return value;
 		}
 
-		char* new_str()
+		char* new_str() const
 		{
 			char* name = new char[std::strlen(value) + 1];
 			std::strcpy(name, value);
@@ -130,6 +134,7 @@ namespace expr
 	};
 
 	expr_name_arr(len_type)->expr_name_arr<0>;
+	expr_name_arr(const char*)->expr_name_arr<0>;
 
 }
 
@@ -434,8 +439,9 @@ static constexpr size_t print_length(wrap_f<&symphas::math:: F <typename expr::e
 
 //! \endcond
 
-
 // ************************************************************************************
+
+
 namespace expr
 {
 
@@ -547,48 +553,83 @@ namespace expr
 		}
 	}
 
+
 	//! Gets the string name associated with the data.
-	template<typename T>
-	const char* get_op_name(T* ptr)
+	inline char*& get_op_name_reference(const void* ptr)
 	{
 		if (!ptr)
 		{
-			return "?";
+			auto get_none_name = [&] (const char* name)
+			{
+				char* none_name = new char[std::strlen(name) + 1];
+				std::strcpy(none_name, name);
+				return none_name;
+			};
+
+			static char* none = get_none_name("?");
+			return none;
 		}
 		else
 		{
-			const void* ptr_cmp = static_cast<const void*>(ptr);
+			static size_t NAME_PTR_POS = 0;
+			static std::vector<const void*> name_ptrs;
+			static std::vector<char*> more_names;
+			
 			constexpr size_t MAX_NAME_COUNT = sizeof(VARIABLE_NAMES) / sizeof(*VARIABLE_NAMES);
+
+			auto copy_var_names = [&] () 
+			{
+				char** variable_names = new char*[MAX_NAME_COUNT];
+				for (iter_type i = 0; i < MAX_NAME_COUNT; ++i)
+				{
+					variable_names[i] = new char[std::strlen(VARIABLE_NAMES[i]) + 1];
+					std::strcpy(variable_names[i], VARIABLE_NAMES[i]);
+				}
+				return variable_names;
+			};
+
+			static char** variable_names = copy_var_names();
 
 			for (iter_type i = 0; i < NAME_PTR_POS; ++i)
 			{
-				if (NAME_PTRS[i] == ptr_cmp)
+				if (name_ptrs[i] == ptr)
 				{
 					if (i < MAX_NAME_COUNT)
 					{
-						return VARIABLE_NAMES[i];
+						return variable_names[i];
 					}
 					else
 					{
-						return MORE_NAMES[i - MAX_NAME_COUNT];
+						return more_names[i - MAX_NAME_COUNT];
 					}
 				}
 			}
-			NAME_PTRS.push_back(ptr_cmp);
+			name_ptrs.push_back(ptr);
 
 			if (NAME_PTR_POS < MAX_NAME_COUNT)
 			{
-				return VARIABLE_NAMES[NAME_PTR_POS++];
+				return variable_names[NAME_PTR_POS++];
 			}
 			else
 			{
 				char* name = new char[BUFFER_LENGTH_R4];
 				snprintf(name, BUFFER_LENGTH_R4, VARIABLE_NAME_EXTRA_FMT, NAME_PTR_POS);
-				MORE_NAMES.push_back(name);
-				return MORE_NAMES[NAME_PTR_POS++ - MAX_NAME_COUNT];
+				more_names.push_back(name);
+				return more_names[NAME_PTR_POS++ - MAX_NAME_COUNT];
 			}
 		}
 	}
+
+	//! Gets the string name associated with the data.
+	template<typename T>
+	const char* get_op_name(T* ptr)
+	{
+		return get_op_name_reference(static_cast<const void*>(ptr));
+	}
+
+	//! Gets the string name associated with the data.
+	template<typename G>
+	const char* get_op_name(DynamicVariable<NamedData<G*>> const& a);
 
 }
 
@@ -706,7 +747,8 @@ namespace symphas::internal
 
 	template<size_t O, Axis ax, bool is_directional>
 	struct print_deriv
-	{		//! Print the derivative the given order to a file.
+	{		
+		//! Print the derivative the given order to a file.
 		/*!
 		 * Print the derivative of the given order, and formatted using the order.
 		 *

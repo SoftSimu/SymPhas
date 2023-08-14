@@ -49,350 +49,6 @@ namespace expr
 	namespace prune {}
 }
 
-namespace expr::prune
-{
-	template<typename E>
-	void update(E& e);
-
-	namespace
-	{
-		inline void _update(...) {}
-
-		template<typename E>
-		void _update(OpExpression<E>& e) {}
-		template<typename T>
-		void _update(Block<T>&) {}
-		template<size_t N, typename T>
-		void _update(MultiBlock<N, T>&) {}
-
-		template<typename V, typename E>
-		void _update(OpExponential<V, E>& e);
-		template<expr::exp_key_t X, typename V, typename E>
-		void _update(OpPow<X, V, E>& e);
-		template<typename V, typename E, typename F, typename... Args>
-		void _update(OpFunction<V, E, F, Args...>& e);
-		template<auto f, typename V, typename E>
-		void _update(OpFunctionApply<f, V, E>& e);
-		template<typename G, typename V, typename E>
-		void _update(OpMap<G, V, E>& e);
-		template<typename V, typename E1, typename E2>
-		void _update(OpConvolution<V, E1, E2>& e);
-		template<typename V, size_t D, typename E>
-		void _update(OpConvolution<V, GaussianSmoothing<D>, E>& e);
-		template<typename V, size_t D, typename G>
-		void _update(OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>& e);
-		template<typename Dd, typename V, typename G, typename Sp>
-		void _update(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp>&);
-		template<typename Dd, typename V, typename E, typename Sp>
-		void _update(OpDerivative<Dd, V, E, Sp>& e);
-		template<typename V, typename E, typename T>
-		void _update(OpIntegral<V, E, T>& e);
-		template<typename... Es>
-		void _update(OpAdd<Es...>& e);
-		template<typename A1, typename A2>
-		void _update(OpBinaryMul<A1, A2>& e);
-		template<typename A1, typename A2>
-		void _update(OpBinaryDiv<A1, A2>& e);
-		template<typename A1, typename A2, typename E>
-		void _update(OpCombination<A1, A2, E>& e);
-		template<typename A1, typename A2>
-		void _update(OpOperatorCombination<A1, A2>& e);
-		template<typename A1, typename A2, typename E>
-		void _update(OpChain<A1, A2, E>& e);
-		template<typename A1, typename A2>
-		void _update(OpOperatorChain<A1, A2>& e);
-
-		template<typename V, typename sub_t, typename eval_t>
-		void _update(OpSymbolicEval<V, sub_t, eval_t>& e);
-		template<typename E, typename... Ts>
-		void _update(SymbolicFunction<E, Ts...>& e);
-		//template<typename Op, typename E, typename Inds>
-		//void _update(SymbolicSeries<Op, E, Inds>& e);
-		//template<typename Op, typename... Ts, typename E, int... I0s, int... P0s,
-		//	typename... T1s, typename... T2s, typename... Is>
-		//void _update(SymbolicSeries<Op, Substitution<SymbolicDataArray<Ts>...>,
-		//	symphas::lib::types_list<E,
-		//		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
-		//		symphas::lib::types_list<expr::series_limits<T1s, T2s>...>,
-		//		symphas::lib::types_list<expr::symbols::v_id_type<Is>...>
-		//	>>& e);
-
-		template<typename... Ts>
-		void _update(OpTerms<Ts...>& e);
-
-		template<typename G, expr::exp_key_t X>
-		void _update(Term<G, X>& e);
-		//template<typename... Ts>
-		//void _update(SymbolicCase<Ts...>& e);
-		//template<size_t Z, typename G>
-		//void _update(Variable<Z, G>& e);
-		//template<typename G>
-		//void _update(NamedData<G>& e);
-		//template<Axis ax, typename G>
-		//void _update(VectorComponent<ax, G>& e);
-		//template<typename G>
-		//void _update(symphas::ref<G>& e);
-
-
-		template<expr::NoiseType nt, typename T, size_t D>
-		void _update(NoiseData<nt, T, D>& e);
-		template<typename T>
-		void _update(SymbolicData<T>&);
-
-		template<typename V, typename E>
-		void _update(OpExponential<V, E>& e)
-		{
-			_update(expr::get_enclosed_expression(e));
-		}
-
-		template<expr::exp_key_t X, typename V, typename E>
-		void _update(OpPow<X, V, E>& e)
-		{
-			_update(expr::get_enclosed_expression(e));
-		}
-
-		template<typename V, typename E1, typename E2>
-		void _update(OpConvolution<V, E1, E2>& e)
-		{
-			_update(e.a);
-			_update(e.b);
-			e.update();
-		}
-
-		template<typename V, typename E, typename F, typename... Args>
-		void _update(OpFunction<V, E, F, Args...>& e)
-		{
-			_update(expr::get_enclosed_expression(e));
-		}
-
-		template<auto f, typename V, typename E>
-		void _update(OpFunctionApply<f, V, E>& e)
-		{
-			_update(expr::get_enclosed_expression(e));
-		}
-
-		template<typename V, size_t D, typename E>
-		void _update(OpConvolution<V, GaussianSmoothing<D>, E>& e)
-		{
-			_update(expr::get_enclosed_expression(e));
-			e.update();
-		}
-
-		template<typename V, size_t D, typename G>
-		void _update(OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>& e)
-		{
-			e.update();
-		}
-
-
-		template<typename V, typename sub_t, typename eval_t>
-		void _update(OpSymbolicEval<V, sub_t, eval_t>& e)
-		{
-			_update(e.f);
-			e.update();
-		}
-
-		template<typename E, typename... Ts>
-		void _update(SymbolicFunction<E, Ts...>& e)
-		{
-			_update(e.e);
-		}
-
-		//template<typename Op, typename E, typename Inds>
-		//void _update(SymbolicSeries<Op, E, Inds>& e) {}
-
-		//template<typename Op, typename... Ts, typename E, int... I0s, int... P0s,
-		//	typename... T1s, typename... T2s, typename... Is>
-		//void _update(SymbolicSeries<Op, Substitution<SymbolicDataArray<Ts>...>,
-		//	symphas::lib::types_list<E,
-		//		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
-		//		symphas::lib::types_list<expr::series_limits<T1s, T2s>...>,
-		//		symphas::lib::types_list<expr::symbols::v_id_type<Is>...>
-		//	>>& e)
-		//{
-		//	//e.update();
-		//}
-
-		/* derivative pruning
-		 */
-
-		template<size_t O, typename V, typename E, typename G>
-		void _update(OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G>>& e) {}
-
-		template<typename Dd, typename V, typename G, typename Sp>
-		void _update(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp>& e)
-		{
-			e.update();
-		}
-
-		template<typename Dd, typename V, typename E, typename Sp>
-		void _update(OpDerivative<Dd, V, E, Sp>& e)
-		{
-			e.update();
-		}
-
-
-		template<typename V, typename E, typename T>
-		void _update(OpIntegral<V, E, T>& e)
-		{
-			expr::prune::update(expr::get_enclosed_expression(e));
-			e.update();
-		}
-
-		/* binary op pruning
-		 */
-
-		template<typename... Es, size_t... Is>
-		void _update(OpAddList<Es...>& e, std::index_sequence<Is...>)
-		{
-			(_update(expr::get<Is>(e)), ...);
-		}
-
-		template<typename... Es>
-		void _update(OpAdd<Es...>& e)
-		{
-			_update(*static_cast<OpAddList<Es...>*>(&e), std::make_index_sequence<sizeof...(Es)>{});
-		}
-
-		template<typename A1, typename A2>
-		void _update(OpBinaryMul<A1, A2>& e)
-		{
-			_update(e.a);
-			_update(e.b);
-		}
-
-		template<typename A1, typename A2>
-		void _update(OpBinaryDiv<A1, A2>& e)
-		{
-			_update(e.a);
-			_update(e.b);
-		}
-
-		/* operator pruning
-		 */
-
-		template<typename A1, typename A2>
-		void _update(OpOperatorCombination<A1, A2>& e)
-		{
-			_update(e.f);
-			_update(e.g);
-		}
-
-		template<typename A1, typename A2, typename E>
-		void _update(OpCombination<A1, A2, E>& e)
-		{
-			//_update(e.combination);
-			//_update(expr::get_enclosed_expression(e));
-			//if constexpr (expr::has_state<E>::value)
-			//{
-			//}
-			e.update();
-		}
-
-		template<typename A1, typename A2>
-		void _update(OpOperatorChain<A1, A2>& e)
-		{
-			_update(e.f);
-			_update(e.g);
-		}
-
-		template<typename A1, typename A2, typename E>
-		void _update(OpChain<A1, A2, E>& e)
-		{
-			//_update(e.combination);
-			//if constexpr (expr::has_state<E>::value)
-			//{
-			//	_update(expr::get_enclosed_expression(e));
-			//}
-			e.update();
-		}
-
-		template<typename G, typename V, typename E>
-		void _update(OpMap<G, V, E>& e)
-		{
-			_update(expr::get_enclosed_expression(e));
-			e.update();
-		}
-
-		template<typename... Ts, size_t... Is>
-		void _update(OpTermsList<Ts...>& e, std::index_sequence<Is...>)
-		{
-			(_update(expr::get<Is>(e)), ...);
-		}
-
-		template<typename... Ts>
-		void _update(OpTerms<Ts...>& e)
-		{
-			//_update(*static_cast<OpTermsList<Ts...>*>(&e), std::make_index_sequence<sizeof...(Ts)>{});
-		}
-
-
-		template<typename G, expr::exp_key_t X>
-		void _update(Term<G, X>& e)
-		{
-			//_update(e.data());
-		}
-
-		template<typename... Ts>
-		void _update(SymbolicCase<Ts...>& e) {}
-
-        //template<size_t Z, typename G>
-        //void _update(Variable<Z, G>& e)
-        //{
-        //    _update(*static_cast<G*>(&e));
-        //}
-
-        //template<typename G>
-        //void _update(NamedData<G>& e)
-        //{
-        //    _update(*static_cast<G*>(&e));
-        //}
-
-        //template<Axis ax, typename G>
-        //void _update(VectorComponent<ax, G>& e)
-        //{
-        //    _update(*static_cast<G*>(&e));
-        //}
-
-        //template<typename G>
-        //void _update(symphas::ref<G>& e)
-        //{
-        //    _update(e.get());
-        //}
-
-        //template<expr::NoiseType nt, typename T, size_t D>
-        //void _update(NoiseData<nt, T, D>& data)
-        //{
-        //    data.update();
-        //}
-
-   //     template<typename T>
-   //     void _update(SymbolicData<T>& data)
-   //     {
-			//if (data.data != nullptr)
-			//{
-			//	_update(*data.data);
-			//}
-   //     }
-
-	}
-
-	//! Update underlying the given expression.
-	/*!
-	 * For expressions which store intermediate data, such as derivatives, this
-	 * data must be updated before the expression can be evaluated. This will
-	 * traverse the expression tree and perform all necessary updating.
-	 * 
-	 * \param e The expression that is updated.
-	 */
-	template<typename E>
-	void update(E& e)
-	{
-		_update(e);
-	}
-
-}
-
 
 // ******************************************************************************************
 
@@ -766,6 +422,11 @@ namespace expr
 	template<size_t O, typename V, typename E1, typename E2, typename G>
 	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpBinaryMul<E1, E2>, SymbolicDerivative<G>> const& e);
 
+	//! Implementation of the product rule for symbolic derivatives.
+	template<size_t O, typename V, typename A1, typename E, typename G, std::enable_if_t<expr::is_coeff<A1>, int> = 0>
+	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpChain<A1, OpIdentity, E>, SymbolicDerivative<G>> const& e);
+
+
 	template<typename V, typename V1, typename E, typename Dd, typename Sp>
 	auto apply_operators(OpDerivative<std::index_sequence<1>, V, OpDerivative<Dd, V1, E, Sp>, SymbolicDerivative<OpDerivative<Dd, OpIdentity, E, Sp>>> const& e)
 	{
@@ -893,13 +554,16 @@ namespace expr
 		auto expr = expr::get_enclosed_expression(e);
 		return expr::coeff(e) * handle_apply_mul<std::index_sequence<O>>(e.solver, apply_operators(expr.a), apply_operators(expr.b));
 
-		//auto expr = expr::get_enclosed_expression(e);
-		//auto a = apply_operators(expr.a);
-		//auto b = apply_operators(expr.b);
-		//
-		//auto lhs = apply_operators(expr::make_derivative<O, G>(a, e.solver) * b);
-		//auto rhs = apply_operators(a * expr::make_derivative<O, G>(b, e.solver));
-		//return expr::coeff(e) * (lhs + rhs);
+	}
+
+
+	//! Implementation of the product rule for symbolic derivatives.
+	template<size_t O, typename V, typename A1, typename E, typename G, std::enable_if_t<expr::is_coeff<A1>, int>>
+	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpChain<A1, OpIdentity, E>, SymbolicDerivative<G>> const& e)
+	{
+		auto expr = expr::get_enclosed_expression(e);
+		auto applied = apply_operators(expr::make_derivative<O, G>(expr::get_enclosed_expression(expr), e.solver));
+		return OpOperatorChain(expr::coeff(e) * expr.combination.f, OpIdentity{})(applied);
 	}
 
 	//! Implementation of the product rule.
@@ -1067,6 +731,13 @@ namespace expr
 		auto apply_operators_chain(OpChain<A1, A2, E> const& e)
 		{
 			return apply_operators(expr::expand_operator(e.combination, expr::get_enclosed_expression(e)));
+		}
+
+		template<typename V, typename E>
+		auto apply_operators_chain(OpChain<V, OpIdentity, E> const& e)
+		{
+			return OpChain(OpOperatorChain(apply_operators(e.combination.f), OpIdentity{}), 
+				apply_operators(expr::get_enclosed_expression(e)));
 		}
 
 		template<typename A1, typename A2, typename E,
@@ -1639,6 +1310,12 @@ namespace expr
 		{
 			return apply_operators(a * *static_cast<E2 const*>(&b));
 		}
+
+		template<typename V, typename E1, typename E2>
+		auto apply_operators_mul(OpOperator<E1> const& a, OpChain<V, OpIdentity, E2> const& b)
+		{
+			return b.combination.f * apply_operators((*static_cast<E1 const*>(&a)) * expr::get_enclosed_expression(b));
+		}
 	}
 
 
@@ -1701,7 +1378,7 @@ namespace expr
 	{
 		constexpr size_t D = expr::grid_dim<G>::value;
 
-		auto interface_term = euler_lagrange_deriv<G, D>(*static_cast<E const*>(&e), solver);
+		auto interface_term = euler_lagrange_deriv<DynamicVariable<G>, D>(*static_cast<E const*>(&e), solver);
 		auto bulk_term = expr::apply_operators(expr::make_derivative<1, DynamicVariable<G>>(*static_cast<E const*>(&e), symbol.index));
 		return bulk_term - interface_term;
 		//using swap_t = GridSymbol<expr::eval_type_t<G>, D>;
@@ -3853,7 +3530,7 @@ namespace expr::transform
 	template<typename Sg, int N, int P, typename G_F>
 	auto swap_grid(expr::symbols::i_<N, P> const& e, G_F&& g)
 	{
-		return swap_index<Sg>{}(e, std::forward<G_F>(g) + val<P>);
+		return swap_index<Sg>{}(e, std::forward<G_F>(g) + DynamicIndex(P));
 	}
 
 	template<typename Sg, typename G_F>
@@ -4039,7 +3716,7 @@ namespace expr::transform
 	template<typename Sg, typename A1, typename A2, typename E, typename G_F>
 	auto swap_grid(OpChain<A1, A2, E> const& e, G_F&& g)
 	{
-		return e.combination * swap_grid<Sg>(expr::get_enclosed_expression(e), std::forward<G_F>(g));
+		return swap_grid<Sg>(e.combination, std::forward<G_F>(g))(swap_grid<Sg>(expr::get_enclosed_expression(e), std::forward<G_F>(g)));
 	}
 
 	template<typename Sg, typename A1, typename A2, typename G_F>
@@ -4051,7 +3728,7 @@ namespace expr::transform
 	template<typename Sg, typename A1, typename A2, typename E, typename G_F>
 	auto swap_grid(OpCombination<A1, A2, E> const& e, G_F&& g)
 	{
-		return e.combination * swap_grid<Sg>(expr::get_enclosed_expression(e), std::forward<G_F>(g));
+		return swap_grid<Sg>(e.combination, std::forward<G_F>(g))(swap_grid<Sg>(expr::get_enclosed_expression(e), std::forward<G_F>(g)));
 	}
 
 	template<typename Sg, typename Dd, typename V, typename E, typename Sp, typename G_F>
@@ -6232,7 +5909,6 @@ namespace expr::split
 		return separate_operator<Axis::X, 0>(e);
 	}
 
-
 	// **************************************************************************************
 
 
@@ -6853,7 +6529,753 @@ namespace expr::split
 	{
 		return factor_list<Variable<Z0>, Variable<Zs>...>(*static_cast<const E*>(&e));
 	}
+
+
+
 }
+
+namespace symphas::internal
+{
+
+	template<typename expression_condition_t>
+	struct expression_condition_impl
+	{
+
+		using this_type = expression_condition_impl<expression_condition_t>;
+
+		template<typename... Es>
+		auto operator()(OpAddList<Es...> const& e) const
+		{
+			return this_type{};
+		}
+
+		template<typename... Gs>
+		auto operator()(OpTermsList<Gs...> const& e) const
+		{
+			return this_type{};
+		}
+
+		template<typename... Es>
+		auto operator()(OpAdd<Es...> const& e) const
+		{
+			return this_type{};
+		}
+
+		template<typename... Gs>
+		auto operator()(OpTerms<Gs...> const& e) const
+		{
+			return this_type{};
+		}
+
+		template<typename E>
+		auto operator()(OpExpression<E> const& e) const
+		{
+			return this_type{};
+		}
+
+		template<typename E>
+		auto operator()(OpOperator<E> const& e) const
+		{
+			return this_type{};
+		}
+
+		template<typename E>
+		auto get_value() const
+		{
+			return cast().operator()(E{});
+		}
+
+		expression_condition_t& cast()
+		{
+			return *static_cast<expression_condition_t*>(this);
+		}
+
+		const expression_condition_t& cast() const
+		{
+			return *static_cast<expression_condition_t const*>(this);
+		}
+
+		template<typename E>
+		using type = std::invoke_result_t<decltype(&this_type::template get_value<E>), this_type>;
+
+		template<typename E>
+		static const bool value = !std::is_same<type<E>, this_type>::value;
+
+	};
+
+	template<typename... expression_condition_ts>
+	struct not_expression_condition {};
+	
+	template<typename... expression_condition_ts>
+	struct and_expression_condition {};
+
+	template<typename... expression_condition_ts>
+	struct or_expression_condition {};
+
+	template<typename E, typename expression_condition_t>
+	constexpr bool expression_satisfies_condition = expression_condition_t::template value<E>;
+
+	template<typename E>
+	constexpr bool expression_satisfies_condition<E, void> = false;
+
+	template<typename E, typename... expression_condition_ts>
+	constexpr bool expression_satisfies_condition<E, not_expression_condition<expression_condition_ts...>> = 
+		(!expression_satisfies_condition<E, expression_condition_ts> && ... && true);
+
+	template<typename E, typename... expression_condition_ts>
+	constexpr bool expression_satisfies_condition<E, and_expression_condition<expression_condition_ts...>> =
+		(expression_satisfies_condition<E, expression_condition_ts> && ... && true);
+
+	template<typename E, typename... expression_condition_ts>
+	constexpr bool expression_satisfies_condition<E, or_expression_condition<expression_condition_ts...>> =
+		(expression_satisfies_condition<E, expression_condition_ts> || ... || (sizeof...(expression_condition_ts) == 0));
+
+}
+
+
+
+// **************************************************************************************
+// Split an expression into groups for evaluating by individual regions
+// **************************************************************************************
+
+namespace expr
+{
+	template<typename condition_t>
+	using expr_cond = symphas::internal::expression_condition_impl<condition_t>;
+	template<typename... condition_ts>
+	using not_ = symphas::internal::not_expression_condition<condition_ts...>;
+	template<typename... condition_ts>
+	using and_ = symphas::internal::and_expression_condition<condition_ts...>;
+	template<typename... condition_ts>
+	using or_ = symphas::internal::or_expression_condition<condition_ts...>;
+
+	template<typename E, typename expression_condition_t>
+	constexpr bool satisfies = symphas::internal::expression_satisfies_condition<E, expression_condition_t>;
+
+
+
+	struct matches_any : expr_cond<matches_series>
+	{
+		template<typename E>
+		auto operator()(OpExpression<E> const& e) const
+		{
+			return matches_any{};
+		}
+	};
+
+	struct matches_series : expr_cond<matches_series>
+	{
+		using expr_cond<matches_series>::operator();
+		template<typename V0, typename E, typename... Ts, int... I0s, int... P0s, typename A, typename B, typename... Vs>
+		auto operator()(OpSum<V0, E,
+			Substitution<SymbolicDataArray<Ts>...>,
+			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
+			A, B, symphas::lib::types_list<Vs...>> const& sum) const
+		{
+			return matches_series{};
+		}
+	};
+
+	struct matches_mul : expr_cond<matches_mul>
+	{
+		using expr_cond<matches_mul>::operator();
+		template<typename A, typename B>
+		auto operator()(OpBinaryMul<A, B> const& e) const
+		{
+			return matches_mul{};
+		}
+	};
+
+	struct matches_div : expr_cond<matches_div>
+	{
+		using expr_cond<matches_div>::operator();
+		template<typename A, typename B>
+		auto operator()(OpBinaryDiv<A, B> const& e) const
+		{
+			return matches_div{};
+		}
+	};
+
+	struct matches_term : expr_cond<matches_term>
+	{
+		using expr_cond<matches_term>::operator();
+		template<typename V, typename... Gs, expr::exp_key_t... Xs>
+		auto operator()(OpTerms<V, Term<Gs, Xs>...> const& e) const
+		{
+			return matches_term{};
+		}
+	};
+
+	struct matches_integral : expr_cond<matches_integral>
+	{
+		using expr_cond<matches_integral>::operator();
+		template<typename V, typename E, typename T>
+		auto operator()(OpIntegral<V, E, T> const& e) const
+		{
+			return matches_integral{};
+		}
+	};
+
+	struct matches_derivative : expr_cond<matches_derivative>
+	{
+		using expr_cond<matches_derivative>::operator();
+		template<typename Dd, typename V, typename E, typename Sp>
+		auto operator()(OpDerivative<Dd, V, E, Sp> const& e) const
+		{
+			return matches_derivative{};
+		}
+	};
+
+	struct matches_operator : expr_cond<matches_operator>
+	{
+		using expr_cond<matches_operator>::operator();
+		template<typename E>
+		auto operator()(OpOperator<E> const& e) const
+		{
+			return matches_operator{};
+		}
+	};
+
+	template<typename matches_t, typename A, typename B>
+	struct matching_in_mul_apply
+	{
+		static const bool value = 
+			symphas::internal::expression_satisfies_condition<A, matches_t> 
+			|| symphas::internal::expression_satisfies_condition<B, matches_t>;
+	};
+
+	template<typename matches_t, typename A, typename B, typename C>
+	struct matching_in_mul_apply<matches_t, A, OpBinaryMul<B, C>>
+	{
+		static const bool value = symphas::internal::expression_satisfies_condition<A, matches_t> || matching_in_mul_apply<matches_t, B, C>::value;
+	};
+
+	template<typename matches_t, typename A, typename B, typename C>
+	struct matching_in_mul_apply<matches_t, OpBinaryMul<A, B>, C>
+	{
+		static const bool value = matching_in_mul_apply<matches_t, A, B>::value || symphas::internal::expression_satisfies_condition<C, matches_t>;
+	};
+
+	template<typename matches_t, typename A, typename B, typename C, typename D>
+	struct matching_in_mul_apply<matches_t, OpBinaryMul<A, B>, OpBinaryMul<C, D>>
+	{
+		static const bool value = matching_in_mul_apply<matches_t, A, B>::value || matching_in_mul_apply<matches_t, C, D>::value;
+	};
+
+	template<typename matches_t>
+	struct matching_in_mul : expr_cond<matching_in_mul<matches_t>>
+	{
+		using expr_cond<matching_in_mul<matches_t>>::operator();
+		template<typename A, typename B>
+		auto operator()(OpBinaryMul<A, B> const& e) const
+		{
+			if constexpr (matching_in_mul_apply<matches_t, A, B>::value)
+			{
+				return matches_operator{};
+			}
+			else
+			{
+				return expr_cond<matching_in_mul<matches_t>>::operator()(OpVoid{});
+			}
+		}
+	};
+
+;
+
+	// I can introduce other criteria for terms like, is linear, or is operator
+}
+
+namespace expr::split
+{
+	template<typename... condition_ts, typename E>
+	auto separate_by(OpExpression<E> const& e)
+	{
+		using namespace symphas::internal;
+		if constexpr ((expression_satisfies_condition<E, condition_ts> || ... || false))
+		{
+			return pack_left(*static_cast<E const*>(&e));
+		}
+		else
+		{
+
+			return pack_right(*static_cast<E const*>(&e));
+		}
+	}
+
+	template<typename... condition_ts, typename... Es, size_t... Is>
+	auto separate_by(OpAdd<Es...> const& e, std::index_sequence<Is...>)
+	{
+		return adds_expand_pair(separate_by<condition_ts...>(expr::get<Is>(e))...);
+	}
+
+	template<typename... condition_ts, typename... Es>
+	auto separate_by(OpAdd<Es...> const& e)
+	{
+		return separate_by<condition_ts...>(e, std::make_index_sequence<sizeof...(Es)>{});
+	}
+
+	template<typename... condition_ts, typename E>
+	auto filter(OpExpression<E> const& e)
+	{
+		using namespace symphas::internal;
+		if constexpr ((expression_satisfies_condition<E, condition_ts> || ... || false))
+		{
+			return *static_cast<E const*>(&e);
+		}
+		else
+		{
+
+			return OpVoid{};
+		}
+	}
+
+	template<typename... condition_ts, typename... Es, size_t... Is>
+	auto filter(OpAdd<Es...> const& e, std::index_sequence<Is...>)
+	{
+		return (filter<condition_ts...>(expr::get<Is>(e)) + ...);
+	}
+
+	template<typename... condition_ts, typename... Es>
+	auto filter(OpAdd<Es...> const& e)
+	{
+		return filter<condition_ts...>(e, std::make_index_sequence<sizeof...(Es)>{});
+	}
+}
+
+namespace expr
+{
+
+
+
+	template<typename E>
+	auto result_sum_by_term(OpExpression<E> const& e, grid::region_interval<0> const& interval)
+	{
+		return result_sum_by_term(*static_cast<E const*>(&e), 1);
+	}
+
+	template<typename E, size_t D>
+	auto result_sum_by_term(OpExpression<E> const& e, grid::region_interval<D> const& interval)
+	{
+		auto group = std::reduce(
+#ifdef EXECUTION_HEADER_AVAILABLE
+			std::execution::par_unseq,
+#endif
+			static_cast<const E*>(&e)->begin(symphas::it_reg, interval),
+			static_cast<const E*>(&e)->end(symphas::it_reg, interval));
+		return group;
+	}
+
+	template<typename E, size_t D>
+	auto result_sum_by_term(OpExpression<E> const& e, grid::region_interval_multiple<D> const& regions)
+	{
+		expr::eval_type_t<E> sum{};
+		for (grid::region_interval<D> region : regions)
+		{
+			sum += result_sum_by_term(*static_cast<E const*>(&e), region);
+		}
+		return sum;
+	}
+
+
+
+
+	//! Accumulates the result if the given expression matches the condition.
+	template<typename condition_t, typename... condition_ts, typename E, typename assign_type>
+	void result_of_matching(OpExpression<E> const& e, assign_type&& data)
+	{
+		using namespace symphas::internal;
+		if constexpr ((expression_satisfies_condition<E, condition_ts> || ... || expression_satisfies_condition<E, condition_t>))
+		{
+			result_accumulate(*static_cast<E const*>(&e), std::forward<assign_type>(data));
+		}
+	}
+
+	//! Accumulates the result if the given expression matches the condition.
+	template<typename condition_t, typename... condition_ts, typename... Es, typename assign_type, size_t... Is>
+	void result_of_matching(OpAdd<Es...> const& e, assign_type&& data, std::index_sequence<Is...>)
+	{
+		(result_of_matching(expr::get<Is>(e), std::forward<assign_type>(data)), ...);
+	}
+
+	//! Accumulates the result if the given expression matches the condition.
+	template<typename condition_t, typename... condition_ts, typename... Es, typename assign_type>
+	void result_of_matching(OpAdd<Es...> const& e, assign_type&& data)
+	{
+		result_of_matching(e, std::forward<assign_type>(data), std::make_index_sequence<sizeof...(Es)>{});
+	}
+
+	//! Accumulates the result if the given expression matches the condition.
+	template<typename condition_t, typename... condition_ts, typename E, typename assign_type, typename region_type>
+	void result_of_matching(OpExpression<E> const& e, assign_type&& data, region_type&& region)
+	{
+		using namespace symphas::internal;
+		if constexpr ((expression_satisfies_condition<E, condition_ts> || ... || expression_satisfies_condition<E, condition_t>))
+		{
+			result_accumulate(*static_cast<E const*>(&e), std::forward<assign_type>(data), std::forward<region_type>(region));
+		}
+	}
+
+	//! Accumulates the result if the given expression matches the condition.
+	template<typename condition_t, typename... condition_ts, typename... Es, typename assign_type, typename region_type, size_t... Is>
+	void result_of_matching(OpAdd<Es...> const& e, assign_type&& data, region_type&& region, std::index_sequence<Is...>)
+	{
+		(result_of_matching(expr::get<Is>(e), std::forward<assign_type>(data), std::forward<region_type>(region)), ...);
+	}
+
+	//! Accumulates the result if the given expression matches the condition.
+	template<typename condition_t, typename... condition_ts, typename... Es, typename assign_type, typename region_type>
+	void result_of_matching(OpAdd<Es...> const& e, assign_type&& data, region_type&& region)
+	{
+		result_of_matching(e, std::forward<assign_type>(data), std::forward<region_type>(region), std::make_index_sequence<sizeof...(Es)>{});
+	}
+
+
+	//! Accumulates the result if the given expression matches the condition.
+	template<typename condition_t, typename... condition_ts, typename E, typename region_type>
+	auto result_sum_of_matching(OpExpression<E> const& e, region_type&& region)
+	{
+		using namespace symphas::internal;
+		if constexpr ((expression_satisfies_condition<E, condition_ts> || ... || expression_satisfies_condition<E, condition_t>))
+		{
+			return result_sum(*static_cast<E const*>(&e), std::forward<region_type>(region));
+		}
+		else
+		{
+			return expr::eval_type_t<E>{};
+		}
+	}
+
+	//! Accumulates the result if the given expression matches the condition.
+	template<typename condition_t, typename... condition_ts, typename... Es, typename region_type, size_t... Is>
+	auto result_sum_of_matching(OpAdd<Es...> const& e, region_type&& region, std::index_sequence<Is...>)
+	{
+		return (result_sum_of_matching(expr::get<Is>(e), std::forward<region_type>(region)), ...);
+	}
+
+	//! Accumulates the result if the given expression matches the condition.
+	template<typename condition_t, typename... condition_ts, typename... Es, typename region_type>
+	auto result_sum_of_matching(OpAdd<Es...> const& e, region_type&& region)
+	{
+		return result_sum_of_matching(e, std::forward<region_type>(region), std::make_index_sequence<sizeof...(Es)>{});
+	}
+
+
+	//! Accumulates the result if the given expression matches the condition.
+	template<typename condition_t, typename... condition_ts, typename E>
+	auto result_sum_of_matching(OpExpression<E> const& e)
+	{
+		using namespace symphas::internal;
+		if constexpr ((expression_satisfies_condition<E, condition_ts> || ... || expression_satisfies_condition<E, condition_t>))
+		{
+			return result_sum(*static_cast<E const*>(&e));
+		}
+		else
+		{
+			return expr::eval_type_t<E>{};
+		}
+	}
+
+	//! Accumulates the result if the given expression matches the condition.
+	template<typename condition_t, typename... condition_ts, typename... Es, size_t... Is>
+	auto result_sum_of_matching(OpAdd<Es...> const& e, std::index_sequence<Is...>)
+	{
+		return (result_sum_of_matching(expr::get<Is>(e)), ...);
+	}
+
+	//! Accumulates the result if the given expression matches the condition.
+	template<typename condition_t, typename... condition_ts, typename... Es>
+	auto result_sum_of_matching(OpAdd<Es...> const& e)
+	{
+		return result_sum_of_matching(e, std::make_index_sequence<sizeof...(Es)>{});
+	}
+
+
+	template<typename condition_t = void>
+	struct result_by_term_apply
+	{
+		template<typename E, typename assign_type, typename region_type>
+		void operator()(OpExpression<E> const& e, assign_type&& data, region_type&& region) const
+		{
+			result_of_matching<condition_t>(*static_cast<E const*>(&e), std::forward<assign_type>(data), std::forward<region_type>(region));
+		}
+
+		template<typename E, typename assign_type>
+		void operator()(OpExpression<E> const& e, assign_type&& data) const
+		{
+			result_of_matching<condition_t>(*static_cast<E const*>(&e), std::forward<assign_type>(data));
+		}
+	};
+
+
+	template<>
+	struct result_by_term_apply<expr::matches_series> : result_by_term_apply<void>
+	{
+		using result_by_term_apply<void>::operator();
+
+		template<typename V0, typename E, typename... Ts, int... I0s, int... P0s, typename A, typename B, typename... Vs,
+			typename assign_type, typename region_type>
+		void operator()(OpSum<V0, E, Substitution<SymbolicDataArray<Ts>...>,
+			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, symphas::lib::types_list<Vs...>> const& sum,
+			assign_type&& data, region_type&& region) const
+		{
+			result_accumulate(sum, std::forward<assign_type>(data), std::forward<region_type>(region));
+		}
+
+		template<typename V0, typename E, typename... Ts, int... I0s, int... P0s, typename A, typename B, typename... Vs, typename assign_type>
+		void operator()(OpSum<V0, E, Substitution<SymbolicDataArray<Ts>...>,
+			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, symphas::lib::types_list<Vs...>> const& sum,
+			assign_type&& data) const
+		{
+			TIME_THIS_CONTEXT_LIFETIME(apply_summation);
+			for (iter_type i = 0; i < sum.data.persistent.len; ++i)
+			{
+				result_accumulate(expr::coeff(sum) * sum.data.persistent[i].e, std::forward<assign_type>(data));
+			}
+		}
+	};
+
+	template<typename condition_t = void>
+	struct result_sum_by_term_apply
+	{
+		template<typename E, typename region_type>
+		auto operator()(OpExpression<E> const& e, region_type&& region) const
+		{
+			return result_sum_of_matching<condition_t>(*static_cast<E const*>(&e), std::forward<region_type>(region));
+		}
+
+		template<typename E>
+		auto operator()(OpExpression<E> const& e) const
+		{
+			return result_sum_of_matching<condition_t>(*static_cast<E const*>(&e));
+		}
+	};
+
+
+	template<>
+	struct result_sum_by_term_apply<expr::matches_series> : result_sum_by_term_apply<void>
+	{
+		using result_sum_by_term_apply<void>::operator();
+
+		static const len_type group_size = 6;
+
+
+		template<typename V0, typename E, typename... Ts, int... I0s, int... P0s, typename A, typename B, typename... Vs,
+			typename region_type>
+		auto operator()(OpSum<V0, E, Substitution<SymbolicDataArray<Ts>...>,
+			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, symphas::lib::types_list<Vs...>> const& sum,
+			region_type&& region) const
+		{
+			return result_sum_by_term(sum, std::forward<region_type>(region));
+		}
+
+		template<typename V0, typename E, typename... Ts, int... I0s, int... P0s, typename A, typename B, typename... Vs>
+		auto operator()(OpSum<V0, E, Substitution<SymbolicDataArray<Ts>...>,
+			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, symphas::lib::types_list<Vs...>> const& sum) const
+		{
+			if (sum.data.persistent.len > 0)
+			{
+				auto reduced = result_sum(expr::coeff(sum) * sum.data.persistent[0].e);
+				for (iter_type i = 1; i < sum.data.persistent.len; ++i)
+				{
+					reduced += result_sum(expr::coeff(sum) * sum.data.persistent[i].e);
+				}
+				return reduced;
+			}
+			else
+			{
+				using expr_type = OpSum<V0, E, Substitution<SymbolicDataArray<Ts>...>,
+					symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, symphas::lib::types_list<Vs...>>;
+				return expr::eval_type_t<expr_type>{};
+			}
+		}
+	};
+
+	template<>
+	struct result_sum_by_term_apply<expr::matching_in_mul<expr::matches_series>> : result_sum_by_term_apply<void>
+	{
+		using result_sum_by_term_apply<void>::operator();
+
+		template<typename A, typename B, typename region_type,
+			std::enable_if_t<symphas::internal::expression_satisfies_condition<OpBinaryMul<A, B>, expr::matching_in_mul<expr::matches_series>>, int> = 0>
+		auto operator()(OpBinaryMul<A, B> const& e, region_type&& region) const
+		{
+			return result_sum_by_term(sum, std::forward<region_type>(region));
+		}
+
+		template<typename A, typename B,
+			std::enable_if_t<symphas::internal::expression_satisfies_condition<OpBinaryMul<A, B>, expr::matching_in_mul<expr::matches_series>>, int> = 0>
+		auto operator()(OpBinaryMul<A, B> const& e) const
+		{
+			return apply_mul(e.a, e.b);
+		}
+
+		template<typename V0, typename E, typename... Ts, int... I0s, int... P0s, typename A, typename B, typename... Vs, typename... Es>
+		auto apply_mul(OpSum<V0, E, Substitution<SymbolicDataArray<Ts>...>,
+			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, symphas::lib::types_list<Vs...>> const& sum,
+			Es&&... terms) const
+		{
+			if (sum.data.persistent.len > 0)
+			{
+				auto e = (expr::coeff(sum) * ... * std::forward<Es>(terms));
+				auto region = expr::iterable_domain(e);
+				auto reduced = expr::eval_type_t<decltype(sum.data.persistent[0].e)>{};
+				
+				TIME_THIS_CONTEXT_LIFETIME(reduce_mul_summation);
+				for (iter_type i = 0; i < sum.data.persistent.len; ++i)
+				{
+					auto region0 = region / expr::iterable_domain(sum.data.persistent[i].e);
+					if (!grid::is_empty(region0))
+					{
+						reduced += result_sum(expr::make_mul(e, sum.data.persistent[i].e), region0);
+					}
+				}
+				return reduced;
+			}
+			else
+			{
+				using expr_type = OpSum<V0, E, Substitution<SymbolicDataArray<Ts>...>,
+					symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, symphas::lib::types_list<Vs...>>;
+				return expr::eval_type_t<expr_type>{};
+			}
+		}
+
+		template<typename E0, typename V0, typename E, typename... Ts, int... I0s, int... P0s, typename A, typename B, typename... Vs, typename... Es>
+		auto apply_mul(OpExpression<E0> const& e, OpSum<V0, E, Substitution<SymbolicDataArray<Ts>...>,
+			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, symphas::lib::types_list<Vs...>> const& sum,
+			Es&&... terms) const
+		{
+			return apply_mul(sum, *static_cast<E0 const*>(&e), std::forward<Es>(terms)...);
+		}
+
+		template<typename A, typename B, typename E, typename... Es>
+		auto apply_mul(OpExpression<E> const& e0, OpBinaryMul<A, B> const& e1, Es&&... terms) const
+		{
+			return apply_mul(e1.a, e1.b, *static_cast<E const*>(&e0), std::forward<Es>(terms)...);
+		}
+
+		template<typename A, typename B, typename E, typename... Es>
+		auto apply_mul(OpBinaryMul<A, B> const& e0, OpExpression<E> const& e1, Es&&... terms) const
+		{
+			return apply_mul(*static_cast<E const*>(&e1), e0, std::forward<Es>(terms)...);
+		}
+
+		template<typename A, typename B, typename C, typename D, typename... Es>
+		auto apply_mul(OpBinaryMul<A, B> const& e0, OpBinaryMul<C, D> const& e1, Es&&... terms) const
+		{
+			return apply_mul(e0 * e1.a, e1.b, std::forward<Es>(terms)...);
+		}
+	};
+
+
+	
+
+
+	template<typename E, typename assign_type>
+	void result_by_group(OpExpression<E> const& e, assign_type&& data, symphas::lib::types_list<>)
+	{
+		result_accumulate(*static_cast<E const*>(&e), std::forward<assign_type>(data));
+	}
+
+	template<typename E, typename assign_type, typename condition_t, typename... condition_ts>
+	void result_by_group(OpExpression<E> const& e, assign_type&& data, symphas::lib::types_list<condition_t, condition_ts...>)
+	{
+		auto&& [eval, rest] = expr::split::separate_by<condition_t>(*static_cast<E const*>(&e));
+		result_accumulate(eval, std::forward<assign_type>(data));
+		result_by_group(rest, std::forward<assign_type>(data), symphas::lib::types_list<condition_ts...>{});
+	}
+
+	template<typename condition_t, typename... condition_ts, typename E, typename assign_type, typename E0>
+	void result_by_group(OpExpression<E> const& e, assign_type&& data, E0 const& init)
+	{
+		result(init, std::forward<assign_type>(data));
+		result_by_group(*static_cast<E const*>(&e), std::forward<assign_type>(data), symphas::lib::types_list<condition_t, condition_ts...>{});
+	}
+
+
+
+	template<typename E, typename assign_type, typename region_type>
+	void result_by_group(OpExpression<E> const& e, assign_type&& data, region_type&& region, symphas::lib::types_list<>)
+	{
+		result_accumulate(*static_cast<E const*>(&e), std::forward<assign_type>(data), std::forward<region_type>(region));
+	}
+
+	template<typename E, typename assign_type, typename region_type, typename condition_t, typename... condition_ts>
+	void result_by_group(OpExpression<E> const& e, assign_type&& data, region_type&& region, symphas::lib::types_list<condition_t, condition_ts...>)
+	{
+		auto&& [eval, rest] = expr::split::separate_by<condition_t>(*static_cast<E const*>(&e));
+		result_accumulate(eval, std::forward<assign_type>(data));
+		result_by_group(rest, std::forward<assign_type>(data), std::forward<region_type>(region), symphas::lib::types_list<condition_ts...>{});
+	}
+
+	template<typename condition_t, typename... condition_ts, typename E, typename assign_type, typename region_type, typename E0>
+	void result_by_group(OpExpression<E> const& e, assign_type&& data, region_type&& region, E0 const& init)
+	{
+		result(init, std::forward<assign_type>(data), std::forward<region_type>(region));
+		result_by_group(*static_cast<E const*>(&e), std::forward<assign_type>(data), std::forward<region_type>(region), symphas::lib::types_list<condition_t, condition_ts...>{});
+	}
+
+
+	template<typename condition_t>
+	struct result_by_term_apply;
+
+	template<typename... Es, typename assign_type, size_t... Is>
+	void result_by_term(OpAdd<Es...> const& e, assign_type&& data, symphas::lib::types_list<>, std::index_sequence<Is...>) {}
+
+	template<typename... Es, typename assign_type, typename condition_t, typename... condition_ts, size_t... Is>
+	void result_by_term(OpAdd<Es...> const& e, assign_type&& data, symphas::lib::types_list<condition_t, condition_ts...>, std::index_sequence<Is...>)
+	{
+		(result_by_term_apply<condition_t>{}(expr::get<Is>(e), std::forward<assign_type>(data)), ...);
+		result_by_term(e, std::forward<assign_type>(data), symphas::lib::types_list<condition_ts...>{}, std::index_sequence<Is...>{});
+	}
+
+	template<typename condition_t, typename... condition_ts, typename... Es, typename assign_type>
+	void result_by_term(OpAdd<Es...> const& e, assign_type&& data)
+	{
+		result(expr::split::filter<expr::not_<condition_t, condition_ts...>>(e), std::forward<assign_type>(data));
+		result_by_term(e, std::forward<assign_type>(data), symphas::lib::types_list<condition_t, condition_ts...>{}, std::make_index_sequence<sizeof...(Es)>{});
+	}
+
+	template<typename condition_t, typename... condition_ts, typename E, typename assign_type>
+	void result_by_term(OpExpression<E> const& e, assign_type&& data)
+	{
+		result(*static_cast<E const*>(&e), std::forward<assign_type>(data));
+	}
+
+
+
+	template<typename condition_t>
+	struct result_sum_by_term_apply;
+
+	template<typename... Es, size_t... Is>
+	auto result_sum_by_term(OpAdd<Es...> const& e, symphas::lib::types_list<>, std::index_sequence<Is...>)
+	{
+		return eval_type_t<OpAdd<Es...>>{};
+	}
+
+	template<typename condition_t, typename... condition_ts, typename... Es, size_t... Is>
+	auto result_sum_by_term(OpAdd<Es...> const& e, symphas::lib::types_list<condition_t, condition_ts...>, std::index_sequence<Is...>)
+	{
+		return (result_sum_by_term_apply<condition_t>{}(expr::get<Is>(e)) + ...)
+			+ result_sum_by_term(e, symphas::lib::types_list<condition_ts...>{}, std::index_sequence<Is...>{});
+	}
+
+	template<typename condition_t, typename... condition_ts, typename... Es>
+	auto result_sum_by_term(OpAdd<Es...> const& e)
+	{
+		return result_sum(expr::split::filter<expr::not_<condition_t, condition_ts...>>(e))
+			+ result_sum_by_term(e, symphas::lib::types_list<condition_t, condition_ts...>{}, std::make_index_sequence<sizeof...(Es)>{});
+	}
+
+	template<typename condition_t, typename... condition_ts, typename E>
+	auto result_sum_by_term(OpExpression<E> const& e)
+	{
+		return result_sum(*static_cast<E const*>(&e));
+	}
+
+
+}
+
+
 
 namespace symphas::internal
 {
@@ -7236,7 +7658,9 @@ namespace expr
 	template<typename V, expr::exp_key_t X0, typename V0, typename E0, typename GG>
 	auto apply_operators(OpDerivative<std::index_sequence<1>, V, OpPow<X0, V0, E0>, SymbolicDerivative<GG>> const& e)
 	{
-		auto p = apply_operators(expr::get_enclosed_expression(expr::get_enclosed_expression(e)));
+		auto power = expr::get_enclosed_expression(e);
+		auto p = apply_operators(expr::get_enclosed_expression(power));
+
 
 		constexpr size_t N0 = expr::_Xk_t<X0>::N;
 		constexpr size_t D0 = expr::_Xk_t<X0>::D;
@@ -7245,8 +7669,8 @@ namespace expr
 		constexpr expr::exp_key_t _X = (sign) ? N0 + D0 : (N0 < D0) ? D0 - N0 : N0 - D0;
 		constexpr expr::exp_key_t _sign = (sign) ? sign : (N0 < D0) ? true : false;
 
-		auto result = expr::make_fraction<N0, D0>() * apply_operators(expr::make_pow<_X>(p)) 
-			* apply_operators(expr::make_derivative<1, GG>(p, e.solver));
+		auto result = expr::coeff(e) * expr::coeff(power) * expr::make_fraction<N0, D0>() * 
+			expr::dot(expr::make_pow<_X>(p), apply_operators(expr::make_derivative<1, GG>(p, e.solver)));
 		
 		if constexpr (sign)
 		{
@@ -7261,7 +7685,7 @@ namespace expr
 	template<size_t O, typename V, expr::exp_key_t X0, typename V0, typename E0, typename GG>
 	auto apply_operators(OpDerivative<std::index_sequence<O>, V, OpPow<X0, V0, E0>, SymbolicDerivative<GG>> const& e)
 	{
-		return apply_operators(expr::make_derivative<O - 1, GG>(
+		return expr::coeff(e) * apply_operators(expr::make_derivative<O - 1, GG>(
 			apply_operators(expr::make_derivative<1, GG>(expr::get_enclosed_expression(e), e.solver))));
 	}
 
@@ -7269,18 +7693,19 @@ namespace expr
 	auto apply_operators(OpPow<X, V, E> const& e)
 	{
 		auto p = apply_operators(expr::get_enclosed_expression(e));
-		if constexpr (expr::_Xk<X> > 1)
-		{
-			constexpr size_t N0 = expr::_Xk_t<X>::N;
-			constexpr size_t D0 = expr::_Xk_t<X>::D;
-			constexpr bool sign = expr::_Xk_t<X>::sign;
-
-			return apply_operators(expr::make_pow<expr::Xk<N0 - D0, D0, sign>>(p)) * p;
-		}
-		else
-		{
-			return expr::make_pow<X>(p);
-		}
+		return expr::coeff(e) * expr::make_pow<X>(p);
+		//if constexpr (expr::_Xk<X> > 1)
+		//{
+		//	constexpr size_t N0 = expr::_Xk_t<X>::N;
+		//	constexpr size_t D0 = expr::_Xk_t<X>::D;
+		//	constexpr bool sign = expr::_Xk_t<X>::sign;
+		//
+		//	return expr::coeff(e) * apply_operators(expr::make_pow<expr::Xk<N0 - D0, D0, sign>>(p)) * p;
+		//}
+		//else
+		//{
+		//	return expr::coeff(e) * expr::make_pow<X>(p);
+		//}
 	}
 
 
@@ -7518,6 +7943,12 @@ namespace expr
 		auto get_arg(SymbolicDataArray<T> const& substitution, DynamicIndex const& index)
 		{
 			return expr::make_term_dynamic(index, substitution.data);
+		}
+
+		template<typename T>
+		auto get_arg(SymbolicDataArray<NamedData<T*>> const& substitution, DynamicIndex const& index)
+		{
+			return expr::make_term_dynamic(index, NamedData(substitution.data, substitution.name));
 		}
 
 		template<typename... Ts, size_t... Ns>
@@ -7924,7 +8355,7 @@ namespace symphas::internal
 	auto dot_tensor_components(OpExpression<E1> const& a, OpExpression<E2> const& b, std::index_sequence<Rs...>)
 	{
 		return (
-			((expr::make_row_vector<Rs, R>() * (*static_cast<E1 const*>(&a))) 
+			((expr::make_row_vector<Rs, R>() * (*static_cast<E1 const*>(&a)))
 				* (expr::make_row_vector<Rs, R>() * (*static_cast<E2 const*>(&b))))
 			+ ...);
 
@@ -7934,7 +8365,7 @@ namespace symphas::internal
 	auto mul_tensor_components_rc(OpExpression<E1> const& a, OpExpression<E2> const& b, std::index_sequence<Rs...>)
 	{
 		return (
-			(((*static_cast<E1 const*>(&a)) * expr::make_column_vector<Rs, R>()) 
+			(((*static_cast<E1 const*>(&a)) * expr::make_column_vector<Rs, R>())
 				* (expr::make_row_vector<Rs, R>() * (*static_cast<E2 const*>(&b))))
 			+ ...);
 	}
@@ -7951,7 +8382,7 @@ namespace symphas::internal
 	template<typename E1, typename E2, size_t... Rs, size_t R = sizeof...(Rs)>
 	auto mul_tensor_components_cr(OpExpression<E1> const& a, OpExpression<E2> const& b, std::index_sequence<Rs...>)
 	{
-		return _mul_tensor_components_cr<R, R>(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b), 
+		return _mul_tensor_components_cr<R, R>(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b),
 			symphas::lib::seq_join_t<std::index_sequence<>, itype<Rs, std::index_sequence<Rs...>>...>{},
 			symphas::lib::seq_join_t<std::index_sequence<>, symphas::lib::seq_repeating_value_t<R, size_t, Rs>...>{});
 	}
@@ -7964,7 +8395,7 @@ namespace symphas::internal
 	}
 
 	template<size_t R, size_t P, typename E1, typename E2, size_t... Rs, size_t... Qs, size_t... Ps, size_t Q = sizeof...(Qs)>
-	auto _mul_tensor_components(OpExpression<E1> const& a, OpExpression<E2> const& b, 
+	auto _mul_tensor_components(OpExpression<E1> const& a, OpExpression<E2> const& b,
 		std::index_sequence<Rs...>, std::index_sequence<Qs...>, std::index_sequence<Ps...>)
 	{
 		return ((expr::make_tensor<Rs, Ps, R, P>() *
@@ -7973,7 +8404,7 @@ namespace symphas::internal
 
 	template<typename E1, typename E2, size_t... Rs, size_t... Qs, size_t... Ps,
 		size_t R = sizeof...(Rs), size_t Q = sizeof...(Qs), size_t P = sizeof...(Ps)>
-	auto mul_tensor_components(OpExpression<E1> const& a, OpExpression<E2> const& b, 
+	auto mul_tensor_components(OpExpression<E1> const& a, OpExpression<E2> const& b,
 		std::index_sequence<Rs...>, std::index_sequence<Qs...>, std::index_sequence<Ps...>)
 	{
 		return _mul_tensor_components<R, P>(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b),
@@ -7982,15 +8413,20 @@ namespace symphas::internal
 			symphas::lib::seq_join_t<std::index_sequence<>, symphas::lib::seq_repeating_value_t<R, size_t, Ps>...>{});
 	}
 
-	template<typename E1, typename E2, 
+	template<typename E1, typename E2,
 		size_t R1 = expr::eval_type<E1>::rank, size_t R2 = expr::eval_type<E2>::rank,
 		size_t Q1 = expr::eval_type<E1>::template rank_<1>, size_t Q2 = expr::eval_type<E2>::template rank_<1>>
-	auto dot(OpExpression<E1> const& a, OpExpression<E2> const& b)
+		auto dot(OpExpression<E1> const& a, OpExpression<E2> const& b)
 	{
-		// in the special case when 1D tensors are being multiplied
-		if constexpr (R1 == 1 && Q2 == 1 && Q1 == 1 && R1 == 1)
+		// in the case when the expressions don't have tensors, but are simply scalar
+		if constexpr (R1 == 0 && R2 == 0 && Q1 == 0 && Q2 == 0)
 		{
-			return (symphas::internal::tensor_cancel{} *(*static_cast<E1 const*>(&a))) * (symphas::internal::tensor_cancel{} * (*static_cast<E2 const*>(&b)));
+			return (*static_cast<E1 const*>(&a)) * (*static_cast<E2 const*>(&b));
+		}
+		// in the special case when 1D tensors are being multiplied
+		else if constexpr (R1 == 1 && Q2 == 1 && Q1 == 1 && R1 == 1)
+		{
+			return (symphas::internal::tensor_cancel{} *(*static_cast<E1 const*>(&a)))* (symphas::internal::tensor_cancel{} *(*static_cast<E2 const*>(&b)));
 		}
 		// multiply a row type by a column type
 		else if constexpr (R1 == 1 && Q2 == 1 && Q1 == R2 && R2 > 1)
@@ -8010,7 +8446,7 @@ namespace symphas::internal
 		// matrix multiplication
 		else if constexpr (Q1 == R2)
 		{
-			return mul_tensor_components(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b), 
+			return mul_tensor_components(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b),
 				std::make_index_sequence<R1>{}, std::make_index_sequence<Q1>{}, std::make_index_sequence<Q2>{});
 		}
 		// multiplying incompatible types just gives their multiplication
@@ -8018,6 +8454,23 @@ namespace symphas::internal
 		{
 			return expr::make_mul(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b));
 		}
+	}
+
+	template<typename E1>
+	auto dot(OpExpression<E1> const& a, OpVoid)
+	{
+		return OpVoid{};
+	}
+
+	template<typename E2>
+	auto dot(OpVoid, OpExpression<E2> const& b)
+	{
+		return OpVoid{};
+	}
+
+	inline auto dot(OpVoid, OpVoid)
+	{
+		return OpVoid{};
 	}
 }
 
@@ -8275,6 +8728,404 @@ auto operator-(OpBinaryMul<OpTerms<V0, Term<G0s, X0s>...>, OpDerivative<Dd, V1, 
 }
 
 
+namespace expr::prune
+{
+	namespace
+	{
+		inline void _update(...) {}
+
+		template<typename E, typename... condition_ts>
+		inline void _update(OpExpression<E>& e, symphas::lib::types_list<condition_ts...>) {}
+
+		template<typename T, typename... condition_ts>
+		inline void _update(Block<T>&, symphas::lib::types_list<condition_ts...>) {}
+		template<size_t N, typename T, typename... condition_ts>
+		inline void _update(MultiBlock<N, T>&, symphas::lib::types_list<condition_ts...>) {}
+
+		template<typename V, typename E, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpExponential<V, E>, expr::or_<condition_ts...>>, int> = 0>
+		inline void _update(OpExponential<V, E>& e, symphas::lib::types_list<condition_ts...>);
+		template<expr::exp_key_t X, typename V, typename E, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpPow<X, V, E>, expr::or_<condition_ts...>>, int> = 0>
+		inline void _update(OpPow<X, V, E>& e, symphas::lib::types_list<condition_ts...>);
+		template<typename V, typename E1, typename E2, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpConvolution<V, E1, E2>, expr::or_<condition_ts...>>, int> = 0>
+		inline void _update(OpConvolution<V, E1, E2>& e, symphas::lib::types_list<condition_ts...>);
+		template<typename V, typename E, typename F, typename... Args, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpFunction<V, E, F, Args...>, expr::or_<condition_ts...>>, int> = 0>
+		inline void _update(OpFunction<V, E, F, Args...>& e, symphas::lib::types_list<condition_ts...>);
+		template<auto f, typename V, typename E, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpFunctionApply<f, V, E>, expr::or_<condition_ts...>>, int> = 0>
+		inline void _update(OpFunctionApply<f, V, E>& e, symphas::lib::types_list<condition_ts...>);
+		template<typename V, size_t D, typename E, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpConvolution<V, GaussianSmoothing<D>, E>, expr::or_<condition_ts...>>, int> = 0>
+		inline void _update(OpConvolution<V, GaussianSmoothing<D>, E>& e, symphas::lib::types_list<condition_ts...>);
+		template<typename V, size_t D, typename G, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>, expr::or_<condition_ts...>>, int> = 0>
+		inline void _update(OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>& e, symphas::lib::types_list<condition_ts...>);
+		template<size_t O, typename V, typename E, typename G, typename... condition_ts>
+		inline void _update(OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G>>& e, symphas::lib::types_list<condition_ts...>);
+		template<typename Dd, typename V, typename G, typename Sp, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp>, expr::or_<condition_ts...>>, int> = 0>
+		inline void _update(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp>& e, symphas::lib::types_list<condition_ts...>);
+		template<typename Dd, typename V, typename E, typename Sp, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpDerivative<Dd, V, E, Sp>, expr::or_<condition_ts...>>, int> = 0>
+		inline void _update(OpDerivative<Dd, V, E, Sp>& e, symphas::lib::types_list<condition_ts...>);
+		template<typename V, typename E, typename T, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpIntegral<V, E, T>, expr::or_<condition_ts...>>, int> = 0>
+		inline void _update(OpIntegral<V, E, T>& e, symphas::lib::types_list<condition_ts...>);
+		template<typename... Es, typename... condition_ts, size_t... Is,
+			std::enable_if_t<expr::satisfies<OpAddList<Es...>, expr::or_<condition_ts...>>, int> = 0>
+		inline void _update(OpAddList<Es...>& e, symphas::lib::types_list<condition_ts...>, std::index_sequence<Is...>);
+		template<typename... Es, typename... condition_ts,
+			std::enable_if_t<(expr::satisfies<Es, expr::or_<condition_ts...>> || ...), int> = 0>
+		inline void _update(OpAdd<Es...>& e, symphas::lib::types_list<condition_ts...>);
+		template<typename A1, typename A2, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpBinaryMul<A1, A2>, expr::or_<condition_ts...>>, int> = 0>
+		inline void _update(OpBinaryMul<A1, A2>& e, symphas::lib::types_list<condition_ts...>);
+		template<typename A1, typename A2, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpBinaryDiv<A1, A2>, expr::or_<condition_ts...>>, int> = 0>
+		inline void _update(OpBinaryDiv<A1, A2>& e, symphas::lib::types_list<condition_ts...>);
+		template<typename A1, typename A2, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpOperatorCombination<A1, A2>, expr::or_<condition_ts...>>, int> = 0>
+		inline void _update(OpOperatorCombination<A1, A2>& e, symphas::lib::types_list<condition_ts...>);
+		template<typename A1, typename A2, typename E, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpCombination<A1, A2, E>, expr::or_<condition_ts...>>, int> = 0>
+		inline void _update(OpCombination<A1, A2, E>& e, symphas::lib::types_list<condition_ts...>);
+		template<typename A1, typename A2, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpOperatorChain<A1, A2>, expr::or_<condition_ts...>>, int> = 0>
+		inline void _update(OpOperatorChain<A1, A2>& e, symphas::lib::types_list<condition_ts...>);
+		template<typename A1, typename A2, typename E, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpChain<A1, A2, E>, expr::or_<condition_ts...>>, int> = 0>
+		inline void _update(OpChain<A1, A2, E>& e, symphas::lib::types_list<condition_ts...>);
+		template<typename G, typename V, typename E, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpMap<G, V, E>, expr::or_<condition_ts...>>, int> = 0>
+		inline void _update(OpMap<G, V, E>& e, symphas::lib::types_list<condition_ts...>);
+		template<typename... Ts, typename... condition_ts, size_t... Is,
+			std::enable_if_t<expr::satisfies<OpTermsList<Ts...>, expr::or_<condition_ts...>>, int> = 0>
+		inline void _update(OpTermsList<Ts...>& e, symphas::lib::types_list<condition_ts...>, std::index_sequence<Is...>);
+		template<typename... Ts, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpTerms<Ts...>, expr::or_<condition_ts...>>, int> = 0>
+		inline void _update(OpTerms<Ts...>& e, symphas::lib::types_list<condition_ts...>);
+		template<typename G, expr::exp_key_t X, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<Term<G, X>, expr::or_<condition_ts...>>, int> = 0>
+		inline void _update(Term<G, X>& e, symphas::lib::types_list<condition_ts...>);
+		template<typename V, typename sub_t, typename eval_t, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpSymbolicEval<V, sub_t, eval_t>, expr::or_<condition_ts...>>, int> = 0>
+		inline void _update(OpSymbolicEval<V, sub_t, eval_t>& e, symphas::lib::types_list<condition_ts...>);
+		template<typename E, typename... Ts, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<E, expr::or_<condition_ts...>>, int> = 0>
+		inline void _update(SymbolicFunction<E, Ts...>& e, symphas::lib::types_list<condition_ts...>);
+		template<typename... Ts, typename... condition_ts>
+		inline void _update(SymbolicCase<Ts...>& e, symphas::lib::types_list<condition_ts...>);
+
+		//template<typename Op, typename E, typename Inds>
+		//inline void _update(SymbolicSeries<Op, E, Inds>& e);
+		//template<typename Op, typename... Ts, typename E, int... I0s, int... P0s,
+		//	typename... T1s, typename... T2s, typename... Is>
+		//inline void _update(SymbolicSeries<Op, Substitution<SymbolicDataArray<Ts>...>,
+		//	symphas::lib::types_list<E,
+		//		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
+		//		symphas::lib::types_list<expr::series_limits<T1s, T2s>...>,
+		//		symphas::lib::types_list<expr::symbols::v_id_type<Is>...>
+		//	>>& e);
+
+		//template<typename... Ts>
+		//inline void _update(SymbolicCase<Ts...>& e);
+		//template<size_t Z, typename G>
+		//inline void _update(Variable<Z, G>& e);
+		//template<typename G>
+		//inline void _update(NamedData<G>& e);
+		//template<Axis ax, typename G>
+		//inline void _update(VectorComponent<ax, G>& e);
+		//template<typename G>
+		//inline void _update(symphas::ref<G>& e);
+
+
+		template<expr::NoiseType nt, typename T, size_t D, typename... condition_ts>
+		inline void _update(NoiseData<nt, T, D>& e, symphas::lib::types_list<condition_ts...>);
+		template<typename T, typename... condition_ts>
+		inline void _update(SymbolicData<T>&, symphas::lib::types_list<condition_ts...>);
+
+		template<typename V, typename E, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpExponential<V, E>, expr::or_<condition_ts...>>, int>>
+		inline void _update(OpExponential<V, E>& e, symphas::lib::types_list<condition_ts...>)
+		{
+			_update(expr::get_enclosed_expression(e), symphas::lib::types_list<condition_ts...>{});
+		}
+
+		template<expr::exp_key_t X, typename V, typename E, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpPow<X, V, E>, expr::or_<condition_ts...>>, int>>
+		inline void _update(OpPow<X, V, E>& e, symphas::lib::types_list<condition_ts...>)
+		{
+			_update(expr::get_enclosed_expression(e), symphas::lib::types_list<condition_ts...>{});
+		}
+
+		template<typename V, typename E1, typename E2, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpConvolution<V, E1, E2>, expr::or_<condition_ts...>>, int>>
+		inline void _update(OpConvolution<V, E1, E2>& e, symphas::lib::types_list<condition_ts...>)
+		{
+			_update(e.a, symphas::lib::types_list<condition_ts...>{});
+			_update(e.b, symphas::lib::types_list<condition_ts...>{});
+			e.update(symphas::lib::types_list<condition_ts...>{});
+		}
+
+		template<typename V, typename E, typename F, typename... Args, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpFunction<V, E, F, Args...>, expr::or_<condition_ts...>>, int>>
+		inline void _update(OpFunction<V, E, F, Args...>& e, symphas::lib::types_list<condition_ts...>)
+		{
+			_update(expr::get_enclosed_expression(e), symphas::lib::types_list<condition_ts...>{});
+		}
+
+		template<auto f, typename V, typename E, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpFunctionApply<f, V, E>, expr::or_<condition_ts...>>, int>>
+		inline void _update(OpFunctionApply<f, V, E>& e, symphas::lib::types_list<condition_ts...>)
+		{
+			_update(expr::get_enclosed_expression(e), symphas::lib::types_list<condition_ts...>{});
+		}
+
+		template<typename V, size_t D, typename E, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpConvolution<V, GaussianSmoothing<D>, E>, expr::or_<condition_ts...>>, int>>
+		inline void _update(OpConvolution<V, GaussianSmoothing<D>, E>& e, symphas::lib::types_list<condition_ts...>)
+		{
+			_update(expr::get_enclosed_expression(e), symphas::lib::types_list<condition_ts...>{});
+			e.update(symphas::lib::types_list<condition_ts...>{});
+		}
+
+		template<typename V, size_t D, typename G, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>, expr::or_<condition_ts...>>, int>>
+		inline void _update(OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>& e, symphas::lib::types_list<condition_ts...>)
+		{
+			e.update(symphas::lib::types_list<condition_ts...>{});
+		}
+
+
+		/* derivative pruning
+			*/
+
+		template<size_t O, typename V, typename E, typename G, typename... condition_ts>
+		inline void _update(OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G>>& e, symphas::lib::types_list<condition_ts...>) {}
+
+		template<typename Dd, typename V, typename G, typename Sp, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp>, expr::or_<condition_ts...>>, int>>
+		inline void _update(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp>& e, symphas::lib::types_list<condition_ts...>)
+		{
+			e.update(symphas::lib::types_list<condition_ts...>{});
+		}
+
+		template<typename Dd, typename V, typename E, typename Sp, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpDerivative<Dd, V, E, Sp>, expr::or_<condition_ts...>>, int>>
+		inline void _update(OpDerivative<Dd, V, E, Sp>& e, symphas::lib::types_list<condition_ts...>)
+		{
+			_update(expr::get_enclosed_expression(e), symphas::lib::types_list<condition_ts...>{});
+			e.update(symphas::lib::types_list<condition_ts...>{});
+		}
+
+
+		template<typename V, typename E, typename T, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpIntegral<V, E, T>, expr::or_<condition_ts...>>, int>>
+		inline void _update(OpIntegral<V, E, T>& e, symphas::lib::types_list<condition_ts...>)
+		{
+			_update(expr::get_enclosed_expression(e), symphas::lib::types_list<condition_ts...>{});
+			e.update(symphas::lib::types_list<condition_ts...>{});
+		}
+
+		/* binary op pruning
+			*/
+
+		template<typename... Es, typename... condition_ts, size_t... Is,
+			std::enable_if_t<expr::satisfies<OpAddList<Es...>, expr::or_<condition_ts...>>, int>>
+		inline void _update(OpAddList<Es...>& e, symphas::lib::types_list<condition_ts...>, std::index_sequence<Is...>)
+		{
+			(_update(expr::get<Is>(e), symphas::lib::types_list<condition_ts...>{}), ...);
+		}
+
+		template<typename... Es, typename... condition_ts,
+			std::enable_if_t<(expr::satisfies<Es, expr::or_<condition_ts...>> || ...), int>>
+		inline void _update(OpAdd<Es...>& e, symphas::lib::types_list<condition_ts...>)
+		{
+			_update(*static_cast<OpAddList<Es...>*>(&e), symphas::lib::types_list<condition_ts...>{}, std::make_index_sequence<sizeof...(Es)>{});
+		}
+
+		template<typename A1, typename A2, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpBinaryMul<A1, A2>, expr::or_<condition_ts...>>, int>>
+		inline void _update(OpBinaryMul<A1, A2>& e, symphas::lib::types_list<condition_ts...>)
+		{
+			_update(e.a, symphas::lib::types_list<condition_ts...>{});
+			_update(e.b, symphas::lib::types_list<condition_ts...>{});
+		}
+
+		template<typename A1, typename A2, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpBinaryDiv<A1, A2>, expr::or_<condition_ts...>>, int>>
+		inline void _update(OpBinaryDiv<A1, A2>& e, symphas::lib::types_list<condition_ts...>)
+		{
+			_update(e.a, symphas::lib::types_list<condition_ts...>{});
+			_update(e.b, symphas::lib::types_list<condition_ts...>{});
+		}
+
+		/* operator pruning
+			*/
+
+		template<typename A1, typename A2, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpOperatorCombination<A1, A2>, expr::or_<condition_ts...>>, int>>
+		inline void _update(OpOperatorCombination<A1, A2>& e, symphas::lib::types_list<condition_ts...>)
+		{
+			_update(e.f, symphas::lib::types_list<condition_ts...>{});
+			_update(e.g, symphas::lib::types_list<condition_ts...>{});
+		}
+
+		template<typename A1, typename A2, typename E, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpCombination<A1, A2, E>, expr::or_<condition_ts...>>, int>>
+		inline void _update(OpCombination<A1, A2, E>& e, symphas::lib::types_list<condition_ts...>)
+		{
+			//_update(e.combination);
+			//_update(expr::get_enclosed_expression(e));
+			//if constexpr (expr::has_state<E>::value)
+			//{
+			//}
+			e.update(symphas::lib::types_list<condition_ts...>{});
+		}
+
+		template<typename A1, typename A2, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpOperatorChain<A1, A2>, expr::or_<condition_ts...>>, int>>
+		inline void _update(OpOperatorChain<A1, A2>& e, symphas::lib::types_list<condition_ts...>)
+		{
+			_update(e.f, symphas::lib::types_list<condition_ts...>{});
+			_update(e.g, symphas::lib::types_list<condition_ts...>{});
+		}
+
+		template<typename A1, typename A2, typename E, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpChain<A1, A2, E>, expr::or_<condition_ts...>>, int>>
+		inline void _update(OpChain<A1, A2, E>& e, symphas::lib::types_list<condition_ts...>)
+		{
+			//_update(e.combination);
+			//if constexpr (expr::has_state<E>::value)
+			//{
+			//	_update(expr::get_enclosed_expression(e));
+			//}
+			e.update(symphas::lib::types_list<condition_ts...>{});
+		}
+
+		template<typename G, typename V, typename E, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpMap<G, V, E>, expr::or_<condition_ts...>>, int>>
+		inline void _update(OpMap<G, V, E>& e, symphas::lib::types_list<condition_ts...>)
+		{
+			_update(expr::get_enclosed_expression(e), symphas::lib::types_list<condition_ts...>{});
+			e.update(symphas::lib::types_list<condition_ts...>{});
+		}
+
+		template<typename... Ts, typename... condition_ts, size_t... Is,
+			std::enable_if_t<expr::satisfies<OpTermsList<Ts...>, expr::or_<condition_ts...>>, int>>
+		inline void _update(OpTermsList<Ts...>& e, symphas::lib::types_list<condition_ts...>, std::index_sequence<Is...>)
+		{
+			(_update(expr::get<Is>(e), symphas::lib::types_list<condition_ts...>{}), ...);
+		}
+
+		template<typename... Ts, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpTerms<Ts...>, expr::or_<condition_ts...>>, int>>
+		inline void _update(OpTerms<Ts...>& e, symphas::lib::types_list<condition_ts...>)
+		{
+			//_update(*static_cast<OpTermsList<Ts...>*>(&e), std::make_index_sequence<sizeof...(Ts)>{});
+		}
+
+
+		template<typename G, expr::exp_key_t X, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<Term<G, X>, expr::or_<condition_ts...>>, int>>
+		inline void _update(Term<G, X>& e, symphas::lib::types_list<condition_ts...>)
+		{
+			//_update(e.data());
+		}
+
+		template<typename V, typename sub_t, typename eval_t, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpSymbolicEval<V, sub_t, eval_t>, expr::or_<condition_ts...>>, int>>
+		inline void _update(OpSymbolicEval<V, sub_t, eval_t>& e, symphas::lib::types_list<condition_ts...>)
+		{
+			_update(e.f, symphas::lib::types_list<condition_ts...>{});
+			e.update(symphas::lib::types_list<condition_ts...>{});
+		}
+
+		template<typename E, typename... Ts, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<E, expr::or_<condition_ts...>>, int>>
+		inline void _update(SymbolicFunction<E, Ts...>& e, symphas::lib::types_list<condition_ts...>)
+		{
+			_update(e.e, symphas::lib::types_list<condition_ts...>{});
+		}
+
+		//template<typename Op, typename E, typename Inds>
+		//inline void _update(SymbolicSeries<Op, E, Inds>& e) {}
+
+		//template<typename Op, typename... Ts, typename E, int... I0s, int... P0s,
+		//	typename... T1s, typename... T2s, typename... Is>
+		//inline void _update(SymbolicSeries<Op, Substitution<SymbolicDataArray<Ts>...>,
+		//	symphas::lib::types_list<E,
+		//		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
+		//		symphas::lib::types_list<expr::series_limits<T1s, T2s>...>,
+		//		symphas::lib::types_list<expr::symbols::v_id_type<Is>...>
+		//	>>& e)
+		//{
+		//	//e.update();
+		//}
+
+		template<typename... Ts, typename... condition_ts>
+		inline void _update(SymbolicCase<Ts...>& e, symphas::lib::types_list<condition_ts...>) {}
+
+		//template<size_t Z, typename G>
+		//inline void _update(Variable<Z, G>& e)
+		//{
+		//    _update(*static_cast<G*>(&e));
+		//}
+
+		//template<typename G>
+		//inline void _update(NamedData<G>& e)
+		//{
+		//    _update(*static_cast<G*>(&e));
+		//}
+
+		//template<Axis ax, typename G>
+		//inline void _update(VectorComponent<ax, G>& e)
+		//{
+		//    _update(*static_cast<G*>(&e));
+		//}
+
+		//template<typename G>
+		//inline void _update(symphas::ref<G>& e)
+		//{
+		//    _update(e.get());
+		//}
+
+		//template<expr::NoiseType nt, typename T, size_t D>
+		//inline void _update(NoiseData<nt, T, D>& data)
+		//{
+		//    data.update();
+		//}
+
+	//     template<typename T>
+	//     inline void _update(SymbolicData<T>& data)
+	//     {
+			//if (data.data != nullptr)
+			//{
+			//	_update(*data.data);
+			//}
+	//     }
+
+	}
+
+	//! Update underlying the given expression.
+	/*!
+		* For expressions which store intermediate data, such as derivatives, this
+		* data must be updated before the expression can be evaluated. This will
+		* traverse the expression tree and perform all necessary updating.
+		*
+		* \param e The expression that is updated.
+		*/
+	template<typename... condition_ts, typename E>
+	inline void update(E& e)
+	{
+		TIME_THIS_CONTEXT_LIFETIME(expression_update)
+		_update(e, symphas::lib::types_list<condition_ts...>{});
+	}
+
+}
 
 
 

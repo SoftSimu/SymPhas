@@ -27,7 +27,7 @@
 symphas::b_element_type::b_element_type(BoundaryType type, std::initializer_list<BoundaryTag> tags, const double* params, int argc) :
 	type{ type }, tag{ tags.begin()[0], tags.begin()[1] }, params{ (argc > 0) ? new double[argc] : nullptr }, argc{ argc }
 {
-	if (type == BoundaryType::PERIODIC0 || type == BoundaryType::PERIODIC3A || type == BoundaryType::PERIODIC3AA)
+	if (type == BoundaryType::PERIODIC0 || type == BoundaryType::PERIODIC3XZ || type == BoundaryType::PERIODIC3XY)
 	{
 		this->type = BoundaryType::PERIODIC;
 	}

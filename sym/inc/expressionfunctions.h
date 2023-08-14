@@ -201,14 +201,14 @@ namespace expr
 		auto pow_add(E0 const& a, OpAdd<E1, E2, Es...> const& b, std::index_sequence<Ns...>)
 		{
 			constexpr size_t N0 = sizeof...(Ns) - 1;
-			return ((expr::choose<N0, Ns>() * expr::pow<N0 - Ns>(a) * expr::pow<Ns>(b)) + ...);
+			return ((expr::choose<N0, Ns>() * expr::pow<N0 - Ns>(a) * expr::make_pow<Ns>(b)) + ...);
 		}
 
 		template<typename E0, typename E1, size_t... Ns>
 		auto pow_add(E0 const& a, E1 const& b, std::index_sequence<Ns...>)
 		{
 			constexpr size_t N0 = sizeof...(Ns) - 1;
-			return expr::make_add((expr::choose<N0, Ns>() * expr::pow<N0 - Ns>(a) * expr::pow<Ns>(b))...);
+			return expr::make_add((expr::choose<N0, Ns>() * expr::make_pow<N0 - Ns>(a) * expr::make_pow<Ns>(b))...);
 		}
 
 	}
@@ -1010,6 +1010,7 @@ struct OpFunction : OpExpression<OpFunction<V, E, F, Arg0, Args...>>
 	OpFunction(V value, E const& e, F f, std::tuple<Arg0, Args...> const& tt) :
 		name{ "?" }, value{ value }, e{ e }, f{ f }, tt{ tt } {}
 
+
 	inline auto eval(iter_type n) const
 	{
 		return expr::eval(value) * function_value(n, std::make_index_sequence<sizeof...(Args) + 1>{});
@@ -1083,7 +1084,7 @@ template<typename V, typename E, typename F>
 struct OpFunction<V, E, F, void> : OpExpression<OpFunction<V, E, F, void>>
 {
 
-	OpFunction() : name{ "" }, value{ V{} }, e{}, f{} {}
+	OpFunction() : value{ V{} }, e{}, f{}, name{ "" } {}
 
 	//! Create a function of an expression.
 	/*!
@@ -1096,7 +1097,7 @@ struct OpFunction<V, E, F, void> : OpExpression<OpFunction<V, E, F, void>>
 	 * \param f The function pointer or functor object instance.
 	 */
 	OpFunction(std::string name, V value, E const& e, F f) :
-		name{ name }, value{ value }, e{ e }, f{ f } {}
+		value{ value }, e{ e }, f{ f }, name{ name } {}
 
 	//! Create a function of an expression.
 	/*!
@@ -1109,7 +1110,20 @@ struct OpFunction<V, E, F, void> : OpExpression<OpFunction<V, E, F, void>>
 	 * \param f The function pointer or functor object instance.
 	 */
 	OpFunction(V value, E const& e, F f) :
-		name{ "?" }, value{ value }, e{ e }, f{ f } {}
+		value{ value }, e{ e }, f{ f }, name{ "?" } {}
+
+	//! Create a function of an expression.
+	/*!
+	 * Creates a function expression of the given expression, by applying
+	 * the instance of the object type `F` as a functor.
+	 *
+	 * \param name The identifying name of the function.
+	 * \param value The coefficient value.
+	 * \param e The expression to which the functor is applied.
+	 * \param f The function pointer or functor object instance.
+	 */
+	OpFunction(E const& e, F f) :
+		value{ V{} }, e{ e }, f{ f }, name{ "?" } {}
 
 	inline auto eval(iter_type n) const
 	{
@@ -1160,6 +1174,8 @@ template<typename V, typename E, typename F>
 OpFunction(std::string, V, E, F)->OpFunction<V, E, F, void>;
 template<typename V, typename E, typename F>
 OpFunction(V, E, F)->OpFunction<V, E, F, void>;
+template<typename E, typename F>
+OpFunction(E, F) -> OpFunction<OpIdentity, E, F, void>;
 template<typename V, typename E, typename F>
 OpFunction(std::string, OpLiteral<V>, E, F)->OpFunction<V, E, F, void>;
 template<typename V, typename E, typename F>

@@ -54,11 +54,12 @@ struct DataStepper
 {
 	using id_type = void;
 
-	symphas::init_data_type data[D];
+	symphas::init_entry_type data[D];
 	SaveParams save;
+	double dt;
 
 	DataStepper(SaveParams const& save = {}) :
-		save{ save }, data{ {} } {}
+		data{ {} }, save{ save }, dt{} {}
 
 
 	friend void swap(DataStepper& first, DataStepper& second)
@@ -70,7 +71,7 @@ struct DataStepper
 
 
 	template<typename S>
-	void step(S& system, double)
+	void step(S& system)
 	{
 		iter_type next_index = save.next_save(data[system.id].file.get_index());
 
@@ -132,7 +133,7 @@ struct ModelVirtual : Model<D, DataStepper<D>, S...>
 {
 	using parent_type = Model<D, DataStepper<D>, S...>;
 	using parent_type::solver;
-	using parent_type::lastindex;
+	using parent_type::index;
 
 	using parent_type::parent_type;
 
@@ -182,11 +183,11 @@ struct ModelVirtual : Model<D, DataStepper<D>, S...>
 	 * \param checkpoint Indicates the input is a checkpoint of a previous
 	 * solution, rather than a plain file.
 	 */
-	ModelVirtual(const char* solution_input, SaveParams save, bool checkpoint = true) :
-		parent_type(nullptr, 0, build_parameters(solution_input, save.get_start(), checkpoint))
+	ModelVirtual(const char* solution_dir, SaveParams save, bool checkpoint = true) :
+		parent_type(nullptr, 0, build_parameters(solution_dir, save.get_start(), checkpoint))
 	{
 		solver.set_save_object(save);
-		lastindex = save.start;
+		index = save.get_start();
 	}
 
 	//! Initialize system parameters using the checkpoint file. 
@@ -202,8 +203,8 @@ struct ModelVirtual : Model<D, DataStepper<D>, S...>
 	 * \param checkpoint Indicates the input is a checkpoint of a previous
 	 * solution, rather than a plain file.
 	 */
-	ModelVirtual(const char* solution_input, iter_type step_index, iter_type start_index, iter_type stop_index, bool checkpoint = true) :
-		ModelVirtual(solution_input, SaveParams{ step_index, start_index, stop_index }, checkpoint) {}
+	ModelVirtual(const char* solution_dir, iter_type step_index, iter_type start_index, iter_type stop_index, bool checkpoint = true) :
+		ModelVirtual(solution_dir, SaveParams{ step_index, start_index, stop_index }, checkpoint) {}
 
 	//! Initialize system parameters using the checkpoint file. 
 	/*!
@@ -217,8 +218,8 @@ struct ModelVirtual : Model<D, DataStepper<D>, S...>
 	 * \param checkpoint Indicates the input is a checkpoint of a previous
 	 * solution, rather than a plain file.
 	 */
-	ModelVirtual(const char* solution_input, iter_type step_index, iter_type stop_index, bool checkpoint = true) :
-		ModelVirtual(solution_input, step_index, stop_index, params::start_index, checkpoint) {}
+	ModelVirtual(const char* solution_dir, iter_type step_index, iter_type stop_index, bool checkpoint = true) :
+		ModelVirtual(solution_dir, step_index, stop_index, params::start_index, checkpoint) {}
 
 
 	//! Advances to the next solution iteration.
@@ -231,7 +232,7 @@ struct ModelVirtual : Model<D, DataStepper<D>, S...>
 	void step(double dt)
 	{
 		parent_type::step(std::make_index_sequence<SN>{}, dt);
-		lastindex = solver.index();
+		index = solver.index();
 	}
 
 	void update(double time)

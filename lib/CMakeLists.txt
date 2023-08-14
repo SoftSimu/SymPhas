@@ -25,11 +25,14 @@ include_directories(SYSTEM ${FFTW_INCLUDE_PATH})
 
 file(GLOB_RECURSE SOURCES_LIB "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 
-
-
+if(NOT CMAKE_BUILD_TYPE)
+	set(CMAKE_BUILD_TYPE Release)
+endif()
 
 set(THREAD_COUNT 2)
 set(VECTOR_TYPE_NAME VectorValue)
+set(ENABLE_TIMINGS ON CACHE BOOL "enable collecting the elapsed time information of the simulation")
+set(ENABLE_INLINE_TIMINGS OFF CACHE BOOL "enable collecting the elapsed time of inline timings")
 
 #add_library(fftw3_imported SHARED IMPORTED)
 #set_target_properties(fftw3_imported PROPERTIES
@@ -50,6 +53,20 @@ target_include_directories(symphas_lib_o PRIVATE ${FFTW3_INCLUDE_DIRS} PUBLIC
 target_link_directories(symphas_lib_o PUBLIC ${FFTW3_LIBRARY_DIRS})
 target_link_libraries(symphas_lib_o PUBLIC ${ADD_LINUX_LIBS} PRIVATE ${FFTW3_LIBRARIES})
 target_compile_definitions(symphas_lib_o PRIVATE LIB_EXPORTS)
+
+if(ENABLE_TIMINGS)
+	target_compile_definitions(symphas_lib_o PUBLIC PRINT_TIMINGS)
+endif()
+
+if(ENABLE_INLINE_TIMINGS)
+	target_compile_definitions(symphas_lib_o PUBLIC PRINT_TIMINGS_INLINE)
+endif()
+
+message(STATUS "'CMake Build Type' = ${CMAKE_BUILD_TYPE}")
+if("${CMAKE_BUILD_TYPE}" MATCHES "Debug" OR "${CMAKE_CONFIGURATION_TYPES}" MATCHES "Debug")
+	target_compile_definitions(symphas_lib_o PUBLIC DEBUG)
+	message(STATUS "using Debug mode")
+endif()
 
 if(MSVC)
 	find_package(OpenMP)
@@ -72,6 +89,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 	target_compile_options(symphas_lib_o PUBLIC /bigobj -F85894592)
 	target_compile_definitions(symphas_lib_o PUBLIC _CRT_SECURE_NO_WARNINGS)
 else()
+	target_compile_options(symphas_lib_o PUBLIC -Wno-format-security)
 endif()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")

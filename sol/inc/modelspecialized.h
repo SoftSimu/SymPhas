@@ -35,7 +35,7 @@ namespace expr
 	auto landau_fe(Sp const& solver, OpTerm<OpIdentity, G> const& term, coeff_t1 const& c1 = coeff_t1{}, coeff_t2 const& c2 = coeff_t2{})
 	{
 		return -c1 * expr::make_fraction<1, 2>() * expr::pow<2>(term) + c2 * expr::make_fraction<1, 4>() * expr::pow<4>(term)
-			+ expr::make_fraction<1, 2>() * expr::pow<2>(expr::make_operator_derivative<1>(solver)(term));
+			+ OpChain(OpOperatorChain(expr::make_fraction<1, 2>(), OpIdentity{}), expr::pow<2>(expr::make_operator_derivative<1>(solver)(term)));
 	}
 
 	//! c2/4 * (op^2 - c1)^2 + |grad(op)|^2
@@ -43,14 +43,14 @@ namespace expr
 	auto doublewell_fe(Sp const& solver, OpTerm<OpIdentity, G> const& term, coeff_t1 const& c1 = coeff_t1{}, coeff_t2 const& c2 = coeff_t2{})
 	{
 		return c2 * expr::make_fraction<1, 4>() * expr::pow<2>(expr::pow<2>(term) - c1)
-			+ expr::make_fraction<1, 2>() * expr::pow<2>(expr::make_operator_derivative<1>(solver)(term));
+			+ OpChain(OpOperatorChain(expr::make_fraction<1, 2>(), OpIdentity{}), expr::pow<2>(expr::make_operator_derivative<1>(solver)(term)));
 	}
 
 	template<typename G, typename Sp, typename coeff_t1 = OpIdentity, typename coeff_t2 = OpIdentity>
 	auto cellular_fe(Sp const& solver, OpTerm<OpIdentity, G> const& term, coeff_t1 const& c1 = coeff_t1{})
 	{
 		return expr::make_integer<30>() / (c1 * c1) * term * term * expr::pow<2>(expr::symbols::one - term)
-			+ expr::pow<2>(expr::make_operator_derivative<1>(solver)(term));
+			+ OpChain(OpOperatorChain(OpIdentity{}, OpIdentity{}), expr::pow<2>(expr::make_operator_derivative<1>(solver)(term)));
 	}
 }
 
@@ -179,7 +179,7 @@ struct ModelApplied
 		};
 	};
 
-	template<typename S, typename... Ts>
+	template<typename... Ts>
 	struct ArrayType
 	{
 		//! Specialized model representing the generalized phase field problem.
@@ -188,7 +188,7 @@ struct ModelApplied
 		 * initialization, and the model implements update and equation functions.
 		 */
 		template<template<typename> typename Eq,
-			typename eq_type = Eq<symphas::internal::MakeEquation<ArrayModel<D, Sp, S, Ts...>>>>
+			typename eq_type = Eq<symphas::internal::MakeEquation<ArrayModel<D, Sp, Ts...>>>>
 		struct Specialized;
 	};
 };
@@ -205,10 +205,10 @@ namespace symphas::internal
 		using type = typename ModelApplied<Dm, Sp>::template OpTypes<field_types...>;
 	};
 
-	template<typename S, typename... field_types, size_t Dm, typename Sp>
-	struct expand_types_to_model<symphas::lib::types_list<field_array_t<S>, field_types...>, Dm, Sp>
+	template<typename... field_types, size_t Dm, typename Sp>
+	struct expand_types_to_model<symphas::lib::types_list<field_array_t<void>, field_types...>, Dm, Sp>
 	{
-		using type = typename ModelApplied<Dm, Sp>::template ArrayType<S, field_types...>;
+		using type = typename ModelApplied<Dm, Sp>::template ArrayType<field_types...>;
 	};
 
 	template<typename... field_types, size_t Dm, typename Sp, typename T0, typename... Ts>
@@ -220,7 +220,13 @@ namespace symphas::internal
 	template<typename... field_types, size_t Dm, typename Sp, typename T0, typename... Ts>
 	struct expand_types_to_model<symphas::lib::types_list<field_types...>, Dm, Sp, field_array_t<T0>, Ts...>
 	{
-		using type = typename expand_types_to_model<symphas::lib::types_list<field_array_t<T0>, field_types...>, Dm, Sp, Ts...>::type;
+		using type = typename expand_types_to_model<symphas::lib::types_list<field_array_t<void>, field_types..., field_array_t<T0>>, Dm, Sp, Ts...>::type;
+	};
+
+	template<typename... field_types, size_t Dm, typename Sp, typename T0, typename... Ts>
+	struct expand_types_to_model<symphas::lib::types_list<field_array_t<void>, field_types...>, Dm, Sp, field_array_t<T0>, Ts...>
+	{
+		using type = typename expand_types_to_model<symphas::lib::types_list<field_array_t<void>, field_types..., field_array_t<T0>>, Dm, Sp, Ts...>::type;
 	};
 
 	template<typename... field_types, size_t Dm, typename Sp, typename... Ts, typename... Rest>
@@ -394,15 +400,15 @@ protected:
 
 
 template<size_t D, typename Sp>
-template<typename S, typename... Ts>
+template<typename... Ts>
 template<template<typename> typename Eq, typename eq_type>
-struct ModelApplied<D, Sp>::ArrayType<S, Ts...>::Specialized : eq_type
+struct ModelApplied<D, Sp>::ArrayType<Ts...>::Specialized : eq_type
 {
-	using M = ArrayModel<D, Sp, S, Ts...>;
+	using M = ArrayModel<D, Sp, Ts...>;
 	using M::solver;
 
 	template<typename Sp0>
-	using eq_type_solver = Eq<symphas::internal::MakeEquation<ArrayModel<D, Sp0, S, Ts...>>>;
+	using eq_type_solver = Eq<symphas::internal::MakeEquation<ArrayModel<D, Sp0, Ts...>>>;
 
 	template<template<template<typename> typename, typename> typename SpecializedModel, typename Sp0>
 	using impl_type = SpecializedModel<Eq, eq_type_solver<Sp0>>;
@@ -410,7 +416,7 @@ struct ModelApplied<D, Sp>::ArrayType<S, Ts...>::Specialized : eq_type
 	using parent_type = eq_type;
 	//using parent_type::parent_type;
 
-    using this_type = typename ModelApplied<D, Sp>::template ArrayType<S, Ts...>::template Specialized<Eq, eq_type>;
+    using this_type = typename ModelApplied<D, Sp>::template ArrayType<Ts...>::template Specialized<Eq, eq_type>;
 
 	using eqs = std::invoke_result_t<decltype(&parent_type::make_equations), parent_type>;
 	eqs equations;
@@ -435,7 +441,9 @@ struct ModelApplied<D, Sp>::ArrayType<S, Ts...>::Specialized : eq_type
 
 	void equation()
 	{
+#		ifndef DEBUG
 #		pragma omp parallel for
+#		endif
 		for (iter_type i = 0; i < parent_type::len; ++i)
 		{
 			M::solver.equation(equations[i]);
@@ -1087,11 +1095,11 @@ namespace symphas::internal
 		return new parameterized_type<void, void>[sizeof...(Ts)] { parameterized_type<Ts>(model0)()... };
 	}
 
-	template<typename M, size_t D, typename Sp, typename S, typename... Ts>
-	auto get_parameterized_values(M const& model0, ArrayModel<D, Sp, S, Ts...> const& model)
+	template<typename M, size_t D, typename Sp, typename... Ts>
+	auto get_parameterized_values(M const& model0, ArrayModel<D, Sp, Ts...> const& model)
 	{
-		return new parameterized_type<void, void>[model.len] { 
-			parameterized_type<S>(model0)(), parameterized_type<Ts>(model0)()... };
+		return new parameterized_type<void, void>[sizeof...(Ts)] {
+			parameterized_type<Ts>(model0)()... };
 	}
 
 	struct param_matrix_factory
@@ -1156,31 +1164,37 @@ namespace symphas::internal
 			return arr;
 		}
 
-		template<typename M, size_t D, typename Sp, typename S, typename... Ts>
+		template<typename M, size_t D, typename Sp, typename... Ts>
 		double* generate_coeff_matrix(
-			M const& model0, ArrayModel<D, Sp, S, Ts...> const& model,
+			M const& model0, ArrayModel<D, Sp, Ts...> const& model,
 			len_type num_coeff, len_type num_fields)
 		{
 			double* arr = new double[num_fields * num_coeff];
 			auto* parameterized_values = get_parameterized_values(model0, model);
 
-			for (iter_type i = 0; i < model.len - sizeof...(Ts); ++i)
+			//constexpr size_t N = M::num_array_types;
+			iter_type offset = 0;
+			for (iter_type type_ind = 0; type_ind < sizeof...(Ts); ++type_ind)
 			{
-				for (iter_type n = 0; n < num_coeff; ++n)
+				for (iter_type i = 0; i < model.num_fields(type_ind); ++i)
 				{
-					iter_type index = i * num_coeff + n;
-					arr[index] = parameterized_values[0][n];
+					for (iter_type n = 0; n < num_coeff; ++n)
+					{
+						iter_type index = i * num_coeff + n;
+						arr[index + offset] = parameterized_values[type_ind][n];
+					}
 				}
+				offset += model.num_fields(type_ind) * num_coeff;
 			}
 
-			for (iter_type i = model.len - sizeof...(Ts); i < num_fields; ++i)
-			{
-				for (iter_type n = 0; n < num_coeff; ++n)
-				{
-					iter_type index = i * num_coeff + n;
-					arr[index] = parameterized_values[i - (model.len - sizeof...(Ts)) + 1][n];
-				}
-			}
+			//for (iter_type i = model.len - sizeof...(Ts); i < num_fields; ++i)
+			//{
+			//	for (iter_type n = 0; n < num_coeff; ++n)
+			//	{
+			//		iter_type index = i * num_coeff + n;
+			//		arr[index] = parameterized_values[i - (model.len - sizeof...(Ts)) + 1][n];
+			//	}
+			//}
 
 			delete[] parameterized_values;
 			return arr;
@@ -1355,11 +1369,11 @@ protected:
  * provisional equations or not, this is either TraitProvisional or
  * MakeEquation.
  */
-template<template<typename> typename enclosing_type, size_t D, typename Sp, typename S, typename... Ts>
-struct TraitEquation<enclosing_type, symphas::internal::MakeEquation<ArrayModel<D, Sp, S, Ts...>>> : 
-	symphas::internal::MakeEquation<ArrayModel<D, Sp, S, Ts...>>
+template<template<typename> typename enclosing_type, size_t D, typename Sp, typename... Ts>
+struct TraitEquation<enclosing_type, symphas::internal::MakeEquation<ArrayModel<D, Sp, Ts...>>> : 
+	symphas::internal::MakeEquation<ArrayModel<D, Sp, Ts...>>
 {
-	using parent_trait = symphas::internal::MakeEquation<ArrayModel<D, Sp, S, Ts...>>;
+	using parent_trait = symphas::internal::MakeEquation<ArrayModel<D, Sp, Ts...>>;
 	//using parent_trait::parent_trait;
 	using parent_trait::solver;
 	using parent_trait::len;
@@ -1458,26 +1472,17 @@ struct TraitEquation<enclosing_type, symphas::internal::MakeEquation<ArrayModel<
 	template<typename Dd, typename Ee>
 	auto make_equations(std::pair<Dd, Ee> const& a) const
 	{
-		using this_type = TraitEquation<enclosing_type, symphas::internal::MakeEquation<ArrayModel<D, Sp, S, Ts...>>>;
-		using scheme_type = std::invoke_result_t<decltype(&this_type::_make_equations<std::pair<Dd, Ee>>), this_type, std::pair<Dd, Ee>>;
+		using this_type = TraitEquation<enclosing_type, symphas::internal::MakeEquation<ArrayModel<D, Sp, Ts...>>>;
+		using scheme_type = std::invoke_result_t<decltype(&this_type::_make_equations<Dd, Ee>), this_type, std::pair<Dd, Ee>, iter_type>;
 
-		auto [d, e] = a;
-		auto e2(e);
-		auto d2(d);
-		expr::printe(e, "given equation");
+		expr::printe(std::get<1>(a), "given equation");
 
 		void* ptr = operator new[](parent_trait::len * sizeof(scheme_type));
 		scheme_type* eqns = static_cast<scheme_type*>(ptr);
 
 		for (iter_type i = 0; i < parent_trait::len; ++i)
 		{
-			//const_cast<DynamicIndex&>(index) = i;
-			expr::fix_index(e, index == i);
-			expr::fix_index(d, index == i);
-			new(&eqns[i]) scheme_type(_make_equations(std::make_pair(d, e)));
-
-			e = e2;
-			d = d2;
+			new(&eqns[i]) scheme_type(_make_equations(a, i));
 		}
 		return eqns;
 	}
@@ -1495,9 +1500,13 @@ protected:
 		operator delete[](eqns);
 	}
 
-	template<typename A>
-	auto _make_equations(A const& a) const
+	template<typename Dd, typename Ee>
+	auto _make_equations(std::pair<Dd, Ee> a, iter_type i) const
 	{
+		auto&& [d, e] = a;
+		expr::fix_index(e, index == i);
+		expr::fix_index(d, index == i);
+
 		return solver.template form_expr_one<model_num_parameters<parent_trait>::value>(parent_trait::systems_tuple(), a);
 	}
 
@@ -1505,7 +1514,7 @@ protected:
 	auto _op()
 	{
 		return expr::make_term_dynamic(index,
-			NamedData(parent_trait::systems(), names_t{}(index.index()))
+			NamedData(parent_trait::systems(), names_t{}())
 			);
 	}
 
@@ -1705,35 +1714,15 @@ return parent_type::template generate_equations(std::make_tuple(SINGLE_ARG SELEC
   */
 #define DEFINE_MODEL_FIELD_NAMES(MODEL_NAME, NAMES) \
 template<> \
-struct model_field_name<model_ ## MODEL_NAME::TraitEquationModel> \
-{ \
-	const char* operator()(int index) { \
-		static const char* names[]{SINGLE_ARG NAMES}; \
-		return names[index]; \
-	} \
-};
+template<> struct model_field_name<model_ ## MODEL_NAME::TraitEquationModel> : model_field_name_builder<model_ ## MODEL_NAME::TraitEquationModel> {}; \
+template<> struct model_field_name_format<model_ ## MODEL_NAME::TraitEquationModel> \
+{ static const char* value[] = { SINGLE_ARG NAMES }; };
 
 #define DEFINE_MODEL_FIELD_NAMES_FORMAT(MODEL_NAME, FORMAT) \
-template<> \
-struct model_field_name<model_ ## MODEL_NAME::TraitEquationModel> \
-{ \
-	const char* operator()(int index) { \
-		static char** names = build_names(); \
-		return names[index]; \
-	} \
-	char** build_names() \
-	{ \
-		constexpr size_t len = 100; \
-		char** names = new char*[len]; \
-		char buffer[100]; \
-		for (size_t i = 1; i <= len; ++i) { \
-			sprintf(buffer, FORMAT, int(i)); \
-			names[i - 1] = new char[std::strlen(buffer) + 1]; \
-			std::strcpy(names[i - 1], buffer); \
-		} \
-		return names; \
-	} \
-};
+template<> struct model_field_name<model_ ## MODEL_NAME::TraitEquationModel> : model_field_name_builder<model_ ## MODEL_NAME::TraitEquationModel> {}; \
+template<> struct model_field_name_format<model_ ## MODEL_NAME::TraitEquationModel> \
+{ static const char* value; }; \
+inline const char* model_field_name_format<model_ ## MODEL_NAME::TraitEquationModel>::value = FORMAT;
 
 //! @}
 
@@ -1789,7 +1778,7 @@ namespace symphas::internal
 		template<typename E, size_t... Ls>
 		auto substitute_systems(OpExpression<E> const& e, std::index_sequence<Ls...>)
 		{
-			auto list = expr::array_arg(len, systems);
+			auto list = expr::array_arg(len, NamedData(systems, names_t{}()));
 
 			return sum(*static_cast<E const*>(&e))
 				.template select<Ls...>(Xs{}...)

@@ -113,41 +113,44 @@ public:
   */
 
 #define INVALID_MODEL -1
-#define MAX_DEFINED_MODELS 256
+#define MAX_DEFINED_MODELS 64
 
  //! \cond
 
-/*!
- * Primary object using recursive inheritance in order to
- * define a member variable and return one of incremented value.
- *
- * A higher order index is given on the next usage by overloading
- * the function for which the terminating point is instantiated. below
- * it is never defined, because only the return type matters
- */
-template<int N>
-struct model_count_index : model_count_index<N - 1>
+namespace symphas::internal
 {
-	static const int value = N + 1;
-};
 
-//! Base specialization to terminate the recursive inheritance.
-/*! 
- * Base specialization which terminates the recursive inheritance for
- * incrementing model indices.
- */
-template<>
-struct model_count_index<0>
-{
-	static const int value = 1;
-};
+	/*!
+	 * Primary object using recursive inheritance in order to
+	 * define a member variable and return one of incremented value.
+	 *
+	 * A higher order index is given on the next usage by overloading
+	 * the function for which the terminating point is instantiated. below
+	 * it is never defined, because only the return type matters
+	 */
+	template<int N>
+	struct model_count_index : model_count_index<N - 1>
+	{
+		static const int value = N + 1;
+	};
 
-/* overloading this function on a new parameter and updating the return
- * type will provide a new index on the next usage by decltype
- */
-constexpr model_count_index<0> model_counter(model_count_index<0>);
+	//! Base specialization to terminate the recursive inheritance.
+	/*!
+	 * Base specialization which terminates the recursive inheritance for
+	 * incrementing model indices.
+	 */
+	template<>
+	struct model_count_index<0>
+	{
+		static const int value = 1;
+	};
 
+	/* overloading this function on a new parameter and updating the return
+	 * type will provide a new index on the next usage by decltype
+	 */
+	constexpr model_count_index<0> model_counter(model_count_index<0>);
 
+}
 
 
 //! Used in assigning unique names to models for indexing.
@@ -165,8 +168,9 @@ constexpr model_count_index<0> model_counter(model_count_index<0>);
  * because after that, the counter will no longer increment.
  */
 #define NEXT_MODEL_INDEX(PREFIX_NAME) \
+namespace symphas::internal { \
 constexpr int MODEL_INDEX_NAME(PREFIX_NAME) = decltype(model_counter(model_count_index<MAX_DEFINED_MODELS>{}))::value; \
-constexpr model_count_index<MODEL_INDEX_NAME(PREFIX_NAME)> model_counter(model_count_index<MODEL_INDEX_NAME(PREFIX_NAME)>);
+constexpr model_count_index<MODEL_INDEX_NAME(PREFIX_NAME)> model_counter(model_count_index<MODEL_INDEX_NAME(PREFIX_NAME)>); }
 
 
 //! \endcond
@@ -191,13 +195,13 @@ constexpr model_count_index<MODEL_INDEX_NAME(PREFIX_NAME)> model_counter(model_c
 template<int N>
 struct model_call_wrapper
 {
-	template<template<typename> typename AppliedSolver, typename... Ts>
+	template<template<typename, size_t> typename AppliedSolver, typename... Ts>
 	static int call(size_t, StencilParams, const char*, Ts&& ...)
 	{
 		return INVALID_MODEL;
 	}
 
-	template<typename AppliedSolver, typename... Ts>
+	template<template<size_t> typename AppliedSolver, typename... Ts>
 	static int call(size_t, const char*, Ts&& ...)
 	{
 		return INVALID_MODEL;
@@ -238,19 +242,19 @@ struct model_call_wrapper
  */
 #define MODEL_WRAPPER_FUNC(NAME, GIVEN_NAME, MODEL, SOLVER) \
 template<> \
-struct model_call_wrapper<MODEL_INDEX_NAME(NAME)> \
+struct model_call_wrapper<symphas::internal::MODEL_INDEX_NAME(NAME)> \
 { \
-	template<template<typename> typename AppliedSolver, typename... Ts> \
+	template<template<typename, size_t> typename AppliedSolver, typename... Ts> \
 	static int call(size_t dimension, StencilParams stp, const char* name, Ts&& ...args) \
 	{ \
 		if (std::strcmp(name, #GIVEN_NAME) == 0) { return ModelSelectStencil<MODEL, SOLVER>{ dimension, stp }(std::forward<Ts>(args)...); } \
-		return model_call_wrapper<MODEL_INDEX_NAME(NAME) - 1>::call<AppliedSolver>(dimension, stp, name, std::forward<Ts>(args)...); \
+		return model_call_wrapper<symphas::internal::MODEL_INDEX_NAME(NAME) - 1>::call<AppliedSolver>(dimension, stp, name, std::forward<Ts>(args)...); \
 	} \
-	template<typename AppliedSolver, typename... Ts> \
+	template<template<size_t> typename AppliedSolver, typename... Ts> \
 	static int call(size_t dimension, const char* name, Ts&& ...args) \
 	{ \
 		if (std::strcmp(name, #GIVEN_NAME) == 0) { return ModelSelect<MODEL, SOLVER>{ dimension }(std::forward<Ts>(args)...); } \
-		return model_call_wrapper<MODEL_INDEX_NAME(NAME) - 1>::call<AppliedSolver>(dimension, name, std::forward<Ts>(args)...); \
+		return model_call_wrapper<symphas::internal::MODEL_INDEX_NAME(NAME) - 1>::call<AppliedSolver>(dimension, name, std::forward<Ts>(args)...); \
 	} \
 };
 
@@ -263,17 +267,17 @@ namespace symphas::internal
 
 	template<
 		template<size_t, typename> typename Model,
-		template<typename> typename Solver,
-		size_t D, size_t O, size_t... Ps,
+		template<typename, size_t> typename Solver,
+		size_t N, size_t D, size_t O, size_t... Ps,
 		typename... Ts
 	>
-	auto run_model_call(std::index_sequence<D, O, Ps...>, Ts&& ...args);
+	auto run_model_call(std::index_sequence<N, D, O, Ps...>, Ts&& ...args);
 
 	template<
-		template<size_t, typename> typename Model, typename Solver, size_t D,
-		typename... Ts
+		template<size_t, typename> typename Model, template<size_t> typename Solver, 
+		size_t N, size_t D, typename... Ts
 	>
-	auto run_model_call(Ts&& ...args);
+	auto run_model_call(std::index_sequence<N, D>, Ts&& ...args);
 
 	template<template<size_t, typename> typename M, size_t D>
 	struct allowed_model_dimensions { static const bool value = true; };
@@ -282,7 +286,7 @@ namespace symphas::internal
 
 template<
 	template<size_t, typename> typename Model, 
-	template<typename> typename Solver>
+	template<typename, size_t = 0> typename Solver>
 struct ModelSelectStencil
 {
 
@@ -300,109 +304,145 @@ protected:
 		}
 	};
 
-	template<size_t D, size_t O, size_t... Ps>
-	struct StencilFromSeq<std::index_sequence<D, O, Ps...>>
+	template<size_t N, size_t D, size_t O, size_t... Ps>
+	struct StencilFromSeq<std::index_sequence<N, D, O, Ps...>>
 	{
 		template<typename... Ts>
 		auto operator()(Ts&& ...args)
 		{
-			return symphas::internal::run_model_call<Model, Solver>(std::index_sequence<D, O, Ps...>{}, std::forward<Ts>(args)...);
+			return symphas::internal::run_model_call<Model, Solver>(std::index_sequence<N, D, O, Ps...>{}, std::forward<Ts>(args)...);
 		}
 	};
 
-	size_t parameters[5];
+	size_t parameters[6];
 
 	// Run model from stencil parameters.
 
-	template<size_t D, typename... Ts>
+	template<size_t N, size_t D, typename... Ts>
 	auto search_ord(std::index_sequence<>, Ts&& ...) const
 	{
-		fprintf(SYMPHAS_WARN, "the provided order of accuracy '%zd' is invalid for constructing the model\n", parameters[1]);
+		fprintf(SYMPHAS_WARN, "the provided order of accuracy '%zd' is invalid for constructing the model\n", parameters[2]);
 		return INVALID_MODEL;
 	}
 
-	template<size_t D, size_t O, size_t... Os, typename... Ts>
+	template<size_t N, size_t D, size_t O, size_t... Os, typename... Ts>
 	auto search_ord(std::index_sequence<O, Os...>, Ts&& ...args) const
 	{
-		if (parameters[1] == O)
+		if (parameters[2] == O)
 		{
 			return symphas::lib::internal::search<StencilFromSeq>(
-				parameters, symphas::internal::cross_list_t<D, O>{}, std::forward<Ts>(args)...);
+				parameters, symphas::internal::cross_list_t<N, D, O>{}, std::forward<Ts>(args)...);
 		}
 		else
 		{
-			return search_ord<D>(std::index_sequence<Os...>{}, std::forward<Ts>(args)...);
+			return search_ord<N, D>(std::index_sequence<Os...>{}, std::forward<Ts>(args)...);
 		}
 	}
 
-	template<typename... Ts>
+	template<size_t N, typename... Ts>
 	auto search_dim(symphas::lib::types_list<>, Ts&& ...) const
 	{
-		fprintf(SYMPHAS_WARN, "the provided dimension value '%zd' is invalid for constructing the model\n", parameters[0]);
+		fprintf(SYMPHAS_WARN, "the provided dimension value '%zd' is invalid for constructing the model\n", parameters[1]);
 		return INVALID_MODEL;
 	}
 
-	template<size_t D, size_t... Ns, typename... Seqs, typename... Ts>
+	template<size_t N, size_t D, size_t... Ns, typename... Seqs, typename... Ts>
 	auto search_dim(symphas::lib::types_list<symphas::lib::types_list<std::index_sequence<D>, std::index_sequence<Ns...>>, Seqs...>, Ts&& ...args) const
 	{
 		if constexpr (symphas::internal::allowed_model_dimensions<Model, D>::value)
 		{
-			if (parameters[0] == D)
+			if (parameters[1] == D)
 			{
-				return search_ord<D>(std::index_sequence<Ns...>{}, std::forward<Ts>(args)...);
+				return search_ord<N, D>(std::index_sequence<Ns...>{}, std::forward<Ts>(args)...);
 			}
 		}
-		return search_dim(symphas::lib::types_list<Seqs...>{}, std::forward<Ts>(args)...);
+		return search_dim<N>(symphas::lib::types_list<Seqs...>{}, std::forward<Ts>(args)...);
 	}
 
+	template<typename... Ts>
+	auto search_type(std::index_sequence<>, Ts&& ...) const
+	{
+		fprintf(SYMPHAS_WARN, "the provided solver variation '%zd' is invalid\n", parameters[0]);
+		return INVALID_MODEL;
+	}
+
+	template<size_t N, size_t... Ns, typename... Seqs, typename... Ts>
+	auto search_type(std::index_sequence<N, Ns...>, Ts&& ...args) const
+	{
+		if (parameters[0] == N)
+		{
+			return search_dim<N>(symphas::internal::dim_ord_list_t<AVAILABLE_DIMENSIONS>{}, std::forward<Ts>(args)...);
+		}
+		return search_type(std::index_sequence<Ns...>{}, std::forward<Ts>(args)...);
+	}
 
 public:
 
 	ModelSelectStencil(size_t dimension, StencilParams stp)
-		: parameters{ dimension, stp.ord, stp.ptl, stp.ptg, stp.ptb } {}
+		: parameters{ stp.type, dimension, stp.ord, stp.ptl, stp.ptg, stp.ptb } {}
 
 	template<typename... Ts>
 	auto operator()(Ts&& ...args) const
 	{
-		return search_dim(symphas::internal::dim_ord_list_t<AVAILABLE_DIMENSIONS>{}, std::forward<Ts>(args)...);
+		using namespace symphas::internal;
+		return search_type(std::make_index_sequence<decltype(solver_counter(solver_count_index<solver_id_t<Solver<void>>, SOLVER_MAX_VARIATIONS>{}))::value - 1>{}, std::forward<Ts>(args)...);
 	}
 };
 
-template<template<size_t, typename> typename Model, typename Solver>
+template<template<size_t, typename> typename Model, template<size_t N = 0> typename Solver>
 struct ModelSelect
 {
 protected:
 
-	template<typename... Ts>
+	template<size_t N, typename... Ts>
 	auto search_dim(symphas::lib::types_list<>, Ts&& ...) const
 	{
 		fprintf(SYMPHAS_WARN, "the provided dimension value '%zd' is invalid for constructing the model\n", dimension);
 		return INVALID_MODEL;
 	}
 
-	template<size_t D, size_t... Ns, typename... Seqs, typename... Ts>
+	template<size_t N, size_t D, size_t... Ns, typename... Seqs, typename... Ts>
 	auto search_dim(symphas::lib::types_list<symphas::lib::types_list<std::index_sequence<D>, std::index_sequence<Ns...>>, Seqs...>, Ts&& ...args) const
 	{
 		if constexpr (symphas::internal::allowed_model_dimensions<Model, D>::value)
 		{
 			if (dimension == D)
 			{
-				return symphas::internal::run_model_call<Model, Solver, D>(std::forward<Ts>(args)...);
+				return symphas::internal::run_model_call<Model, Solver>(std::index_sequence<N, D>{}, std::forward<Ts>(args)...);
 			}
 		}
-		return search_dim(symphas::lib::types_list<Seqs...>{}, std::forward<Ts>(args)...);
+		return search_dim<N>(symphas::lib::types_list<Seqs...>{}, std::forward<Ts>(args)...);
+	}
+
+	template<typename... Ts>
+	auto search_type(std::index_sequence<>, Ts&& ...) const
+	{
+		fprintf(SYMPHAS_WARN, "the provided solver variation '%zd' is invalid\n", type);
+		return INVALID_MODEL;
+	}
+
+	template<size_t N, size_t... Ns, typename... Seqs, typename... Ts>
+	auto search_type(std::index_sequence<N, Ns...>, Ts&& ...args) const
+	{
+		if (type == N)
+		{
+			return search_dim<N>(symphas::internal::dim_ord_list_t<AVAILABLE_DIMENSIONS>{}, std::forward<Ts>(args)...);
+		}
+		return search_type(std::index_sequence<Ns...>{}, std::forward<Ts>(args)...);
 	}
 
 	size_t dimension;
+	size_t type;
 
 public:
 
-	ModelSelect(size_t dimension) : dimension{ dimension } {}
+	ModelSelect(size_t dimension, size_t type) : dimension{ dimension }, type{ type } {}
 
 	template<typename... Ts>
 	auto operator()(Ts&& ...args) const
 	{
-		return search_dim(symphas::internal::dim_ord_list_t<AVAILABLE_DIMENSIONS>{}, std::forward<Ts>(args)...);
+		using namespace symphas::internal;
+		return search_type(std::make_index_sequence<decltype(solver_counter(solver_count_index<solver_id_t<Solver<>>, SOLVER_MAX_VARIATIONS>{}))::value - 1>{}, std::forward<Ts>(args)...);
 	}
 };
 
@@ -1141,10 +1181,10 @@ namespace symphas::internal
 
 // free energy parameters
 
-
-#define LANDAU_FE(...) landau_fe(solver, __VA_ARGS__)
-#define DOUBLE_WELL_FE(...) doublewell_fe(solver, __VA_ARGS__)
-#define CELLULAR_FE(...) cellular_fe(solver, __VA_ARGS__)
+#define FE_FUNCTION(NAME, ...) NAME(solver, __VA_ARGS__)
+#define LANDAU_FE(...) FE_FUNCTION(landau_fe, __VA_ARGS__)
+#define DOUBLE_WELL_FE(...) FE_FUNCTION(doublewell_fe, __VA_ARGS__)
+#define CELLULAR_FE(...) FE_FUNCTION(cellular_fe, __VA_ARGS__)
 
 
 // **************************************************************************************

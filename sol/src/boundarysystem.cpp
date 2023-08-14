@@ -20,3 +20,23 @@
 
 
 #include "boundarysystem.h"
+
+DLLSOL double params::regional_resize_factor = 1.5;
+DLLSOL double params::regional_resize_time = 2.5;
+DLLSOL double params::regional_resize_cutoff_eps = 1e-6;
+
+
+bool add_solution_params(param_map_type& param_map)
+{
+	using namespace params;
+
+	param_map["regional-resize-factor"] = std::make_pair(&regional_resize_factor, new param_assign<double>);
+	param_map["regional-factor"] = std::make_pair(&regional_resize_factor, new param_assign<double>);
+	param_map["regional-resize-time"] = std::make_pair(&regional_resize_time, new param_assign<double>);
+	param_map["regional-delta"] = std::make_pair(&regional_resize_time, new param_assign<double>);
+	param_map["regional-resize-eps"] = std::make_pair(&regional_resize_cutoff_eps, new param_assign<double>);
+	param_map["regional-eps"] = std::make_pair(&regional_resize_cutoff_eps, new param_assign<double>);
+
+	return true;
+}
+

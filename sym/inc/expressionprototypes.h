@@ -27,6 +27,12 @@
 
 #include "spslib.h"
 
+
+template<typename Sp, size_t N = 0>
+struct Solver;
+
+
+
 //! Contains all elements constituting the symbolic algebra functionality.
 /*!
  * Defines elements which support the symbolic algebra functionality, such
@@ -373,9 +379,16 @@ using SymbolicFunctionalDerivative = SymbolicDerivative<expr::variational_t<G>>;
 namespace expr::prune
 {
 
-	template<typename E>
-	void update(E& e);
-
+	//! Update underlying the given expression.
+	/*!
+	 * For expressions which store intermediate data, such as derivatives, this
+	 * data must be updated before the expression can be evaluated. This will
+	 * traverse the expression tree and perform all necessary updating.
+	 *
+	 * \param e The expression that is updated.
+	 */
+	template<typename... condition_ts, typename E>
+	inline void update(E& e);
 }
 
 namespace expr
