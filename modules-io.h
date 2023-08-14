@@ -28,7 +28,7 @@
 #pragma once
 
 #include "prereq.h"
-#include "write.h"
+#include "savedefines.h"
 #include "read.h"
 #include "modelvirtual.h"
 
@@ -97,9 +97,31 @@ namespace symphas
 		{
 			symphas::interval_element_type interval;
 			interval.set_count(
-				sys.get_info().intervals.at(symphas::index_to_axis(i)).left(),
-				sys.get_info().intervals.at(symphas::index_to_axis(i)).right(),
+				sys.get_info().intervals.at(symphas::index_to_axis(i)).domain_left(),
+				sys.get_info().intervals.at(symphas::index_to_axis(i)).domain_right(),
 				sys.dims[i]);
+			interval.interval_to_domain();
+			intervals[symphas::index_to_axis(i)] = interval;
+		}
+
+		symphas::grid_info g{ intervals };
+		symphas::io::save_grid(sys.values, w, g);
+	}
+
+	template<typename T, size_t D>
+	void checkpoint_system(PhaseFieldSystem<RegionalGrid, T, D> const& sys, const char* dir, iter_type index)
+	{
+		symphas::io::write_info w{ dir, index, sys.get_id(), DataFileType::CHECKPOINT_DATA };
+
+		symphas::interval_data_type intervals;
+		for (iter_type i = 0; i < D; ++i)
+		{
+			symphas::interval_element_type interval(sys.info[symphas::index_to_axis(i)]);
+			interval.set_count(sys.dims[i]);
+			interval.set_interval_fraction(
+				double(sys.region.origin[i]) / sys.dims[i],
+				double(sys.region.origin[i] + sys.region.dims[i] - 1) / sys.dims[i]);
+
 			intervals[symphas::index_to_axis(i)] = interval;
 		}
 
@@ -180,13 +202,13 @@ namespace symphas
 	 * \param model The phase field problem data.
 	 * \param save The save parameters.
 	 * \param starttime The begin time of this solution.
-	 * \param dt The time step between solution iterations.
+	 * \param dts The time steps between solution iterations.
 	 */
 	template<typename M>
-	bool run_model(M& model, SaveParams const& save, double dt, double starttime = 0)
+	bool run_model(M& model, SaveParams const& save, symphas::time_step_list const& dts, double starttime = 0)
 	{
 		iter_type n = save.next_save(model.get_index()) - model.get_index();
-		bool done = run_model(model, n, dt, starttime);
+		bool done = run_model(model, n, dts, starttime);
 		return (done && !save.is_last_save(model.get_index()));
 	}
 
@@ -204,7 +226,7 @@ namespace symphas
 	 * any postprocessing which is necessary (and if the module is enabled).
 	 *
 	 * \param model The model which is solved.
-	 * \param dt The time stepping distance.
+	 * \param dts The time stepping distances.
 	 * \param save Save parameters dictating when the model is paused for
 	 * persisting data.
 	 * \param save_points Additional save points, which should correspond
@@ -216,7 +238,7 @@ namespace symphas
 	 * data outputs of the phase field.
 	 */
 	template<typename M>
-	void find_solution(M* models, len_type num_models, double dt, SaveParams const& save, std::vector<iter_type> save_points, const char* dir,
+	void find_solution(M* models, len_type num_models, symphas::time_step_list const& dts, SaveParams const& save, std::vector<iter_type> save_points, const char* dir,
 		bool plotting_output = true, bool checkpoint = symphas::io::is_checkpoint_set())
 	{
 		M& model = *models;
@@ -328,7 +350,7 @@ namespace symphas
 
 					for (iter_type i = 0; i < num_models; ++i)
 					{
-						running = run_model(models[i], n, dt, models[i].get_time() + dt) && running;
+						running = run_model(models[i], n, dts, models[i].get_time()) && running;
 					}
 					running = !save.is_last_save(model.get_index()) && running;
 
@@ -346,16 +368,16 @@ namespace symphas
 			data_persistence();
 		}
 
-		fprintf(SYMPHAS_LOG, "Completed %d iterations in %.2lf seconds.\n", model.get_index(), run_time);
+		fprintf(SYMPHAS_LOG, "Completed %d iterations in %.2lf seconds, simulation end time = %lf.\n", model.get_index(), run_time, models[0].get_time());
 		fprintf(SYMPHAS_LOG, OUTPUT_BANNER);
 	}
 
 
 	template<typename M>
-	void find_solution(M& model, double dt, SaveParams const& save, std::vector<iter_type> save_points, const char* dir,
+	void find_solution(M& model, symphas::time_step_list const& dts, SaveParams const& save, std::vector<iter_type> save_points, const char* dir,
 		bool plotting_output = true, bool checkpoint = symphas::io::is_checkpoint_set())
 	{
-		find_solution(&model, 1, dt, save, save_points, dir, plotting_output, checkpoint);
+		find_solution(&model, 1, dts, save, save_points, dir, plotting_output, checkpoint);
 	}
 
 	//! See symphas::find_solution().
@@ -365,7 +387,7 @@ namespace symphas
 	 * 
 	 * \param models The phase field problems which are solved.
 	 * \param num_models The number of models in the pointer array.
-	 * \param dt The time step increment of the solution.
+	 * \param dts The time step increments of the solution.
 	 * \param save The save parameters for persisting the solution.
 	 * \param dir The directory to put the persistent data.
 	 * \param plotting_output If true, output will be generated to be used
@@ -374,10 +396,10 @@ namespace symphas
 	 * data outputs of the phase field.
 	 */
 	template<typename M>
-	void find_solution(M* models, len_type num_models, double dt, SaveParams const& save, const char* dir,
+	void find_solution(M* models, len_type num_models, symphas::time_step_list const& dts, SaveParams const& save, const char* dir,
 		bool plotting_output = true, bool checkpoint = symphas::io::is_checkpoint_set())
 	{
-		find_solution(models, num_models, dt, save, { save.get_stop() }, dir, plotting_output, checkpoint);
+		find_solution(models, num_models, dts, save, { save.get_stop() }, dir, plotting_output, checkpoint);
 	}
 
 	//! See symphas::find_solution().
@@ -386,7 +408,7 @@ namespace symphas
 	 * be dictated only by the given save parameter.
 	 * 
 	 * \param model The phase field problem which is solved.
-	 * \param dt The time step increment of the solution.
+	 * \param dts The time step increments of the solution.
 	 * \param save The save parameters for persisting the solution.
 	 * \param dir The directory to put the persistent data.
 	 * \param plotting_output If true, output will be generated to be used
@@ -395,10 +417,10 @@ namespace symphas
 	 * data outputs of the phase field.
 	 */
 	template<typename M>
-	void find_solution(M& model, double dt, SaveParams const& save, const char* dir,
+	void find_solution(M& model, symphas::time_step_list const& dts, SaveParams const& save, const char* dir,
 		bool plotting_output = true, bool checkpoint = symphas::io::is_checkpoint_set())
 	{
-		find_solution(model, dt, save, { save.get_stop() }, dir, plotting_output, checkpoint);
+		find_solution(model, dts, save, { save.get_stop() }, dir, plotting_output, checkpoint);
 	}
 
 
@@ -409,7 +431,7 @@ namespace symphas
 	 * 
 	 * \param models The phase field problems which are solved.
 	 * \param num_models The number of models in the pointer array.
-	 * \param dt The time step increment of the solution.
+	 * \param dts The time step increments of the solution.
 	 * \param save The save parameters for persisting the solution.
 	 * \param save_points The list of points at which the solution will be
 	 * persisted.
@@ -419,10 +441,10 @@ namespace symphas
 	 * data outputs of the phase field.
 	 */
 	template<typename M>
-	void find_solution(M* models, len_type num_models, double dt, SaveParams const& save, std::vector<iter_type> save_points,
+	void find_solution(M* models, len_type num_models, symphas::time_step_list const& dts, SaveParams const& save, std::vector<iter_type> save_points,
 		bool plotting_output = true, bool checkpoint = symphas::io::is_checkpoint_set())
 	{
-		find_solution(models, num_models, dt, save, save_points, ".", plotting_output, checkpoint);
+		find_solution(models, num_models, dts, save, save_points, ".", plotting_output, checkpoint);
 	}
 
 	//! See symphas::find_solution().
@@ -431,7 +453,7 @@ namespace symphas
 	 * the current directory.
 	 * 
 	 * \param model The phase field problem which is solved.
-	 * \param dt The time step increment of the solution.
+	 * \param dts The time step increments of the solution.
 	 * \param save The save parameters for persisting the solution.
 	 * \param save_points The list of points at which the solution will be
 	 * persisted.
@@ -441,10 +463,10 @@ namespace symphas
 	 * data outputs of the phase field.
 	 */
 	template<typename M>
-	void find_solution(M& model, double dt, SaveParams const& save, std::vector<iter_type> save_points,
+	void find_solution(M& model, symphas::time_step_list const& dts, SaveParams const& save, std::vector<iter_type> save_points,
 		bool plotting_output = true, bool checkpoint = symphas::io::is_checkpoint_set())
 	{
-		find_solution(model, dt, save, save_points, ".", plotting_output, checkpoint);
+		find_solution(model, dts, save, save_points, ".", plotting_output, checkpoint);
 	}
 
 
@@ -455,7 +477,7 @@ namespace symphas
 	 * 
 	 * \param models The phase field problems which are solved.
 	 * \param num_models The number of models in the pointer array.
-	 * \param dt The time step increment of the solution.
+	 * \param dts The time step increments of the solution.
 	 * \param save The save parameters for persisting the solution.
 	 * \param plotting_output If true, output will be generated to be used
 	 * by a plotting utility.
@@ -463,10 +485,10 @@ namespace symphas
 	 * data outputs of the phase field.
 	 */
 	template<typename M>
-	void find_solution(M* models, len_type num_models, double dt, SaveParams const& save,
+	void find_solution(M* models, len_type num_models, symphas::time_step_list const& dts, SaveParams const& save,
 		bool plotting_output = true, bool checkpoint = symphas::io::is_checkpoint_set())
 	{
-		find_solution(models, num_models, dt, save, ".", plotting_output, checkpoint);
+		find_solution(models, num_models, dts, save, ".", plotting_output, checkpoint);
 	}
 
 	//! See symphas::find_solution().
@@ -475,7 +497,7 @@ namespace symphas
 	 * directory is given to be the current directory.
 	 * 
 	 * \param model The phase field problem which is solved.
-	 * \param dt The time step increment of the solution.
+	 * \param dts The time step increments of the solution.
 	 * \param save The save parameters for persisting the solution.
 	 * \param plotting_output If true, output will be generated to be used
 	 * by a plotting utility.
@@ -483,10 +505,10 @@ namespace symphas
 	 * data outputs of the phase field.
 	 */
 	template<typename M>
-	void find_solution(M& model, double dt, SaveParams const& save,
+	void find_solution(M& model, symphas::time_step_list const& dts, SaveParams const& save,
 		bool plotting_output = true, bool checkpoint = symphas::io::is_checkpoint_set())
 	{
-		find_solution(model, dt, save, ".", plotting_output, checkpoint);
+		find_solution(model, dts, save, ".", plotting_output, checkpoint);
 	}
 
 
@@ -500,7 +522,7 @@ namespace symphas
 	 *
 	 * \param models The phase field problems which are solved.
 	 * \param num_models The number of models in the pointer array.
-	 * \param dt The time step increment of the solution.
+	 * \param dts The time step increments of the solution.
 	 * \param stop The terminating index.
 	 * \param dir The directory to put the persistent data.
 	 * \param plotting_output If true, output will be generated to be used
@@ -509,11 +531,11 @@ namespace symphas
 	 * data outputs of the phase field.
 	 */
 	template<typename M>
-	void find_solution(M* models, len_type num_models, double dt, iter_type stop, const char* dir,
+	void find_solution(M* models, len_type num_models, symphas::time_step_list const& dts, iter_type stop, const char* dir,
 		bool plotting_output = true, bool checkpoint = symphas::io::is_checkpoint_set())
 	{
 		SaveParams save{ SaveType::DEFAULT, stop, 0, stop };
-		find_solution(models, num_models, dt, save, { save.get_stop() }, dir, plotting_output, checkpoint);
+		find_solution(models, num_models, dts, save, { save.get_stop() }, dir, plotting_output, checkpoint);
 	}
 
 	//! See symphas::find_solution().
@@ -524,7 +546,7 @@ namespace symphas
 	 * is saved.
 	 *
 	 * \param model The phase field problem which is solved.
-	 * \param dt The time step increment of the solution.
+	 * \param dts The time step increments of the solution.
 	 * \param stop The terminating index.
 	 * \param dir The directory to put the persistent data.
 	 * \param plotting_output If true, output will be generated to be used
@@ -533,11 +555,11 @@ namespace symphas
 	 * data outputs of the phase field.
 	 */
 	template<typename M>
-	void find_solution(M& model, double dt, iter_type stop, const char* dir,
+	void find_solution(M& model, symphas::time_step_list const& dts, iter_type stop, const char* dir,
 		bool plotting_output = true, bool checkpoint = symphas::io::is_checkpoint_set())
 	{
 		SaveParams save{ SaveType::DEFAULT, static_cast<double>(stop), 0, stop };
-		find_solution(model, dt, save, { save.get_stop() }, dir, plotting_output, checkpoint);
+		find_solution(model, dts, save, { save.get_stop() }, dir, plotting_output, checkpoint);
 	}
 
 
@@ -551,7 +573,7 @@ namespace symphas
 	 * 
 	 * \param models The phase field problems which are solved.
 	 * \param num_models The number of models in the pointer array.
-	 * \param dt The time step increment of the solution.
+	 * \param dts The time step increments of the solution.
 	 * \param stop The terminating index.
 	 * \param plotting_output If true, output will be generated to be used
 	 * by a plotting utility.
@@ -559,10 +581,10 @@ namespace symphas
 	 * data outputs of the phase field.
 	 */
 	template<typename M>
-	void find_solution(M* models, len_type num_models, double dt, iter_type stop,
+	void find_solution(M* models, len_type num_models, symphas::time_step_list const& dts, iter_type stop,
 		bool plotting_output = true, bool checkpoint = symphas::io::is_checkpoint_set())
 	{
-		find_solution(models, num_models, dt, stop, ".", plotting_output, checkpoint);
+		find_solution(models, num_models, dts, stop, ".", plotting_output, checkpoint);
 	}
 
 	//! See symphas::find_solution().
@@ -572,7 +594,7 @@ namespace symphas
 	 * current directory.
 	 * 
 	 * \param model The phase field problem which is solved.
-	 * \param dt The time step increment of the solution.
+	 * \param dts The time step increments of the solution.
 	 * \param stop The terminating index.
 	 * \param plotting_output If true, output will be generated to be used
 	 * by a plotting utility.
@@ -580,9 +602,9 @@ namespace symphas
 	 * data outputs of the phase field.
 	 */
 	template<typename M>
-	void find_solution(M& model, double dt, iter_type stop,
+	void find_solution(M& model, symphas::time_step_list const& dts, iter_type stop,
 		bool plotting_output = true, bool checkpoint = symphas::io::is_checkpoint_set())
 	{
-		find_solution(model, dt, stop, ".", plotting_output, checkpoint);
+		find_solution(model, dts, stop, ".", plotting_output, checkpoint);
 	}
 }

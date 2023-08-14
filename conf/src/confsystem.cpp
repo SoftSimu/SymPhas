@@ -30,6 +30,7 @@ namespace symphas::internal
 	 */
 
 	char C_DIM[] = "DIM";
+	char C_SOLVERVAR[] = "SOLVERVAR";
 	char C_ORDER[] = "ORDER";
 	char C_PTL[] = "PTL";
 	char C_PTB[] = "PTB";
@@ -879,7 +880,7 @@ std::vector<std::string> symphas::conf::parse_options(
 
 SystemConf::SystemConf() :
 	dimension{ 1 },
-	dt{ 0.0 },
+	dt_list{},
 	stp{ StencilParams{} },
 	runs{ 1 },
 	save{ SaveParams{} },
@@ -893,13 +894,14 @@ SystemConf::SystemConf() :
 	intervals{ nullptr },
 	bdata{ nullptr },
 	tdata{ nullptr },
+	num_fields{ nullptr },
 	dims{ nullptr },
 	intervals_len{ 0 },
 	bdata_len{ 0 },
 	tdata_len{ 0 },
 	names_len{ 0 },
 	coeff_len{ 0 },
-	field_len{ 0 },
+	num_fields_len{ 0 },
 	modifiers{ nullptr },
 	init_coeff_copied{ false }
 {}
@@ -909,9 +911,10 @@ SystemConf::SystemConf(SystemConf const& other) : SystemConf()
 	g = other.g;
 	dimension = other.dimension;
 	stp = other.stp;
-	dt = other.dt;
 	runs = other.runs;
 	save = other.save;
+
+	dt_list = other.dt_list;
 
 	root_dir = new char[std::strlen(other.root_dir) + 1];
 	result_dir = new char[std::strlen(other.result_dir) + 1];
@@ -928,19 +931,28 @@ SystemConf::SystemConf(SystemConf const& other) : SystemConf()
 	tdata_len = other.tdata_len;
 	names_len = other.names_len;
 	coeff_len = other.coeff_len;
-	field_len = other.field_len;
+	num_fields_len = other.num_fields_len;
 
-	intervals = new symphas::interval_data_type[other.intervals_len];
-	bdata = new symphas::b_data_type[other.bdata_len];
-	tdata = new symphas::init_data_type[other.tdata_len];
-	coeff = new double[other.coeff_len];
-	names = new char*[other.names_len];
-	dims = new len_type*[other.intervals_len];
+	intervals = new symphas::interval_data_type[other.intervals_len]{};
+	bdata = new symphas::b_data_type[other.bdata_len]{};
+	tdata = new symphas::init_data_type[other.tdata_len]{};
+	coeff = new double[other.coeff_len]{};
+	names = new char* [other.names_len] {};
+	num_fields = new len_type[other.num_fields_len]{};
+	dims = new len_type*[other.intervals_len]{};
 	
-	if (other.modifiers != nullptr)
+	if (other.num_fields_len > 0)
 	{
-		modifiers = new char[std::strlen(other.modifiers) + 1];
-		std::strcpy(modifiers, other.modifiers);
+		modifiers = new char* [other.num_fields_len] {};
+		for (iter_type i = 0; i < other.num_fields_len; ++i)
+		{
+			if (other.modifiers[i])
+			{
+				modifiers[i] = new char[std::strlen(other.modifiers[i]) + 1];
+				std::strcpy(modifiers[i], other.modifiers[i]);
+			}
+			num_fields[i] = other.num_fields[i];
+		}
 	}
 
 	std::copy(other.intervals, other.intervals + other.intervals_len, intervals);
@@ -981,12 +993,10 @@ SystemConf::SystemConf(symphas::problem_parameters_type const& parameters, const
 	this->title = new char[std::strlen(title) + 1];
 	std::strcpy(this->title, title);
 
-
 	set_directory(".");
 
-
 	g = Geometry::CARTESIAN;
-	dt = parameters.get_time_step();
+	set_time_steps(parameters.get_time_step_list());
 	dimension = parameters.get_dimension();
 
 	tdata_len = parameters.length();
@@ -1026,6 +1036,7 @@ SystemConf::SystemConf(std::vector<std::pair<std::string, std::string>> params, 
 	char model_spec[BUFFER_LENGTH_L3];
 	char original_dir[BUFFER_LENGTH_L4];
 	char width_spec[BUFFER_LENGTH];
+	char dt_spec[BUFFER_LENGTH];
 	int stop_index = 0;
 
 	for (iter_type i = 0; i < 6; ++i)
@@ -1057,34 +1068,35 @@ SystemConf::SystemConf(std::vector<std::pair<std::string, std::string>> params, 
 
 	std::map<std::string, std::function<void(const char*)>, symphas::internal::any_case_comparator> system_map =
 	{
-		{ symphas::internal::C_DIM,		[&](const char* v) { dimension = atoi(v); } },
-		{ symphas::internal::C_ORDER,	[&](const char* v) { stp.ord = atoi(v); } },
-		{ symphas::internal::C_PTL,		[&](const char* v) { select_stencil(2, v); } },
-		{ symphas::internal::C_PTB,		[&](const char* v) { select_stencil(4, v); } },
-		{ symphas::internal::C_PTG,		[&](const char* v) { select_stencil(3, v); } },
-		{ symphas::internal::C_WIDTH,	[&](const char* v) { std::strncpy(width_spec, v, sizeof(width_spec) / sizeof(char) - 1); } },
-		{ symphas::internal::C_FORM,	[&](const char* v) { parse_form(v); } },
-		{ symphas::internal::C_RNGX,	[&](const char* v) { copy_range_f(v, Axis::X); } },
-		{ symphas::internal::C_RNGY,	[&](const char* v) { copy_range_f(v, Axis::Y); } },
-		{ symphas::internal::C_RNGZ,	[&](const char* v) { copy_range_f(v, Axis::Z); } },
-		{ symphas::internal::C_RNGR,	[&](const char* v) { copy_range_f(v, Axis::X); } },
-		{ symphas::internal::C_RNGT,	[&](const char* v) { copy_range_f(v, Axis::Y); } },
-		{ symphas::internal::C_RNGF,	[&](const char* v) { copy_range_f(v, Axis::Z); } },
-		{ symphas::internal::C_BNDLT,	[&](const char* v) { copy_boundary_f(v, Side::LEFT); } },
-		{ symphas::internal::C_BNDRT,	[&](const char* v) { copy_boundary_f(v, Side::RIGHT); } },
-		{ symphas::internal::C_BNDTP,	[&](const char* v) { copy_boundary_f(v, Side::TOP); } },
-		{ symphas::internal::C_BNDBT,	[&](const char* v) { copy_boundary_f(v, Side::BOTTOM); } },
-		{ symphas::internal::C_BNDFT,	[&](const char* v) { copy_boundary_f(v, Side::FRONT); } },
-		{ symphas::internal::C_BNDBK,	[&](const char* v) { copy_boundary_f(v, Side::BACK); } },
-		{ symphas::internal::C_INSIDE,	[&](const char* v) { std::strncpy(in_spec, v, sizeof(in_spec) / sizeof(char) - 1); } },
-		{ symphas::internal::C_DELTA,	[&](const char* v) { dt = atof(v); } },
-		{ symphas::internal::C_MODEL,	[&](const char* v) { std::strncpy(model_spec, v, sizeof(model_spec) / sizeof(char) - 1); } },
-		{ symphas::internal::C_NAMES,	[&](const char* v) { parse_names(v); } },
-		{ symphas::internal::C_FRAMES,	[&](const char* v) { stop_index = atoi(v); } },
-		{ symphas::internal::C_SAVE,	[&](const char* v) { std::strncpy(save_spec, v, sizeof(save_spec) / sizeof(char) - 1); } },
-		{ symphas::internal::C_SAVEINIT,[&](const char* v) { save.set_init_flag(std::strcmp(v, "NO") != 0); } },
-		{ symphas::internal::C_RUNS,	[&](const char* v) { runs = atoi(v); } },
-		{ symphas::internal::C_DIR,		[&](const char* v) { std::strncpy(original_dir, v, sizeof(original_dir) / sizeof(char) - 1); } }
+		{ symphas::internal::C_DIM,			[&](const char* v) { dimension = atoi(v); } },
+		{ symphas::internal::C_SOLVERVAR,	[&](const char* v) { stp.type = atoi(v); } },
+		{ symphas::internal::C_ORDER,		[&](const char* v) { stp.ord = atoi(v); } },
+		{ symphas::internal::C_PTL,			[&](const char* v) { select_stencil(2, v); } },
+		{ symphas::internal::C_PTB,			[&](const char* v) { select_stencil(4, v); } },
+		{ symphas::internal::C_PTG,			[&](const char* v) { select_stencil(3, v); } },
+		{ symphas::internal::C_WIDTH,		[&](const char* v) { std::strncpy(width_spec, v, sizeof(width_spec) / sizeof(char) - 1); } },
+		{ symphas::internal::C_FORM,		[&](const char* v) { parse_form(v); } },
+		{ symphas::internal::C_RNGX,		[&](const char* v) { copy_range_f(v, Axis::X); } },
+		{ symphas::internal::C_RNGY,		[&](const char* v) { copy_range_f(v, Axis::Y); } },
+		{ symphas::internal::C_RNGZ,		[&](const char* v) { copy_range_f(v, Axis::Z); } },
+		{ symphas::internal::C_RNGR,		[&](const char* v) { copy_range_f(v, Axis::X); } },
+		{ symphas::internal::C_RNGT,		[&](const char* v) { copy_range_f(v, Axis::Y); } },
+		{ symphas::internal::C_RNGF,		[&](const char* v) { copy_range_f(v, Axis::Z); } },
+		{ symphas::internal::C_BNDLT,		[&](const char* v) { copy_boundary_f(v, Side::LEFT); } },
+		{ symphas::internal::C_BNDRT,		[&](const char* v) { copy_boundary_f(v, Side::RIGHT); } },
+		{ symphas::internal::C_BNDTP,		[&](const char* v) { copy_boundary_f(v, Side::TOP); } },
+		{ symphas::internal::C_BNDBT,		[&](const char* v) { copy_boundary_f(v, Side::BOTTOM); } },
+		{ symphas::internal::C_BNDFT,		[&](const char* v) { copy_boundary_f(v, Side::FRONT); } },
+		{ symphas::internal::C_BNDBK,		[&](const char* v) { copy_boundary_f(v, Side::BACK); } },
+		{ symphas::internal::C_INSIDE,		[&](const char* v) { std::strncpy(in_spec, v, sizeof(in_spec) / sizeof(char) - 1); } },
+		{ symphas::internal::C_DELTA,		[&](const char* v) { std::strncpy(dt_spec, v, sizeof(dt_spec) / sizeof(char) - 1); } },
+		{ symphas::internal::C_MODEL,		[&](const char* v) { std::strncpy(model_spec, v, sizeof(model_spec) / sizeof(char) - 1); } },
+		{ symphas::internal::C_NAMES,		[&](const char* v) { parse_names(v); } },
+		{ symphas::internal::C_FRAMES,		[&](const char* v) { stop_index = atoi(v); } },
+		{ symphas::internal::C_SAVE,		[&](const char* v) { std::strncpy(save_spec, v, sizeof(save_spec) / sizeof(char) - 1); } },
+		{ symphas::internal::C_SAVEINIT,	[&](const char* v) { save.set_init_flag(std::strcmp(v, "NO") != 0); } },
+		{ symphas::internal::C_RUNS,		[&](const char* v) { runs = atoi(v); } },
+		{ symphas::internal::C_DIR,			[&](const char* v) { std::strncpy(original_dir, v, sizeof(original_dir) / sizeof(char) - 1); } }
 	};
 
 	for (auto& [k, v] : params)
@@ -1104,6 +1116,7 @@ SystemConf::SystemConf(std::vector<std::pair<std::string, std::string>> params, 
 		exit(8010);
 	}
 
+
 	if (stp.ptl == StencilParams{}.ptl)
 	{
 		select_stencil(2, STR(CONFIG_OPTION_PREFIX));
@@ -1117,6 +1130,8 @@ SystemConf::SystemConf(std::vector<std::pair<std::string, std::string>> params, 
 		select_stencil(4, STR(CONFIG_OPTION_PREFIX));
 	}
 
+	auto dts = dt_list.get_time_steps();
+
 	// check integrity of parameters
 	if (stp.ptl < 1 || stp.ptb < 1 || stp.ptg < 1)
 	{
@@ -1128,7 +1143,7 @@ SystemConf::SystemConf(std::vector<std::pair<std::string, std::string>> params, 
 		fprintf(SYMPHAS_ERR, "the number of runs must be greater than 0\n");
 		exit(8012);
 	}
-	else if (dt <= 0)
+	else if (*std::min_element(dts.begin(), dts.end()) <= 0)
 	{
 		fprintf(SYMPHAS_ERR, "the time step must be greater than 0\n");
 		exit(8013);
@@ -1152,6 +1167,7 @@ SystemConf::SystemConf(std::vector<std::pair<std::string, std::string>> params, 
 	parse_interval_array(r_spec);
 	parse_boundaries_array(b_spec);
 	parse_initial_condition_array(in_spec);
+	parse_dt(dt_spec);
 	set_directory(original_dir);
 
 #ifdef FILESYSTEM_HEADER_AVAILABLE
@@ -1213,7 +1229,7 @@ void SystemConf::set_dimensions(size_t n)
 	{
 	case 1:
 	{
-		iter_type L = intervals[n].at(Axis::X).get_count();
+		iter_type L = intervals[n].at(Axis::X).get_domain_count();
 
 		if (L < 1)
 		{
@@ -1227,8 +1243,8 @@ void SystemConf::set_dimensions(size_t n)
 	}
 	case 2:
 	{
-		iter_type L = intervals[n].at(Axis::X).get_count();
-		iter_type M = intervals[n].at(Axis::Y).get_count();
+		iter_type L = intervals[n].at(Axis::X).get_domain_count();
+		iter_type M = intervals[n].at(Axis::Y).get_domain_count();
 
 		if (L < 1 || M < 1)
 		{
@@ -1242,9 +1258,9 @@ void SystemConf::set_dimensions(size_t n)
 	}
 	case 3:
 	{
-		iter_type L = intervals[n].at(Axis::X).get_count();
-		iter_type M = intervals[n].at(Axis::Y).get_count();
-		iter_type N = intervals[n].at(Axis::Z).get_count();
+		iter_type L = intervals[n].at(Axis::X).get_domain_count();
+		iter_type M = intervals[n].at(Axis::Y).get_domain_count();
+		iter_type N = intervals[n].at(Axis::Z).get_domain_count();
 
 		if (L < 1 || M < 1 || N < 1)
 		{
@@ -1869,12 +1885,30 @@ void SystemConf::parse_interval(const char* value, Axis ax, size_t n)
 	{
 		iter_type count = 1;
 		iter_type stop = 0;
-		if (sscanf(value, STR(CONFIG_OPTION_PREFIX) " %d%n", &count, &stop) != 1 || (stop != std::strlen(value)))
+
+		if (sscanf(value, STR(CONFIG_OPTION_PREFIX) " %d%n", &count, &stop) != 1)
 		{
 			fprintf(SYMPHAS_WARN, "the grid points given by '%s' is not in the correct "
 				"format, expecting the number of grid points as `@ L`\n", value);
 		}
-		intervals[n][ax].set_count_from_r(intervals[n][ax].width(), count, 0.0);
+
+		intervals[n][ax].set_count_from_r(count, intervals[n][ax].width(), 0.0);
+
+		const char* split = strchr(value, CONFIG_TITLE_PREFIX_C);
+		if (split != NULL)
+		{
+			iter_type left, right;
+			if (sscanf(split + 1, "%d %d", &left, &right) != 2)
+			{
+				fprintf(SYMPHAS_WARN, "the subinterval specification given by '%s' is not in the correct "
+					"format, expecting the format to be provided as `@ L ! A B`\n", split + 1);
+			}
+			intervals[n][ax].set_interval_fraction((double)left / count, (double)right / count);
+		}
+		else
+		{
+			intervals[n][ax].interval_to_domain();
+		}
 	}
 	else
 	{
@@ -1884,7 +1918,8 @@ void SystemConf::parse_interval(const char* value, Axis ax, size_t n)
 			fprintf(SYMPHAS_WARN, "the interval given by '%s' is not in the correct "
 				"format, expecting `A B`\n", value);
 		}
-		intervals[n][ax].set_interval(left, right, intervals[n][ax].width());
+		intervals[n][ax].set_domain(left, right, intervals[n][ax].width());
+		intervals[n][ax].interval_to_domain();
 	}
 }
 
@@ -2082,16 +2117,36 @@ void SystemConf::parse_model_spec(const char* value, const char* dir)
 
 			if (*iter == CONFIG_TITLE_PREFIX_C)
 			{
-				*type = '\0';
-				sscanf(iter + 1, "%zd %s", &field_len, type);
-				if (*type)
+				auto options = symphas::conf::parse_options(iter + 1, ",");
+				delete[] num_fields;
+				for (iter_type i = 0; i < num_fields_len; ++i)
 				{
-					delete[] modifiers;
-					modifiers = new char[std::strlen(type) + 1];
-					std::strcpy(modifiers, type);
+					delete[] modifiers[i];
+				}
+				delete[] modifiers;
+
+				num_fields_len = options.size();
+				num_fields = new len_type[num_fields_len]{};
+				modifiers = new char* [num_fields_len] {};
+
+				
+				iter_type i = 0;
+				for (auto option : options)
+				{
+					*type = '\0';
+					sscanf(option.c_str(), "%d %s", num_fields + i, type);
+					if (*type)
+					{
+						modifiers[i] = new char[std::strlen(type) + 1];
+						std::strcpy(modifiers[i], type);
+					}
+					else
+					{
+						modifiers[i] = nullptr;
+					}
+					++i;
 				}
 			}
-
 
 			std::copy(value + model_end_pos, iter, type);
 			type[iter - (value + model_end_pos)] = '\0';
@@ -2111,7 +2166,6 @@ void SystemConf::parse_model_spec(const char* value, const char* dir)
 
 void SystemConf::set_model_name(const char* str)
 {
-
 	delete[] model;
 	model = new char[std::strlen(str) + 1];
 	symphas::lib::to_upper(str, model);
@@ -2144,13 +2198,52 @@ void SystemConf::parse_width(const char* str)
 							"in '%s'", widths[i].c_str());
 						width = 1.0;
 					}
-					interval.set_interval(interval.left(), interval.right(), width);
+					interval.set_domain(interval.left(), interval.right(), width);
 				}
 				for (iter_type d = static_cast<iter_type>(values.size()); d < dimension; ++d)
 				{
 					auto& interval0 = intervals[i].at(symphas::index_to_axis(0));
 					auto& interval = intervals[i].at(symphas::index_to_axis(d));
-					interval.set_interval(interval.left(), interval.right(), interval0.width());
+					interval.set_domain(interval.left(), interval.right(), interval0.width());
+				}
+			}
+		}
+	}
+}
+
+
+void SystemConf::parse_dt(const char* str)
+{
+	auto dts = symphas::conf::parse_options(str, ",");
+	if (dts.size() > 0)
+	{
+		if (dts.size() == 1)
+		{
+			double dt;
+			if (sscanf(dts.front().c_str(), "%lf", &dt) != 1)
+			{
+				fprintf(SYMPHAS_WARN, "ignoring the time step specification '%s' that is not in the correct "
+					"format, expected `dt`\n", dts.front().c_str());
+			}
+			else
+			{
+				dt_list.set_time_step(dt, 0, false);
+			}
+		}
+		else
+		{
+			dt_list.clear_time_steps(1.0);
+			double dt, time;
+			for (const auto& spec : dts)
+			{
+				if (sscanf(spec.c_str(), "%lf " STR(CONFIG_OPTION_PREFIX) " %lf", &dt, &time) != 2)
+				{
+					fprintf(SYMPHAS_WARN, "ignoring the time step specification '%s' that is not in the correct "
+						"format, expected `dt`\n", spec.c_str());
+				}
+				else
+				{
+					dt_list.set_time_step(dt, time);
 				}
 			}
 		}
@@ -2163,9 +2256,9 @@ void swap(SystemConf& first, SystemConf& second)
 	using std::swap;
 
 	swap(first.g, second.g);
+	swap(first.dt_list, second.dt_list);
 	swap(first.dimension, second.dimension);
 	swap(first.stp, second.stp);
-	swap(first.dt, second.dt);
 	swap(first.runs, second.runs);
 	swap(first.save, second.save);
 	swap(first.dims, second.dims);
@@ -2180,12 +2273,14 @@ void swap(SystemConf& first, SystemConf& second)
 	swap(first.model, second.model);
 	swap(first.names, second.names);
 	swap(first.coeff, second.coeff);
+	swap(first.num_fields, second.num_fields);
 
 	swap(first.intervals_len, second.intervals_len);
 	swap(first.bdata_len, second.bdata_len);
 	swap(first.tdata_len, second.tdata_len);
 	swap(first.names_len, second.names_len);
 	swap(first.coeff_len, second.coeff_len);
+	swap(first.num_fields_len, second.num_fields_len);
 
 	swap(first.init_coeff_copied, second.init_coeff_copied);
 }
@@ -2193,12 +2288,43 @@ void swap(SystemConf& first, SystemConf& second)
 
 
 
+inline void print_model_coeff(char* out, const double* coeff, iter_type i)
+{
+	if (coeff[i] * 100 == int(coeff[i] * 100))
+	{
+		sprintf(out, "[%d]=%.2lf ", i, coeff[i]);
+	}
+	else if (coeff[i] / 100. >= 1. || 1. / coeff[i] >= 100.)
+	{
+		sprintf(out, "[%d]=%" DATA_OUTPUT_ACCURACY_STR "E ", i, coeff[i]);
+	}
+	else
+	{
+		sprintf(out, "[%d]=%" DATA_OUTPUT_ACCURACY_STR "lf ", i, coeff[i]);
+	}
+}
+
+inline void print_coeff(FILE* out, const double* coeff, iter_type i)
+{
+	if (coeff[i] == int(coeff[i]))
+	{
+		fprintf(out, "%d ", (int)coeff[i]);
+	}
+	else if (coeff[i] / 100. >= 1. || 1. / coeff[i] >= 100.)
+	{
+		fprintf(out, "%" DATA_OUTPUT_ACCURACY_STR "E ", coeff[i]);
+	}
+	else
+	{
+		fprintf(out, "%" DATA_OUTPUT_ACCURACY_STR "lf ", coeff[i]);
+	}
+}
 
 
 
 void SystemConf::write(const char* savedir, const char* name) const
 {
-	char param_file[BUFFER_LENGTH];
+	char param_file[BUFFER_LENGTH]{};
 	snprintf(param_file, BUFFER_LENGTH, "%s/%s.constants", savedir, model);
 
 
@@ -2210,14 +2336,14 @@ void SystemConf::write(const char* savedir, const char* name) const
 	}
 
 
-	char model_spec[BUFFER_LENGTH_L4];
+	char model_spec[BUFFER_LENGTH_L4]{};
 	snprintf(model_spec, BUFFER_LENGTH_L4, "%s ", model);
 
 	// print to the parameters file and the model specification line
 	for (iter_type i = 0; i < coeff_len; ++i)
 	{
 		char coeff_spec[BUFFER_LENGTH_R2];
-		sprintf(coeff_spec, "[%d]=%lf ", i, coeff[i]);
+		print_model_coeff(coeff_spec, coeff, i);
 
 		fprintf(pf, "%s\n", coeff_spec);
 		if (std::strlen(model_spec) + std::strlen(coeff_spec) < BUFFER_LENGTH_L4)
@@ -2228,12 +2354,31 @@ void SystemConf::write(const char* savedir, const char* name) const
 		{
 			fprintf(SYMPHAS_WARN, "printing configuration could not include coefficient index '%d'\n", i);
 		}
+
 	}
 	fclose(pf);
 
 
+	if (num_fields_len > 0)
+	{
+		std::strcat(model_spec, CONFIG_TITLE_PREFIX);
+		for (iter_type i = 0; i < num_fields_len; ++i)
+		{
+			char modifier_spec[BUFFER_LENGTH_R2];
+			if (i == num_fields_len - 1)
+			{
+				sprintf(modifier_spec, " %d %s", num_fields[i], modifiers[i]);
+			}
+			else
+			{
+				sprintf(modifier_spec, " %d %s,", num_fields[i], modifiers[i]);
+			}
+			std::strcat(model_spec, modifier_spec);
+		}
+	}
+
 	FILE* f;
-	char bname[BUFFER_LENGTH];
+	char bname[BUFFER_LENGTH]{};
 	sprintf(bname, "%s/%s" "." CONFIG_EXTENSION, savedir, name);
 	if ((f = fopen(bname, "w")) == 0)
 	{
@@ -2258,6 +2403,7 @@ void SystemConf::write(const char* savedir, const char* name) const
 	fprintf(f, CONFIG_NAME_FMT "%I32d\n", symphas::internal::C_PTB, stp.ptb);
 	fprintf(f, CONFIG_NAME_FMT "%I32d\n", symphas::internal::C_PTG, stp.ptg);
 	fprintf(f, CONFIG_NAME_FMT "%s\n", symphas::internal::C_FORM, "");
+	fprintf(f, CONFIG_NAME_FMT "%I32d\n", symphas::internal::C_SOLVERVAR, stp.type);
 
 
 	fprintf(f, CONFIG_NAME_FMT, symphas::internal::C_WIDTH);
@@ -2318,7 +2464,7 @@ void SystemConf::write(const char* savedir, const char* name) const
 		fprintf(f, CONFIG_NAME_FMT, symphas::internal::C_RNGX);
 		for (iter_type i = 0; i < intervals_len; ++i)
 		{
-			fprintf(f, interval_fmt, open, INTERVAL_X0_AT(i), INTERVAL_Xn_AT(i), close);
+			fprintf(f, interval_fmt, open, DOMAIN_X0_AT(i), DOMAIN_Xn_AT(i), close);
 		}
 		fprintf(f, "\n");
 	}
@@ -2327,7 +2473,7 @@ void SystemConf::write(const char* savedir, const char* name) const
 		fprintf(f, CONFIG_NAME_FMT, symphas::internal::C_RNGY);
 		for (iter_type i = 0; i < intervals_len; ++i)
 		{
-			fprintf(f, interval_fmt, open, INTERVAL_Y0_AT(i), INTERVAL_Yn_AT(i), close);
+			fprintf(f, interval_fmt, open, DOMAIN_Y0_AT(i), DOMAIN_Yn_AT(i), close);
 		}
 		fprintf(f, "\n");
 	}
@@ -2336,7 +2482,7 @@ void SystemConf::write(const char* savedir, const char* name) const
 		fprintf(f, CONFIG_NAME_FMT, symphas::internal::C_RNGZ);
 		for (iter_type i = 0; i < intervals_len; ++i)
 		{
-			fprintf(f, interval_fmt, open, INTERVAL_Z0_AT(i), INTERVAL_Zn_AT(i), close);
+			fprintf(f, interval_fmt, open, DOMAIN_Z0_AT(i), DOMAIN_Zn_AT(i), close);
 		}
 		fprintf(f, "\n");
 	}
@@ -2367,7 +2513,7 @@ void SystemConf::write(const char* savedir, const char* name) const
 					{
 						for (iter_type n = 0; n < entry.expr_data.get_num_coeff(); ++n)
 						{
-							fprintf(f, "%.8E ", entry.expr_data.get_coeff()[n]);
+							print_coeff(f, entry.expr_data.get_coeff(), n);
 						}
 					}
 					else
@@ -2402,7 +2548,7 @@ void SystemConf::write(const char* savedir, const char* name) const
 					}
 					for (iter_type n = 0; n < NUM_INIT_CONSTANTS; ++n)
 					{
-						fprintf(f, "%.8E ", entry.data.gp[n]);
+						print_coeff(f, entry.data.gp, n);
 					}
 				}
 			}
@@ -2412,7 +2558,20 @@ void SystemConf::write(const char* savedir, const char* name) const
 	}
 	fprintf(f, "\n");
 
-	fprintf(f, CONFIG_NAME_FMT "%lf\n", symphas::internal::C_DELTA, dt);
+	fprintf(f, CONFIG_NAME_FMT, symphas::internal::C_DELTA);
+	if (dt_list.get_num_time_steps() > 1)
+	{
+		for (auto [time, dt] : dt_list)
+		{
+			fprintf(f, "%c %lf " STR(CONFIG_OPTION_PREFIX) " %lf %c ", open, dt, time, close);
+		}
+		fprintf(f, "\n");
+	}
+	else
+	{
+		fprintf(f, "%lf\n", dt_list.get_time_step());
+	}
+
 	fprintf(f, CONFIG_NAME_FMT "%s\n", symphas::internal::C_MODEL, model_spec);
 	fprintf(f, CONFIG_NAME_FMT "%d\n", symphas::internal::C_FRAMES, save.get_stop());
 

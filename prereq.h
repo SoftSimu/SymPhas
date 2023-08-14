@@ -102,7 +102,7 @@ namespace symphas
 
 		{
 			symphas::Time tt;
-			model.update(time);
+			model.update(time + dt);
 			model_update_time += tt.current_duration();
 		}
 
@@ -131,15 +131,16 @@ namespace symphas
 	 * \param dt The time step between solution iterations.
 	 */
 	template<typename M>
-	bool run_model(M& model, iter_type n, double dt, double starttime = 0)
+	bool run_model(M& model, iter_type n, symphas::time_step_list const& dts, double starttime = 0)
 	{
 		double time = starttime;
 		iter_type end = model.get_index() + n;
 
 		for (iter_type i = model.get_index(); i < end; i = model.get_index())
 		{
-			time += dt * (model.get_index() - i);
+			double dt = dts.get_time_step(time);
 			model_iteration(model, dt, time);
+			time += dt * (model.get_index() - i);
 		}
 		return true;
 	}

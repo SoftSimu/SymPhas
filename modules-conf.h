@@ -48,7 +48,7 @@ namespace symphas
 	bool run_model(M& model, Conf const& config)
 	{
 		iter_type n = symphas::conf::next_save(model.index(), config) - model.index();
-		run_model(model, n, config.dt);
+		run_model(model, n, config.get_time_step_list());
 
 		return !(symphas::conf::is_last_save(model.index(), config));
 	}
@@ -88,7 +88,7 @@ namespace symphas
 	void find_solution(M* models, len_type num_models, Conf const& config, bool plotting_output = true, bool checkpoint = true)
 	{
 		auto save_points = symphas::conf::get_save_indices(config);
-		find_solution(models, num_models, config.dt, config.save, save_points, config.get_result_dir(), plotting_output, checkpoint);
+		find_solution(models, num_models, config.get_time_step_list(), config.save, save_points, config.get_result_dir(), plotting_output, checkpoint);
 	}
 
 	//! Get the solution of the model using a standardized workflow.
@@ -107,7 +107,7 @@ namespace symphas
 	void find_solution(M& model, Conf const& config, bool plotting_output = true, bool checkpoint = true)
 	{
 		auto save_points = symphas::conf::get_save_indices(config);
-		find_solution(model, config.dt, config.save, save_points, config.get_result_dir(), plotting_output, checkpoint);
+		find_solution(model, config.get_time_step_list(), config.save, save_points, config.get_result_dir(), plotting_output, checkpoint);
 	}
 
 

@@ -28,7 +28,7 @@ DLLMOD double symphas::model_update_time = 0;
 DLLMOD double symphas::model_equation_time = 0;
 DLLMOD double symphas::model_step_time = 0;
 
-int symphas::iteration_count = 0;
+DLLMOD int symphas::iteration_count = 0;
 
 void symphas::print_timings(FILE* out)
 {
@@ -69,6 +69,8 @@ param_map_type symphas::build_param_map()
 #ifdef USING_IO
 	add_io_params(param_map);
 #endif
+
+	add_solution_params(param_map);
 
 	return param_map;
 }

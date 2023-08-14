@@ -88,11 +88,6 @@
  */
 #define CONFIG_INDEX_PREFIX CONFIG_COMMENT_PREFIX "$"
 
-//! The character used to prefix special options in the configuration.
-#define CONFIG_OPTION_PREFIX @
-//! Character usage of #CONFIG_OPTION_PREFIX
-#define CONFIG_OPTION_PREFIX_C (STR(CONFIG_OPTION_PREFIX)[0])
-
 //! Extension given to the file specifying the coefficients.
 #define COEFF_SPEC_EXTENSION "constants"
 
@@ -124,6 +119,7 @@ namespace symphas::internal
 
 namespace symphas::conf
 {
+
 
 	std::vector<std::string> parse_options(const char* options, bool spaces_are_delimiters = false, const char* extra_delimiters = "");
 	inline std::vector<std::string> parse_options(const char* options, const char* extra_delimiters)
@@ -259,7 +255,7 @@ namespace symphas::conf
 struct SystemConf
 {
 	size_t dimension;							//!< The dimension of the system, can be 1 or 2.
-	double dt;									//!< The temporal width.
+	symphas::time_step_list dt_list;			//!< The list of time steps.
 	StencilParams stp;							//!< Parameters characterizing the stencils.
 	size_t runs;								//!< The number of systems that will be solved simultaneously.
 	SaveParams save;							//!< Encapsulation of save parameters.
@@ -279,6 +275,7 @@ protected:
 	symphas::interval_data_type* intervals;		//!< A list of the intervals of all the axes of the system.
 	symphas::b_data_type* bdata;				//!< A list of the boundary data corresponding to all sides of the system.
 	symphas::init_data_type* tdata;				//!< A list of the parameters required for generating the initial data.
+	len_type* num_fields;						//!< The number of fields to generate in the parameters.
 	len_type** dims;							//!< An array of the full dimensions of the system, instead of single variables.
 
 	size_t intervals_len;						//!< The number of interval data elements provided.
@@ -286,9 +283,9 @@ protected:
 	size_t tdata_len;							//!< The number of initial condition elements provided.
 	size_t names_len;							//!< The number of phase field names provided.
 	size_t coeff_len;							//!< The number of coefficients provided.
-	size_t field_len;							//!< The number of fields to generate in the parameters.
+	size_t num_fields_len;						//!< The number of groups of fields, when array model type is used.
 
-	char* modifiers;							//!< The coefficients in the equations of motion.
+	char** modifiers;							//!< The coefficients in the equations of motion.
 
 private:
 
@@ -326,6 +323,11 @@ public:
 		delete[] title;
 		delete[] model;
 		delete[] coeff;
+
+		for (iter_type i = 0; i < num_fields_len; ++i)
+		{
+			delete[] modifiers[i];
+		}
 		delete[] modifiers;
 
 		delete[] intervals;
@@ -564,7 +566,7 @@ public:
 	 */
 	void parse_interval(const char* str, Axis ax, size_t n);
 
-	//! Initialize the spacing along the axes
+	//! Initialize the spacing along the axes.
 	/*!
 	 * The string may define a number of values up to the size of the dimension.
 	 * Each of the values then corresponds with the spacing along that axis,
@@ -581,6 +583,16 @@ public:
 	 */
 	void parse_width(const char* str);
 
+	//! Initialize the time steps, possibly changing over time.
+	/*!
+	 * A single value can be specified, which will set the time step for all time. Values
+	 * can also be provided in the format `dt @ t` where `dt` is the time step that will
+	 * be used starting from the time at `t`. If there is no time step specified starting at
+	 * time 0, then the smallest time step will be used.
+	 *
+	 * \param str The specification of the time step.
+	 */
+	void parse_dt(const char* str);
 
 	//! Initializes the names of the phase field systems.
 	/*!
@@ -781,7 +793,7 @@ public:
 		{
 			for (auto& [_, interval] : intervals[i])
 			{
-				interval.set_interval(interval.left(), interval.right(), h);
+				interval.set_domain(interval.domain_left(), interval.domain_left(), h);
 			}
 		}
 	}
@@ -792,10 +804,58 @@ public:
 		for (auto i = 0; i < intervals_len; ++i)
 		{
             auto& interval = intervals[i].at(ax);
-			interval.set_interval(interval.left(), interval.right(), h);
+			interval.set_domain(interval.domain_left(), interval.domain_left(), h);
 		}
 	}
 
+
+	//! Provide the time step used in the solution of the problem.
+	void set_time_step(double dt, double time)
+	{
+		dt_list.set_time_step(dt, time);
+	}
+
+	//! Provide the time step used in the solution of the problem.
+	void set_time_steps(const double* dts, const double* t_dts, size_t dts_len)
+	{
+		dt_list.set_time_steps(dts, t_dts, dts_len);
+	}
+
+	void clear_time_steps(double default_dt)
+	{
+		dt_list.clear_time_steps(default_dt);
+	}
+
+	//! Provide the time step used in the solution of the problem.
+	void set_time_steps(symphas::time_step_list const& list)
+	{
+		dt_list = list;
+	}
+
+	inline auto get_time_steps() const
+	{
+		return dt_list.get_time_steps();
+	}
+
+	inline auto get_times_of_steps() const
+	{
+		return dt_list.get_times_of_steps();
+	}
+
+	inline size_t get_num_time_steps() const
+	{
+		return dt_list.get_num_time_steps();
+	}
+
+	inline auto& get_time_step_list() 
+	{
+		return dt_list;
+	}
+
+	inline const auto& get_time_step_list() const
+	{
+		return dt_list;
+	}
 
 	//! Clears all the coefficients by making the coefficient list zero.
 	/*!
@@ -990,25 +1050,43 @@ public:
 	 */
 	symphas::problem_parameters_type get_problem_parameters() const
 	{
-		size_t sys_len = std::max({ intervals_len, bdata_len, tdata_len, field_len });
-		symphas::problem_parameters_type pp{ sys_len };
+		size_t sys_len = std::max({ intervals_len, bdata_len, tdata_len });
+		symphas::problem_parameters_type pp(0);
+		if (num_fields_len > 0)
+		{
+			len_type field_len = std::reduce(num_fields, num_fields + num_fields_len);
+			if (sys_len > field_len)
+			{
+				len_type* num_fields_expand = new len_type[num_fields_len + 1];
+				char** modifiers_expand = new char* [num_fields_len + 1] {};
+				for (iter_type i = 0; i < num_fields_len; ++i)
+				{
+					num_fields_expand[i] = num_fields[i];
+					modifiers_expand[i] = new char[std::strlen(modifiers[i]) + 1] {};
+					std::strcpy(modifiers_expand[i], modifiers[i]);
+				}
+				num_fields_expand[num_fields_len] = sys_len - field_len;
+				modifiers_expand[num_fields_len] = nullptr;
+
+				pp = symphas::problem_parameters_type(num_fields_expand, num_fields_len + 1);
+				pp.set_modifiers(modifiers_expand, num_fields_len + 1);
+
+			}
+			else
+			{
+				pp = symphas::problem_parameters_type(num_fields, num_fields_len);
+				pp.set_modifiers(modifiers, num_fields_len);
+			}
+		}
+		else
+		{
+			pp = symphas::problem_parameters_type(sys_len);
+		}
 
 		pp.set_boundary_data(bdata, bdata_len);
 		pp.set_initial_data(tdata, tdata_len);
 		pp.set_interval_data(intervals, intervals_len);
-		pp.set_time_step(dt);
-		pp.set_modifiers(modifiers);
-
-		iter_type parameter_len = (iter_type)std::max({ intervals_len, bdata_len, tdata_len });
-		if (field_len > parameter_len)
-		{
-			for (iter_type i = parameter_len; i < field_len; --i)
-			{
-				pp.set_boundary_data(bdata[0], i);
-				pp.set_initial_data(tdata[0], i);
-				pp.set_interval_data(intervals[0], i);
-			}
-		}
+		pp.set_time_steps(dt_list);
 
 		return pp;
 	}
