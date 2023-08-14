@@ -24,9 +24,6 @@ project(SymPhas
 	DESCRIPTION "Symbolic Phase Field Solver"
 	LANGUAGES CXX C)
 	
-if(NOT CMAKE_BUILD_TYPE)
-	set(CMAKE_BUILD_TYPE Release)
-endif()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
@@ -45,13 +42,13 @@ set(INSTALL_LIBDIR ${CMAKE_INSTALL_PREFIX}/${LIBDIR})
 set(INSTALL_INCLUDEDIR ${CMAKE_INSTALL_PREFIX}/${INCLUDEDIR})
 
 set(USE_IO ON CACHE BOOL "include the module for writing and reading data files")
-set(ENABLE_TIMINGS ON CACHE BOOL "enable collecting the elapsed time information of the simulation")
 
 
 set(SOLVER_INCLUDE_HEADER_DIR "." CACHE PATH "the location of the header file defining the solvers to be used")
 set(SOLVER_INCLUDE_HEADER_NAME "" CACHE STRING "the name of the header file within SOLVER_INCLUDE_HEADER_DIR")
 set(MODEL_INCLUDE_HEADER_DIR "." CACHE PATH "the location of the header file defining the model definitions")
 set(MODEL_INCLUDE_HEADER_NAME "" CACHE STRING "the name of the header file within MODEL_INCLUDE_HEADER_DIR")
+set(USE_TESTS OFF CACHE BOOL "include compilation of the tests")
 
 #
 # construct a list of the base group names
@@ -83,7 +80,40 @@ if(USE_IO)
 	list(APPEND MODULES_SOURCE "modules-io.cpp")
 endif()
 
-add_library(${PROJECT_NAME} SHARED ${MODULES_SOURCE})
+if (USE_TESTS)
+	file(GLOB_RECURSE SOURCES_TESTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp")
+
+	set(CHOSEN_TEST "none" CACHE STRING "list of tests")
+	set_property(CACHE CHOSEN_TEST PROPERTY STRINGS ${SOURCES_TESTS})
+
+	get_filename_component(CHOSEN_TEST_NAME ${CHOSEN_TEST} NAME_WE)
+	set(CHOSEN_TEST_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/tests/${CHOSEN_TEST_NAME}.cpp")
+	
+	if("${CHOSEN_TEST}" STREQUAL "none")
+		set(SOURCES_TESTS "")
+	
+	elseif("${CHOSEN_TEST}" STREQUAL "all")
+		foreach(SOURCE_TESTS ${SOURCES_TESTS})
+			get_filename_component(CHOSEN_TEST_NAME ${SOURCE_TESTS} NAME_WE)
+			set(INCLUDE_TEST_FILES "${INCLUDE_TEST_FILES}\n#include \"${CHOSEN_TEST_NAME}.h\"")
+			set(RUN_TEST_FILES "${RUN_TEST_FILES}\n\t${CHOSEN_TEST_NAME}();")
+		endforeach()
+
+	elseif("${CHOSEN_TEST_SOURCE}" IN_LIST SOURCES_TESTS)
+		set(SOURCES_TESTS ${CHOSEN_TEST_SOURCE})
+		set(INCLUDE_TEST_FILES "#include \"${CHOSEN_TEST_NAME}.h\"")
+		set(RUN_TEST_FILES "\t${CHOSEN_TEST_NAME}();")
+
+	else()
+		message(STATUS "test '${CHOSEN_TEST}' does not exist")
+		set(SOURCES_TESTS "")
+
+	endif()
+
+endif()
+
+
+add_library(${PROJECT_NAME} SHARED ${MODULES_SOURCE} ${SOURCES_TESTS})
 target_compile_features(${PROJECT_NAME}
     PUBLIC 
 		cxx_std_17
@@ -94,10 +124,6 @@ target_compile_features(${PROJECT_NAME}
 		cxx_attributes 
 		cxx_inheriting_constructors)
 
-
-if(ENABLE_TIMINGS)
-	list(APPEND ADD_DEFINITIONS PRINT_TIMINGS)
-endif()
 
 if(MODEL_INCLUDE_HEADER_NAME)
 	list(APPEND ADD_DEFINITIONS MODEL_INCLUDE_HEADER="${MODEL_INCLUDE_HEADER_NAME}")
@@ -155,22 +181,10 @@ endif()
 
 get_target_property(EXTRA_INCLUDE_DIRECTORIES ${PROJECT_NAME} INCLUDE_DIRECTORIES)
 
-if(${CMAKE_BUILD_TYPE} MATCHES "Debug")
-	list(APPEND ADD_DEFINITIONS DEBUG)
-	message(STATUS "using Debug mode")
-else()
-	message(STATUS "build type = ${CMAKE_BUILD_TYPE}")
-endif()
 if(BASIC_MODELS)
 	list(APPEND ADD_DEFINITIONS BASIC_MODELS)
 	message(STATUS "defining BASIC_MODELS")
 endif()
-
-target_compile_definitions(${PROJECT_NAME} PUBLIC ${ADD_DEFINITIONS} PRIVATE MODULES_EXPORT)
-target_include_directories(${PROJECT_NAME} PUBLIC
-	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-	$<INSTALL_INTERFACE:include>)
-	
 
 	
 foreach(GROUP_NAME ${GROUP_NAMES_0})
@@ -202,10 +216,22 @@ foreach(GROUP_NAME ${GROUP_NAMES_0})
 	endif()
 
 endforeach()
+set_target_properties(${SYMPHAS_DEP_LIBS} ${PROJECT_NAME} PROPERTIES CXX_STANDARD 17)
+
+if (USE_TESTS)
+	target_include_directories(${PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/tests/")
+	list(APPEND ADD_DEFINITIONS USING_TESTS)
+endif()
+
+target_compile_definitions(${PROJECT_NAME} PUBLIC ${ADD_DEFINITIONS} PRIVATE MODULES_EXPORT)
+target_include_directories(${PROJECT_NAME} PUBLIC
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+	$<INSTALL_INTERFACE:include>)
+	
 
 target_link_libraries(${PROJECT_NAME} PUBLIC ${SYMPHAS_DEP_LIBS})
-set_target_properties(${SYMPHAS_DEP_LIBS} ${PROJECT_NAME} PROPERTIES CXX_STANDARD 17)
 target_compile_options(${PROJECT_NAME} PUBLIC ${ADDITIONAL_COMPILE_OPTIONS})
+
 
 
 # installation of symphas
@@ -245,6 +271,29 @@ endif()
 	
 
 
+if (USE_TESTS)
+
+	configure_file("tests.cpp.in" "${CMAKE_CURRENT_SOURCE_DIR}/tests.cpp")
+	add_library(symphas_tests_o OBJECT "tests.cpp")
+	target_include_directories(symphas_tests_o PUBLIC 
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
+		$<INSTALL_INTERFACE:include>)
+	target_link_libraries(symphas_tests_o PUBLIC ${PROJECT_NAME})
+
+	add_library(symphas_tests SHARED)
+	target_link_libraries(symphas_tests PUBLIC symphas_tests_o)
+
+	if("${CHOSEN_TEST}" STREQUAL "all")
+		message(STATUS "using all tests in ${CMAKE_CURRENT_SOURCE_DIR}/tests/")
+	else()
+		message(STATUS "using test '${CHOSEN_TEST}' in ${CMAKE_CURRENT_SOURCE_DIR}/tests/")
+	endif()
+
+	add_executable(symphas_test "tests.cpp")
+	target_link_libraries(symphas_test PUBLIC symphas_tests)
+
+endif()
 
 #configure_file("symphas.h.in" "symphas.h")
 #configure_file("prereq-defs.h.in" "prereq-defs.h")
@@ -283,6 +332,7 @@ if(MODEL_INCLUDE_HEADER_NAME
 	install(FILES ${INCLUDE_FILES} DESTINATION ${INCLUDEDIR})
 	message(STATUS "installing model definition headers.. ${INCLUDE_FILES} to ${INCLUDEDIR}")
 endif()
+
 
 file(GLOB_RECURSE INSTALL_HEADERS "*.h")
 install(FILES ${INSTALL_HEADERS} DESTINATION ${INCLUDEDIR})

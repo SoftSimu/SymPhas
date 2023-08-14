@@ -1,16 +1,8 @@
 
 #include "testtrigfunctions.h"
+#include "expressiontypeincludes.h"
 
-
-bool testtrigfunctions()
-{
-
-	// test functions
-
-	
-	constexpr size_t TEST_POINTS = 100;
-
-	#define TEST_FUNCTION(FUNC, LEFT, RIGHT) { \
+#define TEST_FUNCTION(FUNC, LEFT, RIGHT) { \
 		constexpr double WIDTH = (RIGHT - LEFT) / TEST_POINTS; \
 		auto xx = expr::make_varx(TEST_POINTS, LEFT, RIGHT); \
 		(xx * xx * expr::FUNC (xx)).print(stdout); printf("\n"); \
@@ -20,6 +12,16 @@ bool testtrigfunctions()
 				printf(#FUNC "(%lf) = %lf vs " #FUNC "(%lf) = %lf\n", xx.eval(i), expr::FUNC(xx).eval(i), xx.eval(i), std::FUNC(LEFT + i * WIDTH));\
 		} }
 
+bool testtrigfunctions()
+{
+
+	// test functions
+
+	
+	constexpr size_t TEST_POINTS = 100;
+
+
+	using namespace symphas;
 		TEST_FUNCTION(cos, 0, 2 * PI);
 		TEST_FUNCTION(sin, 0, 2 * PI);
 		TEST_FUNCTION(tan, 0, 2 * PI);

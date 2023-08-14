@@ -1,0 +1,9 @@
+
+@INCLUDE_TEST_FILES@
+
+
+int main()
+{
+@RUN_TEST_FILES@
+}
+

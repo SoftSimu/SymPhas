@@ -321,3 +321,4 @@ cpp.hint
 /prereq-defs.h
 /prereq-defs.h
 /examples/*/inc
+/tests.cpp
