@@ -1463,6 +1463,15 @@ namespace symphas::lib
 	};
 
 	//! The index sequence result type of filtering multiple sequences.
+	template<typename T, T I0, T... Is, bool F0, bool... Fs>
+	struct filter_seq_result<std::integer_sequence<T, I0, Is...>, std::integer_sequence<bool, F0, Fs...>>
+	{
+		using type = typename seq_join_result<
+			std::conditional_t<F0, std::integer_sequence<T, I0>, std::integer_sequence<T>>,
+			std::conditional_t<Fs, std::integer_sequence<T, Is>, std::integer_sequence<T>>...>::type;
+	};
+
+	//! The index sequence result type of filtering multiple sequences.
 	template<typename Seq0, typename Seq1, typename Seq2, typename... Seqs>
 	struct filter_seq_result<Seq0, Seq1, Seq2, Seqs...>
 	{

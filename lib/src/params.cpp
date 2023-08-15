@@ -148,32 +148,60 @@ void params::parse_arguments(param_map_type param_map, const char* const* args, 
 
 	for (iter_type c = 0; c < n; ++c)
 	{
-		char key[BUFFER_LENGTH_R2], value[BUFFER_LENGTH_L4];
+		char key[BUFFER_LENGTH_R2]{}, value[BUFFER_LENGTH_L4]{};
 
 
-		const char* tok;
+		const char* it;
 		const char* start = args[c];
 		const char* end = std::strchr(args[c], '\0');
 		
-		if ((tok = std::strchr(args[c], '=')) != NULL)
+		if (std::strlen(args[c]) > 1 && args[c][0] == '-')
+		{
+			char short_key = args[c][1];
+			if (args[c][2] == '=')
+			{
+				it = args[c] + 3;
+				std::copy(it, end, value);
+				value[(end - it)] = '\0';
+			}
+
+			for (auto& [name, element] : param_map)
+			{
+				if (element.alias == short_key)
+				{
+					element.assign(value);
+					std::strcpy(key, name.c_str());
+					break;
+				}
+			}
+			if (*key == NULL)
+			{
+				fprintf(SYMPHAS_WARN, err_msg, args[c]);
+				continue;
+			}
+		}
+		else if ((it = std::strchr(args[c], '=')) != NULL
+			|| (std::strlen(args[c]) > 2 && args[c][0] == '-' && args[c][1] == '-'))
 		{
 			if (std::strlen(args[c]) > 2 && args[c][0] == '-' && args[c][1] == '-')
 			{
-				std::copy(start + 2, tok, key);
-				key[(tok - start - 2)] = '\0';
+				start += 2;
+			}
+
+			if (it != NULL)
+			{
+
+				std::copy(start, it, key);
+				key[(it - start)] = '\0';
+
+				std::copy(it + 1, end, value);
+				value[(end - it - 1)] = '\0';
 			}
 			else
 			{
-				std::copy(start, tok, key);
-				key[(tok - start)] = '\0';
+				std::copy(start, end, key);
+				key[(end - start)] = '\0';
 			}
-			std::copy(tok + 1, end, value);
-			value[(end - tok - 1)] = '\0';
-		}
-		else if (std::strlen(args[c]) > 1 && args[c][0] == '-')
-		{
-			char short_key[BUFFER_LENGTH_R4];
-
 		}
 		else
 		{

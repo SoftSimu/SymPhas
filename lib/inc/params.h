@@ -187,23 +187,31 @@ protected:
 	bool extract_bool(const char* value, bool default_value)
 	{
 		size_t len = std::strlen(value) + 1;
-		char* cpy = new char[len];
-		std::strncpy(cpy, value, len);
-		symphas::lib::to_lower(cpy);
 
-		if (std::strcmp(cpy, "true") == 0
-			|| std::strcmp(cpy, "yes") == 0)
+		if (len > 1)
 		{
-			return true;
-		}
-		else if (std::strcmp(cpy, "false") == 0
-			|| std::strcmp(cpy, "no") == 0)
-		{
-			return false;
+			char* cpy = new char[len];
+			std::strncpy(cpy, value, len);
+			symphas::lib::to_lower(cpy);
+
+			if (std::strcmp(cpy, "true") == 0
+				|| std::strcmp(cpy, "yes") == 0)
+			{
+				return true;
+			}
+			else if (std::strcmp(cpy, "false") == 0
+				|| std::strcmp(cpy, "no") == 0)
+			{
+				return false;
+			}
+			else
+			{
+				return default_value;
+			}
 		}
 		else
 		{
-			return default_value;
+			return !default_value;
 		}
 	}
 };
