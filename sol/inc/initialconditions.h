@@ -2626,8 +2626,13 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::
 
 		// when overlap is negative, then the episolon needs to be added in order for the offsets to be computed correctly.
 		static symphas::internal::RandomOffsets<scalar_t, 1> overlaps(N, overlap, overlap_eps);
-		static symphas::internal::RandomOffsets<iter_type, D> start(1, dims);
-		static auto offsets0 = symphas::internal::get_bubble_positions<D>(N, R, overlap + overlap_eps, overlaps, dims, start.get_offset(0));
+		//static symphas::internal::RandomOffsets<iter_type, D> start(1, dims);
+		iter_type start[D]{};
+		for (iter_type i = 0; i < D; ++i)
+		{
+			start[i] = dims[i] / 2;
+		}
+		static auto offsets0 = symphas::internal::get_bubble_positions<D>(N, R, overlap + overlap_eps, overlaps, dims, start);
 
 		offsets = offsets0;
 
