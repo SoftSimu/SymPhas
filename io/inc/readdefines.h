@@ -312,7 +312,7 @@ namespace symphas::io
 				read_block_f(grid, bginfo, f);
 				prev = index;
 				read_header(f, &index);
-			} while (index <= rinfo.index && index > BAD_INDEX);
+			} while (index <= rinfo.index && index > BAD_INDEX && prev != rinfo.index);
 		}
 		close_file_f(f);
 

@@ -107,6 +107,11 @@ void symphas::init(const char* config, const char* const* param_list, size_t num
 	param_map_type param_map = build_param_map();
 	params::parse_arguments(param_map, param_list, num_params);
 
+	if (strchr(config, '=') != NULL || (std::strlen(config) > 2 && config[0] == '-'))
+	{
+		params::parse_arguments(param_map, &config, 1);
+	}
+
 #ifdef PRINT_TIMINGS
 	init_time += t.current_duration();
 #endif

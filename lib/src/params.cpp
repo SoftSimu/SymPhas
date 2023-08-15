@@ -22,7 +22,11 @@
 #include "params.h"
 
 
-
+#define OPTION_DESCRIPTION_LEN 55
+#define OPTION_DESCRIPTION_TAB_BUFFER 26
+#define OPTION_DESCRIPTION_TAB 2
+#define OPTION_DESCRIPTION_ALIAS_BUFFER 6
+#define OPTION_DESCRIPTION_NAME_LEN 19
 
 
 DLLLIB std::vector<std::pair<std::string, std::string>> params::rawparams;
@@ -31,22 +35,22 @@ bool add_base_params(param_map_type& param_map)
 {
 	using namespace params;
 
-	param_map["title"] = std::make_pair(&title, new param_assign<char*>);
-	param_map["extend-boundary"] = std::make_pair(&extend_boundary, new param_assign<bool>);
-	param_map["extend-boundaryend"] = std::make_pair(&extend_boundary, new param_assign<bool>);
-	param_map["extend-boundary"] = std::make_pair(&extend_boundary, new param_assign<bool>);
-	param_map["extend-boundaries"] = std::make_pair(&extend_boundary, new param_assign<bool>);
-	param_map["visualization"] = std::make_pair(&viz_interval, new param_assign<int>);
-	param_map["visualize"] = std::make_pair(&viz_interval, new param_assign<int>);
-	param_map["viz-interval"] = std::make_pair(&viz_interval, new param_assign<int>);
-	param_map["init-inside_val"] = std::make_pair(&init_inside_val, new param_assign<double>);
-	param_map["init-inside"] = std::make_pair(&init_inside_val, new param_assign<double>);
-	param_map["init-outside_val"] = std::make_pair(&init_outside_val, new param_assign<double>);
-	param_map["init-outside"] = std::make_pair(&init_outside_val, new param_assign<double>);
-	param_map["init-rand_val"] = std::make_pair(&init_rand_val, new param_assign<double>);
-	param_map["init-rand"] = std::make_pair(&init_rand_val, new param_assign<double>);
-	param_map["data-file"] = std::make_pair(&input_data_file, new param_assign<char*>);
-	param_map["data"] = std::make_pair(&input_data_file, new param_assign<char*>);
+	param_map["title"] = { &title, new param_assign<char*>, 'T' };
+	param_map["extend-boundary"] = { &extend_boundary, new param_assign<bool>, 'b' };
+	param_map["extend-boundaries"] = { &extend_boundary, new param_assign<bool>, 'b' };
+	param_map["visualization"] = { &viz_interval, new param_assign<int>, 'v' };
+	param_map["visualize"] = { &viz_interval, new param_assign<int>, 'v' };
+	param_map["viz-interval"] = { &viz_interval, new param_assign<int>, 'v' };
+	param_map["init-inside-val"] = { &init_inside_val, new param_assign<double>, '1' };
+	param_map["init-inside"] = { &init_inside_val, new param_assign<double>, '1' };
+	param_map["init-outside-val"] = { &init_outside_val, new param_assign<double>, '0' };
+	param_map["init-outside"] = { &init_outside_val, new param_assign<double>, '0' };
+	param_map["init-rand-val"] = { &init_rand_val, new param_assign<double>, 's' };
+	param_map["init-rand"] = { &init_rand_val, new param_assign<double>, 's' };
+	param_map["data-file"] = { &input_data_file, new param_assign<char*>, 'd', 
+		"specifies an input data file for initial conditions, read by the program when '!' is"
+		" provided in the configuration at the initial condition parameter" };
+	param_map["data"] = { &input_data_file, new param_assign<char*>, 'd' };
 
 	return true;
 }
@@ -63,6 +67,66 @@ DLLLIB int params::start_index = INDEX_INIT;
 
 
 
+void param_map_element::print_help(FILE* out, const char* name) const
+{
+	len_type tab_buffer = 26;
+	len_type tab = 2;
+	len_type len = len_type(description.size());
+
+	if (alias)
+	{
+		fprintf(out, "  -%c, ", alias);
+	}
+	else
+	{
+		fprintf(out, "%6s", "");
+	}
+
+	fprintf(out, "--");
+	len_type size = len_type(assign_method->print_with_name(out, parameter, name));
+	if (size < OPTION_DESCRIPTION_TAB_BUFFER - OPTION_DESCRIPTION_TAB - OPTION_DESCRIPTION_ALIAS_BUFFER)
+	{
+		if (size < OPTION_DESCRIPTION_NAME_LEN)
+		{
+			fprintf(out, "%*s", OPTION_DESCRIPTION_NAME_LEN - size, "");
+		}
+	}
+	else
+	{
+		if (len > 0)
+		{
+			fprintf(out, "\n%*s", OPTION_DESCRIPTION_TAB_BUFFER + OPTION_DESCRIPTION_TAB, "");
+		}
+	}
+	
+
+
+
+	char buffer[OPTION_DESCRIPTION_LEN + 1]{};
+	int end = std::min(len, OPTION_DESCRIPTION_LEN);
+	std::copy(description.c_str(), description.c_str() + end, buffer);
+
+	char* space = (end == len) ? buffer + end : std::strrchr(buffer, ' ');
+	*space = '\0';
+
+	fprintf(out, "%s\n", buffer);
+	int start = space - buffer;
+	while (end < len)
+	{
+		char buffer0[OPTION_DESCRIPTION_LEN + 1]{};
+		end = std::min(len, start + OPTION_DESCRIPTION_LEN);
+		std::copy(description.c_str() + start, description.c_str() + end, buffer0);
+		
+		char* space = (end == len) ? buffer0 + end - start : std::strrchr(buffer0, ' ');
+		*space = '\0';
+		start += space - buffer0;
+
+		fprintf(out, "%*s%s\n", OPTION_DESCRIPTION_TAB_BUFFER + OPTION_DESCRIPTION_TAB, "", buffer0);
+	}
+
+}
+
+
 void params::parse_arguments(param_map_type param_map, const char* args, size_t n)
 {
 	parse_arguments(param_map, &args, n);
@@ -73,26 +137,49 @@ void params::parse_arguments(param_map_type param_map, const char* const* args, 
 {
 	const char err_msg[] = "command line parameter '%s' cannot be interpreted, skipping...\n";
 
+	if (n == 1)
+	{
+		if (std::strcmp(args[0], "--" ARGUMENT_HELP_STRING) == 0 || std::strcmp(args[0], ARGUMENT_HELP_STRING) == 0)
+		{
+			print_argument_help(SYMPHAS_INFO, param_map);
+			exit(1);
+		}
+	}
+
 	for (iter_type c = 0; c < n; ++c)
 	{
-		char* tok;
-		char argument[BUFFER_LENGTH_L4];
-		std::strncpy(argument, args[c], sizeof(argument) / sizeof(char) - 1);
 		char key[BUFFER_LENGTH_R2], value[BUFFER_LENGTH_L4];
 
-		if ((tok = std::strtok(argument, "=")) == 0)
-		{
-			fprintf(SYMPHAS_WARN, err_msg, args[c]);
-			continue;
-		}
-		std::strncpy(key, tok, sizeof(key) / sizeof(char) - 1);
 
-		if ((tok = std::strtok(NULL, "=")) == 0)
+		const char* tok;
+		const char* start = args[c];
+		const char* end = std::strchr(args[c], '\0');
+		
+		if ((tok = std::strchr(args[c], '=')) != NULL)
+		{
+			if (std::strlen(args[c]) > 2 && args[c][0] == '-' && args[c][1] == '-')
+			{
+				std::copy(start + 2, tok, key);
+				key[(tok - start - 2)] = '\0';
+			}
+			else
+			{
+				std::copy(start, tok, key);
+				key[(tok - start)] = '\0';
+			}
+			std::copy(tok + 1, end, value);
+			value[(end - tok - 1)] = '\0';
+		}
+		else if (std::strlen(args[c]) > 1 && args[c][0] == '-')
+		{
+			char short_key[BUFFER_LENGTH_R4];
+
+		}
+		else
 		{
 			fprintf(SYMPHAS_WARN, err_msg, args[c]);
 			continue;
 		}
-		std::strncpy(value, tok, sizeof(value) / sizeof(char) - 1);
 
 		if (std::find_if(rawparams.begin(), rawparams.end(),
 			[&](auto e) { return std::strcmp(e.first.c_str(), key) == 0; })
@@ -103,13 +190,25 @@ void params::parse_arguments(param_map_type param_map, const char* const* args, 
 
 		if (param_map.count(key) > 0)
 		{
-			auto [param, type] = param_map[key];
-			type->assign(param, value);
+			param_map[key].assign(value);
 		}
 		else
 		{
 			fprintf(SYMPHAS_LOG, "unrecognized command argument '%s'\n", key);
 		}
+	}
+}
+
+
+void params::print_argument_help(FILE* out, param_map_type param_map)
+{
+	fprintf(out, SYMPHAS_USAGE_MESSAGE);
+	fprintf(out, SYMPHAS_DESCRIPTION_MESSAGE);
+	fprintf(out, "\n");
+
+	for (const auto& [param, element] : param_map)
+	{
+		element.print_help(out, param);
 	}
 }
 

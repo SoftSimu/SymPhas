@@ -30,6 +30,16 @@ struct params::param_assign<WriterType> : param_assign_base
 		*static_cast<WriterType*>(param) = extract_writer(value);
 	}
 
+	size_t print_with_name(FILE* out, void* param, const char* name)
+	{
+		return fprintf(out, "%s=[gnu,xdr,column,movie,csv](default=%s)", name,
+			(*static_cast<WriterType*>(param) == WriterType::GNU) ? "gnu" :
+			(*static_cast<WriterType*>(param) == WriterType::XDR) ? "xdr" :
+			(*static_cast<WriterType*>(param) == WriterType::COLUMN) ? "column" :
+			(*static_cast<WriterType*>(param) == WriterType::MOVIE) ? "movie" :
+			(*static_cast<WriterType*>(param) == WriterType::CSV) ? "csv" : "");
+	}
+
 protected:
 
 	WriterType extract_writer(const char* value)
@@ -89,27 +99,34 @@ bool add_io_params(param_map_type& param_map)
 {
 	using namespace params;
 
+	param_map["plots-only"] = { &plots_only, new param_assign<bool>, 'p', 
+		"only outputs plot configuration files, without running the model" };
+	param_map["writer-type"] = { &writer, new param_assign<WriterType>, 'w', 
+		"chooses the writer type from 'gnu', 'xdr', 'column', 'movie', or 'csv'; use '-x' to set both reader and writer" };
+	param_map["writer"] = { &writer, new param_assign<WriterType> };
+	param_map["reader-type"] = { &reader, new param_assign<WriterType>, 'r', 
+		"chooses the writer type from 'gnu', 'xdr', 'column', 'movie', or 'csv'; use '-x' to set both reader and writer" };
+	param_map["reader"] = { &reader, new param_assign<WriterType> };
+	param_map["use_timestamp"] = { &use_timestamp, new param_assign<bool>, 't', 
+		"uses the timestamp when generating the output directory" };
+	param_map["single-output_file"] = { &single_output_file, new param_assign<bool>, 'o', 
+		"all data is appended to a single output file; use '-a' to set both single input and output" };
+	param_map["single-input_file"] = { &single_input_file, new param_assign<bool>, 'i', 
+		"all data is read from a single input file; use '-a' to set both single input and output" };
+	param_map["single-output"] = { &single_output_file, new param_assign<bool> };
+	param_map["single-input"] = { &single_input_file, new param_assign<bool> };
+	param_map["checkpoint"] = { &checkpoint, new param_assign<char*>, 'C', 
+		"load a checkpoint from this directory with a previous run, additionally appending ',N' to indicate the iteration index with N" };
+	param_map["checkpoint-count"] = { &checkpoint_count, new param_assign<int>, 'c',
+		"choose the number of checkpoints to save" };
 
-	param_map["plots-only"] = std::make_pair(&plots_only, new param_assign<bool>);
-	param_map["writer-type"] = std::make_pair(&writer, new param_assign<WriterType>);
-	param_map["writer"] = std::make_pair(&writer, new param_assign<WriterType>);
-	param_map["reader-type"] = std::make_pair(&reader, new param_assign<WriterType>);
-	param_map["reader"] = std::make_pair(&reader, new param_assign<WriterType>);
-	param_map["use_timestamp"] = std::make_pair(&use_timestamp, new param_assign<bool>);
-	param_map["single-output_file"] = std::make_pair(&single_output_file, new param_assign<bool>);
-	param_map["single-input_file"] = std::make_pair(&single_input_file, new param_assign<bool>);
-	param_map["single-output"] = std::make_pair(&single_output_file, new param_assign<bool>);
-	param_map["single-input"] = std::make_pair(&single_input_file, new param_assign<bool>);
-	param_map["checkpoint"] = std::make_pair(&checkpoint, new param_assign<char*>);
-	param_map["checkpoint-count"] = std::make_pair(&checkpoint_count, new param_assign<int>);
-
-	param_map["single-io-file"] = std::make_pair(
+	param_map["single-io-file"] = {
 		params::single_io_file,
-		new param_assign_multiple<bool, 2>);
+		new param_assign_multiple<bool, 2>, 'a' };
 
-	param_map["io-type"] = std::make_pair(
+	param_map["io-type"] = {
 		params::io_type,
-		new param_assign_multiple<WriterType, 2>);
+		new param_assign_multiple<WriterType, 2>, 'x' };
 
 
 	return true;

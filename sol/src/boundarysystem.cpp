@@ -30,12 +30,12 @@ bool add_solution_params(param_map_type& param_map)
 {
 	using namespace params;
 
-	param_map["regional-resize-factor"] = std::make_pair(&regional_resize_factor, new param_assign<double>);
-	param_map["regional-factor"] = std::make_pair(&regional_resize_factor, new param_assign<double>);
-	param_map["regional-resize-time"] = std::make_pair(&regional_resize_time, new param_assign<double>);
-	param_map["regional-delta"] = std::make_pair(&regional_resize_time, new param_assign<double>);
-	param_map["regional-resize-eps"] = std::make_pair(&regional_resize_cutoff_eps, new param_assign<double>);
-	param_map["regional-eps"] = std::make_pair(&regional_resize_cutoff_eps, new param_assign<double>);
+	param_map["regional-resize-factor"] = { &regional_resize_factor, new param_assign<double>, 'z' };
+	param_map["regional-factor"] = { &regional_resize_factor, new param_assign<double>, 'z' };
+	param_map["regional-resize-time"] = { &regional_resize_time, new param_assign<double>, 'Z' };
+	param_map["regional-delta"] = { &regional_resize_time, new param_assign<double>, 'Z' };
+	param_map["regional-resize-eps"] = { &regional_resize_cutoff_eps, new param_assign<double>, 'E' };
+	param_map["regional-eps"] = { &regional_resize_cutoff_eps, new param_assign<double>, 'E' };
 
 	return true;
 }

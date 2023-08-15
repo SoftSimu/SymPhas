@@ -32,6 +32,44 @@
 
 #include "spslib.h"
 
+// \cond
+
+#define ARGUMENT_HELP_STRING "help"
+
+#define SYMPHAS_USAGE_MESSAGE \
+R"~(
+symphas_impl [CONFIG_NAME] [OPTIONS]...
+)~"
+
+#define SYMPHAS_DESCRIPTION_MESSAGE_INTRO \
+R"~(
+SymPhas is a symbolic algebra framework that formulates expressions at compile time for high-speed 
+numerical solutions of phase-field problems. It is equipped with two base solvers: a finite 
+difference solver with auto-generating stencils of any order of accuracy (up to compilation
+resource limits), and a spectral solver. The finite difference solver additionally includes a
+variation to find a minimal domain of a field to reduce the iterable region when evaluating an
+expression.
+
+If this SymPhas executable reports that a model doesn't exist, verify the CMake parameters are
+correctly set. 
+)~"
+
+#define SYMPHAS_DESCRIPTION_DEBUG_NOTIFICATION \
+R"~(
+This build currently has DEBUG mode enabled, which may indicate optimizations have been turned off.
+Parallelization is also off.
+)~"
+
+#ifdef DEBUG
+#define SYMPHAS_DESCRIPTION_MESSAGE \
+SYMPHAS_DESCRIPTION_MESSAGE_INTRO \
+SYMPHAS_DESCRIPTION_DEBUG_NOTIFICATION
+#else
+#define SYMPHAS_DESCRIPTION_MESSAGE \
+SYMPHAS_DESCRIPTION_MESSAGE_INTRO
+#endif
+
+// \endcond
 
 /* **************************************************************************
  * Parameter assignment functionality.
@@ -53,6 +91,9 @@ namespace params
 		 * implemented within param_assign and specialized by parameter type.
 		 */
 		virtual void assign(void* param, const char* value) = 0;
+
+		//! Print the formatted name when writing to the help output.
+		virtual size_t print_with_name(FILE* out, void* param, const char* name) = 0;
 	};
 
 	//! Implementation of parameter assignment functionality.
@@ -102,6 +143,11 @@ namespace params
 				param_assign<p_type>{}.assign(param_arr[i], value);
 			}
 		}
+
+		size_t print_with_name(FILE* out, void* param, const char* name)
+		{
+			return fprintf(out, "%s", name);
+		}
 	};
 
 }
@@ -128,12 +174,17 @@ struct params::param_assign<bool> : params::param_assign_base
 	 */
 	void assign(void* param, const char* value)
 	{
-		*static_cast<bool*>(param) = extract_bool(value);
+		*static_cast<bool*>(param) = extract_bool(value, *static_cast<bool*>(param));
+	}
+
+	size_t print_with_name(FILE* out, void* param, const char* name)
+	{
+		return fprintf(out, "%s[=yes|no](default=%s)", name, (*static_cast<bool*>(param)) ? "yes" : "no");
 	}
 
 protected:
 
-	bool extract_bool(const char* value)
+	bool extract_bool(const char* value, bool default_value)
 	{
 		size_t len = std::strlen(value) + 1;
 		char* cpy = new char[len];
@@ -152,8 +203,7 @@ protected:
 		}
 		else
 		{
-			fprintf(SYMPHAS_WARN, "incorrect value '%s' to bool parameter!\n", value);
-			return false;
+			return default_value;
 		}
 	}
 };
@@ -173,6 +223,11 @@ struct params::param_assign<double> : params::param_assign_base
 	void assign(void* param, const char* value)
 	{
 		*static_cast<double*>(param) = extract_double(value);
+	}
+
+	size_t print_with_name(FILE* out, void* param, const char* name)
+	{
+		return fprintf(out, "%s=float(default=%.2lf)", name, *static_cast<double*>(param));
 	}
 
 protected:
@@ -198,6 +253,11 @@ struct params::param_assign<int> : params::param_assign_base
 	void assign(void* param, const char* value)
 	{
 		*static_cast<int*>(param) = extract_int(value);
+	}
+
+	size_t print_with_name(FILE* out, void* param, const char* name)
+	{
+		return fprintf(out, "%s=N(default=%d)", name, *static_cast<int*>(param));
 	}
 
 protected:
@@ -228,6 +288,11 @@ struct params::param_assign<char*> : params::param_assign_base
 		param_str = extract_string(value);
 	}
 
+	size_t print_with_name(FILE* out, void* param, const char* name)
+	{
+		return fprintf(out, "%s=NAME", name);
+	}
+
 protected:
 
 	char* extract_string(const char* value)
@@ -243,6 +308,54 @@ protected:
 /* **************************************************************************
  * Parameter object typedefs
  * **************************************************************************/
+
+struct param_map_element
+{
+	param_map_element() :
+		parameter{ nullptr }, assign_method{ nullptr }, alias{}, description{} {}
+
+	param_map_element(void* parameter, params::param_assign_base* assign_method) :
+		parameter{ parameter }, assign_method{ assign_method }, alias{}, description{ "" }
+	{}
+
+	param_map_element(void* parameter, params::param_assign_base* assign_method, char alias) :
+		parameter{ parameter }, assign_method{ assign_method }, alias{ alias }, description{ "" }
+	{}
+
+	param_map_element(void* parameter, params::param_assign_base* assign_method, char alias, std::string description) :
+		parameter{ parameter }, assign_method{ assign_method }, alias{ alias }, description{ description }
+	{}
+
+	param_map_element(void* parameter, params::param_assign_base* assign_method, std::string description) :
+		parameter{ parameter }, assign_method{ assign_method }, alias{}, description{ description }
+	{}
+
+	template<typename T>
+	void assign(T&& value)
+	{
+		assign_method->assign(parameter, std::forward<T>(value));
+	}
+
+	void print_help(FILE* out, const char* name) const;
+	void print_help(const char* name) const
+	{
+		print_help(SYMPHAS_INFO, name);
+	}
+	void print_help(FILE* out, std::string name) const
+	{
+		print_help(out, name.c_str());
+	}
+	void print_help(std::string name) const
+	{
+		print_help(SYMPHAS_INFO, name);
+	}
+
+	void* parameter;
+	params::param_assign_base* assign_method;
+	char alias;
+	std::string description;
+};
+
 
 //! The type specifying the parameter map.
 /*!
@@ -262,7 +375,7 @@ protected:
  */
 using param_map_type = std::map<
 	std::string, 
-	std::pair<void*, params::param_assign_base*>,
+	param_map_element,
 	symphas::internal::any_case_comparator>;
 
 
@@ -440,6 +553,9 @@ namespace params
 	//! See params::parse_arguments().
 	void parse_arguments(param_map_type param_map, const char* args, size_t n);
 
+	//! Print the list of all arguments.
+	void print_argument_help(FILE* out, param_map_type param_map);
+
 	//! Assign the value of a parameter.
 	/*!
 	 * Assign a single parameter to its globally linked variable. Used outside
@@ -452,11 +568,12 @@ namespace params
 	 * \param value The value to which to assign the parameter.
 	 */
 	template<typename T>
-	auto assign(std::pair<void*, params::param_assign_base*> const& param, T value) 
-		-> decltype(param.second->assign(param.first, value))
+	auto assign(param_map_element& param, T&& value) 
+		-> decltype(param.assign(std::forward<T>(value)))
 	{
-		param.second->assign(param.first, value);
+		param.assign(std::forward<T>(value));
 	}
+
 }
 
 
