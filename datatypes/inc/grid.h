@@ -271,25 +271,25 @@ struct multi_value;
 template<typename T>
 struct carry_value
 {
-	carry_value() : value{ &fallback }, fallback{ 0 }, clear{ true } {}
-	carry_value(T* value) : value{ value }, fallback{ 0 }, clear{ false } {}
-	carry_value(T value) : value{ &fallback }, fallback{ value }, clear{ true } {}
+	carry_value() : value{ &fallback }, fallback{ 0 } {}
+	carry_value(T fallback) : value{ &this->fallback }, fallback{ fallback } {}
+	carry_value(T* value, T fallback) : value{ value }, fallback{ fallback } {}
+	carry_value(T* value, T fallback, bool valid) : value{ (valid) ? value : &this->fallback }, fallback{ fallback } {}
 
 	carry_value& operator=(T const& other)
 	{
-		*value = (!clear) ? other : *value;
+		*value = (is_valid()) ? other : *value;
 		return *this;
 	}
 
 	carry_value& operator=(carry_value<T> const& other)
 	{
-		*value = (!clear) ? *other.value : *value;
+		*value = (is_valid()) ? *other.value : *value;
 		return *this;
 	}
 
 	T* value;
 	T fallback;
-	bool clear;
 
 	operator T () const
 	{
@@ -298,7 +298,7 @@ struct carry_value
 
 	inline bool is_valid() const
 	{
-		return !clear;
+		return value != &fallback;
 	}
 };
 
@@ -338,8 +338,8 @@ namespace grid
 
 	inline void get_grid_position(iter_type(&pos)[2], const len_type(&dims)[2], iter_type n)
 	{
-		pos[0] = n % dims[0];
 		pos[1] = n / dims[0];
+		pos[0] = n - dims[0] * pos[1];
 	}
 
 	inline void get_grid_position(iter_type(&pos)[3], const len_type(&dims)[3], iter_type n)
@@ -929,16 +929,16 @@ namespace grid
 	template<size_t D>
 	struct select_region
 	{
-		select_region() : stride{}, origin{}, dims{}, offset{}, len{}, boundary_size{} {}
+		select_region() : offset{}, stride{}, origin{}, dims{}, len{}, boundary_size{} {}
 
 		select_region(const len_type(&origin)[D], const len_type(&dims)[D], len_type boundary_size = 0) :
-			stride{}, origin{}, dims{}, offset{}, len{}, boundary_size{ boundary_size }
+			offset{}, stride{}, origin{}, dims{}, len{}, boundary_size{ boundary_size }
 		{
 			update(origin, dims);
 		}
 
 		select_region(const len_type(&dims)[D], len_type boundary_size = 0) :
-			stride{}, origin{}, offset{}, len{}, boundary_size{ boundary_size }
+			stride{}, origin{}, len{}, boundary_size{ boundary_size }
 		{
 			iter_type origin[D]{};
 			update(origin, dims);
@@ -964,57 +964,27 @@ namespace grid
 				this->origin[i] = origin[i];
 				this->dims[i] = dims[i];
 			}
-			offset = grid::index_from_position(origin, stride);
 			len = grid::length<D>(dims);
+			offset = grid::index_from_position(origin, stride);
 		}
 
 
 		template<typename T>
 		inline carry_value<T> operator()(iter_type(&pos)[D], T* values, const iter_type(&domain_dims)[D], const T& empty) const
 		{
-			//if (is_in_region(pos, domain_dims, boundary_size))
-			//{
-				for (iter_type i = 0; i < D; ++i)
-				{
-					pos[i] = (pos[i] >= origin[i] + boundary_size) ? pos[i] - origin[i] : pos[i] - origin[i] + (domain_dims[i] - 2 * boundary_size);
-				}
-				if (is_in_region(pos, dims, boundary_size))
-				{
-					return &values[grid::index_from_position(pos, stride)];
-				}
-				else
-				{
-					return empty;
-				}
-			//}
-			//else
-			//{
-			//	for (iter_type i = 0; i < D; ++i)
-			//	{
-			//		// check if the region wraps in the first place
-			//		// if the region doesn't wrap, the boundary point may still coincide with the region.
-			//		if (origin[i] + dims[i] < domain_dims[i])
-			//		{
-			//			pos[i] -= origin[i];
-			//		}
-			//		else
-			//		{
-			//			pos[i] = (pos[i] < boundary_size) ? domain_dims[i] + pos[i] - 2 * boundary_size : domain_dims[i] - pos[i] + 2 * boundary_size;
-			//		}
-			//	}
-			//	if (is_in_region(pos, domain_dims, boundary_size))
-			//	{
-			//		return operator()(pos, values, domain_dims, empty);
-			//	}
-			//	else if (is_in_region(pos, dims))
-			//	{
-			//		return &values[grid::index_from_position(pos, stride)];
-			//	}
-			//	else
-			//	{
-			//		return empty;
-			//	}
-			//}
+			for (iter_type i = 0; i < D; ++i)
+			{
+				pos[i] = (pos[i] >= origin[i] + boundary_size) ? pos[i] - origin[i] : pos[i] - origin[i] + domain_dims[i] - 2 * boundary_size;
+			}
+			if (is_in_region(pos, dims, boundary_size))
+			{
+				return { &values[grid::index_from_position(pos, stride)], empty };
+			}
+			else
+			{
+				return { empty };
+			}
+			//return { &values[grid::index_from_position(pos, stride)], empty, is_in_region(pos, dims, boundary_size)};
 		}
 
 		template<typename T>
@@ -1022,16 +992,28 @@ namespace grid
 		{
 			for (iter_type i = 0; i < D; ++i)
 			{
-				pos[i] = (pos[i] >= origin[i] + boundary_size) ? pos[i] - origin[i] : pos[i] - origin[i] + (domain_dims[i] - 2 * boundary_size);
+				pos[i] = (pos[i] >= origin[i] + boundary_size) ? pos[i] - origin[i] : pos[i] - origin[i] + domain_dims[i] - 2 * boundary_size;
 			}
-			if (is_in_region(pos, dims))
+			if (is_in_region(pos, dims, boundary_size))
 			{
-				return &values[grid::index_from_position(pos, stride)];
+				return { &values[grid::index_from_position(pos, stride)], empty };
 			}
 			else
 			{
-				return empty;
+				return { empty };
 			}
+		}
+
+		template<typename T>
+		inline T& operator()(iter_type n, T* values, const iter_type(&domain_dims)[D], const T& empty) const
+		{
+			return values[(n - offset) % grid::length<D>(domain_dims)];
+		}
+
+		template<typename T>
+		inline const T& operator()(iter_type n, const T* values, const iter_type(&domain_dims)[D], const T& empty) const
+		{
+			return values[(n - offset) % grid::length<D>(domain_dims)];
 		}
 
 		template<typename T>
@@ -1130,10 +1112,10 @@ namespace grid
 		}
 
 
+		len_type offset;
 		len_type stride[D];
 		iter_type origin[D];
 		len_type dims[D];
-		len_type offset;
 		len_type len;
 		len_type boundary_size;
 	};
@@ -1901,6 +1883,16 @@ public:
 		iter_type pos[D]{};
 		grid::get_grid_position(pos, parent_type::dims, n);
 		return region(pos, Block<T>::values, parent_type::dims, empty);
+	}
+
+	T const& get_unsafe(iter_type n) const
+	{
+		return region(n, Block<T>::values, parent_type::dims, empty);
+	}
+
+	T& get_unsafe(iter_type n)
+	{
+		return region(n, Block<T>::values, parent_type::dims, empty);
 	}
 
 	void adjust(const iter_type(&new_origin)[D])
