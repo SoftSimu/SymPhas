@@ -325,6 +325,15 @@ struct model_select
 
 };
 
+namespace symphas
+{
+	template<size_t D, typename Sp, typename... S>
+	bool run_model(ModelVirtual<D, Sp, S...>& model)
+	{
+		return run_model(model, model.solver.save, 0);
+	}
+}
+
 // free energy parameters
 
 //#undef SUM

@@ -211,12 +211,6 @@ namespace symphas
 		return (done && !save.is_last_save(model.get_index()));
 	}
 
-	template<size_t D, typename... S>
-	bool run_model(ModelVirtual<D, S...>& model)
-	{
-		return run_model(model, model.solver.save, 0);
-	}
-
 
 
 	//! Get the solution of the model using a standardized workflow.
