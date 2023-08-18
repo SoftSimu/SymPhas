@@ -89,7 +89,7 @@ namespace symphas::internal
 
 	inline void set_count_from_r(double(&interval)[2], double& h, len_type count, double ratio)
 	{
-		double length0 = ((double)count / range_count(interval, h)) * range_length(interval, h);
+		double length0 = (double(count) / range_count(interval, h)) * range_length(interval, h);
 		double pos = interval[0] + ratio * range_length(interval, h);
 
 		double left = pos - length0 * ratio;
@@ -334,6 +334,11 @@ namespace symphas
 		void set_interval_count(double left, len_type count)
 		{
 			symphas::internal::set_interval(data, left, (left + count * width()) / domain_length());
+		}
+
+		void set_interval_count(len_type count)
+		{
+			symphas::internal::set_count_from_r(data, h, count, 0.5);
 		}
 
 		//! Sets the beginning and end values of the interval. 
@@ -833,6 +838,20 @@ public:
 		for (iter_type i = 0; i < dimension(); ++i)
 		{
 			dims[i] = at(symphas::index_to_axis(i)).get_count();
+		}
+		return dims;
+	}
+
+	//! Gives the dimensions of the grid.
+	/*!
+	 * Gives the number of cells along each dimension.
+	 */
+	grid::dim_list get_interval_dims() const
+	{
+		grid::dim_list dims(nullptr, dimension());
+		for (iter_type i = 0; i < dimension(); ++i)
+		{
+			dims[i] = at(symphas::index_to_axis(i)).get_interval_count();
 		}
 		return dims;
 	}
