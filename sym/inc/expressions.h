@@ -239,6 +239,8 @@ namespace expr
 
 #endif
 
+#define PARALLELIZATION_CUTOFF_COUNT 1000
+
 	struct forward_value
 	{
 		template<typename T>
@@ -361,15 +363,63 @@ namespace expr
 	{
 		symphas::data_iterator_group it(std::forward<assign_type>(data), interval);
 
-		std::transform(
+		if (grid::length<D>(interval) <= PARALLELIZATION_CUTOFF_COUNT)
+		{
+			auto start = static_cast<const E*>(&e)->begin(symphas::it_grp, interval);
+			auto end = static_cast<const E*>(&e)->end(symphas::it_grp, interval);
+
+			for (auto eit = start; eit < end; ++eit, ++it)
+			{
+				*it = *it + *eit;
+			}
+		}
+		else
+		{
+			std::transform(
 #ifdef EXECUTION_HEADER_AVAILABLE
-			std::execution::par_unseq,
+				std::execution::par_unseq,
 #endif
-			static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
-			static_cast<const E*>(&e)->end(symphas::it_grp, interval), it, it,
-			[] (auto expr_value, auto data_value) { return data_value + expr_value; });
+				static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
+				static_cast<const E*>(&e)->end(symphas::it_grp, interval), it, it,
+				[] (auto expr_value, auto data_value) { return data_value + expr_value; });
+		}
 
 	}
+
+
+	template<typename V, typename... Gs, expr::exp_key_t... Xs, typename assign_type, size_t D>
+	void result_accumulate(OpTerms<V, Term<Gs, Xs>...> const& e, assign_type&& data, grid::region_interval<D> const& interval)
+	{
+		symphas::data_iterator_group it(std::forward<assign_type>(data), interval);
+
+		auto start = e.begin(symphas::it_grp, interval);
+		auto end = e.end(symphas::it_grp, interval);
+
+		for (auto eit = start; eit < end; ++eit, ++it)
+		{
+			*it = *it + *eit;
+		}
+	}
+
+	template<typename V, typename... Gs, expr::exp_key_t... Xs, typename assign_type, size_t D>
+	void result_accumulate(OpTerms<V, Term<Gs, Xs>...> const& e, assign_type&& data, grid::region_interval_multiple<D> const& regions)
+	{
+		for (grid::region_interval<D> region : regions)
+		{
+			result_accumulate(e, std::forward<assign_type>(data), region);
+		}
+	}
+
+	template<typename assign_type>
+	void result_accumulate(OpVoid, assign_type&& data) {}
+	template<typename assign_type>
+	void result_accumulate(OpVoid, assign_type&& data, len_type) {}
+	template<typename assign_type>
+	void result_accumulate(OpVoid, assign_type&& data, grid::region_interval<0>) {}
+	template<typename assign_type, size_t D>
+	void result_accumulate(OpVoid, assign_type&& data, grid::region_interval<D>) {}
+	template<typename assign_type, size_t D>
+	void result_accumulate(OpVoid, assign_type&& data, grid::region_interval_multiple<D>) {}
 
 	template<typename E, typename assign_type, size_t D>
 	void result_accumulate(OpExpression<E> const& e, assign_type&& data, grid::region_interval_multiple<D> const& regions)
@@ -403,17 +453,6 @@ namespace expr
 		result_accumulate(*static_cast<E const*>(&e), std::forward<assign_type>(data), expr::iterable_domain(*static_cast<E const*>(&e)));
 	}
 
-	template<typename assign_type>
-	void result_accumulate(OpVoid, assign_type&& data, len_type) {}
-	template<typename assign_type>
-	void result_accumulate(OpVoid, assign_type&& data, grid::region_interval<0>) {}
-	template<typename assign_type, size_t D>
-	void result_accumulate(OpVoid, assign_type&& data, grid::region_interval<D>) {}
-	template<typename assign_type, size_t D>
-	void result_accumulate(OpVoid, assign_type&& data, grid::region_interval_multiple<D>) {}
-
-
-
 
 	//! Evaluate the expression into the underlying data member.
 	/*!
@@ -434,22 +473,67 @@ namespace expr
 			static_cast<const E*>(&e)->end(len));
 	}
 
+	inline auto result_sum(OpVoid) { return OpVoid{}; }
+	inline auto result_sum(OpVoid, len_type) { return OpVoid{}; }
+	inline auto result_sum(OpVoid, grid::region_interval<0>) { return OpVoid{}; }
+	template<size_t D> inline auto result_sum(OpVoid, grid::region_interval<D>) { return OpVoid{}; }
+	template<size_t D> inline auto result_sum(OpVoid, grid::region_interval_multiple<D>) { return OpVoid{}; }
+
 	template<typename E>
 	auto result_sum(OpExpression<E> const& e, grid::region_interval<0> const& interval)
 	{
 		return result_sum(*static_cast<E const*>(&e), 1);
 	}
 
+	template<typename V, typename... Gs, expr::exp_key_t... Xs, size_t D>
+	auto result_sum(OpTerms<V, Term<Gs, Xs>...> const& e, grid::region_interval<D> const& interval)
+	{
+		auto start = e.begin(symphas::it_grp, interval);
+		auto end = e.end(symphas::it_grp, interval);
+
+		auto reduce = expr::eval_type_t<OpTerms<V, Term<Gs, Xs>...>>{};
+		for (auto it = start; it < end; ++it)
+		{
+			reduce = reduce + *it;
+		}
+		return reduce;
+	}
+
+	template<typename V, typename... Gs, expr::exp_key_t... Xs, size_t D>
+	auto result_sum(OpTerms<V, Term<Gs, Xs>...> const& e, grid::region_interval_multiple<D> const& regions)
+	{
+		expr::eval_type_t<OpTerms<V, Term<Gs, Xs>...>> sum{};
+		for (grid::region_interval<D> region : regions)
+		{
+			sum += result_sum(e, region);
+		}
+		return sum;
+	}
+
 	template<typename E, size_t D>
 	auto result_sum(OpExpression<E> const& e, grid::region_interval<D> const& interval)
 	{
-		auto group = std::reduce(
+		if (grid::length<D>(interval) <= PARALLELIZATION_CUTOFF_COUNT)
+		{
+			auto start = static_cast<const E*>(&e)->begin(symphas::it_grp, interval);
+			auto end = static_cast<const E*>(&e)->end(symphas::it_grp, interval);
+
+			auto reduce = expr::eval_type_t<E>{};
+			for (auto it = start; it < end; ++it)
+			{
+				reduce = reduce + *it;
+			}
+			return reduce;
+		}
+		else
+		{
+			return std::reduce(
 #ifdef EXECUTION_HEADER_AVAILABLE
-			std::execution::par_unseq,
+				std::execution::par_unseq,
 #endif
-			static_cast<const E*>(&e)->begin(symphas::it_reg, interval),
-			static_cast<const E*>(&e)->end(symphas::it_reg, interval));
-		return group;
+				static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
+				static_cast<const E*>(&e)->end(symphas::it_grp, interval));
+		}
 	}
 
 	template<typename E, size_t D>
@@ -466,6 +550,7 @@ namespace expr
 	template<typename E>
 	auto result_sum(OpExpression<E> const& e)
 	{
+		TIME_THIS_EXPRESSION_LIFETIME(iterable_domain, auto r = expr::iterable_domain(*static_cast<E const*>(&e));)
 		return result_sum(*static_cast<E const*>(&e), expr::iterable_domain(*static_cast<E const*>(&e)));
 	}
 
@@ -3702,14 +3787,123 @@ namespace expr
 namespace expr
 {
 
-	template<int I>
-	constexpr auto sym_N = expr::make_integer<I>();
 	template<size_t N0, size_t N1, size_t... Ns>
 	constexpr auto sym_T = expr::make_tensor<N0, N1, Ns...>();
 	template<size_t I, size_t N>
 	constexpr auto sym_R = expr::make_row_vector<I, N>(OpIdentity{});
 	template<size_t I, size_t N>
 	constexpr auto sym_C = expr::make_column_vector<I, N>(OpIdentity{});
+}
+
+
+namespace expr::symbols
+{
+	namespace
+	{
+
+		template<char n>
+		constexpr size_t get_value()
+		{
+			return n - '0';
+		}
+
+		template<char...> struct char_list {};
+
+		template<typename A, typename B>
+		struct filter_decimal_left;
+
+		template<char... cs>
+		struct filter_decimal_left<char_list<cs...>, char_list<>>
+		{
+			using type = char_list<cs...>;
+		};
+
+		template<char... cs, char c0, char... c1s>
+		struct filter_decimal_left<char_list<cs...>, char_list<c0, c1s...>>
+		{
+			using type = typename filter_decimal_left<char_list<cs..., c0>, char_list<c1s...>>::type;
+		};
+
+		template<char... cs, char... c1s>
+		struct filter_decimal_left<char_list<cs...>, char_list<'.', c1s...>>
+		{
+			using type = char_list<cs...>;
+		};
+
+		template<typename A, typename B>
+		struct filter_decimal_right;
+
+		template<>
+		struct filter_decimal_right<char_list<>, char_list<>>
+		{
+			using type = char_list<>;
+		};
+
+		template<char... cs>
+		struct filter_decimal_right<char_list<'.', cs...>, char_list<>>
+		{
+			using type = char_list<cs...>;
+		};
+
+		template<char... cs, char c0, char... c1s>
+		struct filter_decimal_right<char_list<'.', cs...>, char_list<c0, c1s...>>
+		{
+			using type = typename filter_decimal_right<char_list<'.', cs..., c0>, char_list<c1s...>>::type;
+		};
+
+		template<char... c1s>
+		struct filter_decimal_right<char_list<>, char_list<'.', c1s...>>
+		{
+			using type = typename filter_decimal_right<char_list<'.'>, char_list<c1s...>>::type;
+		};
+
+		template<char c0, char... c1s>
+		struct filter_decimal_right<char_list<>, char_list<c0, c1s...>>
+		{
+			using type = typename filter_decimal_right<char_list<>, char_list<c1s...>>::type;
+		};
+
+		template<char... n>
+		struct char_to_val
+		{
+			template<char... ln, size_t... Is>
+			constexpr double left(char_list<ln...>, std::index_sequence<Is...>)
+			{
+				return (expr::make_integer<get_value<ln>() * fixed_pow<10, sizeof...(Is) - 1 - Is>>() + ... + OpVoid{});
+			}
+
+			template<char... rn, size_t... Is>
+			constexpr auto right(char_list<rn...>, std::index_sequence<Is...>)
+			{
+				return (expr::make_fraction<get_value<rn>(), fixed_pow<10, Is + 1>>() + ... + OpVoid{});
+			}
+
+			template<char... ln>
+			constexpr auto left(char_list<ln...>)
+			{
+				return left(char_list<ln...>{}, std::make_index_sequence<sizeof...(ln)>{});
+			}
+
+			template<char... rn>
+			constexpr auto right(char_list<rn...>)
+			{
+				return right(char_list<rn...>{}, std::make_index_sequence<sizeof...(rn)>{});
+			}
+
+			constexpr auto operator()()
+			{
+				return left(typename filter_decimal_left<char_list<>, char_list<n...>>::type{})
+					+ right(typename filter_decimal_right<char_list<>, char_list<n...>>::type{});
+			}
+		};
+
+	}
+
+	template<char... n>
+	constexpr auto operator ""_n()
+	{
+		return char_to_val<n...>{}();
+	}
 }
 
 #undef SYEX_BINARY_FMT

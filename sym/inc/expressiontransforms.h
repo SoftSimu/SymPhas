@@ -6832,13 +6832,16 @@ namespace expr::split
 	template<typename... condition_ts, typename... Es, size_t... Is>
 	auto filter(OpAdd<Es...> const& e, std::index_sequence<Is...>)
 	{
-		return (filter<condition_ts...>(expr::get<Is>(e)) + ...);
+		return (expr::get<Is>(e) + ... + OpVoid{});
 	}
 
 	template<typename... condition_ts, typename... Es>
 	auto filter(OpAdd<Es...> const& e)
 	{
-		return filter<condition_ts...>(e, std::make_index_sequence<sizeof...(Es)>{});
+		using namespace symphas::internal;
+		using mask = std::integer_sequence<bool, expression_satisfies_condition<Es, expr::or_<condition_ts...>>...>;
+		using seq = std::make_index_sequence<sizeof...(Es)>;
+		return filter<condition_ts...>(e, symphas::lib::filter_seq_t<seq, mask>{});
 	}
 }
 
@@ -6860,8 +6863,8 @@ namespace expr
 #ifdef EXECUTION_HEADER_AVAILABLE
 			std::execution::par_unseq,
 #endif
-			static_cast<const E*>(&e)->begin(symphas::it_reg, interval),
-			static_cast<const E*>(&e)->end(symphas::it_reg, interval));
+			static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
+			static_cast<const E*>(&e)->end(symphas::it_grp, interval));
 		return group;
 	}
 
@@ -7109,6 +7112,7 @@ namespace expr
 			return apply_mul(e.a, e.b);
 		}
 
+
 		template<typename V0, typename E, typename... Ts, int... I0s, int... P0s, typename A, typename B, typename... Vs, typename... Es>
 		auto apply_mul(OpSum<V0, E, Substitution<SymbolicDataArray<Ts>...>,
 			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, symphas::lib::types_list<Vs...>> const& sum,
@@ -7124,6 +7128,8 @@ namespace expr
 				for (iter_type i = 0; i < sum.data.persistent.len; ++i)
 				{
 					auto region0 = region / expr::iterable_domain(sum.data.persistent[i].e);
+					TIME_THIS_EXPRESSION_LIFETIME(iterable_domain, auto r = expr::iterable_domain(sum.data.persistent[i].e);)
+
 					if (!grid::is_empty(region0))
 					{
 						reduced += result_sum(expr::make_mul(e, sum.data.persistent[i].e), region0);

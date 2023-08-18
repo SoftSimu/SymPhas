@@ -64,10 +64,10 @@ MODEL(CELL_MIGRATION, (MANY(CANCER_CELL, CONFIGURATION), MANY(NORMAL_CELL, CONFI
 		(EQUATION_OF(ii)(
 			-_2 * DF_(ii) - 
 			(vel * e(2 * Pi * ARRAY(ii)(_nP(1. / tau, t, ii)))
-				+ val<60> * kappa / (xi * lambda_[ii] * lambda_[ii]) * integral(op_ii * grad(op_ii) * SUM(jj != ii)(op_jj * op_jj))) * grad(op_ii)
+				+ 60_n * kappa / (xi * lambda_[ii] * lambda_[ii]) * INT(op_ii * grad(op_ii) * SUM(jj != ii)(op_jj * op_jj))) * grad(op_ii)
 			)),		
-		SUM(ii)(gamma_n_[ii] * integral(CELLULAR_FE(op_ii, lambda_[ii])) + mu / (Pi * R2) * pow<2>(Pi * R2 - integral(op_ii * op_ii)))
-		+ integral(SUM(ii, jj != ii)(integer(30) * kappa / (lambda_[ii] * lambda_[ii]) * op_ii * op_ii * op_jj * op_jj)))
+		SUM(ii)(gamma_n_[ii] * INT(CELLULAR_FE(op_ii, lambda_[ii])) + mu / (Pi * R2) * pow<2>(Pi * R2 - INT(op_ii * op_ii)))
+		+ INT(SUM(ii, jj != ii)(30_n * kappa / (lambda_[ii] * lambda_[ii]) * op_ii * op_ii * op_jj * op_jj)))
 )
 LINK_WITH_NAME(CELL_MIGRATION, CELL_MODEL)
 DEFINE_MODEL_FIELD_NAMES_FORMAT(CELL_MIGRATION, "\\phi_{%d}")

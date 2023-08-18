@@ -455,15 +455,13 @@ namespace symphas::internal
 			return reduce;
 		}
 
-		auto operator+() const
+		void accumulate(eval_type& value) const
 		{
-			eval_type reduce{};
 			auto n0 = index(ptr.region, ptr.pos);
 			for (iter_type n = 0; n < len(ptr.region); ++n)
 			{
-				reduce += (ptr.ptr)->eval(n0 + n);
+				value += (ptr.ptr)->eval(n0 + n);
 			}
-			return reduce;
 		}
 
 		symphas::internal::iterator_group_difference_type<E, D> ptr;
@@ -473,13 +471,17 @@ namespace symphas::internal
 	template<typename E, size_t D>
 	auto operator+(iterator_group_expression<E, D> const& group, typename iterator_group_expression<E, D>::eval_type const& value)
 	{
-		return (+group) + value;
+		auto accumulate(value);
+		group.accumulate(accumulate);
+		return accumulate;
 	}
 
 	template<typename E, size_t D>
 	auto operator+(typename iterator_group_expression<E, D>::eval_type const& value, iterator_group_expression<E, D> const& group)
 	{
-		return group + value;
+		auto accumulate(value);
+		group.accumulate(accumulate);
+		return accumulate;
 	}
 
 
