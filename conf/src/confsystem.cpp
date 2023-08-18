@@ -2099,68 +2099,103 @@ void SystemConf::select_stencil(size_t order, const char* str)
 
 void SystemConf::parse_model_spec(const char* value, const char* dir)
 {
-	char type[BUFFER_LENGTH]{};
+	char type[BUFFER_LENGTH + 1]{};
 	int model_end_pos;
 
-	// set the model and list of coefficients to read them, the
-	// default is given by #DEFAULT_COEFF_VALUE.
-	size_t n = sscanf(value, "%s %n", type, &model_end_pos);
-
-	if (n == 1)
+	if (std::strlen(value) > 1 && value[0] == CONFIG_TITLE_PREFIX_C)
 	{
-		set_model_name(type);
+		iter_type start, end;
+		size_t n = sscanf(value, CONFIG_TITLE_PREFIX " %" STR(BUFFER_LENGTH) "s %d %d", type, &start, &end);
 
-		if (model_end_pos > std::strlen(model))
+		if (n == 0)
 		{
-			const char* iter = value + model_end_pos - 1;
-			while (*++iter && *iter != CONFIG_TITLE_PREFIX_C);
-
-			if (*iter == CONFIG_TITLE_PREFIX_C)
-			{
-				auto options = symphas::conf::parse_options(iter + 1, ",");
-				delete[] num_fields;
-				for (iter_type i = 0; i < num_fields_len; ++i)
-				{
-					delete[] modifiers[i];
-				}
-				delete[] modifiers;
-
-				num_fields_len = options.size();
-				num_fields = new len_type[num_fields_len]{};
-				modifiers = new char* [num_fields_len] {};
-
-				
-				iter_type i = 0;
-				for (auto option : options)
-				{
-					*type = '\0';
-					sscanf(option.c_str(), "%d %s", num_fields + i, type);
-					if (*type)
-					{
-						modifiers[i] = new char[std::strlen(type) + 1];
-						std::strcpy(modifiers[i], type);
-					}
-					else
-					{
-						modifiers[i] = nullptr;
-					}
-					++i;
-				}
-			}
-
-			std::copy(value + model_end_pos, iter, type);
-			type[iter - (value + model_end_pos)] = '\0';
-			symphas::internal::parse_coeff_list(type, dir, coeff, coeff_len);
+			fprintf(SYMPHAS_ERR, "expected file name after '%c' in model specification\n", CONFIG_TITLE_PREFIX_C);
 		}
 		else
 		{
-			if (coeff)
+
+			len_type type_len = std::strlen(type);
+			len_type keyword_len = sizeof(STR(VIRTUAL_MODEL_KEYWORD)) / sizeof(char);
+			len_type index_len = int(n > 1) * symphas::lib::num_digits(start) + int(n > 2) * symphas::lib::num_digits(end) + (n - 1);
+			char* model_spec = new char[keyword_len + type_len + 1 + index_len] {};
+
+			sprintf(model_spec, "%s%c%s", STR(VIRTUAL_MODEL_KEYWORD), VIRTUAL_MODEL_SEP_KEY_C, type);
+			if (n > 1)
 			{
-				coeff_len = 0;
+				sprintf(model_spec + keyword_len + type_len, "%c%d", VIRTUAL_MODEL_SEP_KEY_C, start);
+			}
+			if (n > 2)
+			{
+				sprintf(model_spec + keyword_len + type_len + symphas::lib::num_digits(start) + 1, "%c%d", VIRTUAL_MODEL_SEP_KEY_C, end);
+			}
+
+			std::swap(model, model_spec);
+			delete[] model_spec;
+
+		}
+	}
+	else
+	{
+
+		// set the model and list of coefficients to read them, the
+		// default is given by #DEFAULT_COEFF_VALUE.
+		size_t n = sscanf(value, " %" STR(BUFFER_LENGTH) "s %n", type, &model_end_pos);
+
+		if (n == 1)
+		{
+			set_model_name(type);
+
+			if (model_end_pos > std::strlen(model))
+			{
+				const char* iter = value + model_end_pos - 1;
+				while (*++iter && *iter != CONFIG_TITLE_PREFIX_C);
+
+				if (*iter == CONFIG_TITLE_PREFIX_C)
+				{
+					auto options = symphas::conf::parse_options(iter + 1, ",");
+					delete[] num_fields;
+					for (iter_type i = 0; i < num_fields_len; ++i)
+					{
+						delete[] modifiers[i];
+					}
+					delete[] modifiers;
+
+					num_fields_len = options.size();
+					num_fields = new len_type[num_fields_len]{};
+					modifiers = new char* [num_fields_len] {};
+
+
+					iter_type i = 0;
+					for (auto option : options)
+					{
+						*type = '\0';
+						sscanf(option.c_str(), "%d %s", num_fields + i, type);
+						if (*type)
+						{
+							modifiers[i] = new char[std::strlen(type) + 1];
+							std::strcpy(modifiers[i], type);
+						}
+						else
+						{
+							modifiers[i] = nullptr;
+						}
+						++i;
+					}
+				}
+
+				std::copy(value + model_end_pos, iter, type);
+				type[iter - (value + model_end_pos)] = '\0';
+				symphas::internal::parse_coeff_list(type, dir, coeff, coeff_len);
+			}
+			else
+			{
+				if (coeff)
+				{
+					coeff_len = 0;
+				}
 			}
 		}
 	}
-
 }
 
 
@@ -2324,8 +2359,24 @@ inline void print_coeff(FILE* out, const double* coeff, iter_type i)
 
 void SystemConf::write(const char* savedir, const char* name) const
 {
+	char* model_name;
+	auto sep_it = std::strchr(model, VIRTUAL_MODEL_SEP_KEY_C);
+
+	if (sep_it == NULL)
+	{
+		model_name = new char[std::strlen(model) + 1] {};
+		std::strcpy(model_name, model);
+	}
+	else
+	{
+		model_name = new char[sep_it - model + 1] {};
+		std::copy(model, sep_it, model_name);
+		model_name[sep_it - model] = '\0';
+	}
+	
+
 	char param_file[BUFFER_LENGTH]{};
-	snprintf(param_file, BUFFER_LENGTH, "%s/%s.constants", savedir, model);
+	snprintf(param_file, BUFFER_LENGTH, "%s/%s.constants", savedir, model_name);
 
 
 	FILE* pf;
@@ -2337,7 +2388,7 @@ void SystemConf::write(const char* savedir, const char* name) const
 
 
 	char model_spec[BUFFER_LENGTH_L4]{};
-	snprintf(model_spec, BUFFER_LENGTH_L4, "%s ", model);
+	snprintf(model_spec, BUFFER_LENGTH_L4, "%s ", model_name);
 
 	// print to the parameters file and the model specification line
 	for (iter_type i = 0; i < coeff_len; ++i)
@@ -2386,16 +2437,10 @@ void SystemConf::write(const char* savedir, const char* name) const
 		exit(ERR_CODE_FILE_OPEN);
 	}
 
-	fprintf(f, "!%s\n", title);
-
-
-
-
+	fprintf(f, "%c%s\n", CONFIG_TITLE_PREFIX_C, title);
 
 	char open = symphas::internal::option_open_bracket();
 	char close = symphas::internal::option_close_bracket();
-
-
 
 	fprintf(f, CONFIG_NAME_FMT "%zd\n", symphas::internal::C_DIM, dimension);
 	fprintf(f, CONFIG_NAME_FMT "%I32d\n", symphas::internal::C_ORDER, stp.ord);
@@ -2572,7 +2617,36 @@ void SystemConf::write(const char* savedir, const char* name) const
 		fprintf(f, "%lf\n", dt_list.get_time_step());
 	}
 
-	fprintf(f, CONFIG_NAME_FMT "%s\n", symphas::internal::C_MODEL, model_spec);
+	if (sep_it == NULL)
+	{
+		fprintf(f, CONFIG_NAME_FMT "%s\n", symphas::internal::C_MODEL, model_spec);
+	}
+	else
+	{
+		char* model_cpy = new char[std::strlen(sep_it)] {};
+		auto index_it = std::strchr(sep_it + 1, VIRTUAL_MODEL_SEP_KEY_C);
+		auto end_it = (index_it == NULL) ? sep_it + std::strlen(sep_it) : index_it;
+
+		std::copy(sep_it + 1, end_it, model_cpy);
+		model_cpy[end_it - sep_it - 1] = '\0';
+		fprintf(f, CONFIG_NAME_FMT "%c %s", symphas::internal::C_MODEL, CONFIG_TITLE_PREFIX_C, model_cpy);
+
+		if (index_it != NULL)
+		{
+			iter_type index;
+			sscanf(index_it + 1, "%d", &index);
+			fprintf(f, " %d", index);
+			if ((index_it = std::strchr(index_it + 1, VIRTUAL_MODEL_SEP_KEY_C)) != NULL)
+			{
+				sscanf(index_it + 1, "%d", &index);
+				fprintf(f, " %d", index);
+			}
+		}
+		fprintf(f, "\n");
+
+		delete[] model_cpy;
+	}
+
 	fprintf(f, CONFIG_NAME_FMT "%d\n", symphas::internal::C_FRAMES, save.get_stop());
 
 	char save_spec[BUFFER_LENGTH];
