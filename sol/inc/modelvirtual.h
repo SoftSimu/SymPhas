@@ -197,6 +197,7 @@ struct ModelVirtual : Model<D, DataStepper<D, Sp>, S...>
 		{
 			modify_tdata(tdata, dir, params::start_index, checkpoint);
 		}
+		return pp;
 	}
 
 	symphas::problem_parameters_type build_parameters(const char* dir, bool checkpoint = true)

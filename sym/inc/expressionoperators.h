@@ -1493,7 +1493,7 @@ namespace symphas::internal
 		{
 			n += fprintf(out, "%u" SYEX_POW_DIV_SEP "%u", expr::_Xk_t<X>::N, expr::_Xk_t<X>::D);
 		}
-		n += fprintf(out, SYEX_POW_SEP_B);
+		n += fprintf(out, "%s", SYEX_POW_SEP_B);
 		return n;
 	}
 
@@ -1514,7 +1514,7 @@ namespace symphas::internal
 		{
 			n += sprintf(out + n, "%u" SYEX_POW_DIV_SEP "%u", expr::_Xk_t<X>::N, expr::_Xk_t<X>::D);
 		}
-		n += sprintf(out + n, SYEX_POW_SEP_B);
+		n += sprintf(out + n, "", SYEX_POW_SEP_B);
 		return n;
 	}
 #endif

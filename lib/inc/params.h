@@ -36,13 +36,14 @@
 
 #define ARGUMENT_HELP_STRING "help"
 
-#define SYMPHAS_USAGE_MESSAGE \
-R"~(
-symphas_impl [CONFIG_NAME] [OPTIONS]...
-)~"
 
-#define SYMPHAS_DESCRIPTION_MESSAGE_INTRO \
-R"~(
+namespace symphas
+{
+	constexpr inline char symphas_usage_message[] = R"~(
+symphas_impl [CONFIG_NAME] [OPTIONS]...
+)~";
+
+	constexpr inline char symphas_description_message[] = R"~(
 SymPhas is a symbolic algebra framework that formulates expressions at compile time for high-speed 
 numerical solutions of phase-field problems. It is equipped with two base solvers: a finite 
 difference solver with auto-generating stencils of any order of accuracy (up to compilation
@@ -53,21 +54,18 @@ expression.
 If this SymPhas executable reports that a model doesn't exist, verify the CMake parameters are
 correctly set. 
 )~"
-
-#define SYMPHAS_DESCRIPTION_DEBUG_NOTIFICATION \
+#ifdef DEBUG
 R"~(
 This build currently has DEBUG mode enabled, which may indicate optimizations have been turned off.
 Parallelization is also off.
 )~"
-
-#ifdef DEBUG
-#define SYMPHAS_DESCRIPTION_MESSAGE \
-SYMPHAS_DESCRIPTION_MESSAGE_INTRO \
-SYMPHAS_DESCRIPTION_DEBUG_NOTIFICATION
-#else
-#define SYMPHAS_DESCRIPTION_MESSAGE \
-SYMPHAS_DESCRIPTION_MESSAGE_INTRO
 #endif
+;
+
+}
+
+#define SYMPHAS_USAGE_MESSAGE symphas::symphas_usage_message
+#define SYMPHAS_DESCRIPTION_MESSAGE symphas::symphas_description_message
 
 #define VIRTUAL_MODEL_KEYWORD VIRTUAL
 

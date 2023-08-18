@@ -443,7 +443,8 @@ namespace symphas::internal
 			return region[pos0 * len(region)];
 		}
 
-		auto operator+(iterator_group_expression<E, D> const& other) const
+		template<typename E0>
+		auto operator+(iterator_group_expression<E0, D> const& other) const
 		{
 			eval_type reduce{};
 			auto n0 = index(ptr.region, ptr.pos);
@@ -462,6 +463,13 @@ namespace symphas::internal
 			{
 				value += (ptr.ptr)->eval(n0 + n);
 			}
+		}
+
+		operator eval_type() const
+		{
+			eval_type value{};
+			accumulate(value);
+			return value;
 		}
 
 		symphas::internal::iterator_group_difference_type<E, D> ptr;
@@ -484,10 +492,18 @@ namespace symphas::internal
 		return accumulate;
 	}
 
+	template<typename E, size_t D>
+	typename iterator_group_expression<E, D>::eval_type& operator+=(typename iterator_group_expression<E, D>::eval_type& value, iterator_group_expression<E, D> const& iterator)
+	{
+		value = value + iterator;
+		return value;
+	}
 
 	template<typename G, size_t D>
 	struct iterator_group
 	{
+		using eval_type = typename symphas::internal::data_value_type<G>::type;
+
 		iterator_group(symphas::internal::iterator_group_difference_type<G, D> const& ptr, iter_type offset = 0) : ptr{ ptr }, offset{ offset } {}
 
 		inline len_type len(grid::region_group<D> const& region) const
@@ -530,9 +546,54 @@ namespace symphas::internal
 			}
 		}
 
+		auto operator+(iterator_group<G, D> const& other) const
+		{
+			eval_type reduce{};
+			auto n0 = index(ptr.region, ptr.pos);
+			auto n1 = index(other.ptr.region, other.ptr.pos);
+			for (iter_type n = 0; n < len(ptr.region); ++n)
+			{
+				reduce += symphas::internal::data_value_type<G>{}(ptr.ptr, n0 + n) + symphas::internal::data_value_type<G>{}(other.ptr.ptr, n1 + n);
+			}
+			return reduce;
+		}
+
+		void accumulate(eval_type& value) const
+		{
+			auto n0 = index(ptr.region, ptr.pos);
+			for (iter_type n = 0; n < len(ptr.region); ++n)
+			{
+				value += (ptr.ptr)->eval(n0 + n);
+			}
+		}
+
+
 		symphas::internal::iterator_group_difference_type<G, D> ptr;
 		iter_type offset;
 	};
+
+	template<typename G, size_t D>
+	auto operator+(iterator_group<G, D> const& group, typename iterator_group<G, D>::eval_type const& value)
+	{
+		auto accumulate(value);
+		group.accumulate(accumulate);
+		return accumulate;
+	}
+
+	template<typename G, size_t D>
+	auto operator+(typename iterator_group<G, D>::eval_type const& value, iterator_group<G, D> const& group)
+	{
+		auto accumulate(value);
+		group.accumulate(accumulate);
+		return accumulate;
+	}
+
+	template<typename G, size_t D>
+	auto operator+=(typename iterator_group<G, D>::eval_type& value, iterator_group<G, D> const& iterator)
+	{
+		value = value + iterator;
+		return value;
+	}
 
 
 

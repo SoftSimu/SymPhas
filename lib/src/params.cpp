@@ -174,7 +174,7 @@ void params::parse_arguments(param_map_type param_map, const char* const* args, 
 					break;
 				}
 			}
-			if (*key == NULL)
+			if (*key == '\0')
 			{
 				fprintf(SYMPHAS_WARN, err_msg, args[c]);
 				continue;

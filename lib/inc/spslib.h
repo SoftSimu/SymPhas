@@ -3913,7 +3913,14 @@ namespace symphas::lib
 	 * Standardized method to get the directory component of the
 	 * given path.
 	 */
-	void get_parent_directory(const char* path, char* &basepath);
+	void get_parent_directory(const char* path, const char* &basepath);
+
+	//! Return the directory component of the given path. 
+	/*!
+	 * Standardized method to get the directory component of the
+	 * given path.
+	 */
+	void get_parent_directory(char* path, char* &basepath);
 
 #ifdef FILESYSTEM_HEADER_AVAILABLE
 	std::filesystem::path get_parent_directory(std::filesystem::path dir);
