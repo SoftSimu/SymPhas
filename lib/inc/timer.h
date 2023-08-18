@@ -38,11 +38,14 @@
 symphas::TimerReport NAME ## _timer(SYMPHAS_LOG, #NAME);
 #define TIME_THIS_CONTEXT_LIFETIME(NAME) \
 static symphas::TimerReport NAME ## _timer_report(SYMPHAS_LOG, #NAME); symphas::TimerContext NAME ## _timer(&NAME ## _timer_report);
+#define TIME_THIS_EXPRESSION_LIFETIME(NAME, ...) { TIME_THIS_CONTEXT_LIFETIME(NAME) __VA_ARGS__ }
+#define TIME_THIS_EXPRESSION_ONCE(NAME, ...) { TIME_THIS_CONTEXT_ONCE(NAME) __VA_ARGS__ }
 
 #else
 
 #define TIME_THIS_CONTEXT_ONCE(NAME, ...) 
 #define TIME_THIS_CONTEXT_LIFETIME(NAME, ...) 
+#define TIME_THIS_EXPRESSION_LIFETIME(NAME, ...) 
 
 #endif
 
