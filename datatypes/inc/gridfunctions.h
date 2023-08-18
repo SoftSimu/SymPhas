@@ -1875,9 +1875,9 @@ namespace grid
 							if (found_value[1])
 							{
 								intervals_updated[i][1] = (pos[i] < intervals_updated[i][1]) ? pos[i] + dims[i] : pos[i];
+								++last_pos[1];
 							}
 
-							++last_pos[1];
 							pos[i] = (last_pos[0] <= 0) ? dims[i] + last_pos[0] - 1 : last_pos[0] - 1;
 							found_value[0] = false;
 							offset = !offset;
@@ -1887,9 +1887,9 @@ namespace grid
 							if (found_value[0])
 							{
 								intervals_updated[i][0] = (pos[i] > intervals_updated[i][0]) ? pos[i] - dims[i] : pos[i];
+								--last_pos[0];
 							}
 
-							--last_pos[0];
 							pos[i] = (last_pos[1] >= dims[i] - 1) ? last_pos[1] + 1 - dims[i] : last_pos[1] + 1;
 							found_value[1] = false;
 							offset = !offset;
