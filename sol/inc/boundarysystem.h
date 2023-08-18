@@ -280,13 +280,7 @@ PhaseFieldSystem<RegionalGrid, T, D>::PhaseFieldSystem(
 	parent_type{ get_extended_intervals(vdata), id }, BoundaryGroup<T, D>{ info.intervals, bdata }, 
 	next_resize{ 0 }, resize_delta{ REGIONAL_GRID_RESIZE_TIME }, cutoff{}
 {
-	//auto vdata_region(vdata);
-	//iter_type offset = RegionalGrid<T, D>::region.boundary_size;
-	//for (auto& [axis, interval] : vdata_region)
-	//{
-	//	interval.set_interval_count(interval.get_interval_count() - offset * 2);
-	//}
-	grid::region_interval<D> region(RegionalGrid<T, D>::region.dims, vdata);
+	grid::region_interval<D> region(RegionalGrid<T, D>::region.dims, RegionalGrid<T, D>::region.boundary_size);
 	symphas::internal::populate_tdata(tdata, *static_cast<Grid<T, D>*>(this), &info, region, id);
 
 	if (grid::has_subdomain(vdata))
