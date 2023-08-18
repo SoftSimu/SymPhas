@@ -52,6 +52,9 @@ template<size_t D, typename Sp, typename... Ts>
 using ArrayModel = Model<D, Sp, symphas::internal::field_array_t<void>, Ts...>;
 
 
+#define DEFAULT_FIELD_NAME "field"
+
+
 /* the generic format of an output file that is written by the program
  * if there are individual files for every index, then the index is prepended
  * 
@@ -416,7 +419,13 @@ namespace symphas::io
 	template<typename M>
 	void write_plot_config(M const& model, const char* directory, const char* const* names, SaveParams const& save);
 
-
+	//! Writes a plotting configuration file for the given model.
+	/*!
+	 * Writes a configuration using default field names. @see 
+	 * symphas::io::write_plot_config().
+	 */
+	//template<typename M>
+	//void write_plot_config(M const& model, const char* directory, SaveParams const& save);
 
 
 

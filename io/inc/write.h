@@ -145,6 +145,28 @@ void symphas::io::write_plot_config(M const& model, const char* directory, const
 	SWITCH_IO_WRITE(write_plot_config(model, directory, names, save))
 }
 
+//
+//template<typename M>
+//void symphas::io::write_plot_config(M const& model, const char* directory, SaveParams const& save)
+//{
+//	auto len = symphas::model_num_fields(model);
+//	char** names = new char* [len] {};
+//
+//	for (iter_type i = 0; i < len; ++i)
+//	{
+//		names[i] = new char[STR_ARR_LEN(DEFAULT_FIELD_NAME) + symphas::lib::num_digits(i)] {};
+//		sprintf(names[i], DEFAULT_FIELD_NAME "%d", i);
+//	}
+//
+//	SWITCH_IO_WRITE(write_plot_config(model, directory, names, save))
+//
+//
+//	for (iter_type i = 0; i < len; ++i)
+//	{
+//		delete[] names[i];
+//	}
+//	delete[] names;
+//}
 
 
 

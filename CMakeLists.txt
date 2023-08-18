@@ -195,11 +195,19 @@ foreach(GROUP_NAME ${GROUP_NAMES_0})
 			add_subdirectory(${GROUP_NAME})
 			#message(STATUS ${EXTRA_INCLUDE_DIRECTORIES})
 			#target_compile_definitions(symphas_${GROUP_NAME} PRIVATE ${ADD_DEFINITIONS})
-			#target_include_directories(symphas_${GROUP_NAME} PRIVATE ${MODEL_INCLUDE_HEADER_DIR})
+
 			list(APPEND GROUP_NAMES ${GROUP_NAME})
 
 			if(TARGET symphas_proc_o)
 				set(PROC_ENABLED ON)
+				
+				target_include_directories(symphas_${GROUP_NAME}_o PRIVATE
+					$<BUILD_INTERFACE:${MODEL_INCLUDE_HEADER_DIR}>
+					$<INSTALL_INTERFACE:include>)
+				target_include_directories(symphas_${GROUP_NAME}_o PRIVATE
+					$<BUILD_INTERFACE:${SOLVER_INCLUDE_HEADER_DIR}>
+					$<INSTALL_INTERFACE:include>)
+			
 			else()
 				set(PROC_ENABLED OFF)
 			endif()

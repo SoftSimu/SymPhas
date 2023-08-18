@@ -35,6 +35,7 @@
  */
 
 #include "modelpfc.h"
+#include "modelvirtual.h"
 #include "stencilincludes.h"
 #include "expressiontypeincludes.h"
 
@@ -1084,7 +1085,7 @@ namespace symphas::internal
 #define diff_N(E, VAR, N) expr::make_symbolic_derivative<N>(E, VAR)
 #define diff(E, VAR) diff_N(E, VAR, 1)
 
-#define integral(E) expr::make_domain_integral(E, parent_type::template system<0>().get_info())
+#define INT(E) expr::make_domain_integral(E, parent_type::template system<0>().get_info())
 
 #define NOISE(VARIETY, TYPE, ...) parent_type::template make_noise<expr::NoiseType:: VARIETY, TYPE>(__VA_ARGS__)
 #define WHITE_NOISE(TYPE, ...) NOISE(WHITE, TYPE, __VA_ARGS__)
@@ -1153,11 +1154,6 @@ namespace symphas::internal
  */
 #define power(E, N) expr::pow<N>(E)
 
-
-#define x expr::make_var<Axis::X, D>(DIMENSIONS_OF(0), INTERVALS_OF(0, X))
-#define y expr::make_var<Axis::Y, D>(DIMENSIONS_OF(0), INTERVALS_OF(0, Y))
-#define z expr::make_var<Axis::Z, D>(DIMENSIONS_OF(0), INTERVALS_OF(0, Z))
-#define t parent_type::get_time_var()
 
 
 #define c1 param(1)		 //!< Coefficient at index 1 in the list of coefficients.

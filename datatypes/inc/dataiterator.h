@@ -190,13 +190,18 @@ namespace grid
 		region_interval(const len_type(&dims)[D], const len_type(&intervals)[D][2]) : region_interval(dims, intervals, std::make_index_sequence<D>{}) {}
 
 		template<size_t... Is>
-		region_interval(grid::dim_list const& dims, symphas::interval_data_type const& intervals, std::index_sequence<Is...>) : 
+		region_interval(const len_type(&dims)[D], symphas::interval_data_type const& intervals, std::index_sequence<Is...>) :
 			region_interval(
 				(len_type[D]) { dims[Is]... }, 
 				(len_type[D][2]) { { 
 						len_type(intervals.at(symphas::index_to_axis(Is)).left() / intervals.at(symphas::index_to_axis(Is)).width()),
 						len_type(intervals.at(symphas::index_to_axis(Is)).right() / intervals.at(symphas::index_to_axis(Is)).width()) + 1 }... }) {}
 
+		region_interval(const len_type(&dims)[D], symphas::interval_data_type const& intervals) : region_interval(dims, intervals, std::make_index_sequence<D>{}) {}
+
+		template<size_t... Is>
+		region_interval(grid::dim_list const& dims, symphas::interval_data_type const& intervals, std::index_sequence<Is...>) :
+			region_interval((len_type[D]) { dims[Is]... }, intervals) {}
 		region_interval(grid::dim_list const& dims, symphas::interval_data_type const& intervals) : region_interval(dims, intervals, std::make_index_sequence<D>{}) {}
 		region_interval(symphas::grid_info const& info) : region_interval(info.get_dims(), info.intervals) {}
 
@@ -1734,6 +1739,74 @@ namespace symphas
 		typename pointer,
 		typename reference>
 	struct iterator_type_impl;
+
+
+	template<typename T>
+	struct stride_type : iterator_type_impl<stride_type<T>,
+		std::forward_iterator_tag,
+		T,
+		T&,
+		std::ptrdiff_t,
+		T*,
+		T&>
+	{
+
+	protected:
+
+		stride_type(T* data, len_type stride, len_type len, std::ptrdiff_t ptr) :
+			data{ data }, stride{ stride }, len{ len }, ptr{ ptr } {}
+
+	public:
+
+		stride_type(T* data, len_type stride, len_type len) :
+			data{ data }, stride{ stride }, len{ len }, ptr{ 0 } {}
+		stride_type(T* data, len_type len) :
+			data{ data }, stride{ 1 }, len{ len }, ptr{ 0 } {}
+
+		stride_type(T* data, len_type stride, size_t len) : stride_type(data, stride, len_type(len)) {}
+		stride_type(T* data, size_t len) : stride_type(data, len_type(len)) {}
+
+
+		auto begin() const
+		{
+			return stride_type<T>(data, stride, len, 0);
+		}
+
+		auto end() const
+		{
+			return stride_type<T>(data, stride, len, len);
+		}
+
+		const auto& operator[](iter_type i) const
+		{
+			return data[(ptr + i) * stride];
+		}
+
+		auto& operator[](iter_type i)
+		{
+			return data[(ptr + i) * stride];
+		}
+
+		const auto& operator*() const
+		{
+			return data[ptr * stride];
+		}
+
+		auto& operator*()
+		{
+			return data[ptr * stride];
+		}
+
+		T* data;
+		len_type stride;
+		len_type len;
+		std::ptrdiff_t ptr;
+	};
+
+	template<typename T>
+	stride_type(T*, size_t) -> stride_type<T>;
+	template<typename T>
+	stride_type(T*, len_type) -> stride_type<T>;
 
 
 	//! An iterator used to evaluate an expression on its underlying data.

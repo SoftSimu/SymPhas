@@ -810,63 +810,6 @@ namespace symphas
 		PLOT_CONTOURS
 	};
 
-	template<typename T>
-	struct stride_type : iterator_type_impl<stride_type<T>,
-		std::forward_iterator_tag,
-		T,
-		T&,
-		std::ptrdiff_t,
-		T*,
-		T&>
-	{
-
-	protected:
-
-		stride_type(T* data, len_type stride, len_type len, std::ptrdiff_t ptr) :
-			data{ data }, stride{ stride }, len{ len }, ptr{ ptr } {}
-
-	public:
-
-		stride_type(T* data, len_type stride, len_type len) :
-			data{ data }, stride{ stride }, len{ len }, ptr{ 0 } {}
-
-
-		auto begin() const
-		{
-			return stride_type<T>(data, stride, len, 0);
-		}
-
-		auto end() const
-		{
-			return stride_type<T>(data, stride, len, len);
-		}
-
-		const auto& operator[](iter_type i) const
-		{
-			return data[(ptr + i) * stride];
-		}
-
-		auto& operator[](iter_type i)
-		{
-			return data[(ptr + i) * stride];
-		}
-
-		const auto& operator*() const
-		{
-			return data[ptr * stride];
-		}
-
-		auto& operator*()
-		{
-			return data[ptr * stride];
-		}
-
-		T* data;
-		len_type stride;
-		len_type len;
-		std::ptrdiff_t ptr;
-	};
-
 	//! Manages a list of time steps and times they are applied at.
 	struct time_step_list
 	{
@@ -948,12 +891,16 @@ namespace symphas
 
 		auto begin() const
 		{
-			return symphas::lib::zip(stride_type(t_dts, 2, dts_len), stride_type(t_dts + 1, 2, dts_len)).begin();
+			return symphas::lib::zip(
+				symphas::stride_type(t_dts, 2, dts_len), 
+				symphas::stride_type(t_dts + 1, 2, dts_len)).begin();
 		}
 
 		auto end() const
 		{
-			return symphas::lib::zip(stride_type(t_dts, 2, dts_len), stride_type(t_dts + 1, 2, dts_len)).end();
+			return symphas::lib::zip(
+				symphas::stride_type(t_dts, 2, dts_len), 
+				symphas::stride_type(t_dts + 1, 2, dts_len)).end();
 		}
 
 
@@ -1417,6 +1364,39 @@ namespace symphas
                 swap(pp, *this);
             }
         }
+
+
+		auto begin()
+		{
+			return symphas::lib::zip(
+				symphas::stride_type(tdata, length()),
+				symphas::stride_type(vdata, length()),
+				symphas::stride_type(bdata, length())).end();
+		}
+
+		auto end()
+		{
+			return symphas::lib::zip(
+				symphas::stride_type(tdata, length()), 
+				symphas::stride_type(vdata, length()), 
+				symphas::stride_type(bdata, length())).end();
+		}
+
+		auto begin() const
+		{
+			return symphas::lib::zip(
+				symphas::stride_type(tdata, length()),
+				symphas::stride_type(vdata, length()),
+				symphas::stride_type(bdata, length())).end();
+		}
+
+		auto end() const
+		{
+			return symphas::lib::zip(
+				symphas::stride_type(tdata, length()),
+				symphas::stride_type(vdata, length()),
+				symphas::stride_type(bdata, length())).end();
+		}
     
         ~problem_parameters_type();
     

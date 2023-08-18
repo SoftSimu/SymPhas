@@ -32,8 +32,6 @@
 #include "solver.h"
 
 
-
-
 namespace symphas::internal
 {
 	template<typename T>
@@ -174,108 +172,6 @@ namespace symphas::internal
 		constexpr expr::symbols::i_<0, 0> ii;
 		constexpr expr::symbols::i_<1, 0> jj;
 		constexpr expr::symbols::i_<2, 0> kk;
-
-
-		constexpr auto n1 = val<1>;
-		constexpr auto n2 = val<2>;
-		constexpr auto n3 = val<3>;
-		constexpr auto n4 = val<4>;
-		constexpr auto n5 = val<5>;
-		constexpr auto n6 = val<6>;
-		constexpr auto n7 = val<7>;
-		constexpr auto n8 = val<8>;
-		constexpr auto n9 = val<9>;
-		constexpr auto n10 = val<10>;
-		constexpr auto n11 = val<11>;
-		constexpr auto n12 = val<12>;
-		constexpr auto n13 = val<13>;
-		constexpr auto n14 = val<14>;
-		constexpr auto n15 = val<15>;
-		constexpr auto n16 = val<16>;
-		constexpr auto n17 = val<17>;
-		constexpr auto n18 = val<18>;
-		constexpr auto n19 = val<19>;
-		constexpr auto n20 = val<20>;
-		constexpr auto n21 = val<21>;
-		constexpr auto n22 = val<22>;
-		constexpr auto n23 = val<23>;
-		constexpr auto n24 = val<24>;
-		constexpr auto n25 = val<25>;
-		constexpr auto n26 = val<26>;
-		constexpr auto n27 = val<27>;
-		constexpr auto n28 = val<28>;
-		constexpr auto n29 = val<29>;
-		constexpr auto n30 = val<30>;
-		constexpr auto n31 = val<31>;
-		constexpr auto n32 = val<32>;
-		constexpr auto n33 = val<33>;
-		constexpr auto n34 = val<34>;
-		constexpr auto n35 = val<35>;
-		constexpr auto n36 = val<36>;
-		constexpr auto n37 = val<37>;
-		constexpr auto n38 = val<38>;
-		constexpr auto n39 = val<39>;
-		constexpr auto n40 = val<40>;
-		constexpr auto n41 = val<41>;
-		constexpr auto n42 = val<42>;
-		constexpr auto n43 = val<43>;
-		constexpr auto n44 = val<44>;
-		constexpr auto n45 = val<45>;
-		constexpr auto n46 = val<46>;
-		constexpr auto n47 = val<47>;
-		constexpr auto n48 = val<48>;
-		constexpr auto n49 = val<49>;
-		constexpr auto n50 = val<50>;
-		constexpr auto n51 = val<51>;
-		constexpr auto n52 = val<52>;
-		constexpr auto n53 = val<53>;
-		constexpr auto n54 = val<54>;
-		constexpr auto n55 = val<55>;
-		constexpr auto n56 = val<56>;
-		constexpr auto n57 = val<57>;
-		constexpr auto n58 = val<58>;
-		constexpr auto n59 = val<59>;
-		constexpr auto n60 = val<60>;
-		constexpr auto n61 = val<61>;
-		constexpr auto n62 = val<62>;
-		constexpr auto n63 = val<63>;
-		constexpr auto n64 = val<64>;
-		constexpr auto n65 = val<65>;
-		constexpr auto n66 = val<66>;
-		constexpr auto n67 = val<67>;
-		constexpr auto n68 = val<68>;
-		constexpr auto n69 = val<69>;
-		constexpr auto n70 = val<70>;
-		constexpr auto n71 = val<71>;
-		constexpr auto n72 = val<72>;
-		constexpr auto n73 = val<73>;
-		constexpr auto n74 = val<74>;
-		constexpr auto n75 = val<75>;
-		constexpr auto n76 = val<76>;
-		constexpr auto n77 = val<77>;
-		constexpr auto n78 = val<78>;
-		constexpr auto n79 = val<79>;
-		constexpr auto n80 = val<80>;
-		constexpr auto n81 = val<81>;
-		constexpr auto n82 = val<82>;
-		constexpr auto n83 = val<83>;
-		constexpr auto n84 = val<84>;
-		constexpr auto n85 = val<85>;
-		constexpr auto n86 = val<86>;
-		constexpr auto n87 = val<87>;
-		constexpr auto n88 = val<88>;
-		constexpr auto n89 = val<89>;
-		constexpr auto n90 = val<90>;
-		constexpr auto n91 = val<91>;
-		constexpr auto n92 = val<92>;
-		constexpr auto n93 = val<93>;
-		constexpr auto n94 = val<94>;
-		constexpr auto n95 = val<95>;
-		constexpr auto n96 = val<96>;
-		constexpr auto n97 = val<97>;
-		constexpr auto n98 = val<98>;
-		constexpr auto n99 = val<99>;
-
 
 		//! Take the imaginary part of a complex number resulting from an expression.
 		/*!
@@ -745,22 +641,15 @@ namespace symphas::internal
 
 		virtual void update(const S* _s, len_type len) override
 		{
-			if (len > 0)
+			for (iter_type n = 0; n < s_max.len; ++n)
+			{
+				s_max[n] = OpVoid{};
+			}
+			for (iter_type i = 0; i < len; ++i)
 			{
 				for (iter_type n = 0; n < s_max.len; ++n)
 				{
-					s_max[n] = _s[0][n];
-				}
-
-				for (iter_type i = 1; i < len; ++i)
-				{
-#					ifndef DEBUG
-#					pragma omp parallel for
-#					endif
-					for (iter_type n = 0; n < s_max.len; ++n)
-					{
-						s_max[n] = std::max(s_max[n], _s[i][n]);
-					}
+					s_max[n] = std::max(s_max[n], _s[i][n]);
 				}
 			}
 		}

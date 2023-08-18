@@ -69,7 +69,7 @@ struct Model
 protected:
 
 	Model()
-		: _s{ construct_systems({}, {}, {}, 0) }, solver{ Sp::make_solver() }, coeff{ nullptr }, num_coeff{ 0 }, 
+		: _s{ construct_systems({}, {}, {}, 0) }, solver{}, coeff{ nullptr }, num_coeff{ 0 }, 
 		index{ params::start_index }, time{ 0 }
 #ifdef VTK_ON
 		, viz_update{ nullptr }
@@ -1100,15 +1100,21 @@ template<typename M, size_t N = 0>
 using model_field_t = typename model_field<M, N>::type;
 
 template<typename M>
-struct model_types
+struct model_parameter_types
 {
 
 protected:
 
 	template<size_t D, typename Sp, typename... S>
-	static Model<D, Sp, S...> _get_type(Model<D, Sp, S...> m)
+	static auto _get_type(Model<D, Sp, S...> m)
 	{
-		return symphas::lib::types_list<symphas::internal::non_parameterized_type<S>...>{};
+		return symphas::lib::types_list<S...>{};
+	}
+
+	template<size_t D, typename Sp, typename... S>
+	static auto _get_type(ArrayModel<D, Sp, S...> m)
+	{
+		return symphas::lib::types_list<S...>{};
 	}
 
 	static auto get_type(M m)
@@ -1118,7 +1124,23 @@ protected:
 
 public:
 
-	using type = typename std::invoke_result_t<decltype(&model_base<M>::get_type), M>;
+	using type = typename std::invoke_result_t<decltype(&model_parameter_types<M>::get_type), M>;
+};
+
+template<typename M>
+using model_parameter_types_t = typename model_parameter_types<M>::type;
+
+
+template<typename M>
+struct model_types
+{
+	using type = typename model_types<model_parameter_types_t<M>>::type;
+};
+
+template<typename... S>
+struct model_types<symphas::lib::types_list<S...>>
+{
+	using type = symphas::lib::types_list<symphas::internal::non_parameterized_type<S>...>;
 };
 
 template<typename M>

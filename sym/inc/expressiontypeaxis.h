@@ -506,7 +506,10 @@ namespace expr
 	 * \tparam D The dimension of the system.
 	 */
 	template<Axis ax, size_t D>
-	auto make_var(len_type const* dims0, len_type const* dims, double left, double right);
+	auto make_var(len_type const* dims0, len_type const* dims, double left, double right)
+	{
+		return OpVoid{};
+	}
 
 
 	//! Helper in order to construct the generalized axis variable.

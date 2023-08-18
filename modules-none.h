@@ -41,13 +41,13 @@ namespace symphas
 	 * \param n The number of solution intervals to perform.
 	 */
 	template<typename M>
-	void find_solution(M& model, double dt, iter_type n)
+	void find_solution(M& model, symphas::time_step_list const& dts, iter_type n)
 	{
 		double run_time = 0;
 		model.print_info(SYMPHAS_LOG);
 		{
 			symphas::Time t;
-			run_model(model, n, dt, TIME_INIT + model.index() * dt);
+			run_model(model, n, dts, TIME_INIT);
 			run_time += t.current_duration();
 		}
 		fprintf(SYMPHAS_LOG, "completed %d iterations in %lf seconds.\n", n, run_time);

@@ -1450,6 +1450,8 @@ namespace symphas::internal
 				}
 				break;
 			}
+			case BoundaryType::NONE:
+				break;
 			default:
 				fprintf(SYMPHAS_WARN, "boundary condition is not supported\n");
 			}

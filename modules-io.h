@@ -30,7 +30,6 @@
 #include "prereq.h"
 #include "savedefines.h"
 #include "read.h"
-#include "modelvirtual.h"
 
 
 #ifdef USING_PROC

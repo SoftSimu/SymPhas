@@ -2486,8 +2486,6 @@ namespace symphas::lib
 
 	}
 
-
-
 	template<typename data_type>
 	struct basic_forward_iterator_container;
 
@@ -3208,6 +3206,12 @@ namespace symphas::lib
 			swap(*this, other);
 		}
 
+		array_container& operator=(array_container other)
+		{
+			swap(*this, other);
+			return *this;
+		}
+
 		~array_container()
 		{
 			delete[] data;
@@ -3262,6 +3266,7 @@ namespace symphas::lib
 
 	};
 
+	using string = array_container<char>;
 
 	// **************************************************************************************
 
@@ -3908,7 +3913,7 @@ namespace symphas::lib
 	 * Standardized method to get the directory component of the
 	 * given path.
 	 */
-	void get_parent_directory(char* path, char* &basepath);
+	void get_parent_directory(const char* path, char* &basepath);
 
 #ifdef FILESYSTEM_HEADER_AVAILABLE
 	std::filesystem::path get_parent_directory(std::filesystem::path dir);

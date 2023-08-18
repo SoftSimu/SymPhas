@@ -1669,7 +1669,11 @@ struct TraitEquationModel : TraitEquation<TraitEquationModel, parent_trait> \
 	using names_t = typename parent_type::names_t; \
 	static const size_t Dm = model_dimension<parent_type>::value; \
 	auto make_equations() const { \
-		using namespace std; using namespace expr; using namespace expr::symbols; \
+		using namespace std; using namespace expr; using namespace expr::symbols; using namespace std::complex_literals; \
+		auto x = expr::make_var<Axis::X, Dm>(DIMENSIONS_OF(0), INTERVALS_OF(0, X)); \
+		auto y = expr::make_var<Axis::Y, Dm>(DIMENSIONS_OF(0), INTERVALS_OF(0, Y)); \
+		auto z = expr::make_var<Axis::Z, Dm>(DIMENSIONS_OF(0), INTERVALS_OF(0, Z)); \
+		auto t = parent_type::get_time_var(); \
 		constexpr size_t D = model_dimension<parent_type>::value; \
 		UNUSED(D) \
 		__VA_ARGS__

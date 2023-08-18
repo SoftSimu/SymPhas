@@ -1117,6 +1117,20 @@ struct symphas::internal::solver_system_type_match
 	using type = SolverSystem<Ty, D>;
 };
 
+template<typename T, size_t N>
+struct symphas::internal::solver_system_type_match<Solver<T>, N>
+{
+	template<typename Ty, size_t D>
+	using type = typename symphas::solver_system_type<T>::template type<Ty, D>;
+};
+
+template<size_t N>
+struct symphas::internal::solver_system_type_match<Solver<void>, N>
+{
+	template<typename Ty, size_t D>
+	using type = typename symphas::internal::solver_system_type_match<void, N>::template type<Ty, D>;
+};
+
 template<typename T>
 struct symphas::internal::provisional_system_type_match
 {

@@ -44,6 +44,7 @@ namespace symphas::io::gp
 
 	//! Open the file which was written in the gnuplot (plain text) format.
 	FILE* open_gpgridf(const char* name);
+	FILE* open_gpgridf_nofail(const char* name);
 
 
 	//! Read one segment of data from the input file.
@@ -74,11 +75,17 @@ namespace symphas::io::gp
 
 	inline symphas::grid_info read_header(symphas::io::read_info const& rinfo, iter_type* index = nullptr)
 	{
-		FILE* f = open_gpgridf(rinfo.name);
-		symphas::grid_info ginfo = read_header(f, index);
-		fclose(f);
-
-		return ginfo;
+		FILE* f = open_gpgridf_nofail(rinfo.get_name());
+		if (f == NULL)
+		{
+			return { nullptr, 0 };
+		}
+		else
+		{
+			symphas::grid_info ginfo = read_header(f, index);
+			fclose(f);
+			return ginfo;
+		}
 	}
 }
 

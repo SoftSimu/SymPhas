@@ -560,7 +560,7 @@ void symphas::lib::make_directory_for_file(const char* name, int err_no)
 	delete[] parent;
 }
 
-void symphas::lib::get_parent_directory(char* path, char* &basepath)
+void symphas::lib::get_parent_directory(const char* path, char* &basepath)
 {
 #ifdef _MSC_VER
 

@@ -81,44 +81,26 @@ namespace symphas::io
 	 */
 	struct read_info
 	{
+	protected:
+
 		iter_type index;		//!< Index to retrieve from the file.
 		size_t id;				//!< Id of the system that is being loaded.
 		char* name;				//!< Name of the file to retrieve.
+		bool checkpoint;		//!< When true, indicates that this read data a checkpoint.
+		bool offset;			//!< When true, input data will be offset when writing based on grid_info parameters.
 
-		read_info(iter_type index, size_t id, const char* name)
-			: index{ index }, id{ id }, name{ (name) ? new char[std::strlen(name) + 1] : nullptr }
+	public:
+
+		read_info(iter_type index, size_t id, const char* name) : read_info(index, id, name, false) {}
+
+		read_info(iter_type index, size_t id, const char* name, bool checkpoint) :
+			index{ index }, id{ id }, name{ (name) ? new char[std::strlen(name) + 1] : nullptr }, 
+			checkpoint{ checkpoint }, offset{ true }
 		{
 			if (name)
 			{
 				std::strcpy(this->name, name);
 			}
-		}
-
-		read_info(iter_type index, size_t id, const char* input, bool checkpoint)
-			: index{ index }, id{ id }, name{ nullptr }
-		{
-			char buffer[BUFFER_LENGTH];
-			if (checkpoint)
-			{
-				if (params::single_input_file)
-				{
-					snprintf(buffer, STR_ARR_LEN(buffer), OUTPUT_CHECKPOINT_FMT,
-						input, id);
-				}
-				else
-				{
-					snprintf(buffer, STR_ARR_LEN(buffer), OUTPUT_CHECKPOINT_INDEX_FMT,
-						input, id, index);
-				}
-			}
-			else
-			{
-				snprintf(buffer, STR_ARR_LEN(buffer), "%s", input);
-			}
-
-			name = new char[std::strlen(buffer) + 1];
-			std::strcpy(name, buffer);
-
 		}
 
 		read_info(read_info const& other) : read_info{ other.index, other.id, other.name } {}
@@ -130,6 +112,62 @@ namespace symphas::io
 		{
 			::swap(*this, other);
 			return *this;
+		}
+
+		symphas::lib::string get_name() const
+		{
+			char buffer[BUFFER_LENGTH];
+			if (checkpoint)
+			{
+				if (params::single_input_file)
+				{
+					snprintf(buffer, STR_ARR_LEN(buffer), OUTPUT_CHECKPOINT_FMT,
+						name, id);
+				}
+				else
+				{
+					snprintf(buffer, STR_ARR_LEN(buffer), OUTPUT_CHECKPOINT_INDEX_FMT,
+						name, id, index);
+				}
+			}
+			else
+			{
+				snprintf(buffer, STR_ARR_LEN(buffer), "%s", name);
+			}
+
+			symphas::lib::string fullname(std::strlen(buffer) + 1);
+			std::strcpy(fullname.begin(), buffer);
+			return fullname;
+		}
+
+		size_t& get_id()
+		{
+			return id;
+		}
+
+		size_t const& get_id() const
+		{
+			return id;
+		}
+
+		iter_type& get_index()
+		{
+			return index;
+		}
+
+		iter_type const& get_index() const
+		{
+			return index;
+		}
+
+		bool uses_offset() const
+		{
+			return offset;
+		}
+
+		void set_offset(bool offset) 
+		{
+			this->offset = offset;
 		}
 
 		friend void ::swap(symphas::io::read_info& first, symphas::io::read_info& second);
@@ -153,6 +191,7 @@ inline void swap(symphas::io::read_info& first, symphas::io::read_info& second)
 	swap(first.index, second.index);
 	swap(first.id, second.id);
 	swap(first.name, second.name);
+	swap(first.checkpoint, second.checkpoint);
 }
 
 
@@ -294,11 +333,20 @@ namespace symphas::io
 	template<typename value_type, typename Fo, typename Fc, typename Fb>
 	int read_grid_standardized(value_type grid, symphas::io::read_info const& rinfo, Fo open_file_f, Fc close_file_f, Fb read_block_f)
 	{
-		auto f = open_file_f(rinfo.name);
+		auto f = open_file_f(rinfo.get_name());
 
 		int index = -1;
 		symphas::grid_info bginfo = read_header(f, &index);
 		int prev;
+
+		if (!rinfo.uses_offset())
+		{
+			for (auto& [axis, interval] : bginfo)
+			{
+				interval.set_interval(0, interval.right() - interval.left());
+				interval.domain_to_interval();
+			}
+		}
 
 		if (!params::single_input_file)
 		{
@@ -312,24 +360,24 @@ namespace symphas::io
 				read_block_f(grid, bginfo, f);
 				prev = index;
 				read_header(f, &index);
-			} while (index <= rinfo.index && index > BAD_INDEX && prev != rinfo.index);
+			} while (index <= rinfo.get_index() && index > BAD_INDEX && prev != rinfo.get_index());
 		}
 		close_file_f(f);
 
-		if (prev != rinfo.index)
+		if (prev != rinfo.get_index())
 		{
 			if (index == BAD_INDEX)
 			{
-				fprintf(SYMPHAS_ERR, SYMPHAS_MSG_BAD_INDEX_READ, rinfo.index, rinfo.name);
+				fprintf(SYMPHAS_ERR, SYMPHAS_MSG_BAD_INDEX_READ, rinfo.get_index(), rinfo.get_name().begin());
 				return BAD_INDEX;
 			}
 			else
 			{
-				int pmax = std::abs(rinfo.index - prev);
-				int cmax = std::abs(rinfo.index - index);
+				int pmax = std::abs(rinfo.get_index() - prev);
+				int cmax = std::abs(rinfo.get_index() - index);
 				int close_index = (pmax > cmax) ? index : prev;
 
-				fprintf(SYMPHAS_LOG, SYMPHAS_MSG_READ_DIFFERENT_INDEX, rinfo.index, rinfo.name, close_index);
+				fprintf(SYMPHAS_LOG, SYMPHAS_MSG_READ_DIFFERENT_INDEX, rinfo.get_index(), rinfo.get_name().begin(), close_index);
 				return close_index;
 			}
 		}

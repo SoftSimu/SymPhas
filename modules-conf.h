@@ -147,7 +147,6 @@ namespace symphas
 		find_solution(model, symphas::conf::config(), plotting_output, checkpoint);
 	}
 
-
 	namespace io
 	{
 
@@ -192,27 +191,19 @@ namespace symphas
 		template<typename M>
 		void write_plot_config(M const& model, const char* directory, SaveParams const& save)
 		{
-			size_t num_systems = symphas::model_num_fields(model);
-			char** names = new char*[num_systems];
-			size_t count = symphas::conf::config().name_count();
+			len_type len = symphas::model_num_fields(model);
+			char** names = new char* [len] {};
 
-			for (iter_type i = 0; i < std::min(num_systems, count); ++i)
+			iter_type i = 0;
+			for (auto name : symphas::conf::config().get_names(len))
 			{
-				const char* name = symphas::conf::config().get_name(i);
-				names[i] = new char[std::strlen(name) + 1];
-				std::strcpy(names[i], name);
+				names[i] = nullptr;
+				std::swap(names[i], name.data);
+				++i;
 			}
 
-			if (count < num_systems)
-			{
-				symphas::conf::insert_default_pf_names(
-					names + count,
-					num_systems - count);
-			}
-
-
-			write_plot_config(model, directory, names, save);
-			for (iter_type i = 0; i < num_systems; ++i)
+			symphas::io::write_plot_config(model, directory, names, symphas::conf::config().save);
+			for (iter_type i = 0; i < len; ++i)
 			{
 				delete[] names[i];
 			}
@@ -263,5 +254,4 @@ namespace symphas
 		}
 
 	}
-
 }

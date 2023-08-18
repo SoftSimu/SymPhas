@@ -150,13 +150,13 @@ struct Stencil
 	auto applied_generalized_directional_derivative(RegionalGrid<T, D> const& grid, iter_type n) const
 	{
 		auto v = grid[n];
-		if (!v.clear)
+		if (v.is_valid())
 		{
 			return cast().template apply_directional<ax, O>(v.value);
 		}
 		else
 		{
-			return grid.empty;
+			return *v.value;
 		}
 	}
 
@@ -164,13 +164,13 @@ struct Stencil
 	auto applied_generalized_mixed_derivative(RegionalGrid<T, D> const& grid, iter_type n) const
 	{
 		auto v = grid[n];
-		if (!v.clear)
+		if (v.is_valid())
 		{
 			return cast().template apply_mixed<Os...>(v.value);
 		}
 		else
 		{
-			return grid.empty;
+			return *v.value;
 		}
 	}
 
@@ -178,7 +178,7 @@ struct Stencil
 	auto applied_generalized_derivative(RegionalGrid<T, D> const& grid, iter_type n) const
 	{
 		auto v = grid[n];
-		if (!v.clear)
+		if (v.is_valid())
 		{
 			len_type stride[D];
 			grid::get_stride<ax>(stride, grid.region.dims);
@@ -186,7 +186,7 @@ struct Stencil
 		}
 		else
 		{
-			return grid.empty;
+			return *v.value;
 		}
 	}
 
@@ -194,15 +194,13 @@ struct Stencil
 	auto applied_laplacian(RegionalGrid<T, D> const& grid, iter_type n) const
 	{
 		auto v = grid[n];
-		if (!v.clear)
+		if (v.is_valid())
 		{
-			len_type stride[D];
-			grid::get_stride<Axis::X>(stride, grid.region.dims);
-			return laplacian(v.value, stride);
+			return laplacian(v.value, grid.region.stride);
 		}
 		else
 		{
-			return grid.empty;
+			return *v.value;
 		}
 	}
 
@@ -210,15 +208,13 @@ struct Stencil
 	auto applied_bilaplacian(RegionalGrid<T, D> const& grid, iter_type n) const
 	{
 		auto v = grid[n];
-		if (!v.clear)
+		if (v.is_valid())
 		{
-			len_type stride[D];
-			grid::get_stride<Axis::X>(stride, grid.region.dims);
-			return bilaplacian(v.value, stride);
+			return bilaplacian(v.value, grid.region.stride);
 		}
 		else
 		{
-			return grid.empty;
+			return *v.value;
 		}
 	}
 
@@ -226,7 +222,7 @@ struct Stencil
 	auto applied_gradlaplacian(RegionalGrid<T, D> const& grid, iter_type n) const
 	{
 		auto v = grid[n];
-		if (!v.clear)
+		if (v.is_valid())
 		{
 			len_type stride[D];
 			grid::get_stride<ax>(stride, grid.region.dims);
@@ -234,7 +230,7 @@ struct Stencil
 		}
 		else
 		{
-			return grid.empty;
+			return *v.value;
 		}
 	}
 
@@ -243,7 +239,7 @@ struct Stencil
 	auto applied_gradient(RegionalGrid<T, D> const& grid, iter_type n) const
 	{
 		auto v = grid[n];
-		if (!v.clear)
+		if (v.is_valid())
 		{
 			len_type stride[D];
 			grid::get_stride<ax>(stride, grid.region.dims);
@@ -251,7 +247,7 @@ struct Stencil
 		}
 		else
 		{
-			return grid.empty;
+			return *v.value;
 		}
 	}
 

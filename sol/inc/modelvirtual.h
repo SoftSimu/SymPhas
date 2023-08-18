@@ -33,9 +33,6 @@
 #include "io.h"
 #include "model.h"
 
- //! \cond
-#define SN sizeof...(S)
-//
 
 
 
@@ -49,17 +46,18 @@
  * When this is used in a virtual model, the save parameters must be
  * initialized.
  */
-template<size_t D>
+template<size_t D, typename Sp = void>
 struct DataStepper
 {
-	using id_type = void;
+	using id_type = Solver<Sp>;
 
-	symphas::init_entry_type data[D];
+	symphas::init_entry_type* data;
+	len_type len;
 	SaveParams save;
 	double dt;
 
-	DataStepper(SaveParams const& save = {}) :
-		data{ {} }, save{ save }, dt{} {}
+	DataStepper(len_type len, SaveParams const& save = {}) :
+		data{ (len > 0) ? new symphas::init_entry_type[len]{} : nullptr }, len{ len }, save{ save }, dt{} {}
 
 
 	friend void swap(DataStepper& first, DataStepper& second)
@@ -75,12 +73,12 @@ struct DataStepper
 	{
 		iter_type next_index = save.next_save(data[system.id].file.get_index());
 
-		iter_type read_index = symphas::io::read_grid(
-			system.values,
-			symphas::io::read_info{
-				next_index, system.id, 
-				data[system.id].file.get_name(), data[system.id].in == Inside::CHECKPOINT 
-			});
+		symphas::io::read_info rinfo{
+			next_index, system.id,
+				data[system.id].file.get_name(), data[system.id].in == Inside::CHECKPOINT };
+		rinfo.set_offset(false);
+
+		iter_type read_index = symphas::io::read_grid(system.values, rinfo);
 		data[system.id].file.set_index(read_index);
 		
 	}
@@ -97,10 +95,10 @@ struct DataStepper
 		return data->file.get_index();
 	}
 
-	static DataStepper<D> make_solver(symphas::problem_parameters_type const& pp)
+	static DataStepper<D, Sp> make_solver(symphas::problem_parameters_type const& pp)
 	{
-		DataStepper<D> ds;
-		for (iter_type n = 0; n < pp.length(); ++n)
+		DataStepper<D, Sp> ds(pp.length());
+		for (iter_type n = 0; n < ds.len; ++n)
 		{
 			if (pp.get_initial_data()[n].at(Axis::NONE).in == Inside::CHECKPOINT
 				|| pp.get_initial_data()[n].at(Axis::NONE).in == Inside::FILE)
@@ -118,57 +116,93 @@ struct DataStepper
 };
 
 
- //! A model which will read from computed solution data.
- /*!
-  * This model takes a precomputed solution and reads all the input data. The
-  * purpose is to rewrite all the data to a new simulation directory, following 
-  * the usual model workflow, typically in order to write in a different
-  * format or run postprocessing on existing data.
-  *
-  * \tparam D The dimension of the phase field crystal problem.
-  * \tparam S... The types of the order parameters.
-  */
-template<size_t D, typename... S>
-struct ModelVirtual : Model<D, DataStepper<D>, S...>
+//
+//template<typename T>
+//struct symphas::solver_system_type<DataStepper<D>>
+//{
+//	template<typename Ty, size_t D>
+//	using type = typename symphas::internal::solver_system_type_match<
+//		typename T::id_type,
+//		internal::solver_system_type_index<T>
+//	>::template type<Ty, D>;
+//};
+
+//! A model which will read from computed solution data.
+/*!
+ * This model takes a precomputed solution and reads all the input data. The
+ * purpose is to rewrite all the data to a new simulation directory, following 
+ * the usual model workflow, typically in order to write in a different
+ * format or run postprocessing on existing data.
+ *
+ * \tparam D The dimension of the phase field crystal problem.
+ * \tparam S... The types of the order parameters.
+ */
+template<size_t D, typename Sp = void, typename... S>
+struct ModelVirtual : Model<D, DataStepper<D, Sp>, S...>
 {
-	using parent_type = Model<D, DataStepper<D>, S...>;
+	using parent_type = Model<D, DataStepper<D, Sp>, S...>;
 	using parent_type::solver;
 	using parent_type::index;
 
 	using parent_type::parent_type;
 
+	auto modify_tdata(symphas::init_data_type& load, const char* dir, iter_type start_index, bool checkpoint) const
+	{
+		load[Axis::NONE].in = (checkpoint) ? Inside::CHECKPOINT : Inside::FILE;
+		load[Axis::NONE].file = { dir, start_index };
+	}
+
 	symphas::problem_parameters_type build_parameters(const char* dir, iter_type start_index, bool checkpoint = true)
 	{
-		symphas::problem_parameters_type pp{ SN };
+		symphas::io::read_info rinfo{ start_index, 0, dir, checkpoint };
+		symphas::grid_info ginfo = symphas::io::read_header(rinfo);
 
-		symphas::init_data_type load;
-		load[Axis::NONE].in = (checkpoint) ? Inside::CHECKPOINT : Inside::FILE;
-		load[Axis::NONE].file = {dir, start_index};
-		pp.set_initial_data(&load, 1);
-
-		for (size_t n = 0; n < SN; ++n)
+		if (ginfo.dimension() > 0)
 		{
-			symphas::io::read_info rinfo{ start_index, n, dir, checkpoint };
-			symphas::grid_info ginfo = symphas::io::read_header(rinfo);
-			pp.set_interval_data(ginfo.intervals, static_cast<iter_type>(n));
-		}
+			symphas::problem_parameters_type pp(1);
 
-		symphas::b_data_type bdata;
-		for (iter_type n = 0; n < D * 2; ++n)
+			symphas::init_data_type load;
+			modify_tdata(load, dir, start_index, checkpoint);
+			pp.set_initial_data(&load, 1);
+
+			symphas::b_data_type bdata;
+			for (iter_type n = 0; n < D * 2; ++n)
+			{
+				bdata[symphas::index_to_side(n)] = BoundaryType::NONE;
+			}
+			pp.set_boundary_data(&bdata, 1);
+
+			while (ginfo.dimension() > 0)
+			{
+				pp.extend(rinfo.get_id() + 1);
+				pp.set_interval_data(ginfo.intervals, iter_type(rinfo.get_id()));
+				++rinfo.get_id();
+
+				ginfo = symphas::io::read_header(rinfo);
+			}
+
+			return pp;
+		}
+		else
 		{
-			bdata[symphas::index_to_side(n)] = BoundaryType::NONE;
+			return symphas::problem_parameters_type(0);
 		}
-		pp.set_boundary_data(&bdata, 1);
+	}
 
+	symphas::problem_parameters_type build_parameters(const char* dir, symphas::problem_parameters_type const& parameters, bool checkpoint = true)
+	{
+		auto pp(parameters);
 
-		return pp;
+		for (auto& [tdata, vdata, bdata] : pp)
+		{
+			modify_tdata(tdata, dir, params::start_index, checkpoint);
+		}
 	}
 
 	symphas::problem_parameters_type build_parameters(const char* dir, bool checkpoint = true)
 	{
 		return build_parameters(dir, params::start_index, checkpoint);
 	}
-
 
 	//! Initialize system parameters using the checkpoint file. 
 	/*!
@@ -221,6 +255,14 @@ struct ModelVirtual : Model<D, DataStepper<D>, S...>
 	ModelVirtual(const char* solution_dir, iter_type step_index, iter_type stop_index, bool checkpoint = true) :
 		ModelVirtual(solution_dir, step_index, stop_index, params::start_index, checkpoint) {}
 
+	ModelVirtual(const char* solution_dir, symphas::problem_parameters_type const& parameters, bool checkpoint = true) :
+		parent_type(nullptr, 0, build_parameters(solution_dir, parameters, checkpoint))
+	{
+		solver.set_save_object(SaveParams(index));
+	}
+
+	ModelVirtual(const char* solution_dir, bool checkpoint = true) :
+		parent_type(nullptr, 0, build_parameters(solution_dir, checkpoint)) {}
 
 	//! Advances to the next solution iteration.
 	/*!
@@ -231,7 +273,7 @@ struct ModelVirtual : Model<D, DataStepper<D>, S...>
 	 */
 	void step(double dt)
 	{
-		parent_type::step(std::make_index_sequence<SN>{}, dt);
+		parent_type::step(dt);
 		index = solver.index();
 	}
 
@@ -244,7 +286,57 @@ struct ModelVirtual : Model<D, DataStepper<D>, S...>
 };
 
 
-#undef SN
+template<>
+struct ModelVirtual<0> 
+{
+	iter_type start;
+	iter_type end;
+	char* dir;
+
+	ModelVirtual(const char* dir, iter_type start, iter_type end) :
+		start{ start }, end{ end }, dir{ (dir && std::strlen(dir) > 0) ? new char[std::strlen(dir) + 1] {} : nullptr }
+	{
+		if (this->dir)
+		{
+			std::strcpy(this->dir, dir);
+		}
+	}
+
+	ModelVirtual(const char* dir, iter_type start) : ModelVirtual(dir, start, start) {}
+	ModelVirtual(const char* dir) : ModelVirtual(dir, 0, 0) {}
+	ModelVirtual() : ModelVirtual(nullptr, 0, 0) {}
+
+	ModelVirtual(ModelVirtual const& other) : ModelVirtual(other.dir, other.start, other.end) {}
+	ModelVirtual(ModelVirtual&& other) : ModelVirtual() 
+	{
+		swap(*this, other);
+	}
+
+	ModelVirtual& operator=(ModelVirtual other)
+	{
+		swap(*this, other);
+		return *this;
+	}
+
+	friend void swap(ModelVirtual& first, ModelVirtual& second)
+	{
+		using std::swap;
+		swap(first.start, second.start);
+		swap(first.end, second.end);
+		swap(first.dir, second.dir);
+	}
+};
+
+
+template<size_t D, typename... S>
+using ModelVirtualBasic = ModelVirtual<D, void, S...>;
+
+template<size_t D, typename Sp, typename... S>
+using ArrayModelVirtual = ModelVirtual<D, Sp, symphas::internal::field_array_t<void>, S...>;
+
+template<size_t D, typename... S>
+using ArrayModelVirtualBasic = ArrayModelVirtual<D, void, S...>;
+
 
 #endif
 

@@ -69,6 +69,11 @@ SYMPHAS_DESCRIPTION_DEBUG_NOTIFICATION
 SYMPHAS_DESCRIPTION_MESSAGE_INTRO
 #endif
 
+#define VIRTUAL_MODEL_KEYWORD VIRTUAL
+
+#define VIRTUAL_MODEL_SEP_KEY *
+#define VIRTUAL_MODEL_SEP_KEY_C (STR(VIRTUAL_MODEL_SEP_KEY)[0])
+
 // \endcond
 
 /* **************************************************************************

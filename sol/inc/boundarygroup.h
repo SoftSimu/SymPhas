@@ -334,7 +334,7 @@ namespace symphas::internal
 			{
 				symphas::internal::update_boundary<BoundaryType::DEFAULT, symphas::index_to_side(I), D - 1>{}(boundaries[I], grid, time);
 			}
-			else
+			else if (types[I] != BoundaryType::NONE)
 			{
 				if constexpr (D == 3)
 				{

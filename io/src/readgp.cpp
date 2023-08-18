@@ -38,6 +38,21 @@ FILE* symphas::io::gp::open_gpgridf(const char* name)
 	return f;
 }
 
+
+FILE* symphas::io::gp::open_gpgridf_nofail(const char* name)
+{
+	FILE* f;
+	if ((f = fopen(name, "r")) == 0)
+	{
+		symphas::lib::make_directory_for_file(name);
+		return fopen(name, "r");
+	}
+	else
+	{
+		return f;
+	}
+}
+
 template<>
 symphas::grid_info symphas::io::gp::read_header(FILE* f, int* index)
 {

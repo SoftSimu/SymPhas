@@ -28,7 +28,6 @@
 #include "prereq-defs.h"
 #include "system.h"
 #include "solver.h"
-#include "stencilincludes.h"
 
 #ifdef MODULES_EXPORT
 #define DLLMOD DLLEXPORT
@@ -56,7 +55,7 @@ namespace symphas
 	 * 
 	 * If the _io_ module is enabled, it will also add those parameters.
 	 */
-	inline param_map_type build_param_map();
+	param_map_type build_param_map();
 
 
 #ifdef PRINT_TIMINGS

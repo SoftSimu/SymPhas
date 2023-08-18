@@ -86,7 +86,7 @@ namespace symphas::io::xdr
 
 	inline symphas::grid_info read_header(symphas::io::read_info const& rinfo, iter_type* index = nullptr)
 	{
-		XDRFILE* x = open_xdrgridf(rinfo.name);
+		XDRFILE* x = open_xdrgridf(rinfo.get_name());
 		symphas::grid_info ginfo = read_header(x, index);
 		xdrfile_close(x);
 
