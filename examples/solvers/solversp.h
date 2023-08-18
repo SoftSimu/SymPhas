@@ -32,7 +32,7 @@
 #include "gridfunctions.h"
 
 
-inline len_type SP_DIMS[] = { THICKNESS * 2 + 1, THICKNESS * 2 + 1 };
+inline len_type SP_DIMS[] = { BOUNDARY_DEPTH * 2 + 1, BOUNDARY_DEPTH * 2 + 1 };
 
 
 //! Semi-implicit Fourier Spectral solver.
@@ -63,7 +63,7 @@ NEW_SOLVER(SolverSP)
 	decltype(auto) subgrid(Grid<T, D> const& src, iter_type n) const
 	{
 		len_type extent[D]{ 0 };
-		std::fill(extent, extent + D, THICKNESS);
+		std::fill(extent, extent + D, BOUNDARY_DEPTH);
 		return grid::get_subgrid(src, extent, n);
 	}
 
@@ -121,6 +121,43 @@ NEW_SOLVER(SolverSP)
 		return std::make_pair(sys, data);
 	}
 
+	template<size_t En, typename S, typename E,
+		typename T_src = typename grid::value_type_of<S>::type, size_t D = grid::dimension_of<S>::value>
+	decltype(auto) form_expr_one(std::pair<S*, len_type> const& systems, std::pair<DynamicVariable<S>, E> const& e) const
+	{
+		//auto&& [sys, equation] = e;
+		//auto&& [linear, nonlinear] = expr::split::by_linear(expr::apply_operators(equation));
+		////nonlinear.print(stdout);
+
+		//auto&& [linear_in_Z, linear_in_nonZ] = expr::split::separate_var<Z>(linear);
+		//auto&& [l_op, non_op] = solver_sp::get_l_op<Z>(linear_in_Z, h);
+
+		//auto&& A_expression = solver_sp::form_A_op<D>(l_op, dt, sys.get().dims);
+		//auto&& B_expression = solver_sp::form_B_op<D>(l_op, dt, sys.get().dims);
+
+		//auto&& nonlinear_scheme = solver_sp::construct_nonlinear<Z, D>(systems, B_expression, linear_in_nonZ + non_op + nonlinear, h, sys.get().dims);
+
+
+		//auto&& name = expr::get_fourier_name(expr::get_op_name(expr::get_variable<Z>(equation)));
+
+		//len_type dims[D];
+		//expr::fill_data_dimensions(equation, dims);
+		//auto term_ft = expr::as_grid_data<D>(sys.get().frame_t, dims);
+
+		//auto&& A_term = solver_sp::get_A_term<T_src>(A_expression);
+		//auto&& scheme = expr::make_add(A_term * expr::make_term<Z + sizeof...(Ss)>(NamedData(std::move(term_ft), name)), nonlinear_scheme);
+		//expr::printe(scheme, "spectral scheme");
+
+
+
+		////scheme.print(stdout);
+		////fprintf(stdout, "\n");
+
+		//auto data = SpectralData(scheme);
+
+		//return std::make_pair(sys, data);
+		return std::make_pair(0, 0);
+	}
 
 
 

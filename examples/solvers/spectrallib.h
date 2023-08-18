@@ -778,29 +778,10 @@ namespace solver_sp
 		return std::make_pair(expr::coeff(e) * column_vector_from_variable<0>(e), OpVoid{});
 	}
 
-	//template<typename G, typename T, size_t R = expr::eval_type<OpTerm<T, VectorComponent<Axis::X, G>>>::rank>
-	//auto column_vector_from_axis(OpTerm<T, VectorComponent<Axis::X, G>>)
-	//{
-	//	return expr::make_row_vector<0, R>();
-	//}
-
-	//template<typename G, typename T, size_t R = expr::eval_type<OpTerm<T, VectorComponent<Axis::X, G>>>::rank>
-	//auto column_vector_from_axis(OpTerm<T, VectorComponent<Axis::Y, G>>)
-	//{
-	//	return expr::make_row_vector<1, R>();
-	//}
-
-	//template<typename G, typename T, size_t R = expr::eval_type<OpTerm<T, VectorComponent<Axis::X, G>>>::rank>
-	//auto column_vector_from_axis(OpTerm<T, VectorComponent<Axis::Z, G>>)
-	//{
-	//	return expr::make_row_vector<2, R>();
-	//}
-
 	template<size_t Z, typename T, Axis ax, typename G,
 		typename std::enable_if_t<l_op_compatible<Z, G>, int> = 0>
 	auto get_l_op(OpTerm<T, VectorComponent<ax, G>> const& e, double const*)
 	{
-		// * column_vector_from_axis(e)
 		return std::make_pair(expr::coeff(e), OpVoid{});
 	}
 
@@ -868,6 +849,124 @@ namespace solver_sp
 
 
 
+
+	//! Construct a linear operator for the semi-implicit spectral method.
+	/*!
+	 * Expressions will be parsed in order to construct a linear operator for the spectral
+	 * solver. Expressions which are not used in the construction of the spectral operator
+	 * are pruned away from the terms used in the operator. Therefore, the result is
+	 * a pair, the first element containing the terms acceptable for finalizing
+	 * the operator, and the remaining terms are not used in the operator. Typically,
+	 * these are considered 'nonlinear' in the subject variable.
+	 *
+	 * The default behaviour for expressions is to return them as the second
+	 * element in the pair, as it is not included in the operator.
+	 *
+	 * This is only compatible with linear expressions; applying this function to a nonlinear
+	 * will return an inconsistent expression with missing primary variable in linear parts and
+	 * transformed to Fourier space in nonlinear parts.
+	 *
+	 * Moreover, it is required to be a function of only a single variable; otherwise the variables
+	 * will be combined and the result will not be consistent with a spectral linear operator.
+	 *
+	 * This algorithm follows an almost identical process as to_ft with different termination
+	 * and some other behaviour (such as multiplication), which includes sorting terms which
+	 * do not belong in the linear part.
+	 */
+	template<typename E>
+	auto get_l_op(OpExpression<E> const& e, double const* h);
+	template<typename... Es>
+	auto get_l_op(OpAdd<Es...> const& e, double const* h);
+	template<typename A1, typename A2, typename E>
+	auto get_l_op(OpChain<A1, A2, E> const& e, double const* h);
+	template<typename A1, typename A2, typename E>
+	auto get_l_op(OpCombination<A1, A2, E> const& e, double const* h);
+	template<typename Dd, typename V, typename E, typename Sp>
+	auto get_l_op(OpDerivative<Dd, V, E, Sp> const& e, double const* h);
+	template<typename V, typename E1, typename E2>
+	auto get_l_op(OpConvolution<V, E1, E2> const& e, double const* h);
+	template<typename V, size_t D, typename E>
+	auto get_l_op(OpConvolution<V, GaussianSmoothing<D>, E> const& e, double const* h);
+
+	template<typename E>
+	auto get_l_op(OpExpression<E> const& e, double const*)
+	{
+		return std::make_pair(OpVoid{}, *static_cast<E const*>(&e));
+	}
+
+	template<typename T, typename G>
+	auto get_l_op(OpTerm<T, G> const& e, double const*)
+	{
+		return std::make_pair(expr::coeff(e) * column_vector_from_variable<0>(e), OpVoid{});
+	}
+
+	template<typename T, Axis ax, typename G>
+	auto get_l_op(OpTerm<T, VectorComponent<ax, G>> const& e, double const*)
+	{
+		return std::make_pair(expr::coeff(e), OpVoid{});
+	}
+
+	namespace
+	{
+		template<typename... Es, size_t... Is>
+		auto get_l_op_adds(OpAdd<Es...> const& e, double const* h, std::index_sequence<Is...>)
+		{
+			auto&& a = std::make_tuple(get_l_op(expr::get<Is>(e), h)...);
+			return std::make_pair(expr::add_all(std::get<Is>(a).first...), expr::add_all(std::get<Is>(a).second...));
+		}
+	}
+
+	template<typename... Es>
+	auto get_l_op(OpAdd<Es...> const& e, double const* h)
+	{
+		return get_l_op_adds(e, h, std::make_index_sequence<sizeof...(Es)>{});
+	}
+
+	template<typename A1, typename A2, typename E>
+	auto get_l_op(OpChain<A1, A2, E> const& e, double const* h)
+	{
+		constexpr size_t D = expr::grid_dim<E>::dimension;
+		len_type dims[D];
+		expr::fill_data_dimensions(e, dims);
+
+		auto op_ft = expr::transform::to_ft<expr::grid_dim<E>::dimension>(e.combination, h, dims);
+		auto&& [expr_l, non_op] = get_l_op(expr::get_enclosed_expression(e), h);
+
+		return std::make_pair(op_ft * expr_l, e.combination(non_op));
+	}
+
+	template<typename A1, typename A2, typename E>
+	auto get_l_op(OpCombination<A1, A2, E> const& e, double const* h)
+	{
+		constexpr size_t D = expr::grid_dim<E>::dimension;
+		len_type dims[D];
+		expr::fill_data_dimensions(e, dims);
+
+		auto op_ft = expr::transform::to_ft<expr::grid_dim<E>::dimension>(e.combination, h, dims);
+		auto&& [expr_l, non_op] = get_l_op(expr::get_enclosed_expression(e), h);
+
+		return std::make_pair(op_ft * expr_l, e.combination(non_op));
+	}
+
+	template<typename Dd, typename V, typename E, typename Sp>
+	auto get_l_op(OpDerivative<Dd, V, E, Sp> const& e, double const* h)
+	{
+		constexpr size_t D = expr::grid_dim<E>::dimension;
+		len_type dims[D];
+		expr::fill_data_dimensions(e, dims);
+
+		constexpr size_t order = OpDerivative<Dd, V, E, Sp>::order;
+		constexpr Axis axis = OpDerivative<Dd, V, E, Sp>::axis;
+
+		static_assert(order > 0);
+
+		auto [op, en] = expr::split::separate_operator(e);
+		auto&& [expr_l, non_op] = get_l_op(en, h);
+
+		return std::make_pair(
+			expr::transform::to_ft<D>(op, h, dims) * expr_l,
+			expr::make_derivative<Dd>(non_op, e.solver));
+	}
 
 
 	// **************************************************************************************
