@@ -921,7 +921,7 @@ public:
 	}
 
 	//! Get the number of defined coefficients.
-	size_t coeff_count() const
+	size_t get_coeff_len() const
 	{
 		return coeff_len;
 	}
@@ -1022,6 +1022,28 @@ public:
 	}
 
 
+	auto get_names(len_type desired_len = -1) const
+	{
+		desired_len = (desired_len < 1) ? names_len : desired_len;
+		symphas::lib::array_container<symphas::lib::string> name_list(desired_len);
+
+		iter_type i = 0;
+		for (auto& name : name_list)
+		{
+			if (i >= names_len)
+			{
+				name = symphas::lib::string(STR_ARR_LEN(DEFAULT_FIELD_NAME) + symphas::lib::num_digits(i));
+				sprintf(name.begin(), DEFAULT_FIELD_NAME "%d", i);
+			}
+			else
+			{
+				name = symphas::lib::string(get_name(i), std::strlen(get_name(i)) + 1);
+			}
+			++i;
+		}
+		return name_list;
+	}
+
 	const char* get_result_dir() const
 	{
 		return result_dir;
@@ -1037,9 +1059,23 @@ public:
 		return title;
 	}
 
+	void set_title(const char* new_title) 
+	{
+		delete[] title;
+		title = new char[std::strlen(new_title) + 1] {};
+		std::strcpy(title, new_title);
+	}
+
 	const char* get_model_name() const
 	{
-		return model;
+		if (std::strcmp(model, STR(VIRTUAL_MODEL_KEYWORD)) == 0)
+		{
+			return model + sizeof(STR(VIRTUAL_MODEL_KEYWORD)) / sizeof(char);
+		}
+		else
+		{
+			return model;
+		}
 	}
 
 	//! Return the problem parameters object.
