@@ -684,6 +684,35 @@ namespace expr
 			dims, vdata.at(ax).left(), vdata.at(ax).right());
 	}
 
+	template<size_t D>
+	auto make_coords(len_type const* dims, symphas::interval_data_type const& vdata)
+	{
+		using namespace expr::symbols;
+		if constexpr (D == 1)
+		{
+			return std::make_tuple(
+				make_var<Axis::X, 1>(dims, vdata), 
+				zero, zero);
+		}
+		else if constexpr (D == 2)
+		{
+			return std::make_tuple(
+				make_var<Axis::X, 2>(dims, vdata), 
+				make_var<Axis::Y, 2>(dims, vdata), 
+				zero);
+		}
+		else if constexpr (D == 3)
+		{
+			return std::make_tuple(
+				make_var<Axis::X, 3>(dims, vdata), 
+				make_var<Axis::Y, 3>(dims, vdata),
+				make_var<Axis::Z, 3>(dims, vdata));
+		}
+		else
+		{
+			return std::make_tuple(zero, zero, zero);
+		}
+	}
 }
 
 

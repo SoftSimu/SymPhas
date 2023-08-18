@@ -1110,8 +1110,11 @@ namespace symphas::internal
 //! Get the dimensions of the system.
 #define DIMENSIONS_OF(N) parent_type::template system<N>().dims
 
+//! Get the intervals of the axis in the system.
+#define INTERVALS_OF(N, AXIS) parent_type::template system<N>().get_info().at(AXIS)
+
 //! Get the intervals of the system.
-#define INTERVALS_OF(N, AXIS) parent_type::template system<N>().get_info().intervals
+#define INTERVALS(N) parent_type::template system<N>().get_info().intervals
 
 
 // **************************************************************************************

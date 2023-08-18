@@ -2195,6 +2195,12 @@ void SystemConf::parse_model_spec(const char* value, const char* dir)
 				}
 			}
 		}
+		else
+		{
+			fprintf(SYMPHAS_ERR, "model name was not specified at the configuration "
+				"specification for %s", symphas::internal::C_MODEL);
+			model = nullptr;
+		}
 	}
 }
 
@@ -2360,18 +2366,26 @@ inline void print_coeff(FILE* out, const double* coeff, iter_type i)
 void SystemConf::write(const char* savedir, const char* name) const
 {
 	char* model_name;
-	auto sep_it = std::strchr(model, VIRTUAL_MODEL_SEP_KEY_C);
 
-	if (sep_it == NULL)
+	if (model != nullptr)
 	{
-		model_name = new char[std::strlen(model) + 1] {};
-		std::strcpy(model_name, model);
+		auto sep_it = std::strchr(model, VIRTUAL_MODEL_SEP_KEY_C);
+
+		if (sep_it == NULL)
+		{
+			model_name = new char[std::strlen(model) + 1] {};
+			std::strcpy(model_name, model);
+		}
+		else
+		{
+			model_name = new char[sep_it - model + 1] {};
+			std::copy(model, sep_it, model_name);
+			model_name[sep_it - model] = '\0';
+		}
 	}
 	else
 	{
-		model_name = new char[sep_it - model + 1] {};
-		std::copy(model, sep_it, model_name);
-		model_name[sep_it - model] = '\0';
+		model_name = new char[1] {};
 	}
 	
 
@@ -2389,6 +2403,7 @@ void SystemConf::write(const char* savedir, const char* name) const
 
 	char model_spec[BUFFER_LENGTH_L4]{};
 	snprintf(model_spec, BUFFER_LENGTH_L4, "%s ", model_name);
+	delete[] model_name;
 
 	// print to the parameters file and the model specification line
 	for (iter_type i = 0; i < coeff_len; ++i)
@@ -2617,7 +2632,8 @@ void SystemConf::write(const char* savedir, const char* name) const
 		fprintf(f, "%lf\n", dt_list.get_time_step());
 	}
 
-	if (sep_it == NULL)
+	char* sep_it;
+	if ((sep_it = std::strchr(model, VIRTUAL_MODEL_SEP_KEY_C)) == NULL)
 	{
 		fprintf(f, CONFIG_NAME_FMT "%s\n", symphas::internal::C_MODEL, model_spec);
 	}
