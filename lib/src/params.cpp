@@ -38,9 +38,20 @@ bool add_base_params(param_map_type& param_map)
 	param_map["title"] = { &title, new param_assign<char*>, 'T' };
 	param_map["extend-boundary"] = { &extend_boundary, new param_assign<bool>, 'b' };
 	param_map["extend-boundaries"] = { &extend_boundary, new param_assign<bool>, 'b' };
-	param_map["visualization"] = { &viz_interval, new param_assign<int>, 'v' };
-	param_map["visualize"] = { &viz_interval, new param_assign<int>, 'v' };
-	param_map["viz-interval"] = { &viz_interval, new param_assign<int>, 'v' };
+	param_map["visualization"] = { &viz_enabled, new param_assign<bool>,
+		"enables visualization with vtk, and requires the interval of visualization"
+		" to be set" };
+	param_map["visualize"] = { &viz_enabled, new param_assign<bool> };
+	param_map["viz-interval-set"] = { &viz_interval, new param_assign<int>,
+		"specifies directly the visualization interval" };
+	param_map["viz-index-set"] = { &viz_index, new param_assign<int>,
+		"specifies directly the visualization index" };
+	param_map["viz-interval"] = { &viz_interval_enable, new param_assign_separate<int, bool>, 'v',
+		"enables visualization with vtk if not already enabled, and specifies the interval of"
+		" visualization to be set" };
+	param_map["viz-index"] = { &viz_index_enable, new param_assign_separate<int, bool>, 'V',
+		"enables visualization with vtk if not already enabled, and specifies the index of the"
+		" field to visualize" };
 	param_map["init-inside-val"] = { &init_inside_val, new param_assign<double>, '1' };
 	param_map["init-inside"] = { &init_inside_val, new param_assign<double>, '1' };
 	param_map["init-outside-val"] = { &init_outside_val, new param_assign<double>, '0' };
@@ -58,13 +69,17 @@ bool add_base_params(param_map_type& param_map)
 
 DLLLIB char* params::title = nullptr;
 DLLLIB bool params::extend_boundary = false;
-DLLLIB int params::viz_interval = 0;
+DLLLIB bool params::viz_enabled = false;
+DLLLIB int params::viz_interval = 5;
+DLLLIB int params::viz_index = 0;
 DLLLIB double params::init_inside_val = 1;
 DLLLIB double params::init_outside_val = -1;
 DLLLIB double params::init_rand_val = 1;
 DLLLIB char* params::input_data_file = nullptr;
 DLLLIB int params::start_index = INDEX_INIT;
 
+DLLLIB void* params::viz_interval_enable[2]{ (void*)&params::viz_interval, (void*)&params::viz_enabled };
+DLLLIB void* params::viz_index_enable[2]{ (void*)&params::viz_index, (void*)&params::viz_enabled };
 
 
 void param_map_element::print_help(FILE* out, const char* name) const

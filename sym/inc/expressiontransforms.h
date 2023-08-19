@@ -7237,8 +7237,15 @@ namespace expr
 	template<typename condition_t, typename... condition_ts, typename... Es, typename assign_type>
 	void result_by_term(OpAdd<Es...> const& e, assign_type&& data)
 	{
-		result(expr::split::filter<expr::not_<condition_t, condition_ts...>>(e), std::forward<assign_type>(data));
-		result_by_term(e, std::forward<assign_type>(data), symphas::lib::types_list<condition_t, condition_ts...>{}, std::make_index_sequence<sizeof...(Es)>{});
+		if constexpr ((expr::satisfies<Es, expr::or_<condition_t, condition_ts...>> || ...))
+		{
+			result(expr::split::filter<expr::not_<condition_t, condition_ts...>>(e), std::forward<assign_type>(data));
+			result_by_term(e, std::forward<assign_type>(data), symphas::lib::types_list<condition_t, condition_ts...>{}, std::make_index_sequence<sizeof...(Es)>{});
+		}
+		else
+		{
+			result(e, std::forward<assign_type>(data));
+		}
 	}
 
 	template<typename condition_t, typename... condition_ts, typename E, typename assign_type>

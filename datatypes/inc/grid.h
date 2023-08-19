@@ -1056,7 +1056,7 @@ namespace grid
 		//}
 
 		template<typename T>
-		inline multi_value<D, T> operator()(iter_type n, T* (&values)[D], const iter_type(&domain_dims)[D], const T(&empty)[D])
+		inline multi_value<D, T> operator()(iter_type n, T* (&values)[D], const iter_type(&domain_dims)[D], T(&empty)[D]) const
 		{
 			multi_value<D, T> value;
 			for (iter_type i = 0; i < D; ++i)
@@ -1067,7 +1067,7 @@ namespace grid
 		}
 
 		template<typename T>
-		inline multi_value<D, T> operator()(iter_type n, const T* (&values)[D], const iter_type(&domain_dims)[D], const T(&empty)[D])
+		inline multi_value<D, T> operator()(iter_type n, T* const (&values)[D], const iter_type(&domain_dims)[D], const T(&empty)[D]) const
 		{
 			multi_value<D, T> value;
 			for (iter_type i = 0; i < D; ++i)
@@ -1076,31 +1076,57 @@ namespace grid
 			}
 			return value;
 		}
+		
 
 		template<typename T>
-		inline multi_value<D, T> operator()(T* (&values)[D], const iter_type(&domain_dims)[D], const T(&empty)[D], const iter_type(&pos)[D])
+		inline multi_value<D, T> operator()(iter_type(&pos)[D], T* (&values)[D], const iter_type(&domain_dims)[D], const T(&empty)[D]) const
 		{
 			multi_value<D, T> value;
-			iter_type pos0[D]{};
 			for (iter_type i = 0; i < D; ++i)
 			{
-				for (iter_type i = 0; i < D; ++i) pos0[i] = pos[i];
-				value[i] = operator()(pos0, values[i], domain_dims, empty[i]);
+				pos[i] = (pos[i] >= origin[i] + boundary_size) ? pos[i] - origin[i] : pos[i] - origin[i] + domain_dims[i] - 2 * boundary_size;
 			}
-			return value;
+			if (is_in_region(pos, dims, boundary_size))
+			{
+				return multi_value<D, T>(values[grid::index_from_position(pos, stride)]);
+			}
+			else
+			{
+				return { empty };
+			}
 		}
 
 		template<typename T>
-		inline multi_value<D, T> operator()(const T* (&values)[D], const iter_type(&domain_dims)[D], const T(&empty)[D], const iter_type(&pos)[D])
+		inline multi_value<D, T> operator()(iter_type(&pos)[D], T* const (&values)[D], const iter_type(&domain_dims)[D], const T(&empty)[D]) const
 		{
-			multi_value<D, T> value;
-			iter_type pos0[D]{};
 			for (iter_type i = 0; i < D; ++i)
 			{
-				for (iter_type i = 0; i < D; ++i) pos0[i] = pos[i];
-				value[i] = operator()(pos0, values[i], domain_dims, empty[i]);
+				pos[i] = (pos[i] >= origin[i] + boundary_size) ? pos[i] - origin[i] : pos[i] - origin[i] + domain_dims[i] - 2 * boundary_size;
 			}
-			return value;
+			if (is_in_region(pos, dims, boundary_size))
+			{
+				return multi_value<D, T>(values[grid::index_from_position(pos, stride)]);
+			}
+			else
+			{
+				return { empty };
+			}
+		}
+
+		template<typename T>
+		inline multi_value<D, T> operator()(T* (&values)[D], const iter_type(&domain_dims)[D], const T(&empty)[D], const iter_type(&pos)[D]) const
+		{
+			iter_type pos0[D]{};
+			for (iter_type i = 0; i < D; ++i) pos0[i] = pos[i];
+			return operator()(pos0, values[i], domain_dims, empty[i]);
+		}
+
+		template<typename T>
+		inline multi_value<D, T> operator()(const T* (&values)[D], const iter_type(&domain_dims)[D], const T(&empty)[D], const iter_type(&pos)[D]) const
+		{
+			iter_type pos0[D]{};
+			for (iter_type i = 0; i < D; ++i) pos0[i] = pos[i];
+			return operator()(pos0, values[i], domain_dims, empty[i]);
 		}
 
 
@@ -1110,7 +1136,6 @@ namespace grid
 			iter_type pos[D]{ coord0, std::forward<Ts>(coords)... };
 			return operator()(pos, std::forward<T>(values), domain_dims, empty);
 		}
-
 
 		len_type offset;
 		len_type stride[D];
@@ -1231,11 +1256,43 @@ struct multi_value
 {
 	T* value[N];
 
-	multi_value(T* value[N]) : multi_value()
+	multi_value(T* (&value)[N]) : multi_value()
 	{
 		for (iter_type i = 0; i < N; ++i)
 		{
 			this->value[i] = value[i];
+		}
+	}
+
+	multi_value(T* const (&value)[N]) : multi_value()
+	{
+		for (iter_type i = 0; i < N; ++i)
+		{
+			this->value[i] = value[i];
+		}
+	}
+
+	multi_value(T* const value) : multi_value()
+	{
+		for (iter_type i = 0; i < N; ++i)
+		{
+			this->value[i] = &value[i];
+		}
+	}
+
+	multi_value(T(&value)[N]) : multi_value()
+	{
+		for (iter_type i = 0; i < N; ++i)
+		{
+			this->value[i] = &value[i];
+		}
+	}
+
+	multi_value(const T(&value)[N]) : multi_value()
+	{
+		for (iter_type i = 0; i < N; ++i)
+		{
+			this->value[i] = &const_cast<T&>(value[i]);
 		}
 	}
 
@@ -1247,6 +1304,11 @@ struct multi_value
 	T& operator[](iter_type i)
 	{
 		return *(value[i]);
+	}
+
+	bool is_valid()
+	{
+		return true;
 	}
 
 	//! Return a multi_value as a vector for compatibility.
@@ -1815,19 +1877,19 @@ struct RegionalGrid : Grid<T, D>
 {
 	using parent_type = Grid<T, D>;
 
-	T empty;
 	grid::select_region<D> region;
+	T empty;
 
 public:
 	RegionalGrid(grid::dim_list dimensions, T empty = REGIONAL_GRID_OUTER_VALUE, len_type boundary_size = BOUNDARY_DEPTH) :
 		RegionalGrid(static_cast<const len_type*>(dimensions), empty, boundary_size) {}
 	RegionalGrid(const len_type* dimensions, T empty = REGIONAL_GRID_OUTER_VALUE, len_type boundary_size = BOUNDARY_DEPTH) :
-		parent_type{ dimensions }, empty{ empty }, region{ parent_type::dims, boundary_size } {}
+		parent_type{ dimensions }, region{ parent_type::dims, boundary_size }, empty{ empty } {}
 
 	RegionalGrid(Grid<T, D> const& other) :
-		parent_type{ other }, empty{ REGIONAL_GRID_OUTER_VALUE }, region{ parent_type::dims, BOUNDARY_DEPTH } {}
+		parent_type{ other }, region{ parent_type::dims, BOUNDARY_DEPTH }, empty{ REGIONAL_GRID_OUTER_VALUE } {}
 	RegionalGrid(Grid<T, D>&& other) noexcept :
-		parent_type{ other }, empty{ REGIONAL_GRID_OUTER_VALUE }, region{ parent_type::dims, BOUNDARY_DEPTH } {}
+		parent_type{ other }, region{ parent_type::dims, BOUNDARY_DEPTH }, empty{ REGIONAL_GRID_OUTER_VALUE } {}
 
 	RegionalGrid(RegionalGrid<T, D> const& other) : RegionalGrid(nullptr, other.empty, other.region.boundary_size)
 	{
@@ -1936,30 +1998,44 @@ public:
 
 protected:
 
-	constexpr RegionalGrid() : parent_type(), empty{}, region {} {}
+	constexpr RegionalGrid() : parent_type(), region{}, empty{} {}
 };
-
-
 
 template<typename T, size_t D>
 struct RegionalGrid<any_vector_t<T, D>, D> : Grid<any_vector_t<T, D>, D>
 {
 	using parent_type = Grid<any_vector_t<T, D>, D>;
 
-	T empty;
 	grid::select_region<D> region;
+	T empty[D];
 
 public:
 
+	template<size_t... Is>
+	RegionalGrid(const len_type* dimensions, const T(&empty)[D], len_type boundary_size, std::index_sequence<Is...>) :
+		parent_type{ dimensions }, region{ parent_type::dims, boundary_size }, empty{ empty[Is]... } {}
+	RegionalGrid(const len_type* dimensions, const T(&empty)[D], len_type boundary_size = BOUNDARY_DEPTH) :
+		RegionalGrid(static_cast<const len_type*>(dimensions), empty, boundary_size, std::make_index_sequence<D>{}) {}
+	RegionalGrid(grid::dim_list dimensions, const T(&empty)[D], len_type boundary_size = BOUNDARY_DEPTH) :
+		RegionalGrid(static_cast<const len_type*>(dimensions), empty, boundary_size) {}
+
+	template<size_t... Is>
+	RegionalGrid(const len_type* dimensions, T empty, len_type boundary_size, std::index_sequence<Is...>) :
+		RegionalGrid(dimensions, (T[D]) { symphas::internal::repeat_value<Is>(empty)... }, boundary_size, std::index_sequence<Is...>{}) {}
+	RegionalGrid(const len_type* dimensions, T empty = REGIONAL_GRID_OUTER_VALUE, len_type boundary_size = BOUNDARY_DEPTH) :
+		RegionalGrid(dimensions, empty, boundary_size, std::make_index_sequence<D>{}) {}
 	RegionalGrid(grid::dim_list dimensions, T empty = REGIONAL_GRID_OUTER_VALUE, len_type boundary_size = BOUNDARY_DEPTH) :
 		RegionalGrid(static_cast<const len_type*>(dimensions), empty, boundary_size) {}
-	RegionalGrid(const len_type* dimensions, T empty = REGIONAL_GRID_OUTER_VALUE, len_type boundary_size = BOUNDARY_DEPTH) :
-		parent_type{ dimensions }, empty{ empty }, region{ parent_type::dims, boundary_size } {}
 
-	RegionalGrid(Grid<T, D> const& other) :
-		parent_type{ other }, empty{ REGIONAL_GRID_OUTER_VALUE }, region{ parent_type::dims, BOUNDARY_DEPTH } {}
-	RegionalGrid(Grid<T, D>&& other) noexcept :
-		parent_type{ other }, empty{ REGIONAL_GRID_OUTER_VALUE }, region{ parent_type::dims, BOUNDARY_DEPTH } {}
+	template<size_t... Is>
+	RegionalGrid(Grid<T, D> const& other, std::index_sequence<Is...>) :
+		parent_type{ other }, region{ parent_type::dims, BOUNDARY_DEPTH }, empty{ symphas::internal::repeat_value<Is>(REGIONAL_GRID_OUTER_VALUE)... } {}
+	template<size_t... Is>
+	RegionalGrid(Grid<T, D>&& other, std::index_sequence<Is...>) noexcept :
+		parent_type{ other }, region{ parent_type::dims, BOUNDARY_DEPTH }, empty{ symphas::internal::repeat_value<Is>(REGIONAL_GRID_OUTER_VALUE)... } {}
+
+	RegionalGrid(Grid<T, D> const& other) : RegionalGrid(other, std::make_index_sequence<D>{}) {}
+	RegionalGrid(Grid<T, D>&& other) noexcept : RegionalGrid(other, std::make_index_sequence<D>{}) {}
 
 
 	const RegionalGrid<any_vector_t<T, D>, D>& as_grid() const
@@ -1982,7 +2058,6 @@ public:
 		return parent_type::values[symphas::axis_to_index(ax)];
 	}
 
-
 	template<typename... Ts, std::enable_if_t<(sizeof...(Ts) == D), int> = 0>
 	decltype(auto) operator()(Ts&&... rest) const
 	{
@@ -1996,8 +2071,66 @@ public:
 		return region(pos, MultiBlock<D, T>::values, parent_type::dims, empty);
 	}
 
+	T const& get_unsafe(iter_type n) const
+	{
+		return region(n, MultiBlock<D, T>::values, parent_type::dims, empty);
+	}
 
-	constexpr RegionalGrid() : parent_type() {}
+	T& get_unsafe(iter_type n)
+	{
+		return region(n, MultiBlock<D, T>::values, parent_type::dims, empty);
+	}
+
+	void adjust(const iter_type(&new_origin)[D])
+	{
+		for (iter_type i = 0; i < D; ++i)
+		{
+			grid::adjust_origin_to_from(MultiBlock<D, T>::values[i], new_origin, region.origin, region.dims, parent_type::dims, empty[i], region.boundary_size);
+		}
+		region.update(new_origin);
+	}
+
+	void adjust(const iter_type(&new_origin)[D], const len_type(&new_dims)[D])
+	{
+		for (iter_type i = 0; i < D; ++i)
+		{
+			T* new_values = new T[grid::length<D>(new_dims)]{};
+
+			std::fill(
+#ifdef EXECUTION_HEADER_AVAILABLE
+				std::execution::par_unseq,
+#endif
+				new_values, new_values + grid::length<D>(new_dims), empty[i]);
+
+
+			grid::adjust_region_to_from(new_values, new_origin, new_dims,
+				MultiBlock<D, T>::values[i], region.origin, region.dims, parent_type::dims, empty[i], region.boundary_size);
+
+			using std::swap;
+			swap(MultiBlock<D, T>::values[i], new_values);
+			delete[] new_values;
+		}
+
+		region.update(new_origin, new_dims);
+	}
+
+	void adjust(grid::select_region<D> const& other)
+	{
+		if (!grid::is_same(region.dims, other.dims)
+			|| !grid::is_same(region.origin, other.origin))
+		{
+			if (grid::is_same(region.dims, other.dims))
+			{
+				adjust(other.origin);
+			}
+			else
+			{
+				adjust(other.origin, other.dims);
+			}
+		}
+	}
+
+	constexpr RegionalGrid() : parent_type(), region{}, empty{} {}
 };
 
 

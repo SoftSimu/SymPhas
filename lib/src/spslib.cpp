@@ -593,7 +593,7 @@ void symphas::lib::get_parent_directory(const char* path, const char*& basepath)
 		NULL,
 		NULL
 	);
-	sprintf(basepath, "%s%s", drive, parent);
+	sprintf(const_cast<char*&>(basepath), "%s%s", drive, parent);
 
 #else
 	basepath = dirname(const_cast<char*>(path));

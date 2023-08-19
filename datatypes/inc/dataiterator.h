@@ -1280,6 +1280,18 @@ namespace symphas::internal
 	};
 
 	template<typename T, size_t D>
+	struct data_value_type<RegionalGrid<any_vector_t<T, D>, D>>
+	{
+		using type = any_vector_t<T, D>;
+		using ref = multi_value<D, T>;
+
+		ref operator()(RegionalGrid<any_vector_t<T, D>, D>* data, iter_type n)
+		{
+			return (*data)[n];
+		}
+	};
+
+	template<typename T, size_t D>
 	struct data_value_type<RegionalGrid<T, D>>
 	{
 		using type = T;
@@ -1335,6 +1347,17 @@ namespace symphas::internal
 		using typename parent_type::ref;
 	};
 
+	template<typename T>
+	struct data_value_type<const T>
+	{
+		using type = const typename data_value_type<T>::type;
+		using ref = const typename data_value_type<T>::ref;
+
+		ref operator()(const T* data, iter_type n)
+		{
+			return data_value_type<T>{}(const_cast<T*>(data), n);
+		}
+	};
 
 	template<typename specialized_iterator>
 	struct iterator_difference_type_impl

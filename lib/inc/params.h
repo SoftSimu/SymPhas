@@ -153,6 +153,41 @@ namespace params
 		}
 	};
 
+	template<typename... p_types>
+	struct param_assign_separate : params::param_assign_base
+	{
+	protected:
+
+		template<size_t... Is, size_t N = sizeof...(Is)>
+		void assign(void* params, const char* value, std::index_sequence<Is...>)
+		{
+			using param_type = void* [N];
+			void* (&param_arr)[N] = *static_cast<param_type*>(params);
+
+			(param_assign<p_types>{}.assign(param_arr[Is], value), ...);
+		}
+
+	public:
+
+		//! Implementation to assign the same value to multiple parameters.
+		/*!
+		 * A new character string is created with the same length as value. The provided
+		 * value string is copied into the new one, and the new one is assigned to the parameter.
+		 *
+		 * \param param The parameter to assign.
+		 * \param value The value as a string to assign to `param`.
+		 */
+		void assign(void* params, const char* value)
+		{
+			assign(params, value, std::make_index_sequence<sizeof...(p_types)>{});
+		}
+
+		size_t print_with_name(FILE* out, void* param, const char* name)
+		{
+			return fprintf(out, "%s", name);
+		}
+	};
+
 }
 
 //! Specialization of parameter assignment functionality for `bool` type.
@@ -207,6 +242,10 @@ protected:
 			{
 				return false;
 			}
+			else if (atoi(cpy) > 0)
+			{
+				return true;
+			}
 			else
 			{
 				return default_value;
@@ -233,7 +272,7 @@ struct params::param_assign<double> : params::param_assign_base
 	 */
 	void assign(void* param, const char* value)
 	{
-		*static_cast<double*>(param) = extract_double(value);
+		*static_cast<double*>(param) = extract_double(value, *static_cast<double*>(param));
 	}
 
 	size_t print_with_name(FILE* out, void* param, const char* name)
@@ -243,9 +282,17 @@ struct params::param_assign<double> : params::param_assign_base
 
 protected:
 
-	double extract_double(const char* value)
+	double extract_double(const char* value, double default_value)
 	{
-		return atof(value);
+		double result = atof(value);
+		if (result == 0. && (*value != '0' || (value[0] != '.' && value[1] != '0')))
+		{
+			return default_value;
+		}
+		else
+		{
+			return result;
+		}
 	}
 };
 
@@ -263,7 +310,7 @@ struct params::param_assign<int> : params::param_assign_base
 	 */
 	void assign(void* param, const char* value)
 	{
-		*static_cast<int*>(param) = extract_int(value);
+		*static_cast<int*>(param) = extract_int(value, *static_cast<int*>(param));
 	}
 
 	size_t print_with_name(FILE* out, void* param, const char* name)
@@ -273,9 +320,17 @@ struct params::param_assign<int> : params::param_assign_base
 
 protected:
 
-	int extract_int(const char* value)
+	int extract_int(const char* value, int default_value)
 	{
-		return atoi(value);
+		int result = atoi(value);
+		if (result == 0 && *value != '0')
+		{
+			return default_value;
+		}
+		else
+		{
+			return result;
+		}
 	}
 };
 
@@ -470,6 +525,13 @@ namespace params
 	 */
 	DLLLIB extern bool extend_boundary;
 
+	//! Enable VTK output.
+	/*!
+	 * This program allows the user to visualize the phase field evolution with
+	 * vtk.
+	 */
+	DLLLIB extern bool viz_enabled;
+
 	//! Interval of updating VTK output.
 	/*!
 	 * This program allows the user to visualize the phase field evolution with
@@ -477,6 +539,18 @@ namespace params
 	 * update at the given value (in milliseconds).
 	 */
 	DLLLIB extern int viz_interval;
+
+	//! Index of the field to get VTK output.
+	/*!
+	 * This program allows the user to visualize the phase field evolution with
+	 * vtk, and will try to find a field matching that index, or the next
+	 * closest field, which it will display. By default, this is always
+	 * the first field.
+	 */
+	DLLLIB extern int viz_index;
+
+	DLLLIB extern void* viz_interval_enable[2];
+	DLLLIB extern void* viz_index_enable[2];
 
 	//! The values used as interior values to initial conditions.
 	/*!

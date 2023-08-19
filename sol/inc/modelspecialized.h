@@ -211,6 +211,14 @@ namespace symphas::internal
 		using type = typename ModelApplied<Dm, Sp>::template ArrayType<field_types...>;
 	};
 
+	template<typename... field_types, size_t Dm, typename Sp, typename... Ts>
+	struct expand_types_to_model<symphas::lib::types_list<field_types...>, Dm, Sp, symphas::internal::parameterized::VECTOR, Ts...>
+	{
+		using type = typename expand_types_to_model<
+			symphas::lib::types_list<field_types..., symphas::internal::parameterized::VECTOR_D<Dm>>, 
+			Dm, Sp, Ts...>::type;
+	};
+
 	template<typename... field_types, size_t Dm, typename Sp, typename T0, typename... Ts>
 	struct expand_types_to_model<symphas::lib::types_list<field_types...>, Dm, Sp, T0, Ts...>
 	{
@@ -1274,18 +1282,20 @@ struct TraitEquation : parent_trait
     template<expr::NoiseType nt, typename T, typename... T0s>
     auto make_noise(T0s&& ...args) const
     {
-        return symphas::internal::parameterized::NOISE<nt, T, Dm>(
-			parent_trait::template system<0>().info, &solver.dt)
-			(std::forward<T0s>(args)...);
+        return symphas::internal::parameterized::NOISE<nt, symphas::internal::parameterized::dimensionalized_t<Dm, T>, Dm>(
+			parent_trait::template system<0>().info,
+			grid::get_data_domain(parent_trait::template system<0>().as_grid()), 
+			&solver.dt)(std::forward<T0s>(args)...);
     }
 
     template<expr::NoiseType nt, size_t Z, typename G, typename... T0s>
     auto make_noise(OpTerm<OpIdentity, Variable<Z, G>>, T0s&& ...args) const
     {
         using T = model_field_t<parent_trait, Z>;
-        return symphas::internal::parameterized::NOISE<nt, T, Dm>(
-            parent_trait::template system<Z>().info, &solver.dt)
-			(std::forward<T0s>(args)...);
+        return symphas::internal::parameterized::NOISE<nt, symphas::internal::parameterized::dimensionalized_t<Dm, T>, Dm>(
+			parent_trait::template system<Z>().info,
+			grid::get_data_domain(parent_trait::template system<Z>().as_grid()), 
+			&solver.dt)(std::forward<T0s>(args)...);
     }
 
 
@@ -1672,6 +1682,7 @@ struct TraitEquationModel : TraitEquation<TraitEquationModel, parent_trait> \
 		using namespace std; using namespace expr; using namespace expr::symbols; using namespace std::complex_literals; \
 		auto [x, y, z] = expr::make_coords<Dm>(DIMENSIONS_OF(0), INTERVALS(0)); \
 		auto t = parent_type::get_time_var(); \
+		using symphas::internal::parameterized::INT; \
 		constexpr size_t D = model_dimension<parent_type>::value; \
 		UNUSED(D) \
 		__VA_ARGS__
@@ -1715,10 +1726,10 @@ return parent_type::template generate_equations(std::make_tuple(SINGLE_ARG SELEC
   * fields will be called.
   */
 #define DEFINE_MODEL_FIELD_NAMES(MODEL_NAME, NAMES) \
-template<> \
 template<> struct model_field_name<model_ ## MODEL_NAME::TraitEquationModel> : model_field_name_builder<model_ ## MODEL_NAME::TraitEquationModel> {}; \
 template<> struct model_field_name_format<model_ ## MODEL_NAME::TraitEquationModel> \
-{ static const char* value[] = { SINGLE_ARG NAMES }; };
+{ static const char* value[]; }; \
+inline const char* model_field_name_format<model_ ## MODEL_NAME::TraitEquationModel>::value[] = { SINGLE_ARG NAMES };
 
 #define DEFINE_MODEL_FIELD_NAMES_FORMAT(MODEL_NAME, FORMAT) \
 template<> struct model_field_name<model_ ## MODEL_NAME::TraitEquationModel> : model_field_name_builder<model_ ## MODEL_NAME::TraitEquationModel> {}; \

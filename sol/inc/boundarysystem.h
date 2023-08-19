@@ -210,6 +210,61 @@ namespace grid
 		auto e = std::min_element(it, it + grid.region.len);
 		return std::min(*e, grid.empty);
 	}
+
+	template<typename T, size_t D>
+	auto min_value(RegionalGrid<any_vector_t<T, D>, D> const& grid)
+	{
+		symphas::data_iterator_region it(grid, grid::get_iterable_domain(grid));
+
+		auto e = std::min_element(it, it + grid.region.len, 
+			[] (auto a, auto b) {
+				using std::abs;
+				using symphas::lib::abs;
+				return abs(any_vector_t<T, D>(a)) < abs(any_vector_t<T, D>(b));
+			});
+
+		using std::abs;
+		using symphas::math::abs;
+		using symphas::lib::abs;
+		return (abs(any_vector_t<T, D>(*e)) < abs(grid.empty)) ? *e : grid.empty;
+	}
+}
+
+namespace symphas::internal
+{
+	template<typename T>
+	void set_value_for_resize(T& cutoff, T min, T eps = {})
+	{
+		cutoff = min + eps;
+	}
+
+	template<typename T, size_t D>
+	void set_value_for_resize(any_vector_t<T, D>& cutoff, any_vector_t<T, D> const& min, T eps = {})
+	{
+		for (iter_type i = 0; i < D; ++i)
+		{
+			cutoff[i] = min[i] + eps;
+		}
+	}
+
+	template<typename T, size_t D>
+	void set_value_for_resize(any_vector_t<T, D>& value, multi_value<D, T> const& min, T eps = {})
+	{
+		for (iter_type i = 0; i < D; ++i)
+		{
+			value[i] = min[i] + eps;
+		}
+	}
+
+
+	template<typename T, size_t D>
+	void set_value_for_resize(T(&value)[D], multi_value<D, T> const& min, T eps = {})
+	{
+		for (iter_type i = 0; i < D; ++i)
+		{
+			value[i] = min[i] + eps;
+		}
+	}
 }
 
 template<typename T, size_t D>
@@ -218,8 +273,8 @@ void PhaseFieldSystem<RegionalGrid, T, D>::update(iter_type index, double time)
 	if (next_resize == 0)
 	{
 		auto min0 = grid::min_value(*this);
-		cutoff = min0 + REGIONAL_GRID_CUTOFF_EPS;
-		RegionalGrid<T, D>::empty = min0;
+		symphas::internal::set_value_for_resize(cutoff, min0, REGIONAL_GRID_CUTOFF_EPS);
+		symphas::internal::set_value_for_resize(RegionalGrid<T, D>::empty, min0);
 
 		grid::resize_adjust_region(*this, cutoff, REGIONAL_GRID_RESIZE_FACTOR);
 
@@ -244,6 +299,8 @@ void PhaseFieldSystem<RegionalGrid, T, D>::update(iter_type index, double time)
 	}
 	BoundaryGroup<T, D>::update_boundaries(*this, index, time);
 }
+
+
 
 
 

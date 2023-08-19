@@ -36,11 +36,11 @@ namespace symphas::internal
 	struct field_array_t {};
 
 
-	template<typename T>
+	template<size_t D, typename T>
 	struct non_parameterized_type_impl;
 
-	template<typename T>
-	using non_parameterized_type = typename non_parameterized_type_impl<T>::type;
+	template<size_t D, typename T>
+	using non_parameterized_type = typename non_parameterized_type_impl<D, T>::type;
 }
 
 /* forward declaration of Model as required by the writing utility

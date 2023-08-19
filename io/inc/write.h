@@ -37,14 +37,12 @@ void symphas::io::save_grid_plotting(const T* values, symphas::io::write_info wi
 template<typename T, size_t N>
 void symphas::io::save_grid_plotting(const T(*values)[N], symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
-	using data_unit = T[N];
 	SWITCH_IO_WRITE(save_grid_plotting(values, winfo, ginfo))
 }
 
 template<typename T, size_t N>
 void symphas::io::save_grid_plotting(T* const(&values)[N], symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
-	using data_unit = T*[N];
 	SWITCH_IO_WRITE(save_grid_plotting(values, winfo, ginfo))
 }
 

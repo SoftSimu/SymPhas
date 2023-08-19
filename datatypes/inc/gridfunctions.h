@@ -438,6 +438,39 @@ namespace grid
 	}
 
 
+	//! Obtains the iterable_domain from the Block compatible instance.
+	template<typename T, size_t D>
+	auto get_data_domain(Grid<T, D> const& data)
+	{
+		return region_size(data.len);
+	}
+
+	//! Obtains the iterable_domain from the Block compatible instance.
+	template<typename T, size_t D>
+	auto get_data_domain(BoundaryGrid<T, D> const& data)
+	{
+		region_interval<D> region(data.dims);
+		for (iter_type i = 0; i < D; ++i)
+		{
+			region[i][0] = 0;
+			region[i][1] = data.dims[i];
+		}
+		return region;
+	}
+
+	//! Obtains the iterable_domain from the Block compatible instance.
+	template<typename T, size_t D>
+	auto get_data_domain(RegionalGrid<T, D> const& data)
+	{
+		region_interval<D> region(data.dims);
+		for (iter_type i = 0; i < D; ++i)
+		{
+			region[i][0] = data.region.origin[i];
+			region[i][1] = data.region.origin[i] + data.region.dims[i];
+		}
+		return region;
+	}
+
 	template<typename T, size_t D>
 	inline bool is_interior_point(const iter_type(&pos)[D], BoundaryGrid<T, D> const& grid)
 	{
@@ -1329,6 +1362,41 @@ namespace grid
 		fill_interior_apply<T, D>{}(input, output, dims);
 	}
 
+
+	template<typename T>
+	bool compare_cutoff(T const& left, T const& right)
+	{
+		return left >= right;
+	}
+
+	template<typename T, size_t D>
+	bool compare_cutoff(const T* left, const T(&right)[D])
+	{
+		T result{};
+		for (iter_type i = 0; i < D; ++i)
+		{
+			result += left[i] * left[i];
+		}
+		using std::sqrt;
+		using std::abs;
+		using symphas::math::abs;
+		return compare_cutoff(sqrt(result), abs(right));
+	}
+
+	template<typename T, size_t D>
+	bool compare_cutoff(const T* left, any_vector_t<T, D> const& right)
+	{
+		T result{};
+		for (iter_type i = 0; i < D; ++i)
+		{
+			result += left[i] * left[i];
+		}
+		using std::sqrt;
+		using std::abs;
+		using symphas::math::abs;
+		return compare_cutoff(sqrt(result), abs(right));
+	}
+
 	//! Adjust the floating region inside the grid to a new position and dimensions
 	/*!
 	 * Adjust the floating region inside the grid to a new position and dimensions.
@@ -1359,7 +1427,7 @@ namespace grid
 	void adjust_region_to_from(
 		T* new_values, const iter_type(&new_origin)[D], const len_type(&new_dims)[D],
 		const T* old_values, const iter_type(&old_origin)[D], const len_type(&old_dims)[D],
-		const len_type(&global_dims)[D], T empty, len_type boundary_size)
+		const len_type(&global_dims)[D], const T empty, len_type boundary_size)
 	{
 		iter_type new_stride[D]{};
 		iter_type old_stride[D]{};
@@ -1647,7 +1715,7 @@ namespace grid
 			iter_type index = index_from_position(pos, stride);
 
 			using std::abs;
-			if ((grid.values[index]) >= cutoff_value && !grid::is_in_region(pos, intervals))
+			if (compare_cutoff(grid.values[index], cutoff_value) && !grid::is_in_region(pos, intervals))
 			{
 				omp_set_lock(&interval_lock);
 				for (iter_type i = 0; i < D; ++i)
@@ -1708,7 +1776,7 @@ namespace grid
 				for (iter_type m = 0; m < intervals[ii][0]; ++m)
 				{
 					iter_type index = index_from_position(pos, stride, grid.region.boundary_size);
-					if (abs(grid.values[index]) >= cutoff_value)
+					if (compare_cutoff(grid.values[index], cutoff_value))
 					{
 						intervals[ii][0] = std::min(pos[ii], intervals[ii][0]);
 					}
@@ -1719,7 +1787,7 @@ namespace grid
 				{
 					--pos[ii];
 					iter_type index = index_from_position(pos, stride, grid.region.boundary_size);
-					if (abs(grid.values[index]) >= cutoff_value)
+					if (compare_cutoff(grid.values[index], cutoff_value))
 					{
 						intervals[ii][1] = std::max(pos[ii], intervals[ii][1]);
 					}
@@ -1750,7 +1818,6 @@ namespace grid
 		}
 	}
 
-
 	template<typename T, size_t D>
 	void get_view_resized_periodic(RegionalGrid<T, D>& grid, T cutoff_value, iter_type(&origin)[D], len_type(&dims)[D])
 	{
@@ -1773,7 +1840,7 @@ namespace grid
 			iter_type index = index_from_position(pos, stride);
 
 			using std::abs;
-			if ((grid.values[index]) >= cutoff_value)
+			if (compare_cutoff(grid.values[index], cutoff_value))
 			{
 				start_n = n;
 			}
@@ -1854,7 +1921,7 @@ namespace grid
 							
 
 							iter_type index = grid::index_from_position(pos, stride, grid.region.boundary_size);
-							if ((grid.values[index]) >= cutoff_value)
+							if (compare_cutoff(grid.values[index], cutoff_value))
 							{
 								found_value[(offset) ? 1 : 0] = true;
 								//if (offset)
@@ -1969,6 +2036,21 @@ namespace grid
 	void resize_adjust_region(RegionalGrid<T, D>& grid, len_type (&intervals)[D][2])
 	{
 		resize_adjust_region(grid, symphas::grid_info(grid.dims, intervals));
+	}
+
+	template<typename T, size_t D>
+	void resize_adjust_region(RegionalGrid<T, D>& grid, grid::region_interval_multiple<D> const& regions)
+	{
+		len_type intervals[D][2]{};
+		for (grid::region_interval<D> region : regions)
+		{
+			for (iter_type i = 0; i < D; ++i)
+			{
+				intervals[i][0] = std::min(intervals[i][0], region[i][0]);
+				intervals[i][1] = std::max(intervals[i][1], region[i][1]);
+			}
+		}
+		resize_adjust_region(grid, intervals);
 	}
 
 	template<typename T, size_t D>

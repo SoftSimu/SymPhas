@@ -313,6 +313,19 @@ namespace symphas::math
 		return imag(v);
 	}
 
+	template<typename T, size_t D>
+	T abs(const T(&value)[D])
+	{
+		T result{};
+		for (iter_type i = 0; i < D; ++i)
+		{
+			result += value[i] * value[i];
+		}
+
+		using std::sqrt;
+		return sqrt(result);
+	}
+
 
 	MATH_FUNCTION_OVERLOADS(cos, std::cos);
 	MATH_FUNCTION_OVERLOADS(sin, std::sin);
@@ -468,6 +481,19 @@ namespace symphas::math
 
 namespace symphas::internal
 {
+	template<size_t, typename T>
+	decltype(auto) repeat_value(T&& value)
+	{
+		return std::forward<T>(value);
+	}
+
+	template<typename, typename T>
+	decltype(auto) repeat_value(T&& value)
+	{
+		return std::forward<T>(value);
+	}
+
+
 	template<typename T>
 	struct check_is_simple_data
 	{

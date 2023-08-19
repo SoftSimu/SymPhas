@@ -914,8 +914,6 @@ struct allowed_model_dimensions<void, D> \
 
 // **************************************************************************************
 
-#define VECTOR VECTOR_D<Dm>
-
 namespace symphas::internal
 {
 	using namespace parameterized;
@@ -1084,8 +1082,6 @@ namespace symphas::internal
 
 #define diff_N(E, VAR, N) expr::make_symbolic_derivative<N>(E, VAR)
 #define diff(E, VAR) diff_N(E, VAR, 1)
-
-#define INT(E) expr::make_domain_integral(E, parent_type::template system<0>().get_info())
 
 #define NOISE(VARIETY, TYPE, ...) parent_type::template make_noise<expr::NoiseType:: VARIETY, TYPE>(__VA_ARGS__)
 #define WHITE_NOISE(TYPE, ...) NOISE(WHITE, TYPE, __VA_ARGS__)

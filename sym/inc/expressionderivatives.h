@@ -1297,6 +1297,18 @@ namespace expr
 // *************************************************************************************
 
 
+namespace symphas::internal
+{
+	template<typename T, size_t D, typename E>
+	void update_derivative_grid(Grid<T, D>& grid, OpExpression<E> const& e) {}
+
+	template<typename T, size_t D, typename E>
+	void update_derivative_grid(RegionalGrid<T, D>& grid, OpExpression<E> const& e)
+	{
+		grid::resize_adjust_region(grid, expr::iterable_domain(*static_cast<E const*>(&e)));
+	}
+}
+
 //! Concrete derivative expression.
 /*!
  * If the derivative operator is applied to something that's not a variable or 
@@ -1350,7 +1362,8 @@ struct OpDerivative : OpExpression<OpDerivative<Dd, V, E, Sp>>
 	template<typename... condition_ts>
 	void update(symphas::lib::types_list<condition_ts...>)
 	{
-		expr::result(e, grid);
+		symphas::internal::update_derivative_grid(grid, e);
+		expr::result(e, grid, grid::get_data_domain(grid));
 	}
 
 	void update()

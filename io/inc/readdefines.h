@@ -221,7 +221,7 @@ namespace symphas::io
 	 * \param rinfo Information about how to access the persistent information.
 	 */
 	template<typename T>
-	int read_grid(T* values, symphas::io::read_info const& rinfo);
+	int read_grid(T* &values, symphas::io::read_info const& rinfo);
 	
 
 	//! A data source will be accessed and the given data array initialized.
@@ -331,7 +331,7 @@ namespace symphas::io
 	 * the array data.
 	 */
 	template<typename value_type, typename Fo, typename Fc, typename Fb>
-	int read_grid_standardized(value_type grid, symphas::io::read_info const& rinfo, Fo open_file_f, Fc close_file_f, Fb read_block_f)
+	int read_grid_standardized(value_type&& grid, symphas::io::read_info const& rinfo, Fo open_file_f, Fc close_file_f, Fb read_block_f)
 	{
 		auto f = open_file_f(rinfo.get_name());
 
@@ -350,14 +350,14 @@ namespace symphas::io
 
 		if (!params::single_input_file)
 		{
-			read_block_f(grid, bginfo, f);
+			read_block_f(std::forward<value_type>(grid), bginfo, f);
 			prev = index;
 		}
 		else
 		{
 			do
 			{
-				read_block_f(grid, bginfo, f);
+				read_block_f(std::forward<value_type>(grid), bginfo, f);
 				prev = index;
 				read_header(f, &index);
 			} while (index <= rinfo.get_index() && index > BAD_INDEX && prev != rinfo.get_index());

@@ -34,7 +34,7 @@ namespace symphas::io::gp::mov
 	template<typename value_type>
 	int read_grid(value_type values, symphas::io::read_info const& rinfo)
 	{
-		return symphas::io::gp::read_grid(values, rinfo);
+		return symphas::io::gp::read_grid<value_type>(values, rinfo);
 	}
 	
 	DECLARE_GP_HEADER_FUNCTIONS

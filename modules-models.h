@@ -336,9 +336,6 @@ namespace symphas
 
 // free energy parameters
 
-//#undef SUM
-//#undef SUM_INDEX
-//
 //#undef ii_
 //#undef ii
 //#undef jj_
@@ -357,10 +354,6 @@ namespace symphas
 #undef smoothing
 #undef cross
 
-
-//#undef VECTOR
-//#undef SCALAR
-//#undef COMPLEX
 
 //#undef CONSERVED
 //#undef NONCONSERVED

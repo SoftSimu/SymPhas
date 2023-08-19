@@ -149,6 +149,13 @@ namespace symphas::internal
 		template<size_t Dm>
 		using VECTOR_D = vector_t<Dm>;
 
+		//! Vector valued order parameter of real elements.
+		/*!
+		* The order parameter will a vector type, specified by ::vector_t, this type
+		* in particular is used to infer the vector.
+		*/
+		using VECTOR = vector_t<0>;
+
 		//! Indicates that the field number is selected from configuration.
 		/*!
 		 * The number of fields of the type this option is passed to is selected using
@@ -215,16 +222,24 @@ namespace symphas::internal
 		//! Define an array that will be iterated using the given index.
 		/*!
 		 * This object is only applicable in the context of a index-defined EOM or
-		 * free energy. The array is defined using an expression which can use the same index, 
+		 * free energy. The array is defined using an expression which can use the same index,
 		 * in which case the index of the array will take over. The array is generally used when
 		 * multiple distinct instances have to be generated for each field, such as a noise term.
-		 * 
-		 * \param V The value of the number.
 		 */
 		template<int N, int P>
 		decltype(auto) ARRAY(expr::symbols::i_<N, P>)
 		{
 			return symphas::internal::indexed_array(expr::symbols::i_<N, P>{});
+		}
+
+		//! Define a domain integral of the expression.
+		/*!
+		 * Writes the integral of the given expression.
+		 */
+		template<typename E>
+		decltype(auto) INT(E&& e)
+		{
+			return expr::make_domain_integral(std::forward<E>(e));
 		}
 
 		template<typename E>
@@ -238,6 +253,34 @@ namespace symphas::internal
 		{
 			return NoiseData<nt, T, D>(info.get_dims(), info.get_widths(), dt);
 		}
+
+		template<NoiseType nt, typename T, size_t D>
+		decltype(auto) NOISE(symphas::grid_info const& info, region_interval<D> const& region, const double* dt)
+		{
+			len_type dims[D]{};
+			for (iter_type i = 0; i < D; ++i)
+			{
+				dims[i] = region[i][1] - region[i][0];
+			}
+			return NoiseData<nt, T, D>(dims, info.get_widths(), dt);
+		}
+
+
+		template<size_t D, typename T>
+		struct dimensionalized
+		{
+			using type = T;
+		};
+
+		template<size_t D, typename T>
+		struct dimensionalized<D, any_vector_t<T, 0>>
+		{
+			using type = any_vector_t<T, D>;
+		};
+
+		template<size_t D, typename T>
+		using dimensionalized_t = typename dimensionalized<D, T>::type;
+	
 	}
 
 	template<typename T, typename S = void>
@@ -428,28 +471,34 @@ namespace symphas::internal
 		const M* model;
 	};
 
-	template<typename T>
+	template<size_t D, typename T>
 	struct non_parameterized_type_impl
 	{
 		using type = T;
 	};
 
-	template<typename T, typename S>
-	struct non_parameterized_type_impl<parameterized_type<T, S>>
+	template<size_t D, typename T, typename S>
+	struct non_parameterized_type_impl<D, parameterized_type<T, S>>
 	{
 		using type = S;
 	};
 
-	template<typename S>
-	struct non_parameterized_type_impl<symphas::internal::field_array_t<S>>
+	template<size_t D, typename T>
+	struct non_parameterized_type_impl<D, parameterized_type<T, parameterized::VECTOR>>
 	{
-		using type = typename non_parameterized_type_impl<S>::type;
+		using type = parameterized::VECTOR_D<D>;
+	};
+
+	template<size_t D, typename S>
+	struct non_parameterized_type_impl<D, symphas::internal::field_array_t<S>>
+	{
+		using type = typename non_parameterized_type_impl<D, S>::type;
 	};
 
 	
 
-	template<typename T>
-	using non_parameterized_type = typename non_parameterized_type_impl<T>::type;
+	template<size_t D, typename T>
+	using non_parameterized_type = typename non_parameterized_type_impl<D, T>::type;
 
 }
 
@@ -461,7 +510,7 @@ struct model_field_name_builder
 {
 	const char* operator()(int index) const
 	{
-		static char** names = build_names(model_field_name_format<M>::value);
+		static auto names = build_names(model_field_name_format<M>::value);
 		return names[index];
 	}
 
@@ -485,7 +534,7 @@ struct model_field_name_builder
 	}
 
 	template<size_t N>
-	char** build_names(const char* (&list)[N]) const
+	decltype(auto) build_names(const char* (&list)[N]) const
 	{
 		return list;
 	}
@@ -576,6 +625,7 @@ namespace symphas::internal
 		virtual void operator()(const S* _s, len_type len, iter_type index, const char* dir) const = 0;
 		virtual void operator()(const S* _s, len_type len, iter_type index, const char* dir, const char* name) const = 0;
 		virtual const S* get_first(const S* _s) const = 0;
+		virtual S* get_first(S* _s) = 0;
 		virtual ~modifier_save() {}
 	};
 
@@ -625,6 +675,11 @@ namespace symphas::internal
 		}
 
 		virtual const S* get_first(const S* _s) const override
+		{
+			return _s;
+		}
+
+		virtual S* get_first(S* _s) override
 		{
 			return _s;
 		}
@@ -679,33 +734,38 @@ namespace symphas::internal
 			return &s_max;
 		}
 
+		virtual S* get_first(S* _s) override
+		{
+			return &s_max;
+		}
+
 		S s_max;
 		size_t N;
 	};
 
-	template<typename... S>
+	template<size_t D, typename... S>
 	struct list_array_types;
 
-	template<typename... array_ts, typename T, typename... Rest>
-	struct list_array_types<symphas::lib::types_list<array_ts...>, T, Rest...>
+	template<size_t D, typename... array_ts, typename T, typename... Rest>
+	struct list_array_types<D, symphas::lib::types_list<array_ts...>, T, Rest...>
 	{
-		using type = typename list_array_types<
+		using type = typename list_array_types<D,
 			symphas::lib::expand_types_list<array_ts...,
 			std::conditional_t<
 				symphas::internal::is_field_array_type<T>,
-				symphas::lib::types_list<symphas::internal::non_parameterized_type<T>>,
+				symphas::lib::types_list<symphas::internal::non_parameterized_type<D, T>>,
 				symphas::lib::types_list<>>>,
 			Rest...>::type;
 	};
 
-	template<typename... array_ts>
-	struct list_array_types<symphas::lib::types_list<array_ts...>>
+	template<size_t D, typename... array_ts>
+	struct list_array_types<D, symphas::lib::types_list<array_ts...>>
 	{
 		using type = symphas::lib::types_list<array_ts...>;
 	};
 
-	template<typename... S>
-	using list_array_t = typename list_array_types<symphas::lib::types_list<>, S...>::type;
+	template<size_t D, typename... S>
+	using list_array_t = typename list_array_types<D, symphas::lib::types_list<>, S...>::type;
 
 
 	template<typename Sp, size_t D, typename... S>
@@ -720,7 +780,7 @@ namespace symphas::internal
 	template<typename Sp, size_t D, typename... S>
 	struct modifier_save_types
 	{
-		using type = typename modifier_save_types<Sp, D, list_array_t<S...>>::type;
+		using type = typename modifier_save_types<Sp, D, list_array_t<D, S...>>::type;
 	};
 
 	template<typename Sp, size_t D, typename... S>
@@ -782,10 +842,10 @@ struct Model<D, Sp, symphas::internal::field_array_t<void>, Ts...>
 	 */
 	template<size_t N = 0>
 	using type_of_S = symphas::lib::type_at_index<N,
-		symphas::internal::non_parameterized_type<Ts>...>;
+		symphas::internal::non_parameterized_type<D, Ts>...>;
 
 	using all_field_types = symphas::lib::types_list<
-		symphas::internal::non_parameterized_type<Ts>...>;
+		symphas::internal::non_parameterized_type<D, Ts>...>;
 
 	template<typename Type>
 	static constexpr bool model_has_type = symphas::lib::index_of_type<Type, symphas::lib::expand_types_list<all_field_types>> >= 0;
@@ -1385,10 +1445,10 @@ public:
 		}
 
 #ifdef VTK_ON
-		if (viz_update
-			&& params::viz_interval
+		if (viz_update != nullptr
 			&& index % params::viz_interval == 0)
 		{
+			get_viz_field();
 			viz_update->update();
 		}
 #endif
@@ -1602,17 +1662,43 @@ protected:
 	ColourPlotUpdater* viz_update;
 
 
+	SolverSystemApplied<>* get_viz_field(std::index_sequence<>)
+	{
+		update_save_type<num_array_types - 1>();
+		return std::get<num_array_types - 1>(save_method)->get_first(_s + num_field_offset<num_array_types - 1>());
+	}
+
+	template<size_t I0, size_t... Is>
+	SolverSystemApplied<>* get_viz_field(std::index_sequence<I0, Is...>)
+	{
+		if (I0 == params::viz_index)
+		{
+			update_save_type<I0>();
+			return std::get<I0>(save_method)->get_first(_s + num_field_offset<I0>());
+		}
+		else
+		{
+			return get_viz_field(std::index_sequence<Is...>{});
+		}
+	}
+
+	SolverSystemApplied<>* get_viz_field()
+	{
+		return get_viz_field(std::make_index_sequence<num_array_types>{});
+	}
+
+
 	void visualize()
 	{
 		if constexpr (std::is_same<type_of_S<>, scalar_t>::value)
 		{
-			SolverSystemApplied<>* ss = std::get<0>(save_method)->get_first(_s);
-			if (params::viz_interval > 0)
+			SolverSystemApplied<>* ss = get_viz_field();
+			if (params::viz_enabled && params::viz_interval > 0)
 			{
 				viz_thread = std::thread([] (auto* viz_grid, int* index, auto** viz_update)
 					{
 						ColourPlot2d viz{};
-						viz.init(viz_grid->values, viz_grid->dims, *index, *viz_update);
+						viz.init(viz_grid->values, grid::get_data_domain(*viz_grid), *index, *viz_update);
 					}, &(ss->as_grid()), &index, &viz_update);
 			}
 		}
@@ -1622,7 +1708,7 @@ protected:
 	{
 		if constexpr (std::is_same<type_of_S<>, scalar_t>::value)
 		{
-			if (params::viz_interval > 0)
+			if (params::viz_enabled && params::viz_interval > 0)
 			{
 				viz_thread.join();
 			}

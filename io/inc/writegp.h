@@ -405,7 +405,7 @@ R"~(
 	{
 		inline void operator()(const char*& gnu_set)
 		{
-			plot_fmt<D, symphas::internal::non_parameterized_type<S0>> {}(gnu_set);
+			plot_fmt<D, symphas::internal::non_parameterized_type<D, S0>> {}(gnu_set);
 		}
 	};
 
@@ -493,14 +493,14 @@ R"~(
 	template<size_t D, typename... S>
 	void get_plot_fmt(const char* (*gnu_set), symphas::lib::types_list<symphas::internal::field_array_t<void>, S...>)
 	{
-		get_plot_fmt<D, symphas::internal::non_parameterized_type<S>...>(gnu_set, std::make_index_sequence<sizeof...(S)>{});
+		get_plot_fmt<D, symphas::internal::non_parameterized_type<D, S>...>(gnu_set, std::make_index_sequence<sizeof...(S)>{});
 	}
 
 	//! Get the string corresponding to the gnuplot input format for the data.
 	template<size_t D, typename S0, typename... S>
 	void get_plot_fmt(const char* (*gnu_set), symphas::lib::types_list<S0, S...>)
 	{
-		get_plot_fmt<D, symphas::internal::non_parameterized_type<S0>, symphas::internal::non_parameterized_type<S>...>(gnu_set, std::make_index_sequence<sizeof...(S)>{});
+		get_plot_fmt<D, symphas::internal::non_parameterized_type<D, S0>, symphas::internal::non_parameterized_type<D, S>...>(gnu_set, std::make_index_sequence<sizeof...(S) + 1>{});
 	}
 
 	//! Get the string corresponding to the gnuplot input format for the data.

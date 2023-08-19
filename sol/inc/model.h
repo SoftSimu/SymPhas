@@ -63,7 +63,7 @@ struct Model
 	//! The type of the system storing the phase fields, used by the solver.
 	template<typename Ty>
 	using SolverSystemApplied = typename symphas::solver_system_type<Sp>::
-		template type<symphas::internal::non_parameterized_type<Ty>, D>;
+		template type<symphas::internal::non_parameterized_type<D, Ty>, D>;
 
 
 protected:
@@ -86,7 +86,7 @@ public:
 	 * \tparam N The phase field index to get the type.
 	 */
 	template<size_t N>
-	using type_of_S = symphas::lib::type_at_index<N, symphas::internal::non_parameterized_type<S>...>;
+	using type_of_S = symphas::lib::type_at_index<N, symphas::internal::non_parameterized_type<D, S>...>;
 
 
 	//! Create a new model.
@@ -280,7 +280,7 @@ public:
 	template<typename S0>
 	static constexpr size_t num_fields()
 	{
-		return ((static_cast<size_t>(std::is_same<S0, symphas::internal::non_parameterized_type<S>>::value) + ...));
+		return ((static_cast<size_t>(std::is_same<S0, symphas::internal::non_parameterized_type<D, S>>::value) + ...));
 	}
 
 	//! Get the number of fields of the given types.
@@ -295,7 +295,7 @@ public:
 	template<typename S0, typename S1, typename... Ss>
 	static constexpr size_t num_fields()
 	{
-		return ((static_cast<size_t>(std::is_same<S0, symphas::internal::non_parameterized_type<S>>::value) + ...)) 
+		return ((static_cast<size_t>(std::is_same<S0, symphas::internal::non_parameterized_type<D, S>>::value) + ...)) 
 			+ num_fields<S1, Ss...>();
 	}
 
@@ -310,7 +310,7 @@ public:
 	 * \tparam I Chose the `I`-th appearance of the chosen type.
 	 */
 	template<typename Type, size_t I = 0>
-	static constexpr int index_of_type = symphas::lib::nth_index_of_type<Type, I, symphas::internal::non_parameterized_type<S>...>;
+	static constexpr int index_of_type = symphas::lib::nth_index_of_type<Type, I, symphas::internal::non_parameterized_type<D, S>...>;
 
 	//! Execute a function for all fields of the given type.
 	/*!
@@ -458,8 +458,7 @@ public:
 		step(std::make_index_sequence<SN>{}, dt);
 
 #ifdef VTK_ON
-		if (viz_update 
-			&& params::viz_interval 
+		if (viz_update != nullptr
 			&& index % params::viz_interval == 0)
 		{
 			viz_update->update();
@@ -592,20 +591,57 @@ protected:
 
 	std::thread viz_thread;
 	ColourPlotUpdater* viz_update;
-	
+
+	template<size_t Pr>
+	auto get_viz_field(std::index_sequence<>)
+	{
+		return &grid<Pr>();
+	}
+
+	template<size_t Pr, size_t I0, size_t... Is>
+	auto get_viz_field(std::index_sequence<I0, Is...>)
+	{
+		if (I0 == params::viz_index)
+		{
+			return &grid<I0>();
+		}
+		else if (I0 > params::viz_index)
+		{
+			return &grid<Pr>();
+		}
+		else
+		{
+			return get_viz_field<I0>(std::index_sequence<Is...>{});
+		}
+	}
+
+	template<int I0, int... Is>
+	auto get_viz_field(std::integer_sequence<int, I0, Is...>)
+	{
+		return get_viz_field<size_t(I0)>(std::index_sequence<size_t(I0), size_t(Is)...>{});
+	}
+
+	template<size_t... Is>
+	auto get_viz_field(std::index_sequence<Is...>)
+	{
+		using seq = std::integer_sequence<int, index_of_type<scalar_t, Is>...>;
+		using seq_filtered = symphas::lib::filter_seq_t<seq, std::integer_sequence<int, -1>>;
+		return get_viz_field(seq_filtered{});
+	}
 
 	template<int N = index_of_type<scalar_t>>
 	void visualize()
 	{
 		if constexpr (N >= 0)
 		{
-			if (params::viz_interval > 0)
+			using seq = std::make_index_sequence<SN>;
+			if (params::viz_enabled && params::viz_interval > 0)
 			{
 				viz_thread = std::thread([] (auto* viz_grid, int* index, auto** viz_update)
 				{
 					ColourPlot2d viz{};
-					viz.init(viz_grid->values, viz_grid->dims, *index, *viz_update);
-				}, &grid<size_t(N)>(), &index, &viz_update);
+					viz.init(viz_grid->values, grid::get_data_domain(*viz_grid), *index, *viz_update);
+				}, get_viz_field(seq{}), &index, &viz_update);
 			}
 		}
 	}
@@ -614,7 +650,7 @@ protected:
 	{
 		if constexpr (num_fields<scalar_t>() > 0)
 		{
-			if (params::viz_interval > 0)
+			if (params::viz_enabled && params::viz_interval > 0)
 			{
 				viz_thread.join();
 			}
@@ -786,7 +822,7 @@ protected:
 		typename std::enable_if_t<!std::is_same<other_sys_type, std::tuple_element_t<I, std::tuple<SolverSystemApplied<S>...>>>::value, int> = 0>
 	SolverSystemApplied<symphas::lib::type_at_index<I, S...>> construct_system(other_sys_type const& system) const
 	{
-		using value_type = symphas::lib::type_at_index<I, symphas::internal::non_parameterized_type<S>...>;
+		using value_type = symphas::lib::type_at_index<I, symphas::internal::non_parameterized_type<D, S>...>;
 
 		symphas::b_data_type boundaries{};
 		for (iter_type i = 0; i < D * 2; ++i)
@@ -1131,20 +1167,20 @@ template<typename M>
 using model_parameter_types_t = typename model_parameter_types<M>::type;
 
 
-template<typename M>
+template<size_t D, typename M>
 struct model_types
 {
-	using type = typename model_types<model_parameter_types_t<M>>::type;
+	using type = typename model_types<D, model_parameter_types_t<M>>::type;
 };
 
-template<typename... S>
-struct model_types<symphas::lib::types_list<S...>>
+template<size_t D, typename... S>
+struct model_types<D, symphas::lib::types_list<S...>>
 {
-	using type = symphas::lib::types_list<symphas::internal::non_parameterized_type<S>...>;
+	using type = symphas::lib::types_list<symphas::internal::non_parameterized_type<D, S>...>;
 };
 
 template<typename M>
-using model_types_t = typename model_types<M>::type;
+using model_types_t = typename model_types<model_dimension<M>::value, M>::type;
 
 
 template<typename M>

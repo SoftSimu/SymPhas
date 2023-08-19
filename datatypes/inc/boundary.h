@@ -410,7 +410,7 @@ namespace grid
 
 		void update(carry_value<T> val, axis_coord_t, axis_coord_t, double time) const
 		{
-			if (!val.clear)
+			if (val.is_valid())
 			{
 				update(*val.value, 0, 0, time);
 			}
@@ -487,7 +487,7 @@ namespace grid
 
 		void update(carry_value<T> val, axis_coord_t x, axis_coord_t, double time) const
 		{
-			if (!val.clear)
+			if (val.is_valid())
 			{
 				update(*val.value, x, 0, time);
 			}
@@ -556,7 +556,7 @@ namespace grid
 
 		void update(carry_value<T> val, axis_coord_t x, axis_coord_t y, double time) const
 		{
-			if (!val.clear)
+			if (val.is_valid())
 			{
 				update(*val.value, x, y, time);
 			}

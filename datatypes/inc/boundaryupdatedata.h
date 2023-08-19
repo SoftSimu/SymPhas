@@ -1553,6 +1553,12 @@ namespace symphas::internal
 		bd->update(*value.value, pos[0], pos[1], time);
 	}
 
+	template<typename T, size_t Dm1>
+	void apply_boundary_function(const grid::BoundaryApplied<any_vector_t<T, Dm1 + 1>, Dm1, BoundaryType::DEFAULT>* bd, multi_value<Dm1 + 1, T> const& value, const double(&pos)[2], double time)
+	{
+		bd->update(value, pos[0], pos[1], time);
+	}
+
 	template<typename T, size_t D, Side... sides>
 	void regional_update_boundary(symphas::lib::side_list<sides...>, const grid::Boundary<T, D - 1>* b, RegionalGrid<T, D>& grid, double time)
 	{

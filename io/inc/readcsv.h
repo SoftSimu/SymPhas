@@ -33,24 +33,10 @@ namespace symphas::io::csv
 {
 
 	//! Plain text implementation of reading data.
-	template<typename T>
-	int read_grid(T* values, symphas::io::read_info const& rinfo)
+	template<typename value_type>
+	int read_grid(value_type values, symphas::io::read_info const& rinfo)
 	{
-		return symphas::io::gp::read_grid(values, rinfo);
-	}
-
-	//! Plain text implementation of reading data.
-	template<typename T, size_t N>
-	int read_grid(T(*values)[N], symphas::io::read_info const& rinfo)
-	{
-		return symphas::io::gp::read_grid(values, rinfo);
-	}
-
-	//! Plain text implementation of reading data.
-	template<typename T, size_t N>
-	int read_grid(T* (&values)[N], symphas::io::read_info const& rinfo)
-	{
-		return symphas::io::gp::read_grid(values, rinfo);
+		return symphas::io::gp::read_grid<value_type>(values, rinfo);
 	}
 
 	DECLARE_GP_HEADER_FUNCTIONS
