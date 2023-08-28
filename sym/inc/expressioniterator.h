@@ -640,7 +640,7 @@ namespace symphas::internal
 	template<typename operation_t, typename iterator_group_t, typename... iterator_group_ts>
 	struct iterator_group_operation<operation_t, iterator_group_t, iterator_group_ts...>
 	{
-		using eval_type = keep_value_only_t<add_result_t<typename iterator_group_t::eval_type, typename iterator_group_ts::eval_type...>>;
+		using eval_type = keep_value_only_t<add_result_t<typename iterator_group_t::eval_type, add_result_t<typename iterator_group_ts::eval_type...>>>;
 
 		iterator_group_operation(iterator_group_t const& iterator0, iterator_group_ts const& ...iterators) : iterators{ iterator0, iterators... } {}
 		template<size_t... Is>

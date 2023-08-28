@@ -7332,7 +7332,7 @@ namespace expr
 			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, symphas::lib::types_list<Vs...>> const& sum,
 			Es&&... terms) const
 		{
-			using expr_type = mul_result_t<Es..., OpSum<V0, E, Substitution<SymbolicDataArray<Ts>...>,
+			using expr_type = mul_result_t<mul_result_t<Es...>, OpSum<V0, E, Substitution<SymbolicDataArray<Ts>...>,
 				symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, symphas::lib::types_list<Vs...>>>;
 
 			if (sum.data.persistent.len > 0)

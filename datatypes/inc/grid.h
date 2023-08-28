@@ -1117,7 +1117,7 @@ namespace grid
 		{
 			iter_type pos0[D]{};
 			for (iter_type i = 0; i < D; ++i) pos0[i] = pos[i];
-			return operator()(pos0, values[i], domain_dims, empty[i]);
+			return operator()(pos0, values, domain_dims, empty);
 		}
 
 		template<typename T>
@@ -1125,7 +1125,7 @@ namespace grid
 		{
 			iter_type pos0[D]{};
 			for (iter_type i = 0; i < D; ++i) pos0[i] = pos[i];
-			return operator()(pos0, values[i], domain_dims, empty[i]);
+			return operator()(pos0, values, domain_dims, empty);
 		}
 
 

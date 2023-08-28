@@ -2933,15 +2933,15 @@ namespace expr
 		size_t print_limit_length(OpAdd<Es...> const& e, std::index_sequence<I0, Is...>, bool upper = false)
 		{
 			size_t n = 0;
-			n += print_limit(out, expr::get<I0>(e));
+			n += print_limit_length(expr::get<I0>(e));
 
 			if constexpr (sizeof...(Is) > 0)
 			{
 				if (expr::eval(expr::coeff(expr::get<I0 + 1>(e))) >= 0)
 				{
-					n += symphas::internal::print_sep(out + n, SYEX_ADD_SEP);
+					n += STR_ARR_LEN(SYEX_ADD_SEP);
 				}
-				n += print_limit(out + n, e, std::index_sequence<Is...>{});
+				n += print_limit_length(e, std::index_sequence<Is...>{});
 			}
 
 			return n;
