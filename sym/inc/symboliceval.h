@@ -62,7 +62,6 @@ struct SymbolicListIndex<E, void>
 	{
 		return end() - start() + 1;
 	}
-
 };
 
 template<typename E, typename K>
@@ -250,13 +249,15 @@ struct OpSymbolicEval<V, SymbolicListIndex<E0, K>, SymbolicFunction<E, Variable<
 	OpSymbolicEval(V value, sub_t const& data, eval_t const& f) :
 		value{ value }, f{ f }, data{ data },
 		index{ data.start(), data.start(), data.end() },
-		list{ (data.length() > 0) ? new list_t * [data.length()] {} : nullptr}
+		list{ (data.length() > 0) ? new f_type[data.length()] {} : nullptr}
 	{
-		auto sw = symphas::internal::swapped_for_dynamic<K>(f.e, index);
 		for (iter_type i = 0; i < data.length(); ++i)
 		{
-			list[i] = new list_t(sw);
-			list[i]->set_data_tuple(f.data);
+			f_type sw(symphas::internal::swapped_for_dynamic<K>(f.e, index));
+			sw.set_data_tuple(f.data);
+		
+			using std::swap;
+			swap(list[i], sw);
 		}
 	}
 
@@ -296,15 +297,15 @@ struct OpSymbolicEval<V, SymbolicListIndex<E0, K>, SymbolicFunction<E, Variable<
 	DynamicIndex index;
 
 
-	using list_expr_t = std::invoke_result_t<decltype(&symphas::internal::swapped_for_dynamic<K, E>), E, DynamicIndex>;
-	using list_t = SymbolicFunction<list_expr_t, Variable<Ns, Ts>...>;
+	using f_expr_t = std::invoke_result_t<decltype(&symphas::internal::swapped_for_dynamic<K, E>), E, DynamicIndex>;
+	using f_type = SymbolicFunction<f_expr_t, Variable<Ns, Ts>...>;
 
-	list_t** list;
+	f_type* list;
 
 	auto eval(iter_type n) const
 	{
-		int i = (int)data.e.eval(n) - data.start();
-		return expr::eval(value) * list[i]->operator[](n);
+		iter_type i = int(data.e.eval(n)) - data.start();
+		return expr::eval(value) * list[i][n];
 	}
 
 	auto operator-() const
@@ -316,7 +317,7 @@ struct OpSymbolicEval<V, SymbolicListIndex<E0, K>, SymbolicFunction<E, Variable<
 	void update(symphas::lib::types_list<condition_ts...>)
 	{
 		index = data.e.eval();
-		expr::prune::update<condition_ts...>(list[index.index() - data.start()]->e);
+		expr::prune::update<condition_ts...>(list[index.index() - data.start()].e);
 	}
 
 	void update()
@@ -352,14 +353,7 @@ struct OpSymbolicEval<V, SymbolicListIndex<E0, K>, SymbolicFunction<E, Variable<
 
 	~OpSymbolicEval()
 	{
-		if (list != nullptr)
-		{
-			for (iter_type i = 0; i < data.length(); ++i)
-			{
-				delete list[i];
-			}
-			delete[] list;
-		}
+		delete[] list;
 	}
 
 };
@@ -507,6 +501,12 @@ namespace symphas::internal
 
 	template<size_t N0>
 	auto separate_placeholder(DynamicIndex const& index)
+	{
+		return std::make_pair(OpVoid{}, index);
+	}
+
+	template<size_t N0, typename V>
+	auto separate_placeholder(OpBinaryMul<V, DynamicIndex> const& index)
 	{
 		return std::make_pair(OpVoid{}, index);
 	}

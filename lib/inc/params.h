@@ -370,6 +370,88 @@ protected:
 	}
 };
 
+#ifdef EXECUTION_HEADER_AVAILABLE
+#include <execution>
+
+namespace symphas
+{
+	enum ParallelizationType
+	{
+		PAR,
+		SEQ
+	};
+
+	inline auto get_parallelization_policy(ParallelizationType type)
+	{
+		if (type == PAR)
+		{
+			return std::execution::par_unseq;
+		}
+		else
+		{
+			return std::execution::par_unseq;
+		}
+	}
+}
+
+
+template<>
+struct params::param_assign<symphas::ParallelizationType> : params::param_assign_base
+{
+	//! Implementation to assign a bool from a string to a parameter.
+	/*!
+	 * A truth value in a string is parsed and assigned to the parameter. If
+	 * the truth value could not be parsed, the program exits and reports the error.
+	 * The truth value can either be "true" or "yes" to indicate `true`, or it
+	 * can be "false" or "no" to indicate `false`. The input is not case sensitive.
+	 *
+	 * \param param The parameter to assign.
+	 * \param value The value as a string to assign to `param`.
+	 */
+	void assign(void* param, const char* value)
+	{
+		*static_cast<symphas::ParallelizationType*>(param) = extract_policy(value, *static_cast<symphas::ParallelizationType*>(param));
+	}
+
+	size_t print_with_name(FILE* out, void* param, const char* name)
+	{
+		return fprintf(out, "%s[=seq|par](default=%s)", name, 
+			(*static_cast<symphas::ParallelizationType*>(param) == symphas::ParallelizationType::SEQ) ? "seq" : "par");
+	}
+
+protected:
+
+	symphas::ParallelizationType extract_policy(const char* value, symphas::ParallelizationType default_value)
+	{
+		size_t len = std::strlen(value) + 1;
+
+		if (len > 1)
+		{
+			char* cpy = new char[len];
+			std::strncpy(cpy, value, len);
+			symphas::lib::to_lower(cpy);
+
+			if (std::strcmp(cpy, "seq") == 0)
+			{
+				return symphas::ParallelizationType::SEQ;
+			}
+			else if (std::strcmp(cpy, "par") == 0)
+			{
+				return symphas::ParallelizationType::PAR;
+			}
+			else
+			{
+				return default_value;
+			}
+		}
+		else
+		{
+			return symphas::ParallelizationType::PAR;
+		}
+	}
+};
+#endif
+
 
 /* **************************************************************************
  * Parameter object typedefs
@@ -591,6 +673,10 @@ namespace params
 	 * This is #INDEX_INIT by default.
 	 */
 	DLLLIB extern int start_index;
+
+#ifdef EXECUTION_HEADER_AVAILABLE
+	DLLLIB extern symphas::ParallelizationType parallelization;
+#endif
 
 	//! List of all the key/value parameter strings.
 	/*!

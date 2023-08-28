@@ -63,6 +63,11 @@ bool add_base_params(param_map_type& param_map)
 		" provided in the configuration at the initial condition parameter" };
 	param_map["data"] = { &input_data_file, new param_assign<char*>, 'd' };
 
+
+#ifdef EXECUTION_HEADER_AVAILABLE
+	param_map["parallelization"] = { &parallelization, new param_assign<symphas::ParallelizationType>, 'P' };
+#endif
+
 	return true;
 }
 
@@ -77,6 +82,10 @@ DLLLIB double params::init_outside_val = -1;
 DLLLIB double params::init_rand_val = 1;
 DLLLIB char* params::input_data_file = nullptr;
 DLLLIB int params::start_index = INDEX_INIT;
+
+#ifdef EXECUTION_HEADER_AVAILABLE
+DLLLIB symphas::ParallelizationType params::parallelization = symphas::ParallelizationType::PAR;
+#endif
 
 DLLLIB void* params::viz_interval_enable[2]{ (void*)&params::viz_interval, (void*)&params::viz_enabled };
 DLLLIB void* params::viz_index_enable[2]{ (void*)&params::viz_index, (void*)&params::viz_enabled };

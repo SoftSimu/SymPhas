@@ -284,6 +284,8 @@ struct OpBinaryDiv;
 
 
 template<typename E>
+struct OpEvaluable;
+template<typename E>
 struct OpExpression;
 template<typename E>
 struct OpOperator;
@@ -358,6 +360,8 @@ struct OpFunctionApply;
 template<typename V, typename sub_t, typename... Ts>
 struct OpSymbolicEval;
 
+template<typename E>
+struct OpOptimized;
 
 template<typename T>
 struct SymbolicData;

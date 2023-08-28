@@ -98,7 +98,7 @@
  * \tparam E The specialized operator, used for the CRTP strategy.
  */
 template<typename E>
-struct OpOperator/* : OpExpression<E> */
+struct OpOperator : OpEvaluable<E>
 {
 	inline auto eval(iter_type) const
 	{
@@ -1306,6 +1306,25 @@ template<typename coeff_t, typename A1, typename A2,
 auto operator*(coeff_t const& a, OpOperatorChain<A1, A2> const& b)
 {
 	return (a * b.f)(b.g);
+}
+
+template<typename coeff_t, typename A2,
+	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+auto operator*(coeff_t const& a, OpOperatorChain<OpIdentity, A2> const& b)
+{
+	return OpOperatorChain(OpIdentity{}, a * b.g);
+}
+
+template<typename E, typename A2>
+auto operator*(OpExpression<E> const& e, OpOperatorChain<OpIdentity, A2> const& b)
+{
+	return expr::dot(*static_cast<E const*>(&e), b);
+}
+
+template<typename... Es, typename A2>
+auto operator*(OpAdd<Es...> const& e, OpOperatorChain<OpIdentity, A2> const& b)
+{
+	return expr::dot(e, b);
 }
 
 template<typename coeff_t, typename A1, typename A2,

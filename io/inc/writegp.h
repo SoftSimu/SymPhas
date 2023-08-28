@@ -594,11 +594,21 @@ R"~(
 	 * will be plotted
 	 */
 
+	template<typename M>
+	constexpr size_t model_type_len = 0;
+
+	template<size_t D, typename Sp, typename... S>
+	constexpr size_t model_type_len<Model<D, Sp, S...>> = sizeof...(S);
+
+	template<size_t D, typename Sp, typename... S>
+	constexpr size_t model_type_len<ArrayModel<D, Sp, S...>> = sizeof...(S);
+
+
 #ifdef LATEX_PLOT
 	template<size_t D, typename Sp, typename... S>
 	void write_plot_config(Model<D, Sp, S...> const& model, const char* directory, const char* const* names, SaveParams const& save)
 	{
-		for (size_t id = 0; id < sizeof...(S); ++id)
+		for (size_t id = 0; id < model_type_len<Model<D, Sp, S...>>; ++id)
 		{
 			FILE* gnu;
 			char plot_name[BUFFER_LENGTH]{},	// name of the plot file
@@ -628,7 +638,7 @@ R"~(
 			print_plot_ranges<D>(gnu, intervals);
 
 			size_t saves = save.num_saves();
-			const char* sets[sizeof...(S)];
+			const char* sets[model_type_len<Model<D, Sp, S...>>];
 			get_plot_fmt<D, S...>(sets);
 
 			alignment::load_parameters();
@@ -740,15 +750,6 @@ R"~(
 	//! Specialization of finalize_plot_arrangement(char).
 	template<>
 	inline void finalize_plot_arrangement<1>(char*) {}
-
-	template<typename M>
-	constexpr size_t model_type_len = 0;
-
-	template<size_t D, typename Sp, typename... S>
-	constexpr size_t model_type_len<Model<D, Sp, S...>> = sizeof...(S);
-
-	template<size_t D, typename Sp, typename... S>
-	constexpr size_t model_type_len<ArrayModel<D, Sp, S...>> = sizeof...(S);
 
 	template<size_t D, typename Sp, typename... S>
 	void write_plot_config(Model<D, Sp, S...> const& model, const char* directory, const char* const* names, SaveParams const& save)

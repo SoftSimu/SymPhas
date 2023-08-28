@@ -912,6 +912,166 @@ namespace expr
 		return symphas::internal::make_operator_directional_derivative<ax, O>::template get(std::forward<V>(v), std::forward<A>(solver));
 	}
 
+	//! Create a directional derivative operator.
+	/*!
+	 * Create a derivative of the given order, using the given solver
+	 * to apply the numerical approximation.
+	 *
+	 * \param solver The solver which approximates the derivative.
+	 *
+	 * \tparam ax The axis along which the directional derivative is applied.
+	 * \tparam O The order of the derivative to generate.
+	 */
+	template<Axis ax, size_t O, size_t Z>
+	auto make_operator_directional_derivative()
+	{
+		return symphas::internal::make_operator_directional_derivative<ax, O>::template get(SymbolicDerivative<Variable<Z>>{});
+	}
+
+	//! Create a directional derivative operator.
+	/*!
+	 * Create a derivative of the given order, using the given solver
+	 * to apply the numerical approximation.
+	 *
+	 * \param v The coefficient to the derivative.
+	 * \param a The solver which approximates the derivative.
+	 *
+	 * \tparam ax The axis along which the directional derivative is applied.
+	 * \tparam O The order of the derivative to generate.
+	 */
+	template<Axis ax, size_t O, size_t Z, typename V>
+	auto make_operator_directional_derivative(V&& v)
+	{
+		return symphas::internal::make_operator_directional_derivative<ax, O>::template get(std::forward<V>(v), SymbolicDerivative<Variable<Z>>{});
+	}
+
+	//! Create a directional derivative operator.
+	/*!
+	 * Create a derivative of the given order, using the given solver
+	 * to apply the numerical approximation.
+	 *
+	 * \param solver The solver which approximates the derivative.
+	 *
+	 * \tparam ax The axis along which the directional derivative is applied.
+	 * \tparam O The order of the derivative to generate.
+	 */
+	template<Axis ax, size_t O, typename G>
+	auto make_operator_directional_derivative()
+	{
+		return symphas::internal::make_operator_directional_derivative<ax, O>::template get(SymbolicDerivative<G>{});
+	}
+
+	//! Create a directional derivative operator.
+	/*!
+	 * Create a derivative of the given order, using the given solver
+	 * to apply the numerical approximation.
+	 *
+	 * \param v The coefficient to the derivative.
+	 * \param a The solver which approximates the derivative.
+	 *
+	 * \tparam ax The axis along which the directional derivative is applied.
+	 * \tparam O The order of the derivative to generate.
+	 */
+	template<Axis ax, size_t O, typename G, typename V>
+	auto make_operator_directional_derivative(V&& v)
+	{
+		return symphas::internal::make_operator_directional_derivative<ax, O>::template get(std::forward<V>(v), SymbolicDerivative<G>{});
+	}
+
+
+	//! Create a derivative operator, as a directional derivative.
+	/*!
+	 * Create a derivative of the given order, using the given solver
+	 * to apply the numerical approximation.
+	 *
+	 * \tparam ax The axis the derivative is applied.
+	 * \param solver The solver which approximates the derivative.
+	 *
+	 * \tparam O The order of the derivative to generate.
+	 */
+	template<Axis ax, size_t O, typename A>
+	auto make_operator_derivative(A&& solver)
+	{
+		return make_operator_directional_derivative<ax, O>(std::forward<A>(solver));
+	}
+
+	//! Create a derivative operator, as a directional derivative.
+	/*!
+	 * Create a derivative of the given order, using the given solver
+	 * to apply the numerical approximation.
+	 *
+	 * \tparam ax The axis the derivative is applied.
+	 * \param v The coefficient to the derivative.
+	 * \param a The solver which approximates the derivative.
+	 *
+	 * \tparam O The order of the derivative to generate.
+	 */
+	template<Axis ax, size_t O, typename V, typename A>
+	auto make_operator_derivative(V&& v, A&& solver)
+	{
+		return make_operator_directional_derivative<ax, O>(std::forward<V>(v), std::forward<A>(solver));
+	}
+
+	//! Create a symbolic derivative operator, as a directional derivative.
+	/*!
+	 * Create a derivative of the given order for symbolic differentiation.
+	 *
+	 * \tparam ax The axis the derivative is applied.
+	 * \tparam O The order of the derivative to generate.
+	 * \tparam G The variable against which this expression is differentiated.
+	 */
+	template<Axis ax, size_t O, typename G>
+	auto make_operator_derivative()
+	{
+		return make_operator_directional_derivative<ax, O, G>();
+	}
+
+	//! Create a symbolic derivative operator, as a directional derivative.
+	/*!
+	 * Create a derivative of the given order for symbolic differentiation.
+	 *
+	 * \param v The coefficient to the derivative.
+	 *
+	 * \tparam ax The axis the derivative is applied.
+	 * \tparam O The order of the derivative to generate.
+	 * \tparam G The variable against which this expression is differentiated.
+	 */
+	template<Axis ax, size_t O, typename G, typename V>
+	auto make_operator_derivative(V&& v)
+	{
+		return make_operator_directional_derivative<ax, O, G>(std::forward<V>(v));
+	}
+
+	//! Create a symbolic derivative operator, as a directional derivative.
+	/*!
+	 * Create a derivative of the given order for symbolic differentiation.
+	 *
+	 * \tparam ax The axis the derivative is applied.
+	 * \tparam O The order of the derivative to generate.
+	 * \tparam Z The index of the variable against which to differentiate.
+	 */
+	template<Axis ax, size_t O, size_t Z>
+	auto make_operator_derivative()
+	{
+		return make_operator_directional_derivative<ax, O, Z>();
+	}
+
+	//! Create a symbolic derivative operator, as a directional derivative.
+	/*!
+	 * Create a derivative of the given order for symbolic differentiation.
+	 *
+	 * \param v The coefficient to the derivative.
+	 *
+	 * \tparam ax The axis the derivative is applied.
+	 * \tparam O The order of the derivative to generate.
+	 * \tparam Z The index of the variable against which to differentiate.
+	 */
+	template<Axis ax, size_t O, size_t Z, typename V>
+	auto make_operator_derivative(V&& v)
+	{
+		return make_operator_directional_derivative<ax, O, Z>(std::forward<V>(v));
+	}
+
 
 	//! Create a mixed directional derivative operator.
 	/*!
@@ -1300,12 +1460,29 @@ namespace expr
 namespace symphas::internal
 {
 	template<typename T, size_t D, typename E>
-	void update_derivative_grid(Grid<T, D>& grid, OpExpression<E> const& e) {}
+	void update_temporary_grid(Grid<T, D>& grid, OpEvaluable<E> const& e) {}
+
+	template<typename T, size_t D>
+	void update_temporary_grid(RegionalGrid<T, D>& grid, grid::region_interval<D> interval)
+	{
+		for (iter_type i = 0; i < D; ++i)
+		{
+			interval[i][0] -= grid.region.boundary_size;
+			interval[i][1] += grid.region.boundary_size;
+		}
+		grid::resize_adjust_region(grid, interval);
+	}
+
+	template<typename T, size_t D>
+	void update_temporary_grid(RegionalGrid<T, D>& grid, grid::region_interval_multiple<D> const& regions)
+	{
+		update_temporary_grid(grid, +regions);
+	}
 
 	template<typename T, size_t D, typename E>
-	void update_derivative_grid(RegionalGrid<T, D>& grid, OpExpression<E> const& e)
+	void update_temporary_grid(RegionalGrid<T, D>& grid, OpEvaluable<E> const& e)
 	{
-		grid::resize_adjust_region(grid, expr::iterable_domain(*static_cast<E const*>(&e)));
+		update_temporary_grid(grid, expr::iterable_domain(*static_cast<E const*>(&e)));
 	}
 }
 
@@ -1349,10 +1526,16 @@ struct OpDerivative : OpExpression<OpDerivative<Dd, V, E, Sp>>
 	 */
 	OpDerivative(V value, E const& e, solver_op_type<Sp> solver) : 
 		grid{ symphas::internal::setup_result_data<result_grid>{}(expr::data_dimensions(e)) }, 
-		value{value}, solver{solver}, e{e} { /*update();*/ }
+		value{ value }, solver{ solver }, e{ e } 
+	{ 
+		symphas::internal::update_temporary_grid(grid, e);
+	}
 
 	OpDerivative(E const& e, solver_op_type<Sp> solver) : 
-		grid{ expr::data_dimensions(e) }, value{ OpIdentity{} }, solver{ solver }, e{ e } { /*update();*/ }
+		grid{ expr::data_dimensions(e) }, value{ OpIdentity{} }, solver{ solver }, e{ e }
+	{
+		symphas::internal::update_temporary_grid(grid, e);
+	}
 
 	inline auto eval(iter_type n) const
 	{
@@ -1362,7 +1545,7 @@ struct OpDerivative : OpExpression<OpDerivative<Dd, V, E, Sp>>
 	template<typename... condition_ts>
 	void update(symphas::lib::types_list<condition_ts...>)
 	{
-		symphas::internal::update_derivative_grid(grid, e);
+		symphas::internal::update_temporary_grid(grid, e);
 		expr::result(e, grid, grid::get_data_domain(grid));
 	}
 
@@ -1949,7 +2132,7 @@ struct OpOperatorDerivative : OpOperator<OpOperatorDerivative<O, V, Sp>>
 	OpOperatorDerivative() : value{ V{} }, solver{} {}
 
 	static_assert(O <= DERIV_MAX_ORDER);
-	OpOperatorDerivative(V value, solver_op_type<Sp> solver) : value{ value }, solver{ solver } {}
+	OpOperatorDerivative(V value, solver_op_type<Sp> solver = {}) : value{ value }, solver{ solver } {}
 
 	inline auto eval(iter_type n = 0) const
 	{
@@ -2662,24 +2845,44 @@ namespace symphas::internal
 			return OpVoid{};
 		}
 
+
+		template<typename E, typename Sp>
+		auto get_component(OpExpression<E> const& e, solver_op_type<Sp> solver)
+		{
+			constexpr size_t N = expr::grid_dim<E>::value - R;
+			constexpr size_t D = expr::grid_dim<E>::value;
+			constexpr Axis ax = (N == 1) ? Axis::X : (N == 2) ? Axis::Y : Axis::Z;
+
+			auto ctensor = expr::make_column_vector<N - 1, D>();
+			return ctensor * symphas::internal::nth_derivative_apply<ax, O, Sp>::template get(*static_cast<E const*>(&e), solver);
+
+		}
+
+		template<typename E, typename Sp, size_t... Is>
+		auto operator()(OpExpression<E> const& e, solver_op_type<Sp> solver, std::index_sequence<Is...>)
+		{
+			return (apply_derivative<R + Is, O, 0, 1>{}.get_component((*static_cast<E const*>(&e)), solver) + ...);
+		}
+
 		template<typename E, typename Sp>
 		auto operator()(OpExpression<E> const& e, solver_op_type<Sp> solver)
 		{
-			constexpr size_t N = expr::grid_dim<E>::value - R;
-
-			constexpr size_t D = expr::grid_dim<E>::value;
-			constexpr Axis ax = (N == 1) ? Axis::X : (N == 2) ? Axis::Y : Axis::Z;
-			auto ctensor = expr::make_column_vector<N - 1, D>();
-
-			auto d = ctensor * symphas::internal::nth_derivative_apply<ax, O, Sp>::template get(*static_cast<E const*>(&e), solver);
-			if constexpr (N > 1)
-			{
-				return d + apply_derivative<R + 1, O, 0, 1>{}((*static_cast<E const*>(&e)), solver);
-			}
-			else
-			{
-				return d;
-			}
+			return OpOperatorChain(OpIdentity{}, this->operator()(*static_cast<E const*>(&e), solver, std::make_index_sequence<expr::grid_dim<E>::value>{}));
+			//constexpr size_t N = expr::grid_dim<E>::value - R;
+			//
+			//constexpr size_t D = expr::grid_dim<E>::value;
+			//constexpr Axis ax = (N == 1) ? Axis::X : (N == 2) ? Axis::Y : Axis::Z;
+			//auto ctensor = expr::make_column_vector<N - 1, D>();
+			//
+			//auto d = ctensor * symphas::internal::nth_derivative_apply<ax, O, Sp>::template get(*static_cast<E const*>(&e), solver);
+			//if constexpr (N > 1)
+			//{
+			//	return d + apply_derivative<R + 1, O, 0, 1>{}((*static_cast<E const*>(&e)), solver);
+			//}
+			//else
+			//{
+			//	return d;
+			//}
 		}
 	};
 
@@ -3244,6 +3447,8 @@ namespace expr
 	auto _get_solver(OpBinaryDiv<A, B> const& e);
 	template<typename Dd, typename V, typename E, typename Sp>
 	auto _get_solver(OpDerivative<Dd, V, E, Sp> const& e);
+	template<typename E>
+	auto _get_solver(OpOptimized<E> const& e);
 	template<size_t O, typename V, typename Sp>
 	auto _get_solver(OpOperatorDerivative<O, V, Sp> const& e);
 	template<Axis ax, size_t O, typename V, typename Sp>
@@ -3273,6 +3478,18 @@ namespace expr
 
 	template<typename E>
 	decltype(auto) _get_solver(int const&, OpExpression<E> const& e)
+	{
+		return _get_solver(*static_cast<E const*>(&e));
+	}
+
+	template<typename Sp, typename E>
+	decltype(auto) _get_solver(Sp const& solver, OpOperator<E> const& e)
+	{
+		return solver;
+	}
+
+	template<typename E>
+	decltype(auto) _get_solver(int const&, OpOperator<E> const& e)
 	{
 		return _get_solver(*static_cast<E const*>(&e));
 	}
@@ -3349,6 +3566,12 @@ namespace expr
 		return _get_solver(e.solver, expr::get_enclosed_expression(e));
 	}
 
+	template<typename E>
+	auto _get_solver(OpOptimized<E> const& e)
+	{
+		return _get_solver(_get_solver(e.e), e.term);
+	}
+
 	template<size_t O, typename V, typename Sp>
 	auto _get_solver(OpOperatorDerivative<O, V, Sp> const& e)
 	{
@@ -3416,5 +3639,112 @@ namespace expr
 	}
 }
 
+
+
+namespace expr::symbols
+{
+
+	template<Axis ax>
+	struct derivative_alias_axis {};
+
+
+	template<typename A>
+	auto d_(A&& solver)
+	{
+		return expr::make_operator_derivative<1>(std::forward<A>(solver));
+	}
+
+	template<typename G>
+	auto dF_(G&& symbol)
+	{
+		return expr::make_operator_functional_derivative(std::forward<G>(symbol));
+	}
+
+	constexpr derivative_alias_axis<Axis::X> dx;
+	constexpr derivative_alias_axis<Axis::Y> dy;
+	constexpr derivative_alias_axis<Axis::Z> dz;
+
+	/*
+	template<typename A>
+	auto d_dx(A&& solver)
+	{
+		return expr::make_operator_directional_derivative<Axis::X, 1>(std::forward<A>(solver));
+	}
+
+	template<typename A>
+	auto d2_dx2(A&& solver)
+	{
+		return expr::make_operator_directional_derivative<Axis::X, 2>(std::forward<A>(solver));
+	}
+
+	template<typename A>
+	auto d_dy(A&& solver)
+	{
+		return expr::make_operator_directional_derivative<Axis::Y, 1>(std::forward<A>(solver));
+	}
+
+	template<typename A>
+	auto d2_dy2(A&& solver)
+	{
+		return expr::make_operator_directional_derivative<Axis::Y, 2>(std::forward<A>(solver));
+	}
+
+	template<typename A>
+	auto d_dz(A&& solver)
+	{
+		return expr::make_operator_directional_derivative<Axis::Z, 1>(std::forward<A>(solver));
+	}
+
+	template<typename A>
+	auto d2_dz2(A&& solver)
+	{
+		return expr::make_operator_directional_derivative<Axis::Z, 2>(std::forward<A>(solver));
+	}
+	*/
+
+	template<typename V, typename Sp, size_t O, Axis ax>
+	auto operator/(OpOperatorDerivative<O, V, Sp> const& op, derivative_alias_axis<ax> const&)
+	{
+		return expr::make_operator_directional_derivative<ax, O>(expr::coeff(op), op.solver);
+	}
+
+
+	template<size_t O, typename Sp, size_t N>
+	auto operator^(OpOperatorDerivative<O, OpIdentity, Sp> const& op, OpFractionLiteral<N, 1>)
+	{
+		return expr::make_operator_derivative<O * N>(op.solver);
+	}
+
+	template<size_t O, typename Sp>
+	auto operator^(OpOperatorDerivative<O, OpIdentity, Sp> const& op, OpIdentity)
+	{
+		return op;
+	}
+
+	template<Axis ax, size_t O, typename Sp, size_t N>
+	auto operator^(OpOperatorDirectionalDerivative<ax, O, OpIdentity, Sp> const& op, OpFractionLiteral<N, 1>)
+	{
+		return expr::make_operator_directional_derivative<ax, O * N>(op.solver);
+	}
+
+	template<Axis ax, size_t O, typename Sp>
+	auto operator^(OpOperatorDirectionalDerivative<ax, O, OpIdentity, Sp> const& op, OpIdentity)
+	{
+		return op;
+	}
+
+	template<typename E, size_t N>
+	auto operator^(OpExpression<E> const& e, OpFractionLiteral<N, 1>)
+	{
+		return expr::make_pow<N>(*static_cast<E const*>(&e));
+	}
+
+	template<typename E>
+	auto operator^(OpExpression<E> const& e, OpIdentity)
+	{
+		return *static_cast<E const*>(&e);
+	}
+
+}
 
 

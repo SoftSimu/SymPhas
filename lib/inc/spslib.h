@@ -1531,6 +1531,10 @@ namespace symphas::lib
 	using seq_sub_t = typename seq_sub_result<Seqs...>::type;
 
 	//! Alias for the filter result of multiple sequences.
+	/*!
+	 * Filter from the first sequence everything that's in the subsequent sequences. That is,
+	 * any element in the sequences after the first will be removed from the first.
+	 */
 	template<typename... Seqs>
 	using filter_seq_t = typename filter_seq_result<Seqs...>::type;
 
@@ -1582,23 +1586,27 @@ namespace symphas::lib
 	 * \tparam T The sequence.
 	 */
 	template<size_t N, typename T>
-	struct seq_index_value;
+	struct seq_index_value_impl;
 
 	template<size_t N, typename T>
-	struct seq_index_value<N, std::integer_sequence<T>>;
+	struct seq_index_value_impl<N, std::integer_sequence<T>>;
 
 	template<typename T, T I0, T... Is>
-	struct seq_index_value<0, std::integer_sequence<T, I0, Is...>>
+	struct seq_index_value_impl<0, std::integer_sequence<T, I0, Is...>>
 	{
 		static const T value = I0;
 	};
 
 	template<size_t N, typename T, T I0, T... Is>
-	struct seq_index_value<N, std::integer_sequence<T, I0, Is...>>
+	struct seq_index_value_impl<N, std::integer_sequence<T, I0, Is...>>
 	{
-		static const T value = seq_index_value<N - 1, std::integer_sequence<T, Is...>>::value;
+		static const T value = seq_index_value_impl<N - 1, std::integer_sequence<T, Is...>>::value;
 	};
 
+	template<int N, typename T>
+	using seq_index_value = std::conditional_t<(N < 0),
+		seq_index_value_impl<size_t(T::size() + N), T>,
+		seq_index_value_impl<size_t(N), T>>;
 
 	template<typename Pick, typename From>
 	struct select_seq_impl;
@@ -2227,9 +2235,16 @@ namespace symphas::lib
 
 	};
 
+	//! Filter types from the first type list.
+	/*!
+	 * Filter from the first list everything that's in the subsequent lists. That is,
+	 * any element in the lists after the first will be removed from the first.
+	 * 
+	 * If an std::integer_sequence<bool> type is passed as the second argument, it will act
+	 * as a mask.
+	 */
 	template<typename... Gs>
 	using filter_types = typename filter_types_impl<Gs...>::type;
-
 
 	template<typename... Gs>
 	struct cc_like_types;

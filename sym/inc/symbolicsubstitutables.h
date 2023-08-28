@@ -1362,6 +1362,48 @@ namespace expr
 }
 
 
+namespace expr::symbols
+{
+
+	template<typename... Ts>
+	auto fn(Ts&&... ts)
+	{
+		return expr::function_of(std::forward<Ts>(ts)...);
+	}
+
+
+	template<typename E, size_t Z0, typename G0>
+	auto D(SymbolicFunction<E, Variable<Z0, G0>> const& f)
+	{
+		return expr::apply_operators(expr::make_operator_derivative<1, Z0>()(f.e));
+	}
+
+	template<size_t O, typename E, size_t... Zs, size_t... Is, size_t N = sizeof...(Is)>
+	auto D(OpExpression<E> const& e, std::index_sequence<Zs...>, std::index_sequence<Is...>)
+	{
+		return ((expr::make_column_vector<Is, N>() *
+			expr::apply_operators(expr::make_operator_derivative<O, Zs>()(*static_cast<E const*>(&e)))) + ...);
+	}
+
+	template<typename E, size_t Z0, typename G0, size_t Z1, typename G1, size_t... Zs, typename... Gs>
+	auto D(SymbolicFunction<E, Variable<Z0, G0>, Variable<Z1, G1>, Variable<Zs, Gs>...> const& f)
+	{
+		return D<1>(f.e, std::index_sequence<Z0, Z1, Zs...>{}, std::make_index_sequence<sizeof...(Zs) + 2>{});
+	}
+	
+	template<typename E, size_t Z0, typename G0, size_t Z1, typename G1, size_t... Zs, typename... Gs, size_t O>
+	auto D(SymbolicFunction<E, Variable<Z0, G0>, Variable<Z1, G1>, Variable<Zs, Gs>...> const& f, OpFractionLiteral<O, 1>)
+	{
+		return D<O>(f.e, std::index_sequence<Z0, Z1, Zs...>{}, std::make_index_sequence<sizeof...(Zs) + 2>{});
+	}
+
+	template<typename E, size_t Z0, typename G0, size_t Z1, typename G1, size_t... Zs, typename... Gs>
+	auto D(SymbolicFunction<E, Variable<Z0, G0>, Variable<Z1, G1>, Variable<Zs, Gs>...> const& f, OpIdentity)
+	{
+		return D<1>(f.e, std::index_sequence<Z0, Z1, Zs...>{}, std::make_index_sequence<sizeof...(Zs) + 2>{});
+	}
+}
+
 
 
  //! @}

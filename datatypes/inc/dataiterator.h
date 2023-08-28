@@ -38,6 +38,11 @@ namespace grid
 	struct region_extent;
 
 
+	inline len_type length(grid::region_interval<0> const& interval)
+	{
+		return 1;
+	}
+
 	template<size_t D>
 	len_type length(grid::region_interval<D> const& interval)
 	{
@@ -301,6 +306,7 @@ namespace grid
 	struct region_interval_multiple : region_interval<D>
 	{
 		using parent_type = region_interval<D>;
+		using parent_type::dims;
 		using parent_type::intervals;
 		using parent_type::operator[];
 
@@ -400,7 +406,7 @@ namespace grid
 		region_interval_multiple& operator-=(std::vector<interval_type> const& diff_regions)
 		{
 			TIME_THIS_CONTEXT_LIFETIME(region_interval_multiple_difference)
-				std::vector<interval_type> result_regions;
+			std::vector<interval_type> result_regions;
 			for (const auto& region : regions)
 			{
 				std::vector<interval_type> work_list;
@@ -534,6 +540,51 @@ namespace grid
 		auto end() const;
 		auto end();
 
+		//! Convert the multiple region into a single unified region.
+		/*!
+		 * The multiple region will be converted to the smallest possible region_interval, 
+		 * assuming periodic boundary conditions. Therefore, the interval of the result might
+		 * be outside the interval of the multiple region. 
+		 * 
+		 * The point is to have a minimal region_interval which can contain this multiple region
+		 * assuming periodic boundary conditions (this is the default assumption made when breaking
+		 * up an input region when performing the union.
+		 */
+		grid::region_interval<D> operator+() const
+		{
+			grid::region_interval<D> combined;
+			for (iter_type i = 0; i < D; ++i)
+			{
+				combined.dims[i] = dims[i];
+				combined[i][0] = dims[i];
+			}
+
+			for (grid::region_interval<D> region : *this)
+			{
+				for (iter_type i = 0; i < D; ++i)
+				{
+					len_type width = intervals[i][1] - intervals[i][0];
+					iter_type left = region[i][0] - intervals[i][0];
+					iter_type right = region[i][1] - intervals[i][0];
+					left -= width * std::round(double(left) / width);
+
+					if (left < 0)
+					{
+						left += intervals[i][0];
+						right -= width - intervals[i][0];
+					}
+					else
+					{
+						left += intervals[i][0];
+						right += intervals[i][0];
+					}
+
+					combined[i][0] = std::min(combined[i][0], left);
+					combined[i][1] = std::max(combined[i][1], right);
+				}
+			}
+			return combined;
+		}
 
 		std::vector<interval_type> regions;
 	};
@@ -933,7 +984,7 @@ namespace grid
 
 	inline auto operator/(region_interval<0> const& first, region_empty const& second)
 	{
-		return second;
+		return first;
 	}
 
 	inline auto operator/(region_empty const& first, region_interval<0> const& second)
@@ -1718,6 +1769,60 @@ namespace symphas::internal
 
 		G* ptr;
 		grid::region_group<D> region;
+	};
+
+
+	template<typename... iterator_ts>
+	struct reduce_iterator_difference_type : iterator_difference_type_impl<reduce_iterator_difference_type<iterator_ts...>>
+	{
+		using parent_type = iterator_difference_type_impl<reduce_iterator_difference_type<iterator_ts...>>;
+		using difference_type = typename parent_type::difference_type;
+		using parent_type::pos;
+
+		reduce_iterator_difference_type(iterator_ts const& ...iterators) : parent_type(get_position(iterators...)), iterators{ iterators... } {}
+		reduce_iterator_difference_type(difference_type pos = {}) : parent_type(pos), iterators{} {}
+
+		auto get_position(iterator_ts const& ...iterators)
+		{
+			return std::min({ iterators.ptr.pos... });
+		}
+
+		bool operator==(reduce_iterator_difference_type<iterator_ts...> const& other) const
+		{
+			return pos == other.pos;
+		}
+
+		bool operator==(size_t value) const
+		{
+			return pos == value;
+		}
+
+		//! Comparison with another iterator.
+		/*!
+		 * Greater than comparison with another iterator.
+		 * Compares the current position.
+		 */
+		bool operator>(reduce_iterator_difference_type<iterator_ts...> const& other) const
+		{
+			return pos > other.pos;
+		}
+
+		bool operator>(size_t value) const
+		{
+			return pos > value;
+		}
+
+		iter_type operator[](iter_type offset) const
+		{
+			return pos + offset;
+		}
+
+		iter_type operator*() const
+		{
+			return pos;
+		}
+
+		std::tuple<iterator_ts...> iterators;
 	};
 }
 

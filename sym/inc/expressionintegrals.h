@@ -209,7 +209,7 @@ struct OpIntegral<V, E, expr::variational_t<T>> : OpExpression<OpIntegral<V, E, 
 	template<typename... condition_ts>
 	auto update(symphas::lib::types_list<condition_ts...>)
 	{
-		data = normalization * expr::result_sum_by_term<expr::matching_in_mul<expr::matches_series>>(e);//expr::result_sum(e);//
+		data = normalization * expr::result_sum_by_term<expr::matching_in_mul<expr::matches_series>, expr::matches_series>(e);//expr::result_sum(e);//
 	}
 
 	auto update()

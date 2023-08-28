@@ -984,7 +984,6 @@ namespace grid
 			{
 				return { empty };
 			}
-			//return { &values[grid::index_from_position(pos, stride)], empty, is_in_region(pos, dims, boundary_size)};
 		}
 
 		template<typename T>
@@ -1088,7 +1087,7 @@ namespace grid
 			}
 			if (is_in_region(pos, dims, boundary_size))
 			{
-				return multi_value<D, T>(values[grid::index_from_position(pos, stride)]);
+				return multi_value<D, T>(values, grid::index_from_position(pos, stride));
 			}
 			else
 			{
@@ -1105,7 +1104,7 @@ namespace grid
 			}
 			if (is_in_region(pos, dims, boundary_size))
 			{
-				return multi_value<D, T>(values[grid::index_from_position(pos, stride)]);
+				return multi_value<D, T>(values, grid::index_from_position(pos, stride));
 			}
 			else
 			{
@@ -1256,19 +1255,19 @@ struct multi_value
 {
 	T* value[N];
 
-	multi_value(T* (&value)[N]) : multi_value()
+	multi_value(T* (&value)[N], iter_type offset = 0) : multi_value()
 	{
 		for (iter_type i = 0; i < N; ++i)
 		{
-			this->value[i] = value[i];
+			this->value[i] = value[i] + offset;
 		}
 	}
 
-	multi_value(T* const (&value)[N]) : multi_value()
+	multi_value(T* const (&value)[N], iter_type offset = 0) : multi_value()
 	{
 		for (iter_type i = 0; i < N; ++i)
 		{
-			this->value[i] = value[i];
+			this->value[i] = value[i] + offset;
 		}
 	}
 
@@ -2036,6 +2035,23 @@ public:
 
 	RegionalGrid(Grid<T, D> const& other) : RegionalGrid(other, std::make_index_sequence<D>{}) {}
 	RegionalGrid(Grid<T, D>&& other) noexcept : RegionalGrid(other, std::make_index_sequence<D>{}) {}
+
+	RegionalGrid(RegionalGrid<any_vector_t<T, D>, D> const& other) : RegionalGrid(nullptr, other.empty, other.region.boundary_size)
+	{
+		using std::swap;
+
+		parent_type::len = other.len;
+		std::copy(other.dims, other.dims + D, parent_type::dims);
+		region = other.region;
+
+
+		MultiBlock<D, T> tmp(other.region.len);
+		for (iter_type i = 0; i < D; ++i)
+		{
+			std::copy(other.values[i], other.values[i] + other.region.len, tmp.values[i]);
+		}
+		swap(tmp.values, parent_type::values);
+	}
 
 
 	const RegionalGrid<any_vector_t<T, D>, D>& as_grid() const

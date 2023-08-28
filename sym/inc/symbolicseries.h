@@ -1122,7 +1122,7 @@ namespace symphas::internal
 	template<int N0, typename sub_t>
 	auto parse_limit(series_limits_nte<N0>, sub_t&& sub)
 	{
-		return expr::series_limits(N0, limit_length(std::forward<sub_t>(sub)) + N0 - 1);
+		return expr::series_limits(DynamicIndex(N0 - 1) + 1, limit_length(std::forward<sub_t>(sub)));
 	}
 
 	template<int N0, int P0, typename sub_t>
@@ -5069,19 +5069,17 @@ public:
 	template<typename E0, typename... T0s>
 	void update_persistent(SymbolicFunction<E0, T0s...>& f)
 	{
-		iter_type starts[sizeof...(IIs) + 2]{};
-		start_values(starts, std::make_index_sequence<sizeof...(IIs) + 2>{});
-
-		using id_types = symphas::lib::types_list<expr::symbols::i_<I0, P0>, expr::symbols::i_<I1, P1>, expr::symbols::i_<IIs, PPs>...>;
-		using v_id_types = symphas::lib::types_list<expr::symbols::v_id_type<Is>...>;
-		DynamicIndex index[sizeof...(IIs) + 2]{};
-		auto dynamic_args = symphas::internal::dynamic_arg_list(substitution, v_id_types{}, id_types{}, index, starts);
-		auto e = get_dynamic_expression(f, dynamic_args);
-
+		//iter_type starts[sizeof...(IIs) + 2]{};
+		//start_values(starts, std::make_index_sequence<sizeof...(IIs) + 2>{});
+		//
+		//using id_types = symphas::lib::types_list<expr::symbols::i_<I0, P0>, expr::symbols::i_<I1, P1>, expr::symbols::i_<IIs, PPs>...>;
+		//using v_id_types = symphas::lib::types_list<expr::symbols::v_id_type<Is>...>;
+		//DynamicIndex index[sizeof...(IIs) + 2]{};
+		//auto dynamic_args = symphas::internal::dynamic_arg_list(substitution, v_id_types{}, id_types{}, index, starts);
+		//auto e = get_dynamic_expression(f, dynamic_args);
 
 
 		len_type len = compute_range();
-		//update_persistent<0>(starts, offsets, persistent.data, persistent.offsets);
 		persistent.reallocate(f, len, symphas::lib::types_list<expr::symbols::i_<I0, P0>, expr::symbols::i_<I1, P1>, expr::symbols::i_<IIs, PPs>...>{});
 		update_persistent(persistent.data, persistent.offsets_data, len);
 	}

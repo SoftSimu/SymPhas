@@ -876,12 +876,12 @@ struct Term : G
 };
 
 template<typename T, expr::exp_key_t X>
-struct Term<T*, X> : Term<symphas::ref<T>, X>
+struct Term<T*, X> : Term<symphas::pointer_type<T>, X>
 {
-	using parent_type = Term<symphas::ref<T>, X>;
+	using parent_type = Term<symphas::pointer_type<T>, X>;
 	using parent_type::parent_type;
 
-	Term(T* data) : parent_type(symphas::ref<T>(*data)) {}
+	Term(T* data) : parent_type(symphas::pointer_type<T>(data)) {}
 
 	Term<T*, X> const& operator*(OpIdentity) const
 	{

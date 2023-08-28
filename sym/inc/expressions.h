@@ -259,7 +259,7 @@ namespace expr
 	 * \param len The number of elements in the array.
 	 */
 	template<typename E, typename assign_type>
-	void result(OpExpression<E> const& e, assign_type&& data, len_type len)
+	void result(OpEvaluable<E> const& e, assign_type&& data, len_type len)
 	{
 		symphas::data_iterator it(std::forward<assign_type>(data));
 		
@@ -273,7 +273,7 @@ namespace expr
 	}
 
 	template<typename E, typename assign_type, size_t D>
-	void result(OpExpression<E> const& e, assign_type&& data, grid::region_interval<D> const& interval)
+	void result(OpEvaluable<E> const& e, assign_type&& data, grid::region_interval<D> const& interval)
 	{
 		symphas::data_iterator_group it(std::forward<assign_type>(data), interval);
 
@@ -288,7 +288,7 @@ namespace expr
 	}
 
 	template<typename E, typename assign_type, size_t D>
-	void result(OpExpression<E> const& e, assign_type&& data, grid::region_interval_multiple<D> const& regions)
+	void result(OpEvaluable<E> const& e, assign_type&& data, grid::region_interval_multiple<D> const& regions)
 	{
 		for (grid::region_interval<D> region : regions)
 		{
@@ -298,7 +298,7 @@ namespace expr
 
 
 	template<typename E, typename assign_type>
-	void result(OpExpression<E> const& e, assign_type&& data, grid::region_interval<0> const& interval)
+	void result(OpEvaluable<E> const& e, assign_type&& data, grid::region_interval<0> const& interval)
 	{
 		auto data_region = expr::iterable_domain(std::forward<assign_type>(data));
 		if (grid::length(data_region) > 1)
@@ -312,10 +312,10 @@ namespace expr
 	}
 
 	template<typename E, typename assign_type>
-	void result(OpExpression<E> const& e, assign_type&& data, grid::region_empty) {}
+	void result(OpEvaluable<E> const& e, assign_type&& data, grid::region_empty) {}
 
 	template<typename E, typename assign_type>
-	void result(OpExpression<E> const& e, assign_type&& data)
+	void result(OpEvaluable<E> const& e, assign_type&& data)
 	{
 		result(*static_cast<E const*>(&e), std::forward<assign_type>(data), expr::iterable_domain(*static_cast<E const*>(&e)));
 	}
@@ -345,7 +345,7 @@ namespace expr
 	 * \param len The length of the array.
 	 */
 	template<typename E, typename assign_type>
-	void result_accumulate(OpExpression<E> const& e, assign_type&& data, len_type len)
+	void result_accumulate(OpEvaluable<E> const& e, assign_type&& data, len_type len)
 	{
 		symphas::data_iterator it(std::forward<assign_type>(data));
 
@@ -359,7 +359,7 @@ namespace expr
 	}
 
 	template<typename E, typename assign_type, size_t D>
-	void result_accumulate(OpExpression<E> const& e, assign_type&& data, grid::region_interval<D> const& interval)
+	void result_accumulate(OpEvaluable<E> const& e, assign_type&& data, grid::region_interval<D> const& interval)
 	{
 		symphas::data_iterator_group it(std::forward<assign_type>(data), interval);
 
@@ -386,7 +386,6 @@ namespace expr
 
 	}
 
-
 	template<typename V, typename... Gs, expr::exp_key_t... Xs, typename assign_type, size_t D>
 	void result_accumulate(OpTerms<V, Term<Gs, Xs>...> const& e, assign_type&& data, grid::region_interval<D> const& interval)
 	{
@@ -401,15 +400,6 @@ namespace expr
 		}
 	}
 
-	template<typename V, typename... Gs, expr::exp_key_t... Xs, typename assign_type, size_t D>
-	void result_accumulate(OpTerms<V, Term<Gs, Xs>...> const& e, assign_type&& data, grid::region_interval_multiple<D> const& regions)
-	{
-		for (grid::region_interval<D> region : regions)
-		{
-			result_accumulate(e, std::forward<assign_type>(data), region);
-		}
-	}
-
 	template<typename assign_type>
 	void result_accumulate(OpVoid, assign_type&& data) {}
 	template<typename assign_type>
@@ -421,8 +411,17 @@ namespace expr
 	template<typename assign_type, size_t D>
 	void result_accumulate(OpVoid, assign_type&& data, grid::region_interval_multiple<D>) {}
 
+	template<typename V, typename... Gs, expr::exp_key_t... Xs, typename assign_type, size_t D>
+	void result_accumulate(OpTerms<V, Term<Gs, Xs>...> const& e, assign_type&& data, grid::region_interval_multiple<D> const& regions)
+	{
+		for (grid::region_interval<D> region : regions)
+		{
+			result_accumulate(e, std::forward<assign_type>(data), region);
+		}
+	}
+
 	template<typename E, typename assign_type, size_t D>
-	void result_accumulate(OpExpression<E> const& e, assign_type&& data, grid::region_interval_multiple<D> const& regions)
+	void result_accumulate(OpEvaluable<E> const& e, assign_type&& data, grid::region_interval_multiple<D> const& regions)
 	{
 		for (grid::region_interval<D> region : regions)
 		{
@@ -431,7 +430,7 @@ namespace expr
 	}
 
 	template<typename E, typename assign_type>
-	void result_accumulate(OpExpression<E> const& e, assign_type&& data, grid::region_interval<0> const& interval)
+	void result_accumulate(OpEvaluable<E> const& e, assign_type&& data, grid::region_interval<0> const& interval)
 	{
 		auto data_region = expr::iterable_domain(std::forward<assign_type>(data));
 		if (grid::length(data_region) > 1)
@@ -444,11 +443,25 @@ namespace expr
 		}
 	}
 
-	template<typename E, typename assign_type>
-	void result_accumulate(OpExpression<E> const& e, assign_type&& data, grid::region_empty) {}
+	template<typename V, typename... Gs, expr::exp_key_t... Xs, typename assign_type>
+	void result_accumulate(OpTerms<V, Term<Gs, Xs>...> const& e, assign_type&& data, grid::region_interval<0> const& interval)
+	{
+		auto data_region = expr::iterable_domain(std::forward<assign_type>(data));
+		if (grid::length(data_region) > 1)
+		{
+			result_accumulate(e, std::forward<assign_type>(data), data_region);
+		}
+		else
+		{
+			result_accumulate(e, std::forward<assign_type>(data), 1);
+		}
+	}
 
 	template<typename E, typename assign_type>
-	void result_accumulate(OpExpression<E> const& e, assign_type&& data)
+	void result_accumulate(OpEvaluable<E> const& e, assign_type&& data, grid::region_empty) {}
+
+	template<typename E, typename assign_type>
+	void result_accumulate(OpEvaluable<E> const& e, assign_type&& data)
 	{
 		result_accumulate(*static_cast<E const*>(&e), std::forward<assign_type>(data), expr::iterable_domain(*static_cast<E const*>(&e)));
 	}
@@ -463,7 +476,7 @@ namespace expr
 	 * \param len The number of elements in the array.
 	 */
 	template<typename E>
-	auto result_sum(OpExpression<E> const& e, len_type len)
+	auto result_sum(OpEvaluable<E> const& e, len_type len)
 	{
 		return std::reduce(
 #ifdef EXECUTION_HEADER_AVAILABLE
@@ -480,7 +493,7 @@ namespace expr
 	template<size_t D> inline auto result_sum(OpVoid, grid::region_interval_multiple<D>) { return OpVoid{}; }
 
 	template<typename E>
-	auto result_sum(OpExpression<E> const& e, grid::region_interval<0> const& interval)
+	auto result_sum(OpEvaluable<E> const& e, grid::region_interval<0> const& interval)
 	{
 		return result_sum(*static_cast<E const*>(&e), 1);
 	}
@@ -511,7 +524,7 @@ namespace expr
 	}
 
 	template<typename E, size_t D>
-	auto result_sum(OpExpression<E> const& e, grid::region_interval<D> const& interval)
+	auto result_sum(OpEvaluable<E> const& e, grid::region_interval<D> const& interval)
 	{
 		if (grid::length<D>(interval) <= PARALLELIZATION_CUTOFF_COUNT)
 		{
@@ -537,7 +550,7 @@ namespace expr
 	}
 
 	template<typename E, size_t D>
-	auto result_sum(OpExpression<E> const& e, grid::region_interval_multiple<D> const& regions)
+	auto result_sum(OpEvaluable<E> const& e, grid::region_interval_multiple<D> const& regions)
 	{
 		expr::eval_type_t<E> sum{};
 		for (grid::region_interval<D> region : regions)
@@ -548,7 +561,7 @@ namespace expr
 	}
 
 	template<typename E>
-	auto result_sum(OpExpression<E> const& e)
+	auto result_sum(OpEvaluable<E> const& e)
 	{
 		TIME_THIS_EXPRESSION_LIFETIME(iterable_domain, auto r = expr::iterable_domain(*static_cast<E const*>(&e));)
 		return result_sum(*static_cast<E const*>(&e), expr::iterable_domain(*static_cast<E const*>(&e)));
@@ -571,7 +584,7 @@ namespace expr
 
 	//! Accumulates the result if the given expression matches the condition.
 	template<typename condition_t, typename... condition_ts, typename E, typename assign_type>
-	void result_of_matching(OpExpression<E> const& e, assign_type&& data);
+	void result_of_matching(OpEvaluable<E> const& e, assign_type&& data);
 
 	//! Accumulates the result if the given expression matches the condition.
 	template<typename condition_t, typename... condition_ts, typename... Es, typename assign_type>
@@ -579,7 +592,7 @@ namespace expr
 
 	//! Accumulates the result if the given expression matches the condition.
 	template<typename condition_t, typename... condition_ts, typename E, typename assign_type, typename region_type>
-	void result_of_matching(OpExpression<E> const& e, assign_type&& data, region_type&& region);
+	void result_of_matching(OpEvaluable<E> const& e, assign_type&& data, region_type&& region);
 
 	//! Accumulates the result if the given expression matches the condition.
 	template<typename condition_t, typename... condition_ts, typename... Es, typename assign_type, typename region_type>
@@ -587,7 +600,7 @@ namespace expr
 
 	//! Accumulates the result if the given expression matches the condition.
 	template<typename condition_t, typename... condition_ts, typename E, typename region_type>
-	auto result_sum_of_matching(OpExpression<E> const& e, region_type&& region);
+	auto result_sum_of_matching(OpEvaluable<E> const& e, region_type&& region);
 
 	//! Accumulates the result if the given expression matches the condition.
 	template<typename condition_t, typename... condition_ts, typename... Es, typename region_type>
@@ -595,10 +608,10 @@ namespace expr
 
 
 	template<typename condition_t, typename... condition_ts, typename E, typename assign_type, typename E0 = OpVoid>
-	void result_by_group(OpExpression<E> const& e, assign_type&& data, E0 const& init = OpVoid{});
+	void result_by_group(OpEvaluable<E> const& e, assign_type&& data, E0 const& init = OpVoid{});
 
 	template<typename condition_t, typename... condition_ts, typename E, typename assign_type, typename region_type, typename E0 = OpVoid>
-	void result_by_group(OpExpression<E> const& e, assign_type&& data, region_type&& region, E0 const& init = OpVoid{});
+	void result_by_group(OpEvaluable<E> const& e, assign_type&& data, region_type&& region, E0 const& init = OpVoid{});
 
 
 	template<typename condition_t>
@@ -607,7 +620,7 @@ namespace expr
 	template<typename condition_t, typename... condition_ts, typename... Es, typename assign_type>
 	void result_by_term(OpAdd<Es...> const& e, assign_type&& data);
 	template<typename condition_t, typename... condition_ts, typename E, typename assign_type>
-	void result_by_term(OpExpression<E> const& e, assign_type&& data);
+	void result_by_term(OpEvaluable<E> const& e, assign_type&& data);
 
 	template<typename condition_t>
 	struct result_sum_by_term_apply;
@@ -616,7 +629,7 @@ namespace expr
 	template<typename condition_t, typename... condition_ts, typename... Es>
 	auto result_sum_by_term(OpAdd<Es...> const& e);
 	template<typename condition_t, typename... condition_ts, typename E>
-	auto result_sum_by_term(OpExpression<E> const& e);
+	auto result_sum_by_term(OpEvaluable<E> const& e);
 
 
 }
@@ -763,6 +776,12 @@ namespace symphas::internal
 		return expr::make_tensor<0, 0, 1, 1>(v);
 	}
 
+	template<typename T, typename S, size_t N, size_t M, size_t D>
+	auto tensor_multiply(OpTensor<S, N, D> const& a, OpTensor<T, M, D> const& b)
+	{
+		return expr::make_row_vector<N, D>(S(a)) * b;
+	}
+
 	template<size_t N0, size_t N1, size_t NA, size_t NB, typename T>
 	auto tensor_as_coeff(T const& value)
 	{
@@ -826,6 +845,7 @@ namespace symphas::internal
 		vector[N1][N2] = value;
 	}
 }
+
 
 
 //! A value of a tensor, acts as a coefficient.
@@ -1431,7 +1451,11 @@ struct OpFractionLiteral : OpExpression<OpFractionLiteral<N, D>>
 	{
 		return OpNegFractionLiteral<N, D>{};
 	}
-
+	
+	constexpr auto operator--(int) const
+	{
+		return expr::numeric_range(OpFractionLiteral<N, D>{});
+	}
 
 
 #ifdef PRINTABLE_EQUATIONS
@@ -1475,6 +1499,10 @@ struct OpFractionLiteral<N, 1> : OpExpression<OpFractionLiteral<N, 1>>
 		return OpNegFractionLiteral<N, 1>{};
 	}
 
+	constexpr auto operator--(int) const
+	{
+		return expr::numeric_range(OpFractionLiteral<N, 1>{});
+	}
 
 
 #ifdef PRINTABLE_EQUATIONS
@@ -1517,6 +1545,10 @@ struct OpNegFractionLiteral : OpExpression<OpNegFractionLiteral<N, D>>
 		return OpFractionLiteral<N, D>{};
 	}
 
+	constexpr auto operator--(int) const
+	{
+		return expr::numeric_range(OpNegFractionLiteral<N, D>{});
+	}
 
 
 #ifdef PRINTABLE_EQUATIONS
@@ -2002,6 +2034,39 @@ inline void DynamicIndex::fix(DynamicIndexSet const& fixed)
 	}
 }
 
+namespace expr
+{
+	namespace
+	{
+		auto get_limit_data(DynamicIndex const& index)
+		{
+			if (index.is_constant())
+			{
+				return limit_data(index.index(), index.index());
+			}
+			else
+			{
+				return limit_data(0, 0, true);
+			}
+		}
+
+		template<typename V>
+		auto get_limit_data(OpBinaryMul<V, DynamicIndex> const& mul)
+		{
+			auto index = mul.b;
+			if (index.is_constant())
+			{
+				auto c = mul.a.eval();
+				return limit_data<OpVoid>(c * index.index(), c * index.index());
+			}
+			else
+			{
+				return limit_data<OpVoid>(0, 0, true);
+			}
+		}
+	}
+}
+
 namespace symphas::internal
 {
 	template<typename T>
@@ -2216,6 +2281,12 @@ struct OpCoeff : OpExpression<OpCoeff<T, I>>
 
 	template<typename E>
 	auto operator()(OpExpression<E> const& e) const
+	{
+		return *this * (*static_cast<E const*>(&e));
+	}
+
+	template<typename E>
+	auto operator()(OpOperator<E> const& e) const
 	{
 		return *this * (*static_cast<E const*>(&e));
 	}
@@ -3334,6 +3405,26 @@ namespace symphas::internal
 		return n;
 	}
 
+	template<typename E>
+	size_t mul_print(FILE* out, OpIdentity, OpExpression<E> const& b)
+	{
+		size_t n = 0;
+		n += mul_print_left(out, true);
+		n += static_cast<E const*>(&b)->print(out);
+		n += mul_print_right(out, true);
+		return n;
+	}
+
+	template<typename E>
+	size_t mul_print(FILE* out, OpIdentity, OpOperator<E> const& b)
+	{
+		size_t n = 0;
+		n += mul_print_left(out, true);
+		n += static_cast<E const*>(&b)->print(out);
+		n += mul_print_right(out, true);
+		return n;
+	}
+
 	template<typename V, typename E1, typename T, typename E2>
 	size_t mul_print(char* out, OpIntegral<V, E1, T> const& a, OpExpression<E2> const& b)
 	{
@@ -3454,6 +3545,26 @@ namespace symphas::internal
 		return n;
 	}
 
+	template<typename E>
+	size_t mul_print(char* out, OpIdentity, OpExpression<E> const& b)
+	{
+		size_t n = 0;
+		n += mul_print_left(out + n, true);
+		n += static_cast<E const*>(&b)->print(out + n);
+		n += mul_print_right(out + n, true);
+		return n;
+	}
+
+	template<typename E>
+	size_t mul_print(char* out, OpIdentity, OpOperator<E> const& b)
+	{
+		size_t n = 0;
+		n += mul_print_left(out + n, true);
+		n += static_cast<E const*>(&b)->print(out + n);
+		n += mul_print_right(out + n, true);
+		return n;
+	}
+
 	template<typename coeff_t, std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
 	size_t mul_print(char* out, coeff_t const& a, DynamicIndex const& b)
 	{
@@ -3533,6 +3644,15 @@ namespace expr
 
 	template<typename E1, typename E2>
 	auto dot(OpExpression<E1> const& a, OpExpression<E2> const& b);
+
+	template<typename E1, typename E2>
+	auto dot(OpExpression<E1> const& a, OpOperator<E2> const& b);
+
+	template<typename E1, typename E2>
+	auto dot(OpOperator<E1> const& a, OpExpression<E2> const& b);
+
+	template<typename E1, typename E2>
+	auto dot(OpOperator<E1> const& a, OpOperator<E2> const& b);
 }
 
 
@@ -3754,7 +3874,7 @@ namespace expr
 	 */
 	template<typename E1, typename E2, size_t R1 = expr::eval_type<E1>::rank, size_t R2 = expr::eval_type<E2>::rank,
 		typename std::enable_if_t<(R1 == 0 && R2 == 0), int> = 0>
-	auto make_div(OpExpression<E1> const& a, OpExpression<E2> const& b)
+	auto make_div(OpEvaluable<E1> const& a, OpEvaluable<E2> const& b)
 	{
 		auto fr1 = symphas::internal::coeff_factor<E1>{};
 		auto fr2 = symphas::internal::coeff_factor<E2>{};
@@ -3772,7 +3892,7 @@ namespace expr
 
 	template<typename E1, typename E2, size_t R1 = expr::eval_type<E1>::rank, size_t R2 = expr::eval_type<E2>::rank,
 		typename std::enable_if_t<(R1 > 0 || R2 > 0), int> = 0>
-	auto make_div(OpExpression<E1> const& a, OpExpression<E2> const& b)
+	auto make_div(OpEvaluable<E1> const& a, OpEvaluable<E2> const& b)
 	{
 		return OpBinaryDiv((*static_cast<const E1*>(&a)), (*static_cast<const E2*>(&b)));
 	}
@@ -3842,7 +3962,7 @@ namespace expr::symbols
 		template<char... cs>
 		struct filter_decimal_right<char_list<'.', cs...>, char_list<>>
 		{
-			using type = char_list<cs...>;
+			using type = char_list<'.', cs...>;
 		};
 
 		template<char... cs, char c0, char... c1s>
@@ -3867,15 +3987,9 @@ namespace expr::symbols
 		struct char_to_val
 		{
 			template<char... ln, size_t... Is>
-			constexpr double left(char_list<ln...>, std::index_sequence<Is...>)
+			constexpr auto left(char_list<ln...>, std::index_sequence<Is...>)
 			{
 				return (expr::make_integer<get_value<ln>() * fixed_pow<10, sizeof...(Is) - 1 - Is>>() + ... + OpVoid{});
-			}
-
-			template<char... rn, size_t... Is>
-			constexpr auto right(char_list<rn...>, std::index_sequence<Is...>)
-			{
-				return (expr::make_fraction<get_value<rn>(), fixed_pow<10, Is + 1>>() + ... + OpVoid{});
 			}
 
 			template<char... ln>
@@ -3884,10 +3998,21 @@ namespace expr::symbols
 				return left(char_list<ln...>{}, std::make_index_sequence<sizeof...(ln)>{});
 			}
 
-			template<char... rn>
-			constexpr auto right(char_list<rn...>)
+			template<char... rn, size_t... Is>
+			constexpr auto right(char_list<'.', rn...>, std::index_sequence<Is...>)
 			{
-				return right(char_list<rn...>{}, std::make_index_sequence<sizeof...(rn)>{});
+				return (expr::make_fraction<get_value<rn>(), fixed_pow<10, Is + 1>>() + ... + OpVoid{});
+			}
+
+			template<char... rn>
+			constexpr auto right(char_list<'.', rn...>)
+			{
+				return right(char_list<'.', rn...>{}, std::make_index_sequence<sizeof...(rn)>{});
+			}
+
+			constexpr auto right(char_list<>)
+			{
+				return OpVoid{};
 			}
 
 			constexpr auto operator()()
@@ -3897,12 +4022,57 @@ namespace expr::symbols
 			}
 		};
 
+		template<char... n>
+		struct char_to_lit
+		{
+			template<char... ln, size_t... Is>
+			constexpr int left(char_list<ln...>, std::index_sequence<Is...>)
+			{
+				return ((get_value<ln>() * fixed_pow<10, sizeof...(Is) - 1 - Is>) + ... + 0);
+			}
+
+			template<char... ln>
+			constexpr int left(char_list<ln...>)
+			{
+				return left(char_list<ln...>{}, std::make_index_sequence<sizeof...(ln)>{});
+			}
+
+			template<char... rn, size_t... Is>
+			constexpr double right(char_list<'.', rn...>, std::index_sequence<Is...>)
+			{
+				return ((get_value<rn>(), fixed_pow<10, Is + 1>) + ... + 0);
+			}
+
+			template<char... rn>
+			constexpr double right(char_list<'.', rn...>)
+			{
+				return right(char_list<'.', rn...>{}, std::make_index_sequence<sizeof...(rn)>{});
+			}
+
+			constexpr int right(char_list<>)
+			{
+				return 0;
+			}
+
+			constexpr auto operator()()
+			{
+				return expr::make_literal(
+					left(typename filter_decimal_left<char_list<>, char_list<n...>>::type{})
+					+ right(typename filter_decimal_right<char_list<>, char_list<n...>>::type{}));
+			}
+		};
 	}
 
 	template<char... n>
 	constexpr auto operator ""_n()
 	{
 		return char_to_val<n...>{}();
+	}
+
+	template<char... n>
+	constexpr auto operator ""_c()
+	{
+		return char_to_lit<n...>{}();
 	}
 }
 

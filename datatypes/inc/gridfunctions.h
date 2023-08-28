@@ -2015,8 +2015,7 @@ namespace grid
 			origin[i] += (origin[i] < 0) ? (grid.dims[i] - grid.region.boundary_size * 2) : 0;
 			dims[i] = dim0;
 		}
-
-		grid.adjust(origin, dims);
+		grid.adjust(grid::select_region<D>(origin, dims));
 	}
 
 	template<typename T, size_t D>
@@ -2029,19 +2028,39 @@ namespace grid
 			dims[symphas::axis_to_index(axis)] = interval.get_interval_count();
 			origin[symphas::axis_to_index(axis)] = (interval.left() - interval.domain_left()) / interval.width();
 		}
-		grid.adjust(origin, dims);
+		grid.adjust(grid::select_region<D>(origin, dims));
 	}
 
 	template<typename T, size_t D>
-	void resize_adjust_region(RegionalGrid<T, D>& grid, len_type (&intervals)[D][2])
+	void resize_adjust_region(RegionalGrid<T, D>& grid, const len_type (&intervals)[D][2])
 	{
-		resize_adjust_region(grid, symphas::grid_info(grid.dims, intervals));
+		len_type origin[D]{};
+		len_type dims[D]{};
+		for (iter_type i = 0; i < D; ++i)
+		{
+			dims[i] = intervals[i][1] - intervals[i][0];
+			origin[i] = intervals[i][0];
+		}
+		grid.adjust(grid::select_region<D>(origin, dims));
+	}
+
+	template<typename T, size_t D>
+	void resize_adjust_region(RegionalGrid<T, D>& grid, grid::region_interval<D> const& interval)
+	{
+		resize_adjust_region(grid, interval.intervals);
 	}
 
 	template<typename T, size_t D>
 	void resize_adjust_region(RegionalGrid<T, D>& grid, grid::region_interval_multiple<D> const& regions)
 	{
 		len_type intervals[D][2]{};
+
+		for (iter_type i = 0; i < D; ++i)
+		{
+			intervals[i][0] = grid.dims[i];
+			intervals[i][1] = 0;
+		}
+
 		for (grid::region_interval<D> region : regions)
 		{
 			for (iter_type i = 0; i < D; ++i)
@@ -2069,8 +2088,7 @@ namespace grid
 				dims[i] += delta - (delta / 2);
 			}
 		}
-
-		grid.adjust(origin, dims);
+		grid.adjust(grid::select_region<D>(origin, dims));
 	}
 
 }

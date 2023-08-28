@@ -45,8 +45,13 @@
 
 namespace expr
 {
+	template<typename A, typename B>
+	constexpr auto numeric_range(A, B);
+	template<typename A>
+	constexpr auto numeric_range(A);
+
 	template<typename E>
-	len_type data_length_for_iterator(OpExpression<E> const& e);
+	len_type data_length_for_iterator(OpEvaluable<E> const& e);
 
 	template<typename T>
 	struct iterator_policy_expression;
@@ -58,25 +63,25 @@ namespace expr
 		using type = expression_iterator<E>;
 
 		template<typename E, size_t D>
-		static auto begin(OpExpression<E> const& e, len_type begin_pos = 0)
+		static auto begin(OpEvaluable<E> const& e, len_type begin_pos = 0)
 		{
 			return expression_iterator(*static_cast<E const*>(&e), begin_pos);
 		}
 
 		template<typename E, size_t D>
-		static auto end(OpExpression<E> const& e, len_type end_pos = 0)
+		static auto end(OpEvaluable<E> const& e, len_type end_pos = 0)
 		{
 			return expression_iterator(*static_cast<E const*>(&e), end_pos);
 		}
 
 		template<typename E>
-		static auto begin(OpExpression<E> const& e, grid::region_size const& interval)
+		static auto begin(OpEvaluable<E> const& e, grid::region_size const& interval)
 		{
 			return expression_iterator(*static_cast<E const*>(&e));
 		}
 
 		template<typename E>
-		static auto end(OpExpression<E> const& e, grid::region_size const& interval)
+		static auto end(OpEvaluable<E> const& e, grid::region_size const& interval)
 		{
 			return expression_iterator(*static_cast<E const*>(&e), interval.len);
 		}
@@ -89,13 +94,13 @@ namespace expr
 		using type = expression_iterator_selection<E>;
 
 		template<typename E, size_t D>
-		static auto begin(OpExpression<E> const& e, grid::region_index_list<D> const& iters)
+		static auto begin(OpEvaluable<E> const& e, grid::region_index_list<D> const& iters)
 		{
 			return expression_iterator_selection(*static_cast<E const*>(&e), iters.iters);
 		}
 
 		template<typename E, size_t D>
-		static auto end(OpExpression<E> const& e, grid::region_index_list<D> const& iters)
+		static auto end(OpEvaluable<E> const& e, grid::region_index_list<D> const& iters)
 		{
 			return expression_iterator_selection(*static_cast<E const*>(&e), iters.iters, iters.len);
 		}
@@ -108,37 +113,37 @@ namespace expr
 		using type = expression_iterator_region<E, D>;
 
 		template<typename E, size_t D>
-		static auto begin(OpExpression<E> const& e, grid::region_interval<D> const& interval)
+		static auto begin(OpEvaluable<E> const& e, grid::region_interval<D> const& interval)
 		{
 			return expression_iterator_region(*static_cast<E const*>(&e), interval);
 		}
 
 		template<typename E, size_t D>
-		static auto end(OpExpression<E> const& e, grid::region_interval<D> const& interval)
+		static auto end(OpEvaluable<E> const& e, grid::region_interval<D> const& interval)
 		{
 			return expression_iterator_region(*static_cast<E const*>(&e), interval, grid::length<D>(interval));
 		}
 
 		template<typename E>
-		static auto begin(OpExpression<E> const& e, grid::region_interval<0> const& interval)
+		static auto begin(OpEvaluable<E> const& e, grid::region_interval<0> const& interval)
 		{
 			return expression_iterator(*static_cast<E const*>(&e));
 		}
 
 		template<typename E>
-		static auto end(OpExpression<E> const& e, grid::region_interval<0> const& interval)
+		static auto end(OpEvaluable<E> const& e, grid::region_interval<0> const& interval)
 		{
 			return expression_iterator(*static_cast<E const*>(&e), 1);
 		}
 
 		template<typename E>
-		static auto begin(OpExpression<E> const& e, grid::region_size const& interval)
+		static auto begin(OpEvaluable<E> const& e, grid::region_size const& interval)
 		{
 			return expression_iterator(*static_cast<E const*>(&e));
 		}
 
 		template<typename E>
-		static auto end(OpExpression<E> const& e, grid::region_size const& interval)
+		static auto end(OpEvaluable<E> const& e, grid::region_size const& interval)
 		{
 			return expression_iterator(*static_cast<E const*>(&e), interval.len);
 		}
@@ -151,13 +156,13 @@ namespace expr
 		using type = expression_iterator_group<E, D>;
 
 		template<typename E, size_t D>
-		static auto begin(OpExpression<E> const& e, grid::region_interval<D> const& interval)
+		static auto begin(OpEvaluable<E> const& e, grid::region_interval<D> const& interval)
 		{
 			return expression_iterator_group(*static_cast<E const*>(&e), interval);
 		}
 
 		template<typename E, size_t D>
-		static auto end(OpExpression<E> const& e, grid::region_interval<D> const& interval)
+		static auto end(OpEvaluable<E> const& e, grid::region_interval<D> const& interval)
 		{
 			len_type len = grid::length<D>(interval);
 			if (len > 0)
@@ -171,25 +176,25 @@ namespace expr
 		}
 
 		template<typename E>
-		static auto begin(OpExpression<E> const& e, grid::region_interval<0> const& interval)
+		static auto begin(OpEvaluable<E> const& e, grid::region_interval<0> const& interval)
 		{
 			return expression_iterator(*static_cast<E const*>(&e));
 		}
 
 		template<typename E>
-		static auto end(OpExpression<E> const& e, grid::region_interval<0> const& interval)
+		static auto end(OpEvaluable<E> const& e, grid::region_interval<0> const& interval)
 		{
 			return expression_iterator(*static_cast<E const*>(&e), 1);
 		}
 
 		template<typename E>
-		static auto begin(OpExpression<E> const& e, grid::region_size const& interval)
+		static auto begin(OpEvaluable<E> const& e, grid::region_size const& interval)
 		{
 			return expression_iterator(*static_cast<E const*>(&e));
 		}
 
 		template<typename E>
-		static auto end(OpExpression<E> const& e, grid::region_size const& interval)
+		static auto end(OpEvaluable<E> const& e, grid::region_size const& interval)
 		{
 			return expression_iterator(*static_cast<E const*>(&e), interval.len);
 		}
@@ -200,13 +205,138 @@ namespace expr
 	using iterator_policy_t = typename iterator_policy_expression<T>::type;
 }
 
+template<typename E>
+struct OpEvaluable 
+{
+
+
+	//! Return an iterator the beginning of the data.
+	/*!
+	 * For the data related to the expression, return an iterator
+	 * representing the beginning of the data, used when evaluating
+	 * the expression.
+	 */
+	expr::expression_iterator<E> begin() const
+	{
+		return expr::expression_iterator<E>(cast());
+	}
+
+
+	//! Return an iterator the end of the data.
+	/*!
+	 * For the data related to the expression, return an iterator
+	 * representing the end of the data, used when evaluating
+	 * the expression. The end point has to be provided, as the length
+	 * of the data is not known directly by the expression.
+	 *
+	 * \param len The end point of the data, for the end iterator to
+	 * point to.
+	 */
+	expr::expression_iterator<E> end(len_type len) const
+	{
+		return expr::expression_iterator<E>(cast(), len);
+	}
+
+
+	//! Return an iterator the beginning of the data.
+	/*!
+	 * For the data related to the expression, return an iterator
+	 * representing the beginning of the data, used when evaluating
+	 * the expression.
+	 */
+	template<size_t D>
+	expr::expression_iterator_region<E, D> begin(grid::region_interval<D> const& interval) const
+	{
+		return expr::expression_iterator_region<E, D>(cast(), interval);
+	}
+
+
+	//! Return an iterator the end of the data.
+	/*!
+	 * For the data related to the expression, return an iterator
+	 * representing the end of the data, used when evaluating
+	 * the expression. The end point has to be provided, as the length
+	 * of the data is not known directly by the expression.
+	 *
+	 * \param len The end point of the data, for the end iterator to
+	 * point to.
+	 */
+	template<size_t D>
+	expr::expression_iterator_region<E, D> end(grid::region_interval<D> const& interval) const
+	{
+		return expr::expression_iterator_region<E, D>(cast(), interval, grid::length<D>(interval));
+	}
+
+	//! Return an iterator the beginning of the data.
+	/*!
+	 * For the data related to the expression, return an iterator
+	 * representing the beginning of the data, used when evaluating
+	 * the expression.
+	 */
+	expr::expression_iterator_selection<E> begin(iter_type* iters) const
+	{
+		return expr::expression_iterator_selection<E>(cast(), iters);
+	}
+
+
+	//! Return an iterator the end of the data.
+	/*!
+	 * For the data related to the expression, return an iterator
+	 * representing the end of the data, used when evaluating
+	 * the expression. The end point has to be provided, as the length
+	 * of the data is not known directly by the expression.
+	 *
+	 * \param len The end point of the data, for the end iterator to
+	 * point to.
+	 */
+	expr::expression_iterator_selection<E> end(iter_type* iters, len_type len) const
+	{
+		return expr::expression_iterator_selection<E>(cast(), iters, len);
+	}
+
+
+	//! Return an iterator the beginning of the data.
+	/*!
+	 * For the data related to the expression, return an iterator
+	 * representing the beginning of the data, used when evaluating
+	 * the expression.
+	 */
+	template<typename picked_iterator_t, typename arg_t>
+	auto begin(picked_iterator_t, arg_t&& data = arg_t{}) const
+	{
+		return expr::iterator_policy_expression<picked_iterator_t>::begin(cast(), std::forward<arg_t>(data));
+	}
+
+
+	//! Return an iterator the end of the data.
+	/*!
+	 * For the data related to the expression, return an iterator
+	 * representing the end of the data, used when evaluating
+	 * the expression. The end point has to be provided, as the length
+	 * of the data is not known directly by the expression.
+	 *
+	 * \param len The end point of the data, for the end iterator to
+	 * point to.
+	 */
+	template<typename picked_iterator_t, typename arg_t>
+	auto end(picked_iterator_t, arg_t&& data = arg_t{}) const
+	{
+		return expr::iterator_policy_expression<picked_iterator_t>::end(cast(), std::forward<arg_t>(data));
+	}
+
+	auto& cast() const
+	{
+		return *static_cast<E const*>(this);
+	}
+};
+
  //! Base expression object which is inherited from with the CRTP technique.
  /*
   * applying Expression Templates to create the expression tree for the
   * evaluation of the equations of motion
   */
 template<typename E>
-struct OpExpression
+struct OpExpression : OpEvaluable<E>
 {
 	//! Return the value of this expression at the given index.
 	/*!
@@ -299,119 +429,6 @@ struct OpExpression
 		return *static_cast<E const*>(this);
 	}
 
-	//! Return an iterator the beginning of the data.
-	/*!
-	 * For the data related to the expression, return an iterator
-	 * representing the beginning of the data, used when evaluating
-	 * the expression.
-	 */
-	expr::expression_iterator<E> begin() const
-	{
-		return expr::expression_iterator<E>(cast());
-	}
-
-
-	//! Return an iterator the end of the data.
-	/*!
-	 * For the data related to the expression, return an iterator
-	 * representing the end of the data, used when evaluating
-	 * the expression. The end point has to be provided, as the length
-	 * of the data is not known directly by the expression.
-	 *
-	 * \param len The end point of the data, for the end iterator to
-	 * point to.
-	 */
-	expr::expression_iterator<E> end(len_type len) const
-	{
-		return expr::expression_iterator<E>(cast(), len);
-	}
-	
-		
-	//! Return an iterator the beginning of the data.
-	/*!
-	 * For the data related to the expression, return an iterator
-	 * representing the beginning of the data, used when evaluating
-	 * the expression.
-	 */
-	template<size_t D>
-	expr::expression_iterator_region<E, D> begin(grid::region_interval<D> const& interval) const
-	{
-		return expr::expression_iterator_region<E, D>(cast(), interval);
-	}
-
-
-	//! Return an iterator the end of the data.
-	/*!
-	 * For the data related to the expression, return an iterator
-	 * representing the end of the data, used when evaluating
-	 * the expression. The end point has to be provided, as the length
-	 * of the data is not known directly by the expression.
-	 *
-	 * \param len The end point of the data, for the end iterator to
-	 * point to.
-	 */
-	template<size_t D>
-	expr::expression_iterator_region<E, D> end(grid::region_interval<D> const& interval) const
-	{
-		return expr::expression_iterator_region<E, D>(cast(), interval, grid::length<D>(interval));
-	}
-
-	//! Return an iterator the beginning of the data.
-	/*!
-	 * For the data related to the expression, return an iterator
-	 * representing the beginning of the data, used when evaluating
-	 * the expression.
-	 */
-	expr::expression_iterator_selection<E> begin(iter_type* iters) const
-	{
-		return expr::expression_iterator_selection<E>(cast(), iters);
-	}
-
-
-	//! Return an iterator the end of the data.
-	/*!
-	 * For the data related to the expression, return an iterator
-	 * representing the end of the data, used when evaluating
-	 * the expression. The end point has to be provided, as the length
-	 * of the data is not known directly by the expression.
-	 *
-	 * \param len The end point of the data, for the end iterator to
-	 * point to.
-	 */
-	expr::expression_iterator_selection<E> end(iter_type* iters, len_type len) const
-	{
-		return expr::expression_iterator_selection<E>(cast(), iters, len);
-	}
-
-
-	//! Return an iterator the beginning of the data.
-	/*!
-	 * For the data related to the expression, return an iterator
-	 * representing the beginning of the data, used when evaluating
-	 * the expression.
-	 */
-	template<typename picked_iterator_t, typename arg_t>
-	auto begin(picked_iterator_t, arg_t&& data = arg_t{}) const
-	{
-		return expr::iterator_policy_expression<picked_iterator_t>::begin(cast(), std::forward<arg_t>(data));
-	}
-
-
-	//! Return an iterator the end of the data.
-	/*!
-	 * For the data related to the expression, return an iterator
-	 * representing the end of the data, used when evaluating
-	 * the expression. The end point has to be provided, as the length
-	 * of the data is not known directly by the expression.
-	 *
-	 * \param len The end point of the data, for the end iterator to
-	 * point to.
-	 */
-	template<typename picked_iterator_t, typename arg_t>
-	auto end(picked_iterator_t, arg_t&& data = arg_t{}) const
-	{
-		return expr::iterator_policy_expression<picked_iterator_t>::end(cast(), std::forward<arg_t>(data));
-	}
 };
 
 // **************************************************************************************
@@ -1700,6 +1717,12 @@ namespace expr
 			return std::index_sequence<0>{};
 		}
 
+		template<typename E0, typename E1>
+		static constexpr auto _infer_dimension(OpOperatorChain<E0, E1>)
+		{
+			return std::index_sequence<grid_dim<E0>::dimension, grid_dim<E1>::dimension>{};
+		}
+
 		template<typename T, size_t D>
 		static constexpr std::index_sequence<D> _infer_dimension(any_vector_t<T, D>)
 		{
@@ -1761,7 +1784,7 @@ namespace expr
 
 		static constexpr size_t infer_dimension()
 		{
-			return symphas::lib::seq_index_value<0, decltype(_infer_dimension(std::declval<E>()))>::value;
+			return symphas::lib::seq_index_value<-1, symphas::lib::sorted_seq<decltype(_infer_dimension(std::declval<E>()))>>::value;
 		}
 
 	public:
@@ -1978,6 +2001,12 @@ namespace expr
 	struct derivative_order<OpBinaryMul<A, B>>
 	{
 		const static size_t value = derivative_order<A>::value + derivative_order<B>::value;
+	};
+
+	template<typename E>
+	struct derivative_order<OpOptimized<E>>
+	{
+		const static size_t value = derivative_order<E>::order;
 	};
 
 	template<typename... Es>
@@ -2422,6 +2451,14 @@ struct expr::grid_dim<OpPow<X, V, E>>
 	static const size_t value = dimension;
 };
 
+//! Specialization based on expr::grid_dim.
+template<typename E>
+struct expr::grid_dim<OpOptimized<E>>
+{
+	static const size_t dimension = expr::grid_dim<E>::dimension;
+	static const size_t value = dimension;
+};
+
 template<expr::NoiseType nt, typename T, size_t D>
 struct expr::grid_dim<NoiseData<nt, T, D>>
 {
@@ -2692,6 +2729,13 @@ struct expr::op_types<OpPow<X, V, E>>
 	using type = typename expr::op_types<E>::type;
 };
 
+//! Specialization based on expr::op_types.
+template<typename E>
+struct expr::op_types<OpOptimized<E>>
+{
+	using type = typename expr::op_types<E>::type;
+};
+
 
 // *******************************************************************************
 
@@ -2949,6 +2993,13 @@ template<typename V, typename sub_t, typename E, typename... Ts>
 struct expr::has_state<OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>>>
 {
 	static const bool value = expr::has_state<E>::value;
+};
+
+//! Specialization based on expr::has_state.
+template<typename E>
+struct expr::has_state<OpOptimized<E>>
+{
+	static const bool value = true;
 };
 
 //! Specialization based on expr::has_state.
@@ -4255,6 +4306,8 @@ struct OpVoid : OpExpression<OpVoid>
 	{
 		return eval();
 	}
+
+	constexpr auto operator--(int) const;
 };
 
 
@@ -4288,6 +4341,8 @@ struct OpIdentity : OpExpression<OpIdentity>
 	{
 		return 1;
 	}
+
+	constexpr auto operator--(int) const;
 
 #endif
 
@@ -4331,6 +4386,8 @@ struct OpNegIdentity : OpExpression<OpNegIdentity>
 	}
 
 	constexpr auto operator-() const;
+
+	constexpr auto operator--(int) const;
 
 	operator int() const
 	{
@@ -4603,7 +4660,7 @@ struct expr::eval_type
 	template<typename T0>
 	static auto _get_eval(SymbolicDataArray<T0> const& e)
 	{
-		return typename eval_type<OpTerm<OpIdentity, T0>>::type{};
+		return typename eval_type<OpTerm<OpIdentity, DynamicVariable<T0>>>::type{};
 	}
 
 	template<typename T0>
@@ -4909,6 +4966,13 @@ namespace expr
 		return e.e;
 	}
 
+	//! Get the expression that the OpOptimized applies to.
+	template<typename E>
+	decltype(auto) get_enclosed_expression(OpOptimized<E> const& e)
+	{
+		return e.get_expression();
+	}
+
 	//! Get the expression that the OpMap applies to.
 	template<typename G, typename V, typename E>
 	auto& get_enclosed_expression(OpMap<G, V, E>& e)
@@ -4965,7 +5029,7 @@ namespace expr
 		return e.e;
 	}
 
-	//! Get the expression that the OpDerivative applies to.
+	//! Get the expression that the OpIntegral applies to.
 	template<typename V, typename E, typename T>
 	auto& get_enclosed_expression(OpIntegral<V, E, T>& e)
 	{
@@ -5034,6 +5098,13 @@ namespace expr
 		return e.e;
 	}
 
+	//! Get the expression that the OpOptimized applies to.
+	template<typename E>
+	decltype(auto) get_enclosed_expression(OpOptimized<E>& e)
+	{
+		return e.get_expression();
+	}
+
 
 	template<typename E>
 	auto& get_result_data(OpExpression<E>& e) = delete;
@@ -5053,14 +5124,14 @@ namespace expr
 	template<size_t O, typename V, typename E, typename G0>
 	auto& get_result_data(OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G0>>&) = delete;
 
-	//! Get the grid storing the underlying data of the OpDerivative.
+	//! Get the grid storing the underlying data of the OpIntegral.
 	template<typename V, typename E, typename T>
 	auto& get_result_data(OpIntegral<V, E, T>& e)
 	{
 		return e.data;
 	}
 
-	//! Get the grid storing the underlying data of the OpDerivative.
+	//! Get the grid storing the underlying data of the OpIntegral.
 	template<typename V, typename E, typename T>
 	auto& get_result_data(OpIntegral<V, E, SymbolicDerivative<T>>& e) = delete;
 
@@ -5085,6 +5156,13 @@ namespace expr
 		return e.g0;
 	}
 
+	//! Get the expression that the OpOptimized applies to.
+	template<typename E>
+	decltype(auto) get_result_data(OpOptimized<E>& e)
+	{
+		return e.grid;
+	}
+
 	//! Get the grid storing the underlying data of the OpDerivative.
 	template<typename Dd, typename V, typename E, typename Sp>
 	auto const& get_result_data(OpDerivative<Dd, V, E, Sp> const& e)
@@ -5100,14 +5178,14 @@ namespace expr
 	template<size_t O, typename V, typename E, typename G0>
 	auto const& get_result_data(OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G0>> const&) = delete;
 
-	//! Get the grid storing the underlying data of the OpDerivative.
+	//! Get the grid storing the underlying data of the OpIntegral.
 	template<typename V, typename E, typename T>
 	auto const& get_result_data(OpIntegral<V, E, T> const& e)
 	{
 		return e.data;
 	}
 
-	//! Get the grid storing the underlying data of the OpDerivative.
+	//! Get the grid storing the underlying data of the OpIntegral.
 	template<typename V, typename E, typename T>
 	auto const& get_result_data(OpIntegral<V, E, SymbolicDerivative<T>> const& e) = delete;
 
@@ -5137,6 +5215,13 @@ namespace expr
 	auto const& get_result_data(OpConvolution<V, GaussianSmoothing<D>, E> const& e)
 	{
 		return e.g0;
+	}
+
+	//! Get the expression that the OpOptimized applies to.
+	template<typename E>
+	decltype(auto) get_result_data(OpOptimized<E> const& e)
+	{
+		return e.grid;
 	}
 
 

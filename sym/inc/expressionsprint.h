@@ -241,6 +241,9 @@ namespace expr
 #define SYEX_SUM_LIM_COMPARE_B ")"
 #define SYEX_SUM_LIM_COMPARE_SEP ","
 
+#define SYEX_LIMIT_OFFSET_A "("
+#define SYEX_LIMIT_OFFSET_B ")"
+
 #else
 #define SYEX_SUM_SYMBOL ""
 #define SYEX_SUM_A "\\left("
@@ -252,6 +255,10 @@ namespace expr
 #define SYEX_SUM_LIM_COMPARE_A SYEX_SUM_A
 #define SYEX_SUM_LIM_COMPARE_B SYEX_SUM_B
 #define SYEX_SUM_LIM_COMPARE_SEP ","
+
+#define SYEX_LIMIT_OFFSET_A "_{"
+#define SYEX_LIMIT_OFFSET_B "}"
+
 #endif
 
 
@@ -2617,34 +2624,112 @@ namespace expr
 		}
 	};
 
-
-	template<typename sub_t, typename E, int... I0s, int... P0s, typename... T1s, typename... T2s, typename B>
-	struct symbolic_eval_print<
-		SymbolicSeries<expr::sum_op, sub_t,
-		symphas::lib::types_list<E,
-		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
-		symphas::lib::types_list<expr::series_limits<T1s, T2s>...>,
-		B>>>
+	namespace
 	{
-		using sum_t = SymbolicSeries<expr::sum_op, sub_t,
-			symphas::lib::types_list<E,
-			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
-			symphas::lib::types_list<expr::series_limits<T1s, T2s>...>,
-			B>>;
 
-		size_t print_limit(FILE* out, int l)
+		template<typename E = OpVoid>
+		struct limit_data
+		{
+			limit_data(E const& e = E{}, iter_type index = 0, iter_type offset = 0, bool dynamic_index = false) : 
+				e{ e }, index{ index }, offset{ offset }, dynamic_index{ dynamic_index } {}
+			limit_data(iter_type index = 0, iter_type offset = 0, bool dynamic_index = false) : 
+				e{}, index { index }, offset{ offset }, dynamic_index{ dynamic_index } {}
+
+			template<typename E0>
+			limit_data<add_result_t<E, E0>> operator+(limit_data<E0> const& other)
+			{
+				return { e + other.e, index + other.index, offset + other.offset };
+			}
+
+			auto operator!() const
+			{
+				return !std::is_same<E, OpVoid>::value;
+			}
+
+			template<typename E0>
+			auto operator>(limit_data<E0> const& other) const
+			{
+				return index > other.index;
+			}
+
+			template<typename E0>
+			auto operator<(limit_data<E0> const& other) const
+			{
+				return index < other.index;
+			}
+
+			E e;
+			iter_type index;
+			iter_type offset;
+			bool dynamic_index;
+		};
+
+		limit_data(iter_type, iter_type)->limit_data<OpVoid>;
+
+
+		auto get_limit_data(DynamicIndex const& index);
+		template<typename V>
+		auto get_limit_data(OpBinaryMul<V, DynamicIndex> const& index);
+
+		inline auto get_limit_data(int index)
+		{
+			return limit_data<OpVoid>(index);
+		}
+
+		template<typename V, int N, int P>
+		auto get_limit_data(OpTerm<V, expr::symbols::i_<N, P>> const& index)
+		{
+			return limit_data<OpTerm<V, expr::symbols::i_<N, 0>>>(expr::coeff(index) * expr::symbols::i_<N, 0>{}, 0, P);
+		}
+
+		template<size_t N>
+		auto get_limit_data(expr::symbols::placeholder_N_symbol_<N>)
+		{
+			return limit_data<expr::symbols::placeholder_N_symbol_<N>>();
+		}
+
+		template<typename E>
+		auto get_limit_data(OpExpression<E> const& e)
+		{
+			return limit_data<OpVoid>(static_cast<E const*>(&e)->eval());
+		}
+
+		template<typename... Es, size_t... Is>
+		auto get_limit_data(OpAdd<Es...> const& e, std::index_sequence<Is...>)
+		{
+			return (get_limit_data(expr::get<Is>(e)) + ...);
+		}
+
+		template<typename... Es, size_t... Is>
+		auto get_limit_data(OpAdd<Es...> const& e)
+		{
+			return get_limit_data(e, std::make_index_sequence<sizeof...(Es)>{});
+		}
+
+		template<typename E>
+		size_t print_limit(FILE* out, limit_data<E> const& e, bool upper = false);
+		inline size_t print_limit(FILE* out, limit_data<OpVoid> const& e, bool upper = false);
+		template<typename E>
+		size_t print_limit(char* out, limit_data<E> const& e, bool upper = false);
+		inline size_t print_limit(char* out, limit_data<OpVoid> const& e, bool upper = false);
+		template<typename E>
+		size_t print_limit_length(limit_data<E> const& e, bool upper = false);
+		inline size_t print_limit_length(limit_data<OpVoid> const& e, bool upper = false);
+
+
+		size_t print_limit(FILE* out, int l, bool upper = false)
 		{
 			return fprintf(out, "%d", l);
 		}
 
 		template<typename E0>
-		size_t print_limit(FILE* out, OpExpression<E0> const& e)
+		size_t print_limit(FILE* out, OpExpression<E0> const& e, bool upper = false)
 		{
 			return static_cast<E0 const*>(&e)->print(out);
 		}
 
 		template<typename V, int N, int P>
-		size_t print_limit(FILE* out, OpTerm<V, expr::symbols::i_<N, P>>)
+		size_t print_limit(FILE* out, OpTerm<V, expr::symbols::i_<N, P>>, bool upper = false)
 		{
 			if constexpr (P > 0)
 			{
@@ -2661,11 +2746,11 @@ namespace expr
 		}
 
 		template<typename... Es, size_t I0, size_t... Is>
-		size_t print_limit(FILE* out, OpAdd<Es...> const& e, std::index_sequence<I0, Is...>)
+		size_t print_limit(FILE* out, OpAdd<Es...> const& e, std::index_sequence<I0, Is...>, bool upper = false)
 		{
 			size_t n = 0;
 			n += print_limit(out, expr::get<I0>(e));
-
+			
 			if constexpr (sizeof...(Is) > 0)
 			{
 				if (expr::eval(expr::coeff(expr::get<I0 + 1>(e))) >= 0)
@@ -2674,42 +2759,73 @@ namespace expr
 				}
 				n += print_limit(out, e, std::index_sequence<Is...>{});
 			}
-
+			
 			return n;
 		}
 
 		template<typename... Es>
-		size_t print_limit(FILE* out, OpAdd<Es...> const& e)
+		size_t print_limit(FILE* out, OpAdd<Es...> const& e, bool upper = false)
 		{
-			return print_limit(out, e, std::make_index_sequence<sizeof...(Es)>{});
+			return print_limit(out, get_limit_data(e));
 		}
 
 		template<typename L, typename R>
-		size_t print_limit(FILE* out, std::pair<L, R> const& e)
+		size_t print_limit(FILE* out, std::pair<L, R> const& e, bool upper = false)
 		{
 			size_t n = 0;
-			n += fprintf(out, "%s", SYEX_SUM_LIM_COMPARE_A);
-			n += print_limit(out, e.first);
-			n += fprintf(out, "%s", SYEX_SUM_LIM_COMPARE_SEP);
-			n += print_limit(out, e.second);
-			n += fprintf(out, "%s", SYEX_SUM_LIM_COMPARE_B);
+			auto _a = get_limit_data(e.first);
+			auto _b = get_limit_data(e.second);
+
+			if (!_a || !_b)
+			{
+				n += fprintf(out, "%s", SYEX_SUM_LIM_COMPARE_A);
+				n += print_limit(out, e.first);
+				n += fprintf(out, "%s", SYEX_SUM_LIM_COMPARE_SEP);
+				n += print_limit(out, e.second);
+				n += fprintf(out, "%s", SYEX_SUM_LIM_COMPARE_B);
+			}
+			else
+			{
+				if (upper)
+				{
+					if (_a > _b)
+					{
+						n += print_limit(out, _b);
+					}
+					else
+					{
+						n += print_limit(out, _a);
+					}
+				}
+				else
+				{
+					if (_a > _b)
+					{
+						n += print_limit(out, _a);
+					}
+					else
+					{
+						n += print_limit(out, _b);
+					}
+				}
+			}
 			return n;
 		}
 
 
-		size_t print_limit(char* out, int l)
+		size_t print_limit(char* out, int l, bool upper = false)
 		{
 			return sprintf(out, "%d", l);
 		}
 
 		template<typename E0>
-		size_t print_limit(char* out, OpExpression<E0> const& e)
+		size_t print_limit(char* out, OpExpression<E0> const& e, bool upper = false)
 		{
 			return static_cast<E0 const*>(&e)->print(out);
 		}
 
 		template<typename V, int N, int P>
-		size_t print_limit(char* out, OpTerm<V, expr::symbols::i_<N, P>>)
+		size_t print_limit(char* out, OpTerm<V, expr::symbols::i_<N, P>>, bool upper = false)
 		{
 			if constexpr (P > 0)
 			{
@@ -2725,14 +2841,8 @@ namespace expr
 			}
 		}
 
-		template<typename... Es>
-		size_t print_limit(char* out, OpAdd<Es...> const& e)
-		{
-			return print_limit(out, e, std::make_index_sequence<sizeof...(Es)>{});
-		}
-
 		template<typename... Es, size_t I0, size_t... Is>
-		size_t print_limit(char* out, OpAdd<Es...> const& e, std::index_sequence<I0, Is...>)
+		size_t print_limit(char* out, OpAdd<Es...> const& e, std::index_sequence<I0, Is...>, bool upper = false)
 		{
 			size_t n = 0;
 			n += print_limit(out, expr::get<I0>(e));
@@ -2749,8 +2859,14 @@ namespace expr
 			return n;
 		}
 
+		template<typename... Es>
+		size_t print_limit(char* out, OpAdd<Es...> const& e, bool upper = false)
+		{
+			return print_limit(out, get_limit_data(e));
+		}
+
 		template<typename L, typename R>
-		size_t print_limit(char* out, std::pair<L, R> const& e)
+		size_t print_limit(char* out, std::pair<L, R> const& e, bool upper = false)
 		{
 			size_t n = 0;
 			n += sprintf(out + n, "%s", SYEX_SUM_LIM_COMPARE_A);
@@ -2762,7 +2878,7 @@ namespace expr
 		}
 
 		template<int N, int P, typename T1, typename T2>
-		size_t print_limit(expr::symbols::i_<N, P>, FILE* out, expr::series_limits<T1, T2> const& limit)
+		size_t print_limit(expr::symbols::i_<N, P>, FILE* out, expr::series_limits<T1, T2> const& limit, bool upper = false)
 		{
 			size_t n = 0;
 			n += fprintf(out, "%s%s=", SYEX_SUM_LIM_A, expr::get_op_name(expr::symbols::i_<N, P>{}));
@@ -2774,7 +2890,7 @@ namespace expr
 		}
 
 		template<int N, int P, typename T1, typename T2>
-		size_t print_limit(expr::symbols::i_<N, P>, char* out, expr::series_limits<T1, T2> const& limit)
+		size_t print_limit(expr::symbols::i_<N, P>, char* out, expr::series_limits<T1, T2> const& limit, bool upper = false)
 		{
 			size_t n = 0;
 			n += sprintf(out, "%s%s=", SYEX_SUM_LIM_A, expr::get_op_name(expr::symbols::i_<N, P>{}));
@@ -2785,34 +2901,70 @@ namespace expr
 			return n;
 		}
 
-		template<size_t... Ns>
-		size_t print_limits(FILE* out, std::tuple<expr::series_limits<T1s, T2s>...> const& limits, std::index_sequence<Ns...>)
-		{
-			return (print_limit(symphas::lib::type_at_index<Ns, expr::symbols::i_<I0s, P0s>...>{}, out, std::get<Ns>(limits)) + ...);
-		}
-
-		template<size_t... Ns>
-		size_t print_limits(char* out, std::tuple<expr::series_limits<T1s, T2s>...> const& limits, std::index_sequence<Ns...>)
-		{
-			size_t n = 0;
-			((n += print_limit(symphas::lib::type_at_index<Ns, expr::symbols::i_<I0s, P0s>...>{}, out + n, std::get<Ns>(limits))), ...);
-			return n;
-		}
-
-
-		size_t print_limit_length(int l)
+		size_t print_limit_length(int l, bool upper = false)
 		{
 			return symphas::lib::num_digits(l) + ((l < 0) ? 1 : 0);
 		}
 
 		template<typename E0>
-		size_t print_limit_length(OpExpression<E0> const& e)
+		size_t print_limit_length(OpExpression<E0> const& e, bool upper = false)
 		{
 			return static_cast<E0 const*>(&e)->print_length();
 		}
 
+		template<typename V, int N, int P>
+		size_t print_limit_length(OpTerm<V, expr::symbols::i_<N, P>>, bool upper = false)
+		{
+			if constexpr (P > 0)
+			{
+				return 1 + std::strlen(expr::get_op_name(expr::symbols::i_<N, 0>{})) + symphas::lib::num_digits(P);
+			}
+			else if constexpr (P < 0)
+			{
+				return 2 + std::strlen(expr::get_op_name(expr::symbols::i_<N, 0>{})) + symphas::lib::num_digits(P);
+			}
+			else
+			{
+				return std::strlen(expr::get_op_name(expr::symbols::i_<N, 0>{}));
+			}
+		}
+
+		template<typename... Es, size_t I0, size_t... Is>
+		size_t print_limit_length(OpAdd<Es...> const& e, std::index_sequence<I0, Is...>, bool upper = false)
+		{
+			size_t n = 0;
+			n += print_limit(out, expr::get<I0>(e));
+
+			if constexpr (sizeof...(Is) > 0)
+			{
+				if (expr::eval(expr::coeff(expr::get<I0 + 1>(e))) >= 0)
+				{
+					n += symphas::internal::print_sep(out + n, SYEX_ADD_SEP);
+				}
+				n += print_limit(out + n, e, std::index_sequence<Is...>{});
+			}
+
+			return n;
+		}
+
+		template<typename... Es>
+		size_t print_limit_length(OpAdd<Es...> const& e, bool upper = false)
+		{
+			return print_limit_length(get_limit_data(e));
+		}
+
+		template<typename L, typename R>
+		size_t print_limit_length(std::pair<L, R> const& e, bool upper = false)
+		{
+			size_t n = 0;
+			n += STR_ARR_LEN(SYEX_SUM_LIM_COMPARE_A SYEX_SUM_LIM_COMPARE_SEP SYEX_SUM_LIM_COMPARE_B);
+			n += print_limit_length(e.first);
+			n += print_limit_length(e.second);
+			return n;
+		}
+
 		template<int N, int P>
-		size_t print_limit_length(expr::symbols::i_<N, P>)
+		size_t print_limit_length(expr::symbols::i_<N, P>, bool upper = false)
 		{
 			size_t n = 0;
 			if constexpr (P > 0)
@@ -2838,8 +2990,131 @@ namespace expr
 			size_t n = 0;
 			n += STR_ARR_LEN(SYEX_SUM_LIM_A SYEX_SUM_LIM_SEP SYEX_SUM_LIM_B);
 			n += 1 + std::strlen(expr::get_op_name(expr::symbols::i_<N, P>{}));
-			n += print_limit_length(limit._0);
-			n += print_limit_length(limit._1);
+			n += print_limit_length(limit._0, true);
+			n += print_limit_length(limit._1, false);
+			return n;
+		}
+
+
+		template<typename E>
+		size_t print_limit(FILE* out, limit_data<E> const& e, bool upper)
+		{
+			size_t n = 0;
+
+			n += (e.e + expr::make_literal(e.index)).print(out);
+			if (e.offset > 0)
+			{
+				n += fprintf(out, SYEX_LIMIT_OFFSET_A);
+				n += print_limit(out, e.offset);
+				n += fprintf(out, SYEX_LIMIT_OFFSET_B);
+			}
+
+			return n;
+		}
+
+		inline size_t print_limit(FILE* out, limit_data<OpVoid> const& e, bool upper)
+		{
+			size_t n = 0;
+
+			n += print_limit(out, e.index);
+			if (e.offset > 0)
+			{
+				n += fprintf(out, SYEX_LIMIT_OFFSET_A);
+				n += print_limit(out, e.offset);
+				n += fprintf(out, SYEX_LIMIT_OFFSET_B);
+			}
+
+			return n;
+		}
+
+		template<typename E>
+		size_t print_limit(char* out, limit_data<E> const& e, bool upper)
+		{
+			size_t n = 0;
+
+			n += (e.e + expr::make_literal(e.index)).print(out + n);
+			if (e.offset > 0)
+			{
+				n += sprintf(out + n, SYEX_LIMIT_OFFSET_A);
+				n += print_limit(out + n, e.offset);
+				n += sprintf(out + n, SYEX_LIMIT_OFFSET_B);
+			}
+
+			return n;
+		}
+
+		inline size_t print_limit(char* out, limit_data<OpVoid> const& e, bool upper)
+		{
+			size_t n = 0;
+
+			n += print_limit(out + n, e.index);
+			if (e.offset > 0)
+			{
+				n += sprintf(out + n, SYEX_LIMIT_OFFSET_A);
+				n += print_limit(out + n, e.offset);
+				n += sprintf(out + n, SYEX_LIMIT_OFFSET_B);
+			}
+
+			return n;
+		}
+
+
+		template<typename E>
+		size_t print_limit_length(limit_data<E> const& e, bool upper)
+		{
+			size_t n = 0;
+
+			n += (e.e + expr::make_literal(e.index)).print_length();
+			if (e.offset > 0)
+			{
+				n += STR_ARR_LEN(SYEX_LIMIT_OFFSET_A SYEX_LIMIT_OFFSET_B);
+				n += print_limit_length(e.offset);
+			}
+
+			return n;
+		}
+
+		inline size_t print_limit_length(limit_data<OpVoid> const& e, bool upper)
+		{
+			size_t n = 0;
+
+			n += print_limit_length(e.index);
+			if (e.offset > 0)
+			{
+				n += STR_ARR_LEN(SYEX_LIMIT_OFFSET_A SYEX_LIMIT_OFFSET_B);
+				n += print_limit_length(e.offset);
+			}
+
+			return n;
+		}
+	}
+
+	template<typename sub_t, typename E, int... I0s, int... P0s, typename... T1s, typename... T2s, typename B>
+	struct symbolic_eval_print<
+		SymbolicSeries<expr::sum_op, sub_t,
+		symphas::lib::types_list<E,
+		symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
+		symphas::lib::types_list<expr::series_limits<T1s, T2s>...>,
+		B>>>
+	{
+		using sum_t = SymbolicSeries<expr::sum_op, sub_t,
+			symphas::lib::types_list<E,
+			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
+			symphas::lib::types_list<expr::series_limits<T1s, T2s>...>,
+			B>>;
+
+
+		template<size_t... Ns>
+		size_t print_limits(FILE* out, std::tuple<expr::series_limits<T1s, T2s>...> const& limits, std::index_sequence<Ns...>)
+		{
+			return (print_limit(symphas::lib::type_at_index<Ns, expr::symbols::i_<I0s, P0s>...>{}, out, std::get<Ns>(limits)) + ...);
+		}
+
+		template<size_t... Ns>
+		size_t print_limits(char* out, std::tuple<expr::series_limits<T1s, T2s>...> const& limits, std::index_sequence<Ns...>)
+		{
+			size_t n = 0;
+			((n += print_limit(symphas::lib::type_at_index<Ns, expr::symbols::i_<I0s, P0s>...>{}, out + n, std::get<Ns>(limits))), ...);
 			return n;
 		}
 

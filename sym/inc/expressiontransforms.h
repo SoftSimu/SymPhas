@@ -131,6 +131,18 @@ namespace expr
 	 *
 	 * \param e The expression which is distributed.
 	 */
+	template<typename A2>
+	auto apply_operators(OpOperatorChain<OpIdentity, A2> const& e);
+
+	//! Distribute operators so they are applied to individual expressions.
+	/*!
+	 * For expressions that are derivatives of derivatives, the outermost
+	 * derivatives might need to be distributed to the rest of the expression.
+	 * Additionally, all derivatives which are applied to expressions that
+	 * are linear combinations are distributed.
+	 *
+	 * \param e The expression which is distributed.
+	 */
 	template<typename A1, typename A2>
 	auto apply_operators(OpOperatorCombination<A1, A2> const& e);
 
@@ -804,6 +816,12 @@ namespace expr
 		return apply_operators_chain(apply_operators(e.f)(apply_operators(e.g)));
 	}
 
+	template<typename A2>
+	auto apply_operators(OpOperatorChain<OpIdentity, A2> const& e)
+	{
+		return OpOperatorChain(OpIdentity{}, apply_operators(e.g));
+	}
+
 	//template<typename A1, typename B1, typename B2>
 	//auto apply_operators(OpOperatorChain<A1, OpOperatorChain<B1, B2>> const& e)
 	//{
@@ -1187,12 +1205,18 @@ namespace expr
 		template<size_t O, typename V, typename E, typename GG, typename E0>
 		auto apply_operators_deriv(
 			OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<GG>> const& d,
+			OpOperatorChain<OpIdentity, E0> const& e)
+		{
+			return apply_operators(expr::make_derivative<O, GG>(e.g));
+		}
+		
+		template<size_t O, typename V, typename E, typename GG, typename E0>
+		auto apply_operators_deriv(
+			OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<GG>> const& d,
 			OpOperator<E0> const& e)
 		{
 			return OpVoid{};
 		}
-		
-	
 
 		//template<typename Dd, typename V, typename E, typename Sp, typename E0>
 		//auto apply_operators_deriv(OpDerivative<Dd, V, E, Sp> const& d, OpOperator<E0> const& e)
@@ -1309,6 +1333,25 @@ namespace expr
 		auto apply_operators_mul(OpAdd<Es...> const& a, OpOperator<E2> const& b)
 		{
 			return apply_operators(a * *static_cast<E2 const*>(&b));
+		}
+
+		template<typename... Es, typename E2>
+		auto apply_operators_mul(OpAdd<Es...> const& a, OpOperatorChain<OpIdentity, E2> const& b)
+		{
+			return (a * b);
+		}
+
+		//! Apply the chain operation to an expression.
+		template<typename A2, typename E>
+		auto apply_operators_mul(OpOperatorChain<OpIdentity, A2> const& a, OpExpression<E> const& b)
+		{
+			return (a * *static_cast<E const*>(&b));
+		}
+
+		template<typename E1, typename E2>
+		auto apply_operators_mul(OpOperatorChain<OpIdentity, E1> const& a, OpOperatorChain<OpIdentity, E2> const& b)
+		{
+			return OpOperatorChain(OpIdentity{}, apply_operators(a.g * b.g));
 		}
 
 		template<typename V, typename E1, typename E2>
@@ -1497,11 +1540,11 @@ namespace expr::transform
 	//! Create a grid with values initialized to the result of the expression.
 	/*!
 	 * Each value is initialized to the final value of the expression. If the
-	 * dimension is not a positive non zero value, then ::Block is returned 
+	 * dimension is not a positive non zero value, then ::Block is returned
 	 * instead.
-	 * 
+	 *
 	 * \param e The expression that is evaluated.
-	 * 
+	 *
 	 * \tparam E The expression type which is evaluated into the grid.
 	 * \tparam D The dimension of the grid to create.
 	 */
@@ -1600,11 +1643,11 @@ namespace expr::transform
 	//! Converts the expression to Fourier space.
 	/*!
 	 * Convert the given expression to the Fourier space equivalent.
-	 * 
+	 *
 	 * \param e The given expression.
 	 * \param h The spatial discretization of real space.
 	 * \param dims The dimensions of real space.
-	 * 
+	 *
 	 * \tparam D The real space dimension.
 	 */
 	template<size_t D, typename A1, typename A2>
@@ -1845,7 +1888,7 @@ namespace expr::transform
 	template<size_t D, typename V, typename E, typename... Ts, int... I0s, int... P0s,
 		typename A, typename... As, typename B, typename C>
 	auto to_ft(OpSum<V, E, Substitution<SymbolicDataArray<Ts>...>, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
-			SymbolicFunction<A, As...>, B, C> const& series,
+		SymbolicFunction<A, As...>, B, C> const& series,
 		double const* h, const len_type* dims);
 
 	//! Converts the expression to Fourier space.
@@ -1928,13 +1971,13 @@ namespace expr::transform
 	template<size_t D, size_t N, size_t D0>
 	auto to_ft(OpFractionLiteral<N, D>, double const* h, const len_type* dims)
 	{
-		return OpFractionLiteral<N, D>{} * to_ft<D>(OpIdentity{}, h, dims);
+		return OpFractionLiteral<N, D>{} *to_ft<D>(OpIdentity{}, h, dims);
 	}
 
 	template<size_t D, size_t N, size_t D0>
 	auto to_ft(OpNegFractionLiteral<N, D>, double const* h, const len_type* dims)
 	{
-		return OpNegFractionLiteral<N, D>{} * to_ft<D>(OpIdentity{}, h, dims);
+		return OpNegFractionLiteral<N, D>{} *to_ft<D>(OpIdentity{}, h, dims);
 	}
 
 	template<size_t D, typename T, size_t... Ns>
@@ -1972,7 +2015,7 @@ namespace expr::transform
 	{
 		return expr::coeff(e) * expr::make_term(k_grid_axis_type<ax, O, D>(dims, h));
 	}
-	
+
 	namespace
 	{
 
@@ -2024,7 +2067,7 @@ namespace expr::transform
 	template<size_t D, typename V, typename E, typename... Ts, int... I0s, int... P0s,
 		typename A, typename... As, typename B, typename C>
 	auto to_ft(OpSum<V, E, Substitution<SymbolicDataArray<Ts>...>, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
-			SymbolicFunction<A, As...>, B, C> const& series,
+		SymbolicFunction<A, As...>, B, C> const& series,
 		double const* h, const len_type* dims)
 	{
 		auto ft = to_ft<D>(series.data.e, h, dims);
@@ -2112,7 +2155,7 @@ namespace expr::transform
 		{
 			if constexpr (Dd::is_mixed)
 			{
-				return expr::coeff(e) * to_ft_mixed<D, Sp>(e.solver, Dd{}, h, dims) * to_ft<D>(expr::get_enclosed_expression(e), h, dims);
+				return expr::coeff(e) * to_ft_mixed<D, Sp>(e.solver, Dd{}, h, dims)* to_ft<D>(expr::get_enclosed_expression(e), h, dims);
 			}
 			else
 			{
@@ -2136,6 +2179,399 @@ namespace expr::transform
 
 	}
 
+}
+
+
+namespace symphas::internal
+{
+
+	template<typename expression_condition_t>
+	struct expression_condition_impl
+	{
+
+		using this_type = expression_condition_impl<expression_condition_t>;
+
+		template<typename... Es>
+		auto operator()(OpAddList<Es...> const& e) const
+		{
+			return this_type{};
+		}
+
+		template<typename... Gs>
+		auto operator()(OpTermsList<Gs...> const& e) const
+		{
+			return this_type{};
+		}
+
+		template<typename... Es>
+		auto operator()(OpAdd<Es...> const& e) const
+		{
+			return this_type{};
+		}
+
+		template<typename... Gs>
+		auto operator()(OpTerms<Gs...> const& e) const
+		{
+			return this_type{};
+		}
+
+		template<typename E>
+		auto operator()(OpEvaluable<E> const& e) const
+		{
+			return this_type{};
+		}
+
+		auto operator()(...) const
+		{
+			return this_type{};
+		}
+
+		template<typename E>
+		auto get_value() const
+		{
+			return cast().operator()(E{});
+		}
+
+		expression_condition_t& cast()
+		{
+			return *static_cast<expression_condition_t*>(this);
+		}
+
+		const expression_condition_t& cast() const
+		{
+			return *static_cast<expression_condition_t const*>(this);
+		}
+
+		template<typename E>
+		using type = std::invoke_result_t<decltype(&this_type::template get_value<E>), this_type>;
+
+		template<typename E>
+		static const bool value = !std::is_same<type<E>, this_type>::value;
+
+	};
+
+	template<typename... expression_condition_ts>
+	struct not_expression_condition {};
+
+	template<typename... expression_condition_ts>
+	struct and_expression_condition {};
+
+	template<typename... expression_condition_ts>
+	struct or_expression_condition {};
+
+	template<typename E, typename expression_condition_t>
+	constexpr bool expression_satisfies_condition = expression_condition_t::template value<E>;
+
+	template<typename E>
+	constexpr bool expression_satisfies_condition<E, void> = false;
+
+	template<typename E, typename... expression_condition_ts>
+	constexpr bool expression_satisfies_condition<E, not_expression_condition<expression_condition_ts...>> =
+		(!expression_satisfies_condition<E, expression_condition_ts> && ... && true);
+
+	template<typename E, typename... expression_condition_ts>
+	constexpr bool expression_satisfies_condition<E, and_expression_condition<expression_condition_ts...>> =
+		(expression_satisfies_condition<E, expression_condition_ts> && ... && true);
+
+	template<typename E, typename... expression_condition_ts>
+	constexpr bool expression_satisfies_condition<E, or_expression_condition<expression_condition_ts...>> =
+		(expression_satisfies_condition<E, expression_condition_ts> || ... || (sizeof...(expression_condition_ts) == 0));
+
+}
+
+
+
+// **************************************************************************************
+// Split an expression into groups for evaluating by individual regions
+// **************************************************************************************
+
+namespace expr
+{
+	template<typename condition_t>
+	using expr_cond = symphas::internal::expression_condition_impl<condition_t>;
+	template<typename... condition_ts>
+	using not_ = symphas::internal::not_expression_condition<condition_ts...>;
+	template<typename... condition_ts>
+	using and_ = symphas::internal::and_expression_condition<condition_ts...>;
+	template<typename... condition_ts>
+	using or_ = symphas::internal::or_expression_condition<condition_ts...>;
+
+	template<typename E, typename expression_condition_t>
+	constexpr bool satisfies = symphas::internal::expression_satisfies_condition<E, expression_condition_t>;
+
+
+
+	struct matches_any : expr_cond<matches_any>
+	{
+		using expr_cond<matches_any>::operator();
+		template<typename E>
+		auto operator()(OpEvaluable<E> const& e) const
+		{
+			return matches_any{};
+		}
+	};
+
+	struct matches_series : expr_cond<matches_series>
+	{
+		using expr_cond<matches_series>::operator();
+		template<typename V0, typename E, typename... Ts, int... I0s, int... P0s, typename A, typename B, typename... Vs>
+		auto operator()(OpSum<V0, E,
+			Substitution<SymbolicDataArray<Ts>...>,
+			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
+			A, B, symphas::lib::types_list<Vs...>> const& sum) const
+		{
+			return matches_series{};
+		}
+	};
+
+	struct matches_mul : expr_cond<matches_mul>
+	{
+		using expr_cond<matches_mul>::operator();
+		template<typename A, typename B>
+		auto operator()(OpBinaryMul<A, B> const& e) const
+		{
+			return matches_mul{};
+		}
+	};
+
+	struct matches_div : expr_cond<matches_div>
+	{
+		using expr_cond<matches_div>::operator();
+		template<typename A, typename B>
+		auto operator()(OpBinaryDiv<A, B> const& e) const
+		{
+			return matches_div{};
+		}
+	};
+
+	struct matches_term : expr_cond<matches_term>
+	{
+		using expr_cond<matches_term>::operator();
+		template<typename V, typename... Gs, expr::exp_key_t... Xs>
+		auto operator()(OpTerms<V, Term<Gs, Xs>...> const& e) const
+		{
+			return matches_term{};
+		}
+	};
+
+	struct matches_integral : expr_cond<matches_integral>
+	{
+		using expr_cond<matches_integral>::operator();
+		template<typename V, typename E, typename T>
+		auto operator()(OpIntegral<V, E, T> const& e) const
+		{
+			return matches_integral{};
+		}
+	};
+
+	struct matches_derivative : expr_cond<matches_derivative>
+	{
+		using expr_cond<matches_derivative>::operator();
+		template<typename Dd, typename V, typename E, typename Sp>
+		auto operator()(OpDerivative<Dd, V, E, Sp> const& e) const
+		{
+			return matches_derivative{};
+		}
+	};
+
+	struct matches_operator : expr_cond<matches_operator>
+	{
+		using expr_cond<matches_operator>::operator();
+		template<typename E>
+		auto operator()(OpOperator<E> const& e) const
+		{
+			return matches_operator{};
+		}
+	};
+
+	template<typename matches_t, typename A, typename B>
+	struct matching_in_mul_apply
+	{
+		static const bool value =
+			symphas::internal::expression_satisfies_condition<A, matches_t>
+			|| symphas::internal::expression_satisfies_condition<B, matches_t>;
+	};
+
+	template<typename matches_t, typename A, typename B, typename C>
+	struct matching_in_mul_apply<matches_t, A, OpBinaryMul<B, C>>
+	{
+		static const bool value = symphas::internal::expression_satisfies_condition<A, matches_t> || matching_in_mul_apply<matches_t, B, C>::value;
+	};
+
+	template<typename matches_t, typename A, typename B, typename C>
+	struct matching_in_mul_apply<matches_t, OpBinaryMul<A, B>, C>
+	{
+		static const bool value = matching_in_mul_apply<matches_t, A, B>::value || symphas::internal::expression_satisfies_condition<C, matches_t>;
+	};
+
+	template<typename matches_t, typename A, typename B, typename C, typename D>
+	struct matching_in_mul_apply<matches_t, OpBinaryMul<A, B>, OpBinaryMul<C, D>>
+	{
+		static const bool value = matching_in_mul_apply<matches_t, A, B>::value || matching_in_mul_apply<matches_t, C, D>::value;
+	};
+
+	template<typename matches_t>
+	struct matching_in_mul : expr_cond<matching_in_mul<matches_t>>
+	{
+		using expr_cond<matching_in_mul<matches_t>>::operator();
+		template<typename A, typename B>
+		auto operator()(OpBinaryMul<A, B> const& e) const
+		{
+			if constexpr (matching_in_mul_apply<matches_t, A, B>::value)
+			{
+				return matches_operator{};
+			}
+			else
+			{
+				return expr_cond<matching_in_mul<matches_t>>::operator()(OpVoid{});
+			}
+		}
+	};
+
+
+	template<typename E>
+	struct matches_with : expr_cond<matches_with<E>>
+	{
+		using expr_cond<matches_with<E>>::operator();
+		auto operator()(E const& e) const
+		{
+			return matches_with<E>{};
+		}
+	};
+
+	template<typename V, typename... Gs, expr::exp_key_t... Xs>
+	struct matches_with<OpTerms<V, Term<Gs, Xs>...>> : expr_cond<matches_with<OpTerms<V, Term<Gs, Xs>...>>>
+	{
+		using expr_cond<matches_with<OpTerms<V, Term<Gs, Xs>...>>>::operator();
+		template<typename V0, typename... G0s, expr::exp_key_t... X0s>
+		auto operator()(OpTerms<V0, Term<G0s, X0s>...> const& e) const
+		{
+			using namespace symphas::lib;
+
+			using G_list = types_list<Gs...>;
+			using G0_list = types_list<G0s...>;
+			using X_seq = std::integer_sequence<expr::exp_key_t, Xs...>;
+			using X0_seq = std::integer_sequence<expr::exp_key_t, X0s...>;
+			if constexpr (
+				types_list_size<expand_types_list<filter_types<G_list, G0_list>, filter_types<G0_list, G_list>>>::value == 0
+				&& seq_join_t<filter_seq_t<X_seq, X0_seq>, filter_seq_t<X0_seq, X_seq>>::size() == 0
+				&& sizeof...(Gs) == sizeof...(G0s))
+			{
+				return matches_with<OpTerms<V, Term<Gs, Xs>...>>{};
+			}
+			else
+			{
+				return expr_cond<matches_with<OpTerms<V, Term<Gs, Xs>...>>>::operator()(OpVoid{});
+			}
+		}
+	};
+
+
+	template<typename M>
+	struct contains_satisfying : expr_cond<contains_satisfying<M>>
+	{
+		using self_match_t = contains_satisfying<M>;
+
+		template<typename E, std::enable_if_t<satisfies<E, M>, int> = 0>
+		auto operator()(OpEvaluable<E> const& e) const
+		{
+			return contains_satisfying<M>{};
+		}
+
+		template<typename E, std::enable_if_t<!satisfies<E, M>, int> = 0>
+		auto operator()(OpEvaluable<E> const& e) const
+		{
+			return expr_cond<contains_satisfying<M>>::operator()(OpVoid{});
+		}
+
+		template<typename... Es, std::enable_if_t<(satisfies<Es, M> || ...), int> = 0>
+		auto operator()(OpAdd<Es...> const& e) const
+		{
+			return contains_satisfying<M>{};
+		}
+	};
+
+	template<typename M>
+	struct contains_satisfying_anywhere : expr_cond<contains_satisfying_anywhere<M>>
+	{
+		using self_match_t = contains_satisfying_anywhere<M>;
+
+		template<typename E, std::enable_if_t<satisfies<E, M>, int> = 0>
+		auto operator()(OpEvaluable<E> const& e) const
+		{
+			return contains_satisfying_anywhere<M>{};
+		}
+
+		template<typename E, std::enable_if_t<!satisfies<E, M>, int> = 0>
+		auto operator()(OpEvaluable<E> const& e) const
+		{
+			return expr_cond<contains_satisfying_anywhere<M>>::operator()(OpVoid{});
+		}
+
+		template<typename A, typename B, typename E, 
+			std::enable_if_t<(satisfies<OpOperatorCombination<A, B>, self_match_t> || satisfies<E, self_match_t>), int> = 0>
+		auto operator()(OpCombination<A, B, E> const& e) const
+		{
+			return contains_satisfying_anywhere<M>{};
+		}
+
+		template<typename A, typename B, typename E, 
+			std::enable_if_t<(satisfies<OpOperatorChain<A, B>, self_match_t> || satisfies<E, self_match_t>), int> = 0>
+		auto operator()(OpChain<A, B, E> const& e) const
+		{
+			return contains_satisfying_anywhere<M>{};
+		}
+
+		template<typename A, typename B, std::enable_if_t<(satisfies<A, self_match_t> || satisfies<B, self_match_t>), int> = 0>
+		auto operator()(OpOperatorCombination<A, B> const& e) const
+		{
+			return contains_satisfying_anywhere<M>{};
+		}
+
+		template<typename A, typename B, std::enable_if_t<(satisfies<A, self_match_t> || satisfies<B, self_match_t>), int> = 0>
+		auto operator()(OpOperatorChain<A, B> const& e) const
+		{
+			return contains_satisfying_anywhere<M>{};
+		}
+
+		template<typename A, typename B, std::enable_if_t<(satisfies<A, self_match_t> || satisfies<B, self_match_t>), int> = 0>
+		auto operator()(OpBinaryDiv<A, B> const& e) const
+		{
+			return contains_satisfying_anywhere<M>{};
+		}
+
+		template<typename A, typename B, std::enable_if_t<(satisfies<A, self_match_t> || satisfies<B, self_match_t>), int> = 0>
+		auto operator()(OpBinaryMul<A, B> const& e) const
+		{
+			return contains_satisfying_anywhere<M>{};
+		}
+
+		template<typename... Es, std::enable_if_t<(satisfies<Es, self_match_t> || ...), int> = 0>
+		auto operator()(OpAdd<Es...> const& e) const
+		{
+			return contains_satisfying_anywhere<M>{};
+		}
+	};
+
+	template<typename E>
+	using contains_matching = contains_satisfying<matches_with<E>>;
+	template<typename E>
+	using contains_matching_anywhere = contains_satisfying_anywhere<matches_with<E>>;
+
+	// I can introduce other criteria for terms like, is linear, or is operator
+}
+
+namespace symphas::internal
+{
+
+	template<typename E, typename M>
+	constexpr bool expression_satisfies_condition<E, expr::matches_with<expr::matches_with<M>>> =
+		(expression_satisfies_condition<E, expr::matches_with<M>>);
+
+}
+
+namespace expr::transform
+{
 
 	// **************************************************************************************
 
@@ -2298,6 +2734,20 @@ namespace expr::transform
 	 */
 	template<size_t Z, typename A1, typename A2, typename E, typename G_F>
 	auto swap_grid(OpChain<A1, A2, E> const& e, G_F&& g);
+
+	//! Swap a data term in the expression.
+	/*!
+	 * Swaps the instance of the variable term which matches the given index
+	 * for a different term or expression. If the term is not found, the
+	 * expression is returned unchanged.
+	 *
+	 * \param e The expression to search for the term to swap.
+	 * \param g The element which will replace the variable.
+	 *
+	 * \tparam Z The index of the variable to change.
+	 */
+	template<size_t Z, typename A1, typename E, typename G_F>
+	auto swap_grid(OpChain<A1, OpIdentity, E> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
 	/*!
@@ -2717,6 +3167,14 @@ namespace expr::transform
 		return swap_grid<Z>(e.combination, std::forward<G_F>(g))(swap_grid<Z>(expr::get_enclosed_expression(e), std::forward<G_F>(g)));
 	}
 
+	template<size_t Z, typename A1, typename E, typename G_F>
+	auto swap_grid(OpChain<A1, OpIdentity, E> const& e, G_F&& g)
+	{
+		return OpChain(
+			OpOperatorChain(swap_grid<Z>(e.combination.f, std::forward<G_F>(g)), OpIdentity{}),
+			swap_grid<Z>(expr::get_enclosed_expression(e), std::forward<G_F>(g)));
+	}
+
 	template<size_t Z, typename A1, typename A2, typename G_F>
 	auto swap_grid(OpOperatorCombination<A1, A2> const& e, G_F&& g)
 	{
@@ -2948,50 +3406,18 @@ namespace expr::transform
 	  *
 	  * param Sg The type of the grid to match for the swap.
 	  */
-	template<typename Sg, typename G_F>
-	auto swap_grid(OpExpression<Sg> const& e, G_F&& g)
-	{
-		return std::forward<G_F>(g);
-	}
-
-	//! Swap a data term in the expression.
-	/*!
-	 * Swaps the instance of the variable term which matches the given index
-	 * for a different term or expression. If the term is not found, the
-	 * expression is returned unchanged.
-	 *
-	 * \param e The expression to search for the term to swap.
-	 * \param g The element which will replace the variable.
-	 *
-	 * param Sg The type of the grid to match for the swap.
-	 */
-	template<typename Sg, typename G_F>
-	auto swap_grid(OpOperator<Sg> const& e, G_F&& g)
-	{
-		return std::forward<G_F>(g);
-	}
-
-	//! Swap a data term in the expression.
-	/*!
-	 * Swaps the instance of the variable term which matches the given index
-	 * for a different term or expression. If the term is not found, the
-	 * expression is returned unchanged.
-	 *
-	 * \param e The expression to search for the term to swap.
-	 * \param g The element which will replace the variable.
-	 *
-	 * param Sg The type of the grid to match for the swap.
-	 */
-	template<typename Sg, typename E, typename G_F, typename = std::enable_if_t<!std::is_same<Sg, E>::value, int>>
-	auto swap_grid(OpExpression<E> const& e, G_F&& g)
+	template<typename Sg, typename E, typename G_F,
+		std::enable_if_t<!expr::satisfies<E, expr::matches_with<Sg>>, int> = 0>
+	decltype(auto) swap_grid(OpEvaluable<E> const& e, G_F&& g)
 	{
 		return *static_cast<E const*>(&e);
 	}
-
-	template<typename Sg, typename E, typename G_F, typename = std::enable_if_t<!std::is_same<Sg, E>::value, int>>
-	auto swap_grid(OpOperator<E> const& e, G_F&& g)
+	
+	template<typename Sg, typename E, typename G_F,
+		std::enable_if_t<expr::satisfies<E, expr::matches_with<Sg>>, int> = 0>
+	decltype(auto) swap_grid(OpEvaluable<E> const& e, G_F&& g)
 	{
-		return *static_cast<E const*>(&e);
+		return expr::coeff(*static_cast<E const*>(&e)) * std::forward<G_F>(g);
 	}
 
 	//! Swap a data term in the expression.
@@ -3020,7 +3446,8 @@ namespace expr::transform
 	 *
 	 *\param Sg The type of the grid to match for the swap.
 	 */
-	template<typename Sg, typename V, typename... Gs, exp_key_t... Xs, typename G_F>
+	template<typename Sg, typename V, typename... Gs, exp_key_t... Xs, typename G_F,
+		typename = std::enable_if_t<!expr::satisfies<OpTerms<V, Term<Gs, Xs>...>, expr::matches_with<Sg>>, int>>
 	auto swap_grid(OpTerms<V, Term<Gs, Xs>...> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
@@ -3034,7 +3461,8 @@ namespace expr::transform
 	 *
 	 * \param Sg The type of the grid to match for the swap.
 	 */
-	template<typename Sg, typename... Es, typename G_F>
+	template<typename Sg, typename... Es, typename G_F,
+		typename = std::enable_if_t<!expr::satisfies<OpAdd<Es...>, expr::matches_with<Sg>>, int>>
 	auto swap_grid(OpAdd<Es...> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
@@ -3048,7 +3476,8 @@ namespace expr::transform
 	 *
 	 * \param Sg The type of the grid to match for the swap.
 	 */
-	template<typename Sg, typename E1, typename E2, typename G_F>
+	template<typename Sg, typename E1, typename E2, typename G_F,
+		typename = std::enable_if_t<!expr::satisfies<OpBinaryMul<E1, E2>, expr::matches_with<Sg>>, int>>
 	auto swap_grid(OpBinaryMul<E1, E2> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
@@ -3062,7 +3491,8 @@ namespace expr::transform
 	 *
 	 * \param Sg The type of the grid to match for the swap.
 	 */
-	template<typename Sg, typename E1, typename E2, typename G_F>
+	template<typename Sg, typename E1, typename E2, typename G_F,
+		typename = std::enable_if_t<!expr::satisfies<OpBinaryDiv<E1, E2>, expr::matches_with<Sg>>, int>>
 	auto swap_grid(OpBinaryDiv<E1, E2> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
@@ -3076,7 +3506,8 @@ namespace expr::transform
 	 *
 	 * \param Sg The type of the grid to match for the swap.
 	 */
-	template<typename Sg, typename A1, typename A2, typename G_F>
+	template<typename Sg, typename A1, typename A2, typename G_F,
+		typename = std::enable_if_t<!expr::satisfies<OpOperatorCombination<A1, A2>, expr::matches_with<Sg>>, int>>
 	auto swap_grid(OpOperatorCombination<A1, A2> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
@@ -3090,7 +3521,8 @@ namespace expr::transform
 	 *
 	 * \param Sg The type of the grid to match for the swap.
 	 */
-	template<typename Sg, typename A1, typename A2, typename E, typename G_F>
+	template<typename Sg, typename A1, typename A2, typename E, typename G_F,
+		typename = std::enable_if_t<!expr::satisfies<OpCombination<A1, A2, E>, expr::matches_with<Sg>>, int>>
 	auto swap_grid(OpCombination<A1, A2, E> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
@@ -3104,7 +3536,8 @@ namespace expr::transform
 	 *
 	 * \param Sg The type of the grid to match for the swap.
 	 */
-	template<typename Sg, size_t O, typename V, typename Sp, typename G_F>
+	template<typename Sg, size_t O, typename V, typename Sp, typename G_F,
+		typename = std::enable_if_t<!expr::satisfies<OpOperatorDerivative<O, V, Sp>, expr::matches_with<Sg>>, int>>
 	auto swap_grid(OpOperatorDerivative<O, V, Sp> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
@@ -3118,7 +3551,8 @@ namespace expr::transform
 	 *
 	 * \param Sg The type of the grid to match for the swap.
 	 */
-	template<typename Sg, Axis ax, size_t O, typename V, typename Sp, typename G_F>
+	template<typename Sg, Axis ax, size_t O, typename V, typename Sp, typename G_F,
+		typename = std::enable_if_t<!expr::satisfies<OpOperatorDirectionalDerivative<ax, O, V, Sp>, expr::matches_with<Sg>>, int>>
 	auto swap_grid(OpOperatorDirectionalDerivative<ax, O, V, Sp> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
@@ -3132,7 +3566,8 @@ namespace expr::transform
 	 *
 	 * \param Sg The type of the grid to match for the swap.
 	 */
-	template<typename Sg, size_t... Os, typename V, typename Sp, typename G_F>
+	template<typename Sg, size_t... Os, typename V, typename Sp, typename G_F,
+		typename = std::enable_if_t<!expr::satisfies<OpOperatorMixedDerivative<V, Sp, Os...>, expr::matches_with<Sg>>, int>>
 	auto swap_grid(OpOperatorMixedDerivative<V, Sp, Os...> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
@@ -3146,7 +3581,8 @@ namespace expr::transform
 	 *
 	 * \param Sg The type of the grid to match for the swap.
 	 */
-	template<typename Sg, typename A1, typename A2, typename G_F>
+	template<typename Sg, typename A1, typename A2, typename G_F,
+		typename = std::enable_if_t<!expr::satisfies<OpOperatorChain<A1, A2>, expr::matches_with<Sg>>, int>>
 	auto swap_grid(OpOperatorChain<A1, A2> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
@@ -3160,7 +3596,8 @@ namespace expr::transform
 	 *
 	 * \param Sg The type of the grid to match for the swap.
 	 */
-	template<typename Sg, typename A1, typename A2, typename E, typename G_F>
+	template<typename Sg, typename A1, typename A2, typename E, typename G_F,
+		typename = std::enable_if_t<!expr::satisfies<OpChain<A1, A2, E>, expr::matches_with<Sg>>, int>>
 	auto swap_grid(OpChain<A1, A2, E> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
@@ -3174,7 +3611,23 @@ namespace expr::transform
 	 *
 	 * \param Sg The type of the grid to match for the swap.
 	 */
-	template<typename Sg, typename V, typename E1, typename E2, typename G_F>
+	template<typename Sg, typename A1, typename E, typename G_F,
+		typename = std::enable_if_t<!expr::satisfies<OpChain<A1, OpIdentity, E>, expr::matches_with<Sg>>, int>>
+	auto swap_grid(OpChain<A1, OpIdentity, E> const& e, G_F&& g);
+
+	//! Swap a data term in the expression.
+	/*!
+	 * Swaps the instance of the variable term which matches the data type
+	 * for a different term or expression. If the term is not found, the
+	 * expression is returned unchanged.
+	 *
+	 * \param e The expression to search for the term to swap.
+	 * \param g The element which will replace the variable.
+	 *
+	 * \param Sg The type of the grid to match for the swap.
+	 */
+	template<typename Sg, typename V, typename E1, typename E2, typename G_F,
+		typename = std::enable_if_t<!expr::satisfies<OpConvolution<V, E1, E2>, expr::matches_with<Sg>>, int>>
 	auto swap_grid(OpConvolution<V, E1, E2> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
@@ -3188,7 +3641,8 @@ namespace expr::transform
 	 *
 	 * \param Sg The type of the grid to match for the swap.
 	 */
-	template<typename Sg, typename V, size_t D, typename E, typename G_F>
+	template<typename Sg, typename V, size_t D, typename E, typename G_F,
+		typename = std::enable_if_t<!expr::satisfies<OpConvolution<V, GaussianSmoothing<D>, E>, expr::matches_with<Sg>>, int>>
 	auto swap_grid(OpConvolution<V, GaussianSmoothing<D>, E> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
@@ -3202,7 +3656,8 @@ namespace expr::transform
 	 *
 	 * \param Sg The type of the grid to match for the swap.
 	 */
-	template<typename Sg, typename Dd, typename V, typename E, typename Sp, typename G_F>
+	template<typename Sg, typename Dd, typename V, typename E, typename Sp, typename G_F,
+		typename = std::enable_if_t<!expr::satisfies<OpDerivative<Dd, V, E, Sp>, expr::matches_with<Sg>>, int>>
 	auto swap_grid(OpDerivative<Dd, V, E, Sp> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
@@ -3216,7 +3671,8 @@ namespace expr::transform
 	 *
 	 * \param Sg The type of the grid to match for the swap.
 	 */
-	template<typename Sg, size_t O, typename V, typename E, typename GG, typename G_F>
+	template<typename Sg, size_t O, typename V, typename E, typename GG, typename G_F,
+		typename = std::enable_if_t<!expr::satisfies<OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<GG>>, expr::matches_with<Sg>>, int>>
 	auto swap_grid(OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<GG>> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
@@ -3230,7 +3686,8 @@ namespace expr::transform
 	 *
 	 * \param Sg The type of the grid to match for the swap.
 	 */
-	template<typename Sg, typename V, typename E, typename T, typename G_F>
+	template<typename Sg, typename V, typename E, typename T, typename G_F,
+		typename = std::enable_if_t<!expr::satisfies<OpIntegral<V, E, T>, expr::matches_with<Sg>>, int>>
 	auto swap_grid(OpIntegral<V, E, T> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
@@ -3244,7 +3701,8 @@ namespace expr::transform
 	 *
 	 * \param Sg The type of the grid to match for the swap.
 	 */
-	template<typename Sg, typename G, typename V, typename E, typename G_F>
+	template<typename Sg, typename G, typename V, typename E, typename G_F,
+		typename = std::enable_if_t<!expr::satisfies<OpMap<G, V, E>, expr::matches_with<Sg>>, int>>
 	auto swap_grid(OpMap<G, V, E> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
@@ -3258,7 +3716,8 @@ namespace expr::transform
 	 *
 	 * \param Sg The type of the grid to match for the swap.
 	 */
-	template<typename Sg, expr::exp_key_t X, typename V, typename E, typename G_F>
+	template<typename Sg, expr::exp_key_t X, typename V, typename E, typename G_F,
+		typename = std::enable_if_t<!expr::satisfies<OpPow<X, V, E>, expr::matches_with<Sg>>, int>>
 	auto swap_grid(OpPow<X, V, E> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
@@ -3272,7 +3731,8 @@ namespace expr::transform
 	 *
 	 * \param Sg The type of the grid to match for the swap.
 	 */
-	template<typename Sg, typename V, typename E, typename F, typename Arg0, typename... Args, typename G_F>
+	template<typename Sg, typename V, typename E, typename F, typename Arg0, typename... Args, typename G_F,
+		typename = std::enable_if_t<!expr::satisfies<OpFunction<V, E, F, Arg0, Args...>, expr::matches_with<Sg>>, int>>
 	auto swap_grid(OpFunction<V, E, F, Arg0, Args...> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
@@ -3286,7 +3746,8 @@ namespace expr::transform
 	 *
 	 * \param Sg The type of the grid to match for the swap.
 	 */
-	template<typename Sg, typename V, typename sub_t, typename E, typename... Ts, typename G_F>
+	template<typename Sg, typename V, typename sub_t, typename E, typename... Ts, typename G_F,
+		typename = std::enable_if_t<!expr::satisfies<OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>>, expr::matches_with<Sg>>, int>>
 	auto swap_grid(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
@@ -3300,7 +3761,8 @@ namespace expr::transform
 	 *
 	 * \param Sg The type of the grid to match for the swap.
 	 */
-	template<typename Sg, typename V, int N, int P, typename E, typename... Ts, typename G_F>
+	template<typename Sg, typename V, int N, int P, typename E, typename... Ts, typename G_F,
+		typename = std::enable_if_t<!expr::satisfies<OpSymbolicEval<V, expr::symbols::i_<N, P>, SymbolicFunction<E, Ts...>>, expr::matches_with<Sg>>, int>>
 	auto swap_grid(OpSymbolicEval<V, expr::symbols::i_<N, P>, SymbolicFunction<E, Ts...>> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
@@ -3314,7 +3776,8 @@ namespace expr::transform
 	 *
 	 * \param Sg The type of the grid to match for the swap.
 	 */
-	template<typename Sg, typename V, typename E0, typename K, typename E, typename... Ts, typename G_F>
+	template<typename Sg, typename V, typename E0, typename K, typename E, typename... Ts, typename G_F,
+		typename = std::enable_if_t<!expr::satisfies<OpSymbolicEval<V, SymbolicListIndex<E0, K>, SymbolicFunction<E, Ts...>>, expr::matches_with<Sg>>, int>>
 	auto swap_grid(OpSymbolicEval<V, SymbolicListIndex<E0, K>, SymbolicFunction<E, Ts...>> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
@@ -3328,7 +3791,8 @@ namespace expr::transform
 	 *
 	 * \param Sg The type of the grid to match for the swap.
 	 */
-	template<typename Sg, auto f, typename V, typename E, typename G_F>
+	template<typename Sg, auto f, typename V, typename E, typename G_F,
+		typename = std::enable_if_t<!expr::satisfies<OpFunctionApply<f, V, E>, expr::matches_with<Sg>>, int>>
 	auto swap_grid(OpFunctionApply<f, V, E> const& e, G_F&& g);
 
 	//! Swap a data term in the expression.
@@ -3378,6 +3842,10 @@ namespace expr::transform
 
 	template<typename Sg, typename G_F>
 	auto swap_grid(DynamicIndex const& data, G_F&& g);
+
+	template<typename T>
+	using strip_qualifiers_t = std::remove_const_t<std::remove_reference_t<T>>;
+
 
 	namespace
 	{
@@ -3594,7 +4062,7 @@ namespace expr::transform
 	//	}
 	//};
 
-	template<typename Sg, typename V, typename... Gs, exp_key_t... Xs, typename G_F>
+	template<typename Sg, typename V, typename... Gs, exp_key_t... Xs, typename G_F, typename>
 	auto swap_grid(OpTerms<V, Term<Gs, Xs>...> const& e, G_F&& g)
 	{
 		constexpr bool symbolic_case_flag = expr::factor_count<SymbolicCaseSwap<>, Sg>::value > 0 || std::is_same<Sg, DynamicIndexSet>::value;
@@ -3650,25 +4118,25 @@ namespace expr::transform
 		}
 	}
 
-	template<typename Sg, typename... Es, typename G_F>
+	template<typename Sg, typename... Es, typename G_F, typename>
 	auto swap_grid(OpAdd<Es...> const& e, G_F&& g)
 	{
 		return swap_grid_adds<Sg>(e, std::forward<G_F>(g), std::make_index_sequence<sizeof...(Es)>{});
 	}
 
-	template<typename Sg, typename E1, typename E2, typename G_F>
+	template<typename Sg, typename E1, typename E2, typename G_F, typename>
 	auto swap_grid(OpBinaryMul<E1, E2> const& e, G_F&& g)
 	{
 		return swap_grid<Sg>(e.a, std::forward<G_F>(g)) * swap_grid<Sg>(e.b, std::forward<G_F>(g));
 	}
 
-	template<typename Sg, typename E1, typename E2, typename G_F>
+	template<typename Sg, typename E1, typename E2, typename G_F, typename>
 	auto swap_grid(OpBinaryDiv<E1, E2> const& e, G_F&& g)
 	{
 		return swap_grid<Sg>(e.a, std::forward<G_F>(g)) / swap_grid<Sg>(e.b, std::forward<G_F>(g));
 	}
 
-	template<typename Sg, typename V, typename E1, typename E2, typename G_F>
+	template<typename Sg, typename V, typename E1, typename E2, typename G_F, typename>
 	auto swap_grid(OpConvolution<V, E1, E2> const& e, G_F&& g)
 	{
 		auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
@@ -3677,7 +4145,7 @@ namespace expr::transform
 			swap_grid<Sg>(e.b, std::forward<G_F>(g)));
 	}
 
-	template<typename Sg, typename V, size_t D, typename E, typename G_F>
+	template<typename Sg, typename V, size_t D, typename E, typename G_F, typename>
 	auto swap_grid(OpConvolution<V, GaussianSmoothing<D>, E> const& e, G_F&& g)
 	{
 		auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
@@ -3686,52 +4154,60 @@ namespace expr::transform
 			e.smoother);
 	}
 
-	template<typename Sg, size_t O, typename V, typename Sp, typename G_F>
+	template<typename Sg, size_t O, typename V, typename Sp, typename G_F, typename>
 	auto swap_grid(OpOperatorDerivative<O, V, Sp> const& e, G_F&& g)
 	{
 		auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
 		return c * expr::make_operator_derivative<O>(swap_grid_solver<Sg>(e.solver, std::forward<G_F>(g)));
 	}
 
-	template<typename Sg, Axis ax, size_t O, typename V, typename Sp, typename G_F>
+	template<typename Sg, Axis ax, size_t O, typename V, typename Sp, typename G_F, typename>
 	auto swap_grid(OpOperatorDirectionalDerivative<ax, O, V, Sp> const& e, G_F&& g)
 	{
 		auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
 		return c * expr::make_operator_directional_derivative<ax, O>(swap_grid_solver<Sg>(e.solver, std::forward<G_F>(g)));
 	}
 
-	template<typename Sg, size_t... Os, typename V, typename Sp, typename G_F>
+	template<typename Sg, size_t... Os, typename V, typename Sp, typename G_F, typename>
 	auto swap_grid(OpOperatorMixedDerivative<V, Sp, Os...> const& e, G_F&& g)
 	{
 		auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
 		return c * expr::make_operator_mixed_derivative<Os...>(swap_grid_solver<Sg>(e.solver, std::forward<G_F>(g)));
 	}
 
-	template<typename Sg, typename A1, typename A2, typename G_F>
+	template<typename Sg, typename A1, typename A2, typename G_F, typename>
 	auto swap_grid(OpOperatorChain<A1, A2> const& e, G_F&& g)
 	{
 		return OpOperatorChain(swap_grid<Sg>(e.f, std::forward<G_F>(g)), swap_grid<Sg>(e.g, std::forward<G_F>(g)));
 	}
 
-	template<typename Sg, typename A1, typename A2, typename E, typename G_F>
+	template<typename Sg, typename A1, typename A2, typename E, typename G_F, typename>
 	auto swap_grid(OpChain<A1, A2, E> const& e, G_F&& g)
 	{
 		return swap_grid<Sg>(e.combination, std::forward<G_F>(g))(swap_grid<Sg>(expr::get_enclosed_expression(e), std::forward<G_F>(g)));
 	}
 
-	template<typename Sg, typename A1, typename A2, typename G_F>
+	template<typename Sg, typename A1, typename E, typename G_F, typename>
+	auto swap_grid(OpChain<A1, OpIdentity, E> const& e, G_F&& g)
+	{
+		return OpChain(
+			OpOperatorChain(swap_grid<Sg>(e.combination.f, std::forward<G_F>(g)), OpIdentity{}),
+			swap_grid<Sg>(expr::get_enclosed_expression(e), std::forward<G_F>(g)));
+	}
+
+	template<typename Sg, typename A1, typename A2, typename G_F, typename>
 	auto swap_grid(OpOperatorCombination<A1, A2> const& e, G_F&& g)
 	{
 		return OpOperatorCombination(swap_grid<Sg>(e.f, std::forward<G_F>(g)), swap_grid<Sg>(e.g, std::forward<G_F>(g)));
 	}
 
-	template<typename Sg, typename A1, typename A2, typename E, typename G_F>
+	template<typename Sg, typename A1, typename A2, typename E, typename G_F, typename>
 	auto swap_grid(OpCombination<A1, A2, E> const& e, G_F&& g)
 	{
 		return swap_grid<Sg>(e.combination, std::forward<G_F>(g))(swap_grid<Sg>(expr::get_enclosed_expression(e), std::forward<G_F>(g)));
 	}
 
-	template<typename Sg, typename Dd, typename V, typename E, typename Sp, typename G_F>
+	template<typename Sg, typename Dd, typename V, typename E, typename Sp, typename G_F, typename>
 	auto swap_grid(OpDerivative<Dd, V, E, Sp> const& e, G_F&& g)
 	{
 		constexpr size_t order = OpDerivative<Dd, V, E, Sp>::order;
@@ -3741,21 +4217,21 @@ namespace expr::transform
 			swap_grid<Sg>(expr::get_enclosed_expression(e), std::forward<G_F>(g)), swap_grid_solver<Sg>(e.solver, std::forward<G_F>(g)));
 	}
 
-	template<typename Sg, size_t O, typename V, typename E, typename GG, typename G_F>
+	template<typename Sg, size_t O, typename V, typename E, typename GG, typename G_F, typename>
 	auto swap_grid(OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<GG>> const& e, G_F&& g)
 	{
 		auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
 		return c * expr::make_derivative<O, GG>(swap_grid<Sg>(expr::get_enclosed_expression(e), std::forward<G_F>(g)), swap_grid_solver<Sg>(e.solver, std::forward<G_F>(g)));
 	}
 
-	template<typename Sg, typename V, typename E, typename T, typename G_F>
+	template<typename Sg, typename V, typename E, typename T, typename G_F, typename>
 	auto swap_grid(OpIntegral<V, E, T> const& e, G_F&& g)
 	{
 		auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
 		return expr::make_integral(c, swap_grid<Sg>(expr::get_enclosed_expression(e), std::forward<G_F>(g)), e.domain);
 	}
 
-	template<typename Sg, typename G, typename V, typename E, typename G_F>
+	template<typename Sg, typename G, typename V, typename E, typename G_F, typename>
 	auto swap_grid(OpMap<G, V, E> const& e, G_F&& g)
 	{
 		auto eg = swap_grid<Sg>(e.e, std::forward<G_F>(g));
@@ -3763,21 +4239,21 @@ namespace expr::transform
 		return c * OpMap<G, OpIdentity, decltype(eg)>(OpIdentity{}, eg);
 	}
 
-	template<typename Sg, expr::exp_key_t X, typename V, typename E, typename G_F>
+	template<typename Sg, expr::exp_key_t X, typename V, typename E, typename G_F, typename>
 	auto swap_grid(OpPow<X, V, E> const& e, G_F&& g)
 	{
 		auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
 		return c * expr::make_pow<X>(swap_grid<Sg>(expr::get_enclosed_expression(e), std::forward<G_F>(g)));
 	}
 
-	template<typename Sg, typename V, typename E, typename F, typename Arg0, typename... Args, typename G_F>
+	template<typename Sg, typename V, typename E, typename F, typename Arg0, typename... Args, typename G_F, typename>
 	auto swap_grid(OpFunction<V, E, F, Arg0, Args...> const& e, G_F&& g)
 	{
 		auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
 		return c * ::OpFunction(e.name, OpIdentity{}, swap_grid<Sg>(e.e, std::forward<G_F>(g)), e.f, e.tt);
 	}
 
-	template<typename Sg, auto f, typename V, typename E, typename G_F>
+	template<typename Sg, auto f, typename V, typename E, typename G_F, typename>
 	auto swap_grid(OpFunctionApply<f, V, E> const& e, G_F&& g)
 	{
 		auto&& eg = swap_grid<Sg>(e.e, std::forward<G_F>(g));
@@ -3948,7 +4424,7 @@ namespace expr::transform
 		}
 	}
 
-	template<typename Sg, typename V, int N, int P, typename E, typename... Ts, typename G_F>
+	template<typename Sg, typename V, int N, int P, typename E, typename... Ts, typename G_F, typename>
 	auto swap_grid(OpSymbolicEval<V, expr::symbols::i_<N, P>, SymbolicFunction<E, Ts...>> const& e, G_F&& g)
 	{
 		if constexpr (expr::factor_count<Sg, expr::symbols::i_<N, P>>::value > 0)
@@ -3967,7 +4443,7 @@ namespace expr::transform
 		}
 	}
 
-	template<typename Sg, typename V, typename E0, typename K, typename E, typename... Ts, typename G_F>
+	template<typename Sg, typename V, typename E0, typename K, typename E, typename... Ts, typename G_F, typename>
 	auto swap_grid(OpSymbolicEval<V, SymbolicListIndex<E0, K>, SymbolicFunction<E, Ts...>> const& e, G_F&& g)
 	{
 		auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
@@ -3984,7 +4460,7 @@ namespace expr::transform
 		}
 	}
 
-	template<typename Sg, typename V, typename sub_t, typename E, typename... Ts, typename G_F>
+	template<typename Sg, typename V, typename sub_t, typename E, typename... Ts, typename G_F, typename>
 	auto swap_grid(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e, G_F&& g)
 	{
 		auto swapped = swap_grid_symbolic<Sg>(e.data, e.f, std::forward<G_F>(g));
@@ -4145,58 +4621,43 @@ namespace expr::transform
 
 
 	template<typename Sg0, typename Sg1, typename... Sgs, typename E, typename G_F>
-	auto swap_grid(OpExpression<E> const& e, G_F&& g)
+	auto swap_grid(OpEvaluable<E> const& e, G_F&& g)
 	{
 		return swap_grid<Sg1, Sgs...>(swap_grid<Sg0>(*static_cast<E const*>(&e), std::forward<G_F>(g)), std::forward<G_F>(g));
 	}
 
 	template<typename Sg0, typename Sg1, typename... Sgs, typename E, typename G_F0, typename G_F1, typename... G_Fs>
-	auto swap_grid(OpExpression<E> const& e, G_F0&& g0, G_F1&& g1, G_Fs&& ...gs)
+	auto swap_grid(OpEvaluable<E> const& e, G_F0&& g0, G_F1&& g1, G_Fs&& ...gs)
 	{
 		return swap_grid<Sg1, Sgs...>(swap_grid<Sg0>(*static_cast<E const*>(&e), std::forward<G_F0>(g0)), std::forward<G_F1>(g1), std::forward<G_Fs>(gs)...);
 	}
 
 	template<Axis ax, size_t Z, typename E, typename G_F>
-	auto swap_grid(OpExpression<E> const& e, G_F&& g)
+	auto swap_grid(OpEvaluable<E> const& e, G_F&& g)
 	{
 		return swap_grid<Variable<Z, VectorComponent<ax>>>(*static_cast<E const*>(&e), std::forward<G_F>(g));
 	}
 
 	template<Axis ax, typename Sg, typename E, typename G_F>
-	auto swap_grid(OpExpression<E> const& e, G_F&& g)
+	auto swap_grid(OpEvaluable<E> const& e, G_F&& g)
 	{
 		return swap_grid<VectorComponent<ax, Sg>>(*static_cast<E const*>(&e), std::forward<G_F>(g));
 	}
 
 
-	template<typename Sg0, typename Sg1, typename... Sgs, typename E, typename G_F>
-	auto swap_grid(OpOperator<E> const& e, G_F&& g)
-	{
-		return swap_grid<Sg1, Sgs...>(swap_grid<Sg0>(*static_cast<E const*>(&e), std::forward<G_F>(g)), std::forward<G_F>(g));
-	}
-
-	template<typename Sg0, typename Sg1, typename... Sgs, typename E, typename G_F0, typename G_F1, typename... G_Fs>
-	auto swap_grid(OpOperator<E> const& e, G_F0&& g0, G_F1&& g1, G_Fs&& ...gs)
-	{
-		return swap_grid<Sg1, Sgs...>(swap_grid<Sg0>(*static_cast<E const*>(&e), std::forward<G_F0>(g0)), std::forward<G_F1>(g1), std::forward<G_Fs>(gs)...);
-	}
-
-	template<Axis ax, size_t Z, typename E, typename G_F>
-	auto swap_grid(OpOperator<E> const& e, G_F&& g)
-	{
-		return swap_grid<Variable<Z, VectorComponent<ax>>>(*static_cast<E const*>(&e), std::forward<G_F>(g));
-	}
-
-	template<Axis ax, typename Sg, typename E, typename G_F>
-	auto swap_grid(OpOperator<E> const& e, G_F&& g)
-	{
-		return swap_grid<VectorComponent<ax, Sg>>(*static_cast<E const*>(&e), std::forward<G_F>(g));
-	}
 
 	template<typename... Sgs, typename E, typename G_F>
 	auto swap_grid(symphas::lib::types_list<Sgs...>, E&& e, G_F&& g)
 	{
 		return swap_grid<Sgs...>(std::forward<E>(e), std::forward<G_F>(g));
+	}
+
+
+
+	template<typename Eg, typename E, typename E_F>
+	auto swap_expression(OpEvaluable<E> const& e, E_F&& g)
+	{
+		return swap_grid<expr::matches_with<Eg>>(*static_cast<E const*>(&e), std::forward<E_F>(g));
 	}
 
 }
@@ -6534,256 +6995,6 @@ namespace expr::split
 
 }
 
-namespace symphas::internal
-{
-
-	template<typename expression_condition_t>
-	struct expression_condition_impl
-	{
-
-		using this_type = expression_condition_impl<expression_condition_t>;
-
-		template<typename... Es>
-		auto operator()(OpAddList<Es...> const& e) const
-		{
-			return this_type{};
-		}
-
-		template<typename... Gs>
-		auto operator()(OpTermsList<Gs...> const& e) const
-		{
-			return this_type{};
-		}
-
-		template<typename... Es>
-		auto operator()(OpAdd<Es...> const& e) const
-		{
-			return this_type{};
-		}
-
-		template<typename... Gs>
-		auto operator()(OpTerms<Gs...> const& e) const
-		{
-			return this_type{};
-		}
-
-		template<typename E>
-		auto operator()(OpExpression<E> const& e) const
-		{
-			return this_type{};
-		}
-
-		template<typename E>
-		auto operator()(OpOperator<E> const& e) const
-		{
-			return this_type{};
-		}
-
-		template<typename E>
-		auto get_value() const
-		{
-			return cast().operator()(E{});
-		}
-
-		expression_condition_t& cast()
-		{
-			return *static_cast<expression_condition_t*>(this);
-		}
-
-		const expression_condition_t& cast() const
-		{
-			return *static_cast<expression_condition_t const*>(this);
-		}
-
-		template<typename E>
-		using type = std::invoke_result_t<decltype(&this_type::template get_value<E>), this_type>;
-
-		template<typename E>
-		static const bool value = !std::is_same<type<E>, this_type>::value;
-
-	};
-
-	template<typename... expression_condition_ts>
-	struct not_expression_condition {};
-	
-	template<typename... expression_condition_ts>
-	struct and_expression_condition {};
-
-	template<typename... expression_condition_ts>
-	struct or_expression_condition {};
-
-	template<typename E, typename expression_condition_t>
-	constexpr bool expression_satisfies_condition = expression_condition_t::template value<E>;
-
-	template<typename E>
-	constexpr bool expression_satisfies_condition<E, void> = false;
-
-	template<typename E, typename... expression_condition_ts>
-	constexpr bool expression_satisfies_condition<E, not_expression_condition<expression_condition_ts...>> = 
-		(!expression_satisfies_condition<E, expression_condition_ts> && ... && true);
-
-	template<typename E, typename... expression_condition_ts>
-	constexpr bool expression_satisfies_condition<E, and_expression_condition<expression_condition_ts...>> =
-		(expression_satisfies_condition<E, expression_condition_ts> && ... && true);
-
-	template<typename E, typename... expression_condition_ts>
-	constexpr bool expression_satisfies_condition<E, or_expression_condition<expression_condition_ts...>> =
-		(expression_satisfies_condition<E, expression_condition_ts> || ... || (sizeof...(expression_condition_ts) == 0));
-
-}
-
-
-
-// **************************************************************************************
-// Split an expression into groups for evaluating by individual regions
-// **************************************************************************************
-
-namespace expr
-{
-	template<typename condition_t>
-	using expr_cond = symphas::internal::expression_condition_impl<condition_t>;
-	template<typename... condition_ts>
-	using not_ = symphas::internal::not_expression_condition<condition_ts...>;
-	template<typename... condition_ts>
-	using and_ = symphas::internal::and_expression_condition<condition_ts...>;
-	template<typename... condition_ts>
-	using or_ = symphas::internal::or_expression_condition<condition_ts...>;
-
-	template<typename E, typename expression_condition_t>
-	constexpr bool satisfies = symphas::internal::expression_satisfies_condition<E, expression_condition_t>;
-
-
-
-	struct matches_any : expr_cond<matches_series>
-	{
-		template<typename E>
-		auto operator()(OpExpression<E> const& e) const
-		{
-			return matches_any{};
-		}
-	};
-
-	struct matches_series : expr_cond<matches_series>
-	{
-		using expr_cond<matches_series>::operator();
-		template<typename V0, typename E, typename... Ts, int... I0s, int... P0s, typename A, typename B, typename... Vs>
-		auto operator()(OpSum<V0, E,
-			Substitution<SymbolicDataArray<Ts>...>,
-			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>,
-			A, B, symphas::lib::types_list<Vs...>> const& sum) const
-		{
-			return matches_series{};
-		}
-	};
-
-	struct matches_mul : expr_cond<matches_mul>
-	{
-		using expr_cond<matches_mul>::operator();
-		template<typename A, typename B>
-		auto operator()(OpBinaryMul<A, B> const& e) const
-		{
-			return matches_mul{};
-		}
-	};
-
-	struct matches_div : expr_cond<matches_div>
-	{
-		using expr_cond<matches_div>::operator();
-		template<typename A, typename B>
-		auto operator()(OpBinaryDiv<A, B> const& e) const
-		{
-			return matches_div{};
-		}
-	};
-
-	struct matches_term : expr_cond<matches_term>
-	{
-		using expr_cond<matches_term>::operator();
-		template<typename V, typename... Gs, expr::exp_key_t... Xs>
-		auto operator()(OpTerms<V, Term<Gs, Xs>...> const& e) const
-		{
-			return matches_term{};
-		}
-	};
-
-	struct matches_integral : expr_cond<matches_integral>
-	{
-		using expr_cond<matches_integral>::operator();
-		template<typename V, typename E, typename T>
-		auto operator()(OpIntegral<V, E, T> const& e) const
-		{
-			return matches_integral{};
-		}
-	};
-
-	struct matches_derivative : expr_cond<matches_derivative>
-	{
-		using expr_cond<matches_derivative>::operator();
-		template<typename Dd, typename V, typename E, typename Sp>
-		auto operator()(OpDerivative<Dd, V, E, Sp> const& e) const
-		{
-			return matches_derivative{};
-		}
-	};
-
-	struct matches_operator : expr_cond<matches_operator>
-	{
-		using expr_cond<matches_operator>::operator();
-		template<typename E>
-		auto operator()(OpOperator<E> const& e) const
-		{
-			return matches_operator{};
-		}
-	};
-
-	template<typename matches_t, typename A, typename B>
-	struct matching_in_mul_apply
-	{
-		static const bool value = 
-			symphas::internal::expression_satisfies_condition<A, matches_t> 
-			|| symphas::internal::expression_satisfies_condition<B, matches_t>;
-	};
-
-	template<typename matches_t, typename A, typename B, typename C>
-	struct matching_in_mul_apply<matches_t, A, OpBinaryMul<B, C>>
-	{
-		static const bool value = symphas::internal::expression_satisfies_condition<A, matches_t> || matching_in_mul_apply<matches_t, B, C>::value;
-	};
-
-	template<typename matches_t, typename A, typename B, typename C>
-	struct matching_in_mul_apply<matches_t, OpBinaryMul<A, B>, C>
-	{
-		static const bool value = matching_in_mul_apply<matches_t, A, B>::value || symphas::internal::expression_satisfies_condition<C, matches_t>;
-	};
-
-	template<typename matches_t, typename A, typename B, typename C, typename D>
-	struct matching_in_mul_apply<matches_t, OpBinaryMul<A, B>, OpBinaryMul<C, D>>
-	{
-		static const bool value = matching_in_mul_apply<matches_t, A, B>::value || matching_in_mul_apply<matches_t, C, D>::value;
-	};
-
-	template<typename matches_t>
-	struct matching_in_mul : expr_cond<matching_in_mul<matches_t>>
-	{
-		using expr_cond<matching_in_mul<matches_t>>::operator();
-		template<typename A, typename B>
-		auto operator()(OpBinaryMul<A, B> const& e) const
-		{
-			if constexpr (matching_in_mul_apply<matches_t, A, B>::value)
-			{
-				return matches_operator{};
-			}
-			else
-			{
-				return expr_cond<matching_in_mul<matches_t>>::operator()(OpVoid{});
-			}
-		}
-	};
-
-;
-
-	// I can introduce other criteria for terms like, is linear, or is operator
-}
 
 namespace expr::split
 {
@@ -6851,13 +7062,13 @@ namespace expr
 
 
 	template<typename E>
-	auto result_sum_by_term(OpExpression<E> const& e, grid::region_interval<0> const& interval)
+	auto result_sum_by_term(OpEvaluable<E> const& e, grid::region_interval<0> const& interval)
 	{
 		return result_sum_by_term(*static_cast<E const*>(&e), 1);
 	}
 
 	template<typename E, size_t D>
-	auto result_sum_by_term(OpExpression<E> const& e, grid::region_interval<D> const& interval)
+	auto result_sum_by_term(OpEvaluable<E> const& e, grid::region_interval<D> const& interval)
 	{
 		auto group = std::reduce(
 #ifdef EXECUTION_HEADER_AVAILABLE
@@ -6869,7 +7080,7 @@ namespace expr
 	}
 
 	template<typename E, size_t D>
-	auto result_sum_by_term(OpExpression<E> const& e, grid::region_interval_multiple<D> const& regions)
+	auto result_sum_by_term(OpEvaluable<E> const& e, grid::region_interval_multiple<D> const& regions)
 	{
 		expr::eval_type_t<E> sum{};
 		for (grid::region_interval<D> region : regions)
@@ -6884,7 +7095,7 @@ namespace expr
 
 	//! Accumulates the result if the given expression matches the condition.
 	template<typename condition_t, typename... condition_ts, typename E, typename assign_type>
-	void result_of_matching(OpExpression<E> const& e, assign_type&& data)
+	void result_of_matching(OpEvaluable<E> const& e, assign_type&& data)
 	{
 		using namespace symphas::internal;
 		if constexpr ((expression_satisfies_condition<E, condition_ts> || ... || expression_satisfies_condition<E, condition_t>))
@@ -6909,7 +7120,7 @@ namespace expr
 
 	//! Accumulates the result if the given expression matches the condition.
 	template<typename condition_t, typename... condition_ts, typename E, typename assign_type, typename region_type>
-	void result_of_matching(OpExpression<E> const& e, assign_type&& data, region_type&& region)
+	void result_of_matching(OpEvaluable<E> const& e, assign_type&& data, region_type&& region)
 	{
 		using namespace symphas::internal;
 		if constexpr ((expression_satisfies_condition<E, condition_ts> || ... || expression_satisfies_condition<E, condition_t>))
@@ -6922,7 +7133,7 @@ namespace expr
 	template<typename condition_t, typename... condition_ts, typename... Es, typename assign_type, typename region_type, size_t... Is>
 	void result_of_matching(OpAdd<Es...> const& e, assign_type&& data, region_type&& region, std::index_sequence<Is...>)
 	{
-		(result_of_matching(expr::get<Is>(e), std::forward<assign_type>(data), std::forward<region_type>(region)), ...);
+		(result_of_matching<condition_t, condition_ts...>(expr::get<Is>(e), std::forward<assign_type>(data), std::forward<region_type>(region)), ...);
 	}
 
 	//! Accumulates the result if the given expression matches the condition.
@@ -6935,7 +7146,7 @@ namespace expr
 
 	//! Accumulates the result if the given expression matches the condition.
 	template<typename condition_t, typename... condition_ts, typename E, typename region_type>
-	auto result_sum_of_matching(OpExpression<E> const& e, region_type&& region)
+	auto result_sum_of_matching(OpEvaluable<E> const& e, region_type&& region)
 	{
 		using namespace symphas::internal;
 		if constexpr ((expression_satisfies_condition<E, condition_ts> || ... || expression_satisfies_condition<E, condition_t>))
@@ -6965,7 +7176,7 @@ namespace expr
 
 	//! Accumulates the result if the given expression matches the condition.
 	template<typename condition_t, typename... condition_ts, typename E>
-	auto result_sum_of_matching(OpExpression<E> const& e)
+	auto result_sum_of_matching(OpEvaluable<E> const& e)
 	{
 		using namespace symphas::internal;
 		if constexpr ((expression_satisfies_condition<E, condition_ts> || ... || expression_satisfies_condition<E, condition_t>))
@@ -6997,13 +7208,13 @@ namespace expr
 	struct result_by_term_apply
 	{
 		template<typename E, typename assign_type, typename region_type>
-		void operator()(OpExpression<E> const& e, assign_type&& data, region_type&& region) const
+		void operator()(OpEvaluable<E> const& e, assign_type&& data, region_type&& region) const
 		{
 			result_of_matching<condition_t>(*static_cast<E const*>(&e), std::forward<assign_type>(data), std::forward<region_type>(region));
 		}
 
 		template<typename E, typename assign_type>
-		void operator()(OpExpression<E> const& e, assign_type&& data) const
+		void operator()(OpEvaluable<E> const& e, assign_type&& data) const
 		{
 			result_of_matching<condition_t>(*static_cast<E const*>(&e), std::forward<assign_type>(data));
 		}
@@ -7030,9 +7241,11 @@ namespace expr
 			assign_type&& data) const
 		{
 			TIME_THIS_CONTEXT_LIFETIME(apply_summation);
+			auto coeff = expr::coeff(sum);
 			for (iter_type i = 0; i < sum.data.persistent.len; ++i)
 			{
-				result_accumulate(expr::coeff(sum) * sum.data.persistent[i].e, std::forward<assign_type>(data));
+				auto region = expr::iterable_domain(sum.data.persistent[i].e);
+				result_accumulate(coeff * sum.data.persistent[i].e, std::forward<assign_type>(data), region);
 			}
 		}
 	};
@@ -7041,13 +7254,13 @@ namespace expr
 	struct result_sum_by_term_apply
 	{
 		template<typename E, typename region_type>
-		auto operator()(OpExpression<E> const& e, region_type&& region) const
+		auto operator()(OpEvaluable<E> const& e, region_type&& region) const
 		{
 			return result_sum_of_matching<condition_t>(*static_cast<E const*>(&e), std::forward<region_type>(region));
 		}
 
 		template<typename E>
-		auto operator()(OpExpression<E> const& e) const
+		auto operator()(OpEvaluable<E> const& e) const
 		{
 			return result_sum_of_matching<condition_t>(*static_cast<E const*>(&e));
 		}
@@ -7078,9 +7291,10 @@ namespace expr
 			if (sum.data.persistent.len > 0)
 			{
 				auto reduced = result_sum(expr::coeff(sum) * sum.data.persistent[0].e);
+				auto coeff = expr::coeff(sum);
 				for (iter_type i = 1; i < sum.data.persistent.len; ++i)
 				{
-					reduced += result_sum(expr::coeff(sum) * sum.data.persistent[i].e);
+					reduced += result_sum(coeff * sum.data.persistent[i].e);
 				}
 				return reduced;
 			}
@@ -7118,17 +7332,20 @@ namespace expr
 			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, symphas::lib::types_list<Vs...>> const& sum,
 			Es&&... terms) const
 		{
+			using expr_type = mul_result_t<Es..., OpSum<V0, E, Substitution<SymbolicDataArray<Ts>...>,
+				symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, symphas::lib::types_list<Vs...>>>;
+
 			if (sum.data.persistent.len > 0)
 			{
 				auto e = (expr::coeff(sum) * ... * std::forward<Es>(terms));
 				auto region = expr::iterable_domain(e);
-				auto reduced = expr::eval_type_t<decltype(sum.data.persistent[0].e)>{};
+				auto reduced = expr::eval_type_t<expr_type>{};
 				
 				TIME_THIS_CONTEXT_LIFETIME(reduce_mul_summation);
 				for (iter_type i = 0; i < sum.data.persistent.len; ++i)
 				{
 					auto region0 = region / expr::iterable_domain(sum.data.persistent[i].e);
-					TIME_THIS_EXPRESSION_LIFETIME(iterable_domain, auto r = expr::iterable_domain(sum.data.persistent[i].e);)
+					TIME_THIS_EXPRESSION_LIFETIME(iterable_domain_reduce, auto r = expr::iterable_domain(sum.data.persistent[i].e);)
 
 					if (!grid::is_empty(region0))
 					{
@@ -7139,14 +7356,20 @@ namespace expr
 			}
 			else
 			{
-				using expr_type = OpSum<V0, E, Substitution<SymbolicDataArray<Ts>...>,
-					symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, symphas::lib::types_list<Vs...>>;
 				return expr::eval_type_t<expr_type>{};
 			}
 		}
 
 		template<typename E0, typename V0, typename E, typename... Ts, int... I0s, int... P0s, typename A, typename B, typename... Vs, typename... Es>
-		auto apply_mul(OpExpression<E0> const& e, OpSum<V0, E, Substitution<SymbolicDataArray<Ts>...>,
+		auto apply_mul(OpEvaluable<E0> const& e, OpSum<V0, E, Substitution<SymbolicDataArray<Ts>...>,
+			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, symphas::lib::types_list<Vs...>> const& sum,
+			Es&&... terms) const
+		{
+			return apply_mul(sum, *static_cast<E0 const*>(&e), std::forward<Es>(terms)...);
+		}
+
+		template<typename E0, typename V0, typename E, typename... Ts, int... I0s, int... P0s, typename A, typename B, typename... Vs, typename... Es>
+		auto apply_mul(OpOperator<E0> const& e, OpSum<V0, E, Substitution<SymbolicDataArray<Ts>...>,
 			symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>, A, B, symphas::lib::types_list<Vs...>> const& sum,
 			Es&&... terms) const
 		{
@@ -7154,13 +7377,19 @@ namespace expr
 		}
 
 		template<typename A, typename B, typename E, typename... Es>
-		auto apply_mul(OpExpression<E> const& e0, OpBinaryMul<A, B> const& e1, Es&&... terms) const
+		auto apply_mul(OpEvaluable<E> const& e0, OpBinaryMul<A, B> const& e1, Es&&... terms) const
 		{
 			return apply_mul(e1.a, e1.b, *static_cast<E const*>(&e0), std::forward<Es>(terms)...);
 		}
 
 		template<typename A, typename B, typename E, typename... Es>
-		auto apply_mul(OpBinaryMul<A, B> const& e0, OpExpression<E> const& e1, Es&&... terms) const
+		auto apply_mul(OpOperator<E> const& e0, OpBinaryMul<A, B> const& e1, Es&&... terms) const
+		{
+			return apply_mul(e1.a, e1.b, *static_cast<E const*>(&e0), std::forward<Es>(terms)...);
+		}
+
+		template<typename A, typename B, typename E, typename... Es>
+		auto apply_mul(OpBinaryMul<A, B> const& e0, OpEvaluable<E> const& e1, Es&&... terms) const
 		{
 			return apply_mul(*static_cast<E const*>(&e1), e0, std::forward<Es>(terms)...);
 		}
@@ -7177,13 +7406,13 @@ namespace expr
 
 
 	template<typename E, typename assign_type>
-	void result_by_group(OpExpression<E> const& e, assign_type&& data, symphas::lib::types_list<>)
+	void result_by_group(OpEvaluable<E> const& e, assign_type&& data, symphas::lib::types_list<>)
 	{
 		result_accumulate(*static_cast<E const*>(&e), std::forward<assign_type>(data));
 	}
 
 	template<typename E, typename assign_type, typename condition_t, typename... condition_ts>
-	void result_by_group(OpExpression<E> const& e, assign_type&& data, symphas::lib::types_list<condition_t, condition_ts...>)
+	void result_by_group(OpEvaluable<E> const& e, assign_type&& data, symphas::lib::types_list<condition_t, condition_ts...>)
 	{
 		auto&& [eval, rest] = expr::split::separate_by<condition_t>(*static_cast<E const*>(&e));
 		result_accumulate(eval, std::forward<assign_type>(data));
@@ -7191,7 +7420,7 @@ namespace expr
 	}
 
 	template<typename condition_t, typename... condition_ts, typename E, typename assign_type, typename E0>
-	void result_by_group(OpExpression<E> const& e, assign_type&& data, E0 const& init)
+	void result_by_group(OpEvaluable<E> const& e, assign_type&& data, E0 const& init)
 	{
 		result(init, std::forward<assign_type>(data));
 		result_by_group(*static_cast<E const*>(&e), std::forward<assign_type>(data), symphas::lib::types_list<condition_t, condition_ts...>{});
@@ -7200,13 +7429,13 @@ namespace expr
 
 
 	template<typename E, typename assign_type, typename region_type>
-	void result_by_group(OpExpression<E> const& e, assign_type&& data, region_type&& region, symphas::lib::types_list<>)
+	void result_by_group(OpEvaluable<E> const& e, assign_type&& data, region_type&& region, symphas::lib::types_list<>)
 	{
 		result_accumulate(*static_cast<E const*>(&e), std::forward<assign_type>(data), std::forward<region_type>(region));
 	}
 
 	template<typename E, typename assign_type, typename region_type, typename condition_t, typename... condition_ts>
-	void result_by_group(OpExpression<E> const& e, assign_type&& data, region_type&& region, symphas::lib::types_list<condition_t, condition_ts...>)
+	void result_by_group(OpEvaluable<E> const& e, assign_type&& data, region_type&& region, symphas::lib::types_list<condition_t, condition_ts...>)
 	{
 		auto&& [eval, rest] = expr::split::separate_by<condition_t>(*static_cast<E const*>(&e));
 		result_accumulate(eval, std::forward<assign_type>(data));
@@ -7214,10 +7443,167 @@ namespace expr
 	}
 
 	template<typename condition_t, typename... condition_ts, typename E, typename assign_type, typename region_type, typename E0>
-	void result_by_group(OpExpression<E> const& e, assign_type&& data, region_type&& region, E0 const& init)
+	void result_by_group(OpEvaluable<E> const& e, assign_type&& data, region_type&& region, E0 const& init)
 	{
 		result(init, std::forward<assign_type>(data), std::forward<region_type>(region));
 		result_by_group(*static_cast<E const*>(&e), std::forward<assign_type>(data), std::forward<region_type>(region), symphas::lib::types_list<condition_t, condition_ts...>{});
+	}
+
+	//! Evaluate only the terms of the expression matching the condition.
+	/*!
+	 * The expression must be iterable over the entire given length.
+	 *
+	 * \param e Expression that is evaluated.
+	 * \param data The array containing the result of the expression.
+	 * \param len The number of elements in the array.
+	 */
+	template<typename condition_t, typename... condition_ts, typename E, typename assign_type>
+	void result_only(OpEvaluable<E> const& e, assign_type&& data, len_type len)
+	{
+		if constexpr (expr::satisfies<E, expr::or_<condition_t, condition_ts...>>)
+		{
+			symphas::data_iterator it(std::forward<assign_type>(data));
+
+			std::transform(
+#ifdef EXECUTION_HEADER_AVAILABLE
+				std::execution::par_unseq,
+#endif
+				static_cast<const E*>(&e)->begin(),
+				static_cast<const E*>(&e)->end(len), it,
+				forward_value{});
+		}
+	}
+
+	template<typename condition_t, typename... condition_ts, typename E, typename assign_type, size_t D>
+	void result_only(OpEvaluable<E> const& e, assign_type&& data, grid::region_interval<D> const& interval)
+	{
+		if constexpr (expr::satisfies<E, expr::or_<condition_t, condition_ts...>>)
+		{
+			symphas::data_iterator_group it(std::forward<assign_type>(data), interval);
+
+			std::transform(
+#ifdef EXECUTION_HEADER_AVAILABLE
+				std::execution::par_unseq,
+#endif
+				static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
+				static_cast<const E*>(&e)->end(symphas::it_grp, interval), it,
+				forward_value{});
+		}
+	}
+
+	template<typename condition_t, typename... condition_ts, typename E, typename assign_type, size_t D>
+	void result_only(OpEvaluable<E> const& e, assign_type&& data, grid::region_interval_multiple<D> const& regions)
+	{
+		for (grid::region_interval<D> region : regions)
+		{
+			result_only<condition_t, condition_ts...>(*static_cast<E const*>(&e), std::forward<assign_type>(data), region);
+		}
+	}
+
+
+	template<typename condition_t, typename... condition_ts, typename E, typename assign_type>
+	void result_only(OpEvaluable<E> const& e, assign_type&& data, grid::region_interval<0> const& interval)
+	{
+		auto data_region = expr::iterable_domain(std::forward<assign_type>(data));
+		if (grid::length(data_region) > 1)
+		{
+			result_only<condition_t, condition_ts...>(*static_cast<E const*>(&e), std::forward<assign_type>(data), data_region);
+		}
+		else
+		{
+			result_only<condition_t, condition_ts...>(*static_cast<E const*>(&e), std::forward<assign_type>(data), 1);
+		}
+	}
+
+	template<typename condition_t, typename... condition_ts, typename E, typename assign_type>
+	void result_only(OpEvaluable<E> const& e, assign_type&& data, grid::region_empty) {}
+
+
+
+	template<typename... Es, typename assign_type, size_t... Is>
+	void result_only(OpAdd<Es...> const& e, assign_type&& data, len_type len, std::index_sequence<Is...>)
+	{
+		symphas::data_iterator it(std::forward<assign_type>(data));
+		auto start = symphas::reduce_seq_iterator(expr::get<Is>(e).begin()...);
+		auto end = symphas::reduce_seq_iterator(expr::get<Is>(e).end(len)...);
+
+		std::transform(
+#ifdef EXECUTION_HEADER_AVAILABLE
+			std::execution::par_unseq,
+#endif
+			start,
+			end, it,
+			forward_value{});
+	}
+
+	template<typename... Es, typename assign_type, size_t... Is>
+	void result_only(OpAdd<Es...> const& e, assign_type&& data, grid::region_interval<0> const& interval, std::index_sequence<Is...>)
+	{
+		auto data_region = expr::iterable_domain(std::forward<assign_type>(data));
+		if (grid::length(data_region) > 1)
+		{
+			result_only(e, std::forward<assign_type>(data), data_region, std::index_sequence<Is...>{});
+		}
+		else
+		{
+			result_only(e, std::forward<assign_type>(data), 1, std::index_sequence<Is...>{});
+		}
+	}
+
+	template<typename... Es, typename assign_type, size_t D, size_t... Is>
+	void result_only(OpAdd<Es...> const& e, assign_type&& data, grid::region_interval<D> const& interval, std::index_sequence<Is...>)
+	{
+		symphas::data_iterator_group it(std::forward<assign_type>(data), interval);
+		auto start = symphas::reduce_iterator(expr::get<Is>(e).begin(symphas::it_grp, interval)...);
+		auto end = symphas::reduce_iterator(expr::get<Is>(e).end(symphas::it_grp, interval)...);
+
+		std::transform(
+#ifdef EXECUTION_HEADER_AVAILABLE
+			std::execution::par_unseq,
+#endif
+			start,
+			end, it,
+			forward_value{});
+	}
+
+	template<typename... Es, typename assign_type, size_t D, size_t... Is>
+	void result_only(OpAdd<Es...> const& e, assign_type&& data, grid::region_interval_multiple<D> const& regions, std::index_sequence<Is...>)
+	{
+		for (grid::region_interval<D> region : regions)
+		{
+			result_only(e, std::forward<assign_type>(data), region, std::index_sequence<Is...>{});
+		}
+	}
+
+	template<typename... Es, typename assign_type>
+	void result_only(OpAdd<Es...> const& e, assign_type&& data, std::index_sequence<>) 
+	{
+		result(OpVoid{}, std::forward<assign_type>(data), expr::iterable_domain(std::forward<assign_type>(data)));
+	}
+
+	template<typename... Es, typename assign_type, size_t I0, size_t... Is>
+	void result_only(OpAdd<Es...> const& e, assign_type&& data, std::index_sequence<I0, Is...>)
+	{
+		auto region = (expr::iterable_domain(expr::get<Is>(e)) + ... + expr::iterable_domain(expr::get<I0>(e)));
+		result_only(e, std::forward<assign_type>(data), region, std::index_sequence<I0, Is...>{});
+	}
+
+	template<typename condition_t, typename... condition_ts, typename... Es, typename assign_type>
+	void result_only(OpAdd<Es...> const& e, assign_type&& data)
+	{
+		using namespace symphas::internal;
+		using mask = std::integer_sequence<bool, expression_satisfies_condition<Es, expr::or_<condition_t, condition_ts...>>...>;
+		using seq = std::make_index_sequence<sizeof...(Es)>;
+		result_only(e, std::forward<assign_type>(data), symphas::lib::filter_seq_t<seq, mask>{});
+	}
+
+	template<typename condition_t, typename... condition_ts, typename E, typename assign_type>
+	void result_only(OpEvaluable<E> const& e, assign_type&& data)
+	{
+		if constexpr (expr::satisfies<E, expr::or_<condition_t, condition_ts...>>)
+		{
+			result(*static_cast<E const*>(&e), std::forward<assign_type>(data));
+		}
 	}
 
 
@@ -7239,7 +7625,7 @@ namespace expr
 	{
 		if constexpr ((expr::satisfies<Es, expr::or_<condition_t, condition_ts...>> || ...))
 		{
-			result(expr::split::filter<expr::not_<condition_t, condition_ts...>>(e), std::forward<assign_type>(data));
+			result_only<expr::not_<expr::or_<condition_t, condition_ts...>>>(e, std::forward<assign_type>(data));
 			result_by_term(e, std::forward<assign_type>(data), symphas::lib::types_list<condition_t, condition_ts...>{}, std::make_index_sequence<sizeof...(Es)>{});
 		}
 		else
@@ -7249,9 +7635,158 @@ namespace expr
 	}
 
 	template<typename condition_t, typename... condition_ts, typename E, typename assign_type>
-	void result_by_term(OpExpression<E> const& e, assign_type&& data)
+	void result_by_term(OpEvaluable<E> const& e, assign_type&& data)
 	{
 		result(*static_cast<E const*>(&e), std::forward<assign_type>(data));
+	}
+
+
+
+	//! Evaluate only the terms of the expression matching the condition.
+	/*!
+	 * The expression must be iterable over the entire given length.
+	 *
+	 * \param e Expression that is evaluated.
+	 * \param data The array containing the result of the expression.
+	 * \param len The number of elements in the array.
+	 */
+	template<typename condition_t, typename... condition_ts, typename E, typename assign_type>
+	auto result_sum_only(OpEvaluable<E> const& e, len_type len)
+	{
+		if constexpr (expr::satisfies<E, expr::or_<condition_t, condition_ts...>>)
+		{
+			return std::reduce(
+#ifdef EXECUTION_HEADER_AVAILABLE
+				std::execution::par_unseq,
+#endif
+				static_cast<const E*>(&e)->begin(),
+				static_cast<const E*>(&e)->end(len));
+		}
+		else
+		{
+			return expr::eval_type_t<E>{};
+		}
+	}
+
+	template<typename condition_t, typename... condition_ts, typename E, size_t D>
+	auto result_sum_only(OpEvaluable<E> const& e, grid::region_interval<D> const& interval)
+	{
+		if constexpr (expr::satisfies<E, expr::or_<condition_t, condition_ts...>>)
+		{
+			return std::reduce(
+#ifdef EXECUTION_HEADER_AVAILABLE
+				std::execution::par_unseq,
+#endif
+				static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
+				static_cast<const E*>(&e)->end(symphas::it_grp, interval));
+		}
+		else
+		{
+			return expr::eval_type_t<E>{};
+		}
+	}
+
+	template<typename condition_t, typename... condition_ts, typename E, size_t D>
+	auto result_sum_only(OpEvaluable<E> const& e, grid::region_interval_multiple<D> const& regions)
+	{
+		expr::eval_type_t<E> result{};
+		for (grid::region_interval<D> region : regions)
+		{
+			result += result_sum_only<condition_t, condition_ts...>(*static_cast<E const*>(&e), region);
+		}
+		return result;
+	}
+
+
+	template<typename condition_t, typename... condition_ts, typename E>
+	auto result_sum_only(OpEvaluable<E> const& e, grid::region_interval<0> const& interval)
+	{
+		return result_sum_only(*static_cast<E const*>(&e), 1);
+	}
+
+	template<typename condition_t, typename... condition_ts, typename E>
+	auto result_sum_only(OpEvaluable<E> const& e, grid::region_empty) 
+	{
+		return expr::eval_type_t<E>{};
+	}
+
+
+	template<typename... Es, size_t... Is>
+	auto result_sum_only(OpAdd<Es...> const& e, len_type len, std::index_sequence<Is...>)
+	{
+		auto start = symphas::reduce_seq_iterator(expr::get<Is>(e).begin()...);
+		auto end = symphas::reduce_seq_iterator(expr::get<Is>(e).end(len)...);
+
+		return std::reduce(
+#ifdef EXECUTION_HEADER_AVAILABLE
+			std::execution::par_unseq,
+#endif
+			start, end);
+	}
+
+	template<typename... Es, size_t... Is>
+	auto result_sum_only(OpAdd<Es...> const& e, grid::region_interval<0> const& interval, std::index_sequence<Is...>)
+	{
+		return result_sum_only(e, 1, std::index_sequence<Is...>{});
+	}
+
+	template<typename... Es, size_t D, size_t... Is>
+	auto result_sum_only(OpAdd<Es...> const& e, grid::region_interval<D> const& interval, std::index_sequence<Is...>)
+	{
+		auto start = symphas::reduce_iterator(expr::get<Is>(e).begin(symphas::it_grp, interval)...);
+		auto end = symphas::reduce_iterator(expr::get<Is>(e).end(symphas::it_grp, interval)...);
+
+		return std::reduce(
+#ifdef EXECUTION_HEADER_AVAILABLE
+			std::execution::par_unseq,
+#endif
+			start, end);
+	}
+
+	template<typename... Es, size_t D, size_t... Is>
+	auto result_sum_only(OpAdd<Es...> const& e, grid::region_interval_multiple<D> const& regions, std::index_sequence<Is...>)
+	{
+		expr::eval_type_t<OpAdd<symphas::lib::type_at_index<Is, Es...>...>> result{};
+		for (grid::region_interval<D> region : regions)
+		{
+			result += result_sum_only(e, region, std::index_sequence<Is...>{});
+		}
+		return result;
+	}
+
+	template<typename... Es>
+	auto result_sum_only(OpAdd<Es...> const& e, std::index_sequence<>)
+	{
+		return expr::eval_type_t<OpAdd<Es...>>{};
+	}
+
+	template<typename... Es, size_t I0, size_t... Is>
+	auto result_sum_only(OpAdd<Es...> const& e, std::index_sequence<I0, Is...>)
+	{
+		auto region = (expr::iterable_domain(expr::get<Is>(e)) + ... + expr::iterable_domain(expr::get<I0>(e)));
+		return result_sum_only(e, region, std::index_sequence<I0, Is...>{});
+	}
+
+	template<typename condition_t, typename... condition_ts, typename... Es>
+	auto result_sum_only(OpAdd<Es...> const& e)
+	{
+		using namespace symphas::internal;
+		using mask = std::integer_sequence<bool, expression_satisfies_condition<Es, expr::or_<condition_t, condition_ts...>>...>;
+		using seq = std::make_index_sequence<sizeof...(Es)>;
+		return result_sum_only(e, symphas::lib::filter_seq_t<seq, mask>{});
+	}
+
+	template<typename condition_t, typename... condition_ts, typename E>
+	auto result_sum_only(OpEvaluable<E> const& e)
+	{
+		if constexpr (expr::satisfies<E, expr::or_<condition_t, condition_ts...>>)
+		{
+			return result(*static_cast<E const*>(&e));
+		}
+		else
+		{
+			return OpVoid{};
+		}
 	}
 
 
@@ -7275,12 +7810,12 @@ namespace expr
 	template<typename condition_t, typename... condition_ts, typename... Es>
 	auto result_sum_by_term(OpAdd<Es...> const& e)
 	{
-		return result_sum(expr::split::filter<expr::not_<condition_t, condition_ts...>>(e))
+		return result_sum_only<expr::not_<expr::or_<condition_t, condition_ts...>>>(e)
 			+ result_sum_by_term(e, symphas::lib::types_list<condition_t, condition_ts...>{}, std::make_index_sequence<sizeof...(Es)>{});
 	}
 
 	template<typename condition_t, typename... condition_ts, typename E>
-	auto result_sum_by_term(OpExpression<E> const& e)
+	auto result_sum_by_term(OpEvaluable<E> const& e)
 	{
 		return result_sum(*static_cast<E const*>(&e));
 	}
@@ -8469,6 +9004,30 @@ namespace symphas::internal
 		}
 	}
 
+	template<typename E1, typename E2>
+	auto dot(OpExpression<E1> const& a, OpOperator<E2> const& b)
+	{
+		return expr::make_mul(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b));
+	}
+
+	template<typename E1, typename E2>
+	auto dot(OpOperator<E1> const& a, OpExpression<E2> const& b)
+	{
+		return expr::make_mul(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b));
+	}
+
+	template<typename E1, typename E2>
+	auto dot(OpOperator<E1> const& a, OpOperator<E2> const& b)
+	{
+		return expr::make_mul(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b));
+	}
+
+	template<typename E1, typename E2>
+	auto dot(OpOperatorChain<OpIdentity, E1> const& a, OpOperatorChain<OpIdentity, E2> const& b)
+	{
+		return dot(a.g, b.g);
+	}
+
 	template<typename E1>
 	auto dot(OpExpression<E1> const& a, OpVoid)
 	{
@@ -8491,6 +9050,24 @@ namespace expr
 {
 	template<typename E1, typename E2>
 	auto dot(OpExpression<E1> const& a, OpExpression<E2> const& b)
+	{
+		return symphas::internal::dot(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b));
+	}
+
+	template<typename E1, typename E2>
+	auto dot(OpExpression<E1> const& a, OpOperator<E2> const& b)
+	{
+		return symphas::internal::dot(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b));
+	}
+
+	template<typename E1, typename E2>
+	auto dot(OpOperator<E1> const& a, OpExpression<E2> const& b)
+	{
+		return symphas::internal::dot(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b));
+	}
+
+	template<typename E1, typename E2>
+	auto dot(OpOperator<E1> const& a, OpOperator<E2> const& b)
 	{
 		return symphas::internal::dot(*static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b));
 	}
@@ -8826,6 +9403,9 @@ namespace expr::prune
 		template<typename V, typename sub_t, typename eval_t, typename... condition_ts,
 			std::enable_if_t<expr::satisfies<OpSymbolicEval<V, sub_t, eval_t>, expr::or_<condition_ts...>>, int> = 0>
 		inline void _update(OpSymbolicEval<V, sub_t, eval_t>& e, symphas::lib::types_list<condition_ts...>);
+		template<typename E, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpOptimized<E>, expr::or_<condition_ts...>>, int> = 0>
+		inline void _update(OpOptimized<E> &e, symphas::lib::types_list<condition_ts...>);
 		template<typename E, typename... Ts, typename... condition_ts,
 			std::enable_if_t<expr::satisfies<E, expr::or_<condition_ts...>>, int> = 0>
 		inline void _update(SymbolicFunction<E, Ts...>& e, symphas::lib::types_list<condition_ts...>);
@@ -9057,6 +9637,13 @@ namespace expr::prune
 			e.update(symphas::lib::types_list<condition_ts...>{});
 		}
 
+		template<typename E, typename... condition_ts,
+			std::enable_if_t<expr::satisfies<OpOptimized<E>, expr::or_<condition_ts...>>, int>>
+		inline void _update(OpOptimized<E>& e, symphas::lib::types_list<condition_ts...>)
+		{
+			e.update(symphas::lib::types_list<condition_ts...>{});
+		}
+
 		template<typename E, typename... Ts, typename... condition_ts,
 			std::enable_if_t<expr::satisfies<E, expr::or_<condition_ts...>>, int>>
 		inline void _update(SymbolicFunction<E, Ts...>& e, symphas::lib::types_list<condition_ts...>)
@@ -9140,8 +9727,374 @@ namespace expr::prune
 
 }
 
+namespace expr
+{
+
+	template<typename A, typename B>
+	struct numeric_range_dist
+	{
+		using type = sub_result_t<B, A>;
+	};
+
+	template<size_t N, size_t D, size_t N0, size_t D0, bool first_neg, bool second_neg>
+	struct numeric_range_count_impl;
+
+	template<size_t N, size_t D, size_t N0, size_t D0>
+	struct numeric_range_count_impl<N, D, N0, D0, false, false>
+	{
+		using type = sub_result_t<OpFractionLiteral<N0, D0>, OpFractionLiteral<N, D>>;
+	};
+
+	template<size_t N, size_t D, size_t N0, size_t D0>
+	struct numeric_range_count_impl<N, D, N0, D0, false, true>
+	{
+		using type = sub_result_t<OpNegFractionLiteral<N0, D0>, OpFractionLiteral<N, D>>;
+	};
+	
+	template<size_t N, size_t D, size_t N0, size_t D0>
+	struct numeric_range_count_impl<N, D, N0, D0, true, false>
+	{
+		using type = sub_result_t<OpFractionLiteral<N0, D0>, OpNegFractionLiteral<N, D>>;
+	};
+
+	template<size_t N, size_t D, size_t N0, size_t D0>
+	struct numeric_range_count_impl<N, D, N0, D0, true, true>
+	{
+		using type = sub_result_t<OpNegFractionLiteral<N0, D0>, OpNegFractionLiteral<N, D>>;
+	};
+
+	template<typename A>
+	struct numeric_range_value
+	{
+		constexpr static int value = A{}.eval();
+	};
+
+
+	template<int N, size_t D, int N0, size_t D0>
+	struct numeric_range_count
+	{
+		using type = typename numeric_range_count_impl<(N < 0) ? size_t(-N) : size_t(N), D, (N0 < 0) ? size_t(-N0) : size_t(N0), D0, N < 0, N0 < 0>::type;
+		constexpr static int value = numeric_range_value<type>::value;
+	};
+
+	//! Represents a numeric range of values.
+	/*!
+	 * Represents a numeric range of values.
+	 *
+	 * \tparam N The numerator of the starting value.
+	 * \tparam D The denominator of the starting value.
+	 * \tparam N0 The numerator of the ending value.
+	 * \tparam D0 The denominator of the ending value.
+	 * \tparam C The number (and direction) of steps.
+	 */
+	template<int N, size_t D, int N0, size_t D0, int C>
+	struct numeric_range_state {};
+
+	//! Represents a constant interval.
+	/*!
+	 * Represents a constant interval.
+	 *
+	 * \tparam N The numerator of the starting value.
+	 * \tparam D The denominator of the starting value.
+	 * \tparam N0 The numerator of the ending value.
+	 * \tparam D0 The denominator of the ending value.
+	 */
+	template<int N, size_t D, int N0, size_t D0>
+	struct numeric_interval_state
+	{
+		template<typename A, typename B>
+		constexpr numeric_interval_state(A, B) {}
+
+
+		constexpr auto operator&(OpIdentity) const
+		{
+			return numeric_range_state<N, D, N0, D0, 1>{};
+		}
+
+		constexpr auto operator&(OpNegIdentity) const
+		{
+			return numeric_range_state<N, D, N0, D0, -1>{};
+		}
+
+		template<size_t C>
+		constexpr auto operator&(OpFractionLiteral<C, 1>) const
+		{
+			return numeric_range_state<N, D, N0, D0, int(C)>{};
+		}
+
+		template<size_t C>
+		constexpr auto operator&(OpNegFractionLiteral<C, 1>) const
+		{
+			return numeric_range_state<N, D, N0, D0, -int(C)>{};
+		}
+
+		constexpr auto operator|(OpIdentity) const
+		{
+			constexpr int C = numeric_range_count<N, D, N0, D0>::value;
+			return numeric_range_state<N, D, N0, D0, C>{};
+		}
+
+		constexpr auto operator|(OpNegIdentity) const
+		{
+			constexpr int C = numeric_range_count<N, D, N0, D0>::value;
+			return numeric_range_state<N, D, N0, D0, C>{};
+		}
+
+		template<size_t dN, size_t dD>
+		constexpr auto operator|(OpFractionLiteral<dN, dD>) const
+		{
+			constexpr int C = div_result_t<typename numeric_range_count<N, D, N0, D0>::type, OpFractionLiteral<dN, dD>>{}.eval();
+			return numeric_range_state<N, D, N0, D0, C>{};
+		}
+
+		template<size_t dN, size_t dD>
+		constexpr auto operator|(OpNegFractionLiteral<dN, dD>) const
+		{
+			constexpr int C = div_result_t<typename numeric_range_count<N, D, N0, D0>::type, OpFractionLiteral<dN, dD>>{}.eval();
+			return numeric_range_state<N, D, N0, D0, C>{};
+		}
+	};
+
+
+	numeric_interval_state(OpIdentity, OpIdentity) -> numeric_interval_state<1, 1, 1, 1>;
+	numeric_interval_state(OpIdentity, OpNegIdentity) -> numeric_interval_state<1, 1, -1, 1>;
+	numeric_interval_state(OpIdentity, OpVoid) -> numeric_interval_state<1, 1, 0, 1>;
+	template<size_t N, size_t D>
+	numeric_interval_state(OpIdentity, OpFractionLiteral<N, D>) -> numeric_interval_state<1, 1, int(N), D>;
+	template<size_t N, size_t D>
+	numeric_interval_state(OpIdentity, OpNegFractionLiteral<N, D>) -> numeric_interval_state<1, 1, -int(N), D>;
+
+	numeric_interval_state(OpNegIdentity, OpIdentity)->numeric_interval_state<-1, 1, 1, 1>;
+	numeric_interval_state(OpNegIdentity, OpNegIdentity)->numeric_interval_state<-1, 1, -1, 1>;
+	numeric_interval_state(OpNegIdentity, OpVoid)->numeric_interval_state<-1, 1, 0, 1>;
+	template<size_t N, size_t D>
+	numeric_interval_state(OpNegIdentity, OpFractionLiteral<N, D>) -> numeric_interval_state<-1, 1, int(N), D>;
+	template<size_t N, size_t D>
+	numeric_interval_state(OpNegIdentity, OpNegFractionLiteral<N, D>) -> numeric_interval_state<-1, 1, -int(N), D>;
+
+	numeric_interval_state(OpVoid, OpIdentity)->numeric_interval_state<0, 1, 1, 1>;
+	numeric_interval_state(OpVoid, OpNegIdentity)->numeric_interval_state<0, 1, -1, 1>;
+	numeric_interval_state(OpVoid, OpVoid)->numeric_interval_state<0, 1, 0, 1>;
+	template<size_t N, size_t D>
+	numeric_interval_state(OpVoid, OpFractionLiteral<N, D>) -> numeric_interval_state<0, 1, int(N), D>;
+	template<size_t N, size_t D>
+	numeric_interval_state(OpVoid, OpNegFractionLiteral<N, D>) -> numeric_interval_state<0, 1, -int(N), D>;
+
+	template<size_t N, size_t D>
+	numeric_interval_state(OpFractionLiteral<N, D>, OpIdentity) -> numeric_interval_state<int(N), D, 1, 1>;
+	template<size_t N, size_t D>
+	numeric_interval_state(OpFractionLiteral<N, D>, OpNegIdentity) -> numeric_interval_state<int(N), D, -1, 1>;
+	template<size_t N, size_t D>
+	numeric_interval_state(OpFractionLiteral<N, D>, OpVoid) -> numeric_interval_state<int(N), D, 0, 1>;
+	template<size_t N, size_t D, size_t N0, size_t D0>
+	numeric_interval_state(OpFractionLiteral<N, D>, OpFractionLiteral<N0, D0>) -> numeric_interval_state<int(N), D, int(N0), D0>;
+	template<size_t N, size_t D, size_t N0, size_t D0>
+	numeric_interval_state(OpFractionLiteral<N, D>, OpNegFractionLiteral<N0, D0>) -> numeric_interval_state<int(N), D, -int(N0), D0>;
+
+	template<size_t N, size_t D>
+	numeric_interval_state(OpNegFractionLiteral<N, D>, OpIdentity) -> numeric_interval_state<-int(N), D, 1, 1>;
+	template<size_t N, size_t D>
+	numeric_interval_state(OpNegFractionLiteral<N, D>, OpNegIdentity) -> numeric_interval_state<-int(N), D, -1, 1>;
+	template<size_t N, size_t D>
+	numeric_interval_state(OpNegFractionLiteral<N, D>, OpVoid) -> numeric_interval_state<-int(N), D, 0, 1>;
+	template<size_t N, size_t D, size_t N0, size_t D0>
+	numeric_interval_state(OpNegFractionLiteral<N, D>, OpFractionLiteral<N0, D0>) -> numeric_interval_state<-int(N), D, int(N0), D0>;
+	template<size_t N, size_t D, size_t N0, size_t D0>
+	numeric_interval_state(OpNegFractionLiteral<N, D>, OpNegFractionLiteral<N0, D0>) -> numeric_interval_state<-int(N), D, -int(N0), D0>;
+
+	template<typename A, typename B>
+	constexpr auto numeric_range(A, B)
+	{
+		return numeric_interval_state(A{}, B{});
+	}
+
+	//! Represents the beginning of a constant interval.
+	/*!
+	 * Represents the beginning of a constant interval.
+	 *
+	 * \tparam N The numerator of the starting value.
+	 * \tparam D The denominator of the starting value.
+	 */
+	template<int N, size_t D>
+	struct numeric_range_state_start
+	{
+		template<typename A>
+		constexpr numeric_range_state_start(A) {}
+
+		template<typename B>
+		auto operator>(B) const
+		{
+			if constexpr (N < 0)
+			{
+				return numeric_range(-expr::make_fraction<size_t(N), D>(), B{});
+			}
+			else
+			{
+				return numeric_range(expr::make_fraction<size_t(N), D>(), B{});
+			}
+		}
+	};
+
+	numeric_range_state_start(OpIdentity)->numeric_range_state_start<1, 1>;
+	numeric_range_state_start(OpVoid)->numeric_range_state_start<0, 1>;
+	numeric_range_state_start(OpNegIdentity)->numeric_range_state_start<-1, 1>;
+	template<size_t N, size_t D>
+	numeric_range_state_start(OpFractionLiteral<N, D>) -> numeric_range_state_start<int(N), D>;
+	template<size_t N, size_t D>
+	numeric_range_state_start(OpNegFractionLiteral<N, D>) -> numeric_range_state_start<-int(N), D>;
+
+	template<typename A>
+	constexpr auto numeric_range(A)
+	{
+		return numeric_range_state_start(A{});
+	}
+}
+
+constexpr auto OpVoid::operator--(int) const
+{
+	return expr::numeric_range(OpVoid{});
+}
+
+constexpr auto OpIdentity::operator--(int) const
+{
+	return expr::numeric_range(OpIdentity{});
+}
+
+constexpr auto OpNegIdentity::operator--(int) const
+{
+	return expr::numeric_range(OpNegIdentity{});
+}
+
+namespace symphas::internal
+{
+	template<typename G, typename V, typename E, typename T, typename working_grid>
+	auto to_optimized(OpIntegral<V, E, T> const& e, OpTerm<OpIdentity, working_grid*> const& data)
+	{
+		return expr::transform::swap_expression<G>(e, data);
+	}
+}
+
+template<typename V, typename E, typename T, typename G>
+struct OpOptimized<OpBinaryMul<OpIntegral<V, E, T>, G>> : OpExpression<OpOptimized<OpBinaryMul<OpIntegral<V, E, T>, G>>>
+{
+	using this_type = OpOptimized<OpBinaryMul<OpIntegral<V, E, T>, G>>;
+	using working_grid = expr::storage_type_t<G>;
+
+	using expr_t = std::invoke_result_t<decltype(&symphas::internal::to_optimized<G, V, E, T, working_grid>), OpIntegral<V, E, T>, OpTerm<OpIdentity, working_grid*>>;
+
+	OpOptimized() : working{ 0 }, e{ }, term{ } {}
+
+	OpOptimized(OpBinaryMul<OpIntegral<V, E, T>, G> const& e) : 
+		working{ expr::data_dimensions(e.b) }, e{ symphas::internal::to_optimized<G>(e.a, expr::make_term(&working)) }, term{ e.b } 
+	{
+		symphas::internal::update_temporary_grid(working, term);
+		expr::prune::update(this->e);
+	}
+
+	OpOptimized(OpOptimized const& other) : OpOptimized(other.get_expression()) {}
+	OpOptimized(OpOptimized&& other) noexcept : OpOptimized() 
+	{
+		swap(*this, other);
+	}
+	OpOptimized& operator=(OpOptimized other)
+	{
+		swap(*this, other);
+		return *this;
+	}
+
+	friend void swap(OpOptimized<OpBinaryMul<OpIntegral<V, E, T>, G>>& first, OpOptimized<OpBinaryMul<OpIntegral<V, E, T>, G>>& second)
+	{
+		using std::swap;
+		swap(first.working, second.working);
+		swap(first.e, second.e);
+		swap(first.term, second.term);
+	}
+
+	auto eval(iter_type n) const
+	{
+		return e.eval(n) * expr::BaseData<working_grid>::get(working, n);
+	}
+
+	template<typename... condition_ts>
+	void update(symphas::lib::types_list<condition_ts...>)
+	{
+		symphas::internal::update_temporary_grid(working, term);
+		expr::result(term, working, grid::get_iterable_domain(working));
+		expr::prune::update<condition_ts...>(e);
+	}
+
+	void update()
+	{
+		update(symphas::lib::types_list<>{});
+	}
+
+	auto operator-() const;
+
+#ifdef PRINTABLE_EQUATIONS
+
+	size_t print(FILE* out) const
+	{
+		return get_expression().print(out);
+	}
+
+	size_t print(char* out) const
+	{
+		return get_expression().print(out);
+	}
+
+	size_t print_length() const
+	{
+		return get_expression().print_length();
+	}
+#endif
+
+	auto get_expression() const
+	{
+		return expr::transform::swap_grid<OpTerm<OpIdentity, working_grid*>>(e, term) * term;
+	}
+
+	working_grid working;
+	expr_t e;
+	G term;
+};
+
+template<typename E>
+OpOptimized(E) -> OpOptimized<E>;
+
+namespace expr::transform
+{
+	template<typename E>
+	auto optimize(OpExpression<E> const& e)
+	{
+		return *static_cast<E const*>(&e);
+	}
+
+	template<typename V, typename E, typename T, typename G,
+		typename = std::enable_if_t<expr::satisfies<E, expr::contains_matching_anywhere<G>>, int>>
+	auto optimize(OpBinaryMul<OpIntegral<V, E, T>, G> const& e)
+	{
+		return OpOptimized(e);
+	}
+
+	template<typename... Es, size_t... Is>
+	auto optimize(OpAdd<Es...> const& e, std::index_sequence<Is...>)
+	{
+		return (optimize(expr::get<Is>(e)) + ...);
+	}
+
+	template<typename... Es>
+	auto optimize(OpAdd<Es...> const& e)
+	{
+		return optimize(e, std::make_index_sequence<sizeof...(Es)>{});
+	}
+}
 
 
 
+template<typename V, typename E, typename T, typename G>
+auto OpOptimized<OpBinaryMul<OpIntegral<V, E, T>, G>>::operator-() const
+{
+	return expr::transform::optimize(-get_expression());
+}
 
 

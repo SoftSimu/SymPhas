@@ -468,6 +468,29 @@ ADD_EXPR_TYPE_SYMBOL_TEMPLATE_WITH_ID(TYPE, (SINGLE_ARG TEMPLATES), (SINGLE_ARG 
 //! @}
 
 
+
+namespace symphas
+{
+	template<typename T>
+	struct pointer_type
+	{
+		pointer_type(T* data) : data{ data } {}
+		pointer_type() : data{ nullptr } {}
+
+		T* data;
+
+		operator T* ()
+		{
+			return data;
+		}
+
+		operator const T* () const
+		{
+			return data;
+		}
+	};
+}
+
 namespace expr
 {
 
@@ -1358,6 +1381,16 @@ namespace expr
 	};
 
 	//! Specialization based on SymbolID.
+	template<typename A>
+	struct SymbolID<symphas::pointer_type<A>>
+	{
+		static decltype(auto) get(symphas::pointer_type<A> const& data)
+		{
+			return SymbolID<A>::get(*data.data);
+		}
+	};
+
+	//! Specialization based on SymbolID.
 	template<size_t Z, typename G>
 	struct SymbolID<Variable<Z, G>>
 	{
@@ -1434,6 +1467,31 @@ namespace expr
 		static decltype(auto) get(symphas::ref<T>& data)
 		{
 			return BaseData<T>::get(data.get());
+		}
+	};
+
+	//! Specialization based on expr::BaseData.
+	template<typename T>
+	struct BaseData<symphas::pointer_type<T>>
+	{
+		static decltype(auto) get(symphas::pointer_type<T> const& data, iter_type n)
+		{
+			return BaseData<T>::get(*data.data, n);
+		}
+
+		static decltype(auto) get(symphas::pointer_type<T> const& data)
+		{
+			return BaseData<T>::get(*data.data);
+		}
+
+		static decltype(auto) get(symphas::pointer_type<T>& data, iter_type n)
+		{
+			return BaseData<T>::get(*data.data, n);
+		}
+
+		static decltype(auto) get(symphas::pointer_type<T>& data)
+		{
+			return BaseData<T>::get(*data.data);
 		}
 	};
 
