@@ -10064,7 +10064,7 @@ OpOptimized(E) -> OpOptimized<E>;
 namespace expr::transform
 {
 	template<typename E>
-	auto optimize(OpExpression<E> const& e)
+	auto optimize(OpEvaluable<E> const& e)
 	{
 		return *static_cast<E const*>(&e);
 	}

@@ -2014,7 +2014,8 @@ namespace expr
 	//	return typename pack_dictionary<types_list<Es...>, std::integer_sequence<int, Is...>>::type{};
 	//}
 
-	template<typename... Symbols, typename... Es, typename E0, typename... E0s>
+	template<typename... Symbols, typename... Es, typename E0, typename... E0s,
+        std::enable_if_t<!std::is_same_v<E0, OpVoid>, int> = 0>
 	auto update_stencil_dictionary(types_list<std::pair<Symbols, Es>...> const& dict, types_list<E0, E0s...> const& exprs);
 
 	template<typename... Symbols, typename... Es>
@@ -2029,7 +2030,8 @@ namespace expr
 		return update_stencil_dictionary(dict, types_list<E0s...>{});
 	}
 
-	template<typename... Symbols, typename... Es, typename E0, typename... E0s>
+	template<typename... Symbols, typename... Es, typename E0, typename... E0s,
+        std::enable_if_t<!std::is_same_v<E0, OpVoid>, int> = 0>
 	auto update_stencil_dictionary(types_list<std::pair<Symbols, Es>...> const& dict, types_list<E0, E0s...> const& exprs)
 	{
 		if constexpr (!dict_complete<types_list<std::pair<Symbols, Es>...>>::value)
