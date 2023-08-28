@@ -64,7 +64,7 @@ NEW_SOLVER_WITH_STENCIL(SolverFT)
 	{
 		TIME_THIS_CONTEXT_LIFETIME(solverft_equation);
 		expr::prune::update<expr::not_<expr::matches_series>>(r.second);
-		expr::result_by_term<expr::matches_series, expr::matches_integral>(r.second, r.first.get().dframe);
+		expr::result_by_term<expr::matches_series>(r.second, r.first.get().dframe);
 	}
 
 	/*
@@ -78,7 +78,7 @@ NEW_SOLVER_WITH_STENCIL(SolverFT)
 	auto form_expr_one(SS&&, std::pair<S, E> const& e) const
 	{
 		auto [sys, equation] = e;
-		auto eq_ft = expr::apply_operators(equation);
+		auto eq_ft = expr::transform::optimize(expr::apply_operators(equation));
 		expr::prune::update(eq_ft);
 		expr::printe(eq_ft, "scheme");
 		return std::make_pair(sys, eq_ft);
