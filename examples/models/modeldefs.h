@@ -69,7 +69,7 @@ LINK_WITH_NAME(MBWN, MODELB_WN)
 MODEL(MC, (SCALARS(2)),
 	EVOLUTION(
 		dpsi = -bilap(psi) - lap((c1 - c2 * psi * psi + _nW(SCALAR)) * psi + c5 * rho * rho),
-		drho = lap(rho) + (c3 - c4 * rho * rho + _nW(SCALAR)) * rho + integer(2) * c5 * psi * rho)
+		drho = lap(rho) + (c3 - c4 * rho * rho + _nW(SCALAR)) * rho + 2_n * c5 * psi * rho)
 )
 LINK_WITH_NAME(MC, MODELC)
 DEFINE_MODEL_FIELD_NAMES(MC, ("psi", "m"))
@@ -93,7 +93,7 @@ MODEL(MH_FE, (SCALAR, VECTOR),
 			EQUATION_OF(1)(-lap(-DF(1)) - grad(op(1)) * DF(2)), 
 			EQUATION_OF(2)(lap(DF(2)) + grad(op(1)) * -DF(1))
 			),
-		integral(LANDAU_FE(op(1)) + _2 * pow<2>(op(2))))
+		INT(LANDAU_FE(op(1)) + _2 * pow<2>(op(2))))
 )
 LINK_WITH_NAME(MH_FE, MODELH_FE)
 DEFINE_MODEL_FIELD_NAMES(MH_FE, ("m", "j"))
@@ -106,7 +106,7 @@ DEFINE_MODEL_FIELD_NAMES(MH_FE, ("m", "j"))
 //! a general index for any number of fields that are defined.
 MODEL(MA_FE, (SCALAR),
 	FREE_ENERGY((NONCONSERVED),
-		integral(SUM(ii)(LANDAU_FE(op_ii, c1, c2))))
+		INT(SUM(ii)(LANDAU_FE(op_ii, c1, c2))))
 )		
 LINK_WITH_NAME(MA_FE, MODELA_FE)
 
@@ -116,14 +116,14 @@ LINK_WITH_NAME(MA_FE, MODELA_FE)
 ////! Model B defined by the free energy.
 //MODEL(MB_FE, (SCALAR),
 //	FREE_ENERGY((CONSERVED),
-//		integral(SUM(ii)(LANDAU_FE(op_ii))))
+//		INT(SUM(ii)(LANDAU_FE(op_ii))))
 //)
 //LINK_WITH_NAME(MB_FE, MODELB_FE)
 //
 ////! Model B defined by the free energy.
 //MODEL(MC_FE, (SCALAR, SCALAR),
 //	FREE_ENERGY((NONCONSERVED, CONSERVED),
-//		integral(SUM(ii)(LANDAU_FE(op_ii)) + psi * psi * rho))
+//		INT(SUM(ii)(LANDAU_FE(op_ii)) + psi * psi * rho))
 //)
 //LINK_WITH_NAME(MC_FE, MODELC_FE)
 
@@ -149,7 +149,7 @@ LINK_WITH_NAME(Turing, TURING)
 
 MODEL(COUPLING4, (SCALARS(4)),
 	FREE_ENERGY((ALL_NONCONSERVED(ii)),
-		integral(SUM(ii)(LANDAU_FE(op_ii)) + _4 * SUM(ii, jj != ii)(op_ii * op_jj * op_jj) + op(1)))
+		INT(SUM(ii)(LANDAU_FE(op_ii)) + _4 * SUM(ii, jj != ii)(op_ii * op_jj * op_jj) + op(1)))
 )
 LINK_WITH_NAME(COUPLING4, MODEL_COUPLING4)
 DEFINE_MODEL_FIELD_NAMES(COUPLING4, ("A", "B", "C", "D"))
