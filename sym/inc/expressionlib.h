@@ -206,7 +206,7 @@ namespace expr
 }
 
 template<typename E>
-struct OpEvaluable 
+struct OpEvaluable
 {
 
 
@@ -330,11 +330,11 @@ struct OpEvaluable
 	}
 };
 
- //! Base expression object which is inherited from with the CRTP technique.
- /*
-  * applying Expression Templates to create the expression tree for the
-  * evaluation of the equations of motion
-  */
+//! Base expression object which is inherited from with the CRTP technique.
+/*
+ * applying Expression Templates to create the expression tree for the
+ * evaluation of the equations of motion
+ */
 template<typename E>
 struct OpExpression : OpEvaluable<E>
 {
@@ -476,7 +476,7 @@ struct VectorComponentData
 /*!
  * Wraps a pointer as a grid type, so that the symbolic algebra can interpret
  * the data as having a dimension and the size of the dimensions.
- * 
+ *
  * The given pointer is not managed by GridData, it is simply a wrapper.
  */
 template<typename T, size_t D>
@@ -497,7 +497,7 @@ struct GridData
 	{
 		return data[i];
 	}
-	
+
 	T& operator[](iter_type i)
 	{
 		return data[i];
@@ -530,7 +530,7 @@ public:
 };
 
 template<size_t D>
-struct GridData<void, D> 
+struct GridData<void, D>
 {
 	GridData(len_type const* dims) : dims{ 0 }, len{ 0 }
 	{
@@ -561,7 +561,7 @@ struct GridData<expr::symbols::SymbolType<T>, D>
 	}
 
 	GridData() : dims{ 0 }, len{ 0 } {}
-	
+
 	operator T() const
 	{
 		return T{};
@@ -574,7 +574,7 @@ struct GridData<expr::symbols::SymbolType<T>, D>
 template<typename T, size_t N>
 struct GridData<MultiBlock<N, T>, N>
 {
-	GridData(MultiBlock<N, T> const& data = MultiBlock<N, T>(0), len_type const* dims = nullptr) 
+	GridData(MultiBlock<N, T> const& data = MultiBlock<N, T>(0), len_type const* dims = nullptr)
 		: data{ std::ref(const_cast<MultiBlock<N, T>&>(data)) }, dims{ 0 }, len{ 0 }
 	{
 		if (dims != nullptr)
@@ -723,7 +723,7 @@ namespace expr
 	//! Construct selectable coefficients using a coefficient array.
 	/*!
 	 * For coefficients which should be selected from a list, construct a coefficient which
-	 * can select them based on their index. 
+	 * can select them based on their index.
 	 */
 	template<typename T>
 	auto make_coeff(T* data, len_type len, len_type stride = 1);
@@ -788,7 +788,7 @@ namespace expr
 	 * The given data is wrapped in an object which imitates a Grid in the symbolic
 	 * algebra functionality, so that dimensions can be interpreted. This is used when
 	 * the given data is a non-grid type, such as a raw pointer.
-	 * 
+	 *
 	 * \param values The data.
 	 * \param dims The dimensions of the data.
 	 */
@@ -839,7 +839,7 @@ namespace expr
 
 	//! The unit vector, which can be defined with one or two (for 3D) angles.
 	/*!
-	 * The correct unit vector will be chosen according to the dimension. In 3D, the second 
+	 * The correct unit vector will be chosen according to the dimension. In 3D, the second
 	 * direction is assumed to be 0.
 	 */
 	template<size_t D, typename T0>
@@ -888,7 +888,7 @@ namespace expr
 
 }
 
-namespace symphas::internal 
+namespace symphas::internal
 {
 
 
@@ -910,7 +910,7 @@ namespace symphas::internal
 	template<int N0, int P0, int... Ns, int... Ps>
 	constexpr bool has_matching_i<expr::symbols::i_<N0, P0>, expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>>
 		= (symphas::lib::index_of_value<int, N0, Ns...> >= 0);
-	
+
 	template<int N0, int P0, int... Ns, int... Ps, size_t D>
 	constexpr bool has_matching_i<expr::symbols::i_<N0, P0>, GridSymbol<expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>, D>>
 		= has_matching_i<expr::symbols::i_<N0, P0>, expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>>;
@@ -943,7 +943,7 @@ namespace symphas::internal
 	template<int N0, int P0, typename... Vs, typename T0, typename... Ts>
 	struct select_v_i_impl<expr::symbols::i_<N0, P0>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<T0, Ts...>>
 	{
-		using type = typename select_v_i_impl<expr::symbols::i_<N0, P0>, 
+		using type = typename select_v_i_impl<expr::symbols::i_<N0, P0>,
 			symphas::lib::expand_types_list<symphas::lib::types_list<Vs...>, typename test_select_v_i_impl<has_matching_i<expr::symbols::i_<N0, P0>, T0>, T0>::type>,
 			symphas::lib::types_list<Ts...>>::type;
 	};
@@ -989,13 +989,13 @@ namespace symphas::internal
 	template<typename I, typename List>
 	using select_v_i_ = typename select_v_i_impl<I, symphas::lib::types_list<>, List>::type;
 
-    template<typename T>
-    constexpr bool is_v_type = false;
+	template<typename T>
+	constexpr bool is_v_type = false;
 
-    template<int... Ns, int... Ps>
-    constexpr bool is_v_type<expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>> = true;
-    template<int... Ns, int... Ps, size_t D>
-    constexpr bool is_v_type<GridSymbol<expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>, D>> = true;
+	template<int... Ns, int... Ps>
+	constexpr bool is_v_type<expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>> = true;
+	template<int... Ns, int... Ps, size_t D>
+	constexpr bool is_v_type<GridSymbol<expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>, D>> = true;
 
 
 	template<size_t flag, typename Is, typename T0, typename List>
@@ -1015,8 +1015,8 @@ namespace symphas::internal
 		using type = typename select_v_nested_impl<2,
 			symphas::lib::types_list<expr::symbols::i_<N0s, P0s>...>,
 			std::conditional_t<false,
-				symphas::lib::types_list<Vs..., expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>>,
-				symphas::lib::types_list<Vs...>>,
+			symphas::lib::types_list<Vs..., expr::symbols::v_id_type<expr::symbols::i_<Ns, Ps>...>>,
+			symphas::lib::types_list<Vs...>>,
 			symphas::lib::types_list<Rest...>>::type;
 	};
 
@@ -1030,7 +1030,7 @@ namespace symphas::internal
 	struct select_v_nested_impl<2, symphas::lib::types_list<expr::symbols::i_<N0s, P0s>...>, symphas::lib::types_list<Vs...>, symphas::lib::types_list<T, Rest...>>
 	{
 		using type = typename select_v_nested_impl<
-            size_t(is_v_type<T>),
+			size_t(is_v_type<T>),
 			symphas::lib::types_list<expr::symbols::i_<N0s, P0s>...>,
 			symphas::lib::types_list<Vs...>,
 			symphas::lib::types_list<T, Rest...>>::type;
@@ -1051,7 +1051,7 @@ namespace symphas::internal
 
 	template<size_t flag, typename... Ts>
 	struct select_v_impl;
-	
+
 	template<typename... Vs, typename I0, typename... Is, typename... Rest>
 	struct select_v_impl<1, symphas::lib::types_list<Vs...>, symphas::lib::types_list<expr::symbols::v_id_type<I0, Is...>, Rest...>>
 	{
@@ -1070,7 +1070,7 @@ namespace symphas::internal
 	struct select_v_impl<2, symphas::lib::types_list<Vs...>, symphas::lib::types_list<T, Rest...>>
 	{
 		using type = typename select_v_impl<
-            size_t(is_v_type<T>),
+			size_t(is_v_type<T>),
 			symphas::lib::types_list<Vs...>,
 			symphas::lib::types_list<T, Rest...>>::type;
 	};
@@ -1078,11 +1078,11 @@ namespace symphas::internal
 	template<typename... Vs, typename T, typename... Rest>
 	struct select_v_impl<0, symphas::lib::types_list<Vs...>, symphas::lib::types_list<T, Rest...>>
 	{
-		using type = typename select_v_impl<2, 
+		using type = typename select_v_impl<2,
 			symphas::lib::types_list<Vs...>,
 			symphas::lib::types_list<Rest...>>::type;
 	};
-    
+
 	template<typename... Vs>
 	struct select_v_impl<2, symphas::lib::types_list<Vs...>, symphas::lib::types_list<>>
 	{
@@ -1140,13 +1140,13 @@ namespace symphas::internal
 
 	template<int N0, int P0, int... Ns, int... Ps, typename... Vs>
 	struct select_all_i_impl_<symphas::lib::types_list<
-			expr::symbols::i_<N0, P0>, expr::symbols::i_<Ns, Ps>...>, 
+		expr::symbols::i_<N0, P0>, expr::symbols::i_<Ns, Ps>...>,
 		symphas::lib::types_list<Vs...>>
 	{
 		using type = symphas::lib::expand_types_list<
 			typename select_all_i_impl_<expr::symbols::i_<N0, 0>, symphas::lib::types_list<>, symphas::lib::types_list<Vs...>>::type,
 			typename select_all_i_impl_<expr::symbols::i_<Ns, 0>, symphas::lib::types_list<>, symphas::lib::types_list<Vs...>>::type...
-			>;
+		>;
 	};
 
 	template<typename I, typename T>
@@ -1319,7 +1319,7 @@ namespace expr
 	 * Applied to the data object of a variable expression in order to obtain
 	 * the original data type after certain wrapping types are taken away.
 	 * Applied to any other data type, it will simply directly return it.
-	 * 
+	 *
 	 * This is different from ::base_data_type because this will return the data type
 	 * that the variable represents, whereas ::base_data_type has fewer specializations,
 	 * and returns only the variable itself.
@@ -1559,8 +1559,8 @@ namespace expr
 	 //		(std::is_same<E2, OpIdentity>::value && std::is_convertible<E1, identity_eval_t>::value) ||
 	 //		(std::is_same<E1, OpNegIdentity>::value && std::is_convertible<E2, identity_eval_t>::value) ||
 	 //		(std::is_same<E2, OpNegIdentity>::value && std::is_convertible<E1, identity_eval_t>::value));
-	 
-	 
+
+
 	 //! True if the given type is a fraction.
 	 /*!
 	 * This value is true if the given type is any of OpFractionLiteral, or its negative.
@@ -1609,16 +1609,16 @@ namespace expr
 	constexpr bool is_add = false;
 	template<typename... Es>
 	constexpr bool is_add<OpAdd<Es...>> = true;
-	
-    
-    template<typename T>
-    constexpr bool is_id_variable = false;
 
-    template<size_t Z, typename G>
-    constexpr bool is_id_variable<Variable<Z, G>> = true;
 
-    template<typename G>
-    constexpr bool is_id_variable<DynamicVariable<G>> = true;
+	template<typename T>
+	constexpr bool is_id_variable = false;
+
+	template<size_t Z, typename G>
+	constexpr bool is_id_variable<Variable<Z, G>> = true;
+
+	template<typename G>
+	constexpr bool is_id_variable<DynamicVariable<G>> = true;
 
 	using symphas::internal::test_coeff_attribute;
 	using symphas::internal::test_coeff_neg;
@@ -1831,7 +1831,7 @@ namespace expr
 	//! Determines the grid which would enclose the data of the expression.
 	/*!
 	 * Determines the evaluation type of the expression, and then builds the
-	 * type based on the type of the grid that first appears in the given 
+	 * type based on the type of the grid that first appears in the given
 	 * expression type. This is distinct from expr::eval_type, in that
 	 * the resulting type here is the full grid.
 	 */
@@ -1848,7 +1848,7 @@ namespace expr
 	//! Checks whether the expression manages data to be updated.
 	/*!
 	 * Typically for optimization purposes (and correctness purposes also),
-	 * parse the expression hierarchy and look for one of the expressions 
+	 * parse the expression hierarchy and look for one of the expressions
 	 * having a type that stores a grid that must be updated. For instance,
 	 * the prune function must be run on expressions with a state, but this
 	 * check isn't strictly required.
@@ -1862,7 +1862,7 @@ namespace expr
 	//! Determines if an expression contains only constants and derivatives.
 	/*!
 	 * Parses the expression to determine if it composed of only constants
-	 * and derivative operators. This would constitute an expression which is 
+	 * and derivative operators. This would constitute an expression which is
 	 * only an operator. I.e. this predicate checks if the expression is an
 	 * operator type expression.
 	 */
@@ -1876,11 +1876,11 @@ namespace expr
 	/*!
 	 * A type trait that identifies the expressions as either
 	 * linear or not. By default, expressions are nonlinear.
-	 * 
-	 * Expressions are considered linear if there are no OpNLVariables. If an 
-	 * expression is a function of more than one variable, they must all appear 
+	 *
+	 * Expressions are considered linear if there are no OpNLVariables. If an
+	 * expression is a function of more than one variable, they must all appear
 	 * linearly.
-	 * 
+	 *
 	 * Linear expressions to which an operator satisfying is_operator_like
 	 * is applied are considered linear.
 	 */
@@ -1906,8 +1906,8 @@ namespace expr
 
 	//! Determines if the expression is a linear combination.
 	/*
-	 * As opposed to expr::is_linear, this has the added value of returning 
-	 * whether the expression is a linear combination type; only add and 
+	 * As opposed to expr::is_linear, this has the added value of returning
+	 * whether the expression is a linear combination type; only add and
 	 * subtract expressions satisfy this.
 	 */
 	template<typename E>
@@ -1931,8 +1931,8 @@ namespace expr
 		struct GetAx {};
 
 		template<typename T>
-		struct GetAx<T, decltype((void)T::ax, 0)> 
-		{ 
+		struct GetAx<T, decltype((void)T::ax, 0)>
+		{
 			static const Axis ax = T::ax;
 		};
 
@@ -2042,7 +2042,7 @@ namespace expr
 
 	//! Reevaluate an entire expression.
 	/*!
-	 * Reevaluation of an expression, used for instance, after it had 
+	 * Reevaluation of an expression, used for instance, after it had
 	 * identities substituted.
 	 */
 	template<typename E>
@@ -2815,6 +2815,20 @@ namespace expr
 
 }
 
+namespace symphas::internal
+{
+	template<typename T, size_t D, template<typename, size_t> typename enc_type>
+	struct grid_class_wrap
+	{
+		using type = expr::base_data_t<enc_type<T, D>>;
+	};
+
+	template<size_t D, template<typename, size_t> typename enc_type>
+	struct grid_class_wrap<expr::symbols::Symbol, D, enc_type>
+	{
+		using type = expr::symbols::Symbol;
+	};
+}
 
 //! Return the type of the grid in the expression as a complete grid.
 template<typename E>
@@ -2823,16 +2837,14 @@ struct expr::storage_type
 	using data_t = symphas::lib::type_at_index<0, symphas::lib::unroll_types_list<expr::term_types_t<E>>>;
 	using storage_type_t = typename symphas::internal::get_first_storage_type<expr::term_types_t<E>>::type;
 	using check_t = std::conditional_t<
-		std::is_same<storage_type_t, void>::value, 
-			std::conditional_t<std::is_same<data_t, void>::value, expr::symbols::Symbol, data_t>, 
-			storage_type_t>;
+		std::is_same<storage_type_t, void>::value,
+		std::conditional_t<std::is_same<data_t, void>::value, expr::symbols::Symbol, data_t>,
+		storage_type_t>;
 
 	template<template<typename, size_t> typename enc_type>
-	struct grid_class_wrap 
+	struct grid_class_wrap
 	{
-		using type = expr::base_data_t<enc_type<
-			expr::eval_type_t<E>,
-			expr::grid_dim<E>::value>>;
+		using type = typename symphas::internal::grid_class_wrap<expr::eval_type_t<E>, expr::grid_dim<E>::value, enc_type>::type;
 	};
 
 	struct block_class_wrap
@@ -3307,7 +3319,7 @@ struct expr::is_linear<OpOperatorCombination<A1, A2>>
 template<typename A1, typename A2, typename E>
 struct expr::is_linear<OpCombination<A1, A2, E>>
 {
-	static const bool value = expr::is_linear<OpOperatorCombination<A1, A2>>::value && expr::is_linear<E>::value;
+	static const bool value = expr::is_linear<OpOperatorCombination<A1, A2>>::value&& expr::is_linear<E>::value;
 };
 
 //! Specialization based on expr::is_linear.
@@ -3321,7 +3333,7 @@ struct expr::is_linear<OpOperatorChain<A1, A2>>
 template<typename A1, typename A2, typename E>
 struct expr::is_linear<OpChain<A1, A2, E>>
 {
-	static const bool value = expr::is_linear<OpOperatorChain<A1, A2>>::value && expr::is_linear<E>::value;
+	static const bool value = expr::is_linear<OpOperatorChain<A1, A2>>::value&& expr::is_linear<E>::value;
 };
 
 //! Specialization based on expr::is_linear.
@@ -3454,7 +3466,7 @@ namespace expr
 	//! Get the unique list of variables appearing in the given expression.
 	/*!
 	 * Get the unique list of variables appearing in the given expression.
-	 * 
+	 *
 	 * \tparam E The expression type that is parsed.
 	 */
 	template<typename E>
@@ -3490,7 +3502,7 @@ namespace expr
 		/*!
 		 * A combination is anything that satisfies the predicate evaluated
 		 * by expr::is_combination.
-		 * 
+		 *
 		 * \tparam Y The ID that is checked if it is the only one.
 		 */
 		template<size_t Y>
@@ -4160,8 +4172,8 @@ template<size_t L, typename A1, typename A2>
 struct expr::derivative_index<L, OpOperatorCombination<A1, A2>>
 {
 protected:
-	static const size_t raw_value = 
-		(expr::derivative_index<L, A1>::value 
+	static const size_t raw_value =
+		(expr::derivative_index<L, A1>::value
 			| expr::derivative_index<L, A2>::value);
 
 public:
@@ -4478,17 +4490,17 @@ namespace expr
 	}
 
 	template<typename E,
-		typename std::enable_if_t<(!has_coeff<E> && expr::is_coeff<E>), int> = 0>
+		typename std::enable_if_t<(!has_coeff<E>&& expr::is_coeff<E>), int> = 0>
 	constexpr decltype(auto) coeff(OpExpression<E> const& e)
 	{
 		return *static_cast<E const*>(&e);
 	}
 
-    template<typename G0, expr::exp_key_t X0>
-    decltype(auto) coeff(Term<G0, X0> const& term)
-    {
-        return OpIdentity{};
-    }
+	template<typename G0, expr::exp_key_t X0>
+	decltype(auto) coeff(Term<G0, X0> const& term)
+	{
+		return OpIdentity{};
+	}
 
 	template<typename... Vs>
 	decltype(auto) coeff(OpTerms<Vs...> const& e)
@@ -4559,14 +4571,14 @@ namespace symphas::internal
 	template<typename E0>
 	struct test_eval
 	{
-		using type = decltype(std::declval<OpIdentity>() * std::declval<E0>());
+		using type = decltype(std::declval<OpIdentity>()* std::declval<E0>());
 	};
 
-    template<>
-    struct test_eval<void>
-    {
-        using type = void;
-    };
+	template<>
+	struct test_eval<void>
+	{
+		using type = void;
+	};
 }
 
 
@@ -4712,15 +4724,15 @@ struct expr::eval_type
 
 	template<typename E0>
 	using eval_t = std::invoke_result_t<decltype(&eval_type<E>::template get_eval<E0>), E0>;
-        
+
 public:
-	
+
 	using type = typename symphas::internal::test_eval<eval_t<E>>::type;
 	static constexpr size_t rank = symphas::lib::seq_index_value<0, std::invoke_result_t<decltype(&eval_type<E>::get_rank<type>)>>::value;
-	
+
 protected:
 
-    static constexpr size_t rank_1 = symphas::lib::seq_index_value<0, std::invoke_result_t<decltype(&expr::eval_type<E>::get_rank_1<type>)>>::value;
+	static constexpr size_t rank_1 = symphas::lib::seq_index_value<0, std::invoke_result_t<decltype(&expr::eval_type<E>::get_rank_1<type>)>>::value;
 
 public:
 
@@ -4789,14 +4801,14 @@ namespace expr
 		template<size_t N0, size_t N1>
 		constexpr bool all_ne<N0, N1> = N0 != N1;
 		template<size_t N0, size_t N1, size_t N2, size_t... Ns>
-		constexpr bool all_ne<N0, N1, N2, Ns...> = (N0 != N1) ? all_ne<N0, N2, Ns...> && all_ne<N1, N2, Ns...> : false;
+		constexpr bool all_ne<N0, N1, N2, Ns...> = (N0 != N1) ? all_ne<N0, N2, Ns...>&& all_ne<N1, N2, Ns...> : false;
 
 		template<typename... Ts>
 		constexpr bool all_different = true;
 		template<typename T0, typename T1>
 		constexpr bool all_different<T0, T1> = !std::is_same_v<T0, T1>;
 		template<typename T0, typename T1, typename T2, typename... Ts>
-		constexpr bool all_different<T0, T1, T2, Ts...> = (!std::is_same_v<T0, T1>) ? all_different<T0, T2, Ts...> && all_different<T1, T2, Ts...> : false;
+		constexpr bool all_different<T0, T1, T2, Ts...> = (!std::is_same_v<T0, T1>) ? all_different<T0, T2, Ts...>&& all_different<T1, T2, Ts...> : false;
 
 	}
 
@@ -4823,7 +4835,7 @@ namespace expr
 	 * SymbolicFunction.
 	 *
 	 * Functions can be created without specifying an argument list, and
-	 * the created function object will not take any arguments as placeholders. When expressions 
+	 * the created function object will not take any arguments as placeholders. When expressions
 	 * are substituted in the function in order to expand it, their order in the function
 	 * substitution list (the paramters to the `operator()` method of the function object)
 	 * will be matched in order of increasing index of the argument objects used to construct
@@ -5086,7 +5098,7 @@ namespace expr
 	}
 
 	template<expr::exp_key_t X, typename V, typename E>
-	auto& get_enclosed_expression(OpPow<X, V, E> &e)
+	auto& get_enclosed_expression(OpPow<X, V, E>& e)
 	{
 		return e.e;
 	}
@@ -5242,18 +5254,18 @@ namespace expr
 	decltype(auto) terms_after_first(OpTerms<V> const& e);
 	template<typename V>
 	decltype(auto) terms_after_first(OpTerms<V>& e);
-    template<typename... Ts>
-    decltype(auto) terms_after_first(OpTermsList<Ts...> const& e);
-    template<typename... Ts>
-    decltype(auto) terms_after_first(OpTermsList<Ts...>& e);
+	template<typename... Ts>
+	decltype(auto) terms_after_first(OpTermsList<Ts...> const& e);
+	template<typename... Ts>
+	decltype(auto) terms_after_first(OpTermsList<Ts...>& e);
 	template<size_t N, typename V, typename... Gs, exp_key_t... Xs>
 	decltype(auto) terms_after_n(OpTerms<V, Term<Gs, Xs>...> const& e);
 	template<size_t N, typename V, typename... Gs, exp_key_t... Xs>
 	decltype(auto) terms_after_n(OpTerms<V, Term<Gs, Xs>...>& e);
-    template<typename... Ts>
-    decltype(auto) terms_after_n(OpTermsList<Ts...> const& e);
-    template<typename... Ts>
-    decltype(auto) terms_after_n(OpTermsList<Ts...>& e);
+	template<typename... Ts>
+	decltype(auto) terms_after_n(OpTermsList<Ts...> const& e);
+	template<typename... Ts>
+	decltype(auto) terms_after_n(OpTermsList<Ts...>& e);
 
 	template<size_t N, typename... Es>
 	decltype(auto) terms_before_n(OpAdd<Es...> const& e);
@@ -5264,10 +5276,10 @@ namespace expr
 	decltype(auto) terms_after_n(OpAdd<Es...> const& e);
 	template<size_t N, typename... Es>
 	decltype(auto) terms_after_n(OpAdd<Es...>& e);
-    template<typename... Ts>
-    decltype(auto) terms_after_n(OpAddList<Ts...> const& e);
-    template<typename... Ts>
-    decltype(auto) terms_after_n(OpAddList<Ts...>& e);
+	template<typename... Ts>
+	decltype(auto) terms_after_n(OpAddList<Ts...> const& e);
+	template<typename... Ts>
+	decltype(auto) terms_after_n(OpAddList<Ts...>& e);
 	template<typename E0, typename E1, typename E2, typename... Es>
 	const auto& terms_after_first(OpAdd<E0, E1, E2, Es...> const& e);
 	template<typename E0, typename E1>
@@ -5276,13 +5288,13 @@ namespace expr
 	auto& terms_after_first(OpAdd<E0, E1, E2, Es...>& e);
 	template<typename E0, typename E1>
 	auto& terms_after_first(OpAdd<E0, E1>& e);
-    template<typename... Ts>
-    decltype(auto) terms_after_first(OpAddList<Ts...> const& e);
-    template<typename... Ts>
-    decltype(auto) terms_after_first(OpAddList<Ts...>& e);
+	template<typename... Ts>
+	decltype(auto) terms_after_first(OpAddList<Ts...> const& e);
+	template<typename... Ts>
+	decltype(auto) terms_after_first(OpAddList<Ts...>& e);
 
 
-    template<typename T>
-    auto eval(T const& value);
+	template<typename T>
+	auto eval(T const& value);
 
 }

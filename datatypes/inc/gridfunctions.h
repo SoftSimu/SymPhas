@@ -1369,13 +1369,19 @@ namespace grid
 		return left >= right;
 	}
 
+	template<typename T>
+	bool compare_cutoff(const T* left, iter_type index, T const& right)
+	{
+		return compare_cutoff(left[index], right);
+	}
+
 	template<typename T, size_t D>
-	bool compare_cutoff(const T* left, const T(&right)[D])
+	bool compare_cutoff(T* const (&left)[D], iter_type index, const T(&right)[D])
 	{
 		T result{};
 		for (iter_type i = 0; i < D; ++i)
 		{
-			result += left[i] * left[i];
+			result += left[i][index] * left[i][index];
 		}
 		using std::sqrt;
 		using std::abs;
@@ -1384,12 +1390,12 @@ namespace grid
 	}
 
 	template<typename T, size_t D>
-	bool compare_cutoff(const T* left, any_vector_t<T, D> const& right)
+	bool compare_cutoff(T* const (&left)[D], iter_type index, any_vector_t<T, D> const& right)
 	{
 		T result{};
 		for (iter_type i = 0; i < D; ++i)
 		{
-			result += left[i] * left[i];
+			result += left[i][index] * left[i][index];
 		}
 		using std::sqrt;
 		using std::abs;
@@ -1715,7 +1721,7 @@ namespace grid
 			iter_type index = index_from_position(pos, stride);
 
 			using std::abs;
-			if (compare_cutoff(grid.values[index], cutoff_value) && !grid::is_in_region(pos, intervals))
+			if (compare_cutoff(grid.values, index, cutoff_value) && !grid::is_in_region(pos, intervals))
 			{
 				omp_set_lock(&interval_lock);
 				for (iter_type i = 0; i < D; ++i)
@@ -1776,7 +1782,7 @@ namespace grid
 				for (iter_type m = 0; m < intervals[ii][0]; ++m)
 				{
 					iter_type index = index_from_position(pos, stride, grid.region.boundary_size);
-					if (compare_cutoff(grid.values[index], cutoff_value))
+					if (compare_cutoff(grid.values, index, cutoff_value))
 					{
 						intervals[ii][0] = std::min(pos[ii], intervals[ii][0]);
 					}
@@ -1787,7 +1793,7 @@ namespace grid
 				{
 					--pos[ii];
 					iter_type index = index_from_position(pos, stride, grid.region.boundary_size);
-					if (compare_cutoff(grid.values[index], cutoff_value))
+					if (compare_cutoff(grid.values, index, cutoff_value))
 					{
 						intervals[ii][1] = std::max(pos[ii], intervals[ii][1]);
 					}
@@ -1840,7 +1846,7 @@ namespace grid
 			iter_type index = index_from_position(pos, stride);
 
 			using std::abs;
-			if (compare_cutoff(grid.values[index], cutoff_value))
+			if (compare_cutoff(grid.values, index, cutoff_value))
 			{
 				start_n = n;
 			}
@@ -1921,7 +1927,7 @@ namespace grid
 							
 
 							iter_type index = grid::index_from_position(pos, stride, grid.region.boundary_size);
-							if (compare_cutoff(grid.values[index], cutoff_value))
+							if (compare_cutoff(grid.values, index, cutoff_value))
 							{
 								found_value[(offset) ? 1 : 0] = true;
 								//if (offset)

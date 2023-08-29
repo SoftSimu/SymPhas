@@ -610,7 +610,7 @@ namespace symphas::internal
 	{
 		special_dynamics(OpExpression<E> const& e) : e{ *static_cast<E const*>(&e) } {}
 		special_dynamics(OpOperator<E> const& e) : e{ *static_cast<E const*>(&e) } {}
-		special_dynamics() : e{ *static_cast<E const*>(&e) } {}
+		special_dynamics() : e{} {}
 
 		E e;
 	};

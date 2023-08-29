@@ -171,13 +171,6 @@ struct OpOperator : OpEvaluable<E>
 		return OpOperatorCombination(b, cast());
 	}
 
-	//! Specialized behaviour adding an operator to a chain operator.
-	template<typename B1, typename B2, std::enable_if_t<!std::is_same<OpOperatorChain<B1, B2>, E>::value, int> = 0>
-	auto operator+(OpOperatorChain<B1, B2> const& b) const
-	{
-		return OpOperatorCombination(b, cast());
-	}
-
 
 	//! The subtraction of two operators creates a combination.
 	template<typename F, std::enable_if_t<!std::is_same<F, E>::value, int> = 0>
@@ -239,6 +232,19 @@ struct OpOperator : OpEvaluable<E>
 		return (*static_cast<E*>(this));
 	}
 };
+
+template<typename A1, typename B1, typename B2>
+auto operator+(OpOperator<A1> const& a, OpOperatorChain<B1, B2> const& b)
+{
+	return OpOperatorCombination(*static_cast<A1 const*>(&a), b);
+}
+
+template<typename A1, typename A2, typename B1, typename B2>
+auto operator+(OpOperatorChain<A1, A2> const& a, OpOperatorChain<B1, B2> const& b)
+{
+	return OpOperatorCombination(a, b);
+}
+
 //
 //template<typename E, typename coeff_t, typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
 //auto operator*(OpOperator<E> const& e, coeff_t const& v)
@@ -733,7 +739,18 @@ namespace expr
 		return a * (*static_cast<E const*>(&b));
 	}
 
+	template<typename A1, typename B1, typename B2, typename E>
+	auto distribute_operator(OpOperator<A1> const& a, OpCombination<B1, B2, E> const& b)
+	{
+		return (*static_cast<A1 const*>(&a))(b.combination.f(expr::get_enclosed_expression(b))) 
+			+ (*static_cast<A1 const*>(&a))(b.combination.g(expr::get_enclosed_expression(b)));
+	}
 
+	template<typename A1, typename B1, typename B2>
+	auto distribute_operator(OpOperator<A1> const& a, OpOperatorCombination<B1, B2> const& b)
+	{
+		return (*static_cast<A1 const*>(&a))(b.f) + (*static_cast<A1 const*>(&a))(b.g);
+	}
 
 
 	/*
@@ -780,7 +797,7 @@ namespace expr
 	 * operator.
 	 */
 	template<typename E1, typename E2>
-	auto expand_operator(OpOperator<E1> const& a, OpExpression<E2> const& b)
+	auto expand_operator(OpOperator<E1> const& a, OpEvaluable<E2> const& b)
 	{
 		return (*static_cast<E1 const*>(&a))(*static_cast<E2 const*>(&b));
 	}
@@ -801,7 +818,7 @@ namespace expr
 	 * \param b The expression which forms the concrete operators once applied.
 	 */
 	template<typename A1, typename A2, typename E>
-	auto expand_operator(OpOperatorCombination<A1, A2> const& a, OpExpression<E> const& b)
+	auto expand_operator(OpOperatorCombination<A1, A2> const& a, OpEvaluable<E> const& b)
 	{
 		return expand_operator(a.f, *static_cast<E const*>(&b)) + expand_operator(a.g, *static_cast<E const*>(&b));
 	}
@@ -822,7 +839,7 @@ namespace expr
 	 * \param b The expression applied by the chain operator.
 	 */
 	template<typename A1, typename A2, typename E>
-	auto expand_operator(OpOperatorChain<A1, A2> const& a, OpExpression<E> const& b)
+	auto expand_operator(OpOperatorChain<A1, A2> const& a, OpEvaluable<E> const& b)
 	{
 		return expand_operator(a.f, expand_operator(a.g, *static_cast<E const*>(&b)));
 	}
@@ -1139,8 +1156,6 @@ template<typename coeff_t, typename A1, typename A2, typename E,
 }
 
 
-
-
 // ******************************************************************************************
 
 
@@ -1300,6 +1315,26 @@ struct OpOperatorChain : OpOperator<OpOperatorChain<A1, A2>>
 //	return ((*static_cast<A const*>(&a)) * b.f)(b.g);
 //}
 
+namespace expr
+{
+	template<typename E0, typename E1>
+	auto make_operator_chain(OpEvaluable<E0> const& e0, OpEvaluable<E1> const& e1)
+	{
+		return OpOperatorChain(*static_cast<E0 const*>(&e0), *static_cast<E1 const*>(&e1));
+	}
+
+	template<typename E1>
+	auto make_operator_chain(OpVoid, OpEvaluable<E1> const& e1)
+	{
+		return OpVoid{};
+	}
+
+	template<typename E0>
+	auto make_operator_chain(OpEvaluable<E0> const& e0, OpVoid)
+	{
+		return OpVoid{};
+	}
+}
 
 template<typename coeff_t, typename A1, typename A2, 
 	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
@@ -1312,7 +1347,7 @@ template<typename coeff_t, typename A2,
 	typename std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
 auto operator*(coeff_t const& a, OpOperatorChain<OpIdentity, A2> const& b)
 {
-	return OpOperatorChain(OpIdentity{}, a * b.g);
+	return expr::make_operator_chain(OpIdentity{}, a * b.g);
 }
 
 template<typename E, typename A2>

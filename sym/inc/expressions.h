@@ -3425,6 +3425,46 @@ namespace symphas::internal
 		return n;
 	}
 
+	template<typename E>
+	size_t mul_print(FILE* out, OpNegIdentity, OpExpression<E> const& b)
+	{
+		size_t n = 0;
+		n += mul_print_left(out, true);
+		n += (-*static_cast<E const*>(&b)).print(out);
+		n += mul_print_right(out, true);
+		return n;
+	}
+
+	template<typename E>
+	size_t mul_print(FILE* out, OpNegIdentity, OpOperator<E> const& b)
+	{
+		size_t n = 0;
+		n += mul_print_left(out, true);
+		n += (-*static_cast<E const*>(&b)).print(out);
+		n += mul_print_right(out, true);
+		return n;
+	}
+
+	template<typename E>
+	size_t mul_print(FILE* out, OpOperator<E> const& a, OpIdentity)
+	{
+		size_t n = 0;
+		n += mul_print_left(out, true);
+		n += static_cast<E const*>(&a)->print(out);
+		n += mul_print_right(out, true);
+		return n;
+	}
+
+	template<typename E>
+	size_t mul_print(FILE* out, OpExpression<E> const& a, OpIdentity)
+	{
+		size_t n = 0;
+		n += mul_print_left(out, true);
+		n += static_cast<E const*>(&a)->print(out);
+		n += mul_print_right(out, true);
+		return n;
+	}
+
 	template<typename V, typename E1, typename T, typename E2>
 	size_t mul_print(char* out, OpIntegral<V, E1, T> const& a, OpExpression<E2> const& b)
 	{
@@ -3561,6 +3601,46 @@ namespace symphas::internal
 		size_t n = 0;
 		n += mul_print_left(out + n, true);
 		n += static_cast<E const*>(&b)->print(out + n);
+		n += mul_print_right(out + n, true);
+		return n;
+	}
+
+	template<typename E>
+	size_t mul_print(char* out, OpNegIdentity, OpExpression<E> const& b)
+	{
+		size_t n = 0;
+		n += mul_print_left(out + n, true);
+		n += (-*static_cast<E const*>(&b)).print(out + n);
+		n += mul_print_right(out + n, true);
+		return n;
+	}
+
+	template<typename E>
+	size_t mul_print(char* out, OpNegIdentity, OpOperator<E> const& b)
+	{
+		size_t n = 0;
+		n += mul_print_left(out + n, true);
+		n += (-*static_cast<E const*>(&b)).print(out + n);
+		n += mul_print_right(out + n, true);
+		return n;
+	}
+
+	template<typename E>
+	size_t mul_print(char* out, OpExpression<E> const& a, OpIdentity)
+	{
+		size_t n = 0;
+		n += mul_print_left(out + n, true);
+		n += static_cast<E const*>(&a)->print(out + n);
+		n += mul_print_right(out + n, true);
+		return n;
+	}
+
+	template<typename E>
+	size_t mul_print(char* out, OpOperator<E> const& a, OpIdentity)
+	{
+		size_t n = 0;
+		n += mul_print_left(out + n, true);
+		n += static_cast<E const*>(&a)->print(out + n);
 		n += mul_print_right(out + n, true);
 		return n;
 	}

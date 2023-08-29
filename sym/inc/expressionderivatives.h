@@ -1459,11 +1459,14 @@ namespace expr
 
 namespace symphas::internal
 {
+	template<typename T, typename E>
+	void update_temporary_grid(T const&, OpEvaluable<E> const& e) {}
+
 	template<typename T, size_t D, typename E>
 	void update_temporary_grid(Grid<T, D>& grid, OpEvaluable<E> const& e) {}
 
 	template<typename T, size_t D>
-	void update_temporary_grid(RegionalGrid<T, D>& grid, grid::region_interval<0> const&)
+	void update_temporary_grid(RegionalGrid<T, D>& grid, ...)
     {
         grid::region_interval<D> interval;
 		grid::resize_adjust_region(grid, interval);

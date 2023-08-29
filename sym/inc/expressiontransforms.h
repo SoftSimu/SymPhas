@@ -575,7 +575,7 @@ namespace expr
 	{
 		auto expr = expr::get_enclosed_expression(e);
 		auto applied = apply_operators(expr::make_derivative<O, G>(expr::get_enclosed_expression(expr), e.solver));
-		return OpOperatorChain(expr::coeff(e) * expr.combination.f, OpIdentity{})(applied);
+		return expr::make_operator_chain(expr::coeff(e) * expr.combination.f, OpIdentity{})(applied);
 	}
 
 	//! Implementation of the product rule.
@@ -748,7 +748,7 @@ namespace expr
 		template<typename V, typename E>
 		auto apply_operators_chain(OpChain<V, OpIdentity, E> const& e)
 		{
-			return OpChain(OpOperatorChain(apply_operators(e.combination.f), OpIdentity{}), 
+			return OpChain(expr::make_operator_chain(apply_operators(e.combination.f), OpIdentity{}), 
 				apply_operators(expr::get_enclosed_expression(e)));
 		}
 
@@ -796,6 +796,36 @@ namespace expr
 			return e;
 		}
 
+		template<typename A1, typename B1, typename B2>
+		auto apply_operators_chain(OpOperatorChain<A1, OpOperatorCombination<B1, B2>> const& e)
+		{
+			return apply_operators(e.f(e.g.f)) + apply_operators(e.f(e.g.g));
+		}
+
+		template<typename A1, typename B1, typename B2, typename E>
+		auto apply_operators_chain(OpOperatorChain<A1, OpCombination<B1, B2, E>> const& e)
+		{
+			return apply_operators(distribute_operator(e.f, e.g));
+		}
+
+		template<typename A1, typename A2>
+		auto apply_operators_chain(OpOperatorChain<A1, OpOperatorChain<OpIdentity, A2>> const& e)
+		{
+			return expr::make_operator_chain(OpIdentity{}, apply_operators(e.f(e.g.g)));
+		}
+
+		template<typename A1, typename A2>
+		auto apply_operators_chain(OpOperatorChain<OpOperatorChain<OpIdentity, A2>, OpOperatorChain<OpIdentity, A2>> const& e)
+		{
+			return expr::make_operator_chain(OpIdentity{}, apply_operators((e.f.g)(e.g.g)));
+		}
+
+		template<typename A1, typename A2>
+		auto apply_operators_chain(OpOperatorChain<OpOperatorChain<OpIdentity, A2>, A2> const& e)
+		{
+			return expr::make_operator_chain(OpIdentity{}, apply_operators((e.f.g)(e.g)));
+		}
+
 		template<typename E>
 		auto apply_operators_chain(OpExpression<E> const& e)
 		{
@@ -819,7 +849,7 @@ namespace expr
 	template<typename A2>
 	auto apply_operators(OpOperatorChain<OpIdentity, A2> const& e)
 	{
-		return OpOperatorChain(OpIdentity{}, apply_operators(e.g));
+		return expr::make_operator_chain(OpIdentity{}, apply_operators(e.g));
 	}
 
 	//template<typename A1, typename B1, typename B2>
@@ -1209,6 +1239,14 @@ namespace expr
 		{
 			return apply_operators(expr::make_derivative<O, GG>(e.g));
 		}
+
+		template<size_t O, typename V1, typename V2, typename E, typename GG, typename E0>
+		auto apply_operators_deriv(
+			OpDerivative<std::index_sequence<O>, V1, E, SymbolicDerivative<GG>> const& d,
+			OpChain<V2, OpIdentity, E0> const& e)
+		{
+			return apply_operators(expr::make_derivative<O, GG>(expr::get_enclosed_expression(e)));
+		}
 		
 		template<size_t O, typename V, typename E, typename GG, typename E0>
 		auto apply_operators_deriv(
@@ -1279,17 +1317,17 @@ namespace expr
 			return apply_operators(combination.f * (*static_cast<E2 const*>(&b))) + apply_operators(combination.g * (*static_cast<E2 const*>(&b)));
 		}
 
+		template<typename A, typename B, typename E2>
+		auto apply_operators_mul(OpOperatorCombination<A, B> const& combination, OpOperator<E2> const& b)
+		{
+			return apply_operators(combination.f * (*static_cast<E2 const*>(&b))) + apply_operators(combination.g * (*static_cast<E2 const*>(&b)));
+		}
+
 		//! Apply the chain operation to an expression.
 		template<typename A1, typename A2, typename E>
 		auto apply_operators_mul(OpOperatorChain<A1, A2> const& combination, OpExpression<E> const& b)
 		{
 			return apply_operators(combination.f(apply_operators(combination.g * *static_cast<E const*>(&b))));
-		}
-
-		template<typename A, typename B, typename E2>
-		auto apply_operators_mul(OpOperatorCombination<A, B> const& combination, OpOperator<E2> const& b)
-		{
-			return apply_operators(combination.f * (*static_cast<E2 const*>(&b))) + apply_operators(combination.g * (*static_cast<E2 const*>(&b)));
 		}
 
 		//! Apply the chain operation to an expression.
@@ -1351,7 +1389,7 @@ namespace expr
 		template<typename E1, typename E2>
 		auto apply_operators_mul(OpOperatorChain<OpIdentity, E1> const& a, OpOperatorChain<OpIdentity, E2> const& b)
 		{
-			return OpOperatorChain(OpIdentity{}, apply_operators(a.g * b.g));
+			return expr::make_operator_chain(OpIdentity{}, apply_operators(a.g * b.g));
 		}
 
 		template<typename V, typename E1, typename E2>

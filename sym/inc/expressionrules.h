@@ -2969,6 +2969,31 @@ auto operator+(OpChain<V, OpIdentity, E1> const& a, OpChain<V, OpIdentity, E2> c
 	return (a.combination)(expr::get_enclosed_expression(a) + expr::get_enclosed_expression(b));
 }
 
+template<typename E1, typename E2>
+auto operator+(OpOperatorChain<OpIdentity, E1> const& a, OpOperatorChain<OpIdentity, E2> const& b)
+{
+	return expr::make_operator_chain(OpIdentity{}, a.g + b.g);
+}
+
+template<typename V, typename E1, typename E2>
+auto operator*(OpOperator<E1> const& a, OpChain<V, OpIdentity, E2> const& b)
+{
+	return b.combination(*static_cast<E1 const*>(&a) * expr::get_enclosed_expression(b));
+}
+
+template<typename E1, typename E2>
+auto operator*(OpOperatorChain<OpIdentity, E1> const& a, OpOperatorChain<OpIdentity, E2> const& b)
+{
+	return expr::make_operator_chain(OpIdentity{}, a.g * b.g);
+}
+
+template<typename E1, typename E2>
+auto operator*(OpOperator<E1> const& a, OpOperatorChain<OpIdentity, E2> const& b)
+{
+	return expr::make_operator_chain(*static_cast<E1 const*>(&a) * b.g);
+}
+
+
 /*
  *
  *

@@ -1813,7 +1813,7 @@ namespace expr
 	template<typename Dd, typename V, typename E, typename Sp>
 	auto iterable_domain(OpDerivative<Dd, V, E, Sp> const& e)
 	{
-		return iterable_domain_data(expr::get_result_data(e));
+		return iterable_domain(expr::get_enclosed_expression(e));
 	}
 
 	template<typename Dd, typename V, typename G, typename Sp>
@@ -1825,7 +1825,7 @@ namespace expr
 	template<size_t O, typename V, typename E, typename Sp>
 	auto iterable_domain(OpDerivative<std::index_sequence<O>, V, E, Sp> const& e)
 	{
-		return iterable_domain_data(expr::get_enclosed_expression(e));
+		return iterable_domain(expr::get_enclosed_expression(e));
 	}
 
 	template<size_t O, typename V, typename G, typename Sp>

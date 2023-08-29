@@ -996,7 +996,7 @@ namespace grid
 	template<size_t D>
 	auto operator+(region_interval<D> const& first, region_size const& second)
 	{
-		return region_size(grid::length<D>(first)) + second;
+		return first;
 	}
 
 	template<size_t D>
@@ -1094,7 +1094,7 @@ namespace grid
 	template<size_t D>
 	auto operator+(region_interval_multiple<D> const& first, region_size const& second)
 	{
-		return region_size(grid::length<D>(first)) + second;
+		return first;
 	}
 
 	template<size_t D>
