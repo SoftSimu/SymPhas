@@ -148,97 +148,6 @@
 namespace expr
 {
 
-#ifdef MULTITHREAD
-
-	//template<typename E, typename assign_type>
-	//void result_interior(OpExpression<E> const& e, assign_type&& data, iter_type* inners, len_type len)
-	//{
-
-//		symphas::internal::data_iterator_select it(std::forward<assign_type>(data), inners);
-//
-//#if defined(EXECUTION_HEADER_AVAILABLE) 
-//		std::copy(std::execution::par,
-//			static_cast<const E*>(&e)->begin(inners),
-//			static_cast<const E*>(&e)->end(inners, len), it);
-//#else
-//		for (iter_type i = 0; i < len; i++)
-//		{
-//			it[i] = static_cast<const E*>(&e)->eval(i);
-//		}
-//#endif
-		
-//		symphas::data_iterator it(std::forward<assign_type>(data));
-//		
-//		std::for_each(
-//#ifdef EXECUTION_HEADER_AVAILABLE
-//			std::execution::par_unseq, 
-//#endif
-//			inners, inners + len, [&] (iter_type index) { it[index] = static_cast<const E*>(&e)->eval(index); });
-//	}
-//
-//	template<typename T, size_t D, typename E>
-//	void result_interior(OpExpression<E> const& e, Grid<T, D>& grid)
-//	{
-//		expr::result_interior(*static_cast<const E*>(&e), grid, grid::interior_indices_list<D>(grid.dims), grid::length_interior<D>(grid.dims));
-//	}
-
-#else
-
-	//! Evaluate the expression into the interior of the array.
-	/*!
-	 * Evaluate and store the result of the expression on the interior values
-	 * of a grid logically represented by the given dimensions. The direct
-	 * array pointer is given. The expression must be of the same
-	 * dimensionality as the array.
-	 * 
-	 * \param e The expression which is evaluated into the array.
-	 * \param values The array which contains the result of the expression on
-	 * its interior values.
-	 * \param dim The logical dimensions of the grid that the expression is
-	 * evaluated over.
-	 */
-	//template<typename E, typename assign_type>
-	//void result_interior(OpExpression<E> const& e, assign_type&& data, len_type(&dim)[3])
-	//{
-	//	symphas::data_iterator it(std::forward<assign_type>(data));
-	//	ITER_GRID3(it[INDEX] = static_cast<const E*>(&e)->eval(INDEX), dim[0], dim[1], dim[2])
-	//}
-
-	//! Specialization based on result_interior(OpExpression<E> const&, T*, len_type(&)[3]).
-	/*template<typename E, typename assign_type>
-	void result_interior(OpExpression<E> const& e, assign_type&& data, len_type(&dim)[2])
-	{
-		symphas::data_iterator it(std::forward<assign_type>(data));
-		ITER_GRID2(it[INDEX] = static_cast<const E*>(&e)->eval(INDEX), dim[0], dim[1])
-	}*/
-
-	//! Specialization based on result_interior(OpExpression<E> const&, T*, len_type(&)[3]).
-	/*template<typename E, typename assign_type>
-	void result_interior(OpExpression<E> const& e, assign_type&& data, len_type(&dim)[1])
-	{
-		symphas::data_iterator it(std::forward<assign_type>(data));
-		ITER_GRID1(it[INDEX] = static_cast<const E*>(&e)->eval(INDEX), dim[0])
-	}*/
-
-	//! Evaluate the expression into the interior of the array.
-	/*!
-	 * See result_interior(OpExpression<E> const&, T*, len_type(&)[3]).
-	 * Implementation based on parameter input of a Grid.
-	 * Given the grid, the interior values are initialized to the result of
-	 * the expression at each respective point.
-	 * 
-	 * \param e The expression which is evaluated into the array.
-	 * \param grid The grid that contains the result of the expression on its
-	 * interior values.
-	 */
-	//template<typename E, typename T, size_t D>
-	//void result_interior(OpExpression<E> const& e, Grid<T, D>& grid)
-	//{
-	//	expr::result_interior(*static_cast<const E*>(&e), grid, grid.dims);
-	//}
-
-#endif
-
 #define PARALLELIZATION_CUTOFF_COUNT 1000
 
 	struct forward_value
@@ -263,13 +172,22 @@ namespace expr
 	{
 		symphas::data_iterator it(std::forward<assign_type>(data));
 		
-		std::transform(
+		if (params::parallelization)
+			std::transform(
 #ifdef EXECUTION_HEADER_AVAILABLE
-			std::execution::par_unseq,
+				std::execution::par_unseq,
 #endif
-			static_cast<const E*>(&e)->begin(),
-			static_cast<const E*>(&e)->end(len), it,
-			forward_value{});
+				static_cast<const E*>(&e)->begin(),
+				static_cast<const E*>(&e)->end(len), it,
+				forward_value{});
+		else
+			std::transform(
+#ifdef EXECUTION_HEADER_AVAILABLE
+				std::execution::par_unseq,
+#endif
+				static_cast<const E*>(&e)->begin(),
+				static_cast<const E*>(&e)->end(len), it,
+				forward_value{});
 	}
 
 	template<typename E, typename assign_type, size_t D>
@@ -277,13 +195,19 @@ namespace expr
 	{
 		symphas::data_iterator_group it(std::forward<assign_type>(data), interval);
 
-		std::transform(
+		if (params::parallelization)
+			std::transform(
 #ifdef EXECUTION_HEADER_AVAILABLE
-			std::execution::par_unseq,
+				std::execution::par_unseq,
 #endif
-			static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
-			static_cast<const E*>(&e)->end(symphas::it_grp, interval), it,
-			forward_value{});
+				static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
+				static_cast<const E*>(&e)->end(symphas::it_grp, interval), it,
+				forward_value{});
+		else
+			std::transform(
+				static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
+				static_cast<const E*>(&e)->end(symphas::it_grp, interval), it,
+				forward_value{});
 
 	}
 
@@ -349,13 +273,19 @@ namespace expr
 	{
 		symphas::data_iterator it(std::forward<assign_type>(data));
 
-		std::transform(
+		if (params::parallelization)
+			std::transform(
 #ifdef EXECUTION_HEADER_AVAILABLE
-			std::execution::par_unseq,
+				std::execution::par_unseq,
 #endif
-			static_cast<const E*>(&e)->begin(), 
-			static_cast<const E*>(&e)->end(len), it, it,
-			[](auto expr_value, auto data_value) { return data_value + expr_value; });
+				static_cast<const E*>(&e)->begin(), 
+				static_cast<const E*>(&e)->end(len), it, it,
+				[](auto expr_value, auto data_value) { return data_value + expr_value; });
+		else
+			std::transform(
+				static_cast<const E*>(&e)->begin(),
+				static_cast<const E*>(&e)->end(len), it, it,
+				[] (auto expr_value, auto data_value) { return data_value + expr_value; });
 	}
 
 	template<typename E, typename assign_type, size_t D>
@@ -375,13 +305,19 @@ namespace expr
 		}
 		else
 		{
-			std::transform(
+			if (params::parallelization)
+				std::transform(
 #ifdef EXECUTION_HEADER_AVAILABLE
-				std::execution::par_unseq,
+					std::execution::par_unseq,
 #endif
-				static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
-				static_cast<const E*>(&e)->end(symphas::it_grp, interval), it, it,
-				[] (auto expr_value, auto data_value) { return data_value + expr_value; });
+					static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
+					static_cast<const E*>(&e)->end(symphas::it_grp, interval), it, it,
+					[] (auto expr_value, auto data_value) { return data_value + expr_value; });
+			else
+				std::transform(
+					static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
+					static_cast<const E*>(&e)->end(symphas::it_grp, interval), it, it,
+					[] (auto expr_value, auto data_value) { return data_value + expr_value; });
 		}
 
 	}
@@ -478,12 +414,17 @@ namespace expr
 	template<typename E>
 	auto result_sum(OpEvaluable<E> const& e, len_type len)
 	{
-		return std::reduce(
+		if (params::parallelization)
+			return std::reduce(
 #ifdef EXECUTION_HEADER_AVAILABLE
-			std::execution::par_unseq,
+				std::execution::par_unseq,
 #endif
-			static_cast<const E*>(&e)->begin(),
-			static_cast<const E*>(&e)->end(len));
+				static_cast<const E*>(&e)->begin(),
+				static_cast<const E*>(&e)->end(len));
+		else
+			return std::reduce(
+				static_cast<const E*>(&e)->begin(),
+				static_cast<const E*>(&e)->end(len));
 	}
 
 	inline auto result_sum(OpVoid) { return OpVoid{}; }
@@ -540,12 +481,17 @@ namespace expr
 		}
 		else
 		{
-			return std::reduce(
+			if (params::parallelization)
+				return std::reduce(
 #ifdef EXECUTION_HEADER_AVAILABLE
-				std::execution::par_unseq,
+					std::execution::par_unseq,
 #endif
-				static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
-				static_cast<const E*>(&e)->end(symphas::it_grp, interval));
+					static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
+					static_cast<const E*>(&e)->end(symphas::it_grp, interval));
+			else
+				return std::reduce(
+					static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
+					static_cast<const E*>(&e)->end(symphas::it_grp, interval));
 		}
 	}
 

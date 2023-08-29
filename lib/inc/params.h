@@ -377,21 +377,9 @@ namespace symphas
 {
 	enum ParallelizationType
 	{
-		PAR,
-		SEQ
+		SEQ,
+		PAR
 	};
-
-	inline auto get_parallelization_policy(ParallelizationType type)
-	{
-		if (type == PAR)
-		{
-			return std::execution::par_unseq;
-		}
-		else
-		{
-			return std::execution::par_unseq;
-		}
-	}
 }
 
 
@@ -446,7 +434,9 @@ protected:
 		}
 		else
 		{
-			return symphas::ParallelizationType::PAR;
+			return (default_value == symphas::ParallelizationType::PAR) 
+				? symphas::ParallelizationType::SEQ 
+				: symphas::ParallelizationType::PAR;
 		}
 	}
 };
