@@ -21,8 +21,9 @@
 
 #include "boundarysystem.h"
 
-DLLSOL double params::regional_resize_factor = 1.5;
-DLLSOL double params::regional_resize_time = 2.5;
+DLLSOL double params::regional_resize_factor = 2.0;
+DLLSOL double params::regional_resize_time = 3.0;
+DLLSOL bool params::regional_resize_is_fixed = true;
 DLLSOL double params::regional_resize_cutoff_eps = 1e-6;
 
 
@@ -34,6 +35,7 @@ bool add_solution_params(param_map_type& param_map)
 	param_map["regional-factor"] = { &regional_resize_factor, new param_assign<double>, 'z' };
 	param_map["regional-resize-time"] = { &regional_resize_time, new param_assign<double>, 'Z' };
 	param_map["regional-delta"] = { &regional_resize_time, new param_assign<double>, 'Z' };
+	param_map["regional-resize-fixed"] = { &regional_resize_is_fixed, new param_assign<bool>, 'f' };
 	param_map["regional-resize-eps"] = { &regional_resize_cutoff_eps, new param_assign<double>, 'E' };
 	param_map["regional-eps"] = { &regional_resize_cutoff_eps, new param_assign<double>, 'E' };
 

@@ -23,10 +23,10 @@
 
 
 #define OPTION_DESCRIPTION_LEN 55
-#define OPTION_DESCRIPTION_TAB_BUFFER 26
 #define OPTION_DESCRIPTION_TAB 2
 #define OPTION_DESCRIPTION_ALIAS_BUFFER 6
 #define OPTION_DESCRIPTION_NAME_LEN 19
+#define OPTION_DESCRIPTION_TAB_BUFFER (OPTION_DESCRIPTION_ALIAS_BUFFER + OPTION_DESCRIPTION_NAME_LEN + 2)
 
 
 DLLLIB std::vector<std::pair<std::string, std::string>> params::rawparams;
@@ -108,18 +108,15 @@ void param_map_element::print_help(FILE* out, const char* name) const
 
 	fprintf(out, "--");
 	len_type size = len_type(assign_method->print_with_name(out, parameter, name));
-	if (size < OPTION_DESCRIPTION_TAB_BUFFER - OPTION_DESCRIPTION_TAB - OPTION_DESCRIPTION_ALIAS_BUFFER)
+	if (size < OPTION_DESCRIPTION_NAME_LEN)
 	{
-		if (size < OPTION_DESCRIPTION_NAME_LEN)
-		{
-			fprintf(out, "%*s", OPTION_DESCRIPTION_NAME_LEN - size, "");
-		}
+		fprintf(out, "%*s", OPTION_DESCRIPTION_NAME_LEN - size, "");
 	}
 	else
 	{
 		if (len > 0)
 		{
-			fprintf(out, "\n%*s", OPTION_DESCRIPTION_TAB_BUFFER + OPTION_DESCRIPTION_TAB, "");
+			fprintf(out, "\n%*s", OPTION_DESCRIPTION_TAB_BUFFER, "");
 		}
 	}
 	
@@ -134,7 +131,7 @@ void param_map_element::print_help(FILE* out, const char* name) const
 	*space = '\0';
 
 	fprintf(out, "%s\n", buffer);
-	int start = space - buffer;
+	int start = space - buffer + 1;
 	while (end < len)
 	{
 		char buffer0[OPTION_DESCRIPTION_LEN + 1]{};
@@ -143,7 +140,7 @@ void param_map_element::print_help(FILE* out, const char* name) const
 		
 		char* space = (end == len) ? buffer0 + end - start : std::strrchr(buffer0, ' ');
 		*space = '\0';
-		start += space - buffer0;
+		start += space - buffer0 + 1;
 
 		fprintf(out, "%*s%s\n", OPTION_DESCRIPTION_TAB_BUFFER + OPTION_DESCRIPTION_TAB, "", buffer0);
 	}
@@ -166,7 +163,7 @@ void params::parse_arguments(param_map_type param_map, const char* const* args, 
 		if (std::strcmp(args[0], "--" ARGUMENT_HELP_STRING) == 0 || std::strcmp(args[0], ARGUMENT_HELP_STRING) == 0)
 		{
 			print_argument_help(SYMPHAS_INFO, param_map);
-			exit(1);
+			exit(0);
 		}
 	}
 
@@ -179,7 +176,7 @@ void params::parse_arguments(param_map_type param_map, const char* const* args, 
 		const char* start = args[c];
 		const char* end = std::strchr(args[c], '\0');
 		
-		if (std::strlen(args[c]) > 1 && args[c][0] == '-')
+		if (std::strlen(args[c]) > 1 && args[c][0] == '-' && args[c][1] != '-')
 		{
 			char short_key = args[c][1];
 			if (args[c][2] == '=')
@@ -193,7 +190,6 @@ void params::parse_arguments(param_map_type param_map, const char* const* args, 
 			{
 				if (element.alias == short_key)
 				{
-					element.assign(value);
 					std::strcpy(key, name.c_str());
 					break;
 				}

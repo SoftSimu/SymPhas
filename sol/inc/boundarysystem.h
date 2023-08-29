@@ -40,11 +40,13 @@ namespace params
 {
 	DLLSOL extern double regional_resize_factor;
 	DLLSOL extern double regional_resize_time;
+	DLLSOL extern bool regional_resize_is_fixed;
 	DLLSOL extern double regional_resize_cutoff_eps;
 }
 
 #define REGIONAL_GRID_RESIZE_FACTOR params::regional_resize_factor
 #define REGIONAL_GRID_RESIZE_TIME params::regional_resize_time
+#define REGIONAL_GRID_RESIZE_IS_FIXED params::regional_resize_is_fixed
 #define REGIONAL_GRID_CUTOFF_EPS params::regional_resize_cutoff_eps
 
 bool add_solution_params(param_map_type& param_map);
@@ -198,6 +200,7 @@ protected:
 
 	iter_type next_resize;
 	double resize_delta;
+	bool fixed_resize;
 	T cutoff;
 };
 
@@ -293,7 +296,14 @@ void PhaseFieldSystem<RegionalGrid, T, D>::update(iter_type index, double time)
 		iter_type current_resize = iter_type(time / resize_delta);
 		if (current_resize >= next_resize)
 		{
-			grid::adjust_region(*this, cutoff);
+			if (fixed_resize)
+			{
+				grid::adjust_region(*this, cutoff);
+			}
+			else
+			{
+				grid::resize_adjust_region(*this, cutoff, REGIONAL_GRID_RESIZE_FACTOR);
+			}
 			next_resize = current_resize + 1;
 		}
 	}
@@ -326,7 +336,7 @@ using BoundarySystem = PhaseFieldSystem<BoundaryGrid, T, D>;
 template<typename T, size_t D>
 PhaseFieldSystem<RegionalGrid, T, D>::PhaseFieldSystem() : 
 	parent_type{}, BoundaryGroup<T, D>{},
-	next_resize{ 0 }, resize_delta{ REGIONAL_GRID_RESIZE_TIME }, cutoff{}
+	next_resize{ 0 }, resize_delta{ REGIONAL_GRID_RESIZE_TIME }, fixed_resize{ REGIONAL_GRID_RESIZE_IS_FIXED }, cutoff{}
 {}
 
 template<typename T, size_t D>
@@ -335,7 +345,7 @@ PhaseFieldSystem<RegionalGrid, T, D>::PhaseFieldSystem(
 	symphas::interval_data_type const& vdata,
 	symphas::b_data_type const& bdata, size_t id) :
 	parent_type{ get_extended_intervals(vdata), id }, BoundaryGroup<T, D>{ info.intervals, bdata }, 
-	next_resize{ 0 }, resize_delta{ REGIONAL_GRID_RESIZE_TIME }, cutoff{}
+	next_resize{ 0 }, resize_delta{ REGIONAL_GRID_RESIZE_TIME }, fixed_resize{ REGIONAL_GRID_RESIZE_IS_FIXED }, cutoff{}
 {
 	grid::region_interval<D> region(RegionalGrid<T, D>::region.dims, RegionalGrid<T, D>::region.boundary_size);
 	symphas::internal::populate_tdata(tdata, *static_cast<Grid<T, D>*>(this), &info, region, id);
