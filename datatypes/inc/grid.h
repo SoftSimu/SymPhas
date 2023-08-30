@@ -1993,14 +1993,12 @@ public:
 
 	void adjust(const iter_type(&new_origin)[D])
 	{
-		printf("adjusted origin only\n");
 		grid::adjust_origin_to_from(parent_type::values, new_origin, region.origin, region.dims, parent_type::dims, empty, region.boundary_size);
 		region.update(new_origin);
 	}
 
 	void adjust(const iter_type(&new_origin)[D], const len_type(&new_dims)[D])
 	{
-		printf("adjusted origin and dimensions\n");
 		T* new_values = new T[grid::length<D>(new_dims)]{};
 		std::fill(
 #ifdef EXECUTION_HEADER_AVAILABLE
