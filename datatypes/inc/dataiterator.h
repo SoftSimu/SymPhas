@@ -190,6 +190,11 @@ namespace grid
 		region_interval(const len_type(&dims)[D], len_type boundary_size = 0) : region_interval(dims, boundary_size, std::make_index_sequence<D>{}) {}
 
 		template<size_t... Is>
+		region_interval(const len_type(&origin)[D], const len_type(&dims)[D], std::index_sequence<Is...>) :
+			intervals{ { origin[Is], origin[Is] + dims[Is] }...}, dims{ dims[Is]... } {}
+		region_interval(const len_type(&origin)[D], const len_type(&dims)[D]) : region_interval(origin, dims, std::make_index_sequence<D>{}) {}
+
+		template<size_t... Is>
 		region_interval(const len_type(&dims)[D], const len_type(&intervals)[D][2], std::index_sequence<Is...>) : 
 			intervals{ { intervals[Is][0], intervals[Is][1] }... }, dims{ dims[Is]... } {}
 		region_interval(const len_type(&dims)[D], const len_type(&intervals)[D][2]) : region_interval(dims, intervals, std::make_index_sequence<D>{}) {}
@@ -1302,6 +1307,56 @@ namespace grid
 
 	//};
 
+
+
+
+	template<size_t D, typename T>
+	bool is_fully_overlapping(select_region<D> const& region, T&& other)
+	{
+		return is_fully_overlapping<D>(region_interval<D>(region.origin, region.dims).intervals, other);
+	}
+
+	template<size_t D, typename T>
+	bool is_fully_overlapping(T const& other, grid::region_interval_multiple<D> const& region)
+	{
+		return is_fully_overlapping<D>(other, (+region).intervals);
+	}
+
+	template<size_t D, typename T>
+	bool is_fully_overlapping(grid::region_interval_multiple<D> const& region, T const& other)
+	{
+		return is_fully_overlapping<D>((+region).intervals, other);
+	}
+
+	template<size_t D>
+	bool is_fully_overlapping(select_region<D> const& region0, grid::region_interval_multiple<D> const& region1)
+	{
+		return is_fully_overlapping<D>(region_interval<D>(region0.origin, region0.dims).intervals, (+region1).intervals);
+	}
+
+	template<size_t D>
+	bool is_fully_overlapping(grid::region_interval_multiple<D> const& region0, grid::region_interval_multiple<D> const& region1)
+	{
+		return is_fully_overlapping<D>((+region0).intervals, (+region1).intervals);
+	}
+
+	template<size_t D>
+	bool is_fully_overlapping(grid::region_interval<D> const& region0, grid::region_interval_multiple<D> const& region1)
+	{
+		return is_fully_overlapping<D>(region0.intervals, (+region1).intervals);
+	}
+
+	template<size_t D>
+	bool is_fully_overlapping(grid::region_interval_multiple<D> const& region0, grid::region_interval<D> const& region1)
+	{
+		return is_fully_overlapping<D>((+region0).intervals, region1.intervals);
+	}
+
+	template<size_t D>
+	bool is_fully_overlapping(grid::region_interval<D> const& region0, grid::region_interval<D> const& region1)
+	{
+		return is_fully_overlapping<D>(region0.intervals, region1.intervals);
+	}
 }
 
 namespace symphas::internal

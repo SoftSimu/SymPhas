@@ -10091,8 +10091,12 @@ struct OpOptimized<OpBinaryMul<OpIntegral<V, E, T>, G>> : OpExpression<OpOptimiz
 	template<typename... condition_ts>
 	void update(symphas::lib::types_list<condition_ts...>)
 	{
-		symphas::internal::update_temporary_grid(working, term);
-		expr::result(term, working, grid::get_iterable_domain(working));
+		auto region = expr::iterable_domain(term);
+		if (!grid::is_fully_overlapping(grid::get_iterable_domain(working), region))
+		{
+			symphas::internal::update_temporary_grid(working, term);
+		}
+		expr::result(term, working, region);
 		expr::prune::update<condition_ts...>(e);
 	}
 
