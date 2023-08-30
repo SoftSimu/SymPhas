@@ -185,6 +185,12 @@ void params::parse_arguments(param_map_type param_map, const char* const* args, 
 				std::copy(it, end, value);
 				value[(end - it)] = '\0';
 			}
+			else
+			{
+				it = args[c] + 2;
+				std::copy(it, end, value);
+				value[(end - it)] = '\0';
+			}
 
 			for (auto& [name, element] : param_map)
 			{

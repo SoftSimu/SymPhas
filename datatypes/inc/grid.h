@@ -741,6 +741,41 @@ namespace grid
 	select_grid_index(const len_type(&)[D]) -> select_grid_index<D>;
 
 
+	inline double distance(iter_type pos0, iter_type pos1)
+	{
+		double delta = pos0 - pos1;
+		return delta * delta;
+	}
+
+	template<size_t D, size_t... Is>
+	double distance(const iter_type(&pos0)[D], const iter_type(&pos1)[D], std::index_sequence<Is...>)
+	{
+		return std::sqrt((distance(pos0[Is], pos1[Is]) + ...));
+	}
+
+	template<size_t D>
+	double distance(const iter_type(&pos0)[D], const iter_type(&pos1)[D])
+	{
+		return distance(pos0, pos1, std::make_index_sequence<D>{});
+	}
+
+	inline bool is_same_point(iter_type pos0, iter_type pos1)
+	{
+		return pos0 == pos1;
+	}
+
+	template<size_t D, size_t... Is>
+	bool is_same_point(const iter_type(&pos0)[D], const iter_type(&pos1)[D], std::index_sequence<Is...>)
+	{
+		return (is_same_point(pos0[Is], pos1[Is]) && ...);
+	}
+
+	template<size_t D>
+	bool is_same_point(const iter_type(&pos0)[D], const iter_type(&pos1)[D])
+	{
+		return is_same_point(pos0, pos1, std::make_index_sequence<D>{});
+	}
+
 	inline bool is_in_region(iter_type pos, const iter_type dims)
 	{
 		return (pos >= 0 && pos < dims);
@@ -1958,12 +1993,14 @@ public:
 
 	void adjust(const iter_type(&new_origin)[D])
 	{
+		printf("adjusted origin only\n");
 		grid::adjust_origin_to_from(parent_type::values, new_origin, region.origin, region.dims, parent_type::dims, empty, region.boundary_size);
 		region.update(new_origin);
 	}
 
 	void adjust(const iter_type(&new_origin)[D], const len_type(&new_dims)[D])
 	{
+		printf("adjusted origin and dimensions\n");
 		T* new_values = new T[grid::length<D>(new_dims)]{};
 		std::fill(
 #ifdef EXECUTION_HEADER_AVAILABLE

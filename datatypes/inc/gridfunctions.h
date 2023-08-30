@@ -1440,48 +1440,90 @@ namespace grid
 		init_region_stride(new_stride, new_dims);
 		init_region_stride(old_stride, old_dims);
 
-		iter_type pos_offset[D]{};
-		iter_type interior_dims[D]{};
-		iter_type interior_origin[D]{};
+		//iter_type pos_offset[D]{};
+		//iter_type interior_dims[D]{};
+		//iter_type interior_origin[D]{};
+		//for (iter_type i = 0; i < D; ++i)
+		//{
+		//	pos_offset[i] = boundary_size;
+		//	interior_dims[i] = new_dims[i] - 2 * boundary_size;
+		//	interior_origin[i] = new_origin[i] + boundary_size;
+		//}
+		//
+		////#		pragma omp parallel for
+		//for (iter_type n = 0; n < grid::length<D>(interior_dims); ++n)
+		//{
+		//	iter_type pos[D];
+		//
+		//	grid::get_grid_position_offset(pos, interior_dims, interior_origin, n);
+		//	for (iter_type i = 0; i < D; ++i)
+		//	{
+		//		pos[i] = (pos[i] >= global_dims[i] - boundary_size)
+		//			? pos[i] - global_dims[i] + boundary_size * 2
+		//			: pos[i];
+		//
+		//		pos[i] = (pos[i] >= old_origin[i] + boundary_size) 
+		//			? pos[i] - old_origin[i]
+		//			: pos[i] - old_origin[i] + (global_dims[i] - 2 * boundary_size); // place the position relative to the old values
+		//		pos[i] -= boundary_size;
+		//	}
+		//
+		//	bool set_empty = false;
+		//	for (iter_type i = 0; i < D; ++i)
+		//	{
+		//		set_empty |= (pos[i] < 0);
+		//		set_empty |= (pos[i] >= old_dims[i] - 2 * boundary_size);
+		//	}
+		//
+		//	iter_type new_index = index_from_position(n, interior_dims, pos_offset, new_stride);
+		//	if (set_empty)
+		//	{
+		//		new_values[new_index] = empty;
+		//	}
+		//	else
+		//	{
+		//		iter_type old_index = index_from_position(pos, old_stride, boundary_size);
+		//		new_values[new_index] = old_values[old_index];
+		//	}
+		//}
+
+
+		iter_type wrap_dims[D]{};
+		iter_type old_origin_normalized[D]{};
+		iter_type new_origin_normalized[D]{};
+		iter_type origin_delta[D]{};
+
+		iter_type new_interior_dims[D]{};
+		iter_type old_interior_dims[D]{};
 		for (iter_type i = 0; i < D; ++i)
 		{
-			pos_offset[i] = boundary_size;
-			interior_dims[i] = new_dims[i] - 2 * boundary_size;
-			interior_origin[i] = new_origin[i] + boundary_size;
+			wrap_dims[i] = global_dims[i] - 2 * boundary_size;
+
+			old_origin_normalized[i] = old_origin[i] - wrap_dims[i] * std::round(double(old_origin[i]) / wrap_dims[i]);
+			new_origin_normalized[i] = new_origin[i] - wrap_dims[i] * std::round(double(new_origin[i]) / wrap_dims[i]);
+			origin_delta[i] = new_origin_normalized[i] - old_origin_normalized[i];
+
+			new_interior_dims[i] = new_dims[i] - 2 * boundary_size;
+			old_interior_dims[i] = old_dims[i] - 2 * boundary_size;
 		}
 
-		//#		pragma omp parallel for
-		for (iter_type n = 0; n < grid::length<D>(interior_dims); ++n)
+		for (iter_type n = 0; n < grid::length<D>(new_interior_dims); ++n)
 		{
 			iter_type pos[D];
 
-			grid::get_grid_position_offset(pos, interior_dims, interior_origin, n);
+			grid::get_grid_position(pos, new_interior_dims, n);
+			iter_type new_index = index_from_position(pos, new_stride, boundary_size);
+
 			for (iter_type i = 0; i < D; ++i)
 			{
-				pos[i] = (pos[i] >= global_dims[i] - boundary_size)
-					? pos[i] - global_dims[i] + boundary_size * 2
-					: pos[i];
-
-				pos[i] = (pos[i] >= old_origin[i] + boundary_size) 
-					? pos[i] - old_origin[i]
-					: pos[i] - old_origin[i] + (global_dims[i] - 2 * boundary_size); // place the position relative to the old values
-				pos[i] -= boundary_size;
+				pos[i] += origin_delta[i];
+				pos[i] = (pos[i] < 0) ? pos[i] + wrap_dims[i] : (pos[i] >= wrap_dims[i]) ? pos[i] - wrap_dims[i] : pos[i];
 			}
 
-			bool set_empty = false;
-			for (iter_type i = 0; i < D; ++i)
+			bool is_in_old = grid::is_in_region(pos, old_interior_dims);
+			if (is_in_old)
 			{
-				set_empty |= (pos[i] < 0);
-				set_empty |= (pos[i] >= old_dims[i] - 2 * boundary_size);
-			}
 
-			iter_type new_index = index_from_position(n, interior_dims, pos_offset, new_stride);
-			if (set_empty)
-			{
-				new_values[new_index] = empty;
-			}
-			else
-			{
 				iter_type old_index = index_from_position(pos, old_stride, boundary_size);
 				new_values[new_index] = old_values[old_index];
 			}
@@ -1516,48 +1558,45 @@ namespace grid
 		const len_type(&dims)[D], const len_type(&global_dims)[D], T empty, len_type boundary_size)
 	{
 		T* new_values = new T[grid::length<D>(dims)]{};
+		std::fill(new_values, new_values + grid::length<D>(dims), empty);
 
 		iter_type stride[D]{};
 		init_region_stride(stride, dims);
 
-		iter_type pos_offset[D]{};
-		iter_type interior_dims[D]{};
-		iter_type interior_origin[D]{};
 		iter_type wrap_dims[D]{};
+		iter_type old_origin_normalized[D]{};
+		iter_type new_origin_normalized[D]{};
+		iter_type origin_delta[D]{};
+
+		iter_type interior_dims[D]{};
 		for (iter_type i = 0; i < D; ++i)
 		{
-			pos_offset[i] = -new_origin[i];
-			interior_dims[i] = dims[i] - 2 * boundary_size;
-			interior_origin[i] = new_origin[i] + boundary_size;
 			wrap_dims[i] = global_dims[i] - 2 * boundary_size;
+
+			old_origin_normalized[i] = old_origin[i] - wrap_dims[i] * std::round(double(old_origin[i]) / wrap_dims[i]);
+			new_origin_normalized[i] = new_origin[i] - wrap_dims[i] * std::round(double(new_origin[i]) / wrap_dims[i]);
+			origin_delta[i] = new_origin_normalized[i] - old_origin_normalized[i];
+
+			interior_dims[i] = dims[i] - 2 * boundary_size;
 		}
 
-		//#		pragma omp parallel for
 		for (iter_type n = 0; n < grid::length<D>(interior_dims); ++n)
 		{
 			iter_type pos[D];
 
-			grid::get_grid_position_offset(pos, interior_dims, new_origin, n);
-			iter_type new_index = index_from_position(pos, stride, pos_offset, boundary_size);
+			grid::get_grid_position(pos, interior_dims, n);
+			iter_type new_index = index_from_position(pos, stride, boundary_size);
+
 			for (iter_type i = 0; i < D; ++i)
 			{
-				pos[i] = (wrap_dims[i] + (pos[i] % wrap_dims[i])) % wrap_dims[i];
-				pos[i] -= old_origin[i]; // place the position relative to the old values
+				pos[i] += origin_delta[i];
+				pos[i] = (pos[i] < 0) ? pos[i] + wrap_dims[i] : (pos[i] >= wrap_dims[i]) ? pos[i] - wrap_dims[i] : pos[i];
 			}
 
-			bool set_empty = false;
-			for (iter_type i = 0; i < D; ++i)
+			bool is_in_old = grid::is_in_region(pos, interior_dims);
+			if (is_in_old)
 			{
-				set_empty |= (pos[i] < 0);
-				set_empty |= (pos[i] >= dims[i] - 2 * boundary_size);
-			}
 
-			if (set_empty)
-			{
-				new_values[new_index] = empty;
-			}
-			else
-			{
 				iter_type old_index = index_from_position(pos, stride, boundary_size);
 				new_values[new_index] = values[old_index];
 			}
@@ -1595,12 +1634,12 @@ namespace grid
 	{
 		iter_type direction[D];
 
-		bool skip = false;
+		bool skip = true;
 		for (iter_type i = 0; i < D; ++i)
 		{
 			iter_type delta = new_origin[i] - old_origin[i];
 			direction[i] = (delta >= 0) ? 1 : -1;
-			skip = skip || (delta == 0);
+			skip = skip && (delta == 0);
 		}
 		
 		if (skip)
@@ -2003,26 +2042,67 @@ namespace grid
 		grid.adjust(origin);
 	}
 
-	//! 
+	//! Adjust the region by finding a new origin and dimensions.
 	/*!
-	 *
+	 * Adjust the region by finding a new origin and dimensions.
+	 * 
+	 * \param grid The grid to resize.
+	 * \param cutoff The cutoff value to use when determining the region.
+	 * \param padding_factor Increases the smallest determined dimensions by the given ratio.
+	 * \param dims_relative_eps Computes the relative distance between new and current dimensions,
+	 * and uses the new dimensions if the relative distance exceeds this value. The relative
+	 * distance is defined as: $\f(\\text{dims}_0 - \\text{dims}_1) / \\text{dims}_0\f$, where
+	 * subscript 0 represents current dimensions and subscript 1 represents the newly determined
+	 * dimensions.
 	 */
 	template<typename T, size_t D>
-	void resize_adjust_region(RegionalGrid<T, D>& grid, T cutoff, double padding_factor = 1.0)
+	void resize_adjust_region(RegionalGrid<T, D>& grid, T cutoff, double padding_factor = 1.0, double dims_relative_eps = 0.0)
 	{
-		iter_type origin[D];
-		len_type dims[D];
-		get_view_resized_periodic(grid, cutoff, origin, dims);
+		iter_type origin[D]{};
+		len_type dims[D]{};
 
+		len_type dims_set[D]{};
+		len_type origin_set[D]{};
+
+		if (grid::is_same_point(grid.dims, grid.region.dims))
+		{
+			get_view_resized_periodic(grid, cutoff, origin, dims);
+		}
+		else
+		{
+			get_view_resized(grid, cutoff, origin, dims);
+		}
+
+		bool same_dims_flag = true;
 		for (iter_type i = 0; i < D; ++i)
 		{
 			auto dim0 = std::min(grid.dims[i], iter_type(dims[i] * padding_factor));
-			origin[i] -= (dim0 - dims[i]) / 2;
-			origin[i] += (origin[i] < 0) ? (grid.dims[i] - grid.region.boundary_size * 2) : 0;
-			dims[i] = dim0;
+			origin_set[i] = origin[i] - (dim0 - dims[i]) / 2;
+			origin_set[i] += (origin_set[i] < 0) ? (grid.dims[i] - grid.region.boundary_size * 2) : 0;
+			dims_set[i] = dim0;
+
+			// if the new dimensions are close to the current dimensions, don't change it
+			if (std::abs(dims_set[i] - grid.region.dims[i]) / double(grid.region.dims[i]) > dims_relative_eps)
+			{
+				same_dims_flag = false;
+			}
 		}
-		grid.adjust(grid::select_region<D>(origin, dims));
+
+		if (same_dims_flag)
+		{
+			for (iter_type i = 0; i < D; ++i)
+			{
+				origin_set[i] = origin[i] - (grid.region.dims[i] - dims[i]) / 2;
+				origin_set[i] += (origin_set[i] < 0) ? (grid.dims[i] - grid.region.boundary_size * 2) : 0;
+			}
+			grid.adjust(grid::select_region<D>(origin_set, grid.region.dims));
+		}
+		else
+		{
+			grid.adjust(grid::select_region<D>(origin_set, dims_set));
+		}
 	}
+
 
 	template<typename T, size_t D>
 	void resize_adjust_region(RegionalGrid<T, D>& grid, symphas::grid_info const& info)
@@ -2083,7 +2163,14 @@ namespace grid
 	{
 		iter_type origin[D];
 		len_type dims[D];
-		get_view_resized_periodic(grid, cutoff, origin, dims);
+		if (grid::is_same_point(grid.dims, grid.region.dims))
+		{
+			get_view_resized_periodic(grid, cutoff, origin, dims);
+		}
+		else
+		{
+			get_view_resized(grid, cutoff, origin, dims);
+		}
 
 		for (iter_type i = 0; i < D; ++i)
 		{

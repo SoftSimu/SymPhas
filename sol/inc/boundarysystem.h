@@ -48,6 +48,7 @@ namespace params
 #define REGIONAL_GRID_RESIZE_TIME params::regional_resize_time
 #define REGIONAL_GRID_RESIZE_IS_FIXED params::regional_resize_is_fixed
 #define REGIONAL_GRID_CUTOFF_EPS params::regional_resize_cutoff_eps
+#define REGIONAL_GRID_RELATIVE_DIMS_EPS 0.05
 
 bool add_solution_params(param_map_type& param_map);
 
@@ -302,7 +303,7 @@ void PhaseFieldSystem<RegionalGrid, T, D>::update(iter_type index, double time)
 			}
 			else
 			{
-				grid::resize_adjust_region(*this, cutoff, REGIONAL_GRID_RESIZE_FACTOR);
+				grid::resize_adjust_region(*this, cutoff, REGIONAL_GRID_RESIZE_FACTOR, REGIONAL_GRID_RELATIVE_DIMS_EPS);
 			}
 			next_resize = current_resize + 1;
 		}
