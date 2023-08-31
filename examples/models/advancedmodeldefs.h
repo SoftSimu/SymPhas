@@ -82,7 +82,7 @@ MODEL(CELL_MIGRATION_NO_MOTILITY, (MANY(CANCER_CELL, CONFIGURATION), MANY(NORMAL
 		SUM(ii)(gamma_n_[ii] * INT(CELLULAR_FE(op_ii, lambda_[ii])) + mu / (Pi * R2) * pow<2>(Pi * R2 - INT(op_ii * op_ii)))
 		+ INT(SUM(ii, jj != ii)(30_n * kappa / (lambda_[ii] * lambda_[ii]) * op_ii * op_ii * op_jj * op_jj)))
 )
-LINK_WITH_NAME(CELL_MIGRATION_NO_MOTILITY, CELL_MODEL_WO_MOT)
+LINK_WITH_NAME(CELL_MIGRATION_NO_MOTILITY, CELL_MODEL_NO_MOT)
 DEFINE_MODEL_FIELD_NAMES_FORMAT(CELL_MIGRATION_NO_MOTILITY, "\\phi_{%d}")
 
 #undef lambda
