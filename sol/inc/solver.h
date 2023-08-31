@@ -523,10 +523,6 @@ struct Solver
 		return cast().template applied_gradient<ax>(std::forward<G>(e), n);
 	}
 
-
-
-
-
 	//! Move forward one solution iteration.
 	/*!
 	 * Computes the phase field data for the next time step and updates
@@ -543,68 +539,12 @@ struct Solver
 		cast().template step(std::forward<S>(ss));
 	}
 
-	//! Evaluate the equations.
+
+	//! Evaluate the given list of elements, typically equation/data pairs.
 	/*!
-	 * The equations are evaluated, typically updating the data in the
-	 * specialized phase field systems that are defined with the solver. The
-	 * data that is provided is not necessarily an expression, and comes
-	 * from what was computed in the form_expr() function.
-	 *
-	 * \param rs A list of objects that are used in computing part of the
-	 * solution at this solution stage.
+	 * Each equation from the list is evaluated, and the result is
+	 * stored by the corresponding left hand side data.
 	 */
-	 //template<typename... Rs>
-	 //void equations(std::tuple<Rs...>& rs) const
-	 //{
-	 //	equations_apply(rs, std::make_index_sequence<sizeof...(Rs)>{});
-	 //}
-
-	 //! Evaluate the equations.
-	 /*!
-	  * The equations are evaluated, typically updating the data in the
-	  * specialized phase field systems that are defined with the solver. The
-	  * data that is provided is not necessarily an expression, and comes
-	  * from what was computed in the form_expr() function.
-	  *
-	  * \param rs A list of objects that are used in computing part of the
-	  * solution at this solution stage.
-	  */
-	  //template<typename... Rs>
-	  //void equations(std::tuple<Rs...>&& rs) const
-	  //{
-	  //	equations_apply(rs, std::make_index_sequence<sizeof...(Rs)>{});
-	  //}
-
-	  //! Evaluate the equations.
-	  /*!
-	   * The equations are evaluated, typically updating the data in the
-	   * specialized phase field systems that are defined with the solver. The
-	   * data that is provided is not necessarily an expression, and comes
-	   * from what was computed in the form_expr() function.
-	   *
-	   * \param rs... A list of objects that are used in computing part of the
-	   * solution at this solution stage.
-	   */
-	   //template<typename... Rs>
-	   //void equations(Rs&& ... rs) const
-	   //{
-	   //	((..., cast().equation(std::forward<Rs>(rs))));
-	   //}
-
-	   //! Evaluate the equations.
-	   /*!
-		* For unsupported types, OpVoid will be returned for the equation that
-		* needs to be processed. When OpVoid is given, then no action is taken
-		* (since it is equivalently zero).
-		*/
-		//void equations(symphas::internal::solver_unsupported_equation) {}
-
-
-		//! Evaluate the given list of elements, typically equation/data pairs.
-		/*!
-		 * Each equation from the list is evaluated, and the result is
-		 * stored by the corresponding left hand side data.
-		 */
 	template<typename... Rs>
 	void evaluate(std::tuple<Rs...>& rs) const
 	{
@@ -883,6 +823,7 @@ struct Solver
 		auto& [grid, equation] = r;
 		expr::result(equation, expr::BaseData<G>::get(grid));
 	}
+
 
 };
 

@@ -520,10 +520,6 @@ struct GeneralizedStencil
 		len_type stride = (ax == Axis::Z) ? (dims[0] * dims[1]) : (ax == Axis::Y) ? dims[0] : 1;
 		static symphas::internal::GeneratedStencilApply stencil(expr::get_central_space_stencil<OD, OA, 1>());
 
-#ifdef DEBUG
-		static size_t n = expr::print_stencil(stencil);
-#endif
-
 		return stencil(v, stride, divh);
 
 	}
@@ -543,10 +539,6 @@ struct GeneralizedStencil
 		len_type stride[DD];
 		grid::get_stride<Axis::X>(stride, dims);
 		static symphas::internal::GeneratedStencilApply stencil(expr::get_central_space_mixed_stencil<OA>(std::index_sequence<OD1, OD2, OD3>{}));
-
-#ifdef DEBUG
-		static size_t n = expr::print_stencil(stencil);
-#endif
 
 		return stencil(v, stride, divh);
 		//return symphas::internal::GeneratedStencilApply<Stt>{ stride, divh }(v);
@@ -568,10 +560,6 @@ struct GeneralizedStencil
 		grid::get_stride<Axis::X>(stride, dims);
 		static symphas::internal::GeneratedStencilApply stencil(expr::get_central_space_mixed_stencil<OA>(std::index_sequence<OD1, OD2>{}));
 
-#ifdef DEBUG
-		static size_t n = expr::print_stencil(stencil);
-#endif
-
 		return stencil(v, stride, divh);
 		//return symphas::internal::GeneratedStencilApply<Stt>{ stride, divh }(v);
 	}
@@ -591,14 +579,31 @@ struct GeneralizedStencil
 		grid::get_stride<Axis::X>(stride, dims);
 		static symphas::internal::GeneratedStencilApply stencil(expr::get_central_space_stencil<OD1, OA, 1>());
 
-#ifdef DEBUG
-		static size_t n = expr::print_stencil(stencil);
-#endif
-
 		return stencil(v, stride, divh);
 		//return symphas::internal::GeneratedStencilApply<Stt>{ stride, divh }(v);
 	}
 
+
+	//! Laplacian (2nd order derivative) of the field.
+	template<typename T>
+	inline auto laplacian(T* const v, const len_type(&stride)[DD]) const
+	{
+		return apply<2>(v, stride);
+	}
+
+	//! Bilaplacian (4th order derivative) of the field.
+	template<typename T>
+	inline auto bilaplacian(T* const v, const len_type(&stride)[DD]) const
+	{
+		return apply<4>(v, stride);
+	}
+
+	//! Gradlaplacian (gradient of the laplacian) of the field.
+	template<typename T>
+	inline auto gradlaplacian(T* const v, const len_type(&stride)[DD]) const
+	{
+		return apply<3>(v, stride);
+	}
 
 	template<typename T>
 	auto gradient(T* const v, const len_type(&stride)[DD]) const

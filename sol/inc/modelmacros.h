@@ -297,12 +297,29 @@ protected:
 	template<typename>
 	struct StencilFromSeq
 	{
+#if defined(ALL_STENCILS) && defined(GENERATE_UNDEFINED_STENCILS_ON)
+		template<typename T0, typename... Ts>
+		auto operator()(T0 const&, Ts&& ...)
+		{
+			fprintf(SYMPHAS_WARN, "the provided stencil point values are not implemented\n");
+			return INVALID_MODEL;
+		}
+
+		template<size_t N, size_t D, size_t O, typename... Ts>
+		auto operator()(std::index_sequence<N, D, O>, Ts&&... args)
+		{
+			fprintf(SYMPHAS_WARN, "all stencils will be auto-generated\n");
+			return symphas::internal::run_model_call<Model, Solver>(std::index_sequence<N, D, O>{}, std::forward<Ts>(args)...);
+		}
+#else
+
 		template<typename... Ts>
 		auto operator()(Ts&& ...)
 		{
 			fprintf(SYMPHAS_WARN, "the provided stencil point values are not implemented\n");
 			return INVALID_MODEL;
 		}
+#endif
 	};
 
 	template<size_t N, size_t D, size_t O, size_t... Ps>
@@ -964,7 +981,7 @@ namespace symphas::internal
   */
 #define VECTORS(N) MANY(VECTOR, N)
 
-
+#define INT INT
 
 // **************************************************************************************
 

@@ -2993,6 +2993,18 @@ auto operator*(OpOperator<E1> const& a, OpOperatorChain<OpIdentity, E2> const& b
 	return expr::make_operator_chain(*static_cast<E1 const*>(&a) * b.g);
 }
 
+//template<typename... Es, typename E2>
+//auto operator*(OpAdd<Es...> const& a, OpOperatorChain<OpIdentity, E2> const& b)
+//{
+//	return expr::distribute_adds(a, b, std::make_index_sequence<sizeof...(Es)>{});
+//}
+
+//template<typename... Es, typename E2>
+//auto operator*(OpOperatorChain<OpIdentity, E2> const& a, OpAdd<Es...> const& b)
+//{
+//	return expr::distribute_adds(a, b, std::make_index_sequence<sizeof...(Es)>{});
+//}
+
 
 /*
  *

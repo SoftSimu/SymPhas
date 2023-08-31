@@ -254,6 +254,19 @@ namespace symphas::internal
 	}*/
 }
 
+
+
+
+template<size_t...>
+struct Stencil1d2h;
+template<size_t...>
+struct Stencil2d2h;
+template<size_t...>
+struct Stencil2d4h;
+template<size_t...>
+struct Stencil3d2h;
+
+
 //! 1-dimensional stencil with 2nd order of accuracy.
 /*!
  * Implements the 1-dimensional stencil of 2nd order accuracy for all derivative
@@ -265,7 +278,7 @@ namespace symphas::internal
  * \tparam G The number of points for the gradlaplacian.
  */
 template <size_t L, size_t G, size_t B>
-struct Stencil1d2h : 
+struct Stencil1d2h<L, G, B> : 
 	symphas::internal::StencilBase1d2h, Stencil<Stencil1d2h<L, G, B>>,
 	symphas::internal::StencilDefaultStride<1, Stencil1d2h<L, G, B>>
 {
@@ -319,7 +332,7 @@ struct Stencil1d2h :
  * \tparam G The number of points for the gradlaplacian.
  */
 template <size_t L, size_t G, size_t B>
-struct Stencil2d2h : 
+struct Stencil2d2h<L, G, B> :
 	symphas::internal::StencilBase2d2h, Stencil<Stencil2d2h<L, G, B>>, 
 	symphas::internal::StencilDefaultStride<2, Stencil2d2h<L, G, B>>
 {
@@ -372,7 +385,7 @@ struct Stencil2d2h :
  * \tparam G The number of points for the gradlaplacian.
  */
 template <size_t L, size_t G, size_t B>
-struct Stencil3d2h : 
+struct Stencil3d2h<L, G, B> :
 	symphas::internal::StencilBase3d2h, Stencil<Stencil3d2h<L, G, B>>,
 	symphas::internal::StencilDefaultStride<3, Stencil3d2h<L, G, B>>
 {
@@ -413,9 +426,6 @@ struct Stencil3d2h :
 	}
 };
 
-
-
-
 //! 2-dimensional stencil with 4th order of accuracy.
 /*!
  * Implements the 2-dimensional stencil of 4th order accuracy for all derivative
@@ -426,8 +436,8 @@ struct Stencil3d2h :
  * \tparam B The number of points for the bilaplacian.
  * \tparam G The number of points for the gradlaplacian.
  */
-template <size_t L, size_t G, size_t B>
-struct Stencil2d4h : 
+template<size_t L, size_t G, size_t B>
+struct Stencil2d4h<L, G, B> : 
 	symphas::internal::StencilBase2d4h, Stencil<Stencil2d4h<L, G, B>>,
 	symphas::internal::StencilDefaultStride<2, Stencil2d4h<L, G, B>>
 {
@@ -518,6 +528,81 @@ struct SelfSelectingStencil<3, 2> : GeneralizedStencil<3, 2>, Stencil<SelfSelect
 	using Points = Stencil3d2h<Ps...>;
 };
 
+#ifdef GENERATE_UNDEFINED_STENCILS_ON
+#ifdef ALL_STENCILS
+
+template<size_t...>
+struct Stencil1d2h :
+	symphas::internal::StencilBase1d2h, Stencil<Stencil1d2h<>>,
+	symphas::internal::StencilDefaultStride<1, Stencil1d2h<>>
+{
+	using base_type = symphas::internal::StencilBase1d2h;
+	using base_derivatives = symphas::internal::StencilDefaultStride<1, Stencil1d2h<>>;
+
+	using base_type::base_type;
+	using base_type::apply;
+	using base_type::dims;
+	using base_type::gradient;
+	using base_type::laplacian;
+	using base_type::gradlaplacian;
+	using base_type::bilaplacian;
+
+};
+
+template<size_t...>
+struct Stencil2d2h :
+	symphas::internal::StencilBase2d2h, Stencil<Stencil2d2h<>>,
+	symphas::internal::StencilDefaultStride<2, Stencil2d2h<>>
+{
+	using base_type = symphas::internal::StencilBase2d2h;
+	using base_derivatives = symphas::internal::StencilDefaultStride<2, Stencil2d2h<>>;
+	
+	using base_type::base_type;
+	using base_type::apply;
+	using base_type::dims;
+	using base_type::gradient;
+	using base_type::laplacian;
+	using base_type::gradlaplacian;
+	using base_type::bilaplacian;
+
+};
+
+template<size_t...>
+struct Stencil2d4h :
+	symphas::internal::StencilBase2d4h, Stencil<Stencil2d4h<>>,
+	symphas::internal::StencilDefaultStride<2, Stencil2d4h<>>
+{
+	using base_type = symphas::internal::StencilBase2d4h;
+	using base_derivatives = symphas::internal::StencilDefaultStride<2, Stencil2d4h<>>;
+
+	using base_type::base_type;
+	using base_type::apply;
+	using base_type::dims;
+	using base_type::gradient;
+	using base_type::laplacian;
+	using base_type::gradlaplacian;
+	using base_type::bilaplacian;
+};
+
+template<size_t...>
+struct Stencil3d2h :
+	symphas::internal::StencilBase3d2h, Stencil<Stencil3d2h<>>,
+	symphas::internal::StencilDefaultStride<3, Stencil3d2h<>>
+{
+	using base_type = symphas::internal::StencilBase3d2h;
+	using base_derivatives = symphas::internal::StencilDefaultStride<3, Stencil3d2h<>>;
+
+	using base_type::base_type;
+	using base_type::apply;
+	using base_type::dims;
+	using base_type::gradient;
+	using base_type::laplacian;
+	using base_type::gradlaplacian;
+	using base_type::bilaplacian;
+};
+
+#endif
+#endif
 
 //! @}
 
@@ -534,7 +619,10 @@ namespace symphas::internal
 	 * \tparam O The order of accuracy of the derivative.
 	 */
 	template<size_t N, size_t D, size_t O>
-	struct StencilPointList;
+	struct StencilPointList 
+	{
+		using type = std::index_sequence<>;
+	};
 
 	template<size_t D>
 	struct OrderList
@@ -553,46 +641,6 @@ template<> struct symphas::internal::StencilPointList<N, DIM, ORD> { using type 
 #define MAKE_AVAILABLE_ORDER_LIST(DIM, ORDS) \
 template<> struct symphas::internal::OrderList<DIM> { using type = std::index_sequence<SINGLE_ARG ORDS>; };
 
-#if !defined(DEBUG) && defined(ALL_STENCILS)
-
-MAKE_STENCIL_POINT_LIST(2, 1, 2, (3))
-MAKE_STENCIL_POINT_LIST(4, 1, 2, (5))
-MAKE_STENCIL_POINT_LIST(3, 1, 2, (4))
-
-MAKE_STENCIL_POINT_LIST(2, 2, 2, (5, 9))
-MAKE_STENCIL_POINT_LIST(4, 2, 2, (13, 17, 21))
-MAKE_STENCIL_POINT_LIST(3, 2, 2, (6, 8, 12, 16))
-MAKE_STENCIL_POINT_LIST(2, 2, 4, (9, 17, 21))
-MAKE_STENCIL_POINT_LIST(4, 2, 4, (21, 25, 33, 37))
-MAKE_STENCIL_POINT_LIST(3, 2, 4, (14, 18, 26, 30))
-
-MAKE_STENCIL_POINT_LIST(2, 3, 2, (7, 15, 19, 21, 27))
-MAKE_STENCIL_POINT_LIST(4, 3, 2, (21, 25, 41, 52, 57))
-MAKE_STENCIL_POINT_LIST(3, 3, 2, (10, 12, 28, 36, 40))
-
-MAKE_AVAILABLE_ORDER_LIST(1, (2))
-MAKE_AVAILABLE_ORDER_LIST(2, (2, 4))
-MAKE_AVAILABLE_ORDER_LIST(3, (2))
-
-#else
-
-MAKE_STENCIL_POINT_LIST(2, 1, 2, (3))
-MAKE_STENCIL_POINT_LIST(4, 1, 2, (5))
-MAKE_STENCIL_POINT_LIST(3, 1, 2, (4))
-
-MAKE_STENCIL_POINT_LIST(2, 2, 2, (9))
-MAKE_STENCIL_POINT_LIST(4, 2, 2, (13))
-MAKE_STENCIL_POINT_LIST(3, 2, 2, (6))
-
-MAKE_STENCIL_POINT_LIST(2, 3, 2, (7))
-MAKE_STENCIL_POINT_LIST(4, 3, 2, (21))
-MAKE_STENCIL_POINT_LIST(3, 3, 2, (10))
-
-#endif
-
-#ifndef AVAILABLE_DIMENSIONS
-#define AVAILABLE_DIMENSIONS 2
-#endif
 
 #ifndef ALL_STENCILS
 
@@ -608,7 +656,109 @@ MAKE_AVAILABLE_ORDER_LIST(2, (ORDER_LIST_2D))
 MAKE_AVAILABLE_ORDER_LIST(3, (ORDER_LIST_3D))
 #endif
 
+#else
+
+
+#ifdef ORDER_LIST_1D
+MAKE_AVAILABLE_ORDER_LIST(2, (2))
+#ifndef ORDER_LIST_1D_HAS_2H
+#define ORDER_LIST_1D_HAS_2H
 #endif
+#endif
+
+#ifdef ORDER_LIST_2D
+MAKE_AVAILABLE_ORDER_LIST(2, (2, 4))
+#ifndef ORDER_LIST_2D_HAS_2H
+#define ORDER_LIST_2D_HAS_2H
+#endif
+#ifndef ORDER_LIST_2D_HAS_4H
+#define ORDER_LIST_2D_HAS_4H
+#endif
+#endif
+
+#ifdef ORDER_LIST_3D
+MAKE_AVAILABLE_ORDER_LIST(3, (2))
+#ifndef ORDER_LIST_3D_HAS_2H
+#define ORDER_LIST_3D_HAS_2H
+#endif
+#endif
+
+#endif
+
+#if defined(ALL_STENCILS)
+
+#ifdef ORDER_LIST_1D
+#ifdef ORDER_LIST_1D_HAS_2H
+MAKE_STENCIL_POINT_LIST(2, 1, 2, (3))
+MAKE_STENCIL_POINT_LIST(4, 1, 2, (5))
+MAKE_STENCIL_POINT_LIST(3, 1, 2, (4))
+#endif
+#endif
+
+#ifdef ORDER_LIST_2D
+#ifdef ORDER_LIST_2D_HAS_2H
+MAKE_STENCIL_POINT_LIST(2, 2, 2, (5, 9))
+MAKE_STENCIL_POINT_LIST(4, 2, 2, (13, 17, 21))
+MAKE_STENCIL_POINT_LIST(3, 2, 2, (6, 8, 12, 16))
+#endif
+#endif
+
+#ifdef ORDER_LIST_2D
+#ifdef ORDER_LIST_2D_HAS_4H
+MAKE_STENCIL_POINT_LIST(2, 2, 4, (9, 17, 21))
+MAKE_STENCIL_POINT_LIST(4, 2, 4, (21, 25, 33, 37))
+MAKE_STENCIL_POINT_LIST(3, 2, 4, (14, 18, 26, 30))
+#endif
+#endif
+
+#ifdef ORDER_LIST_3D
+#ifdef ORDER_LIST_3D_HAS_2H
+MAKE_STENCIL_POINT_LIST(2, 3, 2, (7, 15, 19, 21, 27))
+MAKE_STENCIL_POINT_LIST(4, 3, 2, (21, 25, 41, 52, 57))
+MAKE_STENCIL_POINT_LIST(3, 3, 2, (10, 12, 28, 36, 40))
+#endif
+#endif
+
+#else
+
+#ifdef ORDER_LIST_1D
+#ifdef ORDER_LIST_1D_HAS_2H
+MAKE_STENCIL_POINT_LIST(2, 1, 2, (3))
+MAKE_STENCIL_POINT_LIST(4, 1, 2, (5))
+MAKE_STENCIL_POINT_LIST(3, 1, 2, (4))
+#endif
+#endif
+
+#ifdef ORDER_LIST_2D
+#ifdef ORDER_LIST_2D_HAS_2H
+MAKE_STENCIL_POINT_LIST(2, 2, 4, (9))
+MAKE_STENCIL_POINT_LIST(4, 2, 4, (21))
+MAKE_STENCIL_POINT_LIST(3, 2, 4, (14))
+#endif
+#endif
+
+#ifdef ORDER_LIST_2D
+#ifdef ORDER_LIST_2D_HAS_4H
+MAKE_STENCIL_POINT_LIST(2, 2, 2, (9))
+MAKE_STENCIL_POINT_LIST(4, 2, 2, (13))
+MAKE_STENCIL_POINT_LIST(3, 2, 2, (6))
+#endif
+#endif
+
+#ifdef ORDER_LIST_3D
+#ifdef ORDER_LIST_3D_HAS_2H
+MAKE_STENCIL_POINT_LIST(2, 3, 2, (7))
+MAKE_STENCIL_POINT_LIST(4, 3, 2, (21))
+MAKE_STENCIL_POINT_LIST(3, 3, 2, (10))
+#endif
+#endif
+
+#endif
+
+#ifndef AVAILABLE_DIMENSIONS
+#define AVAILABLE_DIMENSIONS 2
+#endif
+
 
 namespace symphas::lib::internal
 {
@@ -672,7 +822,7 @@ namespace symphas::lib::internal
 
 		if constexpr (Pos >= cl_type::count)
 		{
-			return F<void>{}(std::forward<Ts>(args)...);
+			return F<void>{}(typename cl_type::template row<Pos>{}, std::forward<Ts>(args)...);
 		}
 		else
 		{
@@ -744,20 +894,40 @@ protected:
 		return StencilParams{};
 	}
 
+	template<size_t N, size_t D, size_t O>
+	auto construct_stencil_params(std::index_sequence<N, D, O>) const
+	{
+		return StencilParams{ O, 1, 1, 1 };
+	}
+
+	template<size_t N, size_t D, size_t O, size_t P2, size_t P3, size_t P4>
+	auto construct_stencil_params(std::index_sequence<N, D, O, P2, P3, P4>) const
+	{
+		return StencilParams{ O,
+			static_cast<unsigned short>(P2),
+			static_cast<unsigned short>(P3),
+			static_cast<unsigned short>(P4) };
+	}
+
 	template<size_t N, size_t D, size_t O, size_t... Os>
 	auto search_ord(std::index_sequence<O, Os...>) const
 	{
-		if (parameters[1] == O)
+		if (parameters[1] == 0)
 		{
 			using pl = typename symphas::internal::cross_list_t<N, D, O>::template row<0>;
-			return StencilParams{ O,
-				static_cast<unsigned short>(symphas::lib::internal::seq_value<3>(pl{})),
-				static_cast<unsigned short>(symphas::lib::internal::seq_value<4>(pl{})),
-				static_cast<unsigned short>(symphas::lib::internal::seq_value<5>(pl{})) };
+			return construct_stencil_params(pl{});
 		}
 		else
 		{
-			return search_ord<N, D>(std::index_sequence<Os...>{});
+			if (parameters[1] == O)
+			{
+				using pl = typename symphas::internal::cross_list_t<N, D, O>::template row<0>;
+				return construct_stencil_params(pl{});
+			}
+			else
+			{
+				return search_ord<N, D>(std::index_sequence<Os...>{});
+			}
 		}
 	}
 

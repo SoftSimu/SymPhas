@@ -696,6 +696,8 @@ public:
 
 	void select_stencil(size_t order, const char* str);
 
+	void select_stencil_accuracy(size_t dimension, const char* str);
+
 	//! Set the boundary on the given side for the system at the given index.
 	void set_boundary(symphas::b_element_type boundary, Side side, int n)
 	{

@@ -1070,7 +1070,7 @@ SystemConf::SystemConf(std::vector<std::pair<std::string, std::string>> params, 
 	{
 		{ symphas::internal::C_DIM,			[&](const char* v) { dimension = atoi(v); } },
 		{ symphas::internal::C_SOLVERVAR,	[&](const char* v) { stp.type = atoi(v); } },
-		{ symphas::internal::C_ORDER,		[&](const char* v) { stp.ord = atoi(v); } },
+		{ symphas::internal::C_ORDER,		[&](const char* v) { select_stencil_accuracy(dimension, v); }},
 		{ symphas::internal::C_PTL,			[&](const char* v) { select_stencil(2, v); } },
 		{ symphas::internal::C_PTB,			[&](const char* v) { select_stencil(4, v); } },
 		{ symphas::internal::C_PTG,			[&](const char* v) { select_stencil(3, v); } },
@@ -2096,6 +2096,29 @@ void SystemConf::select_stencil(size_t order, const char* str)
 	}
 }
 
+
+
+void SystemConf::select_stencil_accuracy(size_t dimension, const char* str)
+{
+	if (*str == CONFIG_OPTION_PREFIX_C)
+	{
+		StencilParams default_stp = DefaultStencil{ dimension, 0 }();
+		if (default_stp != StencilParams{})
+		{
+			stp.ord = default_stp.ord;
+		}
+		else
+		{
+			fprintf(SYMPHAS_WARN, "not able to select a default stencil "
+				"accuracy with the given dimension (%zd) \n", dimension);
+		}
+	}
+	else
+	{
+		unsigned short value = static_cast<unsigned short>(std::strtoul(str, NULL, 10));
+		stp.ord = value;
+	}
+}
 
 void SystemConf::parse_model_spec(const char* value, const char* dir)
 {

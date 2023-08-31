@@ -1806,10 +1806,41 @@ namespace symphas::lib
 				return std::integer_sequence<T, seq_value<N>(seq_t<E, Es...>{})>{};
 			}
 
-			template<size_t N, T E, T... Es, typename Seq, typename... Seqs, size_t L = seq_len_product<Seq, Seqs...>(), size_t N0 = N / L, size_t N1 = N - N0 * L>
+			template<size_t N, T E, T... Es, typename Seq, typename... Seqs, size_t L = seq_len_product<Seq, Seqs...>()>
 			static auto constexpr select(seq_t<E, Es...>, Seq, Seqs...)
 			{
-				return symphas::lib::seq_join(std::integer_sequence<T, seq_value<N0>(seq_t<E, Es...>{})>{}, select<N1>(Seq{}, Seqs{}...));
+				if constexpr (L == 0)
+				{
+					return select_non_empty_seq<N>(symphas::lib::types_list<>{}, symphas::lib::types_list<seq_t<E, Es...>, Seq, Seqs...>{});
+				}
+				else if constexpr (N < L)
+				{
+					constexpr size_t N0 = N / L;
+					constexpr size_t N1 = N - N0 * L;
+					return symphas::lib::seq_join(std::integer_sequence<T, seq_value<N0>(seq_t<E, Es...>{})>{}, select<N1>(Seq{}, Seqs{}...));
+				}
+				else
+				{
+					return select<N % L>(seq_t<E, Es...>{}, Seq{}, Seqs{}...);
+				}
+			}
+
+			template<size_t N, typename... Seqs0, T I0, T... Is, typename... Seqs>
+			static auto constexpr select_non_empty_seq(symphas::lib::types_list<Seqs0...>, symphas::lib::types_list<std::integer_sequence<T, I0, Is...>, Seqs...>)
+			{
+				return select_non_empty_seq<N>(symphas::lib::types_list<Seqs0..., std::integer_sequence<T, I0, Is...>>{}, symphas::lib::types_list<Seqs...>{});
+			}
+
+			template<size_t N, typename... Seqs0, typename... Seqs>
+			static auto constexpr select_non_empty_seq(symphas::lib::types_list<Seqs0...>, symphas::lib::types_list<std::integer_sequence<T>, Seqs...>)
+			{
+				return select_non_empty_seq<N>(symphas::lib::types_list<Seqs0...>{}, symphas::lib::types_list<Seqs...>{});
+			}
+
+			template<size_t N, typename... Seqs0, typename... Seqs>
+			static auto constexpr select_non_empty_seq(symphas::lib::types_list<Seqs0...>, symphas::lib::types_list<>)
+			{
+				return select<N>(Seqs0{}...);
 			}
 		};
 	}
@@ -3191,7 +3222,7 @@ namespace symphas::lib
 		template<size_t N>
 		static const size_t size = type_at_index<N, unroll_types_list<types_list<std::integer_sequence<T, E1s...>, std::integer_sequence<T, E2s...>>>>::size();
 
-		template<size_t N, typename std::enable_if_t<(N < count), int> = 0>
+		template<size_t N>
 		using row = decltype(internal::CrossProductFunctions<T>::select<N>(
 			std::declval<std::integer_sequence<T, E1s...>>(),
 			std::declval<std::integer_sequence<T, E2s...>>()));
@@ -3212,13 +3243,12 @@ namespace symphas::lib
 		template<size_t N>
 		static const size_t size = type_at_index<N, unroll_types_list<types_list<std::integer_sequence<T, Es...>, List1, List2, Lists...>>>::size();
 
-		template<size_t N, typename std::enable_if_t<(N < count), int> = 0>
+		template<size_t N>
 		using row = decltype(internal::CrossProductFunctions<T>::template select<N>(
 			std::declval<std::integer_sequence<T, Es...>>(),
 			std::declval<List1>(),
 			std::declval<List2>(),
 			std::declval<Lists>()...));
-
 	};
 
 	template<typename T>

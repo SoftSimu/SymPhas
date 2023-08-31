@@ -176,6 +176,12 @@ namespace symphas::internal
 	}
 
 
+	template<size_t D>
+	void print_stencil_message(const char* (&deriv_names)[D], size_t(&stencil_values)[0])
+	{
+		fprintf(SYMPHAS_LOG, "no stencil point values are defined\n");
+	}
+
 	template<
 		template<size_t, typename> typename Model,
 		template<typename, size_t = 0> typename Solver,

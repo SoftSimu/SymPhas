@@ -2595,7 +2595,12 @@ namespace symphas::internal
 	{
 		static const size_t h_exponent = fixed_max<expr::factor_count<expr::symbols::h_symbol, typename coeff_type_divh<Es>::type>::value...>;
 
-		GeneratedStencilApply(types_list<std::pair<expr::symbols::internal::S1_symbol<Is>, Es>...>) {}
+		GeneratedStencilApply(types_list<std::pair<expr::symbols::internal::S1_symbol<Is>, Es>...>) 
+		{
+#			ifdef DEBUG
+			print(SYMPHAS_INFO);
+#			endif
+		}
 
 		template<typename T>
 		auto operator()(T const* v, len_type stride, double divh) const
@@ -2625,7 +2630,12 @@ namespace symphas::internal
 	{
 		static const size_t h_exponent = fixed_max<expr::factor_count<expr::symbols::h_symbol, typename coeff_type_divh<Es>::type>::value...>;
 
-		GeneratedStencilApply(types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...>) {}
+		GeneratedStencilApply(types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...>)
+		{
+#			ifdef DEBUG
+			print(SYMPHAS_INFO);
+#			endif
+		}
 
 		template<typename T>
 		auto operator()(T const* v, len_type const (&stride)[2], double divh) const
@@ -2655,7 +2665,12 @@ namespace symphas::internal
 	{
 		static const size_t h_exponent = fixed_max<expr::factor_count<expr::symbols::h_symbol, typename coeff_type_divh<Es>::type>::value...>;
 
-		GeneratedStencilApply(types_list<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>...>) {}
+		GeneratedStencilApply(types_list<std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>...>)
+		{
+#			ifdef DEBUG
+			print(SYMPHAS_INFO);
+#			endif
+		}
 
 		template<typename T>
 		auto operator()(T const* v, len_type const (&stride)[3], double divh) const
