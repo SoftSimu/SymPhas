@@ -1289,8 +1289,7 @@ public:
 		iter_type i0 = num_field_offset<N>();
 		for (iter_type i = 0; i < num_field<N>(); ++i)
 		{
-			auto data = _s[i + i0].get_snapshot();
-			f(data.values, data.len, std::forward<Args>(args)...);
+			f(_s[i + i0], std::forward<Args>(args)...);
 		}
 	}
 

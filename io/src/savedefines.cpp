@@ -118,7 +118,7 @@ unset key
 R"~(
 set title "%s Tracked Points at index $%.2lf$"
 set output %s"
-plot "%s" index %d u 1:2 w points pt 7 ps .25
+plot "%s" index %d u 2:3 w points pt 7 ps .25
 unset output
 )~"
 #else
@@ -152,7 +152,7 @@ unset key
 R"~(
 set title "%s Tracked Points at index $%.2lf$"
 set output %s"
-plot "%s" index %d u 1:2 w points pt 7 ps .25
+plot "%s" index %d u 2:3 w points pt 7 ps .25
 unset output
 )~"
 #else
@@ -186,7 +186,7 @@ unset key
 R"~(
 set title "%s Tracked Values at index $%.2lf$"
 set output %s"
-plot "%s" index %d u 1:2 w points pt 7 ps .25
+plot "%s" index %d u 2:3 w points pt 7 ps .25
 unset output
 )~"
 #else

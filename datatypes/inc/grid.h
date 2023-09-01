@@ -1182,6 +1182,11 @@ namespace grid
 	template<size_t D>
 	select_region(const len_type(&)[D], const len_type(&)[D], len_type boundary_size = 0) -> select_region<D>;
 
+	template<size_t D>
+	len_type length_interior(select_region<D> const& region)
+	{
+		return length_interior<D>(region.dims, region.boundary_size);
+	}
 }
 
 

@@ -786,7 +786,7 @@ public:
 	 * Gives the number of cells in the entire grid in discrete space.
 	 * This is computed using the lengths of all the intervals.
 	 */
-	len_type num_points()
+	len_type num_points() const
 	{
 		len_type length = 1;
 		for (iter_type i = 0; i < dimension(); ++i)

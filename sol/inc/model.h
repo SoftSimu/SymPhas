@@ -344,8 +344,7 @@ public:
 	template<size_t N, typename F, typename... Args, typename std::enable_if<(N <= sizeof...(S)), int>::type = 0>
 	void do_for_field(F f, Args&& ... args) const
 	{
-		auto data = std::get<N>(_s).get_snapshot();
-		f(data.values, data.len, std::forward<Args>(args)...);
+		f(std::get<N>(_s), std::forward<Args>(args)...);
 	}
 
 	//! Copy the values of the `N`-th field into the given array. 
@@ -1103,6 +1102,12 @@ protected:
 		return m;
 	}
 
+	template<size_t D, typename Sp, typename... S>
+	static ArrayModel<D, Sp, S...> _get_type(ArrayModel<D, Sp, S...> m)
+	{
+		return m;
+	}
+
 	static auto get_type(M m)
 	{
 		return _get_type(m);
@@ -1181,6 +1186,73 @@ struct model_types<D, symphas::lib::types_list<S...>>
 
 template<typename M>
 using model_types_t = typename model_types<model_dimension<M>::value, M>::type;
+
+template<typename M, size_t N>
+struct model_system_type
+{
+	using type = typename model_system_type<model_base_t<M>, N>::type;
+};
+
+template<size_t D, typename Sp, typename... S, size_t N>
+struct model_system_type<Model<D, Sp, S...>, N>
+{
+	template<template<typename, size_t> typename G>
+	struct wrap_type
+	{
+		template<typename T, size_t D0>
+		using type = G<T, D0>;
+	};
+
+	template<template<typename, size_t> typename G, typename T>
+	static wrap_type<G> _get_type(PhaseFieldSystem<G, T, D> m)
+	{
+		return {};
+	}
+
+	template<typename system_t>
+	static auto get_type(system_t s)
+	{
+		return _get_type(s);
+	}
+	
+	using type_of_S = typename Model<D, Sp, S...>::template type_of_S<N>;
+	using solver_system_t = typename symphas::solver_system_type<Sp>::template type<type_of_S, D>;
+	using call_t = decltype(&model_system_type<Model<D, Sp, S...>, N>::template get_type<solver_system_t>);
+
+	template<typename T, size_t D0>
+	using type = typename std::invoke_result_t<call_t, solver_system_t>::template type<T, D0>;
+};
+
+template<size_t D, typename Sp, typename... S, size_t N>
+struct model_system_type<ArrayModel<D, Sp, S...>, N>
+{
+	template<template<typename, size_t> typename G>
+	struct wrap_type
+	{
+		template<typename T, size_t D0>
+		using type = G<T, D0>;
+	};
+
+	template<template<typename, size_t> typename G, typename T>
+	static wrap_type<G> _get_type(PhaseFieldSystem<G, T, D> m)
+	{
+		return {};
+	}
+
+	template<typename system_t>
+	static auto get_type(system_t s)
+	{
+		return _get_type(s);
+	}
+
+	using type_of_S = typename ArrayModel<D, Sp, S...>::template type_of_S<N>;
+	using solver_system_t = typename symphas::solver_system_type<Sp>::template type<type_of_S, D>;
+	using call_t = decltype(&model_system_type<ArrayModel<D, Sp, S...>, N>::template get_type<solver_system_t>);
+
+	template<typename T, size_t D0>
+	using type = typename std::invoke_result_t<call_t, solver_system_t>::template type<T, D0>;
+};
+
 
 
 template<typename M>

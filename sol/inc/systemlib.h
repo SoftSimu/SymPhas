@@ -410,7 +410,7 @@ struct SystemData<RegionalGrid<T, D>> : RegionalGrid<T, D>, SystemInfo
 	 */
 	auto length() const
 	{
-		return grid::length_interior<D>(dims);
+		return grid::length_interior<D>(region.dims);
 	}
 
 	//! Copies the system data into the given array.
@@ -421,7 +421,13 @@ struct SystemData<RegionalGrid<T, D>> : RegionalGrid<T, D>, SystemInfo
 	 */
 	void persist(T* out) const
 	{
-		grid::copy_interior(*this, out);
+		auto interval = grid::get_iterable_domain(*this);
+		auto it = symphas::data_iterator_region(as_grid(), interval);
+		auto end = it + grid::length<D>(interval);
+		while (it < end)
+		{
+			*out++ = *it++;
+		}
 	}
 
 	//! Copies the input data into the system values.
