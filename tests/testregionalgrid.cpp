@@ -19,11 +19,22 @@ void testregionalgrid()
 	}
 
 	grid(1, 2) = 1.;
+	grid(1, 3) = 1.;
+	grid(2, 3) = 1.;
+	symphas::io::print_grid(grid);
+
+	iter_type new_origin[2]{ 4, 4 };
+	grid.adjust(new_origin);
 	symphas::io::print_grid(grid);
 
 	len_type intervals[2][2]{ { 8, 8 + side_length_small }, { 8, 8 + side_length_small } };
 
 	grid::resize_adjust_region(grid, intervals);
+	symphas::io::print_grid(grid);
+	
+	new_origin[0] = 10;
+	new_origin[1] = 10;
+	grid.adjust(new_origin);
 	symphas::io::print_grid(grid);
 
 	grid::resize_adjust_region(grid, 1.);
@@ -36,9 +47,9 @@ void testregionalgrid()
 	//grid.adjust((iter_type[2]) { 0, 0 });
 	//symphas::io::print_grid(grid);
 
-	grid.adjust((iter_type[2]) { 0, 0 }, grid.dims);
+	grid.adjust((iter_type[2]) { 2, 2 });
 	symphas::io::print_grid(grid);
-	grid.adjust((iter_type[2]) { 8, 8 });
+	grid.adjust((iter_type[2]) { 0, 0 }, grid.dims);
 	symphas::io::print_grid(grid);
 	symphas::io::print_region(grid);
 
@@ -156,6 +167,22 @@ void testregionalgrid()
 	symphas::io::print_region(grid);
 	symphas::io::print_grid(grid);
 
+
+	grid::region_interval<2> test_region_combine;
+	for (iter_type i = 0; i < 2; ++i)
+	{
+		test_region_combine.dims[i] = 100;
+		test_region_combine[i][0] = 80;
+		test_region_combine[i][1] = 115;
+	}
+
+	grid::region_interval_multiple<2> combined_multiple(test_region_combine.dims, 3);
+	combined_multiple += test_region_combine;
+	auto test_region_combine2 = +combined_multiple;
+	grid::region_interval_multiple<2> combined_multiple2(test_region_combine.dims, 3);
+	combined_multiple += test_region_combine2;
+
+
 	auto term = expr::make_term<0>(grid);
 	auto s = &expr::get<1>(term).data();
 
@@ -202,6 +229,36 @@ void testregionalgrid()
 	auto dy2 = expr::make_operator_directional_derivative<Axis::Y, 2>(solver);
 	auto term00 = 0.35 * term;
 	auto lapp = (dx2 * term) + (dy2 * term);
+
+	using ii = expr::symbols::i_<0, 0>;
+	using v_ii = expr::symbols::v_<ii>;
+	using namespace expr::symbols;
+
+	double* arr = new double[10] {};
+	arr[1] = 2;
+	arr[0] = 3;
+
+	auto cond = ii{} != 2_n;
+	auto sum = expr::sum(v_ii{}).select(ii{} != 2_n)(expr::array_arg(10, arr));
+
+	// test reduce iterator:
+	iter_type ind = 0;
+	DynamicIndex dyn(ind);
+	auto op = expr::make_term_dynamic(dyn, arr);
+	auto expr_reduce_it = sum + op + op * op;
+	double res;
+
+	expr::prune::update(sum);
+	expr::result_by_term<expr::matches_series>(sum, res);
+	expr::prune::update(expr_reduce_it);
+	expr::result_by_term<expr::matches_series>(expr_reduce_it, res);
+
+	using namespace symphas::internal;
+	auto test_reduce_it = *(symphas::reduce_iterator<expr::expression_iterator_group, 2, OpTerms<OpCoeff<OpLiteral<double>, DynamicIndex>, Term<DynamicVariable<NamedData<SolverSystemFD<double, 2> *>>, 2>>, OpTerms<OpCoeff<double, DynamicIndex>, Term<DynamicVariable<NamedData<SolverSystemFD<double, 2> *>>, 1>>, OpBinaryMul<OpIntegral<OpIdentity, OpTerms<OpLiteral<double>, Term<DynamicVariable<NamedData<SolverSystemFD<double, 2> *>>, 2>>, expr::variational_t<symphas::grid_info>>, OpTerms<OpNegFractionLiteral<2, 1>, Term<DynamicVariable<NamedData<SolverSystemFD<double, 2> *>>, 1>>>, OpTerms<OpCoeff<double, DynamicIndex>, Term<DynamicVariable<NamedData<SolverSystemFD<double, 2> *>>, 3>>, OpDerivative<Solver<SolverFT<Stencil2d2h<9, 6, 13>, 0>, 0>::derivative<Axis::X, 2>, OpCoeff<OpLiteral<double>, DynamicIndex>, OpTerms<OpIdentity, Term<DynamicVariable<NamedData<SolverSystemFD<double, 2> *>>, 1>>, SolverFT<Stencil2d2h<9, 6, 13>, 0>>, OpBinaryMul<OpIntegral<OpIdentity, OpAdd<OpBinaryMul<OpTerms<OpCoeff<OpLiteral<double>, DynamicIndex>, Term<DynamicVariable<NamedData<SolverSystemFD<double, 2> *>>, 1>>, OpBinaryMul<OpDerivative<Solver<SolverFT<Stencil2d2h<9, 6, 13>, 0>, 0>::derivative<Axis::X, 1>, OpIdentity, OpTerms<OpIdentity, Term<DynamicVariable<NamedData<SolverSystemFD<double, 2> *>>, 1>>, SolverFT<Stencil2d2h<9, 6, 13>, 0>>, OpSymbolicEval<OpIdentity, SymbolicSeries<ReduceOp<symphas::internal::SeriesOp::ADD>, Substitution<SymbolicDataArray<NamedData<SolverSystemFD<double, 2> *>>>, symphas::lib::types_list<OpTerms<OpIdentity, Term<expr::symbols::v_id_type<expr::symbols::i_<1, 0>>, 2>>, symphas::lib::types_list<expr::symbols::i_<1, 0>>, symphas::lib::types_list<expr::series_limits<OpAdd<OpBinaryMul<OpLiteral<double>, DynamicIndex>, OpBinaryMul<OpLiteral<double>, DynamicIndex>, OpLiteral<double>>, int>>, symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<1, 0>>>>>, SymbolicFunction<OpTerms<OpIdentity, Term<Variable<0, std::reference_wrapper<NamedData<SymbolicData<SolverSystemFD<double, 2>>>>>, 2>>, Variable<0, NamedData<SymbolicData<SolverSystemFD<double, 2>>>>, Variable<1, OpLiteral<int>>>>>>, OpBinaryMul<OpTerms<OpCoeff<OpLiteral<double>, DynamicIndex>, Term<DynamicVariable<NamedData<SolverSystemFD<double, 2> *>>, 1>>, OpBinaryMul<OpDerivative<Solver<SolverFT<Stencil2d2h<9, 6, 13>, 0>, 0>::derivative<Axis::X, 1>, OpIdentity, OpTerms<OpIdentity, Term<DynamicVariable<NamedData<SolverSystemFD<double, 2> *>>, 1>>, SolverFT<Stencil2d2h<9, 6, 13>, 0>>, OpSymbolicEval<OpIdentity, SymbolicSeries<symphas::internal::ReduceOp<SeriesOp::ADD>, Substitution<SymbolicDataArray<NamedData<SolverSystemFD<double, 2> *>>>, symphas::lib::types_list<OpTerms<OpIdentity, Term<expr::symbols::v_id_type<expr::symbols::i_<1, 0>>, 2>>, symphas::lib::types_list<expr::symbols::i_<1, 0>>, symphas::lib::types_list<expr::series_limits<int, OpAdd<OpBinaryMul<OpLiteral<double>, DynamicIndex>, OpBinaryMul<OpLiteral<double>, DynamicIndex>, OpLiteral<double>>>>, symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<1, 0>>>>>, SymbolicFunction<OpTerms<OpIdentity, Term<Variable<0, std::reference_wrapper<NamedData<SymbolicData<SolverSystemFD<double, 2>>>>>, 2>>, Variable<0, NamedData<SymbolicData<SolverSystemFD<double, 2>>>>, Variable<1, OpLiteral<int>>>>>>>, expr::variational_t<symphas::grid_info>>, OpDerivative<Solver<SolverFT<Stencil2d2h<9, 6, 13>, 0>, 0>::derivative<Axis::X, 1>, OpIdentity, OpTerms<OpIdentity, Term<DynamicVariable<NamedData<SolverSystemFD<double, 2> *>>, 1>>, SolverFT<Stencil2d2h<9, 6, 13>, 0>>>, OpBinaryMul<OpIntegral<OpIdentity, OpAdd<OpBinaryMul<OpTerms<OpCoeff<OpLiteral<double>, DynamicIndex>, Term<DynamicVariable<NamedData<SolverSystemFD<double, 2> *>>, 1>>, OpBinaryMul<OpDerivative<Solver<SolverFT<Stencil2d2h<9, 6, 13>, 0>, 0>::derivative<Axis::Y, 1>, OpIdentity, OpTerms<OpIdentity, Term<DynamicVariable<NamedData<SolverSystemFD<double, 2> *>>, 1>>, SolverFT<Stencil2d2h<9, 6, 13>, 0>>, OpSymbolicEval<OpIdentity, SymbolicSeries<symphas::internal::ReduceOp<SeriesOp::ADD>, Substitution<SymbolicDataArray<NamedData<SolverSystemFD<double, 2> *>>>, symphas::lib::types_list<OpTerms<OpIdentity, Term<expr::symbols::v_id_type<expr::symbols::i_<1, 0>>, 2>>, symphas::lib::types_list<expr::symbols::i_<1, 0>>, symphas::lib::types_list<expr::series_limits<OpAdd<OpBinaryMul<OpLiteral<double>, DynamicIndex>, OpBinaryMul<OpLiteral<double>, DynamicIndex>, OpLiteral<double>>, int>>, symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<1, 0>>>>>, SymbolicFunction<OpTerms<OpIdentity, Term<Variable<0, std::reference_wrapper<NamedData<SymbolicData<SolverSystemFD<double, 2>>>>>, 2>>, Variable<0, NamedData<SymbolicData<SolverSystemFD<double, 2>>>>, Variable<1, OpLiteral<int>>>>>>, OpBinaryMul<OpTerms<OpCoeff<OpLiteral<double>, DynamicIndex>, Term<DynamicVariable<NamedData<SolverSystemFD<double, 2> *>>, 1>>, OpBinaryMul<OpDerivative<Solver<SolverFT<Stencil2d2h<9, 6, 13>, 0>, 0>::derivative<Axis::Y, 1>, OpIdentity, OpTerms<OpIdentity, Term<DynamicVariable<NamedData<SolverSystemFD<double, 2> *>>, 1>>, SolverFT<Stencil2d2h<9, 6, 13>, 0>>, OpSymbolicEval<OpIdentity, SymbolicSeries<symphas::internal::ReduceOp<SeriesOp::ADD>, Substitution<SymbolicDataArray<NamedData<SolverSystemFD<double, 2> *>>>, symphas::lib::types_list<OpTerms<OpIdentity, Term<expr::symbols::v_id_type<expr::symbols::i_<1, 0>>, 2>>, symphas::lib::types_list<expr::symbols::i_<1, 0>>, symphas::lib::types_list<expr::series_limits<int, OpAdd<OpBinaryMul<OpLiteral<double>, DynamicIndex>, OpBinaryMul<OpLiteral<double>, DynamicIndex>, OpLiteral<double>>>>, symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<1, 0>>>>>, SymbolicFunction<OpTerms<OpIdentity, Term<Variable<0, std::reference_wrapper<NamedData<SymbolicData<SolverSystemFD<double, 2>>>>>, 2>>, Variable<0, NamedData<SymbolicData<SolverSystemFD<double, 2>>>>, Variable<1, OpLiteral<int>>>>>>>, expr::variational_t<symphas::grid_info>>, OpDerivative<Solver<SolverFT<Stencil2d2h<9, 6, 13>, 0>, 0>::derivative<Axis::Y, 1>, OpIdentity, OpTerms<OpIdentity, Term<DynamicVariable<NamedData<SolverSystemFD<double, 2> *>>, 1>>, SolverFT<Stencil2d2h<9, 6, 13>, 0>>>, OpBinaryMul<OpFunctionApply<&symphas::math::cos<double>, double, OpSymbolicEval<OpLiteral<double>, SymbolicListIndex<OpAdd<DynamicIndex, DynamicIndex, OpIdentity>, expr::symbols::i_<0, 0>>, SymbolicFunction<OpSymbolicEval<OpIdentity, NoiseData<expr::NoiseType::POISSON, double, 2>, SymbolicFunction<OpLiteral<double>, Variable<2, OpTerms<OpIdentity, Term<TimeValue, 1>>>, Variable<3, expr::symbols::i_<0, 0>>>>>>>, OpDerivative<Solver<SolverFT<Stencil2d2h<9, 6, 13>, 0>, 0>::derivative<Axis::X, 1>, OpIdentity, OpTerms<OpIdentity, Term<DynamicVariable<NamedData<SolverSystemFD<double, 2> *>>, 1>>, SolverFT<Stencil2d2h<9, 6, 13>, 0>>>, OpBinaryMul<OpFunctionApply<&symphas::math::sin<double>, double, OpSymbolicEval<OpLiteral<double>, SymbolicListIndex<OpAdd<DynamicIndex, DynamicIndex, OpIdentity>, expr::symbols::i_<0, 0>>, SymbolicFunction<OpSymbolicEval<OpIdentity, NoiseData<expr::NoiseType::POISSON, double, 2>, SymbolicFunction<OpLiteral<double>, Variable<2, OpTerms<OpIdentity, Term<TimeValue, 1>>>, Variable<3, expr::symbols::i_<0, 0>>>>>>>, OpDerivative<Solver<SolverFT<Stencil2d2h<9, 6, 13>, 0>, 0>::derivative<Axis::Y, 1>, OpIdentity, OpTerms<OpIdentity, Term<DynamicVariable<NamedData<SolverSystemFD<double, 2> *>>, 1>>, SolverFT<Stencil2d2h<9, 6, 13>, 0>>>>{});
+
+	auto start = symphas::reduce_iterator(op.begin(symphas::it_grp, interval), (op * op).begin(symphas::it_grp, interval));
+	auto it = expr::forward_value{}(*(++std::_Get_unwrapped(start)));
+	auto end = symphas::reduce_iterator(op.end(symphas::it_grp, interval));
 
 	//grid::copy(values0, grid);
 	//grid::copy(values1, frid);
