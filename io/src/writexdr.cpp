@@ -45,10 +45,10 @@ XDRFILE* open_xdrgridf(symphas::io::write_info winfo, bool is_checkpoint)
 void print_xdr_header(int index, size_t id, symphas::grid_info const& ginfo, symphas::io::write_info const& winfo, XDRFILE* f)
 {
 	static std::vector<std::tuple<std::string, size_t>> idlist;
+	
+	int dim = static_cast<int>(ginfo.dimension());
 	if (!params::single_output_file || (std::find(idlist.begin(), idlist.end(), std::make_tuple(winfo.dir_str_ptr, id)) == idlist.end()))
 	{
-
-		int dim = static_cast<int>(ginfo.dimension());
 		xdrfile_write_int(&dim, 1, f);
 
 		int* dims = new int[dim];
@@ -75,6 +75,7 @@ void print_xdr_header(int index, size_t id, symphas::grid_info const& ginfo, sym
 		}
 	}
 	xdrfile_write_int(&index, 1, f);
+	xdrfile_write_int(&dim, 1, f);
 
 	for (auto const& [axis, interval] : ginfo)
 	{

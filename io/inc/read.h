@@ -28,26 +28,54 @@
 
 #include "readincludes.h"
 
+template<typename T>
+struct nullptr_for_read
+{
+	auto operator()(symphas::io::read_info const& rinfo, symphas::grid_info* ginfo) const
+	{
+		SWITCH_IO_READ(read_grid<T*>(nullptr, rinfo, ginfo), BAD_INDEX)
+	}
+};
+
+template<typename T, size_t D>
+struct nullptr_for_read<T[D]>
+{
+	auto operator()(symphas::io::read_info const& rinfo, symphas::grid_info* ginfo) const
+	{
+		T* data[D]{};
+		for (iter_type i = 0; i < D; ++i)
+		{
+			data[i] = nullptr;
+		}
+		SWITCH_IO_READ(read_grid<T*(&)[D]>(data, rinfo, ginfo), BAD_INDEX)
+	}
+};
 
 template<typename T>
-int symphas::io::read_grid(T* &values, symphas::io::read_info const& rinfo)
+int symphas::io::read_grid(symphas::io::read_info const& rinfo, symphas::grid_info* ginfo)
+{
+	return nullptr_for_read<T>{}(rinfo, ginfo);
+}
+
+template<typename T>
+int symphas::io::read_grid(T* &values, symphas::io::read_info const& rinfo, symphas::grid_info* ginfo)
 {
 	using data_unit = T*;
-	SWITCH_IO_READ(read_grid<data_unit>(values, rinfo), BAD_INDEX)
+	SWITCH_IO_READ(read_grid<data_unit>(values, rinfo, ginfo), BAD_INDEX)
 }
 
 template<typename T, size_t N>
-int symphas::io::read_grid(T(*values)[N], symphas::io::read_info const& rinfo)
+int symphas::io::read_grid(T(*values)[N], symphas::io::read_info const& rinfo, symphas::grid_info* ginfo)
 {
 	using data_unit = T(*)[N];
-	SWITCH_IO_READ(read_grid<data_unit>(values, rinfo), BAD_INDEX)
+	SWITCH_IO_READ(read_grid<data_unit>(values, rinfo, ginfo), BAD_INDEX)
 }
 
 template<typename T, size_t N>
-int symphas::io::read_grid(T* (&values)[N], symphas::io::read_info const& rinfo)
+int symphas::io::read_grid(T* (&values)[N], symphas::io::read_info const& rinfo, symphas::grid_info* ginfo)
 {
-	using data_unit = T*(&)[N];
-	SWITCH_IO_READ(read_grid<data_unit>(values, rinfo), BAD_INDEX)
+	using data_unit = T * (&)[N];
+	SWITCH_IO_READ(read_grid<data_unit>(values, rinfo, ginfo), BAD_INDEX)
 }
 
 inline symphas::grid_info symphas::io::read_header(symphas::io::read_info const& rinfo, iter_type* index)

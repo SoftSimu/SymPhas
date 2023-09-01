@@ -315,7 +315,6 @@ void PhaseFieldSystem<RegionalGrid, T, D>::update(iter_type index, double time)
 
 
 
-
 template<typename T, size_t D>
 PhaseFieldSystem<BoundaryGrid, T, D>::PhaseFieldSystem() : parent_type{}, BoundaryGroup<T, D>{} {}
 

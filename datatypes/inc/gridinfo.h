@@ -768,7 +768,7 @@ public:
 	 */
 	auto& operator[](Axis ax)
 	{
-		return at(ax);
+		return intervals[ax];
 	}
 
 	//! Return the dimension of the system.

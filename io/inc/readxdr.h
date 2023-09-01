@@ -68,9 +68,9 @@ namespace symphas::io::xdr
 	 * \param rinfo Information about the data file that is read from.
 	 */
 	template<typename value_type>
-	int read_grid(value_type grid, symphas::io::read_info const& rinfo)
+	int read_grid(value_type grid, symphas::io::read_info const& rinfo, symphas::grid_info* ginfo = nullptr)
 	{
-		return read_grid_standardized(grid, rinfo, open_xdrgridf, xdrfile_close, read_block<value_type>);
+		return read_grid_standardized(grid, rinfo, ginfo, open_xdrgridf, xdrfile_close, read_block<value_type>);
 	}
 
 

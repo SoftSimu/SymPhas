@@ -198,7 +198,10 @@ inline void swap(symphas::io::read_info& first, symphas::io::read_info& second)
 
 namespace symphas::io
 {
-	
+
+	template<typename T>
+	int read_grid(symphas::io::read_info const& rinfo, symphas::grid_info* ginfo = nullptr);
+
 	//! A data source will be accessed and the given data array initialized.
 	/*!
 	 * The values from the data source given by the read information parameter 
@@ -221,7 +224,7 @@ namespace symphas::io
 	 * \param rinfo Information about how to access the persistent information.
 	 */
 	template<typename T>
-	int read_grid(T* &values, symphas::io::read_info const& rinfo);
+	int read_grid(T* &values, symphas::io::read_info const& rinfo, symphas::grid_info* ginfo = nullptr);
 	
 
 	//! A data source will be accessed and the given data array initialized.
@@ -246,7 +249,7 @@ namespace symphas::io
 	 * \param rinfo Information about how to access the persistent information.
 	 */
 	template<typename T, size_t N>
-	int read_grid(T(*values)[N], symphas::io::read_info const& rinfo);
+	int read_grid(T(*values)[N], symphas::io::read_info const& rinfo, symphas::grid_info* ginfo = nullptr);
 
 	//! A data source will be accessed and the given data array initialized.
 	/*!
@@ -271,7 +274,7 @@ namespace symphas::io
 	 * \param rinfo Information about how to access the persistent information.
 	 */
 	template<typename T, size_t N>
-	int read_grid(T* (&values)[N], symphas::io::read_info const& rinfo);
+	int read_grid(T* (&values)[N], symphas::io::read_info const& rinfo, symphas::grid_info* ginfo = nullptr);
 
 	//! Read the header from the given data source. 
 	/*!
@@ -331,38 +334,69 @@ namespace symphas::io
 	 * the array data.
 	 */
 	template<typename value_type, typename Fo, typename Fc, typename Fb>
-	int read_grid_standardized(value_type&& grid, symphas::io::read_info const& rinfo, Fo open_file_f, Fc close_file_f, Fb read_block_f)
+	int read_grid_standardized(value_type&& grid, symphas::io::read_info const& rinfo, symphas::grid_info* ginfo_ptr, Fo open_file_f, Fc close_file_f, Fb read_block_f)
 	{
 		auto f = open_file_f(rinfo.get_name());
 
 		int index = -1;
-		symphas::grid_info bginfo = read_header(f, &index);
-		int prev;
+		symphas::grid_info ginfo = read_header(f, &index);
+		symphas::grid_info ginfo0(ginfo);
+		symphas::grid_info ginfo1(ginfo);
+		
+		if (ginfo_ptr != nullptr)
+		{
+			*ginfo_ptr = ginfo;
+		}
 
 		if (!rinfo.uses_offset())
 		{
-			for (auto& [axis, interval] : bginfo)
+			for (auto& [axis, interval] : ginfo)
 			{
 				interval.set_interval(0, interval.right() - interval.left());
 				interval.domain_to_interval();
 			}
 		}
 
+		int prev;
 		if (!params::single_input_file)
 		{
-			read_block_f(std::forward<value_type>(grid), bginfo, f);
+			read_block_f(std::forward<value_type>(grid), ginfo, f);
 			prev = index;
 		}
 		else
 		{
 			do
 			{
-				read_block_f(std::forward<value_type>(grid), bginfo, f);
+				read_block_f(std::forward<value_type>(grid), ginfo, f);
 				prev = index;
-				read_header(f, &index);
+				
+				ginfo0 = ginfo1;
+				ginfo1 = read_header(f, &index);
+				for (auto& [axis, interval] : ginfo1)
+				{
+					if (!rinfo.uses_offset())
+					{
+						ginfo[axis].set_interval(0, interval.right() - interval.left());
+						ginfo[axis].domain_to_interval();
+					}
+					else
+					{
+						ginfo[axis].set_interval(interval.left(), interval.right());
+					}
+				}
+
+
 			} while (index <= rinfo.get_index() && index > BAD_INDEX && prev != rinfo.get_index());
 		}
 		close_file_f(f);
+
+		if (ginfo_ptr != nullptr)
+		{
+			for (auto& [axis, interval] : ginfo0)
+			{
+				(*ginfo_ptr)[axis].set_interval(interval.left(), interval.right());
+			}
+		}
 
 		if (prev != rinfo.get_index())
 		{

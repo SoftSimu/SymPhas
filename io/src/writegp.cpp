@@ -418,7 +418,7 @@ void symphas::io::gp::print_gp_header(int index, size_t id, symphas::grid_info c
 
 	if (grid::has_subdomain(ginfo))
 	{
-		fprintf(f, " %c ", CONFIG_OPTION_PREFIX_C);
+		fprintf(f, " %d ", ginfo.dimension());
 		for (auto const& [axis, interval] : ginfo)
 		{
 			fprintf(f, "%lf %lf ", interval.left(), interval.right());
@@ -426,7 +426,7 @@ void symphas::io::gp::print_gp_header(int index, size_t id, symphas::grid_info c
 	}
 	else
 	{
-		fprintf(f, " %c", '>');
+		fprintf(f, " %c", CONFIG_OPTION_PREFIX_C);
 	}
 
 	fprintf(f, "\n");

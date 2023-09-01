@@ -34,7 +34,23 @@
 #include "model.h"
 
 
+namespace symphas::internal
+{
+	template<template<typename, size_t> typename G, typename T, size_t D>
+	void update_for_regional(PhaseFieldSystem<G, T, D>& system, symphas::grid_info const& info) {}
 
+	template<typename T, size_t D>
+	void update_for_regional(PhaseFieldSystem<RegionalGrid, T, D>& system, symphas::grid_info const& info)
+	{
+		grid::resize_adjust_region(system, info);
+
+		for (auto& [axis, interval] : info)
+		{
+			double offset = system.region.boundary_size * interval.width();
+			system.info[axis].set_interval(interval.left() + offset, interval.right() - offset);
+		}
+	}
+}
 
 
 //! Mimics solver functionality and reads existing datafiles instead.
@@ -49,6 +65,30 @@
 template<size_t D, typename Sp = void>
 struct DataStepper
 {
+	template<typename T>
+	using SolverSystemApplied = typename symphas::solver_system_type<Sp>::template type<T, D>;
+
+	template<typename T>
+	struct solver_system_impl : SolverSystemApplied<T>
+	{
+		solver_system_impl(SolverSystemApplied<T> const& s) : SolverSystemApplied<T>(s) {}
+	};
+
+
+	template<typename T>
+	T _get_solver_system_type(SolverSystemApplied<T>) { return {}; }
+	template<typename S>
+	auto get_solver_system_type(S s) { return _get_solver_system_type(s); }
+
+	template<typename S>
+	struct solver_implicit_type
+	{
+		using type = std::invoke_result_t<decltype(&DataStepper<D, Sp>::get_solver_system_type<S>), DataStepper<D, Sp>, S>;
+	};
+
+	template<typename S>
+	using solver_implicit_t = typename solver_implicit_type<S>::type;
+
 	using id_type = Solver<Sp>;
 
 	symphas::init_entry_type* data;
@@ -78,7 +118,12 @@ struct DataStepper
 				data[system.id].file.get_name(), data[system.id].in == Inside::CHECKPOINT };
 		rinfo.set_offset(false);
 
-		iter_type read_index = symphas::io::read_grid(system.values, rinfo);
+		symphas::grid_info ginfo(system.info);
+		iter_type read_index = symphas::io::read_grid<solver_implicit_t<S>>(rinfo, &ginfo);
+		symphas::internal::update_for_regional(system, ginfo);
+
+
+		symphas::io::read_grid(system.values, rinfo);
 		data[system.id].file.set_index(read_index);
 		
 	}

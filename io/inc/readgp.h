@@ -62,9 +62,9 @@ namespace symphas::io::gp
 
 	//! Plain text implementation of reading data.
 	template<typename value_type>
-	int read_grid(value_type values, symphas::io::read_info const& rinfo)
+	int read_grid(value_type values, symphas::io::read_info const& rinfo, symphas::grid_info* ginfo = nullptr)
 	{
-		return read_grid_standardized(values, rinfo, symphas::io::gp::open_gpgridf, fclose, read_block<value_type>);
+		return read_grid_standardized(values, rinfo, ginfo, symphas::io::gp::open_gpgridf, fclose, read_block<value_type>);
 	}
 
 	//! Read the header of the datafile.

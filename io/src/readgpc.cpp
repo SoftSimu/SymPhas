@@ -40,8 +40,13 @@ void symphas::io::gp::col::read_block(scalar_t* grid, symphas::grid_info ginfo, 
 				{
 					fscanf(f, "%*f");
 				}
-				iter_type ii = GP_HELPER_INDEX({ i, j, k });
-				fscanf(f, "%lf", grid + ii);
+				scalar_t value;
+				fscanf(f, "%lf", &value);
+				if (grid != nullptr)
+				{
+					iter_type ii = GP_HELPER_INDEX({ i, j, k });
+					grid[ii] = value;
+				}
 			}
 		}
 	}
@@ -66,8 +71,11 @@ void symphas::io::gp::col::read_block(complex_t* grid, symphas::grid_info ginfo,
 				double re, im;
 				fscanf(f, "%lf+i%lf", &re, &im);
 
-				iter_type ii = GP_HELPER_INDEX({ i, j, k });
-				grid[ii] = complex_t{ re, im };
+				if (grid != nullptr)
+				{
+					iter_type ii = GP_HELPER_INDEX({ i, j, k });
+					grid[ii] = complex_t{ re, im };
+				}
 			}
 		}
 	}
@@ -90,8 +98,15 @@ void symphas::io::gp::col::read_block(double_arr2*grid, symphas::grid_info ginfo
 				{
 					fscanf(f, "%*f");
 				}
-				iter_type ii = GP_HELPER_INDEX({ i, j, k });
-				fscanf(f, "%lf %lf", grid[ii], grid[ii] + 1);
+
+				double a, b;
+				fscanf(f, "%lf %lf", &a, &b);
+				if (grid != nullptr)
+				{
+					iter_type ii = GP_HELPER_INDEX({ i, j, k });
+					grid[ii][0] = a;
+					grid[ii][1] = b;
+				}
 			}
 		}
 	}
@@ -120,8 +135,11 @@ void symphas::io::gp::col::read_block(vector_t<3>* grid, symphas::grid_info ginf
 					"%lf %lf %lf %lf",
 					&dx, &dy, &dz, &m);
 
-				iter_type ii = GP_HELPER_INDEX({ i, j, k });
-				grid[ii] = vector_t<3>{ dx * m, dy * m, dz * m };
+				if (grid != nullptr)
+				{
+					iter_type ii = GP_HELPER_INDEX({ i, j, k });
+					grid[ii] = vector_t<3>{ dx * m, dy * m, dz * m };
+				}
 			}
 		}
 	}
@@ -150,8 +168,11 @@ void symphas::io::gp::col::read_block(vector_t<2>* grid, symphas::grid_info ginf
 					"%lf %lf %lf",
 					&dx, &dy, &m);
 
-				iter_type ii = GP_HELPER_INDEX({ i, j, k });
-				grid[ii] = vector_t<2>{ dx * m, dy * m };
+				if (grid != nullptr)
+				{
+					iter_type ii = GP_HELPER_INDEX({ i, j, k });
+					grid[ii] = vector_t<2>{ dx * m, dy * m };
+				}
 			}
 		}
 	}
@@ -208,10 +229,13 @@ void symphas::io::gp::col::read_block(scalar_ptr_t(&grid)[3], symphas::grid_info
 					"%lf %lf %lf %lf",
 					&dx, &dy, &dz, &m);
 
-				iter_type ii = GP_HELPER_INDEX({ i, j, k });
-				grid[0][ii] = dx * m;
-				grid[1][ii] = dy * m;
-				grid[2][ii] = dz * m;
+				if (grid != nullptr)
+				{
+					iter_type ii = GP_HELPER_INDEX({ i, j, k });
+					grid[0][ii] = dx * m;
+					grid[1][ii] = dy * m;
+					grid[2][ii] = dz * m;
+				}
 			}
 		}
 	}
@@ -240,9 +264,12 @@ void symphas::io::gp::col::read_block(scalar_ptr_t(&grid)[2], symphas::grid_info
 					"%lf %lf %lf",
 					&dx, &dy, &m);
 
-				iter_type ii = GP_HELPER_INDEX({ i, j, k });
-				grid[0][ii] = dx * m;
-				grid[1][ii] = dy * m;
+				if (grid != nullptr)
+				{
+					iter_type ii = GP_HELPER_INDEX({ i, j, k });
+					grid[0][ii] = dx * m;
+					grid[1][ii] = dy * m;
+				}
 			}
 		}
 	}
@@ -268,8 +295,11 @@ void symphas::io::gp::col::read_block(scalar_ptr_t(&grid)[1], symphas::grid_info
 				double m;
 				fscanf(f, "%lf ", &m);
 
-				iter_type ii = GP_HELPER_INDEX({ i, j, k });
-				grid[0][ii] = m;
+				if (grid != nullptr)
+				{
+					iter_type ii = GP_HELPER_INDEX({ i, j, k });
+					grid[0][ii] = m;
+				}
 			}
 		}
 	}

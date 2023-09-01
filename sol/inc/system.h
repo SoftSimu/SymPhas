@@ -69,7 +69,7 @@ struct PhaseFieldSystem : PersistentSystemData<G<T, D>>
 		PhaseFieldSystem(tdata, vdata, id) {}
 
 	//! There is no update mechanism required for the base object.
-	inline void update(iter_type = 0, double = 0) const {}
+	inline void update(iter_type = 0, double = 0) {}
 
 
 protected:
