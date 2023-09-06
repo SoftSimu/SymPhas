@@ -381,6 +381,23 @@ namespace grid
 		}
 	}
 
+	inline void get_grid_position(pos_list& pos, dim_list const& dims, dim_list const& stride, iter_type n)
+	{
+		for (iter_type i = 0; i < pos.n; ++i)
+		{
+			pos[i] = (n / stride[i]) % dims[i];
+		}
+	}
+
+	inline void get_grid_position_offset(pos_list& pos, dim_list const& dims, dim_list const& stride, pos_list const& offset, iter_type n)
+	{
+		get_grid_position(pos, dims, stride, n);
+		for (iter_type i = 0; i < pos.n; ++i)
+		{
+			pos[i] += offset[i];
+		}
+	}
+
 	template<Axis ax = Axis::X>
 	void get_stride(len_type(&stride)[1], len_type const* dims)
 	{

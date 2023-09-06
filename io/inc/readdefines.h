@@ -318,8 +318,6 @@ namespace symphas::io
 	template<typename F>
 	symphas::grid_info read_header(F* f, iter_type* index = nullptr);
 
-
-
 	//! Read a grid from a file in a standardized header-block way.
 	/*!
 	 * Read a grid from a file in a standardized header-block way. The
@@ -340,6 +338,10 @@ namespace symphas::io
 
 		int index = -1;
 		symphas::grid_info ginfo = read_header(f, &index);
+
+		auto stride = ginfo.get_stride();
+		auto dims = ginfo.get_dims();
+
 		symphas::grid_info ginfo0(ginfo);
 		symphas::grid_info ginfo1(ginfo);
 		
@@ -367,6 +369,25 @@ namespace symphas::io
 		{
 			do
 			{
+				//if (!symphas::lib::is_null(grid))
+				//{
+				//	grid::pos_list offset = ginfo.left();
+				//	grid::pos_list pos = offset;
+				//	auto interval_stride = ginfo.get_interval_stride();
+				//	auto interval_dims = ginfo.get_interval_dims();
+				//
+				//	for (iter_type i = 0; i < ginfo.num_interval_points(); ++i)
+				//	{
+				//		grid::get_grid_position_offset(pos, interval_dims, interval_stride, offset, i);
+				//		for (iter_type j = 0; j < ginfo.dimension(); ++j)
+				//		{
+				//			pos[j] = (pos[j] >= dims[j]) ? pos[j] - dims[j] : (pos[j] < 0) ? pos[j] + dims[j] : pos[j];
+				//		}
+				//		iter_type ii = grid::index_from_position(pos, stride);
+				//		symphas::lib::assign(grid, ii);
+				//	}
+				//}
+
 				read_block_f(std::forward<value_type>(grid), ginfo, f);
 				prev = index;
 				

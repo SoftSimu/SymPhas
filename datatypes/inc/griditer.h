@@ -71,6 +71,17 @@ namespace grid
 		return index_from_position(pos, stride, boundary_size, std::make_index_sequence<D>{});
 	}
 
+	//! Compute the stride for each dimension when getting the index in a flattened grid using position.
+	inline iter_type index_from_position(grid::pos_list const& pos, grid::dim_list const& stride, len_type boundary_size = 0)
+	{
+		iter_type n = 0;
+		for (iter_type i = 0; i < pos.n; ++i)
+		{
+			n += (pos[i] + boundary_size) * stride[i];
+		}
+		return n;
+	}
+
 	template<size_t D, size_t... Is>
 	inline iter_type index_from_position(const len_type(&pos)[D], const len_type(&stride)[D], std::index_sequence<Is...>)
 	{

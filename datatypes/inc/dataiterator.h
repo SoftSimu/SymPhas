@@ -287,6 +287,11 @@ namespace grid
 		{
 			return to_global_index(n, std::make_index_sequence<D>{});
 		}
+
+		operator symphas::grid_info() const
+		{
+			return intervals;
+		}
 	};
 
 	template<>

@@ -1928,6 +1928,8 @@ namespace grid
 					for (iter_type j = 0; j < D; ++j)
 					{
 						pos[j] = (j == i) ? (intervals_updated[j][1] + 1) : intervals_updated[j][0];
+						pos[j] = (pos[j] >= dims[j]) ? pos[j] - dims[j] : (pos[j] < 0) ? dims[i] + pos[j] : pos[j];
+
 					}
 
 					// search within the intervals of the existing region

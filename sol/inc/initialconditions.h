@@ -2877,41 +2877,44 @@ struct InitialConditions
 		return symphas::internal::ic_iterator<T, D>(ax, values, *(data.at(ax)), interval, grid::length<D>(interval));
 	}
 
-	bool initialize(T* values, grid::region_interval<D> const& interval, size_t id = 0) const
+	symphas::grid_info initialize(T* values, grid::region_interval<D> const& interval, size_t id = 0) const
 	{
+		symphas::grid_info ginfo(nullptr, 0);
 		bool initialized = true;
 		if (data.find(Axis::NONE) != data.end())
 		{
-			initialized = initialize(Axis::NONE, values, interval, id);
+			ginfo = initialize(Axis::NONE, values, interval, id);
+			initialized = symphas::is_valid(ginfo);
 		}
 
 		for (auto const& [key, entry] : data)
 		{
 			if (key != Axis::NONE)
 			{
-				initialized = initialized && initialize(key, values, interval, id);
+				ginfo = initialize(key, values, interval, id);
+				initialized = initialized && symphas::is_valid(ginfo);
 			}
 		}
-		return initialized;
+		return ginfo;
 	}
 
-	bool initialize(Axis ax, T* values, grid::region_interval<D> const& interval, size_t id = 0) const
+	symphas::grid_info initialize(Axis ax, T* values, grid::region_interval<D> const& interval, size_t id = 0) const
 	{
 		// If the initial conditions are not set, then nothing is done.
 		if (data.at(ax)->init.in == Inside::NONE)
 		{
 			if (symphas::internal::tag_bit_compare(data.at(ax)->init.intag, InsideTag::NONE))
 			{
-				return true;
+				return symphas::grid_info(interval);
 			}
 			else if (symphas::internal::tag_bit_compare(data.at(ax)->init.intag, InsideTag::DEFAULT))
 			{
 				data.at(ax)->init.f_init->initialize(values, interval);
-				return true;
+				return symphas::grid_info(interval);
 			}
 			else
 			{
-				return false;
+				return symphas::grid_info(nullptr, 0);
 			}
 		}
 #ifdef USING_IO
@@ -2933,25 +2936,26 @@ struct InitialConditions
 						(ax0 == Axis::X) ? 'x' : (ax0 == Axis::Y) ? 'y' : (ax0 == Axis::Z) ? 'z' : '0',
 						file_dims[n], interval.dims[n]);
 
-					return false;
+					return symphas::grid_info(nullptr, 0);
 				}
 			}
 
-			int read_index = symphas::io::read_grid(values, rinfo);
+			int read_index = symphas::io::read_grid(values, rinfo, &ginfo);
 			if (data.at(ax)->init.file.get_index() != read_index)
 			{
 				fprintf(SYMPHAS_ERR,
 					"system initialization requires the loaded datafile to contain the given index '%d'\n",
 					data.at(ax)->init.file.get_index());
-				return false;
+				return symphas::grid_info(nullptr, 0);
 			}
-
+			return ginfo;
 		}
 #endif
 		else if (data.at(ax)->init.in == Inside::EXPRESSION)
 		{
-			return match_init_expr<D>(data.at(ax)->init.expr_data.get_name(), ax, values,
+			bool filled = match_init_expr<D>(data.at(ax)->init.expr_data.get_name(), ax, values,
 				interval, data.at(ax)->vdata, data.at(ax)->init.expr_data.get_coeff(), data.at(ax)->init.expr_data.get_num_coeff());
+			return (filled) ? symphas::grid_info(interval) : symphas::grid_info(nullptr, 0);
 		}
 		else
 		{
@@ -2967,11 +2971,11 @@ struct InitialConditions
 			}
 			else
 			{
-				return false;
+				return symphas::grid_info(nullptr, 0);
 			}
 		}
 
-		return true;
+		return symphas::grid_info(interval);
 	}
 
 	operator bool() const

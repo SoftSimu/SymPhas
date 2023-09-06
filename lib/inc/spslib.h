@@ -3335,6 +3335,27 @@ namespace symphas::lib
 			return data + n;
 		}
 
+		array_container<T> operator*(size_t N)
+		{
+			array_container<T> expanded(n * N);
+			for (iter_type i = 0; i < N * n; ++i)
+			{
+				expanded[i] = data[i % n];
+			}
+			return expanded;
+		}
+
+		array_container<T>& operator*=(size_t N)
+		{
+			array_container<T> expanded(n * N);
+			for (iter_type i = 0; i < N * n; ++i)
+			{
+				expanded[i] = data[i % n];
+			}
+			swap(*this, expanded);
+			return *this;
+		}
+
 	};
 
 	using string = array_container<char>;
@@ -3680,8 +3701,91 @@ namespace symphas::lib
 
 
 	// ****************************************************************************************
+	
+	using double_arr2 = double[2];
 
+	template<typename T>
+	void assign(T* to, iter_type ii, const T* from, iter_type n)
+	{
+		if (to != nullptr)
+		{
+			to[ii] = from[n];
+		}
+	}
 
+	template<typename T>
+	void assign(T* to, iter_type ii)
+	{
+		if (to != nullptr)
+		{
+			to[ii] = T{};
+		}
+	}
+
+	template<typename T, size_t D>
+	void assign(T* (&to)[D], iter_type ii, const T* (&from)[D], iter_type n)
+	{
+		if (*to != nullptr)
+		{
+			for (iter_type i = 0; i < D; ++i)
+			{
+				to[i][ii] = from[i][n];
+			}
+		}
+	}
+
+	template<typename T, size_t D>
+	void assign(T* (&to)[D], iter_type ii)
+	{
+		if (*to != nullptr)
+		{
+			for (iter_type i = 0; i < D; ++i)
+			{
+				to[i][ii] = T{};
+			}
+		}
+	}
+
+	inline void assign(double_arr2* to, iter_type ii, double_arr2* from, iter_type n)
+	{
+		if (*to != nullptr)
+		{
+			for (iter_type i = 0; i < 2; ++i)
+			{
+				to[i][ii] = from[i][n];
+			}
+		}
+	}
+
+	inline void assign(double_arr2* to, iter_type ii)
+	{
+		if (*to != nullptr)
+		{
+			for (iter_type i = 0; i < 2; ++i)
+			{
+				to[i][ii] = double{};
+			}
+		}
+	}
+
+	template<typename T>
+	bool is_null(T* to)
+	{
+		return (to == nullptr);
+	}
+
+	template<typename T, size_t D>
+	bool is_null(T* (&to)[D])
+	{
+		return (*to == nullptr);
+	}
+
+	inline bool is_null(double_arr2* to)
+	{
+		return (*to == nullptr);
+	}
+
+	// ****************************************************************************************
 
 
 	//! Applies binary sorting to axis values centered at the origin.

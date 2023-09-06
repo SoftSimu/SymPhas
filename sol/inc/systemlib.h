@@ -1417,6 +1417,8 @@ void swap(symphas::problem_parameters_type& first, symphas::problem_parameters_t
  * system initialization helper functions
  */
 
+#define INITIAL_CONDITION_INVALID_MSG "the given initial condition algorithm is not valid\n"
+
 namespace symphas::internal
 {
 
@@ -1424,9 +1426,10 @@ namespace symphas::internal
 	void populate_tdata(symphas::init_data_type const& tdata, 
 		Grid<T, D>& data, [[maybe_unused]] symphas::grid_info* info, grid::region_interval<D> const& region, [[maybe_unused]] size_t id)
 	{
-		if (!InitialConditions<T, D>{ tdata, info->intervals, data.dims }.initialize(data.values, region, id))
+		auto ginfo = InitialConditions<T, D>{ tdata, info->intervals, data.dims }.initialize(data.values, region, id);
+		if (!symphas::is_valid(ginfo))
 		{
-			fprintf(SYMPHAS_ERR, "the given initial condition algorithm is not valid\n");
+			fprintf(SYMPHAS_ERR, INITIAL_CONDITION_INVALID_MSG);
 		}
 	}
 
@@ -1435,9 +1438,10 @@ namespace symphas::internal
 		Grid<any_vector_t<T, D>, D>& data, [[maybe_unused]] symphas::grid_info* info, grid::region_interval<D> const& region, [[maybe_unused]] size_t id)
 	{
 		any_vector_t<T, D>* values = new any_vector_t<T, D>[data.len];
-		if (!InitialConditions<any_vector_t<T, D>, D>{ tdata, info->intervals, data.dims }.initialize(values, region, id))
+		auto ginfo = InitialConditions<any_vector_t<T, D>, D>{ tdata, info->intervals, data.dims }.initialize(values, region, id);
+		if (!symphas::is_valid(ginfo))
 		{
-			fprintf(SYMPHAS_ERR, "the given initial condition algorithm is not valid\n");
+			fprintf(SYMPHAS_ERR, INITIAL_CONDITION_INVALID_MSG);
 		}
 
 		for (iter_type n = 0; n < D; ++n)
@@ -1451,10 +1455,67 @@ namespace symphas::internal
 	}
 
 
+	template<typename T, size_t D>
+	void update_info_for_regional(RegionalGrid<T, D> const& data, symphas::grid_info const& info, symphas::grid_info* to_update)
+	{
+		for (const auto& [axis, interval] : info)
+		{
+			auto boundary = interval.width() * data.region.boundary_size;
+			(*to_update)[axis].set_interval(interval.left() + boundary, interval.right() - boundary);
+		}
+	}
+
+	template<typename T, size_t D>
+	void populate_tdata(symphas::init_data_type const& tdata,
+		RegionalGrid<T, D>& data, [[maybe_unused]] symphas::grid_info* info, grid::region_interval<D> const& region, [[maybe_unused]] size_t id)
+	{
+		auto ginfo = InitialConditions<T, D>{ tdata, info->intervals, data.dims }.initialize(data.values, region, id);
+		if (!symphas::is_valid(ginfo))
+		{
+			fprintf(SYMPHAS_ERR, INITIAL_CONDITION_INVALID_MSG);
+		}
+		else
+		{
+			grid::resize_adjust_region(data, ginfo);
+			update_info_for_regional(data, ginfo, info);
+		}
+	}
+
+	template<typename T, size_t D>
+	void populate_tdata(symphas::init_data_type const& tdata,
+		RegionalGrid<any_vector_t<T, D>, D>& data, [[maybe_unused]] symphas::grid_info* info, grid::region_interval<D> const& region, [[maybe_unused]] size_t id)
+	{
+		any_vector_t<T, D>* values = new any_vector_t<T, D>[data.len];
+		auto ginfo = InitialConditions<any_vector_t<T, D>, D>{ tdata, info->intervals, data.dims }.initialize(values, region, id);
+		if (!symphas::is_valid(ginfo))
+		{
+			fprintf(SYMPHAS_ERR, INITIAL_CONDITION_INVALID_MSG);
+		}
+		else
+		{
+			for (iter_type n = 0; n < D; ++n)
+			{
+#				pragma omp parallel for
+				for (iter_type i = 0; i < data.len; ++i)
+				{
+					data.axis(symphas::index_to_axis(n))[i] = values[i][n];
+				}
+			}
+			grid::resize_adjust_region(data, ginfo);
+			update_info_for_regional(data, ginfo, info);
+		}
+	}
 
 	template<typename T, size_t D>
 	void populate_tdata(symphas::init_data_type const& tdata,
 		Grid<T, D>& data, [[maybe_unused]] symphas::grid_info* info, [[maybe_unused]] size_t id)
+	{
+		populate_tdata(tdata, data, info, grid::region_interval<D>(info->get_dims()), id);
+	}
+
+	template<typename T, size_t D>
+	void populate_tdata(symphas::init_data_type const& tdata,
+		RegionalGrid<T, D>& data, [[maybe_unused]] symphas::grid_info* info, [[maybe_unused]] size_t id)
 	{
 		populate_tdata(tdata, data, info, grid::region_interval<D>(info->get_dims()), id);
 	}

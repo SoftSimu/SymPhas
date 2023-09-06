@@ -126,38 +126,6 @@ symphas::grid_info symphas::io::xdr::read_header(XDRFILE* f, int* index)
 
 
 template<typename T>
-void assign(T* to, iter_type ii, const T* from, iter_type n)
-{
-	if (to != nullptr)
-	{
-		to[ii] = from[n];
-	}
-}
-
-template<typename T, size_t D>
-void assign(T*(&to)[D], iter_type ii, const T*(&from)[D], iter_type n)
-{
-	if (*to != nullptr)
-	{
-		for (iter_type i = 0; i < D; ++i)
-		{
-			to[i][ii] = from[i][n];
-		}
-	}
-}
-
-inline void assign(double_arr2* to, iter_type ii, double_arr2* from, iter_type n)
-{
-	if (*to != nullptr)
-	{
-		for (iter_type i = 0; i < 2; ++i)
-		{
-			to[i][ii] = from[i][n];
-		}
-	}
-}
-
-template<typename T>
 void adjust_data_format(symphas::grid_info const& ginfo, T* from, T* to)
 {
 	if (to != nullptr)
@@ -171,7 +139,7 @@ void adjust_data_format(symphas::grid_info const& ginfo, T* from, T* to)
 				for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 				{
 					iter_type ii = GP_HELPER_INDEX({ i, j, k });
-					assign(to, ii, from, n++);
+					symphas::lib::assign(to, ii, from, n++);
 				}
 			}
 		}

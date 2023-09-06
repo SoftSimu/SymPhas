@@ -558,7 +558,7 @@ namespace grid
 
 		box_list(const T* data, size_t n) : parent_type(data, n) {}
 
-		operator T () const
+		operator T() const
 		{
 			if (n > 0)
 			{
@@ -570,7 +570,7 @@ namespace grid
 			}
 		}
 
-		auto operator [] (iter_type i) const
+		auto operator[] (iter_type i) const
 		{
 			if (i < n)
 			{
@@ -611,6 +611,7 @@ namespace grid
 	};
 
 	using dim_list = box_list<len_type>;
+	using pos_list = symphas::lib::array_container<iter_type>;
 	using h_list = box_list<double>;
 }
 
@@ -856,6 +857,38 @@ public:
 		return dims;
 	}
 
+	//! Gives the get_stride of the grid.
+	/*!
+	 * Gives the number of cells along each dimension.
+	 */
+	grid::dim_list get_stride() const
+	{
+		auto dims = get_dims();
+		grid::dim_list stride(nullptr, dimension());
+		stride[0] = 1;
+		for (iter_type i = 1; i < dimension(); ++i)
+		{
+			stride[i] = dims[i - 1] * stride[i - 1];
+		}
+		return stride;
+	}
+
+	//! Gives the get_stride of the grid.
+	/*!
+	 * Gives the number of cells along each dimension.
+	 */
+	grid::dim_list get_interval_stride() const
+	{
+		auto dims = get_interval_dims();
+		grid::dim_list stride(nullptr, dimension());
+		stride[0] = 1;
+		for (iter_type i = 1; i < dimension(); ++i)
+		{
+			stride[i] = dims[i - 1] * stride[i - 1];
+		}
+		return stride;
+	}
+
 	//! Gives the dimensions of the grid.
 	/*!
 	 * Gives the number of cells along each dimension.
@@ -890,6 +923,21 @@ public:
 		return r;
 	}
 
+	//! Gives the first position of the interval.
+	/*!
+	 * Gives the left element count for each interval as a position list.
+	 */
+	grid::pos_list left() const
+	{
+		grid::pos_list pos(dimension());
+		for (iter_type i = 1; i < dimension(); ++i)
+		{
+			auto interval = at(symphas::index_to_axis(i));
+			pos[i] = (interval.left() - interval.domain_left()) / interval.width();
+		}
+		return pos;
+	}
+
 	operator symphas::interval_data_type() const
 	{
 		return intervals;
@@ -921,6 +969,14 @@ inline void swap(symphas::grid_info& first, symphas::grid_info& second)
 {
 	using std::swap;
 	swap(first.intervals, second.intervals);
+}
+
+namespace symphas
+{
+	inline bool is_valid(grid_info const& ginfo)
+	{
+		return (ginfo.dimension() > 0);
+	}
 }
 
 

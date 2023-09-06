@@ -348,7 +348,7 @@ PhaseFieldSystem<RegionalGrid, T, D>::PhaseFieldSystem(
 	next_resize{ 0 }, resize_delta{ REGIONAL_GRID_RESIZE_TIME }, fixed_resize{ REGIONAL_GRID_RESIZE_IS_FIXED }, cutoff{}
 {
 	grid::region_interval<D> region(RegionalGrid<T, D>::region.dims, RegionalGrid<T, D>::region.boundary_size);
-	symphas::internal::populate_tdata(tdata, *static_cast<Grid<T, D>*>(this), &info, region, id);
+	symphas::internal::populate_tdata(tdata, *this, &info, region, id);
 
 	if (grid::has_subdomain(vdata))
 	{
