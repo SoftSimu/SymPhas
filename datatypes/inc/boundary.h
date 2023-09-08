@@ -121,7 +121,7 @@ namespace symphas::internal
 		double* params;
 		int argc;
 
-		boundary_info(BoundaryTag tag0, const double* params, int argc) : tag{ tag[0], BoundaryTag::NONE }, params{ (argc > 0) ? new double[argc] {} : nullptr }, argc{ argc } {}
+		boundary_info(BoundaryTag tag0, const double* params, int argc) : tag{ tag0, BoundaryTag::NONE }, params{ (argc > 0) ? new double[argc] {} : nullptr }, argc{ argc } {}
 		boundary_info(BoundaryTag tag0, double param) : boundary_info(tag0, &param, 1) {}
 		boundary_info(const BoundaryTag tag[2], const double* params, int argc) : tag{ tag[0], tag[1] }, params{ (argc > 0) ? new double[argc] {} : nullptr }, argc{ argc } 
 		{
