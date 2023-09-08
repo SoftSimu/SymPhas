@@ -994,7 +994,6 @@ namespace symphas::dft
 		symphas::dft::fftw_execute(p);
 	}
 
-#endif
 	
 	//! Compute the Fouier transform of a `D`-dimensional system.
 	/*!
@@ -1087,15 +1086,134 @@ namespace symphas::dft
 		arrange_fftw_hcts<D>(hf, hf, dims);
 	}
 
+
+#else
+
+	//! Compute the Fouier transform of a `D`-dimensional system.
+	/*!
+	 * Compute the Fourier transform of the given real-valued system and store
+	 * the result in the given complex array. The given data is a sequential
+	 * array representing a `D`-dimensional grid with dimensions \p dims. The
+	 * input and output both have the same dimensions.
+	 *
+	 * The FFTW routine is used by creating an estimated plan, and then
+	 * executed. Since the input is real-valued, the result then has to be
+	 * rearranged to represent the whole system that will include duplicated
+	 * values. The plan will always do a forward type transformation. The plan
+	 * is then destroyed.
+	 *
+	 * \param[in] in The input to the Fourier transform, as real-valued data.
+	 * \param[out] out The output array of the Fourier transform, where the
+	 * result is written to. This has dimensions equal to the input.
+	 * \param dims The dimensions of the input array of length `D`.
+	 *
+	 * \tparam D The dimension of the input system.
+	 */
+	template<size_t D>
+	void dft(const scalar_t* in, complex_t* out, const len_type* dims, bool)
+	{
+		if constexpr (D == 1)
+		{
+			long_dft(in, out, dims[0], backward);
+		}
+		else if constexpr (D == 2)
+		{
+			long_dft(in, out, dims[0], dims[1], backward);
+		}
+		else if constexpr (D == 3)
+		{
+			long_dft(in, out, dims[0], dims[1], dims[2], backward);
+		}
+	}
+
+	//! Compute the Fouier transform of a `D`-dimensional system.
+	/*!
+	 * Compute the Fourier transform of the given complex-valued system and
+	 * store the result in the given complex array. The given data is a
+	 * sequential array representing a `D`-dimensional grid with dimensions
+	 * \p dims. The input and output both have the same dimensions.
+	 *
+	 * The FFTW routine is used by creating an estimated plan, and then
+	 * executed. The plan is then destroyed.
+	 *
+	 * \param[in] in The input to the Fourier transform.
+	 * \param[out] out The output array of the Fourier transform, where the
+	 * result is written to. This has dimensions equal to the input.
+	 * \param dims The dimensions of the input array of length `D`.
+	 *
+	 * \tparam D The dimension of the input system.
+	 */
+	template<size_t D>
+	void dft(const complex_t* in, complex_t* out, const len_type* dims, bool backward = false)
+	{
+		if constexpr (D == 1)
+		{
+			long_dft(in, out, dims[0], backward);
+		}
+		else if constexpr (D == 2)
+		{
+			long_dft(in, out, dims[0], dims[1], backward);
+		}
+		else if constexpr (D == 3)
+		{
+			long_dft(in, out, dims[0], dims[1], dims[2], backward);
+		}
+	}
+
+	//! Compute the Fouier transform of a `D`-dimensional system.
+	/*!
+	 * Compute the Fourier transform of the given complex-valued system and
+	 * store the result in the given real-valued array. The given data is a
+	 * sequential array representing a `D`-dimensional grid with dimensions
+	 * \p dims. The input and output both have the same dimensions.
+	 *
+	 * The FFTW routine is used by creating an estimated plan, and then
+	 * executed. Since the output is real-valued, the input is first rearranged
+	 * because this type of transformation assumes that the input array has
+	 * values which repeat in the two halves. Once the plan is executed, the
+	 * input is restored to the original arrangement. Therefore, this plan
+	 * always assumes a backward type transformation. That is, it is the
+	 * opposite of symphas::dft::dft(const scalar_t*, complex_t*, const len_type*).
+	 * The plan is subsequently destroyed.
+	 *
+	 * **NOTE**: If the input array does not have repeated values between each
+	 * half, then this routine will destroy the original data.
+
+	 * \param[in] in The input to the Fourier transform, as complex-valued data.
+	 * \param[out] out The output array of the Fourier transform, where the
+	 * result is written to. This has dimensions equal to the input.
+	 * \param dims The dimensions of the input array of length `D`.
+	 *
+	 * \tparam D The dimension of the input system.
+	 */
+	template<size_t D>
+	void dft(const complex_t* in, scalar_t* out, const len_type* dims, bool)
+	{
+		if constexpr (D == 1)
+		{
+			long_dft(in, out, dims[0], backward);
+		}
+		else if constexpr (D == 2)
+		{
+			long_dft(in, out, dims[0], dims[1], backward);
+		}
+		else if constexpr (D == 3)
+		{
+			long_dft(in, out, dims[0], dims[1], dims[2], backward);
+		}
+	}
+
+#endif
+
 	//! An arbitrary Fourier transform chosen based on the argument types.
 	/*!
 	 * The type of transform is chosen based on the argument types, which
 	 * must be compatible with the ::complex_t and ::scalar_t types.
-	 * 
+	 *
 	 * \param[in] in The data which is transformed.
 	 * \param[out] out The result of the Fourier transform of \p in.
 	 * \param dims The dimensions of the input array.
-	 * 
+	 *
 	 * \tparam D The dimension of the system.
 	 */
 	template<size_t D, typename T, typename C>
@@ -1156,8 +1274,6 @@ namespace symphas::dft
 		len_type dims[3]{ L, M, N };
 		dft<3>(std::forward<T>(in), std::forward<C>(out), dims, backward);
 	}
-
-
 }
 
 
