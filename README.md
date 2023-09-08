@@ -1,13 +1,15 @@
 # SymPhas
 
 
-*A compile-time formulated symbolic algebra framework for numerical solutions of phase field problems.*
+*A compile-time formulated symbolic algebra framework for numerical solutions of phase-field-problems.*
 
 
 **Papers:**
 - [SymPhas—General purpose software for phase-field, phase-field crystal and reaction-diffusion simulations](https://doi.org/10.1002/adts.202100351),   Steven A. Silber and Mikko Karttunen, Adv. Theor. Sim. 5, 2100351 (2022). 
 - Preprint: [arXiv:2109.02598](https://arxiv.org/abs/2109.02598)
 
+
+**Article accepted for publication in Advanced Theory and Simulations (Nov 2021)**
 
 <p align="center">
 <img src="./docs/modelb2d.png" width="100">
@@ -25,32 +27,32 @@
 
 ## Introduction to *SymPhas*
 
-Phase field modeling is an approach for simulating the microstructure evolution of various materials and systems, with far reaching applications from common dendrite growth to reaction-diffusion systems to damage and fracture models to biological systems. By representing the dynamics of one or more fields through coupled dynamical equations, one is able to solve the system of PDEs to time evolve the system.  
+Phase-field modeling is a computational approach for simulating the microstructure evolution of various materials and systems. It has far reaching applications from dendrite growth, reaction-diffusion systems, damage and fracture models, biological systems, and more. By representing the dynamics of one or more evolution parameters (called _order parameters_) in a system of coupled differential equations, one is able to solve the system using standard numerical methods.  
 
-*SymPhas* has been developed as an API that, when combined with a driver file, uses a chosen numerical solver to generate solutions to a given phase field model. The model can be any type that is expressed as a set of dynamical equations. In other words, *SymPhas* supports **any** multi-phase field problem that can be formulated field-theoretically. The numerical solvers in *SymPhas* are those which are based on uniform grids, such as finite difference solvers.
+*SymPhas* has been developed as an API that, when combined with a driver file, uses a chosen numerical solver to generate solutions to a given phase-field model. The model can be any type that is expressed as a set of dynamical equations. In other words, *SymPhas* supports **any** multi-phase-field problem that can be formulated field-theoretically. The numerical solvers in *SymPhas* are those which are based on uniform grids, such as finite difference solvers.
 
 The primary advantages that *SymPhas* provides are **C-like optimized run times**, **parallelization**, **symbolic algebra**, a modular design for straightforward **third party development**, and **extensive documentation**. A brief list of features offered by *SymPhas* are:
 
-- An optimized symbolic algebra functionality that fully formulates expression trees at compile time to evaluate an expression without branching at runtime. This is coupled with a rich symbolic algebra feature set to give the user significant ability to transform, manipulate and manage expressions.
+- An optimized symbolic algebra functionality that fully formulates expression trees at compile time to evaluate an expression. This design is completely eliminates branching at runtime. This is coupled with a rich symbolic algebra feature set to give the user significant ability to transform, manipulate and manage expressions.
 - Template meta-programming design that optimizes control paths and eliminates branching, providing fast runtimes with linear scaling for any type of model.
-- Modular framework with object design and interactions based on the physical phase field problem. Separation between functional components, and separation between functional elements within components. Alongside documentation, this ensures development and extension by users is as convenient as possible.
+- Modular framework with object design and interactions based on the physical phase-field problem. Separation between functional components, and separation between functional elements within components. Alongside documentation, this ensures development and extension by users is as convenient as possible.
 - Multiple numerical solvers and extensive support for integration of user-implemented numerical solvers. 
 
 
-> *SymPhas is free software, distributed under the **GNU Lesser General
-Public License (LGPL), version 3**. SymPhas is designed and distributed with community development
-in mind, and we greatly appreciate contributions and feedback about bugs. This will not only help
-keep SymPhas as a valuable phase-field simulations API, but support research by
-ensuring other people's results can be reproduced correctly!
-You can let us know about bugs via the GitHub issues page.*
+> _SymPhas is free software, distributed under the **GNU Lesser General 
+> Public License (LGPL), version 3**. SymPhas is designed and distributed with community development 
+> in mind, and we greatly appreciate contributions and feedback about bugs. This will not only help 
+> keep SymPhas as a valuable phase-field simulations API, but support research by 
+> ensuring other people's results can be reproduced correctly! 
+> You can let us know about bugs via the GitHub issues page._
 > 
-> *For any major modifications to SymPhas you would wish to be included, 
-> please ensure that SymPhas can compile the examples provided and the
-different CMake configurations. If you would like to distribute a modified version 
-or use part of SymPhas in your own program, the project must still be licensed using
-the same license as SymPhas, which is LGPL v3. It also must clearly be labeled as
-derived work.*
->
+> _For any major modifications to SymPhas you would wish to be included, 
+> please ensure that SymPhas can compile the examples provided and the 
+> different CMake configurations. If you would like to distribute a modified version 
+> or use part of SymPhas in your own program, the project must still be licensed using 
+> the same license as SymPhas, which is LGPL v3. It also must clearly be labeled as 
+> derived work._ 
+> 
 > *Since SymPhas is supported purely by academic funding, we kindly ask you cite 
 > our paper listed at the top of this page.*
 
@@ -59,7 +61,7 @@ the research community, our resources are limited. We welcome any support such a
 bug reports, code and funding. Please feel free to contact the developers if you
 wish to reach out.
 
-### *SymPhas* Organization
+### _SymPhas_ Organization
 
 The API is distributed between a collection of several modules:
 
@@ -87,17 +89,25 @@ The API is distributed between a collection of several modules:
 The modules required for the simplest build of Symphas are **lib**, 
 **datatypes**, **sym** and **sol**.
 
+A driver file is then written which uses these modules to define, setup and solve a phase-field problem.
+
 ## Getting Started with *SymPhas*
 
 
 ### Download
 
-The entire *SymPhas* package can be downloaded from https://github.com/SoftSimu/SymPhas from the `release` branch. The package can be obtained by either downloading the repository packaged as a zip (i.e. through the Github website) or by cloning the repository, which will make it convenient to be up to date with the latest development.
+The entire *SymPhas* package can be downloaded from https://github.com/SoftSimu/SymPhas from the `main` branch. The package can be obtained by either downloading the repository packaged as a zip (i.e. through the Github website) or by cloning the repository, which will make it convenient to be up to date with the latest development.
 
-The *SymPhas* package comes with predefined model definitions and solvers, but can also be installed as a standalone API where the user defines custom solvers and driver.
+The *SymPhas* package comes with predefined model definitions and solvers, but can also be installed as a standalone API where the user defines custom solvers, models and drivers.
+
+### Before Installation 
+
+_Before moving on to installation, please ensure:_
+- All the necessary requirements for the *SymPhas* installation are satisfied.
+- You are familiar with the organization of a *SymPhas* installation, e.g. location of modules and how to enable them; the location of examples; the location of driver files with respect to the CMake file; and other points discussed in this tutorial.
 
 
-### Installation and Requirements
+#### Requisite Packages
 
 The compilation is cross-platform compatible through CMake for either the Linux or Windows (Windows 7 and 10 are both compatible) platforms. CMake version 3.14 or higher is required for compiling and installing. The minimum required versions of the compilers which are verified to work are:
 
@@ -114,28 +124,37 @@ Third party packages that are used and the version they have been tested with ar
 
 |Package|Tested Minimum Version|Required?|
 |-------|----------------------|---------|
-|[FFTW3](http://www.fftw.org/)|3.3.7|Yes|
-|[xdrfile](https://github.com/SoftSimu/libxdrfile)|2.1.2|No|
+|[FFTW3](http://www.fftw.org/)|3.3.7|Yes*|
+|[xdrfile](https://github.com/MetricManifold/libxdrfile)|2.1.2|No|
 |[VTK](https://vtk.org/download/)|9.0|No|
+
+> _*FFTW may be disabled, but it would not be possible to use Fourier transform capability in SymPhas._
 
 For any packages which are not required, they will automatically be excluded from the CMake build process if they are not found. If the required packages are not found, then the CMake configuration step will fail, in which case, the user can provide CMake with the installation location of that package.
 
-The xdrfile package will allow output to the binary xdr format used in Gromacs. This is recommended if the output is very large. Additionally, VTK is recommended if real-time visualization is desired.
+The xdrfile package will allow output to the <ins>binary xdr format</ins> used in Gromacs. This is recommended if the output is very large. Additionally, VTK is recommended if real-time visualization is desired.
 
-When installing *SymPhas*, it is recommended to install to a directory which different from the system install directory (such as your home directory), and also name the installation output according to the configuration, as it may be desirable to install multiple configurations at once. An example would be having one installation configured only with the core modules (e.g., so headers are installed to `symphas-base/include/`), or another configured with all modules (e.g., so headers are installed to `symphas-all/include`). This is primarily
+#### Organization of a *SymPhas* Installation
 
+*SymPhas* is provided with examples of solvers, models and driver files in the `examples` directory. In practise, solvers and models are defined separately from the driver file, and then included using the Cmake configuration. Although the program can be compiled without any drivers or solvers (nothing in the provided `examples` directory is necessary for a successful compilation), it is recommended that at least one of the solvers is included in your compilation. Continue reading this section for more information on including models and solvers.
+
+When installing *SymPhas*, it is recommended to install to a directory which different from the system install directory (such as your home directory), and also name the installation output according to the configuration, as it may be desirable to install multiple configurations at once. An example would be having one installation configured only with the core modules (e.g., so headers are installed to `symphas-base/include/`), or another configured with all modules (e.g., so headers are installed to `symphas-all/include`). 
+This will be further explained in the next sections.
+
+
+### Installation
 
 #### Linux Installation
 
 **Installing Dependencies**
 
-Follow the below steps to install the dependencies.  If any of the packages are installed to a directory not in the CMake search directories, the location will have to be provided during the CMake configuration of *SymPhas*. 
+Follow the steps below to install the dependencies.  If any of the packages are installed to a directory not in the CMake search directories, the location will have to be provided during the CMake configuration of *SymPhas*. 
 
 - **FFTW3** 
   
     To install FFTW, first download the source and then use CMake to configure and install the library.
 
-  > Note: Do not configure using the installation steps [here](http://www.fftw.org/fftw3_doc/Installation-and-Customization.html), as this will result in the package not being found by CMake.
+  > Note: **Do not** configure using the provided configuration file (i.e. the procedure explained [here](http://www.fftw.org/fftw3_doc/Installation-and-Customization.html)), as this will result in the package not being found by CMake.
 
 - **xdrfile**
     
@@ -145,19 +164,33 @@ Follow the below steps to install the dependencies.  If any of the packages are 
     
     Installing VTK is optional. Download the source from the website and install VTK using CMake. Select the configurations which best suit you.    
 
-**Installing _SymPhas_**
+**Quick _SymPhas_ Installation + Setup**
 
+_This section describes setting up an installation of SymPhas for writing an empty driver file._
 
-Once *SymPhas* has been downloaded, use CMake to configure the build and installation process. Assuming that the current directory is `/path/of/download/`, downloading and configuring can be done with:
+Once *SymPhas* has been downloaded, use CMake to configure the build and installation process. Assuming that the current directory is `/path/of/download/`, and that FFTW is installed and detectable by cmake, downloading and configuring can be done with:
     
     git clone https://github.com/SoftSimu/SymPhas
     cd SymPhas
-    git checkout release
-    mkdir ./symphas-build
-    cd symphas-build
-    cmake -DCMAKE_INSTALL_PREFIX=/path/to/install ..
+    git checkout main
+    mkdir ./build
+    cd build
+    cmake -DCMAKE_INSTALL_PREFIX=/path/to/install <desired_cmake_configuration> ..
 
-> If you wish to use *SymPhas* headers and library without specifying the location directly to the compiler, then change `CMAKE_INSTALL_PREFIX` to the primary installation directory of your system. This directory is typically `/usr`. In this case, it is recommended the installation does not include models or solvers to ensure that driver files have full control over solvers and models they use. This is particularly important because compiling drivers requires recompiling the associated solvers and/or models.
+The correct cmake configuration needs to be provided in place of `desired_cmake_configuration`, which can be chosen to specify the location of the solvers and models (this is explained further below). You may wish to immediately build *SymPhas* using example solvers and models, which can be acccomplished using the cmake command:
+
+    cmake -DCMAKE_INSTALL_PREFIX=/path/to/install -DSOLVER_INCLUDE_HEADER_DIR=../examples/solvers -DMODEL_INCLUDE_HEADER_DIR=../examples/models -DSOLVER_INCLUDE_HEADER_NAME=solverinclude.h -DMODEL_INCLUDE_HEADER_NAME=modelinclude.h ..
+
+> If you wish to use *SymPhas* headers and library without specifying the location directly to the compiler everytime they need to be linked, then change `CMAKE_INSTALL_PREFIX` to the primary installation directory of your system. This directory is typically `/usr`. If you do so, it is **recommended that this system installation does not include models or solvers** to ensure that driver files have full control over solvers and models they use. This is particularly important because compiling drivers requires recompiling the associated solvers and/or models.
+
+> Alternatively, it is possible to set up *SymPhas* implementations as individual projects.
+
+Depending on the FFTW installation, CMake might not be able to find the FFTW cmake include directory. In this case, change the above `cmake` command to add the argument pointing to the FFTW installation:
+
+    cmake <desired configuration> -DFFTW3_DIR=/<FFTW3 installation dir>/lib/cmake/fftw3/ ..
+
+where `<desired configuration>` is the
+cmake configuration you used. Change the example directory `<FFTW3 installation dir>` as appropriate.
 
 Using the *SymPhas* files in the directory `/path/of/download`, the current directory, `symphas-build`, will be populated with the default build configuration files and set the installation path of *SymPhas* to `/path/to/install`. Cache variables may be provided to the `cmake` invocation after the directory specification to change the configuration. The cache variables are listed and described in [**Advanced Installation**](#advanced-installation). 
 If using a graphical interface to CMake, then all the variables and descriptions will be listed. 
@@ -180,14 +213,15 @@ A new driver file may now be created, compiled and linked to the *SymPhas* API.
 The following tools are available on Windows for configuring, building and installing CMake projects:
 
 -  [CMake](https://cmake.org/download/) for Windows.
+    - The MSVC compilers must be installed on the system.
 -  [Visual Studio](https://visualstudio.microsoft.com/vs/)  
-   - It must be installed with the Desktop Development for C++ component.
+   - It must be installed with the Desktop Development for C++ component, or at least the correct 
    - Community version is free to use.
 - [Visual Studio Code](https://code.visualstudio.com/)
   - Visual C++ (MSVC++) compilers are required, and are obtained from the [C/C++ for Visual Studio Code](https://code.visualstudio.com/docs/languages/cpp) extension.
   - The [CMake Tools](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cmake-tools&ssr=false#overview) extension is also required.
 
-It is beyond the scope of this installation guide to provide a detailed procedure of using these tools to configure a CMake project, but these tools can be used in several ways to set up *SymPhas* and its dependencies on Windows. 
+It is beyond the scope of this installation guide to provide a detailed procedure of using these tools to configure a CMake project. To get started, these tools can be used to set up *SymPhas* and its dependencies on Windows by:
 - Using CMake for the Windows platform alongside Visual Studio.
 - Using only Visual Studio (with Desktop Development for C++ component installed). 
 - Using Visual Studio Code.
@@ -208,7 +242,7 @@ After the CMake project is configured, compile and install the project using the
 
 ### Advanced Installation
 
-When configuring *SymPhas*, providing the variable `COMBINE_SHARED` set to true to the CMake invocation, a shared library called `symphas_all` will be created which **combines all the modules** built for that configuration. This is useful when compiling a driver file with `g++`, so that only a single _SymPhas_ library needs to be provided to the command line. This will result in increased compile time.
+When configuring *SymPhas*, providing the variable `COMBINE_SHARED` set to true to the CMake invocation, a **shared** library called `symphas_all` will be created which **combines all the modules** built for that configuration library. This is useful when compiling a driver file with `g++`, so that only a single _SymPhas_ library needs to be provided to the command line. This will result in increased compile time.
 
 The following is a list of all CMake cache variables used for configuring *SymPhas*.
 
@@ -216,7 +250,11 @@ The following is a list of all CMake cache variables used for configuring *SymPh
 
   > Models **cannot** be associated or selected by string names in an installation that does not have `MODEL_CALL_FUNCTION` configured. 
 
-- `BASIC_STENCILS` When this is true, configures the build so that only a small subset of stencils are allowed in the model selection, rather than all the stencils. By compiling with all the stencils, the compile times will dramatically increase, because a concrete type is generated for each stencil-model combination. False by default.
+- `AVAILABLE_STENCILS_BASIC_ONLY` When this is true, configures the build so that only a small subset of stencils are allowed in the model selection, rather than all the stencils. By compiling with all the stencils, the compile times will dramatically increase, because a concrete type is generated for each stencil-model combination. True by default.
+
+- `AVAILABLE_STENCILS_AUTOGENERATION` When this is true, stencils will automatically be generated for all derivatives needed for the models included int the build. False by default.
+
+- `AVAILABLE_DIMENSIONS` Specifies the dimensions ( that are made available when compiling the solvers. Activates the definitions `AVAILABLE_STENCIL_ACCURACY_*D` corresponding to the dimension chosen. Also specifies the dimension that can be chosen when selecting a model. Specifying only a single dimension will speed up compilation times. This value is `2` by default.
 
 - `MODEL_INCLUDE_HEADER_NAME` The name of the file containing the model definitions. If model definitions are distributed between multiple header files, then this file will include each one in order to combine all model definitions. This is empty by default.
 
@@ -272,7 +310,7 @@ A driver file can be configured and compiled with CMake by including *SymPhas* w
 
 ### A First Program
 
-From the source code root directory, the example discussed in this section can be found in `examples/first-driver`. Included in this directory are two files: `main.cpp`, a driver file with its own model definition, and `CMakeLists.txt` for configuring the CMake project. This driver file uses essential elements of *SymPhas*, ideal for describing the functionality and usage of *SymPhas*.
+From the source code root directory, the example discussed in this section can be found in `examples/simple-driver`. Included in this directory are two files: `main.cpp`, a driver file with its own model definition, and `CMakeLists.txt` for configuring the CMake project. This driver file uses essential elements of *SymPhas*, ideal for describing the functionality and usage of *SymPhas*.
 
 
 #### Description and Walkthrough
@@ -287,19 +325,19 @@ The driver file presents a very simple scenario where a single model is defined 
 
 MODEL(EX, (SCALAR),
 MODEL_DEF(
-  dpsi = lap(psi) + (c1 - lit(4.) * c2 * psi * psi) * psi)
+  dpsi = lap(psi) + (c(1) - c(2) * psi * psi) * psi)
 )
 ```
 
 In its simplest form, the model definition is constructed using C++ macros defined within *SymPhas*, beginning with the macro <span style="color:purple">`MODEL`</span>, which takes at least three arguments:
 
 - The model name, which can be any C++ compliant name;
-- The phase field types, surrounded by parentheses, and are any of <span style="color:purple">`SCALAR`</span>, <span style="color:purple">`COMPLEX`</span> or <span style="color:purple">`VECTOR`</span>; and
+- The phase-field types, surrounded by parentheses, and are any of <span style="color:purple">`SCALAR`</span>, <span style="color:purple">`COMPLEX`</span> or <span style="color:purple">`VECTOR`</span>; and
 - The dynamical equations, specified by providing the equations to the macro <span style="color:purple">`MODEL_DEF`</span>.
 
-In the equation, the order parameter of index `N` is referred to by `op(N)`, and its time derivative is `dop(N)`. The dynamical equation of field `N` has the form: `dop(N) = ...`. The characters `c1` through `c5` are coefficients of the model that are passed to the model constructor, with default value `1.0`.
+In the equation, the order parameter of index `N` is referred to by `op(N)`, and its time derivative is `dop(N)`. The dynamical equation of field `N` has the form: `dop(N) = ...`. The symbol `c(N)` are parameters of the model that are passed to the model constructor, with default value `1.0`.
 
-The first two lines use macro definitions to create a new name for the order parameter and its derivative with respect to time, to make it easier to use in the model definition. The model definition represents a phase field system with a real-valued order parameter evolved according to the equation:
+The first two lines use macro definitions to create a new name for the order parameter and its derivative with respect to time, to make it easier to use in the model definition. The model definition represents a phase-field system with a real-valued order parameter evolved according to the equation:
 
 <p align="center">
 <img src="./docs/index-form1.png" height=35pt>
@@ -315,23 +353,23 @@ In the main function, the model is created and the numerical solution is compute
 symphas::problem_parameters_type pp{ 1 };
 ```
 
-where `1` is passed to indicate the problem parameters is for a single field. The problem parameters instance is invalid at this stage, and requires information about the phase field systems, provided as arrays to the member functions:
+where `1` is passed to indicate the problem parameters is for a single field. The problem parameters instance is invalid at this stage, and requires information about the phase-field systems, provided as arrays to the member functions:
 
-- The axis intervals of the phase field systems:  
+- The axis intervals of the phase-field systems:  
    
     ```set_interval_data```
 
 
-- The boundary specifications of the phase field system: 
+- The boundary specifications of the phase-field system: 
    
     ```set_boundary_data```
 
 
-- The initial conditions used to seed the phase field system:  
+- The initial conditions used to seed the phase-field system:  
    
     ```set_initial_data```
 
-> The order of the elements in the data arrays corresponds to the order of the phase fields as they are defined in the model definition. In other words, the phase fields are initialized from the problem parameters data element whose index corresponds to the phase field index in the model definition. 
+> The order of the elements in the data arrays corresponds to the order of the phase-fields as they are defined in the model definition. In other words, the phase-fields are initialized from the problem parameters data element whose index corresponds to the phase-field index in the model definition. 
 
 The problem parameters also takes the solution time step, `dt`, used to initialize the solver. 
 
@@ -341,62 +379,63 @@ The main function begins by setting up the problem parameters by initializing ea
 
 
 ```cpp
-double dt = 0.5;
+double dt = 0.1;
 symphas::problem_parameters_type pp{ 1 };
-symphas::b_data_type bdata;
-symphas::interval_data_type vdata;
-symphas::init_data_type tdata{ Inside::UNIFORM, { -1, 1 } };
-
-bdata[Side::LEFT] = BoundaryType::PERIODIC;
-bdata[Side::RIGHT] = BoundaryType::PERIODIC;
-bdata[Side::TOP] = BoundaryType::PERIODIC;
-bdata[Side::BOTTOM] = BoundaryType::PERIODIC;
-
 symphas::interval_element_type interval;
-interval.set_interval_count(0, 80, 128);
+interval.set_count(0, 80, 128);
 
-vdata[Axis::X] = interval;
-vdata[Axis::Y] = interval;
+symphas::b_data_type bdata(2, BoundaryType::PERIODIC);
+symphas::interval_data_type vdata(2, interval);
+symphas::init_data_type tdata(Inside::UNIFORM, { -1, 1 });
+
+bdata[Side::TOP] = BoundaryTag::CONSTANT << 1;
+bdata[Side::BOTTOM] = BoundaryTag::CONSTANT << 1;
 ```
 
 It is recommended to refer the documentation of these objects to know their usage specifics, as what follows is only a brief explanation related to this example.
 
 
-The objects <span style="color:teal">`b_data_type`</span>, <span style="color:teal">`init_data_type`</span> and <span style="color:teal">`interval_data_type`</span> in the `symphas` namespace represent the type of the boundary, initial condition and interval data, respectively. First, the boundary and interval data objects are constructed:
+The objects <span style="color:teal">`b_data_type`</span>, <span style="color:teal">`init_data_type`</span> and <span style="color:teal">`interval_data_type`</span> in the `symphas` namespace represent the type of the boundary, initial condition and interval data, respectively. 
 
-```cpp
-symphas::b_data_type bdata;
-symphas::interval_data_type vdata;
-```
-
-In order to construct the initial data, the parameters are passed directly to the constructor:
-
-```cpp
-symphas::init_data_type tdata{ Inside::UNIFORM, { -1, 1 } };
-```
-
-This establishes the initial condition of the phase field to be the uniform distribution in the range [-1, 1]. In particular, each point of the phase field is generated by seeding it with the uniform distribution with values between -1 and 1.
-
-The boundary data is now generated:
-
-```cpp
-bdata[Side::LEFT] = BoundaryType::PERIODIC;
-bdata[Side::RIGHT] = BoundaryType::PERIODIC;
-bdata[Side::TOP] = BoundaryType::PERIODIC;
-bdata[Side::BOTTOM] = BoundaryType::PERIODIC;
-```
-
-Each line creates a new entry for the specified <span style="color:violet">`Side`</span> in `bdata` of type <span style="color:teal">`b_element_type`</span>. A shorthand is available which associates a <span style="color:violet">`BoundaryType`</span> with a <span style="color:teal">`b_element_type`</span>, thereby directly constructing the entry. This defines the boundary conditions on all sides of the system, and each side must be explicitly specified, otherwise the problem parameters are in an invalid state.
-
-Next, an interval is initialized and constructed:
+First, the interval is specified:
 ```cpp
 symphas::interval_element_type interval;
-interval.set_interval_count(0, 80, 128);
+interval.set_count(0, 80, 128);
 ```
 
-This creates the object `interval` that represents an interval in [0, 80] with 128 discrete points. Next, the interval is used to initialize the interval data for the problem parameters by associating specific sides to the interval:
+This creates the object `interval` that represents an interval in [0, 80] with 128 discrete points. Next, the interval is used to initialize the interval data for the problem parameters by associating specific sides to the interval.
 
+Then, the boundary and interval data objects are constructed:
 
+```cpp
+symphas::b_data_type bdata(2, BoundaryType::PERIODIC);
+symphas::interval_data_type vdata(2, interval);
+```
+
+In both cases, the first parameter represents the dimension. In order to construct the initial data, the parameters are passed directly to the constructor:
+
+```cpp
+symphas::init_data_type tdata(Inside::UNIFORM, { -1, 1 });
+```
+
+This establishes the initial condition of the phase-field to be the uniform distribution in the range [-1, 1]. That is, each point of the phase-field is generated by seeding it with the uniform distribution with values between -1 and 1.
+
+The boundary data is now generated:
+```cpp
+bdata[Side::TOP] = BoundaryTag::CONSTANT << 1;
+bdata[Side::BOTTOM] = BoundaryTag::CONSTANT << 1;
+```
+where the `<<` operator is used to pass a parameter to the boundary type, which in this case means that the boundary will have a constant value of 1.
+
+It is also possible to specify periodic boundary conditions in a similar way:
+```cpp
+bdata[Side::RIGHT] = BoundaryType::PERIODIC;
+bdata[Side::LEFT] = BoundaryType::PERIODIC;
+```
+but it is for the user in this case to ensure that there is consistency (i.e., both left and right have to be periodic). 
+Each line creates a new entry for the specified <span style="color:violet">`Side`</span> in `bdata` of type <span style="color:teal">`b_element_type`</span>. This demonstrates the shorthand that is available which associates a <span style="color:violet">`BoundaryType`</span> with a <span style="color:teal">`b_element_type`</span> to directly construct the entry. This defines the boundary conditions on all sides of the system. Each side must be explicitly specified, otherwise the problem parameters are in an invalid state.
+
+Also, it is possible to explicitly set intervals in a similar fashion:
 ```cpp
 vdata[Axis::X] = interval;
 vdata[Axis::Y] = interval;
@@ -410,21 +449,21 @@ model_EX_t<2, SolverSP<Stencil2d2h<5, 9, 6>>> model{ pp };
 
 The model type corresponding to the defined model is a template type of two types: the dimension of the problem and the solver that should be used, respectively. This line therefore initializes the model as a 2-dimensional problem and specifies that the used solver is `SolverSP<Stencil2d2h<5, 9, 6>>` (see [Solvers](#solvers) for more details).
 
-To solve the new constructed phase field problem, the function is called:
+To solve the new constructed phase-field problem, the function is called:
 ```cpp
 symphas::find_solution(model, dt, 100);
 ```
 which will perform 100 solver iterations. Although the time step `dt` is provided to this function, depending on the solver implementation, the value may not be used. For example, the provided spectral
 solver <span style="color:blue">`SolverSP`</span> computes solution data based only on the time step which was provided at model construction, and does not update it afterwards.
 
-A copy of the phase field can be obtained with:
+A copy of the phase-field can be obtained with:
 
 ```cpp
 auto pfdata = model.grid<0>();
 ```
-which takes the first phase field in the 0-indexed list from the model. 
+which takes the first phase-field in the 0-indexed list from the model. 
 
-> The resulting type of the function called on last line is <span style="color:blue">`Grid`</span>, templated on the phase field type and the model dimension. In this case, it would be the type `Grid<scalar_t, 2>`.
+> The resulting type of the function called on last line is <span style="color:blue">`Grid`</span>, templated on the phase-field type and the model dimension. In this case, it would be the type `Grid<scalar_t, 2>`.
 
 #### Executing the First Program
 
@@ -435,7 +474,7 @@ To compile this program, there are two options. The first is using CMake with th
 The CMake compilation can be configured by creating a directory `build` inside the `simple-driver` directory and executing the following command from inside `build`:
 
 ```properties
-cmake -DCMAKE_BUILD_TYPE:STRING="Release" -DUSE_IO:BOOL="True" -DSOLVER_INCLUDE_HEADER_DIR:PATH="../examples/solvers" -DSOLVER_INCLUDE_HEADER_NAME:FILEPATH="solverinclude.h" ..
+cmake -DCMAKE_BUILD_TYPE:STRING="Release" -DUSE_IO:BOOL="True" -DSOLVER_INCLUDE_HEADER_DIR:PATH="../../examples/solvers" -DSOLVER_INCLUDE_HEADER_NAME:FILEPATH="solverinclude.h" ..
 ```
 
 This can be directly executed and does not require the *SymPhas* package to be installed beforehand. The reason is that the configuration provided in `CMakeLists.txt` will add the source code directory as a subdirectory to this build. This will also add the **io** module to the build.
@@ -445,7 +484,7 @@ This can be directly executed and does not require the *SymPhas* package to be i
 Additionally defining the variables:
 
 ```properties
--DMODEL_INCLUDE_HEADER_DIR:PATH="../examples/models" -DMODEL_INCLUDE_HEADER_NAME:FILEPATH="modelinclude.h" 
+-DMODEL_INCLUDE_HEADER_DIR:PATH="../../examples/models" -DMODEL_INCLUDE_HEADER_NAME:FILEPATH="modelinclude.h" 
 ```
 
 will add all the models included in *SymPhas*, but will require that the model defined in `main.cpp` is removed or commented away.
@@ -500,7 +539,7 @@ g++ main.cpp -std=c++17 -I/symphas/install/folder/include -L/symphas/install/fol
 
 The shared libraries generated for each of the modules of *SymPhas* need to be explicitly linked since they are all used in the driver through the *SymPhas* header. If additional modules were enabled during the installation, then those would also have to be linked even if the driver does not directly use them.
 
-> If the **io** module is enabled, linking with the `pthread` library is also required. The headers define a class that creates a new thread which asynchronously writes phase field data. Add `-lpthread` to the compile command.
+> If the **io** module is enabled, linking with the `pthread` library is also required. The headers define a class that creates a new thread which asynchronously writes phase-field data. Add `-lpthread` to the compile command.
 
 **Windows**
 
@@ -526,15 +565,15 @@ std::generate(
     [](){ return rand() / RAND_MAX; }
 );
 
-auto u = expr::make_op(gridu);           // Create a variable from the grid.
+auto u = expr::make_term(gridu);           // Create a variable from the grid.
 expr::result(u = u * u);                 // Evaluate the result of squaring u, saving it back to u.
 ```
 
 Another, longer example is given, assuming there are two grids, `gridu` and `gridv`, both randomly generated as above.
 ```cpp
 // Define variables u and v of the grids.
-auto u = expr::make_op(gridu);
-auto v = expr::make_op(gridv);
+auto u = expr::make_term(gridu);
+auto v = expr::make_term(gridv);
 
 // Define an expression of u and v.
 auto a0 = expr::make_literal(2.5);
@@ -677,7 +716,7 @@ the advantage of the compile-time symbolic algebra.
 ## Running Models
 
 In order to execute models, an instance of object  <span style="color:teal">`problem_parameters_type`</span> must be constructed
-and appropriately initialized through its member functions. This is based on the parameters that represent a phase field problem in a physical setting:
+and appropriately initialized through its member functions. This is based on the parameters that represent a phase-field problem in a physical setting:
 
 - The initial conditions.
 - The boundary conditions.
@@ -866,7 +905,7 @@ The `SolverFT` supports all order parameter types, and up to fourth order deriva
 
 ### Data Checkpoints
 
-Checkpoints are saved 10 times over the course of a solution, meaning that over `N` steps, every `N % 10` will have the phase fields saved to a checkpoint file. This behaviour can be changed by specifying `checkpoint_count=N` on the command line. If `N=0`, no checkpoints are saved.
+Checkpoints are saved 10 times over the course of a solution, meaning that over `N` steps, every `N % 10` will have the phase-fields saved to a checkpoint file. This behaviour can be changed by specifying `checkpoint_count=N` on the command line. If `N=0`, no checkpoints are saved.
 
 In order to load a previous checkpoint, the user specifies the command line option `checkpoint=<checkpoint_location>[,index]`, where `checkpoint_location` specifies the checkpoint directory of a previous execution, and `index` is the optional value which specifies the index to load from. If it is not given, then the index is the most recent one determined from the backup configuration.
 
