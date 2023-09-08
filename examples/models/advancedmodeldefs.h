@@ -27,6 +27,9 @@
 
 #include "modelmacros.h"
 
+#define C(N) param_matrix(N)
+
+
 #define cell_params C(6)
 
 
@@ -35,21 +38,21 @@
 #define lambda_ cell_params(1)
 #define lambda2_(I) (lambda_(I) * lambda_(I))
 
-#define R2 (c3 * c3) //(c3 * AREA / (Pi * NUM_FIELDS))
+#define R2 (c(3) * c(3)) //(c(3) * AREA / (Pi * NUM_FIELDS))
 
-//#define R2 (c3 * c3)
+//#define R2 (c(3) * c(3))
 //#define R (sqrt(R2))
 
-#define lambda (c1)
-#define R (c3) //(c3 * AREA / (Pi * NUM_FIELDS))
-#define R2 (c3 * c3) //(c3 * AREA / (Pi * NUM_FIELDS))
-#define mu (c2)
-#define kappa c4
-#define xi c5
-#define gamma (c6)
-#define gammaC (c7)
-#define vel c8
-#define tau c9
+#define lambda (c(1))
+#define R (c(3)) //(c(3) * AREA / (Pi * NUM_FIELDS))
+#define R2 (c(3) * c(3)) //(c(3) * AREA / (Pi * NUM_FIELDS))
+#define mu (c(2))
+#define kappa c(4)
+#define xi c(5)
+#define gamma (c(6))
+#define gammaC (c(7))
+#define vel c(8)
+#define tau c(9)
 
 #define dpsi dop(1)
 #define psi op(1)
@@ -119,7 +122,7 @@ DEFINE_MODEL_FIELD_NAMES_FORMAT(CELL_MIGRATION_NO_MOTILITY, "\\phi_{%d}")
 //
 //MODEL(FLOCK, (VECTOR, SCALAR),
 //	EVOLUTION(
-//		dpsi = c1 * psi - c2 * psi * psi * psi - grad(c6 * (rho - STATS.mean(rho)) + c7 * pow<2>(rho - STATS.mean(rho))) + c3 * grad(grad * psi) + c4 * lap(psi) + c5 * pow<2>(psi * grad) * psi - (psi * grad) * psi + _nW(VECTOR),
+//		dpsi = c(1) * psi - c(2) * psi * psi * psi - grad(c(6) * (rho - STATS.mean(rho)) + c(7) * pow<2>(rho - STATS.mean(rho))) + c(3) * grad(grad * psi) + c(4) * lap(psi) + c(5) * pow<2>(psi * grad) * psi - (psi * grad) * psi + _nW(VECTOR),
 //		drho = -grad * (psi * rho))
 //)
 //LINK_WITH_NAME(FLOCK, FLOCK_MODEL)
@@ -127,9 +130,9 @@ DEFINE_MODEL_FIELD_NAMES_FORMAT(CELL_MIGRATION_NO_MOTILITY, "\\phi_{%d}")
 //MODEL(FLOCK_B, (VECTOR, SCALAR),
 //	EVOLUTION_PREAMBLE(
 //		(
-//			auto lam = c1;
-//			auto sig2 = c2 * c2;
-//			auto sig2_0 = c3 * c3;
+//			auto lam = c(1);
+//			auto sig2 = c(2) * c(2);
+//			auto sig2_0 = c(3) * c(3);
 //			auto nu = frac<1, 4> / (lam * (1 - exp(-2 * sig2_0)) + val<4> / Pi * rho * (frac<14, 15> + frac<2, 3> * exp(-2 * sig2)));
 //			auto gg = val<8> / Pi * nu * (frac<16, 15> + val<2> * exp(-2 * sig2) - exp(-sig2 / 2));
 //			auto pp = val<8> / Pi * nu * (frac<4, 15> + val<2> * exp(-2 * sig2) - exp(-sig2 / 2));
@@ -147,11 +150,11 @@ DEFINE_MODEL_FIELD_NAMES_FORMAT(CELL_MIGRATION_NO_MOTILITY, "\\phi_{%d}")
 //MODEL(FLOCK_B2, (VECTOR, SCALAR),
 //	EVOLUTION_PREAMBLE(
 //		(
-//			auto lam = c1;
-//			auto sig2 = c2 * c2;
-//			auto sig2_0 = c3 * c3;
+//			auto lam = c(1);
+//			auto sig2 = c(2) * c(2);
+//			auto sig2_0 = c(3) * c(3);
 //
-//			auto v0 = c4;
+//			auto v0 = c(4);
 //			auto v02 = v0 * v0;
 //			auto d0 = one;
 //
