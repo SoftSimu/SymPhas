@@ -1191,15 +1191,15 @@ namespace symphas::dft
 	{
 		if constexpr (D == 1)
 		{
-			long_dft(in, out, dims[0]);
+			long_dft(out, in, dims[0], true);
 		}
 		else if constexpr (D == 2)
 		{
-			long_dft(in, out, dims[0], dims[1]);
+			long_dft(out, in, dims[0], dims[1], true);
 		}
 		else if constexpr (D == 3)
 		{
-			long_dft(in, out, dims[0], dims[1], dims[2]);
+			long_dft(out, in, dims[0], dims[1], dims[2], true);
 		}
 	}
 
