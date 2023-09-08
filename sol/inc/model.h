@@ -699,9 +699,6 @@ protected:
 				interval.left(),
 				interval.right(),
 				system.dims[i]);
-
-			interval.domain_to_interval();
-
 		}
 
 		parameters.set_interval_data(intervals, I);
@@ -720,8 +717,6 @@ protected:
 				interval.left(),
 				interval.right(),
 				system.dims[i]);
-
-			interval.domain_to_interval();
 		}
 
 		parameters.set_interval_data(intervals, I);

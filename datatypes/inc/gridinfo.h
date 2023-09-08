@@ -379,6 +379,7 @@ namespace symphas
 		void set_count(double left, double right, len_type count)
 		{
 			set_domain_count(left, right, count);
+			set_interval_count(left, count);
 		}
 
 		//! Resize the domain with the given number of elements, with constant width.
@@ -514,7 +515,20 @@ namespace symphas
 		}
 	};
 
-	using interval_data_type = std::map<Axis, interval_element_type>;
+	struct interval_data_type : std::map<Axis, interval_element_type>
+	{
+		using parent_type = std::map<Axis, interval_element_type>;
+		using parent_type::parent_type;
+		using parent_type::operator[];
+		interval_data_type(size_t dim, interval_element_type const& interval) : parent_type()
+		{
+			for (iter_type i = 0; i < dim; ++i)
+			{
+				auto axis = symphas::index_to_axis(i);
+				this->operator[](axis) = interval;
+			}
+		}
+	};
 
 	struct grid_info;
 }

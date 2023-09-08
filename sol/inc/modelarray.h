@@ -1758,8 +1758,6 @@ protected:
 				interval.left(),
 				interval.right(),
 				system.dims[i]);
-
-			interval.domain_to_interval();
 		}
 
 		parameters.set_interval_data(intervals, n);
@@ -1777,8 +1775,6 @@ protected:
 				interval.left(),
 				interval.right(),
 				system.dims[i]);
-
-			interval.domain_to_interval();
 		}
 
 		parameters.set_interval_data(intervals, n);

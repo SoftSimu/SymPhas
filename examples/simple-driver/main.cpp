@@ -15,20 +15,15 @@ int  main(int argc , char* argv [])
 
 	double dt = 0.1;
 	symphas::problem_parameters_type pp{ 1 };
-
-	symphas::b_data_type bdata;
-	symphas::init_data_type tdata(Inside::UNIFORM, { -1, 1 });
-	symphas::interval_data_type vdata;
 	symphas::interval_element_type interval;
-	interval.set_count(128);
+	interval.set_count(0, 80, 128);
 
-	bdata[Side::LEFT] = BoundaryType::PERIODIC;
-	bdata[Side::RIGHT] = BoundaryType::PERIODIC;
-	bdata[Side::TOP] = BoundaryType::PERIODIC;
-	bdata[Side::BOTTOM] = BoundaryType::PERIODIC;
+	symphas::b_data_type bdata(2, BoundaryType::PERIODIC);
+	symphas::interval_data_type vdata(2, interval);
+	symphas::init_data_type tdata(Inside::UNIFORM, { -1, 1 });
 
-	vdata[Axis::X] = interval;
-	vdata[Axis::Y] = interval;
+	bdata[Side::TOP] = BoundaryTag::CONSTANT << 1;
+	bdata[Side::BOTTOM] = BoundaryTag::CONSTANT << 1;
 
 	pp.set_boundary_data(&bdata);
 	pp.set_initial_data(&tdata);

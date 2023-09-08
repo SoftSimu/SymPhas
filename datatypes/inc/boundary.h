@@ -113,6 +113,46 @@ enum class BoundaryTag
 };
 
 
+namespace symphas::internal
+{
+	struct boundary_info
+	{
+		BoundaryTag tag[2];				//!< The tag associated with the main type.
+		double* params;
+		int argc;
+
+		boundary_info(BoundaryTag tag0, const double* params, int argc) : tag{ tag[0], BoundaryTag::NONE }, params{ (argc > 0) ? new double[argc] {} : nullptr }, argc{ argc } {}
+		boundary_info(BoundaryTag tag0, double param) : boundary_info(tag0, &param, 1) {}
+		boundary_info(const BoundaryTag tag[2], const double* params, int argc) : tag{ tag[0], tag[1] }, params{ (argc > 0) ? new double[argc] {} : nullptr }, argc{ argc } 
+		{
+			if (argc > 0)
+			{
+				std::copy(params, params + argc, this->params);
+			}
+		}
+		boundary_info(const BoundaryTag tag[2], double param) : boundary_info(tag, &param, 1) {}
+
+		boundary_info() : tag{ BoundaryTag::NONE, BoundaryTag::NONE }, params{ nullptr }, argc{ 0 } {}
+		boundary_info(boundary_info const& other) : boundary_info(other.tag, other.params, other.argc) {}
+		boundary_info(boundary_info&& other) noexcept : boundary_info() 
+		{
+			swap(*this, other);
+		}
+
+		friend void swap(boundary_info& first, boundary_info& second)
+		{
+			using std::swap;
+			swap(first.tag, second.tag);
+			swap(first.params, second.params);
+			swap(first.argc, second.argc);
+		}
+
+		~boundary_info()
+		{
+			delete[] params;
+		}
+	};
+}
 
 namespace symphas
 {
@@ -173,7 +213,7 @@ namespace symphas
 		 * \param type The type of boundary condition.
 		 * \param tags An array of 2 modifiers of the boundary condition.
 		 */
-		b_element_type(BoundaryType type, BoundaryTag tag[2]) :
+		b_element_type(BoundaryType type, const BoundaryTag tag[2]) :
 			b_element_type(type, { tag[0], tag[1] }) {}
 
 		//! Construct a new boundary data element.
@@ -196,6 +236,9 @@ namespace symphas
 		 */
 		b_element_type(BoundaryType type) :
 			b_element_type(type, { BoundaryTag::NONE, BoundaryTag::NONE }, nullptr, 0) {}
+
+		b_element_type(BoundaryType type, symphas::internal::boundary_info const& info) : b_element_type(type, info.tag, info.params, info.argc) {}
+		b_element_type(symphas::internal::boundary_info const& info) : b_element_type(BoundaryType::DEFAULT, info) {}
 
 		//! Construct a new boundary data element.
 		/*!
@@ -235,7 +278,21 @@ namespace symphas
 	 * conditions in the context of the problem parameters is represented 
 	 * by a map that relates the enum Side to a b_element_type.
 	 */
-	using b_data_type = std::map<Side, symphas::b_element_type>;
+	struct b_data_type : std::map<Side, symphas::b_element_type>
+	{
+		using parent_type = std::map<Side, symphas::b_element_type>;
+		using parent_type::parent_type;
+		using parent_type::operator[];
+
+		b_data_type(size_t dim, symphas::b_element_type const& interval) : parent_type()
+		{
+			for (iter_type i = 0; i < dim * 2; ++i)
+			{
+				auto side = symphas::index_to_side(i);
+				this->operator[](side) = interval;
+			}
+		}
+	};
 
 
 
@@ -270,6 +327,29 @@ namespace symphas
 	 */
 	const char* str_from_boundary_tag(BoundaryTag tag);
 
+}
+
+inline auto operator|(BoundaryType type, BoundaryTag tag)
+{
+	BoundaryTag tags[2];
+	tags[0] = tag;
+	tags[1] = BoundaryTag::NONE;
+	return symphas::b_element_type(type, tags);
+}
+
+inline auto operator|(BoundaryType type, symphas::internal::boundary_info const& info)
+{
+	return symphas::b_element_type(type, info);
+}
+
+inline auto operator<<(BoundaryTag type, double value)
+{
+	return symphas::internal::boundary_info(type, value);
+}
+
+inline auto operator<<(BoundaryTag type, std::initializer_list<double> const& values)
+{
+	return symphas::internal::boundary_info(type, values.begin(), values.size());
 }
 
 namespace grid
