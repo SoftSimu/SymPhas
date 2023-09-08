@@ -46,95 +46,6 @@
 template<typename T, size_t D>
 using ProvisionalSystem = System<T, D>;
 
-//! The provisional system used by the spectral solver. 
-/*!
- * The spectral solver requires the Fourier transforms of all variables
- * when computing the solution, so in addition to storing the real-space
- * provisional system, the Fourier space transform is also stored and updated.
- * 
- * The provisional variable does not use boundary conditions, although
- * they are still supplied to the constructor in order to use the 
- * workflow. 
- * 
- * \tparam T The provisional system type, in real space.
- * \tparam D The provisional system dimension.
- */
-template<typename T, size_t D>
-struct ProvisionalSystemSpectral : Grid<T, D>
-{
-	using Grid<T, D>::dims;
-
-	fftw_complex* frame_t;
-	fftw_plan p_src_out;
-
-	//! Construct the grid data of a provisional variable.
-	/*!
-	 * Construct the grid data of a provisional variable. The Fourier space
-	 * transform of the variable is also initialized.
-	 * 
-	 * \param vdata Interval data about the grid system.
-	 */
-	ProvisionalSystemSpectral(symphas::interval_data_type const& vdata, symphas::b_data_type const&);
-
-	ProvisionalSystemSpectral(ProvisionalSystemSpectral<T, D> const& other);
-	ProvisionalSystemSpectral(ProvisionalSystemSpectral<T, D>&& other) noexcept;
-	ProvisionalSystemSpectral<T, D>& operator=(ProvisionalSystemSpectral<T, D> other);
-
-	friend void swap(ProvisionalSystemSpectral<T, D>& first, ProvisionalSystemSpectral<T, D>& second)
-	{
-		using std::swap;
-
-		swap(static_cast<Grid<T, D>&>(first), static_cast<Grid<T, D>&>(second));
-		swap(first.frame_t, second.frame_t);
-		swap(first.p_src_out, second.p_src_out);
-	}
-
-	~ProvisionalSystemSpectral();
-
-	//! Executes the FFTW plan to transform the provisional variable.
-	/*!
-	 * Executes the FFTW plan to transform the provisional variable.
-	 * No parameters are used in the update.
-	 */
-	void update(iter_type, double)
-	{
-		symphas::dft::fftw_execute(p_src_out);
-	}
-	
-
-protected:
-
-	ProvisionalSystemSpectral() : Grid<T, D>(), frame_t{ nullptr }, p_src_out{ nullptr } {}
-
-};
-
-//! The provisional system used by the spectral solver. 
-/*!
- * Specialization when the provisional variable is a vector type.
- *
- * The spectral solver requires the Fourier transforms of all variables
- * when computing the solution, so in addition to storing the real-space
- * provisional system, the Fourier space transform is also stored and updated.
- *
- * \tparam D The provisional system dimension.
- */
-template<size_t D>
-struct ProvisionalSystemSpectral<vector_t<D>, D> : Grid<vector_t<D>, D>
-{
-	//! Construct the data of a vector-valued provisional variable.
-	ProvisionalSystemSpectral(
-		const symphas::interval_data_type vdata,
-		const symphas::b_data_type) : 
-		Grid<vector_t<D>, D>{ grid::construct<Grid, vector_t<D>, D>(vdata) } {}
-
-protected:
-
-	ProvisionalSystemSpectral() : Grid<vector_t<D>, D>() {}
-
-};
-
-
-
 
 //! The initial conditions of a provisional system.
 /*!
@@ -143,7 +54,7 @@ protected:
  * definition of the provisional object means that the initial conditions need
  * to be passed to the constructor of its parent object, even though
  * initial conditions have no meaning in the context of provisional variables.
- * 
+ *
  * The initial conditions of a provisional system are undefined and set to
  * `NONE` value for both parameters, thereby skipping any initial generation.
  */
@@ -151,6 +62,7 @@ inline symphas::init_entry_type provisional_init{
 	Inside::NONE,
 	symphas::build_intag(InsideTag::NONE),
 	symphas::init_data_parameters{} };
+
 
 
 //! The representation of a provisional system.
@@ -184,6 +96,95 @@ struct ProvisionalSystemFD : BoundarySystem<T, D>
 		BoundarySystem<T, D>(provisional_init, vdata, bdata) {}
 };
 
+
+#if USING_FFTW
+
+//! The provisional system used by the spectral solver. 
+/*!
+ * The spectral solver requires the Fourier transforms of all variables
+ * when computing the solution, so in addition to storing the real-space
+ * provisional system, the Fourier space transform is also stored and updated.
+ *
+ * The provisional variable does not use boundary conditions, although
+ * they are still supplied to the constructor in order to use the
+ * workflow.
+ *
+ * \tparam T The provisional system type, in real space.
+ * \tparam D The provisional system dimension.
+ */
+template<typename T, size_t D>
+struct ProvisionalSystemSpectral : Grid<T, D>
+{
+	using Grid<T, D>::dims;
+
+	fftw_complex* frame_t;
+	fftw_plan p_src_out;
+
+	//! Construct the grid data of a provisional variable.
+	/*!
+	 * Construct the grid data of a provisional variable. The Fourier space
+	 * transform of the variable is also initialized.
+	 *
+	 * \param vdata Interval data about the grid system.
+	 */
+	ProvisionalSystemSpectral(symphas::interval_data_type const& vdata, symphas::b_data_type const&);
+
+	ProvisionalSystemSpectral(ProvisionalSystemSpectral<T, D> const& other);
+	ProvisionalSystemSpectral(ProvisionalSystemSpectral<T, D>&& other) noexcept;
+	ProvisionalSystemSpectral<T, D>& operator=(ProvisionalSystemSpectral<T, D> other);
+
+	friend void swap(ProvisionalSystemSpectral<T, D>& first, ProvisionalSystemSpectral<T, D>& second)
+	{
+		using std::swap;
+
+		swap(static_cast<Grid<T, D>&>(first), static_cast<Grid<T, D>&>(second));
+		swap(first.frame_t, second.frame_t);
+		swap(first.p_src_out, second.p_src_out);
+	}
+
+	~ProvisionalSystemSpectral();
+
+	//! Executes the FFTW plan to transform the provisional variable.
+	/*!
+	 * Executes the FFTW plan to transform the provisional variable.
+	 * No parameters are used in the update.
+	 */
+	void update(iter_type, double)
+	{
+		symphas::dft::fftw_execute(p_src_out);
+	}
+
+
+protected:
+
+	ProvisionalSystemSpectral() : Grid<T, D>(), frame_t{ nullptr }, p_src_out{ nullptr } {}
+
+};
+
+//! The provisional system used by the spectral solver. 
+/*!
+ * Specialization when the provisional variable is a vector type.
+ *
+ * The spectral solver requires the Fourier transforms of all variables
+ * when computing the solution, so in addition to storing the real-space
+ * provisional system, the Fourier space transform is also stored and updated.
+ *
+ * \tparam D The provisional system dimension.
+ */
+template<size_t D>
+struct ProvisionalSystemSpectral<vector_t<D>, D> : Grid<vector_t<D>, D>
+{
+	//! Construct the data of a vector-valued provisional variable.
+	ProvisionalSystemSpectral(
+		const symphas::interval_data_type vdata,
+		const symphas::b_data_type) :
+		Grid<vector_t<D>, D>{ grid::construct<Grid, vector_t<D>, D>(vdata) } {}
+
+protected:
+
+	ProvisionalSystemSpectral() : Grid<vector_t<D>, D>() {}
+
+};
 
 
 
@@ -300,3 +301,8 @@ inline ProvisionalSystemSpectral<T, D>::~ProvisionalSystemSpectral()
 	symphas::dft::fftw_free(frame_t);
 	symphas::dft::fftw_destroy_plan(p_src_out);
 }
+
+
+#endif
+
+

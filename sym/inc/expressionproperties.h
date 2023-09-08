@@ -28,7 +28,6 @@
 
 #include <tuple>
 
-#include "gridinfo.h"
 #include "expressionlib.h"
 
 

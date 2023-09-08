@@ -229,9 +229,10 @@ NEW_SOLVER(SolverSP)
 };
 
 
-
+#ifdef USING_FFTW
 ASSOCIATE_SOLVER_SYSTEM_TYPE(SolverSP, SolverSystemSpectral)
 ASSOCIATE_PROVISIONAL_SYSTEM_TYPE(SolverSP, ProvisionalSystemSpectral)
+#endif
 SYMPHAS_SOLVER_ALL_SUPPORTED(SolverSP)
 
 

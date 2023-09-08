@@ -27,7 +27,6 @@
 #pragma once
 
 #include "spslib.h"
-#include "spslibfftw.h"
 
 #include "definitions.h"
 #include "indexseqhelpers.h"

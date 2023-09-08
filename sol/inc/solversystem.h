@@ -78,6 +78,7 @@ struct SolverSystemFDwSD : RegionalSystem<T, D>
 	}
 };
 
+#ifdef USING_FFTW
 
 //! The phase field system used by the spectral solver. 
 /*!
@@ -697,10 +698,13 @@ inline SolverSystemSpectral<vector_t<D>, D>::~SolverSystemSpectral()
 	}
 }
 
+#endif
 
 DEFINE_BASE_DATA_INHERITED((typename T, size_t D), (SolverSystemFDwSD<T, D>), (RegionalGrid<T, D>))
 DEFINE_BASE_DATA_INHERITED((typename T, size_t D), (SolverSystemFD<T, D>), (BoundaryGrid<T, D>))
+#ifdef USING_FFTW
 DEFINE_BASE_DATA_INHERITED((typename T, size_t D), (SolverSystemSpectral<T, D>), (Grid<T, D>))
+#endif
 
 
 

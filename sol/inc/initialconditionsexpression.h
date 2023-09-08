@@ -134,6 +134,11 @@ struct InitExpression
 		}
 	}
 
+	auto c(size_t I)
+	{
+		return param(I - 1);
+	}
+
 	double* coeff;
 	size_t num_coeff;
 	AxisData data;

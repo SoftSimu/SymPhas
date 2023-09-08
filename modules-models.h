@@ -405,25 +405,6 @@ bool match_init_expr(
 
 // undefine all the parameters
 
-#undef c1 
-#undef c2 
-#undef c3 
-#undef c4 
-#undef c5 
-#undef c6 
-#undef c7 
-#undef c8 
-#undef c9 
-#undef c10
-#undef c11
-#undef c12
-#undef c13
-#undef c14
-#undef c15
-#undef c16
-
-#undef C
-
 // order parameter names
 
 //#undef op

@@ -8,7 +8,7 @@ To compile:
     First, make a new directory `build'. Enter the directory and use the 
     following cmake command:
 
-> cmake -DFFTW3_DIR:PATH="~/fftw3/lib/cmake/fftw3" -DUSE_IO:BOOL="True" -DUSE_VTK:BOOL="False" -DMODEL_INCLUDE_HEADER_NAME:FILEPATH="modelacmms.h" -DMODEL_INCLUDE_HEADER_DIR:PATH="../models" -DSOLVER_INCLUDE_HEADER_DIR:PATH="../solvers" -DSOLVER_INCLUDE_HEADER_NAME:FILEPATH="solverinclude.h" -DUSE_LATEX_FORMAT:BOOL="False" -DPRINTABLE_EQUATIONS:BOOL="True" -DCMAKE_BUILD_TYPE=Release ..
+> cmake -DFFTW3_DIR:PATH="~/fftw3/lib/cmake/fftw3" -DUSE_IO:BOOL="True" -DUSE_VTK:BOOL="False" -DMODEL_INCLUDE_HEADER_NAME:FILEPATH="modelacmms.h" -DMODEL_INCLUDE_HEADER_DIR:PATH="../models" -DSOLVER_INCLUDE_HEADER_DIR:PATH="../solvers" -DSOLVER_INCLUDE_HEADER_NAME:FILEPATH="solverinclude.h" -DUSE_LATEX_FORMAT:BOOL="False" -DCMAKE_BUILD_TYPE=Release ..
 
     Then run `make'. Keep in mind that you shouldn't be running any other
     exmaples at the same time within the same project heirarchy, since the 

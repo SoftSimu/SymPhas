@@ -528,83 +528,7 @@ struct SelfSelectingStencil<3, 2> : GeneralizedStencil<3, 2>, Stencil<SelfSelect
 	using Points = Stencil3d2h<Ps...>;
 };
 
-#ifdef GENERATE_UNDEFINED_STENCILS_ON
-#ifdef ALL_STENCILS
 
-template<size_t...>
-struct Stencil1d2h :
-	symphas::internal::StencilBase1d2h, Stencil<Stencil1d2h<>>,
-	symphas::internal::StencilDefaultStride<1, Stencil1d2h<>>
-{
-	using base_type = symphas::internal::StencilBase1d2h;
-	using base_derivatives = symphas::internal::StencilDefaultStride<1, Stencil1d2h<>>;
-
-	using base_type::base_type;
-	using base_type::apply;
-	using base_type::dims;
-	using base_type::gradient;
-	using base_type::laplacian;
-	using base_type::gradlaplacian;
-	using base_type::bilaplacian;
-
-};
-
-template<size_t...>
-struct Stencil2d2h :
-	symphas::internal::StencilBase2d2h, Stencil<Stencil2d2h<>>,
-	symphas::internal::StencilDefaultStride<2, Stencil2d2h<>>
-{
-	using base_type = symphas::internal::StencilBase2d2h;
-	using base_derivatives = symphas::internal::StencilDefaultStride<2, Stencil2d2h<>>;
-	
-	using base_type::base_type;
-	using base_type::apply;
-	using base_type::dims;
-	using base_type::gradient;
-	using base_type::laplacian;
-	using base_type::gradlaplacian;
-	using base_type::bilaplacian;
-
-};
-
-template<size_t...>
-struct Stencil2d4h :
-	symphas::internal::StencilBase2d4h, Stencil<Stencil2d4h<>>,
-	symphas::internal::StencilDefaultStride<2, Stencil2d4h<>>
-{
-	using base_type = symphas::internal::StencilBase2d4h;
-	using base_derivatives = symphas::internal::StencilDefaultStride<2, Stencil2d4h<>>;
-
-	using base_type::base_type;
-	using base_type::apply;
-	using base_type::dims;
-	using base_type::gradient;
-	using base_type::laplacian;
-	using base_type::gradlaplacian;
-	using base_type::bilaplacian;
-};
-
-template<size_t...>
-struct Stencil3d2h :
-	symphas::internal::StencilBase3d2h, Stencil<Stencil3d2h<>>,
-	symphas::internal::StencilDefaultStride<3, Stencil3d2h<>>
-{
-	using base_type = symphas::internal::StencilBase3d2h;
-	using base_derivatives = symphas::internal::StencilDefaultStride<3, Stencil3d2h<>>;
-
-	using base_type::base_type;
-	using base_type::apply;
-	using base_type::dims;
-	using base_type::gradient;
-	using base_type::laplacian;
-	using base_type::gradlaplacian;
-	using base_type::bilaplacian;
-};
-
-#endif
-#endif
-
-//! @}
 
 namespace symphas::internal
 {
@@ -619,7 +543,7 @@ namespace symphas::internal
 	 * \tparam O The order of accuracy of the derivative.
 	 */
 	template<size_t N, size_t D, size_t O>
-	struct StencilPointList 
+	struct StencilPointList
 	{
 		using type = std::index_sequence<>;
 	};
@@ -758,6 +682,142 @@ MAKE_STENCIL_POINT_LIST(3, 3, 2, (10))
 #ifndef AVAILABLE_DIMENSIONS
 #define AVAILABLE_DIMENSIONS 2
 #endif
+
+#ifdef GENERATE_UNDEFINED_STENCILS_ON
+#ifdef ALL_STENCILS
+
+template<size_t...>
+struct Stencil1d2h :
+	symphas::internal::StencilBase1d2h, Stencil<Stencil1d2h<>>,
+	symphas::internal::StencilDefaultStride<1, Stencil1d2h<>>
+{
+	using base_type = symphas::internal::StencilBase1d2h;
+	using base_derivatives = symphas::internal::StencilDefaultStride<1, Stencil1d2h<>>;
+
+	using base_type::base_type;
+	using base_type::apply;
+	using base_type::dims;
+	using base_type::gradient;
+	using base_type::laplacian;
+	using base_type::gradlaplacian;
+	using base_type::bilaplacian;
+
+};
+
+template<size_t...>
+struct Stencil2d2h :
+	symphas::internal::StencilBase2d2h, Stencil<Stencil2d2h<>>,
+	symphas::internal::StencilDefaultStride<2, Stencil2d2h<>>
+{
+	using base_type = symphas::internal::StencilBase2d2h;
+	using base_derivatives = symphas::internal::StencilDefaultStride<2, Stencil2d2h<>>;
+
+	using base_type::base_type;
+	using base_type::apply;
+	using base_type::dims;
+	using base_type::gradient;
+	using base_type::laplacian;
+	using base_type::gradlaplacian;
+	using base_type::bilaplacian;
+
+};
+
+template<size_t...>
+struct Stencil2d4h :
+	symphas::internal::StencilBase2d4h, Stencil<Stencil2d4h<>>,
+	symphas::internal::StencilDefaultStride<2, Stencil2d4h<>>
+{
+	using base_type = symphas::internal::StencilBase2d4h;
+	using base_derivatives = symphas::internal::StencilDefaultStride<2, Stencil2d4h<>>;
+
+	using base_type::base_type;
+	using base_type::apply;
+	using base_type::dims;
+	using base_type::gradient;
+	using base_type::laplacian;
+	using base_type::gradlaplacian;
+	using base_type::bilaplacian;
+};
+
+template<size_t...>
+struct Stencil3d2h :
+	symphas::internal::StencilBase3d2h, Stencil<Stencil3d2h<>>,
+	symphas::internal::StencilDefaultStride<3, Stencil3d2h<>>
+{
+	using base_type = symphas::internal::StencilBase3d2h;
+	using base_derivatives = symphas::internal::StencilDefaultStride<3, Stencil3d2h<>>;
+
+	using base_type::base_type;
+	using base_type::apply;
+	using base_type::dims;
+	using base_type::gradient;
+	using base_type::laplacian;
+	using base_type::gradlaplacian;
+	using base_type::bilaplacian;
+};
+
+#endif
+
+#else
+
+template<template<size_t...> typename stencil_type, size_t D, size_t O>
+struct infer_default_points
+{
+	using type = stencil_type<
+		symphas::lib::seq_index_value<0, typename symphas::internal::StencilPointList<2, D, O>::type>::value,
+		symphas::lib::seq_index_value<0, typename symphas::internal::StencilPointList<3, D, O>::type>::value,
+		symphas::lib::seq_index_value<0, typename symphas::internal::StencilPointList<4, D, O>::type>::value>;
+};
+
+template<template<size_t...> typename stencil_type, size_t D, size_t O>
+using infer_default_points_t = typename infer_default_points<stencil_type, D, O>::type;
+
+#ifdef ORDER_LIST_1D
+#ifdef ORDER_LIST_1D_HAS_2H
+template<>
+struct Stencil1d2h<> : infer_default_points_t<Stencil1d2h, 1, 2>
+{
+	using parent_type = infer_default_points_t<Stencil1d2h, 1, 2>;
+	using parent_type::parent_type;
+};
+#endif
+#endif
+
+#ifdef ORDER_LIST_2D
+#ifdef ORDER_LIST_2D_HAS_2H
+template<>
+struct Stencil2d2h<> : infer_default_points_t<Stencil2d2h, 2, 2> 
+{
+	using parent_type = infer_default_points_t<Stencil2d2h, 2, 2>;
+	using parent_type::parent_type;
+};
+#endif
+#ifdef ORDER_LIST_2D_HAS_4H
+template<>
+struct Stencil2d4h<> : infer_default_points_t<Stencil2d4h, 2, 4>
+{
+	using parent_type = infer_default_points_t<Stencil2d4h, 2, 4>;
+	using parent_type::parent_type;
+};
+#endif
+#endif
+
+#ifdef ORDER_LIST_3D
+#ifdef ORDER_LIST_3D_HAS_2H
+template<>
+struct Stencil3d2h<> : infer_default_points_t<Stencil3d2h, 3, 2>
+{
+	using parent_type = infer_default_points_t<Stencil3d2h, 3, 2>;
+	using parent_type::parent_type;
+};
+#endif
+#endif
+
+
+#endif
+
+//! @}
+
 
 
 namespace symphas::lib::internal

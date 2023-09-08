@@ -600,4 +600,25 @@ namespace symphas
 	{
 		find_solution(model, dts, stop, ".", plotting_output, checkpoint);
 	}
+
+	//! See symphas::find_solution().
+	/*!
+	 * Takes the number of iterations to apply the solver.
+	 * The directory is not specified and is set to the default value of
+	 * current directory.
+	 *
+	 * \param model The phase field problem which is solved.
+	 * \param dt The time step increment of the solution.
+	 * \param stop The terminating index.
+	 * \param plotting_output If true, output will be generated to be used
+	 * by a plotting utility.
+	 * \param checkpoint If true, checkpoints will be saved, which are raw
+	 * data outputs of the phase field.
+	 */
+	template<typename M>
+	void find_solution(M& model, double dt, iter_type stop,
+		bool plotting_output = true, bool checkpoint = symphas::io::is_checkpoint_set())
+	{
+		find_solution(model, symphas::time_step_list(dt), stop, plotting_output, checkpoint);
+	}
 }

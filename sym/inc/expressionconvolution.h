@@ -320,8 +320,8 @@ public:
 		expr::result(a, data_a.values, data_a.len);
 		expr::result(b, data_b.values, data_b.len);
 
-		symphas::dft::fftw_execute(compute.p_in_out_0);
-		symphas::dft::fftw_execute(compute.p_in_out_1);
+		compute.transform_in_out_0(data_a.values);
+		compute.transform_in_out_1(data_b.values);
 
 		len_type len = symphas::dft::length<G_T, D>(g0.dims);
 		if constexpr (std::is_same<G_T, complex_t>::value)
@@ -337,7 +337,7 @@ public:
 			compute.in_2[i][1] = compute.out_0[i][0] * compute.out_1[i][1] + compute.out_0[i][1] * compute.out_1[i][0];
 		}
 
-		symphas::dft::fftw_execute(compute.p_out_in);
+		compute.transform_out_in(g0.values);
 
 		if constexpr (std::is_same<G_T, scalar_t>::value)
 		{
@@ -537,7 +537,7 @@ public:
 	void update(symphas::lib::types_list<condition_ts...>)
 	{
 		expr::result(e, data.values, data.len);
-		symphas::dft::fftw_execute(compute.p_in_out);
+		compute.transform_in_out(data.values);
 
 		auto f = [&](iter_type i, iter_type ft_i)
 		{
@@ -546,7 +546,7 @@ public:
 		};
 
 		symphas::dft::iterate_rc<G_T, D>(f, g0.dims);
-		symphas::dft::fftw_execute(compute.p_out_in);
+		compute.transform_out_in(g0.values);
 		grid::scale(g0);
 	}
 
@@ -732,8 +732,7 @@ public:
 	template<typename... condition_ts>
 	void update(symphas::lib::types_list<condition_ts...>)
 	{
-		//expr::prune::update(data);
-		symphas::dft::fftw_execute(compute.p_in_out);
+		compute.transform_in_out(data.values);
 
 		auto f = [&](iter_type ft_i, iter_type i)
 		{
@@ -743,7 +742,7 @@ public:
 		};
 
 		symphas::dft::iterate_rc<G_T, D>(f, g0.dims);
-		symphas::dft::fftw_execute(compute.p_out_in);
+		compute.transform_out_in(g0.values);
 		grid::scale(g0);
 	}
 

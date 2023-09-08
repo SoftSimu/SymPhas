@@ -19,7 +19,8 @@
 
 
 find_package(Threads REQUIRED)
-find_package(FFTW3 REQUIRED)
+find_package(FFTW3)
+
 
 include_directories(SYSTEM ${FFTW_INCLUDE_PATH})
 
@@ -56,6 +57,10 @@ target_compile_definitions(symphas_lib_o PRIVATE LIB_EXPORTS)
 
 if(ENABLE_TIMINGS)
 	target_compile_definitions(symphas_lib_o PUBLIC PRINT_TIMINGS)
+endif()
+
+if(FFTW3_FOUND)
+	target_compile_definitions(symphas_lib_o PUBLIC USING_FFTW)
 endif()
 
 if(ENABLE_INLINE_TIMINGS)

@@ -179,6 +179,14 @@ constexpr model_count_index<MODEL_INDEX_NAME(PREFIX_NAME)> model_counter(model_c
 
 
 
+namespace symphas::internal
+{
+
+	template<template<size_t, typename> typename M, size_t D>
+	struct allowed_model_dimensions { static const bool value = true; };
+
+}
+
 
 #ifdef MODEL_APPLY_CALL
 
@@ -279,9 +287,6 @@ namespace symphas::internal
 		size_t N, size_t D, typename... Ts
 	>
 	auto run_model_call(std::index_sequence<N, D>, Ts&& ...args);
-
-	template<template<size_t, typename> typename M, size_t D>
-	struct allowed_model_dimensions { static const bool value = true; };
 
 }
 
@@ -454,7 +459,7 @@ protected:
 
 public:
 
-	ModelSelect(size_t dimension, size_t type) : dimension{ dimension }, type{ type } {}
+	ModelSelect(size_t dimension, size_t type = 0) : dimension{ dimension }, type{ type } {}
 
 	template<typename... Ts>
 	auto operator()(Ts&& ...args) const
@@ -474,6 +479,7 @@ template<typename M> struct symphas::internal::model_field_parameters<M, PARAMET
 	model_field_parameters<M, void>, parameterized_type<void, void> { \
 	using parent_trait = model_field_parameters<M, void>; \
 	using parent_type = parent_trait; \
+	using parent_type::c; \
 	model_field_parameters(M const& m) : parent_type{ m }, parameterized_type<void, void>{ SINGLE_ARG PARAMETERS } {} \
 }; \
 
@@ -1076,16 +1082,6 @@ namespace symphas::internal
  */
 #define gradlap Diff(3)
 
-//! The `N`-th coefficient of the model.
-/*!
- * Refer to the value of the `N`-th parameter which was passed to the
- * phase field model. It is indexed from 1, 
- * meaning that `param(1)` is the first coefficient.
- * 
- * \param N The `N`-th parameter/coefficient.
- */
-#define param(N) parent_type::param(N - 1)
-
 //! Imposes a matrix shape with `N` columns to the coefficient array.
 /*!
  * Allows accessing coefficients with an index, either with a number
@@ -1169,27 +1165,6 @@ namespace symphas::internal
  * Construct an expression representing an expression E to the power of the given value, N.
  */
 #define power(E, N) expr::pow<N>(E)
-
-
-
-#define c1 param(1)		 //!< Coefficient at index 1 in the list of coefficients.
-#define c2 param(2)		 //!< Coefficient at index 2 in the list of coefficients.
-#define c3 param(3)		 //!< Coefficient at index 3 in the list of coefficients.
-#define c4 param(4)		 //!< Coefficient at index 4 in the list of coefficients.
-#define c5 param(5)		 //!< Coefficient at index 5 in the list of coefficients.
-#define c6 param(6)		 //!< Coefficient at index 6 in the list of coefficients.
-#define c7 param(7)		 //!< Coefficient at index 7 in the list of coefficients.
-#define c8 param(8)		 //!< Coefficient at index 8 in the list of coefficients.
-#define c9  param(9)	 //!< Coefficient at index 9 in the list of coefficients.
-#define c10 param(10)	 //!< Coefficient at index 10 in the list of coefficients.
-#define c11 param(11)	 //!< Coefficient at index 11 in the list of coefficients.
-#define c12 param(12)	 //!< Coefficient at index 12 in the list of coefficients.
-#define c13 param(13)	 //!< Coefficient at index 13 in the list of coefficients.
-#define c14 param(14)	 //!< Coefficient at index 14 in the list of coefficients.
-#define c15 param(15)	 //!< Coefficient at index 15 in the list of coefficients.
-#define c16 param(16)	 //!< Coefficient at index 16 in the list of coefficients.
-
-#define C(N) param_matrix(N)	//!< Initialization of a coefficient matrix.
 
 // free energy parameters
 

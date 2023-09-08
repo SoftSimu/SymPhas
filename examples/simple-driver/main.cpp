@@ -2,11 +2,9 @@
 
 #define psi op(1)
 #define dpsi dop(1)
-#define A c1
-#define B c2
 
 MODEL(EX, (SCALAR),
-	EVOLUTION(dpsi = lap(psi) + (A - lit (4.) * B * psi * psi) * psi)
+	EVOLUTION(dpsi = lap(psi) + (c(1) - c(2) * psi * psi) * psi)
 )
 
 
@@ -19,7 +17,7 @@ int  main(int argc , char* argv [])
 	symphas::problem_parameters_type pp{ 1 };
 
 	symphas::b_data_type bdata;
-	symphas::init_data_type tdata{ Inside::UNIFORM, { -1, 1 } };
+	symphas::init_data_type tdata(Inside::UNIFORM, { -1, 1 });
 	symphas::interval_data_type vdata;
 	symphas::interval_element_type interval;
 	interval.set_count(128);
@@ -38,7 +36,7 @@ int  main(int argc , char* argv [])
 	pp.set_time_step(dt);
 
 
-	model_EX_t<2, SolverSP> model{ pp };
+	model_EX_t<2, SolverFT<Stencil2d2h<>>> model{ pp };
 	symphas::find_solution(model, dt, 50);
 	auto pfdata = model.grid<0>();
 }

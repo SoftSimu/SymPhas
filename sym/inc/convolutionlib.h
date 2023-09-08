@@ -170,6 +170,7 @@ auto operator*(coeff_t const& a, GaussianSmoothing<U1> const& b)
 
 // ******************************************************************************************************************
 
+#ifdef USING_FFTW
 
 namespace expr
 {
@@ -208,6 +209,16 @@ namespace expr
 			swap(first.in_1, second.in_1);
 			swap(first.p_in_out, second.p_in_out);
 			swap(first.p_out_in, second.p_out_in);
+		}
+
+		void transform_in_out(...) const
+		{
+			symphas::dft::fftw_execute(p_in_out);
+		}
+
+		void transform_out_in(...) const
+		{
+			symphas::dft::fftw_execute(p_out_in);
 		}
 
 		fftw_complex* out_0;		//!< Fourier transform of the given data.
@@ -366,6 +377,22 @@ namespace expr
 			swap(first.p_out_in, second.p_out_in);
 		}
 
+		void transform_in_out_0(...) const
+		{
+			symphas::dft::fftw_execute(p_in_out_0);
+		}
+
+		void transform_in_out_1(...) const
+		{
+			symphas::dft::fftw_execute(p_in_out_1);
+		}
+
+		void transform_out_in(...) const
+		{
+			symphas::dft::fftw_execute(p_out_in);
+		}
+
+
 		~ConvolutionDataPair()
 		{
 			symphas::dft::fftw_destroy_plan(p_out_in);
@@ -511,5 +538,140 @@ namespace expr
 
 }
 
+#else 
+
+namespace expr
+{
+
+	//! Delegation method for computing convolution of different types.
+	/*!
+	 * A computation object for the convolution
+	 * so that the FFTW routines can be used on the data to compute
+	 * from real space to Fourier space and back.
+	 */
+	template<size_t D>
+	struct ConvolutionData
+	{
+		ConvolutionData() : out_0{ 0 }, in_1{ 0 }, p_in_out{ 0 }, p_out_in{ 0 } {}
+
+		template<typename T, typename S>
+		ConvolutionData(T* in_0, S* out_1, len_type* dims, len_type len)
+			: out_0{ new complex_t[len]{} }, in_1{ new complex_t[len]{} } {}
+		template<typename T, typename S>
+		ConvolutionData(Grid<T, D> const& in_0, S* out_1) : ConvolutionData(in_0.values, out_1, in_0.dims, in_0.len) {}
+		template<typename T, typename S>
+		ConvolutionData(T* in_0, Grid<S, D>& out_1) : ConvolutionData(in_0, out_1.values, out_1.dims, out_1.len) {}
+		template<typename T, typename S>
+		ConvolutionData(Grid<T, D> const& in_0, Grid<S, D>& out_1) : ConvolutionData(in_0.values, out_1.values, out_1.dims, out_1.len) {}
+
+		ConvolutionData(ConvolutionData<D> const& other) = delete;
+		ConvolutionData(ConvolutionData<D>&& other)
+		{
+			swap(*this, other);
+		}
+		ConvolutionData<D>& operator=(ConvolutionData<D> const&) = delete;
+
+		friend void swap(ConvolutionData<D>& first, ConvolutionData<D>& second)
+		{
+			using std::swap;
+			swap(first.out_0, second.out_0);
+			swap(first.in_1, second.in_1);
+		}
+
+		template<typename T_0>
+		void transform_in_out(T_0* in_0) const
+		{
+			symphas::dft::long_dft(in_0, out_0);
+		}
+
+		template<typename T_0>
+		void transform_out_in(T_0* out_1) const
+		{
+			symphas::dft::long_dft(in_1, out_1);
+		}
+
+		complex_t* out_0;			//!< Fourier transform of the given data.
+		complex_t* in_1;			//!< Input of Fourier data.
+
+		~ConvolutionData()
+		{
+			delete[] out_0;
+			delete[] in_1;
+		}
+
+	};
+
+	//! Delegation method for computing convolution of different types.
+	/*!
+	 * A computation object for the convolution
+	 * so that the FFTW routines can be used on the data to compute
+	 * from real space to Fourier space and back. Performs convolution when there
+	 * are two input fields and one output field.
+	 */
+	template<size_t D>
+	struct ConvolutionDataPair
+	{
+		ConvolutionDataPair() : out_0{ 0 }, out_1{ 0 }, in_2{ 0 }, p_in_out_0{ 0 }, p_in_out_1{ 0 }, p_out_in{ 0 } {}
+
+		template<typename T_0, typename T_1, typename R>
+		ConvolutionDataPair(T_0* in_0, T_1* in_1, R* out_2, len_type* dims, len_type len)
+			: out_0{ new complex_t[len]{} }, out_1{ new complex_t[len]{} }, in_2{ new complex_t[len]{} } {}
+		template<typename T_0, typename T_1, typename R>
+		ConvolutionDataPair(Grid<T_0, D> const& in_0, Grid<T_1, D> const& in_1, R* out_2) : ConvolutionDataPair(in_0.values, in_1.values, out_2, in_0.dims, in_0.len) {}
+		template<typename T_0, typename T_1, typename R>
+		ConvolutionDataPair(T_0* in_0, T_1* in_1, Grid<R, D>& out_2) : ConvolutionDataPair(in_0, in_1, out_2.values, out_2.dims, out_2.len) {}
+
+		ConvolutionDataPair(ConvolutionDataPair<D> const&) = delete;
+		ConvolutionDataPair(ConvolutionDataPair<D>&& other) : ConvolutionDataPair()
+		{
+			swap(*this, other);
+		}
+		ConvolutionDataPair<D>& operator=(ConvolutionDataPair<D> const&) = delete;
+
+		friend void swap(ConvolutionDataPair<D>& first, ConvolutionDataPair<D>& second)
+		{
+			using std::swap;
+			swap(first.out_0, second.out_0);
+			swap(first.out_1, second.out_1);
+			swap(first.in_2, second.in_2);
+		}
+
+		template<typename T_0>
+		void transform_in_out_0(T_0* in_0) const
+		{
+			symphas::dft::long_dft(in_0, out_0);
+		}
+
+		template<typename T_0>
+		void transform_in_out_1(T_0* in_1) const
+		{
+			symphas::dft::long_dft(in_1, out_1);
+		}
+
+		template<typename T_0>
+		void transform_out_in(T_0* out_2) const
+		{
+			symphas::dft::long_dft(in_2, out_2);
+		}
+
+		~ConvolutionDataPair()
+		{
+			delete[] out_0;
+			delete[] out_1;
+			delete[] in_2;
+		}
+
+		/* for finding the convolution from real space, back into real space, we need
+		 * to first compute it in fourier space
+		 */
+		complex_t* out_0;				//!< Fourier transform of the first given data.
+		complex_t* out_1;				//!< Fourier transform of the second given data.
+		complex_t* in_2;				//!< Input of Fourier data.
+	};
+
+}
+
+
+#endif
 
 

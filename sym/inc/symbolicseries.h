@@ -1051,9 +1051,6 @@ namespace symphas::internal
 	};
 
 
-	using namespace expr::symbols;
-	using namespace expr;
-
 
 
 	template<typename T>
@@ -1096,43 +1093,43 @@ namespace symphas::internal
 	}
 
 	template<int N0, int N1, typename sub_t>
-	auto parse_limit(series_limits_ntn<N0, N1>, sub_t&& sub)
+	auto parse_limit(expr::series_limits_ntn<N0, N1>, sub_t&& sub)
 	{
 		return expr::series_limits(N0, N1);
 	}
 
 	template<int N0, typename I, typename sub_t>
-	auto parse_limit(series_limits_nti<N0, I>, sub_t&& sub)
+	auto parse_limit(expr::series_limits_nti<N0, I>, sub_t&& sub)
 	{
 		return expr::series_limits(N0, I{});
 	}
 
 	template<typename I, int N1, typename sub_t>
-	auto parse_limit(series_limits_itn<I, N1>, sub_t&& sub)
+	auto parse_limit(expr::series_limits_itn<I, N1>, sub_t&& sub)
 	{
 		return expr::series_limits(I{}, N1);
 	}
 
 	template<typename I0, typename I1, typename sub_t>
-	auto parse_limit(series_limits_iti<I0, I1>, sub_t&& sub)
+	auto parse_limit(expr::series_limits_iti<I0, I1>, sub_t&& sub)
 	{
 		return expr::series_limits(I0{}, I1{});
 	}
 
 	template<int N0, typename sub_t>
-	auto parse_limit(series_limits_nte<N0>, sub_t&& sub)
+	auto parse_limit(expr::series_limits_nte<N0>, sub_t&& sub)
 	{
 		return expr::series_limits(DynamicIndex(N0 - 1) + 1, limit_length(std::forward<sub_t>(sub)));
 	}
 
 	template<int N0, int P0, typename sub_t>
-	auto parse_limit(series_limits_ite<expr::symbols::i_<N0, P0>>, sub_t&& sub)
+	auto parse_limit(expr::series_limits_ite<expr::symbols::i_<N0, P0>>, sub_t&& sub)
 	{
 		return expr::series_limits(expr::symbols::i_<N0, P0>{}, limit_length(std::forward<sub_t>(sub)));
 	}
 
 	template<typename S, typename sub_t>
-	auto parse_limit(series_limits_ste<S>, sub_t&& sub)
+	auto parse_limit(expr::series_limits_ste<S>, sub_t&& sub)
 	{
 		return expr::series_limits(S{}, limit_length(std::forward<sub_t>(sub)));
 	}
@@ -1178,16 +1175,16 @@ namespace symphas::internal
 	struct expand_series<
 		std::index_sequence<N0, Ns...>, SymbolicSeries<Op, E, types_list<I0s...>>,
 		types_list<limit_ts...>,
-		types_list<index_neq<i_<I1, P1>, i_<I0, P0>>, Xs...>>
+		types_list<expr::symbols::index_neq<expr::symbols::i_<I1, P1>, expr::symbols::i_<I0, P0>>, Xs...>>
 	{
 		using second_limit_t = std::conditional_t<
 			(N0 > 0),
-			expr::series_limits_itn<i_<I0, P0 + 1>, N0>,
-			expr::series_limits_ite<i_<I0, P0 + 1>>>;
+			expr::series_limits_itn<expr::symbols::i_<I0, P0 + 1>, N0>,
+			expr::series_limits_ite<expr::symbols::i_<I0, P0 + 1>>>;
 
-		using first_t = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I1, P1>>>, 
-			types_list<limit_ts..., expr::series_limits_nti<1, i_<I0, P0 - 1>>>, types_list<Xs...>>;
-		using second_t = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I1, P1>>>,
+		using first_t = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., expr::symbols::i_<I1, P1>>>, 
+			types_list<limit_ts..., expr::series_limits_nti<1, expr::symbols::i_<I0, P0 - 1>>>, types_list<Xs...>>;
+		using second_t = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., expr::symbols::i_<I1, P1>>>,
 			types_list<limit_ts..., second_limit_t>, types_list<Xs...>>;
 
 		using all_types = expand_types_list<typename first_t::all_types, typename second_t::all_types>;
@@ -1215,14 +1212,14 @@ namespace symphas::internal
 	struct expand_series<
 		std::index_sequence<N0, Ns...>, SymbolicSeries<Op, E, types_list<I0s...>>,
 		types_list<limit_ts...>,
-		types_list<index_eq<i_<I1, P1>, i_<I0, P0>>, Xs...>>
+		types_list<expr::symbols::index_eq<expr::symbols::i_<I1, P1>, expr::symbols::i_<I0, P0>>, Xs...>>
 	{
 		using second_limit_t = std::conditional_t<
 			(N0 > 0),
-			expr::series_limits_itn<i_<I0, P0>, N0>,
-			expr::series_limits_ite<i_<I0, P0>>>;
+			expr::series_limits_itn<expr::symbols::i_<I0, P0>, N0>,
+			expr::series_limits_ite<expr::symbols::i_<I0, P0>>>;
 
-		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I1, P1>>>, 
+		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., expr::symbols::i_<I1, P1>>>, 
 			types_list<limit_ts..., second_limit_t>, types_list<Xs...>>;
 
 		using all_types = typename type::all_types;
@@ -1247,16 +1244,16 @@ namespace symphas::internal
 	struct expand_series<
 		std::index_sequence<N0, Ns...>, SymbolicSeries<Op, E, types_list<I0s...>>,
 		types_list<limit_ts...>,
-		types_list<index_neq_N<i_<I0, P0>, M0>, Xs...>>
+		types_list<expr::symbols::index_neq_N<expr::symbols::i_<I0, P0>, M0>, Xs...>>
 	{
 		using second_limit_t = std::conditional_t<
 			(N0 > 0),
 			expr::series_limits_ntn<M0 + 1, N0>,
 			expr::series_limits_nte<M0 + 1>>;
 
-		using first_t = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I0, P0>>>,
+		using first_t = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., expr::symbols::i_<I0, P0>>>,
 			types_list<limit_ts..., expr::series_limits_ntn<1, M0 - 1>>, types_list<Xs...>>;
-		using second_t = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I0, P0>>>,
+		using second_t = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., expr::symbols::i_<I0, P0>>>,
 			types_list<limit_ts..., second_limit_t>, types_list<Xs...>>;
 
 		using all_types = expand_types_list<typename first_t::all_types, typename second_t::all_types>;
@@ -1284,14 +1281,14 @@ namespace symphas::internal
 	struct expand_series<
 		std::index_sequence<N0, Ns...>, SymbolicSeries<Op, E, types_list<I0s...>>,
 		types_list<limit_ts...>,
-		types_list<index_eq_N<i_<I0, P0>, M0>, Xs...>>
+		types_list<expr::symbols::index_eq_N<expr::symbols::i_<I0, P0>, M0>, Xs...>>
 	{
 		using second_limit_t = std::conditional_t<
 			(N0 > 0),
 			expr::series_limits_ntn<M0, N0 + M0 - 1>,
 			expr::series_limits_nte<M0>>;
 
-		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I0, P0>>>,
+		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., expr::symbols::i_<I0, P0>>>,
 			types_list<limit_ts..., second_limit_t>, types_list<Xs...>>;
 
 		using all_types = typename type::all_types;
@@ -1315,14 +1312,14 @@ namespace symphas::internal
 	struct expand_series<
 		std::index_sequence<N0, Ns...>, SymbolicSeries<Op, E, types_list<I0s...>>,
 		types_list<limit_ts...>,
-		types_list<i_<I0, P0>, Xs...>>
+		types_list<expr::symbols::i_<I0, P0>, Xs...>>
 	{
 		using second_limit_t = std::conditional_t<
 			(N0 > 0),
 			expr::series_limits_ntn<1, N0>,
 			expr::series_limits_nte<1>>;
 
-		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I0, P0>>>,
+		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., expr::symbols::i_<I0, P0>>>,
 			types_list<limit_ts..., second_limit_t>, types_list<Xs...>>;
 
 		using all_types = typename type::all_types;
@@ -1346,14 +1343,14 @@ namespace symphas::internal
 	struct expand_series<
 		std::index_sequence<N0, Ns...>, SymbolicSeries<Op, E, types_list<I0s...>>,
 		types_list<limit_ts...>,
-		types_list<index_eq<i_<I0, P0>, OpAdd<Es...>>, Xs...>>
+		types_list<expr::symbols::index_eq<expr::symbols::i_<I0, P0>, OpAdd<Es...>>, Xs...>>
 	{
 		using second_limit_t = std::conditional_t<
 			(N0 > 0),
 			expr::series_limits_stn<OpAdd<Es...>, N0>,
 			expr::series_limits_ste<OpAdd<Es...>>>;
 
-		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I0, P0>>>,
+		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., expr::symbols::i_<I0, P0>>>,
 			types_list<limit_ts..., second_limit_t>, types_list<Xs...>>;
 
 		using all_types = typename type::all_types;
@@ -1377,16 +1374,16 @@ namespace symphas::internal
 	struct expand_series<
 		std::index_sequence<N0, Ns...>, SymbolicSeries<Op, E, types_list<I0s...>>,
 		types_list<limit_ts...>,
-		types_list<index_neq<i_<I0, P0>, OpAdd<Es...>>, Xs...>>
+		types_list<expr::symbols::index_neq<expr::symbols::i_<I0, P0>, OpAdd<Es...>>, Xs...>>
 	{
 		using second_limit_t = std::conditional_t<
 			(N0 > 0),
 			expr::series_limits_stn<OpAdd<OpIdentity, Es...>, N0>,
 			expr::series_limits_ste<OpAdd<OpIdentity, Es...>>>;
 
-		using first_t = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I0, P0>>>,
+		using first_t = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., expr::symbols::i_<I0, P0>>>,
 			types_list<limit_ts..., expr::series_limits_nts<1, OpAdd<Es..., OpNegIdentity>>>, types_list<Xs...>>;
-		using second_t = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I0, P0 + 1>>>,
+		using second_t = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., expr::symbols::i_<I0, P0 + 1>>>,
 			types_list<limit_ts..., second_limit_t>, types_list<Xs...>>;
 
 		using all_types = expand_types_list<typename first_t::all_types, typename second_t::all_types>;
@@ -1414,10 +1411,10 @@ namespace symphas::internal
 	struct expand_series<
 		std::index_sequence<N0, Ns...>, SymbolicSeries<Op, E, types_list<I0s...>>,
 		types_list<limit_ts...>,
-		types_list<symphas::lib::types_list<index_eq<i_<I1, P1>, i_<I00, P00>>, index_eq<i_<I1, P1>, i_<I01, P01>>>, Xs...>>
+		types_list<symphas::lib::types_list<expr::symbols::index_eq<expr::symbols::i_<I1, P1>, expr::symbols::i_<I00, P00>>, expr::symbols::index_eq<expr::symbols::i_<I1, P1>, expr::symbols::i_<I01, P01>>>, Xs...>>
 	{
-		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I1, P1>>>,
-			types_list<limit_ts..., expr::series_limits_iti<i_<I00, P00>, i_<I01, P01>>>, types_list<Xs...>>;
+		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., expr::symbols::i_<I1, P1>>>,
+			types_list<limit_ts..., expr::series_limits_iti<expr::symbols::i_<I00, P00>, expr::symbols::i_<I01, P01>>>, types_list<Xs...>>;
 
 		using all_types = typename type::all_types;
 
@@ -1440,10 +1437,10 @@ namespace symphas::internal
 	struct expand_series<
 		std::index_sequence<N0, Ns...>, SymbolicSeries<Op, E, types_list<I0s...>>,
 		types_list<limit_ts...>,
-		types_list<symphas::lib::types_list<index_eq<i_<I1, P1>, i_<I00, P00>>, index_eq_N<i_<I1, P1>, M1>>, Xs...>>
+		types_list<symphas::lib::types_list<expr::symbols::index_eq<expr::symbols::i_<I1, P1>, expr::symbols::i_<I00, P00>>, expr::symbols::index_eq_N<expr::symbols::i_<I1, P1>, M1>>, Xs...>>
 	{
-		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I1, P1>>>,
-			types_list<limit_ts..., expr::series_limits_itn<i_<I00, P00>, M1>>, types_list<Xs...>>;
+		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., expr::symbols::i_<I1, P1>>>,
+			types_list<limit_ts..., expr::series_limits_itn<expr::symbols::i_<I00, P00>, M1>>, types_list<Xs...>>;
 
 		using all_types = typename type::all_types;
 
@@ -1466,10 +1463,10 @@ namespace symphas::internal
 	struct expand_series<
 		std::index_sequence<N0, Ns...>, SymbolicSeries<Op, E, types_list<I0s...>>,
 		types_list<limit_ts...>,
-		types_list<symphas::lib::types_list<index_eq_N<i_<I1, P1>, M0>, index_eq<i_<I1, P1>, i_<I01, P01>>>, Xs...>>
+		types_list<symphas::lib::types_list<expr::symbols::index_eq_N<expr::symbols::i_<I1, P1>, M0>, expr::symbols::index_eq<expr::symbols::i_<I1, P1>, expr::symbols::i_<I01, P01>>>, Xs...>>
 	{
-		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I1, P1>>>,
-			types_list<limit_ts..., expr::series_limits_nti<M0, i_<I01, P01>>>, types_list<Xs...>>;
+		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., expr::symbols::i_<I1, P1>>>,
+			types_list<limit_ts..., expr::series_limits_nti<M0, expr::symbols::i_<I01, P01>>>, types_list<Xs...>>;
 
 		using all_types = typename type::all_types;
 
@@ -1492,9 +1489,9 @@ namespace symphas::internal
 	struct expand_series<
 		std::index_sequence<N0, Ns...>, SymbolicSeries<Op, E, types_list<I0s...>>,
 		types_list<limit_ts...>,
-		types_list<symphas::lib::types_list<index_eq_N<i_<I1, P1>, M0>, index_eq_N<i_<I1, P1>, M1>>, Xs...>>
+		types_list<symphas::lib::types_list<expr::symbols::index_eq_N<expr::symbols::i_<I1, P1>, M0>, expr::symbols::index_eq_N<expr::symbols::i_<I1, P1>, M1>>, Xs...>>
 	{
-		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I1, P1>>>,
+		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., expr::symbols::i_<I1, P1>>>,
 			types_list<limit_ts..., expr::series_limits_ntn<M0, M1>>, types_list<Xs...>>;
 
 		using all_types = typename type::all_types;
@@ -1518,10 +1515,10 @@ namespace symphas::internal
 	struct expand_series<
 		std::index_sequence<N0, Ns...>, SymbolicSeries<Op, E, types_list<I0s...>>,
 		types_list<limit_ts...>,
-		types_list<symphas::lib::types_list<index_eq<i_<I1, P1>, OpAdd<Es...>>, index_eq<i_<I1, P1>, i_<I01, P01>>>, Xs...>>
+		types_list<symphas::lib::types_list<expr::symbols::index_eq<expr::symbols::i_<I1, P1>, OpAdd<Es...>>, expr::symbols::index_eq<expr::symbols::i_<I1, P1>, expr::symbols::i_<I01, P01>>>, Xs...>>
 	{
-		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I1, P1>>>,
-			types_list<limit_ts..., expr::series_limits_sti<OpAdd<Es...>, i_<I01, P01>>>, types_list<Xs...>>;
+		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., expr::symbols::i_<I1, P1>>>,
+			types_list<limit_ts..., expr::series_limits_sti<OpAdd<Es...>, expr::symbols::i_<I01, P01>>>, types_list<Xs...>>;
 
 		using all_types = typename type::all_types;
 
@@ -1544,10 +1541,10 @@ namespace symphas::internal
 	struct expand_series<
 		std::index_sequence<N0, Ns...>, SymbolicSeries<Op, E, types_list<I0s...>>,
 		types_list<limit_ts...>,
-		types_list<symphas::lib::types_list<index_eq<i_<I1, P1>, i_<I00, P00>>, index_eq<i_<I1, P1>, OpAdd<Es...>>>, Xs...>>
+		types_list<symphas::lib::types_list<expr::symbols::index_eq<expr::symbols::i_<I1, P1>, expr::symbols::i_<I00, P00>>, expr::symbols::index_eq<expr::symbols::i_<I1, P1>, OpAdd<Es...>>>, Xs...>>
 	{
-		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I1, P1>>>,
-			types_list<limit_ts..., expr::series_limits_its<i_<I00, P00>, OpAdd<Es...>>>, types_list<Xs...>>;
+		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., expr::symbols::i_<I1, P1>>>,
+			types_list<limit_ts..., expr::series_limits_its<expr::symbols::i_<I00, P00>, OpAdd<Es...>>>, types_list<Xs...>>;
 
 		using all_types = typename type::all_types;
 
@@ -1570,9 +1567,9 @@ namespace symphas::internal
 	struct expand_series<
 		std::index_sequence<N0, Ns...>, SymbolicSeries<Op, E, types_list<I0s...>>,
 		types_list<limit_ts...>,
-		types_list<symphas::lib::types_list<index_eq<i_<I1, P1>, OpAdd<Es...>>, index_eq_N<i_<I1, P1>, M1>>, Xs...>>
+		types_list<symphas::lib::types_list<expr::symbols::index_eq<expr::symbols::i_<I1, P1>, OpAdd<Es...>>, expr::symbols::index_eq_N<expr::symbols::i_<I1, P1>, M1>>, Xs...>>
 	{
-		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I1, P1>>>,
+		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., expr::symbols::i_<I1, P1>>>,
 			types_list<limit_ts..., expr::series_limits_stn<OpAdd<Es...>, M1>>, types_list<Xs...>>;
 
 		using all_types = typename type::all_types;
@@ -1596,9 +1593,9 @@ namespace symphas::internal
 	struct expand_series<
 		std::index_sequence<N0, Ns...>, SymbolicSeries<Op, E, types_list<I0s...>>,
 		types_list<limit_ts...>,
-		types_list<symphas::lib::types_list<index_eq_N<i_<I1, P1>, M0>, index_eq<i_<I1, P1>, OpAdd<Es...>>>, Xs...>>
+		types_list<symphas::lib::types_list<expr::symbols::index_eq_N<expr::symbols::i_<I1, P1>, M0>, expr::symbols::index_eq<expr::symbols::i_<I1, P1>, OpAdd<Es...>>>, Xs...>>
 	{
-		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I1, P1>>>,
+		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., expr::symbols::i_<I1, P1>>>,
 			types_list<limit_ts..., expr::series_limits_nts<M0, OpAdd<Es...>>>, types_list<Xs...>>;
 
 		using all_types = typename type::all_types;
@@ -1622,9 +1619,9 @@ namespace symphas::internal
 	struct expand_series<
 		std::index_sequence<N0, Ns...>, SymbolicSeries<Op, E, types_list<I0s...>>,
 		types_list<limit_ts...>,
-		types_list<symphas::lib::types_list<index_eq<i_<I1, P1>, OpAdd<E0s...>>, index_eq<i_<I1, P1>, OpAdd<E1s...>>>, Xs...>>
+		types_list<symphas::lib::types_list<expr::symbols::index_eq<expr::symbols::i_<I1, P1>, OpAdd<E0s...>>, expr::symbols::index_eq<expr::symbols::i_<I1, P1>, OpAdd<E1s...>>>, Xs...>>
 	{
-		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., i_<I1, P1>>>,
+		using type = expand_series<std::index_sequence<Ns...>, SymbolicSeries<Op, E, types_list<I0s..., expr::symbols::i_<I1, P1>>>,
 			types_list<limit_ts..., expr::series_limits_sts<OpAdd<E0s...>, OpAdd<E1s...>>>, types_list<Xs...>>;
 
 		using all_types = typename type::all_types;
@@ -2656,12 +2653,12 @@ namespace symphas::internal
 		static const int N = symphas::lib::index_of_value<int, I0, I0s...>;
 		if constexpr (N < 0)
 		{
-			return expr::make_literal(limit._0c) * val<P0>;
+			return expr::make_literal(limit._0c) * expr::val<P0>;
 		}
 		else
 		{
 			auto start = limit_dimension_start(std::integer_sequence<int, I0s...>{}, limits, std::get<size_t(N)>(limits));
-			return expr::make_literal(limit._0c) * (start + val<P0>);
+			return expr::make_literal(limit._0c) * (start + expr::val<P0>);
 		}
 	}
 
@@ -2743,12 +2740,12 @@ namespace symphas::internal
 		static const int N = symphas::lib::index_of_value<int, I1, I0s...>;
 		if constexpr (N < 0)
 		{
-			return expr::make_literal(limit._1c) * val<P1>;
+			return expr::make_literal(limit._1c) * expr::val<P1>;
 		}
 		else
 		{
 			auto end = limit_dimension_end(std::integer_sequence<int, I0s...>{}, limits, std::get<size_t(N)>(limits));
-			return expr::make_literal(limit._1c) * (end + val<P1>);
+			return expr::make_literal(limit._1c) * (end + expr::val<P1>);
 		}
 	}
 

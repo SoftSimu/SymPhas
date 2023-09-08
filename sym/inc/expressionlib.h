@@ -29,7 +29,6 @@
 #include <iterator>
 
 
-#include "grid.h"
 #include "gridfunctions.h"
 #include "gridpair.h"
 #include "expressioniterator.h"

@@ -509,9 +509,9 @@ namespace symphas
 
 		//! Get the index that the file object refers to.
 		/*!
-		 * The index is associated with the data that is read from the file. 
-		 * When this object is used to read data at the given file, the index 
-		 * might be used to get to the correct index data in the file, or it 
+		 * The index is associated with the data that is read from the file.
+		 * When this object is used to read data at the given file, the index
+		 * might be used to get to the correct index data in the file, or it
 		 * might be compared to the index found in the file.
 		 */
 		iter_type get_index() const
@@ -522,14 +522,14 @@ namespace symphas
 		//! Get the name of the file that will be accessed. 
 		/*!
 		 * Get the name of the file that will be accessed. If this is referring
-		 * to checkpoint data, then only the name of the solution directory, 
+		 * to checkpoint data, then only the name of the solution directory,
 		 * that is the one that the `checkpoint` folder is, will be named.
 		 */
 		const char* get_name() const
 		{
 			return name;
 		}
-		
+
 		//! Set the index of the read data.
 		/*!
 		 * Set the index of the read data.
@@ -566,7 +566,7 @@ namespace symphas
 	 * position, the list of dimensions of the system for which
 	 * the initial conditions are being generated, and the dimension of the
 	 * system (the length of the dimensions array).
-	 * 
+	 *
 	 * \tparam F The functor type which is used to generate the initial
 	 * conditions.
 	 */
@@ -644,7 +644,7 @@ namespace symphas
 
 	};
 
-	
+
 	template<typename init_data_functor_specialized>
 	struct init_data_functor_impl : init_data_functor<void>
 	{
@@ -785,9 +785,9 @@ namespace symphas
 	};
 
 	template<typename T, size_t D>
-	init_data_functor(Grid<T, D>)->init_data_functor<Block<T>>;
+	init_data_functor(Grid<T, D>) -> init_data_functor<Block<T>>;
 	template<typename T, size_t D>
-	init_data_functor(BoundaryGrid<T, D>)->init_data_functor<Block<T>>;
+	init_data_functor(BoundaryGrid<T, D>) -> init_data_functor<Block<T>>;
 	template<typename T, size_t D>
 	init_data_functor(RegionalGrid<T, D>) -> init_data_functor<Block<T>>;
 	template<typename T, size_t D>
@@ -797,7 +797,7 @@ namespace symphas
 	template<typename T, size_t D>
 	init_data_functor(RegionalGrid<any_vector_t<T, D>, D>) -> init_data_functor<MultiBlock<D, T>>;
 	template<typename T>
-	init_data_functor(Block<T>)->init_data_functor<Block<T>>;
+	init_data_functor(Block<T>) -> init_data_functor<Block<T>>;
 
 	//! Stores information about a initial condition expression.
 	/*!
@@ -809,7 +809,7 @@ namespace symphas
 	 */
 	struct init_data_expr : init_data_read
 	{
-		init_data_expr(const char* name, const double* coeff, size_t num_coeff) : 
+		init_data_expr(const char* name, const double* coeff, size_t num_coeff) :
 			init_data_read(name), coeff{ (num_coeff > 0) ? new double[num_coeff] : nullptr }, num_coeff{ num_coeff }
 		{
 			std::copy(coeff, coeff + num_coeff, this->coeff);
@@ -825,7 +825,7 @@ namespace symphas
 		//! Set the coefficients for the initial expression.
 		/*!
 		 * Set the coefficients to be used in the initial expression.
-		 * 
+		 *
 		 * \param new_coeff The list of new coefficients to store in this
 		 * object.
 		 * \param new_num_coeff The length of the new list of coefficients.
@@ -837,7 +837,7 @@ namespace symphas
 				delete[] coeff;
 				coeff = new double[new_num_coeff];
 			}
-			
+
 			std::copy(new_coeff, new_coeff + new_num_coeff, coeff);
 			num_coeff = new_num_coeff;
 		}
@@ -922,7 +922,7 @@ namespace symphas
 		/*!
 		 * The default initial condition is disabled.
 		 */
-		init_entry_type() : 
+		init_entry_type() :
 			init_entry_data_type(), in{ Inside::NONE }, intag{ symphas::build_intag(InsideTag::NONE) } {}
 
 		//! Create initial conditions data.
@@ -952,7 +952,7 @@ namespace symphas
 		 * \param intag The modifiers to the initial conditions algorithm.
 		 * \param data Parameters used in generating the initial conditions.
 		 */
-		init_entry_type(Inside in, InsideTag intag, init_data_parameters data) : 
+		init_entry_type(Inside in, InsideTag intag, init_data_parameters data) :
 			init_entry_type(in, symphas::build_intag(intag), data) {}
 
 		//! Create initial conditions data.
@@ -966,7 +966,7 @@ namespace symphas
 		 * algorithm.
 		 * \param data Parameters used in generating the initial conditions.
 		 */
-		init_entry_type(Inside in, init_data_parameters data) : 
+		init_entry_type(Inside in, init_data_parameters data) :
 			init_entry_type(in, InsideTag::DEFAULT, data) {}
 
 		//! Create initial conditions data.
@@ -978,7 +978,7 @@ namespace symphas
 		 * \param in A value representing initial condition generation
 		 * algorithm.
 		 */
-		init_entry_type(Inside in) : 
+		init_entry_type(Inside in) :
 			init_entry_type(in, InsideTag::DEFAULT, init_data_parameters::one()) {}
 
 		//! Create initial conditions data from a file.
@@ -990,7 +990,7 @@ namespace symphas
 		 * algorithm.
 		 * \param file Information about the file.
 		 */
-		init_entry_type(Inside in, init_data_read file) : 
+		init_entry_type(Inside in, init_data_read file) :
 			init_entry_data_type(file), in{ in }, intag{ symphas::build_intag(InsideTag::DEFAULT) } {}
 
 		//! Create initial conditions data from a file.
@@ -1027,7 +1027,7 @@ namespace symphas
 			init_entry_data_type(f.make_copy()), in{ Inside::NONE }, intag{ symphas::build_intag(InsideTag::DEFAULT) } {}
 
 		template<typename F, typename = std::invoke_result_t<F, iter_type, len_type const*, size_t>>
-		init_entry_type(F &&f) : init_entry_type(init_data_functor{ std::forward<F>(f) }) {}
+		init_entry_type(F&& f) : init_entry_type(init_data_functor{ std::forward<F>(f) }) {}
 
 
 		init_entry_type(init_entry_type&& other) noexcept : init_entry_type()
@@ -1063,7 +1063,16 @@ namespace symphas
 
 	void swap(init_entry_type& first, init_entry_type& second);
 
-	using init_data_type = std::map<Axis, init_entry_type>;
+	struct init_data_type : std::map<Axis, init_entry_type>
+	{
+		using parent_type = std::map<Axis, init_entry_type>;
+		using parent_type::parent_type;
+
+		init_data_type(init_entry_type const& tdata) : parent_type({ { Axis::NONE, tdata } }) {}
+		template<typename... Ts>
+		init_data_type(Inside in, Ts&&... args) : init_data_type(init_entry_type(in, std::forward<Ts>(args)...)) {}
+		init_data_type(Inside in, symphas::init_data_parameters const& args) : init_data_type(init_entry_type(in, args)) {}
+	};
 
 	//! From the given string, get the corresponding initial condition.
 	/*!

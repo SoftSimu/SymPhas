@@ -21,6 +21,9 @@
 
 
 #include "spslibfftw.h"
+
+#ifdef USING_FFTW
+
 #include <fftw3.h>
 
 fftw_plan symphas::dft::new_fftw_plan<1, complex_t, complex_t>::operator()(
@@ -136,5 +139,5 @@ void symphas::dft::fftw_free(fftw_complex*& arr)
 	::fftw_free(arr);
 }
 
-
+#endif
 

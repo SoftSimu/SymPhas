@@ -28,6 +28,8 @@
 
 #include "spslibfftw.h"
 
+#ifdef USING_FFTW
+
 namespace symphas::internal
 {
 
@@ -266,6 +268,7 @@ protected:
 	fftw_plan p_in_out[D];
 };
 
+#endif
 
 //! Base type of grids that transform given data and store the result.
 /*!
@@ -312,13 +315,14 @@ protected:
 	S src;
 };
 
-
 template<typename T, size_t D>
 struct FourierGridTarget : Grid<T, D>
 {
 	FourierGridTarget(len_type const* dimensions) : Grid<T, D>(dimensions) {};
 	FourierGridTarget() : Grid<T, D>() {}
 };
+
+#ifdef USING_FFTW
 
 //! Computes and stores a Fourier transform of a given data set.
 /*!
@@ -551,8 +555,26 @@ struct MapGridInverseFourier<any_vector_t<S, D>, any_vector_t<T, D>, D>
 
 };
 
+#else
+template<size_t D, typename S, typename T>
+struct MapGridFourierArg;
+
+template<typename S, typename T, size_t D,
+	template<size_t, typename, typename> typename make_ft_helper = MapGridFourierArg>
+struct MapGridFourier : FourierGridTarget<T, D>
+{
+};
+
+template<typename S, typename T, size_t D>
+struct MapGridInverseFourier : MapGridFourier<S, T, D>
+{
+};
+
+#endif
+
 // ****************************************************************************
 
+#ifdef USING_FFTW
 
 namespace symphas::internal
 {
@@ -663,6 +685,6 @@ void FourierGrid<S, any_vector_t<T, D>, D>::update()
 	}
 }
 
-
+#endif
 
 

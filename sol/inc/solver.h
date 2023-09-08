@@ -30,6 +30,7 @@
 
 #include "expressiontypeincludes.h"
 #include "systemlib.h"
+#include "stencilincludes.h"
 
 
 namespace symphas::internal

@@ -248,14 +248,14 @@ namespace symphas::internal
 			return expr::transpose(std::forward<E>(e));
 		}
 
-		template<NoiseType nt, typename T, size_t D>
+		template<expr::NoiseType nt, typename T, size_t D>
 		decltype(auto) NOISE(symphas::grid_info const& info, const double* dt)
 		{
 			return NoiseData<nt, T, D>(info.get_dims(), info.get_widths(), dt);
 		}
 
-		template<NoiseType nt, typename T, size_t D>
-		decltype(auto) NOISE(symphas::grid_info const& info, region_interval<D> const& region, const double* dt)
+		template<expr::NoiseType nt, typename T, size_t D>
+		decltype(auto) NOISE(symphas::grid_info const& info, grid::region_interval<D> const& region, const double* dt)
 		{
 			len_type dims[D]{};
 			for (iter_type i = 0; i < D; ++i)
@@ -455,6 +455,11 @@ namespace symphas::internal
 		auto param_matrix() const
 		{
 			return model->template param_matrix<N>();
+		}
+
+		auto c(size_t I)
+		{
+			return param(I - 1);
 		}
 
 		template<expr::NoiseType nt, typename T, typename... T0s>

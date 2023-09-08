@@ -1179,10 +1179,10 @@ namespace symphas
 		}
 
         //! Provide the time step used in the solution of the problem.
-		inline void set_time_step(double dt, double time = 0);
+		void set_time_step(double dt, double time = 0);
 
 		//! Provide the time step used in the solution of the problem.
-		inline void set_time_steps(const double* dts, const double* t_dts, size_t dts_len);
+		void set_time_steps(const double* dts, const double* t_dts, size_t dts_len);
 
 		//! Provide the time step used in the solution of the problem.
 		inline void set_time_steps(symphas::time_step_list const& list)

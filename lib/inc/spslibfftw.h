@@ -27,7 +27,7 @@
 
 
 #include "dft.h"
-#include "spslibfftw.h"
+
 
 
 struct fftw_plan_s;
@@ -40,6 +40,9 @@ typedef fftw_plan_s* fftw_plan;
 
 namespace symphas::dft
 {
+
+
+#ifdef USING_FFTW
 
 	/* Subset of FFTW functions used in SymPhas. FFTW is not exposed to
 	 * the whole program, but a limited number of functions are specified
@@ -392,6 +395,7 @@ namespace symphas::dft
 		}
 	};
 
+#endif
 
 	// **************************************************************************************
 
@@ -976,6 +980,8 @@ namespace symphas::dft
 		iterate_complex_dup<T, D>{}(values, std::forward<F>(f), dims);
 	}
 
+#ifdef USING_FFTW
+
 	//! Executes the given plan to compute the Fourier transform.
 	/*!
 	 * An overload that takes an instance of the FFTW plan type and executes it
@@ -987,6 +993,8 @@ namespace symphas::dft
 	{
 		symphas::dft::fftw_execute(p);
 	}
+
+#endif
 	
 	//! Compute the Fouier transform of a `D`-dimensional system.
 	/*!

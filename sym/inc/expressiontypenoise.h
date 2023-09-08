@@ -187,9 +187,11 @@ namespace expr
 
 			if (!fourier_space)
 			{
+#ifdef USING_FFTW
 				auto plan = symphas::dft::new_fftw_plan<D, complex_t, complex_t>{}(values, values, dims, false, true);
 				symphas::dft::fftw_execute(plan);
 				symphas::dft::fftw_destroy_plan(plan);
+#endif
 			}
 			else
 			{

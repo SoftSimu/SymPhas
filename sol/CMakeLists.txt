@@ -76,46 +76,46 @@ if(MODEL_CALL_FUNCTION)
 
 	list(APPEND ADD_DEFINITIONS MODEL_APPLY_CALL=${MODEL_CALL_FUNCTION})
 	message(STATUS "model selection list is defined using definition MODEL_APPLY_CALL set to '${MODEL_CALL_FUNCTION}'")
-
-
-	set(AVAILABLE_DIMENSIONS "2" CACHE STRING "comma separated list of dimensions available to simulate (may dramatically increase compile time and resources)")
-	set(AVAILABLE_STENCILS_BASIC_ONLY ON CACHE BOOL "when true, compile only the basic stencils, otherwise all stencils are compiled including fully auto-generated ones")
-	set(AVAILABLE_STENCILS_AUTOGENERATION OFF CACHE BOOL "generates stencil coefficients during compile time as needed (may dramatically increase compile time and resources)")
-
-	string(REPLACE "," ";" DIMENSION_LIST ${AVAILABLE_DIMENSIONS})
-
-	foreach(DIMENSION ${DIMENSION_LIST})
-		set(AVAILABLE_STENCIL_ACCURACY_${DIMENSION}D "2" CACHE STRING "defines the list of accuracies available for the finite difference stencil in ${DIMENSION}D")
-	endforeach()
-
-
-	if(NOT AVAILABLE_STENCILS_BASIC_ONLY)
-		list(APPEND ADD_DEFINITIONS ALL_STENCILS)
-		message(STATUS "stencils: building with all stencils available")
-	else()
-		message(STATUS "stencils: building with basic stencils")
-	endif()
-	
-	if(AVAILABLE_STENCILS_AUTOGENERATION)
-		list(APPEND ADD_DEFINITIONS GENERATE_UNDEFINED_STENCILS_ON)
-		message(STATUS "stencils: autogenerating required stencils")
-	endif()
-
-	
-	foreach(DIMENSION ${DIMENSION_LIST})
-		string(REPLACE "," ";" ACCURACY_LIST ${AVAILABLE_STENCIL_ACCURACY_${DIMENSION}D})
-		list(APPEND ADD_DEFINITIONS ORDER_LIST_${DIMENSION}D=${AVAILABLE_STENCIL_ACCURACY_${DIMENSION}D})
-		message(STATUS "stencils: available ${DIMENSION}D accuracy is {${ACCURACY_LIST}}")
-		foreach(ACCURACY ${ACCURACY_LIST})
-			list(APPEND ADD_DEFINITIONS ORDER_LIST_${DIMENSION}D_HAS_${ACCURACY}H)
-		endforeach()
-	endforeach()
-
-	list(APPEND ADD_DEFINITIONS AVAILABLE_DIMENSIONS=${AVAILABLE_DIMENSIONS})
-
 else()
 	message(STATUS "model selection tree is not defined because no definition was given to MODEL_APPLY_CALL")
 endif()
+
+
+set(AVAILABLE_DIMENSIONS "2" CACHE STRING "comma separated list of dimensions available to simulate (may dramatically increase compile time and resources)")
+set(AVAILABLE_STENCILS_BASIC_ONLY ON CACHE BOOL "when true, compile only the basic stencils, otherwise all stencils are compiled including fully auto-generated ones")
+set(AVAILABLE_STENCILS_AUTOGENERATION OFF CACHE BOOL "generates stencil coefficients during compile time as needed (may dramatically increase compile time and resources)")
+
+string(REPLACE "," ";" DIMENSION_LIST ${AVAILABLE_DIMENSIONS})
+
+foreach(DIMENSION ${DIMENSION_LIST})
+	set(AVAILABLE_STENCIL_ACCURACY_${DIMENSION}D "2" CACHE STRING "defines the list of accuracies available for the finite difference stencil in ${DIMENSION}D")
+endforeach()
+
+
+if(NOT AVAILABLE_STENCILS_BASIC_ONLY)
+	list(APPEND ADD_DEFINITIONS ALL_STENCILS)
+	message(STATUS "stencils: building with all stencils available")
+else()
+	message(STATUS "stencils: building with basic stencils")
+endif()
+	
+if(AVAILABLE_STENCILS_AUTOGENERATION)
+	list(APPEND ADD_DEFINITIONS GENERATE_UNDEFINED_STENCILS_ON)
+	message(STATUS "stencils: autogenerating required stencils")
+endif()
+
+	
+foreach(DIMENSION ${DIMENSION_LIST})
+	string(REPLACE "," ";" ACCURACY_LIST ${AVAILABLE_STENCIL_ACCURACY_${DIMENSION}D})
+	list(APPEND ADD_DEFINITIONS ORDER_LIST_${DIMENSION}D=${AVAILABLE_STENCIL_ACCURACY_${DIMENSION}D})
+	message(STATUS "stencils: available ${DIMENSION}D accuracy is {${ACCURACY_LIST}}")
+	foreach(ACCURACY ${ACCURACY_LIST})
+		list(APPEND ADD_DEFINITIONS ORDER_LIST_${DIMENSION}D_HAS_${ACCURACY}H)
+	endforeach()
+endforeach()
+
+list(APPEND ADD_DEFINITIONS AVAILABLE_DIMENSIONS=${AVAILABLE_DIMENSIONS})
+
 
 message(STATUS "definitions added to module 'sol' are ${ADD_DEFINITIONS}")
 

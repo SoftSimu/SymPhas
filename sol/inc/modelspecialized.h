@@ -740,7 +740,7 @@ namespace symphas::internal
 	template<size_t N, typename index_t, typename E>
 	constexpr bool is_index_divisible(symphas::lib::types_list<index_t>, OpExpression<E> const& e)
 	{
-		auto [lhs, rhs] = separate_index(index_t{}, *static_cast<E const*>(&e) - val<N>);
+		auto [lhs, rhs] = separate_index(index_t{}, *static_cast<E const*>(&e) - expr::val<N>);
 		return is_index_divisible(rhs / lhs);
 	}
 
@@ -951,7 +951,7 @@ namespace symphas::internal
 		if constexpr (model_num_parameters<model_t>::value > 0)
 		{
 			auto e0 = expr::transform::swap_grid<OpCoeffSwap<expr::symbols::i_<N0, Q0s>>...>
-				(eq, val<size_t(Q0s) + 1>...);
+				(eq, expr::val<size_t(Q0s) + 1>...);
 			return expr::transform::swap_grid<expr::symbols::i_<N0, Q0s>..., expr::symbols::v_id_type<expr::symbols::i_<N0, P0s>>...>
 				(e0, expr::val<size_t(Q0s) + 1>..., model.template op<N + size_t(P0s)>()...);
 		}
@@ -1262,9 +1262,9 @@ struct TraitEquation : parent_trait
 
 	auto param(size_t I) const
 	{
-		if (I < parent_trait::num_coeff)
+		if (I - 1 < parent_trait::num_coeff)
 		{
-			return expr::make_literal(parent_trait::coeff[I]);
+			return expr::make_literal(parent_trait::coeff[I - 1]);
 		}
 		else
 		{
@@ -1277,6 +1277,11 @@ struct TraitEquation : parent_trait
 	{
 		static symphas::internal::param_matrix_factory coeff_matrix(*this, Sn, N);
 		return coeff_matrix;
+	}
+
+	auto c(size_t I) const
+	{
+		return param(I - 1);
 	}
 
     template<expr::NoiseType nt, typename T, typename... T0s>
@@ -1415,9 +1420,9 @@ struct TraitEquation<enclosing_type, symphas::internal::MakeEquation<ArrayModel<
 
 	auto param(size_t I) const
 	{
-		if (I < parent_trait::num_coeff)
+		if (I - 1 < parent_trait::num_coeff)
 		{
-			return expr::make_literal(parent_trait::coeff[I]);
+			return expr::make_literal(parent_trait::coeff[I - 1]);
 		}
 		else
 		{
@@ -1430,6 +1435,11 @@ struct TraitEquation<enclosing_type, symphas::internal::MakeEquation<ArrayModel<
 	{
 		static symphas::internal::param_matrix_factory coeff_matrix(*this, parent_trait::len, N);
 		return coeff_matrix;
+	}
+
+	auto c(size_t I) const
+	{
+		return param(I - 1);
 	}
 
 	template<expr::NoiseType nt, typename T, typename... T0s>
@@ -1653,6 +1663,7 @@ struct TraitProvisionalModel : TraitProvisional<TraitEquationModel, parent_model
 	using parent_type = TraitProvisional<TraitEquationModel, parent_model, P...>; \
 	using parent_type::solver; \
 	using parent_type::parent_type; \
+	using parent_type::c; \
 	auto make_provisionals() { return parent_type::template make_provisionals(__VA_ARGS__); } \
 };
 
@@ -1676,6 +1687,7 @@ struct TraitEquationModel : TraitEquation<TraitEquationModel, parent_trait> \
 	using parent_type::solver; \
 	using parent_type::parent_type; \
 	using parent_type::generate_equations; \
+	using parent_type::c; \
 	using names_t = typename parent_type::names_t; \
 	static const size_t Dm = model_dimension<parent_type>::value; \
 	auto make_equations() const { \
@@ -1763,7 +1775,7 @@ namespace symphas::internal
 					NamedData(SymbolicData(std::get<Ns>(*systems).as_grid()), names_t{}(Ns))
 				))...);
 			
-			return sum(*static_cast<E const*>(&e))
+			return expr::sum(*static_cast<E const*>(&e))
 				.template select<Ls...>(Xs{}...)
 				(([&] (auto) { return list; })(Ls)...);
 		}
@@ -1793,7 +1805,7 @@ namespace symphas::internal
 		{
 			auto list = expr::array_arg(len, NamedData(systems, names_t{}()));
 
-			return sum(*static_cast<E const*>(&e))
+			return expr::sum(*static_cast<E const*>(&e))
 				.template select<Ls...>(Xs{}...)
 				(([&] (auto) { return list; })(Ls)...);
 		}
