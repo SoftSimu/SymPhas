@@ -1114,15 +1114,15 @@ namespace symphas::dft
 	{
 		if constexpr (D == 1)
 		{
-			long_dft(in, out, dims[0], backward);
+			long_dft(in, out, dims[0]);
 		}
 		else if constexpr (D == 2)
 		{
-			long_dft(in, out, dims[0], dims[1], backward);
+			long_dft(in, out, dims[0], dims[1]);
 		}
 		else if constexpr (D == 3)
 		{
-			long_dft(in, out, dims[0], dims[1], dims[2], backward);
+			long_dft(in, out, dims[0], dims[1], dims[2]);
 		}
 	}
 
@@ -1191,15 +1191,15 @@ namespace symphas::dft
 	{
 		if constexpr (D == 1)
 		{
-			long_dft(in, out, dims[0], backward);
+			long_dft(in, out, dims[0]);
 		}
 		else if constexpr (D == 2)
 		{
-			long_dft(in, out, dims[0], dims[1], backward);
+			long_dft(in, out, dims[0], dims[1]);
 		}
 		else if constexpr (D == 3)
 		{
-			long_dft(in, out, dims[0], dims[1], dims[2], backward);
+			long_dft(in, out, dims[0], dims[1], dims[2]);
 		}
 	}
 
