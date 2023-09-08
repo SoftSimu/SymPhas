@@ -552,7 +552,7 @@ namespace expr
 	template<size_t D>
 	struct ConvolutionData
 	{
-		ConvolutionData() : out_0{ 0 }, in_1{ 0 }, p_in_out{ 0 }, p_out_in{ 0 } {}
+		ConvolutionData() : out_0{ 0 }, in_1{ 0 } {}
 
 		template<typename T, typename S>
 		ConvolutionData(T* in_0, S* out_1, len_type* dims, len_type len)
@@ -611,7 +611,7 @@ namespace expr
 	template<size_t D>
 	struct ConvolutionDataPair
 	{
-		ConvolutionDataPair() : out_0{ 0 }, out_1{ 0 }, in_2{ 0 }, p_in_out_0{ 0 }, p_in_out_1{ 0 }, p_out_in{ 0 } {}
+		ConvolutionDataPair() : out_0{ 0 }, out_1{ 0 }, in_2{ 0 } {}
 
 		template<typename T_0, typename T_1, typename R>
 		ConvolutionDataPair(T_0* in_0, T_1* in_1, R* out_2, len_type* dims, len_type len)
