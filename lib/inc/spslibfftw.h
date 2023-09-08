@@ -1114,15 +1114,15 @@ namespace symphas::dft
 	{
 		if constexpr (D == 1)
 		{
-			long_dft(in, out, dims[0]);
+			long_dft(const_cast<scalar_t*>(in), out, dims[0]);
 		}
 		else if constexpr (D == 2)
 		{
-			long_dft(in, out, dims[0], dims[1]);
+			long_dft(const_cast<scalar_t*>(in), out, dims[0], dims[1]);
 		}
 		else if constexpr (D == 3)
 		{
-			long_dft(in, out, dims[0], dims[1], dims[2]);
+			long_dft(const_cast<scalar_t*>(in), out, dims[0], dims[1], dims[2]);
 		}
 	}
 
@@ -1148,15 +1148,15 @@ namespace symphas::dft
 	{
 		if constexpr (D == 1)
 		{
-			long_dft(in, out, dims[0], backward);
+			long_dft(const_cast<complex_t*>(in), out, dims[0], backward);
 		}
 		else if constexpr (D == 2)
 		{
-			long_dft(in, out, dims[0], dims[1], backward);
+			long_dft(const_cast<complex_t*>(in), out, dims[0], dims[1], backward);
 		}
 		else if constexpr (D == 3)
 		{
-			long_dft(in, out, dims[0], dims[1], dims[2], backward);
+			long_dft(const_cast<complex_t*>(in), out, dims[0], dims[1], dims[2], backward);
 		}
 	}
 
@@ -1191,15 +1191,15 @@ namespace symphas::dft
 	{
 		if constexpr (D == 1)
 		{
-			long_dft(out, in, dims[0], true);
+			long_dft(out, const_cast<complex_t*>(in), dims[0], true);
 		}
 		else if constexpr (D == 2)
 		{
-			long_dft(out, in, dims[0], dims[1], true);
+			long_dft(out, const_cast<complex_t*>(in), dims[0], dims[1], true);
 		}
 		else if constexpr (D == 3)
 		{
-			long_dft(out, in, dims[0], dims[1], dims[2], true);
+			long_dft(out, const_cast<complex_t*>(in), dims[0], dims[1], dims[2], true);
 		}
 	}
 
