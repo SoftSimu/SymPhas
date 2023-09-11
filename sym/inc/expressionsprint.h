@@ -136,6 +136,89 @@ namespace expr
 	expr_name_arr(len_type)->expr_name_arr<0>;
 	expr_name_arr(const char*)->expr_name_arr<0>;
 
+	namespace
+	{
+
+		template<typename E = OpVoid>
+		struct limit_data
+		{
+			limit_data(E const& e = E{}, iter_type index = 0, iter_type offset = 0, bool dynamic_index = false) :
+				e{ e }, index{ index }, offset{ offset }, dynamic_index{ dynamic_index } {}
+			limit_data(iter_type index = 0, iter_type offset = 0, bool dynamic_index = false) :
+				e{}, index{ index }, offset{ offset }, dynamic_index{ dynamic_index } {}
+
+			template<typename E0>
+			limit_data<add_result_t<E, E0>> operator+(limit_data<E0> const& other)
+			{
+				return { e + other.e, index + other.index, offset + other.offset };
+			}
+
+			auto operator!() const
+			{
+				return !std::is_same<E, OpVoid>::value;
+			}
+
+			template<typename E0>
+			auto operator>(limit_data<E0> const& other) const
+			{
+				return index > other.index;
+			}
+
+			template<typename E0>
+			auto operator<(limit_data<E0> const& other) const
+			{
+				return index < other.index;
+			}
+
+			E e;
+			iter_type index;
+			iter_type offset;
+			bool dynamic_index;
+		};
+
+		limit_data(iter_type, iter_type)->limit_data<OpVoid>;
+
+
+		auto get_limit_data(DynamicIndex const& index);
+		template<typename V>
+		auto get_limit_data(OpBinaryMul<V, DynamicIndex> const& index);
+
+		inline auto get_limit_data(int index)
+		{
+			return limit_data<OpVoid>(index);
+		}
+
+		template<typename V, int N, int P>
+		auto get_limit_data(OpTerm<V, expr::symbols::i_<N, P>> const& index)
+		{
+			return limit_data<OpTerm<V, expr::symbols::i_<N, 0>>>(expr::coeff(index) * expr::symbols::i_<N, 0>{}, 0, P);
+		}
+
+		template<size_t N>
+		auto get_limit_data(expr::symbols::placeholder_N_symbol_<N>)
+		{
+			return limit_data<expr::symbols::placeholder_N_symbol_<N>>();
+		}
+
+		template<typename E>
+		auto get_limit_data(OpExpression<E> const& e)
+		{
+			return limit_data<OpVoid>(static_cast<E const*>(&e)->eval());
+		}
+
+		template<typename... Es, size_t... Is>
+		auto get_limit_data(OpAdd<Es...> const& e, std::index_sequence<Is...>)
+		{
+			return (get_limit_data(expr::get<Is>(e)) + ...);
+		}
+
+		template<typename... Es, size_t... Is>
+		auto get_limit_data(OpAdd<Es...> const& e)
+		{
+			return get_limit_data(e, std::make_index_sequence<sizeof...(Es)>{});
+		}
+
+	}
 }
 
 
@@ -2627,84 +2710,6 @@ namespace expr
 	namespace
 	{
 
-		template<typename E = OpVoid>
-		struct limit_data
-		{
-			limit_data(E const& e = E{}, iter_type index = 0, iter_type offset = 0, bool dynamic_index = false) : 
-				e{ e }, index{ index }, offset{ offset }, dynamic_index{ dynamic_index } {}
-			limit_data(iter_type index = 0, iter_type offset = 0, bool dynamic_index = false) : 
-				e{}, index { index }, offset{ offset }, dynamic_index{ dynamic_index } {}
-
-			template<typename E0>
-			limit_data<add_result_t<E, E0>> operator+(limit_data<E0> const& other)
-			{
-				return { e + other.e, index + other.index, offset + other.offset };
-			}
-
-			auto operator!() const
-			{
-				return !std::is_same<E, OpVoid>::value;
-			}
-
-			template<typename E0>
-			auto operator>(limit_data<E0> const& other) const
-			{
-				return index > other.index;
-			}
-
-			template<typename E0>
-			auto operator<(limit_data<E0> const& other) const
-			{
-				return index < other.index;
-			}
-
-			E e;
-			iter_type index;
-			iter_type offset;
-			bool dynamic_index;
-		};
-
-		limit_data(iter_type, iter_type)->limit_data<OpVoid>;
-
-
-		auto get_limit_data(DynamicIndex const& index);
-		template<typename V>
-		auto get_limit_data(OpBinaryMul<V, DynamicIndex> const& index);
-
-		inline auto get_limit_data(int index)
-		{
-			return limit_data<OpVoid>(index);
-		}
-
-		template<typename V, int N, int P>
-		auto get_limit_data(OpTerm<V, expr::symbols::i_<N, P>> const& index)
-		{
-			return limit_data<OpTerm<V, expr::symbols::i_<N, 0>>>(expr::coeff(index) * expr::symbols::i_<N, 0>{}, 0, P);
-		}
-
-		template<size_t N>
-		auto get_limit_data(expr::symbols::placeholder_N_symbol_<N>)
-		{
-			return limit_data<expr::symbols::placeholder_N_symbol_<N>>();
-		}
-
-		template<typename E>
-		auto get_limit_data(OpExpression<E> const& e)
-		{
-			return limit_data<OpVoid>(static_cast<E const*>(&e)->eval());
-		}
-
-		template<typename... Es, size_t... Is>
-		auto get_limit_data(OpAdd<Es...> const& e, std::index_sequence<Is...>)
-		{
-			return (get_limit_data(expr::get<Is>(e)) + ...);
-		}
-
-		template<typename... Es, size_t... Is>
-		auto get_limit_data(OpAdd<Es...> const& e)
-		{
-			return get_limit_data(e, std::make_index_sequence<sizeof...(Es)>{});
-		}
 
 		template<typename E>
 		size_t print_limit(FILE* out, limit_data<E> const& e, bool upper = false);
