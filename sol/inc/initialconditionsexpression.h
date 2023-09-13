@@ -134,7 +134,7 @@ struct InitExpression
 		}
 	}
 
-	auto c(size_t I)
+	auto c(size_t I) const
 	{
 		return param(I - 1);
 	}

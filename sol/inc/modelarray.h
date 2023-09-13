@@ -457,7 +457,7 @@ namespace symphas::internal
 			return model->template param_matrix<N>();
 		}
 
-		auto c(size_t I)
+		auto c(size_t I) const
 		{
 			return param(I - 1);
 		}

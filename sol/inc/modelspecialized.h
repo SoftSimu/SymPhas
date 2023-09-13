@@ -1262,9 +1262,9 @@ struct TraitEquation : parent_trait
 
 	auto param(size_t I) const
 	{
-		if (I - 1 < parent_trait::num_coeff)
+		if (I < parent_trait::num_coeff)
 		{
-			return expr::make_literal(parent_trait::coeff[I - 1]);
+			return expr::make_literal(parent_trait::coeff[I]);
 		}
 		else
 		{
@@ -1420,9 +1420,9 @@ struct TraitEquation<enclosing_type, symphas::internal::MakeEquation<ArrayModel<
 
 	auto param(size_t I) const
 	{
-		if (I - 1 < parent_trait::num_coeff)
+		if (I < parent_trait::num_coeff)
 		{
-			return expr::make_literal(parent_trait::coeff[I - 1]);
+			return expr::make_literal(parent_trait::coeff[I]);
 		}
 		else
 		{
