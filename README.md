@@ -517,13 +517,17 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/symphas/install/folder/lib
 If the include and library files were installed to `/usr`, then these arguments can be omitted and `LD_LIBRARY_PATH` does not have to be modified.
 
 If `COMBINE_SHARED` was **enabled** in the CMake configuration step of the installation, only a single link to *SymPhas* needs to be indicated by adding `-lsymphas_all`. 
-This shared library compiles all object files that were used to compile the individual modules, so there is no explicit library dependence. If the driver file is called `main.cpp`, then `g++` is invoked with:
+This shared library compiles all object files that were used to compile the individual modules, so there is no explicit library dependence, except on external DSOs such as `pthread` and potentially `tbb`. 
+
+If the driver file is called `main.cpp`, then `g++` is invoked with:
 
 ```properties
-g++ main.cpp -std=c++17 -I/symphas/install/folder/include -L/symphas/install/folder/lib -lsymphas_all -ltbb
+g++ main.cpp -std=c++17 -I/symphas/install/folder/include -L/symphas/install/folder/lib -lsymphas_all -lpthread
 ```
 
-Note the dependence on the `tbb` library.
+Note the dependence on the `pthread` library. 
+
+> **If this fails due to some linkage to tbb, then include `-ltbb`**.
 
 > The compiler option `-std=c++17` is 
 > included because *SymPhas* requires the C++17 specification. Typically, this is not
