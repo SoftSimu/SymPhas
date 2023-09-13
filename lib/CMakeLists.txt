@@ -20,7 +20,7 @@
 
 find_package(Threads REQUIRED)
 find_package(FFTW3)
-
+find_package(TBB)
 
 include_directories(SYSTEM ${FFTW_INCLUDE_PATH})
 
@@ -43,7 +43,7 @@ set(ENABLE_INLINE_TIMINGS OFF CACHE BOOL "enable collecting the elapsed time of 
 configure_file("inc/names.h.in" "${CMAKE_SOURCE_DIR}/inc/names.h")
 	
 if(NOT MSVC)
-	list(APPEND ADD_LINUX_LIBS tbb m ${CMAKE_THREAD_LIBS_INIT})
+	list(APPEND ADD_LINUX_LIBS m ${CMAKE_THREAD_LIBS_INIT})
 endif()
 
 add_library(symphas_lib_o OBJECT ${SOURCES_LIB})
@@ -61,6 +61,10 @@ endif()
 
 if(FFTW3_FOUND)
 	target_compile_definitions(symphas_lib_o PUBLIC USING_FFTW)
+endif()
+
+if (TBB_FOUND)
+	target_link_libraries(symphas_lib_o PRIVATE TBB::tbb)
 endif()
 
 if(ENABLE_INLINE_TIMINGS)
