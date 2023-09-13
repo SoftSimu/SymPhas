@@ -4353,9 +4353,9 @@ struct OpIdentity : OpExpression<OpIdentity>
 		return 1;
 	}
 
-	constexpr auto operator--(int) const;
-
 #endif
+
+	constexpr auto operator--(int) const;
 
 	constexpr auto operator-() const;
 
