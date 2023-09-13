@@ -683,8 +683,7 @@ MAKE_STENCIL_POINT_LIST(3, 3, 2, (10))
 #define AVAILABLE_DIMENSIONS 2
 #endif
 
-#ifdef GENERATE_UNDEFINED_STENCILS_ON
-#ifdef ALL_STENCILS
+#if defined(GENERATE_UNDEFINED_STENCILS_ON) && defined(ALL_STENCILS)
 
 template<size_t...>
 struct Stencil1d2h :
@@ -755,8 +754,6 @@ struct Stencil3d2h :
 	using base_type::gradlaplacian;
 	using base_type::bilaplacian;
 };
-
-#endif
 
 #else
 
