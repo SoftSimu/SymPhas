@@ -2688,7 +2688,7 @@ namespace symphas::lib
 		template<size_t... Is>
 		decltype(auto) get_data(std::index_sequence<Is...>, iter_type offset = 0) const
 		{
-			return std::tie(std::get<Is>(data)[n + offset]...);
+			return std::tie(*(std::get<Is>(data) + std::ptrdiff_t(n + offset))...);
 		}
 
 		template<size_t... Is>
