@@ -53,10 +53,11 @@ if(USE_VTK)
 	
 	if(${VTK_FOUND})
 		list(APPEND ADD_DEFINITIONS VTK_ON)
+		set(VTK_ON "True")
 		list(APPEND ADD_LIBRARIES ${VTK_LIBRARIES})
 		list(APPEND SOURCES_SOL "${CMAKE_CURRENT_SOURCE_DIR}/src/colormap.cpp")
-
 	else()
+		set(VTK_ON "False")
 		message(STATUS "VTK package not found")
 	endif()
 endif()
@@ -94,14 +95,19 @@ endforeach()
 
 if(NOT AVAILABLE_STENCILS_BASIC_ONLY)
 	list(APPEND ADD_DEFINITIONS ALL_STENCILS)
+	set(ALL_STENCILS "True")
 	message(STATUS "stencils: building with all stencils available")
 else()
+	set(ALL_STENCILS "False")
 	message(STATUS "stencils: building with basic stencils")
 endif()
 	
 if(AVAILABLE_STENCILS_AUTOGENERATION)
 	list(APPEND ADD_DEFINITIONS GENERATE_UNDEFINED_STENCILS_ON)
+	set(GENERATE_UNDEFINED_STENCILS_ON "True")
 	message(STATUS "stencils: autogenerating required stencils")
+else()
+	set(GENERATE_UNDEFINED_STENCILS_ON "False")
 endif()
 
 	
@@ -109,16 +115,20 @@ foreach(DIMENSION ${DIMENSION_LIST})
 	string(REPLACE "," ";" ACCURACY_LIST ${AVAILABLE_STENCIL_ACCURACY_${DIMENSION}D})
 	list(APPEND ADD_DEFINITIONS ORDER_LIST_${DIMENSION}D=${AVAILABLE_STENCIL_ACCURACY_${DIMENSION}D})
 	message(STATUS "stencils: available ${DIMENSION}D accuracy is {${ACCURACY_LIST}}")
+	list(APPEND WRITE_ORDER_DEFINITIONS 
+		"#ifndef ORDER_LIST_${DIMENSION}D\n#define ORDER_LIST_${DIMENSION}D ${AVAILABLE_STENCIL_ACCURACY_${DIMENSION}D}\n#endif\n")
 	foreach(ACCURACY ${ACCURACY_LIST})
 		list(APPEND ADD_DEFINITIONS ORDER_LIST_${DIMENSION}D_HAS_${ACCURACY}H)
+		list(APPEND WRITE_ORDER_ACCURACY_DEFINITIONS 
+			"#ifndef ORDER_LIST_${DIMENSION}D_HAS_${ACCURACY}H\n#define ORDER_LIST_${DIMENSION}D_HAS_${ACCURACY}H\n#endif\n")
 	endforeach()
 endforeach()
 
 list(APPEND ADD_DEFINITIONS AVAILABLE_DIMENSIONS=${AVAILABLE_DIMENSIONS})
-
-
 message(STATUS "definitions added to module 'sol' are ${ADD_DEFINITIONS}")
 
+
+configure_file("inc/stencildefs.h.in" "${CMAKE_SOURCE_DIR}/inc/stencildefs.h")
 
 
 add_library(symphas_sol_o OBJECT ${SOURCES_SOL})

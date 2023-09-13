@@ -32,7 +32,7 @@
 
 #include "stencilh2.h"
 #include "stencilh4.h"
-
+#include "stencildefs.h"
 
 /*!
  * \addtogroup stencil

@@ -1,0 +1,29 @@
+// Header which is configured at build time with basic definitions to support 
+// SymPhas functionality.
+
+#pragma once
+
+
+#ifndef ALL_STENCILS
+#cmakedefine ALL_STENCILS
+#endif
+
+#ifndef GENERATE_UNDEFINED_STENCILS_ON
+#cmakedefine GENERATE_UNDEFINED_STENCILS_ON
+#endif
+
+#ifndef AVAILABLE_DIMENSIONS
+#define AVAILABLE_DIMENSIONS @AVAILABLE_DIMENSIONS@
+#endif
+
+
+
+@WRITE_ORDER_DEFINITIONS@
+@WRITE_ORDER_ACCURACY_DEFINITIONS@
+
+
+#ifndef VTK_ON
+#cmakedefine VTK_ON
+#endif
+
+
