@@ -668,14 +668,14 @@ public:
 
 	template<size_t... Is>
 	grid_info(const double(&intervals)[sizeof...(Is)][2], double width, std::index_sequence<Is...>) :
-		intervals{ { symphas::index_to_axis(Is), interval_element_type(intervals[Is][0], intervals[Is][1], width) }... } {}
+		intervals{ { symphas::index_to_axis(Is), interval_element_type(intervals[Is][0], intervals[Is][1] - width, width) }... } {}
 
 	template<size_t D>
 	grid_info(const double(&intervals)[D][2], double width = 1.) : grid_info(intervals, width, std::make_index_sequence<D>{}) {}
 
 	template<size_t... Is>
 	grid_info(const len_type(&intervals)[sizeof...(Is)][2], std::index_sequence<Is...>) :
-		intervals{ { symphas::index_to_axis(Is), interval_element_type(intervals[Is][0], intervals[Is][1]) }... } {}
+		intervals{ { symphas::index_to_axis(Is), interval_element_type(intervals[Is][0], intervals[Is][1] - 1) }... } {}
 
 	template<size_t D>
 	grid_info(const len_type(&intervals)[D][2]) : grid_info(intervals, std::make_index_sequence<D>{}) {}
@@ -957,22 +957,22 @@ public:
 		return intervals;
 	}
 
-	auto begin() const
+	decltype(auto) begin() const
 	{
 		return intervals.begin();
 	}
 
-	auto end() const
+	decltype(auto) end() const
 	{
 		return intervals.end();
 	}
 
-	auto begin()
+	decltype(auto) begin()
 	{
 		return intervals.begin();
 	}
 
-	auto end()
+	decltype(auto) end()
 	{
 		return intervals.end();
 	}
