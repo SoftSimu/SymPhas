@@ -2401,6 +2401,9 @@ namespace expr
 
 namespace symphas::internal
 {
+
+#ifdef PRINTABLE_EQUATIONS
+
 	template<typename T>
 	void update_dynamic_op_name(T* data, const char* const* names, len_type len)
 	{
@@ -2429,11 +2432,16 @@ namespace symphas::internal
 		update_dynamic_op_name(data, names, index.end() - index.start() + 1);
 		return names;
 	}
+
+#endif
+
 }
 
 
 namespace expr
 {
+
+#ifdef PRINTABLE_EQUATIONS
 
 	//! Gets the string name associated with the data.
 	template<typename G>
@@ -2466,6 +2474,9 @@ namespace expr
 			return a.data.name;
 		}
 	}
+
+#endif
+
 }
 
 
