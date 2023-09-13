@@ -2704,7 +2704,14 @@ void SystemConf::write(const char* savedir, const char* name) const
 	 */
 	for (auto s : params::rawparams)
 	{
-		fprintf(f, CONFIG_PARAM_PREFIX "%s=%s\n", s.first.c_str(), s.second.c_str());
+		if (s.second.size() == 0)
+		{
+			fprintf(f, CONFIG_PARAM_PREFIX "%s\n", s.first.c_str());
+		}
+		else
+		{
+			fprintf(f, CONFIG_PARAM_PREFIX "%s=%s\n", s.first.c_str(), s.second.c_str());
+		}
 	}
 	fprintf(f, "\n");
 	fclose(f);
