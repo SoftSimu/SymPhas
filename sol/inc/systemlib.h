@@ -1476,8 +1476,20 @@ namespace symphas::internal
 		}
 		else
 		{
-			grid::resize_adjust_region(data, ginfo);
-			update_info_for_regional(data, ginfo, info);
+			bool update_region = false;
+			for (auto [ax0, interval0] : ginfo)
+			{
+				auto interval1 = (info->intervals)[ax0];
+				if (interval0.left() != interval1.left() || interval0.right() != interval1.right())
+				{
+					update_region = true;
+				}
+			}
+			if (update_region)
+			{
+				grid::resize_adjust_region(data, ginfo);
+				update_info_for_regional(data, ginfo, info);
+			}
 		}
 	}
 
@@ -1500,6 +1512,20 @@ namespace symphas::internal
 				{
 					data.axis(symphas::index_to_axis(n))[i] = values[i][n];
 				}
+			}
+			bool update_region = false;
+			for (auto [ax0, interval0] : ginfo)
+			{
+				auto interval1 = (info->intervals)[ax0];
+				if (interval0.left() != interval1.left() || interval0.right() != interval1.right())
+				{
+					update_region = true;
+				}
+			}
+			if (update_region)
+			{
+				grid::resize_adjust_region(data, ginfo);
+				update_info_for_regional(data, ginfo, info);
 			}
 			grid::resize_adjust_region(data, ginfo);
 			update_info_for_regional(data, ginfo, info);
