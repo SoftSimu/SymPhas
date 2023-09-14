@@ -181,9 +181,13 @@ The correct cmake configuration needs to be provided in place of `desired_cmake_
 
     cmake -DCMAKE_INSTALL_PREFIX=/path/to/install -DSOLVER_INCLUDE_HEADER_DIR=../examples/solvers -DMODEL_INCLUDE_HEADER_DIR=../examples/models -DSOLVER_INCLUDE_HEADER_NAME=solverinclude.h -DMODEL_INCLUDE_HEADER_NAME=modelinclude.h ..
 
-> If you wish to use *SymPhas* headers and library without specifying the location directly to the compiler everytime they need to be linked, then change `CMAKE_INSTALL_PREFIX` to the primary installation directory of your system. This directory is typically `/usr`. If you do so, it is **recommended that this system installation does not include models or solvers** to ensure that driver files have full control over solvers and models they use. This is particularly important because compiling drivers requires recompiling the associated solvers and/or models.
+> **If you are using CMake for building projects using your installation**: The system installation should not include models or solvers, as these should typically be added through the CMake configuration of the project. 
 
-> Alternatively, it is possible to set up *SymPhas* implementations as individual projects.
+> **If you are using g++ for building projects using your installation**: The solvers and models should be included in the installation so that they become packaged in the `symphas_all` library, and can be used in the current project.
+
+If you wish to use *SymPhas* headers and library without specifying the location directly to the compiler each time, then change `CMAKE_INSTALL_PREFIX` to the primary installation directory of your system. This directory is typically `/usr`. 
+
+> Alternatively, it is possible to set up *SymPhas* implementations as individual projects, that is, without installing and linking to the installation.
 
 Depending on the FFTW installation, CMake might not be able to find the FFTW cmake include directory. In this case, change the above `cmake` command to add the argument pointing to the FFTW installation:
 
@@ -532,6 +536,8 @@ Note the dependence on the `pthread` library.
 > The compiler option `-std=c++17` is 
 > included because *SymPhas* requires the C++17 specification. Typically, this is not
 > the default selection of the compiler so this argument must be explicitly included.
+
+> In some cases, it might be necessary to include `-llibxdrfile` and `-lfftw`.
  
 This will generate an executable `a.out` in the current working directory.
 
@@ -540,6 +546,8 @@ If `COMBINE_SHARED` was **not provided** or is **false** in the CMake configurat
 ```properties
 g++ main.cpp -std=c++17 -I/symphas/install/folder/include -L/symphas/install/folder/lib -lSymPhas -lsymphas_lib -lsymphas_datatypes -lsymphas_sym -lsymphas_sol -ltbb
 ```
+
+> In some cases, it might be necessary to include `-llibxdrfile` and `-lfftw`.
 
 The shared libraries generated for each of the modules of *SymPhas* need to be explicitly linked since they are all used in the driver through the *SymPhas* header. If additional modules were enabled during the installation, then those would also have to be linked even if the driver does not directly use them.
 

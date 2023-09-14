@@ -54,6 +54,7 @@
 
 #pragma warning(pop)
 
+#include <thread>
 
 struct filter_params
 {
