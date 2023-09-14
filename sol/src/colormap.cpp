@@ -55,6 +55,8 @@
 #pragma warning(pop)
 
 #include <thread>
+#include <mutex>
+#include <condition_variable>
 
 struct filter_params
 {
