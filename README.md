@@ -537,7 +537,7 @@ Note the dependence on the `pthread` library.
 > included because *SymPhas* requires the C++17 specification. Typically, this is not
 > the default selection of the compiler so this argument must be explicitly included.
 
-> In some cases, it might be necessary to include `-llibxdrfile` and `-lfftw`.
+> In some cases, it might be necessary to include `-lxdrfile` and `-lfftw`.
  
 This will generate an executable `a.out` in the current working directory.
 
@@ -547,7 +547,7 @@ If `COMBINE_SHARED` was **not provided** or is **false** in the CMake configurat
 g++ main.cpp -std=c++17 -I/symphas/install/folder/include -L/symphas/install/folder/lib -lSymPhas -lsymphas_lib -lsymphas_datatypes -lsymphas_sym -lsymphas_sol -ltbb
 ```
 
-> In some cases, it might be necessary to include `-llibxdrfile` and `-lfftw`.
+> In some cases, it might be necessary to include `-lxdrfile` and `-lfftw`.
 
 The shared libraries generated for each of the modules of *SymPhas* need to be explicitly linked since they are all used in the driver through the *SymPhas* header. If additional modules were enabled during the installation, then those would also have to be linked even if the driver does not directly use them.
 
