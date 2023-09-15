@@ -27,21 +27,8 @@
 
 #include "modelmacros.h"
 
-#define C(N) param_matrix(N)
-
-
-#define cell_params C(6)
-
-
-#define gamma_n_ cell_params(6)
-
-#define lambda_ cell_params(1)
-#define lambda2_(I) (lambda_(I) * lambda_(I))
-
-#define R2 (c(3) * c(3)) //(c(3) * AREA / (Pi * NUM_FIELDS))
-
-//#define R2 (c(3) * c(3))
-//#define R (sqrt(R2))
+#define cell_params param_matrix(1)
+#define gamma_n_ cell_params(1)
 
 #define lambda (c(1))
 #define R (c(3)) //(c(3) * AREA / (Pi * NUM_FIELDS))
@@ -59,18 +46,18 @@
 #define drho dop(2)
 #define rho op(2)
 
-PARAMETERIZED_TYPE(NORMAL_CELL, SCALAR, (lambda, mu, R, kappa, xi, gamma))
-PARAMETERIZED_TYPE(CANCER_CELL, SCALAR, (lambda, mu, R, kappa, xi, gammaC))
+PARAMETERIZED_TYPE(NORMAL_CELL, SCALAR, (gamma))
+PARAMETERIZED_TYPE(CANCER_CELL, SCALAR, (gammaC))
 
 MODEL(CELL_MIGRATION, (MANY(CANCER_CELL, CONFIGURATION), MANY(NORMAL_CELL, CONFIGURATION)),
 	FREE_ENERGY(
 		(EQUATION_OF(ii)(
 			-_2 * DF_(ii) - 
 			(vel * e(2 * Pi * ARRAY(ii)(_nP(1. / tau, t, ii)))
-				+ 60_n * kappa / (xi * lambda_[ii] * lambda_[ii]) * INT(op_ii * grad(op_ii) * SUM(jj != ii)(op_jj * op_jj))) * grad(op_ii)
+				+ 60_n * kappa / (xi * lambda * lambda) * INT(op_ii * grad(op_ii) * SUM(jj != ii)(op_jj * op_jj))) * grad(op_ii)
 			)),		
-		SUM(ii)(gamma_n_[ii] * INT(CELLULAR_FE(op_ii, lambda_[ii])) + mu / (Pi * R2) * pow<2>(Pi * R2 - INT(op_ii * op_ii)))
-		+ INT(SUM(ii, jj != ii)(30_n * kappa / (lambda_[ii] * lambda_[ii]) * op_ii * op_ii * op_jj * op_jj)))
+		SUM(ii)(gamma_n_[ii] * INT(CELLULAR_FE(op_ii, lambda)) + mu / (Pi * R2) * pow<2>(Pi * R2 - INT(op_ii * op_ii)))
+		+ INT(SUM(ii, jj != ii)(30_n * kappa / (lambda * lambda) * op_ii * op_ii * op_jj * op_jj)))
 )
 LINK_WITH_NAME(CELL_MIGRATION, CELL_MODEL)
 DEFINE_MODEL_FIELD_NAMES_FORMAT(CELL_MIGRATION, "\\phi_{%d}")
@@ -80,10 +67,10 @@ MODEL(CELL_MIGRATION_NO_MOTILITY, (MANY(CANCER_CELL, CONFIGURATION), MANY(NORMAL
 	FREE_ENERGY(
 		(EQUATION_OF(ii)(
 			-_2 * DF_(ii) -
-			(60_n * kappa / (xi * lambda_[ii] * lambda_[ii]) * INT(op_ii * grad(op_ii) * SUM(jj != ii)(op_jj * op_jj))) * grad(op_ii)
+			(60_n * kappa / (xi * lambda * lambda) * INT(op_ii * grad(op_ii) * SUM(jj != ii)(op_jj * op_jj))) * grad(op_ii)
 			)),
-		SUM(ii)(gamma_n_[ii] * INT(CELLULAR_FE(op_ii, lambda_[ii])) + mu / (Pi * R2) * pow<2>(Pi * R2 - INT(op_ii * op_ii)))
-		+ INT(SUM(ii, jj != ii)(30_n * kappa / (lambda_[ii] * lambda_[ii]) * op_ii * op_ii * op_jj * op_jj)))
+		SUM(ii)(gamma_n_[ii] * INT(CELLULAR_FE(op_ii, lambda)) + mu / (Pi * R2) * pow<2>(Pi * R2 - INT(op_ii * op_ii)))
+		+ INT(SUM(ii, jj != ii)(30_n * kappa / (lambda * lambda) * op_ii * op_ii * op_jj * op_jj)))
 )
 LINK_WITH_NAME(CELL_MIGRATION_NO_MOTILITY, CELL_MODEL_NO_MOT)
 DEFINE_MODEL_FIELD_NAMES_FORMAT(CELL_MIGRATION_NO_MOTILITY, "\\phi_{%d}")
