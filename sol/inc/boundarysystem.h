@@ -38,9 +38,32 @@
 
 namespace params
 {
+	//! Sets the resize factor for regional grids.
+	/*! 
+	 * Sets the factor by which the minimum iterable area found for a field is expanded to become 
+	 * the regional grid.
+	 */
 	DLLSOL extern double regional_resize_factor;
+
+	//! Sets the resize time for regional grids.
+	/*!
+	 * Sets the time increment at which the regional grid dimensions and position is reevalauted.
+	 */
 	DLLSOL extern double regional_resize_time;
+
+	//! Defines that the original shape found for the regional grid is fixed.
+	/*!
+	 * Defines that the original shape, meaning the precise dimensions of the grid, which is 
+	 * determined from the initial state of the field, will remain fixed throughout the simulation.
+	 * The position will still be reevaluated at the time interval provided by regional_resize_time.
+	 */
 	DLLSOL extern bool regional_resize_is_fixed;
+
+	//! This value is added to the minimum value to get the cutoff.
+	/*!
+	 * The regional grid area is determined by evaluating which elements exceed the cutoff. The
+	 * cutoff is determined by adding this value to the minimum value of the field.
+	 */
 	DLLSOL extern double regional_resize_cutoff_eps;
 
 
@@ -48,7 +71,7 @@ namespace params
 	//! This enumeration is used as `ParamNamesSol << bool`.
 	enum ParamNamesSol
 	{
-		REG_RESIZE_FAC,		//!< See params::regional_resize_factor.
+		REG_RESIZE_FACTOR,	//!< See params::regional_resize_factor.
 		REG_RESIZE_TIME,	//!< See params::regional_resize_time.
 		REG_RESIZE_FIXED,	//!< See params::regional_resize_is_fixed.
 		REG_RESIZE_CUTOFF	//!< See params::regional_resize_cutoff_eps.
@@ -92,7 +115,7 @@ namespace params
 	{
 		switch (param)
 		{
-		case ParamNamesSol::REG_RESIZE_FAC:
+		case ParamNamesSol::REG_RESIZE_FACTOR:
 			regional_resize_factor = value;
 			break;
 		case ParamNamesSol::REG_RESIZE_TIME:

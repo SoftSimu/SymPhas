@@ -1009,19 +1009,26 @@ _SymPhas_ defines a number of program parameters in order to change behaviour of
 - `WRITER` The type of the reader that is used to in processing input files. Possible values are the same as in `READER`.
 - `READER_AND_WRITER` Sets both the `READER` and `WRITER`.
 
+**sol module Parmaeters**
+
+- `REG_RESIZE_FACTOR` Sets the factor by which the minimum iterable area found for a field is expanded to become the regional grid.
+- `REG_RESIZE_TIME` Sets the time increment at which the regional grid dimensions and position reevalauted.
+- `REG_RESIZE_FIXED` Defines that the original shape found for the regional grid is fixed.
+- `REG_RESIZE_CUTOFF` This value is added to the minimum value to get the cutoff used in determining the area of the grid.
+
 To set these parameters, names and values are "appended" to a specific enum value, `PARAMS`. The line `using namespace params;` needs to be written before the parameters are set. The convenient format is used:
 ```
 PARAMS += <NAME> << <VALUE>, ...;
 ```
 
-Additional `<NAME> << <VALUE>` pairs can be added after the comma. An example of setting the 
+Additional `<NAME> << <VALUE>` pairs can be added after the comma. An example of setting single output file behaviour to false, as well as the visualiztion interval to 10, is:
 
 ```cpp
 using namespace params;
 PARAMS += SINGLE_OUTPUT << false, VIZ_INTERVAL << 10;
 ```
 
-This will set single output to false, and the visualization interval to one update every 10 frames.
+This will set single output to false, and the visualization interval to one update every 10 frames, with one call.
 
 In the example driver `functionality`, examples of setting the parameters are provided as shown above.
 
