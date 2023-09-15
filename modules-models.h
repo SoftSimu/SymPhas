@@ -238,7 +238,7 @@ struct model_select
 		}
 
 
-		param_map_type param_map = symphas::build_param_map();
+		param_map_type param_map = symphas::build_params();
 		auto conf = symphas::conf::restore_checkpoint(param_map, dir, start);
 
 		delete[] dir;

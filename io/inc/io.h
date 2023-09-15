@@ -205,24 +205,30 @@ constexpr double XDR_COORD_COMPRESSION = 1E5;
 #define DEFAULT_SAVE_BASE 0
 
 
-//! Values representing the I/O types available.
-/*!
- * The enumeration contains the types of I/O methods which may be
- * selected through the parameters. Specifically, see params::writer and
- * params::reader.
- */
-enum class WriterType 
-{ 
-	GNU, 
-	XDR,
-	COLUMN,
-	MOVIE,
-	CSV
-};
-
-
 namespace symphas
 {
+	//! Values representing the I/O types available.
+	/*!
+	 * The enumeration contains the types of I/O methods which may be
+	 * selected through the parameters. Specifically, see params::writer and
+	 * params::reader.
+	 */
+	enum class IOType
+	{
+		GNU,
+		XDR,
+		COLUMN,
+		MOVIE,
+		CSV
+	};
+
+	enum class RW
+	{
+		READER,
+		WRITER,
+		BOTH
+	};
+
 	//! Contains all functionality related to I/O.
 	/*!
 	 * The functionality implemented by SymPhas to write persistent data and
@@ -247,9 +253,9 @@ namespace params
 	 * The data can be written as data to be read by gnuplot (and the associated
 	 * gnuplot config files) or another writer based on the enum.
 	 * 
-	 * This is equal to WriterType::GNU by default.
+	 * This is equal to IOType::GNU by default.
 	 */
-	DLLIO extern WriterType writer;
+	DLLIO extern symphas::IOType writer;
 
 	//! Picks the I/O reader.
 	/*! 
@@ -257,9 +263,9 @@ namespace params
 	 * another file instead of generating with given initial conditions. See
 	 * params::writer.
 	 * 
-	 * This is equal to WriterType::GNU by default.
+	 * This is equal to IOType::GNU by default.
 	 */
-	DLLIO extern WriterType reader;
+	DLLIO extern symphas::IOType reader;
 
 	//! Use the timestamp as a subdirectory in the output.
 	/*!
@@ -311,7 +317,117 @@ namespace params
 	DLLIO extern int checkpoint_count;
 
 	DLLIO extern bool* single_io_file[2];
-	DLLIO extern WriterType* io_type[2];
+	DLLIO extern symphas::IOType* io_type[2];
+
+
+	//! This enumeration is used as `ParamNamesIO << bool`.
+	enum ParamNamesIO
+	{
+		SINGLE_INPUT,		//!< See params::single_input_file.
+		SINGLE_OUTPUT,		//!< See params::single_output_file.
+		USE_TIMESTAMP,		//!< See params::use_timestamp.
+		PLOTS_ONLY,			//!< See params::plots_only.
+		READER,				//!< To be used with symphas::IOType values.
+		WRITER,				//!< To be used with symphas::IOType values.
+		READER_AND_WRITER	//!< To be used with symphas::IOType values.
+	};
+
+	struct io_param_value
+	{
+		ParamNamesIO param;
+		bool value;
+	};
+
+	struct io_param_reader
+	{
+		ParamNamesIO param;
+		symphas::IOType value;
+	};
+
+	inline io_param_value operator<<(ParamNamesIO param, bool value)
+	{
+		return { param, value };
+	}
+
+	inline io_param_reader operator<<(ParamNamesIO param, symphas::IOType value)
+	{
+		return { param, value };
+	}
+
+	inline void set_param(symphas::RW type, symphas::IOType io)
+	{
+		switch (type)
+		{
+		case symphas::RW::READER:
+			reader = io;
+			break;
+		case symphas::RW::WRITER:
+			writer = io;
+			break;
+		case symphas::RW::BOTH:
+			writer = io;
+			reader = io;
+			break;
+		default:
+			break;
+		}
+	}
+
+	inline void set_param(symphas::IOType io)
+	{
+		set_param(symphas::RW::BOTH, io);
+	}
+
+	inline void set_param(ParamNamesIO param, bool value)
+	{
+		switch (param)
+		{
+		case ParamNamesIO::SINGLE_INPUT:
+			single_input_file = value;
+			break;
+		case ParamNamesIO::SINGLE_OUTPUT:
+			single_output_file = value;
+			break;
+		case ParamNamesIO::USE_TIMESTAMP:
+			use_timestamp = value;
+			break;
+		case ParamNamesIO::PLOTS_ONLY:
+			plots_only = value;
+			break;
+		default:
+			break;
+		}
+	}
+
+	inline void set_param(ParamNamesIO param, symphas::IOType value)
+	{
+		switch (param)
+		{
+		case ParamNamesIO::READER:
+			set_param(symphas::RW::READER, value);
+			break;
+		case ParamNamesIO::WRITER:
+			set_param(symphas::RW::WRITER, value);
+			break;
+		case ParamNamesIO::READER_AND_WRITER:
+			set_param(symphas::RW::BOTH, value);
+			break;
+		default:
+			break;
+		}
+	}
+
+	inline void set_param(io_param_value const& input)
+	{
+		auto [param, value] = input;
+		set_param(param, value);
+	}
+
+	inline void set_param(io_param_reader const& input)
+	{
+		auto [param, value] = input;
+		set_param(param, value);
+	}
 
 }
 

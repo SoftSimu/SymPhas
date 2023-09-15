@@ -20,7 +20,6 @@
 
 #include "prereq.h"
 
-
 #ifdef PRINT_TIMINGS
 DLLMOD double symphas::iteration_time = 0;
 DLLMOD double symphas::init_time = 0;
@@ -61,7 +60,7 @@ void symphas::print_timings(FILE* out)
 
 
 
-param_map_type symphas::build_param_map()
+param_map_type symphas::build_params()
 {
 	param_map_type param_map;
 
@@ -89,7 +88,7 @@ param_map_type symphas::build_param_map()
  * line arguments will be initialized to the given values. The command
  * line parameter list, which gives the mapping between command line keys
  * and program level variables, is initialized using
- * symphas::build_param_map().
+ * symphas::build_params().
  *
  * \param config The name of the configuration file.
  * \param param_list The list of strings containing the key value pairs
@@ -104,12 +103,12 @@ void symphas::init(const char* config, const char* const* param_list, size_t num
 	symphas::Time t;
 #endif
 
-	param_map_type param_map = build_param_map();
-	params::parse_arguments(param_map, param_list, num_params);
+	param_map_type param_map = build_params();
+	params::parse_params(param_map, param_list, num_params);
 
 	if (strchr(config, '=') != NULL || (std::strlen(config) > 2 && config[0] == '-'))
 	{
-		params::parse_arguments(param_map, &config, 1);
+		params::parse_params(param_map, &config, 1);
 	}
 
 #ifdef PRINT_TIMINGS
@@ -137,7 +136,7 @@ void symphas::init(const char* config, const char* const* param_list, size_t num
  * line arguments will be initialized to the given values. The command
  * line parameter list, which gives the mapping between command line keys
  * and program level variables, is initialized using
- * symphas::build_param_map().
+ * symphas::build_params().
  *
  * \param title The name of the solution.
  * \param param_list The list of strings containing the key value pairs
@@ -152,8 +151,13 @@ void symphas::init(const char* title, const char* const* param_list, size_t num_
 	symphas::Time t;
 #endif
 
-	param_map_type param_map = build_param_map();
-	params::parse_arguments(param_map, param_list, num_params);
+	param_map_type param_map = build_params();
+	params::parse_params(param_map, param_list, num_params);
+
+	if (strchr(config, '=') != NULL || (std::strlen(config) > 2 && config[0] == '-'))
+	{
+		params::parse_params(param_map, &config, 1);
+	}
 
 #ifdef PRINT_TIMINGS
 	init_time += t.current_duration();

@@ -984,6 +984,53 @@ The next parameter group, in part, specifies the time evolution characteristics 
    - Valid input is either "YES" or "NO". If nothing is provided, then it is automatically "NO".
 
 
+## Program Parameters
+
+_SymPhas_ defines a number of program parameters in order to change behaviour of various aspects involved in simulating a model. There are a number of parameters, some of which are module-dependent. The current list is:
+
+**Base Parameters**:
+
+- `EXTEND_BOUNDARY` When true, ghost cells are added to the dimensions of a generated system, instead of being incorporated in the total dimensions. That is, if a system is generated of size `128 x 128`, then setting `EXTEND_BOUNDARY` to true will set the memory size of the system to be `134 x 134` (the thickness of the boundary is 3 on each edge). `false` by default.
+- `VIZ_ENABLED` Enables VTK visualization, `false` by default.
+- `VIZ_INTERVAL` Sets the frame interval at which to update the visualization. Setting this value to anything will set `VIZ_ENABLED` to `true` automatically.
+- `VIZ_INDEX` Defines the index of the field to visualize. `0` by default.
+- `INIT_INSIDE_VAL` For initial generation algorithms, defines the interior values use. `1` by default.
+- `INIT_OUTSIDE_VAL` For initial generation algorithms, defines the outer values to use. `-1` by default.
+- `INIT_RAND_VAL` For initial generation algorithms with random variation, typically sets the strength of the randomness. `1` by default.
+- `PARALLELIZATION` Turns parallelization of expression evaluation on or off. `true` by default.
+
+**IO module Parameters**:
+
+- `SINGLE_INPUT` All input is read to a single file, `true` by default.
+- `SINGLE_OUTPUT` All output is put to a single file, `true` by default.
+- `USE_TIMESTAMP` The plotting output will have an additional parent directory named using the timestamp that the plotting output was initialized.
+- `PLOTS_ONLY` Only the plots will be generated. This is only useful when running the simulation through a chosen `MODEL_CALL_FUNCTION` given to the cmake configuration.
+- `READER` The type of the reader that is used to in processing input files. Chosen by values of `symphas::IOType`; either `GNU`, `XDR`, `COLUMN`, `MOVIE`, or `CSV`.
+- `WRITER` The type of the reader that is used to in processing input files. Possible values are the same as in `READER`.
+- `READER_AND_WRITER` Sets both the `READER` and `WRITER`.
+
+To set these parameters, names and values are "appended" to a specific enum value, `PARAMS`. The line `using namespace params;` needs to be written before the parameters are set. The convenient format is used:
+```
+PARAMS += <NAME> << <VALUE>, ...;
+```
+
+Additional `<NAME> << <VALUE>` pairs can be added after the comma. An example of setting the 
+
+```cpp
+using namespace params;
+PARAMS += SINGLE_OUTPUT << false, VIZ_INTERVAL << 10;
+```
+
+This will set single output to false, and the visualization interval to one update every 10 frames.
+
+In the example driver `functionality`, examples of setting the parameters are provided as shown above.
+
+These parameters are typically changed through the command line. In the example driver `simultaneous-config`, the `symphas::init` function initializes program parameters from the command line, as well as the global configuration. This function takes either the configuration name, or if it detects an argument, treats the first argument as a parameter instead.
+
+Calling `symphas::init` with no arguments will print the command line options for changing all the parameters, plus a short description.
+
+
+
 
 
 

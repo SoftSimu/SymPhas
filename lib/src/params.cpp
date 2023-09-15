@@ -148,13 +148,13 @@ void param_map_element::print_help(FILE* out, const char* name) const
 }
 
 
-void params::parse_arguments(param_map_type param_map, const char* args, size_t n)
+void params::parse_params(param_map_type param_map, const char* args, size_t n)
 {
-	parse_arguments(param_map, &args, n);
+	parse_params(param_map, &args, n);
 }
 
 
-void params::parse_arguments(param_map_type param_map, const char* const* args, size_t n)
+void params::parse_params(param_map_type param_map, const char* const* args, size_t n)
 {
 	const char err_msg[] = "command line parameter '%s' cannot be interpreted, skipping...\n";
 
@@ -162,7 +162,7 @@ void params::parse_arguments(param_map_type param_map, const char* const* args, 
 	{
 		if (std::strcmp(args[0], "--" ARGUMENT_HELP_STRING) == 0 || std::strcmp(args[0], ARGUMENT_HELP_STRING) == 0)
 		{
-			print_argument_help(SYMPHAS_INFO, param_map);
+			print_param_help(SYMPHAS_INFO, param_map);
 			exit(0);
 		}
 	}
@@ -253,10 +253,9 @@ void params::parse_arguments(param_map_type param_map, const char* const* args, 
 	}
 }
 
-
-void params::print_argument_help(FILE* out, param_map_type param_map)
+void params::print_param_help(FILE* out, param_map_type param_map)
 {
-	fprintf(out, SYMPHAS_USAGE_MESSAGE);
+	//fprintf(out, SYMPHAS_USAGE_MESSAGE);
 	fprintf(out, SYMPHAS_DESCRIPTION_MESSAGE);
 	fprintf(out, "\n");
 
@@ -264,5 +263,10 @@ void params::print_argument_help(FILE* out, param_map_type param_map)
 	{
 		element.print_help(out, param);
 	}
+}
+
+void params::print_param_help(param_map_type param_map)
+{
+	print_param_help(SYMPHAS_INFO, param_map);
 }
 

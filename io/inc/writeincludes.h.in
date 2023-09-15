@@ -36,7 +36,7 @@
 #include "writexdr.h"
 
 #define XDRW_CASE(FUNCTION) \
-case WriterType::XDR: \
+case IOType::XDR: \
 	symphas::io::xdr:: FUNCTION; \
 	break;
 
@@ -47,16 +47,17 @@ case WriterType::XDR: \
 #define SWITCH_IO_WRITE(FUNCTION) \
 switch (params::writer) \
 { \
-case WriterType::GNU: \
+using symphas::IOType; \
+case IOType::GNU: \
 	symphas::io::gp:: FUNCTION; \
 	break; \
-case WriterType::COLUMN: \
+case IOType::COLUMN: \
 	symphas::io::gp::col:: FUNCTION; \
 	break; \
-case WriterType::MOVIE: \
+case IOType::MOVIE: \
 	symphas::io::gp::mov:: FUNCTION; \
 	break; \
-case WriterType::CSV: \
+case IOType::CSV: \
 	symphas::io::csv:: FUNCTION; \
 	break; \
 XDRW_CASE(FUNCTION) \

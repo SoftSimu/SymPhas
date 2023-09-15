@@ -89,7 +89,7 @@ Conf symphas::conf::make_config(const char* file, param_map_type const& param_ma
 				std::copy(line + start, line + end, param);
 				param[end - start] = '\0';
 
-				params::parse_arguments(param_map, param, 1);
+				params::parse_params(param_map, param, 1);
 
 			}
 		}

@@ -55,8 +55,7 @@ namespace symphas
 	 * 
 	 * If the _io_ module is enabled, it will also add those parameters.
 	 */
-	param_map_type build_param_map();
-
+	param_map_type build_params();
 
 #ifdef PRINT_TIMINGS
 	DLLMOD extern double init_time;
@@ -156,8 +155,48 @@ namespace symphas
 	 * \param num_params The number of command line arguments in the list.
 	 */
 	void init(const char* config, const char* const* param_list, size_t num_params);
+	inline void init(const char* param)
+	{
+		init(param, nullptr, 0);
+	}
+	inline void init()
+	{
+		init("--" ARGUMENT_HELP_STRING);
+	}
 }
 
+
+namespace params
+{
+
+	enum program_params_value
+	{
+		PARAMS
+	};
+
+	inline void operator+=(program_params_value, const char* arg)
+	{
+		params::parse_params(symphas::build_params(), arg);
+	}
+
+	inline void operator+=(program_params_value, std::string const& str)
+	{
+		params::parse_params(symphas::build_params(), str.c_str());
+	}
+
+	template<typename T>
+	void operator+=(program_params_value, T arg)
+	{
+		params::set_param(arg);
+	}
+
+	template<typename T>
+	void operator,(program_params_value, T arg)
+	{
+		params::set_param(arg);
+	}
+
+}
 
 
 // \cond

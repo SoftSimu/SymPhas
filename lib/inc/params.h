@@ -508,16 +508,13 @@ struct param_map_element
  * it must assign.
  * 
  * Once this map is populated, it is given to the function 
- * params::parse_arguments() which initializes all the variables from the
+ * params::parse_params() which initializes all the variables from the
  * command line.
  */
 using param_map_type = std::map<
 	std::string, 
 	param_map_element,
 	symphas::internal::any_case_comparator>;
-
-
-
 
 /* **************************************************************************
  * Parameters and parameter management functionality
@@ -679,6 +676,138 @@ namespace params
 	 */
 	DLLLIB extern std::vector<std::pair<std::string, std::string>> rawparams;
 
+
+	//! This enumeration is used as `ParamNames << "desired value"`.
+	/*!
+	 * This enumeration is used as `ParamNames << "desired value"`, where
+	 * desired value is either a boolean, int or floating point number depending
+	 * on the parameter that is being set.
+	 */
+	enum ParamNames
+	{
+		EXTEND_BOUNDARY,	//!< See params::extend_boundary.
+		VIZ_ENABLED,		//!< See params::viz_enabled.
+		VIZ_INTERVAL,		//!< See params::viz_interval.
+		VIZ_INDEX,			//!< See params::viz_index.
+		INIT_INSIDE_VAL,	//!< See params::init_inside_val.
+		INIT_OUTSIDE_VAL,	//!< See params::init_outside_val.
+		INIT_RAND_VAL,		//!< See params::init_rand_val.
+		PARALLELIZATION		//!< See params::parallelization. Either true or false.
+	};
+
+	struct param_value_flag
+	{
+		ParamNames param;
+		bool value;
+	};
+
+	struct param_value_count
+	{
+		ParamNames param;
+		int value;
+	};
+
+	struct param_value_float
+	{
+		ParamNames param;
+		double value;
+	};
+
+	inline param_value_flag operator<<(ParamNames param, bool value)
+	{
+		return { param, value };
+	}
+
+	inline param_value_count operator<<(ParamNames param, int value)
+	{
+		return { param, value };
+	}
+
+	inline param_value_float operator<<(ParamNames param, double value)
+	{
+		return { param, value };
+	}
+
+	inline void set_param(ParamNames param, bool value)
+	{
+		switch (param)
+		{
+		case ParamNames::EXTEND_BOUNDARY:
+			extend_boundary = value;
+			break;
+		case ParamNames::VIZ_ENABLED:
+			viz_enabled = value;
+			break;
+		case ParamNames::PARALLELIZATION:
+			parallelization = (value) ? symphas::ParallelizationType::PAR : symphas::ParallelizationType::SEQ;
+			break;
+		default:
+			break;
+		}
+	}
+
+	inline void set_param(ParamNames param, int value)
+	{
+		switch (param)
+		{
+		case ParamNames::VIZ_INTERVAL:
+			viz_enabled = true;
+			viz_interval = value;
+			break;
+		case ParamNames::VIZ_INDEX:
+			viz_enabled = true;
+			viz_index = value;
+			break;
+		case ParamNames::INIT_INSIDE_VAL:
+			init_inside_val = value;
+			break;
+		case ParamNames::INIT_OUTSIDE_VAL:
+			init_outside_val = value;
+			break;
+		case ParamNames::INIT_RAND_VAL:
+			init_rand_val = value;
+			break;
+		default:
+			break;
+		}
+	}
+
+	inline void set_param(ParamNames param, double value)
+	{
+		switch (param)
+		{
+		case ParamNames::INIT_INSIDE_VAL:
+			init_inside_val = value;
+			break;
+		case ParamNames::INIT_OUTSIDE_VAL:
+			init_outside_val = value;
+			break;
+		case ParamNames::INIT_RAND_VAL:
+			init_rand_val = value;
+			break;
+		default:
+			break;
+		}
+	}
+
+	inline void set_param(param_value_flag const& input)
+	{
+		auto [param, value] = input;
+		set_param(param, value);
+	}
+
+	inline void set_param(param_value_count const& input)
+	{
+		auto [param, value] = input;
+		set_param(param, value);
+	}
+
+	inline void set_param(param_value_float const& input)
+	{
+		auto [param, value] = input;
+		set_param(param, value);
+	}
+
 	//! Parse the arguments and assign them to the globally linked parameters.
 	/*!
 	 * Parsing arguments requires the number of arguments to parse and the
@@ -709,13 +838,28 @@ namespace params
 	 * \param n The number of provided arguments, which is the length of the  
 	 * list of arguments.
 	 */
-	void parse_arguments(param_map_type param_map, const char* const* args, size_t n);
+	void parse_params(param_map_type param_map, const char* const* args, size_t n);
 
-	//! See params::parse_arguments().
-	void parse_arguments(param_map_type param_map, const char* args, size_t n);
+	//! See params::parse_params().
+	void parse_params(param_map_type param_map, const char* args, size_t n);
+
+	inline void parse_params(param_map_type param_map, const char* args)
+	{
+		parse_params(param_map, &args, 1);
+	}
+
+	template<typename... Ts>
+	void parse_params(param_map_type param_map, const char* arg0, const char* arg1, Ts&&... args)
+	{
+		const char* list[]{ arg0, arg1, std::forward<Ts>(args)... };
+		parse_params(param_map, list, 2 + sizeof...(Ts));
+	}
 
 	//! Print the list of all arguments.
-	void print_argument_help(FILE* out, param_map_type param_map);
+	void print_param_help(FILE* out, param_map_type param_map);
+
+	//! Print the list of all arguments.
+	void print_param_help(param_map_type param_map);
 
 	//! Assign the value of a parameter.
 	/*!

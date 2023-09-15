@@ -42,6 +42,81 @@ namespace params
 	DLLSOL extern double regional_resize_time;
 	DLLSOL extern bool regional_resize_is_fixed;
 	DLLSOL extern double regional_resize_cutoff_eps;
+
+
+
+	//! This enumeration is used as `ParamNamesSol << bool`.
+	enum ParamNamesSol
+	{
+		REG_RESIZE_FAC,		//!< See params::regional_resize_factor.
+		REG_RESIZE_TIME,	//!< See params::regional_resize_time.
+		REG_RESIZE_FIXED,	//!< See params::regional_resize_is_fixed.
+		REG_RESIZE_CUTOFF	//!< See params::regional_resize_cutoff_eps.
+	};
+
+	struct sol_param_flag
+	{
+		ParamNamesSol param;
+		bool value;
+	};
+
+	struct sol_param_value
+	{
+		ParamNamesSol param;
+		double value;
+	};
+
+	inline sol_param_flag operator<<(ParamNamesSol param, bool value)
+	{
+		return { param, value };
+	}
+
+	inline sol_param_value operator<<(ParamNamesSol param, double value)
+	{
+		return { param, value };
+	}
+
+	inline void set_param(ParamNamesSol param, bool value)
+	{
+		switch (param)
+		{
+		case ParamNamesSol::REG_RESIZE_FIXED:
+			regional_resize_is_fixed = value;
+			break;
+		default:
+			break;
+		}
+	}
+
+	inline void set_param(ParamNamesSol param, double value)
+	{
+		switch (param)
+		{
+		case ParamNamesSol::REG_RESIZE_FAC:
+			regional_resize_factor = value;
+			break;
+		case ParamNamesSol::REG_RESIZE_TIME:
+			regional_resize_time = value;
+			break;
+		case ParamNamesSol::REG_RESIZE_CUTOFF:
+			regional_resize_cutoff_eps = value;
+			break;
+		default:
+			break;
+		}
+	}
+
+	inline void set_param(sol_param_flag const& input)
+	{
+		auto [param, value] = input;
+		set_param(param, value);
+	}
+
+	inline void set_param(sol_param_value const& input)
+	{
+		auto [param, value] = input;
+		set_param(param, value);
+	}
 }
 
 #define REGIONAL_GRID_RESIZE_FACTOR params::regional_resize_factor

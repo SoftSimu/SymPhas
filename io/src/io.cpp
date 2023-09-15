@@ -23,53 +23,55 @@
 
 
 template<>
-struct params::param_assign<WriterType> : param_assign_base
+struct params::param_assign<symphas::IOType> : param_assign_base
 {
 	void assign(void* param, const char* value)
 	{
-		*static_cast<WriterType*>(param) = extract_writer(value);
+		*static_cast<symphas::IOType*>(param) = extract_writer(value);
 	}
 
 	size_t print_with_name(FILE* out, void* param, const char* name)
 	{
+		using symphas::IOType;
 		return fprintf(out, "%s=[gnu,xdr,column,movie,csv](default=%s)", name,
-			(*static_cast<WriterType*>(param) == WriterType::GNU) ? "gnu" :
-			(*static_cast<WriterType*>(param) == WriterType::XDR) ? "xdr" :
-			(*static_cast<WriterType*>(param) == WriterType::COLUMN) ? "column" :
-			(*static_cast<WriterType*>(param) == WriterType::MOVIE) ? "movie" :
-			(*static_cast<WriterType*>(param) == WriterType::CSV) ? "csv" : "");
+			(*static_cast<IOType*>(param) == IOType::GNU) ? "gnu" :
+			(*static_cast<IOType*>(param) == IOType::XDR) ? "xdr" :
+			(*static_cast<IOType*>(param) == IOType::COLUMN) ? "column" :
+			(*static_cast<IOType*>(param) == IOType::MOVIE) ? "movie" :
+			(*static_cast<IOType*>(param) == IOType::CSV) ? "csv" : "");
 	}
 
 protected:
 
-	WriterType extract_writer(const char* value)
+	symphas::IOType extract_writer(const char* value)
 	{
+		using symphas::IOType;
 		char* writer_name = new char[std::strlen(value) + 1];
 		symphas::lib::str_trim(writer_name, writer_name);
 		symphas::lib::to_upper(value, writer_name);
 		
 		// The default writer is the GNU matrix writer.
-		WriterType writer = WriterType::GNU;
+		IOType writer = IOType::GNU;
 
 		if (std::strcmp(writer_name, "GNU") == 0)
 		{
-			writer = WriterType::GNU;
+			writer = IOType::GNU;
 		}
 		else if (std::strcmp(writer_name, "XDR") == 0)
 		{
-			writer = WriterType::XDR;
+			writer = IOType::XDR;
 		}
 		else if (std::strcmp(writer_name, "COLUMN") == 0)
 		{
-			writer = WriterType::COLUMN;
+			writer = IOType::COLUMN;
 		}
 		else if (std::strcmp(writer_name, "MOVIE") == 0)
 		{
-			writer = WriterType::MOVIE;
+			writer = IOType::MOVIE;
 		}
 		else if (std::strcmp(writer_name, "CSV") == 0)
 		{
-			writer = WriterType::CSV;
+			writer = IOType::CSV;
 		}
 		else
 		{
@@ -85,15 +87,15 @@ protected:
 
 
 DLLIO bool params::plots_only = false;
-DLLIO WriterType params::writer = WriterType::GNU;
-DLLIO WriterType params::reader = WriterType::GNU;
+DLLIO symphas::IOType params::writer = symphas::IOType::GNU;
+DLLIO symphas::IOType params::reader = symphas::IOType::GNU;
 DLLIO bool params::use_timestamp = true;
 DLLIO bool params::single_output_file = true;
 DLLIO bool params::single_input_file = true;
 DLLIO char* params::checkpoint = nullptr;
 DLLIO int params::checkpoint_count = 10;
 DLLIO bool* params::single_io_file[2] { &params::single_input_file, &params::single_output_file };
-DLLIO WriterType* params::io_type[2] { &params::reader, &params::writer };
+DLLIO symphas::IOType* params::io_type[2] { &params::reader, &params::writer };
 
 bool add_io_params(param_map_type& param_map)
 {
@@ -101,12 +103,12 @@ bool add_io_params(param_map_type& param_map)
 
 	param_map["plots-only"] = { &plots_only, new param_assign<bool>, 'p', 
 		"only outputs plot configuration files, without running the model" };
-	param_map["writer-type"] = { &writer, new param_assign<WriterType>, 'w', 
+	param_map["writer-type"] = { &writer, new param_assign<symphas::IOType>, 'w',
 		"chooses the writer type from 'gnu', 'xdr', 'column', 'movie', or 'csv'; use '-x' to set both reader and writer" };
-	param_map["writer"] = { &writer, new param_assign<WriterType> };
-	param_map["reader-type"] = { &reader, new param_assign<WriterType>, 'r', 
+	param_map["writer"] = { &writer, new param_assign<symphas::IOType> };
+	param_map["reader-type"] = { &reader, new param_assign<symphas::IOType>, 'r',
 		"chooses the writer type from 'gnu', 'xdr', 'column', 'movie', or 'csv'; use '-x' to set both reader and writer" };
-	param_map["reader"] = { &reader, new param_assign<WriterType> };
+	param_map["reader"] = { &reader, new param_assign<symphas::IOType> };
 	param_map["use_timestamp"] = { &use_timestamp, new param_assign<bool>, 't', 
 		"uses the timestamp when generating the output directory" };
 	param_map["single-output_file"] = { &single_output_file, new param_assign<bool>, 'o', 
@@ -126,7 +128,7 @@ bool add_io_params(param_map_type& param_map)
 
 	param_map["io-type"] = {
 		params::io_type,
-		new param_assign_multiple<WriterType, 2>, 'x' };
+		new param_assign_multiple<symphas::IOType, 2>, 'x' };
 
 
 	return true;
