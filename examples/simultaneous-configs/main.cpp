@@ -60,7 +60,7 @@ int main(int argc, char* argv[])
 	model_EX_t<2, SolverFT<Stencil2d2h<5, 9, 6>>> model{ pp };
 	symphas::find_solution(model, dt, 50);
 #		else
-	model_EX_t<2, Solver<void>> model{ pp };
+	model_EX_t<2, GenericSolver<>> model{ pp };
 #		endif
 
 	auto pfdata = model.grid<0>();
@@ -79,7 +79,7 @@ int main(int argc, char* argv[])
 		exit(102);
 	}
 	symphas::init(argv[1], argv + 2, argc - 2);
-
+	
 #	ifdef USING_CONF
 	simulate::initiate(symphas::conf::config().get_model_name(), symphas::conf::config().get_coeff_list(), symphas::conf::config().get_coeff_len());
 #	else
