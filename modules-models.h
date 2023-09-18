@@ -78,7 +78,9 @@ namespace symphas::internal
 	template<size_t D, typename Sp, typename... S>
 	auto initialize_virtual_model(ArrayModel<D, Sp, S...>* model, ModelVirtual<0> const& setup, Conf const& conf)
 	{
-		return ArrayModelVirtual<D, Sp, S...>(setup.dir, conf.save);
+		auto save(conf.save);
+		save.set_start(setup.start);
+		return ArrayModelVirtual<D, Sp, S...>(setup.dir, save);
 	}
 
 	template<typename M, typename... Ts>
@@ -240,6 +242,10 @@ struct model_select
 
 		param_map_type param_map = symphas::build_params();
 		auto conf = symphas::conf::restore_checkpoint(param_map, dir, start);
+
+#ifdef USING_PROC
+		symphas::internal::update_data_stop(conf.save.get_stop());
+#endif
 
 		delete[] dir;
 		return conf;
