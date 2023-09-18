@@ -2053,26 +2053,31 @@ namespace symphas::lib
 		auto& ix = intervals.at(Axis::X);
 		auto& iy = intervals.at(Axis::Y);
 
-		len_type lenx = ix.get_count();
-		len_type leny = iy.get_count();
+		len_type count_x = ix.get_interval_count();
+		len_type count_y = iy.get_interval_count();
 
-		auto dx = ix.length() / lenx;
-		auto dy = iy.length() / leny;
+		len_type len_x = ix.interval_length();
+		len_type len_y = iy.interval_length();
 
-		axis_2d_type* data_x = new axis_2d_type[lenx * leny];
+		auto dx = len_x / count_x;
+		auto dy = len_y / count_y;
+
+		axis_2d_type* data_x = new axis_2d_type[count_x * count_y];
 
 		iter_type n = 0;
 		double y = iy.left();
-		for (iter_type j = 0; j < leny; ++j)
+		for (iter_type j = 0; j < count_y; ++j)
 		{
 			double x = ix.left();
-			for (iter_type i = 0; i < lenx; ++i, ++n)
+			for (iter_type i = 0; i < count_x; ++i, ++n)
 			{
 				data_x[n][0] = x;
 				data_x[n][1] = y;
 				x += dx;
+				x = (x > DOMAIN_Xn) ? x - len_x : (x < DOMAIN_X0) ? x + len_x : x;
 			}
 			y += dy;
+			y = (y > DOMAIN_Yn) ? y - len_y : (y < DOMAIN_Y0) ? y + len_y : y;
 		}
 		return data_x;
 	}
