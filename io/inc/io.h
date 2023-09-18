@@ -71,6 +71,10 @@ namespace symphas::io::gp
 		virtual double get_position(Axis ax, const len_type(&coords)[1]) const = 0;
 		virtual double get_position(Axis ax, std::initializer_list<len_type> const&) const = 0;
 		virtual double get_position(Axis ax, len_type coord) const = 0;
+		virtual bool in_bounds(const len_type(&coords)[3]) const = 0;
+		virtual bool in_bounds(const len_type(&coords)[2]) const = 0;
+		virtual bool in_bounds(const len_type(&coords)[1]) const = 0;
+		virtual bool in_bounds(std::initializer_list<len_type> const&) const = 0;
 		virtual ~gp_plotting_helper() {};
 
 		len_type get_interval_len(Axis ax) const

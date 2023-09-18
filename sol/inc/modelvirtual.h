@@ -122,8 +122,12 @@ struct DataStepper
 		iter_type read_index = symphas::io::read_grid<solver_implicit_t<S>>(rinfo, &ginfo);
 		symphas::internal::update_for_regional(system, ginfo);
 
+		for (auto& [_, interval] : ginfo)
+		{
+			interval.domain_to_interval();
+		}
 
-		symphas::io::read_grid(system.values, rinfo);
+		symphas::io::read_grid(system.values, rinfo, &ginfo);
 		data[system.id].file.set_index(read_index);
 		
 	}

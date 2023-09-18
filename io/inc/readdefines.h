@@ -338,6 +338,7 @@ namespace symphas::io
 
 		int index = -1;
 		symphas::grid_info ginfo = read_header(f, &index);
+		symphas::grid_info ginfo_initial(ginfo);
 
 		auto stride = ginfo.get_stride();
 		auto dims = ginfo.get_dims();
@@ -345,17 +346,19 @@ namespace symphas::io
 		symphas::grid_info ginfo0(ginfo);
 		symphas::grid_info ginfo1(ginfo);
 		
-		if (ginfo_ptr != nullptr)
-		{
-			*ginfo_ptr = ginfo;
-		}
-
 		if (!rinfo.uses_offset())
 		{
 			for (auto& [axis, interval] : ginfo)
 			{
 				interval.set_interval(0, interval.right() - interval.left());
-				interval.domain_to_interval();
+				if (ginfo_ptr == nullptr)
+				{
+					interval.domain_to_interval();
+				}
+				else
+				{
+					interval.set_domain(0, (*ginfo_ptr)[axis].domain_right() - (*ginfo_ptr)[axis].domain_left());
+				}
 			}
 		}
 
@@ -398,7 +401,10 @@ namespace symphas::io
 					if (!rinfo.uses_offset())
 					{
 						ginfo[axis].set_interval(0, interval.right() - interval.left());
-						ginfo[axis].domain_to_interval();
+						if (ginfo_ptr == nullptr)
+						{
+							ginfo[axis].domain_to_interval();
+						}
 					}
 					else
 					{
@@ -416,6 +422,7 @@ namespace symphas::io
 			for (auto& [axis, interval] : ginfo0)
 			{
 				(*ginfo_ptr)[axis].set_interval(interval.left(), interval.right());
+				(*ginfo_ptr)[axis].set_domain(ginfo_initial[axis].domain_left(), ginfo_initial[axis].domain_right());
 			}
 		}
 
