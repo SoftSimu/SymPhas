@@ -277,12 +277,19 @@ struct model_select
 
 	inline bool check_virtual_model(const char* name)
 	{
-		auto sep_it = std::strchr(name, VIRTUAL_MODEL_SEP_KEY_C);
-		if (sep_it != NULL)
+		if (name != nullptr)
 		{
-			char buffer[STR_ARR_LEN(STR(VIRTUAL_MODEL_KEYWORD))]{};
-			std::copy(name, sep_it, buffer);
-			return (std::strcmp(buffer, STR(VIRTUAL_MODEL_KEYWORD)) == 0);
+			auto sep_it = std::strchr(name, VIRTUAL_MODEL_SEP_KEY_C);
+			if (sep_it != NULL)
+			{
+				char buffer[STR_ARR_LEN(STR(VIRTUAL_MODEL_KEYWORD))]{};
+				std::copy(name, sep_it, buffer);
+				return (std::strcmp(buffer, STR(VIRTUAL_MODEL_KEYWORD)) == 0);
+			}
+			else
+			{
+				return false;
+			}
 		}
 		else
 		{
@@ -317,14 +324,21 @@ struct model_select
 	template<template<typename, size_t> typename AppliedSolver, typename... Ts>
 	auto call(const char* name, Ts&& ...args)
 	{
-		if (check_virtual_model(name))
+		if (name != nullptr)
 		{
-			return call_virtual_model<AppliedSolver>(name, std::forward<Ts>(args)...);
+			if (check_virtual_model(name))
+			{
+				return call_virtual_model<AppliedSolver>(name, std::forward<Ts>(args)...);
+			}
+			else
+			{
+				constexpr int last_index = decltype(symphas::internal::model_counter(symphas::internal::model_count_index<MAX_DEFINED_MODELS>{}))::value;
+				return model_call_wrapper<last_index - 1>::call<AppliedSolver>(dimension, stp, name, std::forward<Ts>(args)...);
+			}
 		}
 		else
 		{
-			constexpr int last_index = decltype(symphas::internal::model_counter(symphas::internal::model_count_index<MAX_DEFINED_MODELS>{}))::value;
-			return model_call_wrapper<last_index - 1>::call<AppliedSolver>(dimension, stp, name, std::forward<Ts>(args)...);
+			return 0;
 		}
 	}
 
