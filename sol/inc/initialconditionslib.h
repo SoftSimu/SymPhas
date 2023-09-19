@@ -33,7 +33,7 @@
 #include "gridfunctions.h"
 
 
-//! The width of a distribution when using randomness.
+ //! The width of a distribution when using randomness.
 #define IC_RND_STRENGTH params::init_rand_val
 //! The percentage by which a square may be adjusted when randomly offset.
 #define IC_SQUARE_RND_FACTOR 0.15
@@ -87,6 +87,7 @@ enum class Inside
 	SEEDSCIRCLE,		//!< Values are put into randomly arranged circles.
 	VORONOI,			//!< Generate values in a Voronoi diagram.
 	BUBBLE,				//!< Generate random semi-overlapping circles.
+	SPIRALHEX,			//!< Generate hexagonal pattern but one circle per field, spirally ordered.
 	SIN,				//!< Generate values from the sin function.
 	COS,				//!< Generate values from the sin function.
 	FILE, 				//!< Values are read in from a file.
@@ -108,6 +109,7 @@ Inside::SEEDSCIRCLE,			\
 Inside::SEEDSSQUARE,			\
 Inside::VORONOI,				\
 Inside::BUBBLE,					\
+Inside::SPIRALHEX,				\
 Inside::SIN,					\
 Inside::COS
 
@@ -1119,10 +1121,10 @@ namespace symphas::internal
 
 	//! Generates a list of values distributed around a mean.
 	/*!
-	 * Generates a list of `D`-dimensional values where the values are uniformly 
-	 * distributed around the given `D`-dimensional mean, and the 
+	 * Generates a list of `D`-dimensional values where the values are uniformly
+	 * distributed around the given `D`-dimensional mean, and the
 	 * width of the distribution is scaled.
-	 * 
+	 *
 	 * \tparam T The type of the value which is randomly chosen.
 	 * \tparam D The dimension of elements in the list.
 	 */
@@ -1134,7 +1136,7 @@ namespace symphas::internal
 		//! Generate a given number of random offsets.
 		/*!
 		 * Create \p n random offsets, each with the given means.
-		 * 
+		 *
 		 * \param n The number of offsets to create.
 		 * \param means The mean of each offset.
 		 * \param s The offset from the means, which is multiplied by
@@ -1622,8 +1624,8 @@ namespace symphas::internal
 
 	//! Generates a list of values distributed around 0.
 	/*!
-	 * Generates a list of `D`-dimensional values where the values are uniformly 
-	 * distributed around 0, such that the width of the distribution is equal to 
+	 * Generates a list of `D`-dimensional values where the values are uniformly
+	 * distributed around 0, such that the width of the distribution is equal to
 	 * `D`-dimensional dims and each one scaled.
 	 */
 	template<size_t D>
@@ -1635,7 +1637,7 @@ namespace symphas::internal
 		/*!
 		 * Create \p n point deltas of the prescribed dimension, where each
 		 * point delta is chosen from a range given by the parameter \p dims.
-		 * 
+		 *
 		 * \param n The number of point deltas to generate.
 		 * \param dims The ranges with which each axis of the point is spread.
 		 * \param s The strength applied to the spread.
@@ -1669,7 +1671,7 @@ namespace symphas::internal
 		}
 
 		//! Add a value to each of the random elements.
-		void add_to_all(const double *value)
+		void add_to_all(const double* value)
 		{
 			for (auto& e : points)
 			{
@@ -1714,7 +1716,7 @@ namespace symphas::internal
 			points[i] = value;
 		}
 
-		void add_to_all(const double *value)
+		void add_to_all(const double* value)
 		{
 			for (auto& e : points)
 			{
@@ -1741,7 +1743,7 @@ namespace symphas::internal
 	inline void RandomDeltas<2>::sort()
 	{
 		std::sort(points.begin(), points.end(),
-			[&](auto a, auto b) {
+			[&] (auto a, auto b) {
 				return (a[0] == b[0])
 					? (a[1] < b[1])
 					: (a[0] < b[0]); });
@@ -1751,7 +1753,7 @@ namespace symphas::internal
 	inline void RandomDeltas<3>::sort()
 	{
 		std::sort(points.begin(), points.end(),
-			[&](auto a, auto b) {
+			[&] (auto a, auto b) {
 				return (a[0] == b[0] && a[1] == b[1])
 					? (a[2] < b[2])
 					: ((a[0] == b[0])
@@ -1847,14 +1849,91 @@ namespace symphas::internal
 			+ (cz - uz) * (cz - uz) / (cc * cc) < 1.0;
 	}
 
+	inline bool is_in_square_1_dd(double ux, double aa)
+	{
+		return is_in_square_1(0, ux, aa);
+	}
+
+	inline bool is_in_circle_1_dd(double ux, double aa)
+	{
+		return is_in_circle_1(0, ux, aa);
+	}
+
+	inline bool is_in_square_2_dd(double ux, double aa, double uy, double bb)
+	{
+		return is_in_square_2(0, ux, 0, aa, uy, bb);
+	}
+
+	inline bool is_in_circle_2_dd(double ux, double aa, double uy, double bb)
+	{
+		return is_in_circle_2(0, ux, 0, aa, uy, bb);
+	}
+
+	inline bool is_in_square_3_dd(double ux, double aa, double uy, double bb, double uz, double cc)
+	{
+		return is_in_square_3(0, ux, aa, 0, uy, bb, 0, uz, cc);
+	}
+
+	inline bool is_in_circle_3_dd(double ux, double aa, double uy, double bb, double uz, double cc)
+	{
+		return is_in_circle_3(0, ux, aa, 0, uy, bb, 0, uz, cc);
+	}
 
 
+
+
+	inline bool is_in_square_A_1(double dx, double aa, const len_type(&dims)[1])
+	{
+		dx = dx - dims[0] * std::round(dx / dims[0]);
+		return std::abs(dx) < aa;
+	}
+
+	inline bool is_in_circle_A_1(double dx, double aa, const len_type(&dims)[1])
+	{
+		return is_in_square_A_1(dx, aa, dims);
+	}
+
+	inline bool is_in_square_A_2(double dx, double aa, double dy, double bb, const len_type(&dims)[2])
+	{
+		dx = dx - dims[0] * std::round(dx / dims[0]);
+		dy = dy - dims[1] * std::round(dy / dims[1]);
+		return std::abs(dx) < aa
+			&& std::abs(dy) < bb;
+	}
+
+	inline bool is_in_circle_A_2(double dx, double aa, double dy, double bb, const len_type(&dims)[2])
+	{
+		dx = dx - dims[0] * std::round(dx / dims[0]);
+		dy = dy - dims[1] * std::round(dy / dims[1]);
+		return (dx) * (dx) / (aa * aa)
+			+ (dy) * (dy) / (bb * bb) < 1.0;
+	}
+
+	inline bool is_in_square_A_3(double dx, double aa, double dy, double bb, double dz, double cc, const len_type(&dims)[3])
+	{
+		dx = dx - dims[0] * std::round(dx / dims[0]);
+		dy = dy - dims[1] * std::round(dy / dims[1]);
+		dz = dz - dims[2] * std::round(dz / dims[2]);
+		return std::abs(dx) < aa
+			&& std::abs(dy) < bb
+			&& std::abs(dz) < cc;
+	}
+
+	inline bool is_in_circle_A_3(double dx, double aa, double dy, double bb, double dz, double cc, const len_type(&dims)[3])
+	{
+		dx = dx - dims[0] * std::round(dx / dims[0]);
+		dy = dy - dims[1] * std::round(dy / dims[1]);
+		dz = dz - dims[2] * std::round(dz / dims[2]);
+		return (dx) * (dx) / (aa * aa)
+			+ (dy) * (dy) / (bb * bb)
+			+ (dz) * (dz) / (cc * cc) < 1.0;
+	}
 
 
 
 
 	template<typename Pred>
-	double seeds_1(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
+	double seeds_1(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p,
 		RandomDeltas<1> const* offsets, double seed_val, double field_val)
 	{
 		size_t num_points = static_cast<size_t>(init_data.data.gp[0]);
@@ -1874,8 +1953,8 @@ namespace symphas::internal
 
 
 	template<typename Pred>
-	double seeds_rnd_1(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
-		RandomDeltas<1> const* offsets, RandomOffsets<double, 1> const* values, 
+	double seeds_rnd_1(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p,
+		RandomDeltas<1> const* offsets, RandomOffsets<double, 1> const* values,
 		double seed_val, double field_val, double rnd_offset)
 	{
 		size_t num_points = static_cast<size_t>(init_data.data.gp[0]);
@@ -1895,7 +1974,7 @@ namespace symphas::internal
 
 
 	template<typename Pred>
-	double seeds_A_1(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
+	double seeds_A_1(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p,
 		RandomDeltas<1> const* offsets, RandomOffsets<len_type, 1> const* scales, double seed_val, double field_val)
 	{
 		size_t num_points = static_cast<size_t>(init_data.data.gp[0]);
@@ -1915,7 +1994,7 @@ namespace symphas::internal
 	}
 
 	template<typename Pred>
-	double seeds_A_rnd_1(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
+	double seeds_A_rnd_1(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p,
 		RandomDeltas<1> const* offsets, RandomOffsets<len_type, 1> const* scales, RandomOffsets<double, 1> const* values,
 		double seed_val, double field_val, double rnd_offset)
 	{
@@ -1937,7 +2016,7 @@ namespace symphas::internal
 
 
 	template<typename Pred>
-	double seeds_B_1(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
+	double seeds_B_1(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p,
 		RandomDeltas<1> const* offsets, RandomOffsets<len_type, 1> const* scales, double seed_val, double field_val)
 	{
 		return seeds_A_1(n, dims, init_data, p, offsets, scales, seed_val, field_val);
@@ -1945,8 +2024,8 @@ namespace symphas::internal
 
 
 	template<typename Pred>
-	double seeds_B_rnd_1(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
-		RandomDeltas<1> const* offsets, RandomOffsets<len_type, 1> const* scales, RandomOffsets<double, 1> const* values, 
+	double seeds_B_rnd_1(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p,
+		RandomDeltas<1> const* offsets, RandomOffsets<len_type, 1> const* scales, RandomOffsets<double, 1> const* values,
 		double seed_val, double field_val, double rnd_offset)
 	{
 		return seeds_A_rnd_1(n, dims, init_data, p, offsets, scales, values, rnd_offset, seed_val, field_val);
@@ -1958,7 +2037,7 @@ namespace symphas::internal
 	// ********************************************************************************
 
 	template<typename Pred>
-	double seeds_2(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
+	double seeds_2(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p,
 		RandomDeltas<2> const* offsets, double seed_val, double field_val)
 	{
 		size_t num_points = static_cast<size_t>(init_data.data.gp[0]);
@@ -1986,7 +2065,7 @@ namespace symphas::internal
 
 
 	template<typename Pred>
-	double seeds_rnd_2(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
+	double seeds_rnd_2(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p,
 		RandomDeltas<2> const* offsets, RandomOffsets<double, 1> const* values,
 		double seed_val, double field_val, double rnd_offset)
 	{
@@ -2015,7 +2094,7 @@ namespace symphas::internal
 
 
 	template<typename Pred>
-	double seeds_A_2(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
+	double seeds_A_2(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p,
 		RandomDeltas<2> const* offsets, RandomOffsets<len_type, 2> const* scales, double seed_val, double field_val)
 	{
 		size_t num_points = static_cast<size_t>(init_data.data.gp[0]);
@@ -2042,7 +2121,7 @@ namespace symphas::internal
 	}
 
 	template<typename Pred>
-	double seeds_A_rnd_2(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
+	double seeds_A_rnd_2(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p,
 		RandomDeltas<2> const* offsets, RandomOffsets<len_type, 2> const* scales, RandomOffsets<double, 1> const* values,
 		double seed_val, double field_val, double rnd_offset)
 	{
@@ -2071,7 +2150,7 @@ namespace symphas::internal
 
 
 	template<typename Pred>
-	double seeds_B_2(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
+	double seeds_B_2(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p,
 		RandomDeltas<2> const* offsets, RandomOffsets<len_type, 2> const* scales, double seed_val, double field_val)
 	{
 		auto d = *std::min_element(dims, dims + 2);
@@ -2081,7 +2160,7 @@ namespace symphas::internal
 
 
 	template<typename Pred>
-	double seeds_B_rnd_2(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
+	double seeds_B_rnd_2(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p,
 		RandomDeltas<2> const* offsets, RandomOffsets<len_type, 2> const* scales, RandomOffsets<double, 1> const* values,
 		double seed_val, double field_val, double rnd_offset)
 	{
@@ -2098,7 +2177,7 @@ namespace symphas::internal
 	// ********************************************************************************
 
 	template<typename Pred>
-	double seeds_3(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
+	double seeds_3(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p,
 		RandomDeltas<3> const* offsets, double seed_val, double field_val)
 	{
 		size_t num_points = static_cast<size_t>(init_data.data.gp[0]);
@@ -2129,7 +2208,7 @@ namespace symphas::internal
 
 
 	template<typename Pred>
-	double seeds_rnd_3(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
+	double seeds_rnd_3(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p,
 		RandomDeltas<3> const* offsets, RandomOffsets<double, 1> const* values,
 		double seed_val, double field_val, double rnd_offset)
 	{
@@ -2161,7 +2240,7 @@ namespace symphas::internal
 
 
 	template<typename Pred>
-	double seeds_A_3(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
+	double seeds_A_3(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p,
 		RandomDeltas<3> const* offsets, RandomOffsets<len_type, 3> const* scales, double seed_val, double field_val)
 	{
 		size_t num_points = static_cast<size_t>(init_data.data.gp[0]);
@@ -2191,7 +2270,7 @@ namespace symphas::internal
 	}
 
 	template<typename Pred>
-	double seeds_A_rnd_3(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
+	double seeds_A_rnd_3(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p,
 		RandomDeltas<3> const* offsets, RandomOffsets<len_type, 3> const* scales, RandomOffsets<double, 1> const* values,
 		double seed_val, double field_val, double rnd_offset)
 	{
@@ -2223,7 +2302,7 @@ namespace symphas::internal
 
 
 	template<typename Pred>
-	double seeds_B_3(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
+	double seeds_B_3(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p,
 		RandomDeltas<3> const* offsets, RandomOffsets<len_type, 3> const* scales, double seed_val, double field_val)
 	{
 		auto d = *std::min_element(dims, dims + 3);
@@ -2233,7 +2312,7 @@ namespace symphas::internal
 
 
 	template<typename Pred>
-	double seeds_B_rnd_3(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p, 
+	double seeds_B_rnd_3(iter_type n, len_type const* dims, symphas::init_entry_type const& init_data, Pred p,
 		RandomDeltas<3> const* offsets, RandomOffsets<len_type, 3> const* scales, RandomOffsets<double, 1> const* values,
 		double seed_val, double field_val, double rnd_offset)
 	{
@@ -2307,7 +2386,7 @@ namespace symphas::internal
 	 * When the coverage is 1, the overlap will be about 20% of the radius.
 	 * If the coverage is 0.5, the overlap will be about -125% of the radius (meaning
 	 * bubbles will be generated so they are away from each other).
-	 * 
+	 *
 	 * \param coverage How full the system should be, from 0 to 1.
 	 */
 	double compute_bubble_overlap(double coverage, double R, double ratio);
@@ -2317,7 +2396,7 @@ namespace symphas::internal
 	 * When the coverage is 1, the overlap will vary equal to its magnitude. When
 	 * coverage is small, bubbles are far away from each other and should stay far,
 	 * and the overlap range is fixed to the radius of a bubble.
-	 * 
+	 *
 	 * \param coverage How full the system should be, from 0 to 1.
 	 */
 	double compute_bubble_overlap_range(double coverage, double R, double ratio);
@@ -2408,5 +2487,24 @@ namespace symphas::internal
 	{
 		return get_bubble_positions_3(N, R, max_overlap, overlaps, dims, pos0[0], pos0[1], pos0[2]);
 	}
+
+
+	template<size_t D>
+	void get_num_hex_tiles(len_type(&num_tiles)[D], size_t N, len_type const* dims);
+	template<> void get_num_hex_tiles<1>(len_type(&num_tiles)[1], size_t N, len_type const* dims);
+	template<> void get_num_hex_tiles<2>(len_type(&num_tiles)[2], size_t N, len_type const* dims);
+	template<> void get_num_hex_tiles<3>(len_type(&num_tiles)[3], size_t N, len_type const* dims);
+
+	template<size_t D>
+	symphas::internal::RandomDeltas<D> get_hex_positions(size_t N, len_type const* dims);
+	template<> symphas::internal::RandomDeltas<1> get_hex_positions<1>(size_t N, len_type const* dims);
+	template<> symphas::internal::RandomDeltas<2> get_hex_positions<2>(size_t N, len_type const* dims);
+	template<> symphas::internal::RandomDeltas<3> get_hex_positions<3>(size_t N, len_type const* dims);
+
+	template<size_t D>
+	symphas::internal::RandomDeltas<D> to_spiral_order(symphas::internal::RandomDeltas<D> const& positions, size_t N, len_type const* dims);
+	template<> symphas::internal::RandomDeltas<1> to_spiral_order<1>(symphas::internal::RandomDeltas<1> const& positions, size_t N, len_type const* dims);
+	template<> symphas::internal::RandomDeltas<2> to_spiral_order<2>(symphas::internal::RandomDeltas<2> const& positions, size_t N, len_type const* dims);
+	template<> symphas::internal::RandomDeltas<3> to_spiral_order<3>(symphas::internal::RandomDeltas<3> const& positions, size_t N, len_type const* dims);
 }
 

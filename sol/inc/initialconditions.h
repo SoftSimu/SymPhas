@@ -74,9 +74,14 @@
   * |`CIRCLE`| 			Value are assigned to be the shape of a circle.| `RANDOM`, `A`, `A+RANDOM` |
   * |`HEXAGONAL`| 		Values are assigned into circles arranged in a hexagonal pattern.| `RANDOM` |
   * |`CUBIC`| 			Values are assigned into circles arranged in a cubic pattern.| `RANDOM` |
-  * |\ref initsquare |			Values are assigned to be the shape of a square.| `RANDOM`, `A`, `A+RANDOM` |
+  * |`SQUARE`|			Values are assigned to be the shape of a square.| `RANDOM`, `A`, `A+RANDOM` |
   * |`SQUARESEEDS`| 		Values are put into randomly arranged squares.| `RANDOM`, `A`, `A+RANDOM`, `B`, `B+RANDOM`  |
   * |`CIRCLESEEDS`|		Values are put into randomly arranged circles.| `RANDOM`, `A`, `A+RANDOM`, `B`, `B+RANDOM` |
+  * |`VORONOI`|		A Voronoi crystal is generated.| `FIXEDSEED` `RANDOM`, `FIXEDSEED+RANDOM`, `+VARA`, `+VARB`, `+VARC`,`+VARA+VARB`, `+VARA+VARC` |
+  * |`BUBBLE`|		An arrangement of bubbles is generated.| `FIXEDSEED` `RANDOM`, `FIXEDSEED+RANDOM`, `+VARA`, `+VARB`, `+VARC`,`+VARA+VARB`, `+VARA+VARC` |
+  * |`SPIRALHEX`|		A hexagonal arrangement where each field corresponds to a single point, spirally ordered.| `VARA` |
+  * |`SIN`|		Generate values from the sin function.| `VARA` |
+  * |`COS`|		Generate values from the cos function.| `VARA` |
   * |`FILE`| 			Values are read in from a file.| *None* |
   * |`CHECKPOINT`|		Values are read in from a checkpoint.| *None* |
   * |`NONE`|				Represents no initial condition.| *None* |
@@ -85,7 +90,7 @@
   * |--------|---------------|
   * | `DEFAULT`|	The default initial generation algorithm is chosen.|
   * | `RANDOM`|		The generation is modified to include some kind of randomness.|
-  * | `VARA`|		The A variation is chosen (different from the default variation).|
+  * | `VARA`|		The A variation is chosen (different from the default variation). Usually implies periodic boundaries are taken into account. |
   * | `VARB`|		The B variation is chosen.|
   * | `INVERT`|		The interior and outer values are switched in the generation. <br> (In some algorithms, the generated value is multiplied by -1.)|
   * | `NONE`|	Represents no tag.|
@@ -106,7 +111,7 @@
   * loading from a named file. Typically, we will want to load from a named file.
   * 
   * To load from a named file, the file **must** be in checkpoint format.
-  * When we are using the default WriterType::GNU option, we can load from text files.
+  * When we are using the default IOType::GNU option, we can load from text files.
   * The checkpoint file uses the following format for text files:
   * 
   * ```
@@ -1765,6 +1770,69 @@ struct InitialConditionsAlg<D, Inside::BUBBLE> :
 	symphas::internal::RandomOffsets<scalar_t, 1> values;		//!< Manages a list of random values.
 
 };
+
+//! Fills the system with circles in a hexagonal pattern, one per field and spirally ordered. 
+/*!
+ * Each field using this initial condition will have a circle generated in it corresponding to
+ * a hexagonal arrangement, but the arrangement will be ordered so that the fields correspond
+ * to points in the hexagonal pattern going in a spiral from the center.
+ * The first parameter is the number of hex points to generate, and the number of tiles will always
+ * be rounded up to accommodate odd values so that each field can be populated.
+ * The next two values ar the outer and interior values of the bubble.
+ */
+template<size_t D>
+struct InitialConditionsAlg<D, Inside::SPIRALHEX> :
+	InitialConditionsData<D>
+{
+	using parent_type = InitialConditionsData<D>;
+
+	InitialConditionsAlg(
+		symphas::init_entry_type const& init,
+		symphas::interval_data_type const& vdata,
+		len_type const* dims
+	) :
+		parent_type(init, vdata, dims),
+		N{ size_t(init.data.gp[0]) },
+		I{ get_index() },
+		R{ symphas::internal::compute_bubble_R(vdata, init.data.gp[3], N) }, 
+		offsets{ generate_positions(dims) },
+		tile_dims{}
+	{
+		len_type num_tiles[D]{};
+		symphas::internal::get_num_hex_tiles<D>(num_tiles, N, dims);
+		for (iter_type i = 0; i < D; ++i)
+		{
+			tile_dims[i] = double(dims[i]) / num_tiles[i];
+		}
+
+		//double value_rng[] = { (init.data.gp[1] + init.data.gp[2]) / 2 };
+		//values = symphas::internal::RandomOffsets<scalar_t, 1>(N, value_rng, (init.data.gp[2] - init.data.gp[1]) / 2);
+	}
+
+	auto generate_positions(len_type const* dims) const
+	{
+		static auto positions = symphas::internal::to_spiral_order<D>(
+			symphas::internal::get_hex_positions<D>(N, dims), N, dims);
+		return positions;
+	}
+
+	auto get_index() const
+	{
+		static size_t I0 = 0;
+		return I0++;
+	}
+
+	scalar_t operator[](iter_type) const override;
+
+	size_t N;													//!< Number of regions.
+	size_t I;													//!< Index in the hexagonal grid
+	double R;													//!< Radius of the circles
+	symphas::internal::RandomDeltas<D> offsets;					//!< Manages a list of random offsets.
+	double tile_dims[D];
+	//symphas::internal::RandomOffsets<scalar_t, 1> values;		//!< Manages a list of random values.
+
+};
+
 
 template<size_t D>
 struct InitialConditionsAlg<D, Inside::SIN> :

@@ -1031,12 +1031,12 @@ SystemConf::SystemConf(std::vector<std::pair<std::string, std::string>> params, 
 	 */
 	auto b_spec = new char* [6];
 	auto r_spec = new char* [3];
-	char in_spec[BUFFER_LENGTH];
-	char save_spec[BUFFER_LENGTH];
-	char model_spec[BUFFER_LENGTH_L3];
-	char original_dir[BUFFER_LENGTH_L4];
-	char width_spec[BUFFER_LENGTH];
-	char dt_spec[BUFFER_LENGTH];
+	char in_spec[BUFFER_LENGTH]{};
+	char save_spec[BUFFER_LENGTH]{};
+	char model_spec[BUFFER_LENGTH_L3]{};
+	char original_dir[BUFFER_LENGTH_L4]{};
+	char width_spec[BUFFER_LENGTH]{};
+	char dt_spec[BUFFER_LENGTH]{};
 	int stop_index = 0;
 
 	for (iter_type i = 0; i < 6; ++i)
@@ -1552,11 +1552,19 @@ symphas::init_entry_type get_initial_condition_entry(char* input, size_t dimensi
 		}
 		case Inside::BUBBLE:
 		{
-			init.data.gp[0] = 50;		// The number of bubbles to fill
+			init.data.gp[0] = 1;		// The number of bubbles to fill
 			init.data.gp[1] = -1;		// lower range
 			init.data.gp[2] = 1;		// upper range
 			init.data.gp[3] = .75;		// The filling ratio
 			init.data.gp[4] = 1;		// THe overlap ratio
+			break;
+		}
+		case Inside::SPIRALHEX:
+		{
+			init.data.gp[0] = 1;		// The number of hexes to fill
+			init.data.gp[1] = -1;		// lower range
+			init.data.gp[2] = 1;		// upper range
+			init.data.gp[3] = 1;		// size of the circle
 			break;
 		}
 		default:
@@ -1729,6 +1737,11 @@ symphas::init_entry_type get_initial_condition_entry(char* input, size_t dimensi
 	case Inside::BUBBLE:
 	{
 		message_unset(5);
+		break;
+	}
+	case Inside::SPIRALHEX:
+	{
+		message_unset(4);
 		break;
 	}
 	default:

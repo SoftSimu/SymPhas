@@ -104,6 +104,9 @@ std::map<const char*, Inside, symphas::internal::any_case_comparator> symphas::i
 	{"BUBBLES", Inside::BUBBLE},
 	{"BUBBLE", Inside::BUBBLE},
 	{"BB", Inside::BUBBLE},
+	{"SPIRALHEX", Inside::SPIRALHEX},
+	{"SPIRAL", Inside::SPIRALHEX},
+	{"SH", Inside::SPIRALHEX},
 	{"SIN", Inside::SIN},
 	{"COS", Inside::COS},
 	{"EXPRESSION", Inside::EXPRESSION}
@@ -463,4 +466,299 @@ namespace symphas::internal
 	}
 
 
+
+	template<>
+	inline void get_num_hex_tiles<1>(len_type(&num_tiles)[1], size_t N, len_type const* dims)
+	{
+		len_type tile_count = 2;
+		num_tiles[0] = N / tile_count;
+	}
+
+	template<>
+	inline void get_num_hex_tiles<2>(len_type(&num_tiles)[2], size_t N, len_type const* dims)
+	{
+		len_type element_tile_count = 4;
+		double tile_count = std::ceil(N / double(element_tile_count));
+		double y_ratio = dims[1] / double(dims[0]);
+
+		len_type num_tiles_x = len_type(std::sqrt(tile_count / y_ratio));
+		len_type num_tiles_y = len_type(std::ceil(tile_count / num_tiles_x));
+
+		num_tiles[0] = num_tiles_x;
+		num_tiles[1] = num_tiles_y;
+	}
+
+	template<>
+	inline void get_num_hex_tiles<3>(len_type(&num_tiles)[3], size_t N, len_type const* dims)
+	{
+		len_type element_tile_count = 8;
+		double tile_count = std::ceil(N / double(element_tile_count));
+		double y_ratio = dims[1] / double(dims[0]);
+		double z_ratio = dims[2] / double(dims[0]);
+
+		len_type num_tiles_x = len_type(std::pow(tile_count / (y_ratio * z_ratio), 1. / 3));
+		len_type num_tiles_y = len_type(tile_count / (num_tiles_x * num_tiles_x * z_ratio));
+		len_type num_tiles_z = len_type(std::ceil(tile_count / (num_tiles_x * num_tiles_y)));
+
+		num_tiles[0] = num_tiles_x;
+		num_tiles[1] = num_tiles_y;
+		num_tiles[2] = num_tiles_z;
+	}
+
+	template<>
+	symphas::internal::RandomDeltas<1> get_hex_positions<1>(size_t N, len_type const* dims)
+	{
+		symphas::internal::RandomDeltas<1> positions(N, dims);
+		return positions;
+	}
+
+	template<>
+	symphas::internal::RandomDeltas<2> get_hex_positions<2>(size_t N, len_type const* dims)
+	{
+		std::vector<axis_2d_type> positions;
+		positions.reserve(N);
+
+		len_type num_tiles[2]{};
+		get_num_hex_tiles<2>(num_tiles, N, dims);
+
+		len_type num_tiles_x = num_tiles[0];
+		len_type num_tiles_y = num_tiles[1];
+
+		double delta_x = dims[0] / (num_tiles_x * 2.);
+		double delta_y = dims[1] / (num_tiles_y * 2.);
+
+		double offset_x = delta_x / 2.;
+		double offset_y = delta_y / 2.;
+
+		bool at_offset_row_0 = false;
+		bool at_offset_row = !at_offset_row_0;
+		for (iter_type j = 0; j < num_tiles_y * 2; ++j)
+		{
+			double y0 = (at_offset_row_0) ? offset_y + delta_y * j : delta_y * j;
+			for (iter_type i = 0; i < num_tiles_x * 2; ++i)
+			{
+				double x0 = (at_offset_row) ? offset_x + delta_x * i : delta_x * i;
+
+				double x = x0;
+				double y = y0;
+
+				positions.push_back({ x, y });
+			}
+			at_offset_row = !at_offset_row;
+		}
+
+		return positions;
+	}
+
+	template<>
+	symphas::internal::RandomDeltas<3> get_hex_positions<3>(size_t N, len_type const* dims)
+	{
+		std::vector<axis_3d_type> positions;
+		positions.reserve(N);
+
+		len_type num_tiles[3]{};
+		get_num_hex_tiles<3>(num_tiles, N, dims);
+
+		len_type num_tiles_x = num_tiles[0];
+		len_type num_tiles_y = num_tiles[1];
+		len_type num_tiles_z = num_tiles[2];
+
+		double delta_x = dims[0] / (num_tiles_x * 2.);
+		double delta_y = dims[1] / (num_tiles_y * 2.);
+		double delta_z = dims[2] / (num_tiles_z * 2.);
+
+		double offset_x = delta_x / 2.;
+		double offset_y = delta_y / 2.;
+		double offset_z = delta_z / 2.;
+
+		bool at_offset_row_0 = true;
+		bool at_offset_row_y = at_offset_row_0;
+		bool at_offset_row_x = at_offset_row_y;
+		for (iter_type k = 0; k < num_tiles_z * 2; ++k)
+		{
+			double z0 = (at_offset_row_0) ? offset_z + delta_z * k : delta_z * k;
+			for (iter_type j = 0; j < num_tiles_y * 2; ++j)
+			{
+				double y0 = (at_offset_row_y) ? offset_y + delta_y * j : delta_y * j;
+				for (iter_type i = 0; i < num_tiles_x * 2; ++i)
+				{
+					double x0 = (at_offset_row_x) ? offset_x + delta_x * i : delta_x * i;
+
+					double x = x0;
+					double y = y0;
+					double z = z0;
+
+					positions.push_back({ x, y, z });
+				}
+				at_offset_row_x = !at_offset_row_x;
+			}
+			at_offset_row_x = !at_offset_row_x;
+		}
+
+		return positions;
+	}
+
+	template<>
+	symphas::internal::RandomDeltas<1> to_spiral_order<1>(symphas::internal::RandomDeltas<1> const& positions, size_t N, len_type const* dims)
+	{
+		return positions;
+	}
+
+	template<>
+	symphas::internal::RandomDeltas<2> to_spiral_order<2>(symphas::internal::RandomDeltas<2> const& positions, size_t N, len_type const* dims)
+	{
+		using ::operator-;
+		std::vector<axis_2d_type> positions0(positions.get_deltas());
+		std::vector<axis_2d_type> ordered_positions;
+		ordered_positions.reserve(positions.size());
+
+		axis_2d_type center{ dims[0] / 2., dims[1] / 2. };
+
+		iter_type i;
+		iter_type n;
+		scalar_t dist;
+
+		i = 0;
+		n = -1;
+		dist = grid::length<2>(dims);
+
+		// find the center position in the hex position list
+		for (const auto& it : positions0)
+		{
+			auto delta = it - center;
+			delta[0] = delta[0] - dims[0] * std::round(delta[0] / dims[0]);
+			delta[1] = delta[1] - dims[1] * std::round(delta[1] / dims[1]);
+			scalar_t dist0 = symphas::lib::length(delta);
+			if (dist0 < dist)
+			{
+				n = i;
+				dist = dist0;
+			}
+			++i;
+		}
+
+		// The center position
+		iter_type center_n = n;
+		auto center_pos = positions0[center_n];
+		positions0.erase(positions0.begin() + center_n);
+		ordered_positions.push_back(center_pos);
+
+		while (!positions0.empty())
+		{
+			auto next = ordered_positions.back();
+
+			len_type num_tiles[2]{};
+			get_num_hex_tiles<2>(num_tiles, N, dims);
+
+			len_type num_tiles_x = num_tiles[0];
+			len_type num_tiles_y = num_tiles[1];
+
+			double delta_x = dims[0] / (num_tiles_x * 2.);
+			double delta_y = dims[1] / (num_tiles_y * 2.);
+
+			double near_x = delta_x / 2.;
+			double near_y = delta_y;
+			scalar_t close_dist = std::max({ delta_x, delta_y, std::sqrt(near_x * near_x + near_y * near_y) });
+
+			std::vector<iter_type> close_positions;
+			close_positions.reserve(positions0.size() / 2);
+
+			// find the next cell which is above and biased to the right
+			for (const auto& check : ordered_positions)
+			{
+				i = 0;
+				for (const auto& it : positions0)
+				{
+					auto delta = it - check;
+					delta[0] = delta[0] - dims[0] * std::round(delta[0] / dims[0]);
+					delta[1] = delta[1] - dims[1] * std::round(delta[1] / dims[1]);
+					scalar_t dist0 = symphas::lib::length(delta);
+					if (dist0 < close_dist + 1e-3)
+					{
+						if (std::find(close_positions.begin(), close_positions.end(), i) == close_positions.end())
+						{
+							close_positions.emplace_back(i);
+						}
+					}
+					++i;
+				}
+			}
+
+			if (close_positions.empty())
+			{
+				ordered_positions.push_back(positions0.front());
+				positions0.erase(positions0.begin());
+			}
+			else
+			{
+				n = 0;
+				i = 0;
+
+				dist = grid::length<2>(dims);
+
+				for (const auto& it : close_positions)
+				{
+					auto delta = positions0[it] - next;
+					if (delta[0] > 0 && delta[0] < dist)
+					{
+						if (delta[1] > 0)
+						{
+							dist = delta[0];
+							n = i;
+						}
+					}
+					++i;
+				}
+
+				ordered_positions.push_back(positions0[close_positions[n]]);
+				auto positions0_erase(close_positions);
+				close_positions.erase(close_positions.begin() + n);
+
+				// the pattern goes in a spiral, oriented clockwise. Move the
+				// current position to the right to bias the closest neighbour to be
+				// on the right
+				auto next0 = ordered_positions.back();
+				next0[0] += 1e-3;
+
+				while (!close_positions.empty())
+				{
+					n = -1;
+					i = 0;
+					dist = grid::length<2>(dims);
+					for (const auto& it : close_positions)
+					{
+						auto delta = positions0[it] - next0;
+						delta[0] = delta[0] - dims[0] * std::round(delta[0] / dims[0]);
+						delta[1] = delta[1] - dims[1] * std::round(delta[1] / dims[1]);
+						scalar_t dist0 = symphas::lib::length(delta);
+						if (dist0 < dist)
+						{
+							n = i;
+							dist = dist0;
+						}
+						++i;
+					}
+
+					ordered_positions.push_back(positions0[close_positions[n]]);
+					close_positions.erase(close_positions.begin() + n);
+					next0 = ordered_positions.back();
+				}
+
+				std::sort(positions0_erase.begin(), positions0_erase.end());
+				std::reverse(positions0_erase.begin(), positions0_erase.end());
+				for (auto it : positions0_erase)
+				{
+					positions0.erase(positions0.begin() + it);
+				}
+			}
+		}
+
+		return ordered_positions;
+	}
+
+	template<>
+	symphas::internal::RandomDeltas<3> to_spiral_order<3>(symphas::internal::RandomDeltas<3> const& positions, size_t N, len_type const* dims)
+	{
+		return positions;
+	}
 }

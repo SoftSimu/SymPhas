@@ -2689,6 +2689,41 @@ scalar_t InitialConditionsAlg<3, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag
 }
 
 
+template<>
+scalar_t InitialConditionsAlg<1, Inside::SPIRALHEX>::operator[](iter_type n) const
+{
+	iter_type const x = n;
+	auto px = offsets.get_delta(I);
+
+	return symphas::internal::is_in_circle_1(x, px, R) ? init.data.gp[1] : init.data.gp[2];
+}
+
+template<>
+scalar_t InitialConditionsAlg<2, Inside::SPIRALHEX>::operator[](iter_type n) const
+{
+	iter_type const
+		x = n % dims[0],
+		y = (n / dims[0]) % dims[1];
+
+	auto [px, py] = offsets.get_delta(I);
+
+	return symphas::internal::is_in_circle_A_2(x - px, R, y - py, R, dims) ? init.data.gp[2] : init.data.gp[1];
+}
+template<>
+scalar_t InitialConditionsAlg<3, Inside::SPIRALHEX>::operator[](iter_type n) const
+{
+	iter_type const
+		x = n % dims[0],
+		y = (n / dims[0]) % dims[1],
+		z = n / (dims[0] * dims[1]);
+
+	auto [px, py, pz] = offsets.get_delta(I);
+
+	return symphas::internal::is_in_circle_3(x, px, R, y, py, R, z, pz, R) ? init.data.gp[1] : init.data.gp[2];
+}
+
+
+
 
 
 
