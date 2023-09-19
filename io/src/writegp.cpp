@@ -93,6 +93,26 @@ namespace symphas::io::gp
 			return cast_const().get_position(ax, coord);
 		}
 
+		virtual bool in_bounds(const len_type(&coords)[1]) const override
+		{
+			return cast_const().in_bounds(&coords[0]);
+		}
+
+		virtual bool in_bounds(const len_type(&coords)[2]) const override
+		{
+			return cast_const().in_bounds(&coords[0]);
+		}
+
+		virtual bool in_bounds(const len_type(&coords)[3]) const override
+		{
+			return cast_const().in_bounds(&coords[0]);
+		}
+
+		virtual bool in_bounds(std::initializer_list<len_type> const& list) const override
+		{
+			return cast_const().in_bounds(list.begin());
+		}
+
 		inline helper_specialized const& cast_const() const
 		{
 			return *static_cast<helper_specialized const*>(this);
@@ -114,6 +134,7 @@ struct symphas::io::gp::gp_plotting_helper_specialized<3> : symphas::io::gp::gp_
 	using parent_type = gp_plotting_helper_impl<gp_plotting_helper_specialized<3>>;
 	using parent_type::get_index;
 	using parent_type::get_position;
+	using parent_type::in_bounds;
 
 	gp_plotting_helper_specialized(symphas::io::write_info const& winfo, symphas::grid_info const& ginfo) :
 		h{}, pos0{}, len{}, stride{}, dims{}, offset{}
@@ -166,6 +187,11 @@ struct symphas::io::gp::gp_plotting_helper_specialized<3> : symphas::io::gp::gp_
 		return pos0[n] + coord * h[n];
 	}
 
+	bool in_bounds(const len_type* coords) const
+	{
+		return (coords[0] < dims[0] && coords[1] < dims[1] && coords[2] < dims[2]);
+	}
+
 	size_t get_dim() const
 	{
 		return 3;
@@ -191,6 +217,7 @@ struct symphas::io::gp::gp_plotting_helper_specialized<2> : symphas::io::gp::gp_
 	using parent_type = gp_plotting_helper_impl<gp_plotting_helper_specialized<2>>;
 	using parent_type::get_index;
 	using parent_type::get_position;
+	using parent_type::in_bounds;
 
 	gp_plotting_helper_specialized(symphas::io::write_info const& winfo, symphas::grid_info const& ginfo) :
 		h{}, pos0{}, len{}, stride{}, dims{}, offset{}
@@ -236,6 +263,12 @@ struct symphas::io::gp::gp_plotting_helper_specialized<2> : symphas::io::gp::gp_
 		return pos0[n] + coord * h[n];
 	}
 
+	bool in_bounds(const len_type* coords) const
+	{
+		return (coords[0] < dims[0] && coords[1] < dims[1]);
+	}
+
+
 	size_t get_dim() const
 	{
 		return 2;
@@ -260,6 +293,7 @@ struct symphas::io::gp::gp_plotting_helper_specialized<1> : symphas::io::gp::gp_
 	using parent_type = gp_plotting_helper_impl<gp_plotting_helper_specialized<1>>;
 	using parent_type::get_index;
 	using parent_type::get_position;
+	using parent_type::in_bounds;
 
 	gp_plotting_helper_specialized(symphas::io::write_info const& winfo, symphas::grid_info const& ginfo) :
 		h{}, pos0{}, len{}, dims{}, offset{}
@@ -289,6 +323,11 @@ struct symphas::io::gp::gp_plotting_helper_specialized<1> : symphas::io::gp::gp_
 		return pos0[n] + coord * h[n];
 	}
 
+	bool in_bounds(const len_type* coords) const
+	{
+		return (coords[0] < dims[0]);
+	}
+
 	size_t get_dim() const
 	{
 		return 1;
@@ -313,6 +352,7 @@ struct symphas::io::gp::gp_plotting_helper_specialized<0> : symphas::io::gp::gp_
 	using parent_type = gp_plotting_helper_impl<gp_plotting_helper_specialized<0>>;
 	using parent_type::get_index;
 	using parent_type::get_position;
+	using parent_type::in_bounds;
 
 	gp_plotting_helper_specialized(symphas::io::write_info const& winfo, symphas::grid_info const& ginfo) :
 		h{}, pos0{}, len{}, offset{}
@@ -332,6 +372,11 @@ struct symphas::io::gp::gp_plotting_helper_specialized<0> : symphas::io::gp::gp_
 	double get_position(Axis ax, len_type coord) const
 	{
 		return 0;
+	}
+
+	bool in_bounds(const len_type* coords) const
+	{
+		return false;
 	}
 
 	size_t get_dim() const

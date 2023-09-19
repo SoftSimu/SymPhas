@@ -42,7 +42,7 @@ void symphas::io::gp::col::read_block(scalar_t* grid, symphas::grid_info ginfo, 
 				}
 				scalar_t value;
 				fscanf(f, "%lf", &value);
-				if (grid != nullptr)
+				if (grid != nullptr && helper->in_bounds({ i, j, k }))
 				{
 					iter_type ii = GP_HELPER_INDEX({ i, j, k });
 					grid[ii] = value;
@@ -71,7 +71,7 @@ void symphas::io::gp::col::read_block(complex_t* grid, symphas::grid_info ginfo,
 				double re, im;
 				fscanf(f, "%lf+i%lf", &re, &im);
 
-				if (grid != nullptr)
+				if (grid != nullptr && helper->in_bounds({ i, j, k }))
 				{
 					iter_type ii = GP_HELPER_INDEX({ i, j, k });
 					grid[ii] = complex_t{ re, im };
@@ -101,7 +101,7 @@ void symphas::io::gp::col::read_block(double_arr2*grid, symphas::grid_info ginfo
 
 				double a, b;
 				fscanf(f, "%lf %lf", &a, &b);
-				if (grid != nullptr)
+				if (grid != nullptr && helper->in_bounds({ i, j, k }))
 				{
 					iter_type ii = GP_HELPER_INDEX({ i, j, k });
 					grid[ii][0] = a;
@@ -135,7 +135,7 @@ void symphas::io::gp::col::read_block(vector_t<3>* grid, symphas::grid_info ginf
 					"%lf %lf %lf %lf",
 					&dx, &dy, &dz, &m);
 
-				if (grid != nullptr)
+				if (grid != nullptr && helper->in_bounds({ i, j, k }))
 				{
 					iter_type ii = GP_HELPER_INDEX({ i, j, k });
 					grid[ii] = vector_t<3>{ dx * m, dy * m, dz * m };
@@ -168,7 +168,7 @@ void symphas::io::gp::col::read_block(vector_t<2>* grid, symphas::grid_info ginf
 					"%lf %lf %lf",
 					&dx, &dy, &m);
 
-				if (grid != nullptr)
+				if (grid != nullptr && helper->in_bounds({ i, j, k }))
 				{
 					iter_type ii = GP_HELPER_INDEX({ i, j, k });
 					grid[ii] = vector_t<2>{ dx * m, dy * m };
@@ -198,8 +198,11 @@ void symphas::io::gp::col::read_block(vector_t<1>* grid, symphas::grid_info ginf
 				double m;
 				fscanf(f, "%lf ", &m);
 
-				iter_type ii = GP_HELPER_INDEX({ i, j, k });
-				grid[ii] = vector_t<1>{ m };
+				if (grid != nullptr && helper->in_bounds({ i, j, k }))
+				{
+					iter_type ii = GP_HELPER_INDEX({ i, j, k });
+					grid[ii] = vector_t<1>{ m };
+				}
 			}
 		}
 	}
@@ -229,7 +232,7 @@ void symphas::io::gp::col::read_block(scalar_ptr_t(&grid)[3], symphas::grid_info
 					"%lf %lf %lf %lf",
 					&dx, &dy, &dz, &m);
 
-				if (grid != nullptr)
+				if (grid != nullptr && helper->in_bounds({ i, j, k }))
 				{
 					iter_type ii = GP_HELPER_INDEX({ i, j, k });
 					grid[0][ii] = dx * m;
@@ -264,7 +267,7 @@ void symphas::io::gp::col::read_block(scalar_ptr_t(&grid)[2], symphas::grid_info
 					"%lf %lf %lf",
 					&dx, &dy, &m);
 
-				if (grid != nullptr)
+				if (grid != nullptr && helper->in_bounds({ i, j, k }))
 				{
 					iter_type ii = GP_HELPER_INDEX({ i, j, k });
 					grid[0][ii] = dx * m;
@@ -295,7 +298,7 @@ void symphas::io::gp::col::read_block(scalar_ptr_t(&grid)[1], symphas::grid_info
 				double m;
 				fscanf(f, "%lf ", &m);
 
-				if (grid != nullptr)
+				if (grid != nullptr && helper->in_bounds({ i, j, k }))
 				{
 					iter_type ii = GP_HELPER_INDEX({ i, j, k });
 					grid[0][ii] = m;
