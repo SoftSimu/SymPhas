@@ -1,0 +1,22 @@
+!Model B
+
+DIM				dimensions of model			: @
+ORDER			order of accuracy			: @
+WIDTH			grid draw size				: 1
+
+RNGX			interval of x				: @ 800
+RNGY			interval of y				: @ 800
+RNGZ			interval of y				: @ 64
+BNDLT			bound type on x1			: PERIODIC
+BNDRT			bound type on x2			: PERIODIC
+BNDTP			bound type on y1			: PERIODIC
+BNDBT			bound type on y2			: PERIODIC
+INSIDE			the conditions inside		: SPIRAL 72 0 1 0.89
+MODEL			type of the model			: CELL_MODEL_NO_MOT c1=7 c2=0.5 c3=49 c4=10 c5=1.5e3 c6=3.75 c7=1.35 c8=0 c9=1e4 ! 0 plot.default, 7 plot.max
+
+DELTA			time increment				: 0.05
+FRAMES			total time steps			: 10
+SAVE			frame save interval			: 10
+SAVEINIT		save time index 0 data?		: YES
+
+DIR				save directory				: simulations
