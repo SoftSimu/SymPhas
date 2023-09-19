@@ -78,6 +78,24 @@ struct SolverSystemFDwSD : RegionalSystem<T, D>
 	}
 };
 
+
+template<typename T, size_t D>
+struct SolverSystemFDwSDMPI : RegionalSystemMPI<T, D>
+{
+	using RegionalSystemMPI<T, D>::dims;
+
+	RegionalGrid<T, D> dframe;		// the working grid for the solver
+	SolverSystemFDwSDMPI(symphas::init_data_type const& tdata, symphas::interval_data_type const& vdata, symphas::b_data_type const& bdata, size_t id = 0) :
+		RegionalSystemMPI<T, D>(tdata, vdata, bdata, id), dframe{ dims } {}
+	SolverSystemFDwSDMPI() : RegionalSystemMPI<T, D>(), dframe{ 0 } {}
+
+	inline void update(iter_type index, double time)
+	{
+		RegionalSystemMPI<T, D>::update(index, time);
+		dframe.adjust(RegionalSystemMPI<T, D>::region);
+	}
+};
+
 #ifdef USING_FFTW
 
 //! The phase field system used by the spectral solver. 
@@ -700,6 +718,7 @@ inline SolverSystemSpectral<vector_t<D>, D>::~SolverSystemSpectral()
 
 #endif
 
+DEFINE_BASE_DATA_INHERITED((typename T, size_t D), (SolverSystemFDwSDMPI<T, D>), (RegionalGridMPI<T, D>))
 DEFINE_BASE_DATA_INHERITED((typename T, size_t D), (SolverSystemFDwSD<T, D>), (RegionalGrid<T, D>))
 DEFINE_BASE_DATA_INHERITED((typename T, size_t D), (SolverSystemFD<T, D>), (BoundaryGrid<T, D>))
 #ifdef USING_FFTW

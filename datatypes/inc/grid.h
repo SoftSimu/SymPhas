@@ -31,6 +31,7 @@
 #include <random>
 #include <omp.h>
 
+#include "spsmpi.h"
 #include "griditer.h"
 
 #ifdef EXECUTION_HEADER_AVAILABLE
@@ -2236,7 +2237,74 @@ public:
 };
 
 
+template<typename T, size_t D>
+struct RegionalGridMPI : RegionalGrid<T, D>
+{
+	using parent_type = RegionalGrid<T, D>;
+	using parent_type::parent_type;
+	
+	RegionalGridMPI(int mpi_index, const len_type* dimensions) :
+		parent_type(mpi_dims(mpi_index, dimensions)) {}
+	RegionalGridMPI(int mpi_index, const len_type* dimensions, T empty) :
+		parent_type(mpi_dims(mpi_index, dimensions), empty) {}
+	RegionalGridMPI(int mpi_index, const len_type* dimensions, T empty, len_type boundary_size) :
+		parent_type(mpi_dims(mpi_index, dimensions), empty, boundary_size) {}
 
+	RegionalGridMPI(int mpi_index, grid::dim_list dimensions) :
+		parent_type(mpi_dims(mpi_index, dimensions)) {}
+	RegionalGridMPI(int mpi_index, grid::dim_list dimensions, T empty) :
+		parent_type(mpi_dims(mpi_index, dimensions), empty) {}
+	RegionalGridMPI(int mpi_index, grid::dim_list dimensions, T empty, len_type boundary_size) :
+		parent_type(mpi_dims(mpi_index, dimensions), empty, boundary_size) {}
+	
+	auto mpi_dims(int mpi_index, const len_type* dimensions)
+	{
+		return (symphas::mpi::index_in_node(mpi_index)) ? dimensions : nullptr;
+	}
+};
+
+
+
+template<typename T, size_t D>
+struct RegionalGridMPI<any_vector_t<T, D>, D> : RegionalGrid<any_vector_t<T, D>, D>
+{
+	using parent_type = RegionalGrid<any_vector_t<T, D>, D>;
+	using parent_type::parent_type;
+
+
+	RegionalGridMPI(int mpi_index, const len_type* dimensions) :
+		parent_type(mpi_dims(mpi_index, dimensions)) {}
+	RegionalGridMPI(int mpi_index, const len_type* dimensions, T empty) :
+		parent_type(mpi_dims(mpi_index, dimensions), empty) {}
+	RegionalGridMPI(int mpi_index, const len_type* dimensions, const T(&empty)[D]) :
+		parent_type(mpi_dims(mpi_index, dimensions), empty) {}
+	RegionalGridMPI(int mpi_index, const len_type* dimensions, T empty, len_type boundary_size) :
+		parent_type(mpi_dims(mpi_index, dimensions), empty, boundary_size) {}
+	RegionalGridMPI(int mpi_index, const len_type* dimensions, const T(&empty)[D], len_type boundary_size) :
+		parent_type(mpi_dims(mpi_index, dimensions), empty, boundary_size) {}
+
+	RegionalGridMPI(int mpi_index, grid::dim_list dimensions) :
+		parent_type(mpi_dims(mpi_index, dimensions)) {}
+	RegionalGridMPI(int mpi_index, grid::dim_list dimensions, T empty) :
+		parent_type(mpi_dims(mpi_index, dimensions), empty) {}
+	RegionalGridMPI(int mpi_index, grid::dim_list dimensions, const T(&empty)[D]) :
+		parent_type(mpi_dims(mpi_index, dimensions), empty) {}
+	RegionalGridMPI(int mpi_index, grid::dim_list dimensions, T empty, len_type boundary_size) :
+		parent_type(mpi_dims(mpi_index, dimensions), empty, boundary_size) {}
+	RegionalGridMPI(int mpi_index, grid::dim_list dimensions, const T(&empty)[D], len_type boundary_size) :
+		parent_type(mpi_dims(mpi_index, dimensions), empty, boundary_size) {}
+
+	auto mpi_dims(int mpi_index, const len_type* dimensions)
+	{
+		return (symphas::mpi::index_in_node(mpi_index)) ? dimensions : nullptr;
+	}
+
+	auto mpi_dims(int mpi_index, grid::dim_list dimensions)
+	{
+		return mpi_dims(mpi_index, dimensions.data);
+	}
+
+};
 
 // **************************************************************************************
 
@@ -2291,6 +2359,41 @@ namespace grid
 				return { symphas::grid_info(vdata).get_dims() };
 			}
 		};
+
+		template<>
+		struct make<RegionalGridMPI>
+		{
+			//! Obtain a newly initialized grid using the interval data.
+			/*
+			 * This is used to generate a new grid of the prescribed dimensions
+			 * and of the prescribed source type. The dimensions are assumed
+			 * to all be zero, thereby creating an empty grid.
+			 */
+			template<typename T, size_t D>
+			static RegionalGridMPI<T, D> apply()
+			{
+				len_type dims[D]{ 0 };
+				return { -1, dims };
+			}
+
+			//! Obtain a newly initialized grid using the interval data.
+			/*
+			 * This is used to generate a new grid of the prescribed dimensions
+			 * and of the prescribed source type. The given interval data is
+			 * used to obtain the dimensions.
+			 *
+			 * \param vdata The interval data of the grid to generate.
+			 */
+			template<typename T, size_t D>
+			static RegionalGridMPI<T, D> apply(size_t id, symphas::interval_data_type const& vdata)
+			{
+				if (vdata.size() < D)
+				{
+					return apply<T, D>();
+				}
+				return { int(id), symphas::grid_info(vdata).get_dims()};
+			}
+		};
 	}
 
 
@@ -2302,24 +2405,10 @@ namespace grid
 	 * \param vdata The intervals of the grid, from which the dimensions
 	 * are taken.
 	 */
-	template<template<typename, size_t> typename G, typename T, size_t D>
-	G<T, D> construct(symphas::interval_data_type const& vdata)
+	template<template<typename, size_t> typename G, typename T, size_t D, typename... Ts>
+	G<T, D> construct(Ts&&... args)
 	{
-		return make<G>::template apply<T, D>(vdata);
-	}
-
-	//! Create a new grid with of the given base type and dimension.
-	/*!
-	 * This is used to generate a new grid of the prescribed dimensions
-	 * and of the prescribed source type.
-	 *
-	 * \param vdata The intervals of the grid, from which the dimensions
-	 * are taken.
-	 */
-	template<template<typename, size_t> typename G, typename T, size_t D>
-	G<T, D> construct()
-	{
-		return make<G>::template apply<T, D>();
+		return make<G>::template apply<T, D>(std::forward<Ts>(args)...);
 	}
 
 

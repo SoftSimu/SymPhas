@@ -1337,6 +1337,7 @@ namespace expr
 DEFINE_BASE_DATA((typename T, size_t D), (Grid<T, D>), (T)data[n], data)
 DEFINE_BASE_DATA((typename T, size_t D), (BoundaryGrid<T, D>), (T)data[n], data)
 DEFINE_BASE_DATA((typename T, size_t D), (RegionalGrid<T, D>), (T)data[n], data)
+DEFINE_BASE_DATA_INHERITED((typename T, size_t D), (RegionalGridMPI<T, D>), (RegionalGrid<T, D>))
 //DEFINE_BASE_DATA((template<typename, size_t> typename F, typename T, size_t D), (F<T, D>), data.as_grid()[n], data.as_grid())
 
 

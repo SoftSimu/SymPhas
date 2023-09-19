@@ -21,6 +21,7 @@
 find_package(Threads REQUIRED)
 find_package(FFTW3)
 find_package(TBB)
+find_package(MPI)
 
 include_directories(SYSTEM ${FFTW_INCLUDE_PATH})
 
@@ -63,8 +64,17 @@ if(FFTW3_FOUND)
 	target_compile_definitions(symphas_lib_o PUBLIC USING_FFTW)
 endif()
 
-if (TBB_FOUND)
+if(TBB_FOUND)
 	target_link_libraries(symphas_lib_o PRIVATE TBB::tbb)
+endif()
+
+if(MPI_FOUND)
+	set(CMAKE_C_FLAGS "${CMAKE_FLAGS} ${MPI_FLAGS}")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MPI_CXX_FLAGS}")
+	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${MPI_EXE_LINKER_FLAGS}")
+	target_compile_definitions(symphas_lib_o PUBLIC USING_MPI)
+	target_link_libraries(symphas_lib_o PRIVATE ${MPI_LIBRARIES})
+	target_include_directories(symphas_lib_o PUBLIC ${MPI_INCLUDE_PATH})
 endif()
 
 if(ENABLE_INLINE_TIMINGS)
