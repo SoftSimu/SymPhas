@@ -154,7 +154,7 @@ namespace symphas
 	 * are extracted.
 	 * \param num_params The number of command line arguments in the list.
 	 */
-	void init(const char* config, const char* const* param_list, size_t num_params);
+	void init(const char* config, const char* const* param_list, int num_params);
 	inline void init(const char* param)
 	{
 		init(param, nullptr, 0);

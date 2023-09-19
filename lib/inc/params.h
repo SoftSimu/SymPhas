@@ -838,10 +838,10 @@ namespace params
 	 * \param n The number of provided arguments, which is the length of the  
 	 * list of arguments.
 	 */
-	void parse_params(param_map_type param_map, const char* const* args, size_t n);
+	void parse_params(param_map_type param_map, const char* const* args, int n);
 
 	//! See params::parse_params().
-	void parse_params(param_map_type param_map, const char* args, size_t n);
+	void parse_params(param_map_type param_map, const char* args, int n);
 
 	inline void parse_params(param_map_type param_map, const char* args)
 	{

@@ -148,13 +148,13 @@ void param_map_element::print_help(FILE* out, const char* name) const
 }
 
 
-void params::parse_params(param_map_type param_map, const char* args, size_t n)
+void params::parse_params(param_map_type param_map, const char* args, int n)
 {
 	parse_params(param_map, &args, n);
 }
 
 
-void params::parse_params(param_map_type param_map, const char* const* args, size_t n)
+void params::parse_params(param_map_type param_map, const char* const* args, int n)
 {
 	const char err_msg[] = "command line parameter '%s' cannot be interpreted, skipping...\n";
 

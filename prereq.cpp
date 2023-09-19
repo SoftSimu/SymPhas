@@ -96,7 +96,7 @@ param_map_type symphas::build_params()
  * are extracted.
  * \param num_params The number of command line arguments in the list.
  */
-void symphas::init(const char* config, const char* const* param_list, size_t num_params)
+void symphas::init(const char* config, const char* const* param_list, int num_params)
 {
 
 #ifdef PRINT_TIMINGS
@@ -106,9 +106,12 @@ void symphas::init(const char* config, const char* const* param_list, size_t num
 	param_map_type param_map = build_params();
 	params::parse_params(param_map, param_list, num_params);
 
-	if (strchr(config, '=') != NULL || (std::strlen(config) > 2 && config[0] == '-'))
+	if (config != NULL)
 	{
-		params::parse_params(param_map, &config, 1);
+		if (strchr(config, '=') != NULL || (std::strlen(config) > 2 && config[0] == '-'))
+		{
+			params::parse_params(param_map, &config, 1);
+		}
 	}
 
 #ifdef PRINT_TIMINGS
