@@ -916,15 +916,45 @@ SystemConf::SystemConf(SystemConf const& other) : SystemConf()
 
 	dt_list = other.dt_list;
 
-	root_dir = new char[std::strlen(other.root_dir) + 1];
-	result_dir = new char[std::strlen(other.result_dir) + 1];
-	title = new char[std::strlen(other.title) + 1];
-	model = new char[std::strlen(other.model) + 1];
+	if (other.title != nullptr)
+	{
+		title = new char[std::strlen(other.title) + 1];
+		std::strcpy(title, other.title);
+	}
+	else
+	{
+		title = nullptr;
+	}
 
-	std::strcpy(root_dir, other.root_dir);
-	std::strcpy(result_dir, other.result_dir);
-	std::strcpy(title, other.title);
-	std::strcpy(model, other.model);
+	if (other.model != nullptr)
+	{
+		model = new char[std::strlen(other.model) + 1];
+		std::strcpy(model, other.model);
+	}
+	else
+	{
+		model = nullptr;
+	}
+
+	if (other.root_dir != nullptr)
+	{
+		root_dir = new char[std::strlen(other.root_dir) + 1];
+		std::strcpy(root_dir, other.root_dir);
+	}
+	else
+	{
+		root_dir = nullptr;
+	}
+
+	if (other.result_dir != nullptr)
+	{
+		result_dir = new char[std::strlen(other.result_dir) + 1];
+		std::strcpy(result_dir, other.result_dir);
+	}
+	else
+	{
+		result_dir = nullptr;
+	}
 
 	intervals_len = other.intervals_len;
 	bdata_len = other.bdata_len;
@@ -1003,6 +1033,11 @@ SystemConf::SystemConf(symphas::problem_parameters_type const& parameters, const
 	bdata_len = parameters.length();
 	intervals_len = parameters.length();
 
+	tdata = new symphas::init_data_type[tdata_len]{};
+	bdata = new symphas::b_data_type[bdata_len]{};
+	intervals = new symphas::interval_data_type[intervals_len]{};
+	dims = new len_type*[intervals_len]{};
+
 	for (iter_type i = 0; i < parameters.length(); ++i)
 	{
 		set_initial_condition(parameters.get_initial_data()[i], i);
@@ -1065,10 +1100,44 @@ SystemConf::SystemConf(std::vector<std::pair<std::string, std::string>> params, 
 			BUFFER_LENGTH - 1);
 	};
 
+	auto set_dimension = [](const char* v)
+	{
+		len_type available_dimensions[]{ AVAILABLE_DIMENSIONS };
+		if (v != NULL)
+		{
+			if (v[0] == CONFIG_OPTION_PREFIX_C)
+			{
+				if (sizeof(available_dimensions) / sizeof(len_type) > 0)
+				{
+					return available_dimensions[0];
+				}
+				else
+				{
+					return 0;
+				}
+			}
+			else
+			{
+				return atoi(v);
+			}
+		}
+		else
+		{
+			if (sizeof(available_dimensions) / sizeof(len_type) > 0)
+			{
+				return available_dimensions[0];
+			}
+			else
+			{
+				return 0;
+			}
+		}
+	};
+
 
 	std::map<std::string, std::function<void(const char*)>, symphas::internal::any_case_comparator> system_map =
 	{
-		{ symphas::internal::C_DIM,			[&](const char* v) { dimension = atoi(v); } },
+		{ symphas::internal::C_DIM,			[&](const char* v) { dimension = set_dimension(v); } },
 		{ symphas::internal::C_SOLVERVAR,	[&](const char* v) { stp.type = atoi(v); } },
 		{ symphas::internal::C_ORDER,		[&](const char* v) { select_stencil_accuracy(dimension, v); }},
 		{ symphas::internal::C_PTL,			[&](const char* v) { select_stencil(2, v); } },
@@ -2234,7 +2303,7 @@ void SystemConf::parse_model_spec(const char* value, const char* dir)
 		else
 		{
 			fprintf(SYMPHAS_ERR, "model name was not specified at the configuration "
-				"specification for %s", symphas::internal::C_MODEL);
+				"specification for %s\n", symphas::internal::C_MODEL);
 			model = nullptr;
 		}
 	}
@@ -2668,35 +2737,38 @@ void SystemConf::write(const char* savedir, const char* name) const
 		fprintf(f, "%lf\n", dt_list.get_time_step());
 	}
 
-	char* sep_it;
-	if ((sep_it = std::strchr(model, VIRTUAL_MODEL_SEP_KEY_C)) == NULL)
+	if (model != nullptr)
 	{
-		fprintf(f, CONFIG_NAME_FMT "%s\n", symphas::internal::C_MODEL, model_spec);
-	}
-	else
-	{
-		char* model_cpy = new char[std::strlen(sep_it)] {};
-		auto index_it = std::strchr(sep_it + 1, VIRTUAL_MODEL_SEP_KEY_C);
-		auto end_it = (index_it == NULL) ? sep_it + std::strlen(sep_it) : index_it;
-
-		std::copy(sep_it + 1, end_it, model_cpy);
-		model_cpy[end_it - sep_it - 1] = '\0';
-		fprintf(f, CONFIG_NAME_FMT "%c %s", symphas::internal::C_MODEL, CONFIG_TITLE_PREFIX_C, model_cpy);
-
-		if (index_it != NULL)
+		char* sep_it;
+		if ((sep_it = std::strchr(model, VIRTUAL_MODEL_SEP_KEY_C)) == NULL)
 		{
-			iter_type index;
-			sscanf(index_it + 1, "%d", &index);
-			fprintf(f, " %d", index);
-			if ((index_it = std::strchr(index_it + 1, VIRTUAL_MODEL_SEP_KEY_C)) != NULL)
+			fprintf(f, CONFIG_NAME_FMT "%s\n", symphas::internal::C_MODEL, model_spec);
+		}
+		else
+		{
+			char* model_cpy = new char[std::strlen(sep_it)] {};
+			auto index_it = std::strchr(sep_it + 1, VIRTUAL_MODEL_SEP_KEY_C);
+			auto end_it = (index_it == NULL) ? sep_it + std::strlen(sep_it) : index_it;
+
+			std::copy(sep_it + 1, end_it, model_cpy);
+			model_cpy[end_it - sep_it - 1] = '\0';
+			fprintf(f, CONFIG_NAME_FMT "%c %s", symphas::internal::C_MODEL, CONFIG_TITLE_PREFIX_C, model_cpy);
+
+			if (index_it != NULL)
 			{
+				iter_type index;
 				sscanf(index_it + 1, "%d", &index);
 				fprintf(f, " %d", index);
+				if ((index_it = std::strchr(index_it + 1, VIRTUAL_MODEL_SEP_KEY_C)) != NULL)
+				{
+					sscanf(index_it + 1, "%d", &index);
+					fprintf(f, " %d", index);
+				}
 			}
-		}
-		fprintf(f, "\n");
+			fprintf(f, "\n");
 
-		delete[] model_cpy;
+			delete[] model_cpy;
+		}
 	}
 
 	fprintf(f, CONFIG_NAME_FMT "%d\n", symphas::internal::C_FRAMES, save.get_stop());

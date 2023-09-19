@@ -36,149 +36,156 @@ const Conf& symphas::conf::config()
 Conf symphas::conf::make_config(const char* file, param_map_type const& param_map)
 {
 
-	char line[BUFFER_LENGTH_L3]{},
-		title[BUFFER_LENGTH]{};
-	std::vector<std::pair<std::string, std::string>> options;
-
-
-	std::vector<iter_type> indices;
-	bool sim_done = false;
-
-	FILE* f;
-	if ((f = fopen(file, "r")) == 0)
+	if (file == NULL)
 	{
-		fprintf(SYMPHAS_ERR, "error opening configuration file '%s'\n", file);
-		exit(444);
+		return Conf{ symphas::problem_parameters_type::init_default(1), "", "." };
 	}
-
-	char* parent_dir = new char[std::strlen(file) + 1];
-	std::strcpy(parent_dir, file);
-	symphas::lib::get_parent_directory(parent_dir, parent_dir);
-
-
-	while (fgets(line, BUFFER_LENGTH_L3, f) != NULL)
+	else
 	{
-		symphas::lib::str_trim(line);
-		int pos = 0;
-		if ((pos = symphas::lib::pos_after_token(line, CONFIG_TITLE_PREFIX)) > 0)
+
+		char line[BUFFER_LENGTH_L3]{},
+			title[BUFFER_LENGTH]{};
+
+		std::vector<iter_type> indices;
+		bool sim_done = false;
+
+		FILE* f;
+		if ((f = fopen(file, "r")) == 0)
 		{
-			if (*title)
-			{
-				fprintf(SYMPHAS_ERR, "redefinition of title!\n");
-				exit(445);
-			}
-			else if (sscanf(line, CONFIG_TITLE_PREFIX "%[^\n]", title) < 1)
-			{
-				fprintf(SYMPHAS_ERR, "given title is in incorrect format\n");
-				exit(446);
-			}
+			fprintf(SYMPHAS_ERR, "error opening configuration file '%s'\n", file);
+			exit(444);
 		}
-		else if (
-			!param_map.empty() &&
-			(pos = symphas::lib::pos_after_token(line, CONFIG_PARAM_PREFIX)) > 0)
+
+		char* parent_dir = new char[std::strlen(file) + 1];
+		std::strcpy(parent_dir, file);
+		symphas::lib::get_parent_directory(parent_dir, parent_dir);
+
+
+		std::vector<std::pair<std::string, std::string>> options;
+		while (fgets(line, BUFFER_LENGTH_L3, f) != NULL)
 		{
-			int 
-				start = 0, 
-				end = 0;
-			sscanf(line, CONFIG_PARAM_PREFIX "%n%*[^\n]%n", &start, &end);
-
-
-			if (end > start)
+			symphas::lib::str_trim(line);
+			int pos = 0;
+			if ((pos = symphas::lib::pos_after_token(line, CONFIG_TITLE_PREFIX)) > 0)
 			{
-				char param[BUFFER_LENGTH];
-				std::copy(line + start, line + end, param);
-				param[end - start] = '\0';
-
-				params::parse_params(param_map, param, 1);
-
-			}
-		}
-		else if ((pos = symphas::lib::pos_after_token(line, CONFIG_INDEX_PREFIX)) > 0)
-		{
-			char* endptr;
-			int index = strtol(line + pos, &endptr, 10);
-			
-			if (!*endptr)
-			{
-				indices.emplace_back(index);
-			}
-			else if (std::strcmp(line + pos, SIMULATION_DONE_KEY) == 0)
-			{
-				sim_done = true;
-			}
-			else
-			{
-				fprintf(SYMPHAS_WARN, "the written completion index '%s' is not "
-					"in the correct format\n", line);
-			}
-
-		}
-		else if ((pos = symphas::lib::pos_after_token(line, CONFIG_COMMENT_PREFIX)) > 0)
-		{
-			// comment line
-		}
-		else
-		{
-			char* sep_pos = std::strchr(line, CONFIG_SEP_KEY_C);
-			size_t len = std::strlen(line);
-			if (sep_pos)
-			{
-				size_t name_len = static_cast<size_t>(sep_pos - line);
-
-				/* copy the key (before the separation character) into k
-				 */
-				char* k = new char[name_len + 1];
-				std::copy(line, sep_pos, k);
-				k[name_len] = '\0';
-				symphas::lib::str_trim(k);
-
-
-				/* copies the value which is everything after the separation char
-				 */
-				char* v = new char[len - name_len];
-				std::copy(sep_pos + 1, line + len, v);
-				v[len - name_len - 1] = '\0';
-				symphas::lib::str_trim(v);
-
-
-				/* get only the first word in k, find first character that isn't in
-				 * the capital alphabetical range, since those are the only valid
-				 * characters for a key
-				 */
-				char* it = k;
-				for (; *it >= 'A' && *it <= 'Z'; ++it);
-				*it = '\0';
-
-				options.emplace_back(k, v);
-
-				delete[] v;
-				delete[] k;
-			}
-			else
-			{
-				if (*line)
+				if (*title)
 				{
-					fprintf(SYMPHAS_WARN, "unidentified configuration entry found: '%s'\n", line);
+					fprintf(SYMPHAS_ERR, "redefinition of title!\n");
+					exit(445);
+				}
+				else if (sscanf(line, CONFIG_TITLE_PREFIX "%[^\n]", title) < 1)
+				{
+					fprintf(SYMPHAS_ERR, "given title is in incorrect format\n");
+					exit(446);
+				}
+			}
+			else if (
+				!param_map.empty() &&
+				(pos = symphas::lib::pos_after_token(line, CONFIG_PARAM_PREFIX)) > 0)
+			{
+				int
+					start = 0,
+					end = 0;
+				sscanf(line, CONFIG_PARAM_PREFIX "%n%*[^\n]%n", &start, &end);
+
+
+				if (end > start)
+				{
+					char param[BUFFER_LENGTH];
+					std::copy(line + start, line + end, param);
+					param[end - start] = '\0';
+
+					params::parse_params(param_map, param, 1);
+
+				}
+			}
+			else if ((pos = symphas::lib::pos_after_token(line, CONFIG_INDEX_PREFIX)) > 0)
+			{
+				char* endptr;
+				int index = strtol(line + pos, &endptr, 10);
+
+				if (!*endptr)
+				{
+					indices.emplace_back(index);
+				}
+				else if (std::strcmp(line + pos, SIMULATION_DONE_KEY) == 0)
+				{
+					sim_done = true;
+				}
+				else
+				{
+					fprintf(SYMPHAS_WARN, "the written completion index '%s' is not "
+						"in the correct format\n", line);
+				}
+
+			}
+			else if ((pos = symphas::lib::pos_after_token(line, CONFIG_COMMENT_PREFIX)) > 0)
+			{
+				// comment line
+			}
+			else
+			{
+				char* sep_pos = std::strchr(line, CONFIG_SEP_KEY_C);
+				size_t len = std::strlen(line);
+				if (sep_pos)
+				{
+					size_t name_len = static_cast<size_t>(sep_pos - line);
+
+					/* copy the key (before the separation character) into k
+					 */
+					char* k = new char[name_len + 1];
+					std::copy(line, sep_pos, k);
+					k[name_len] = '\0';
+					symphas::lib::str_trim(k);
+
+
+					/* copies the value which is everything after the separation char
+					 */
+					char* v = new char[len - name_len];
+					std::copy(sep_pos + 1, line + len, v);
+					v[len - name_len - 1] = '\0';
+					symphas::lib::str_trim(v);
+
+
+					/* get only the first word in k, find first character that isn't in
+					 * the capital alphabetical range, since those are the only valid
+					 * characters for a key
+					 */
+					char* it = k;
+					for (; *it >= 'A' && *it <= 'Z'; ++it);
+					*it = '\0';
+
+					options.emplace_back(k, v);
+
+					delete[] v;
+					delete[] k;
+				}
+				else
+				{
+					if (*line)
+					{
+						fprintf(SYMPHAS_WARN, "unidentified configuration entry found: '%s'\n", line);
+					}
 				}
 			}
 		}
+		fclose(f);
+
+		Conf c{ options, title, parent_dir };
+		c.append_computed_index(indices);
+		if (sim_done)
+		{
+			c.set_done();
+		}
+
+		char savedir[BUFFER_LENGTH];
+		snprintf(savedir, BUFFER_LENGTH, "%s/" CHECKPOINT_DIR, c.get_result_dir());
+		c.write(savedir);
+
+		fprintf(SYMPHAS_LOG, "configuration loaded from '%s'\n", file);
+		fprintf(SYMPHAS_LOG, OUTPUT_BANNER);
+		return c;
 	}
-	fclose(f);
-
-	Conf c{ options, title, parent_dir };
-	c.append_computed_index(indices);
-	if (sim_done)
-	{
-		c.set_done();
-	}
-
-	char savedir[BUFFER_LENGTH];
-	snprintf(savedir, BUFFER_LENGTH, "%s/" CHECKPOINT_DIR, c.get_result_dir());
-	c.write(savedir);
-
-	fprintf(SYMPHAS_LOG, "configuration loaded from '%s'\n", file);
-	fprintf(SYMPHAS_LOG, OUTPUT_BANNER);
-	return c;
 }
 
 

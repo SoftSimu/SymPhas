@@ -1070,13 +1070,20 @@ public:
 
 	const char* get_model_name() const
 	{
-		if (std::strcmp(model, STR(VIRTUAL_MODEL_KEYWORD)) == 0)
+		if (model != nullptr)
 		{
-			return model + sizeof(STR(VIRTUAL_MODEL_KEYWORD)) / sizeof(char);
+			if (std::strcmp(model, STR(VIRTUAL_MODEL_KEYWORD)) == 0)
+			{
+				return model + sizeof(STR(VIRTUAL_MODEL_KEYWORD)) / sizeof(char);
+			}
+			else
+			{
+				return model;
+			}
 		}
 		else
 		{
-			return model;
+			return nullptr;
 		}
 	}
 
