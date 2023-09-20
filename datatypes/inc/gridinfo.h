@@ -520,7 +520,7 @@ namespace symphas
 		using parent_type = std::map<Axis, interval_element_type>;
 		using parent_type::parent_type;
 		using parent_type::operator[];
-		interval_data_type(size_t dim, interval_element_type const& interval) : parent_type()
+		interval_data_type(size_t dim, interval_element_type const& interval = {}) : parent_type()
 		{
 			for (iter_type i = 0; i < dim; ++i)
 			{

@@ -1074,6 +1074,7 @@ namespace symphas
 		template<typename... Ts>
 		init_data_type(Inside in, Ts&&... args) : init_data_type(init_entry_type(in, std::forward<Ts>(args)...)) {}
 		init_data_type(Inside in, symphas::init_data_parameters const& args) : init_data_type(init_entry_type(in, args)) {}
+		init_data_type() : init_data_type(init_entry_type(Inside::NONE)) {}
 	};
 
 	//! From the given string, get the corresponding initial condition.

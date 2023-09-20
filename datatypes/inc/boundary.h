@@ -284,7 +284,7 @@ namespace symphas
 		using parent_type::parent_type;
 		using parent_type::operator[];
 
-		b_data_type(size_t dim, symphas::b_element_type const& interval) : parent_type()
+		b_data_type(size_t dim, symphas::b_element_type const& interval = BoundaryType::NONE) : parent_type()
 		{
 			for (iter_type i = 0; i < dim * 2; ++i)
 			{
