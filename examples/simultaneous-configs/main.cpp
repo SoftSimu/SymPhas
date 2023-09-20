@@ -9,7 +9,7 @@
 
 int main(int argc, char* argv[])
 {
-#if (defined(MODEL_INCLUDE_HEADER) || !defined(USING_MODEL_SELECTION))
+#if (defined(MODEL_INCLUDE_HEADER) && defined(USING_MODEL_SELECTION))
 
     symphas::Time t("entire simulation");
 	symphas::init(argv[1], argv + 2, argc - 2);
