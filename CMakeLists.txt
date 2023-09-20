@@ -149,8 +149,18 @@ if(MODEL_INCLUDE_HEADER_NAME)
 	endif()
 
 else()
-	set(MODEL_INCLUDE_HEADER_DIR ${CMAKE_SOURCE_DIR})
-
+	if(MODEL_INCLUDE_HEADER_DIR)
+		if(NOT IS_ABSOLUTE ${MODEL_INCLUDE_HEADER_DIR})
+			get_filename_component(MODEL_INCLUDE_HEADER_DIR ${CMAKE_SOURCE_DIR}/${MODEL_INCLUDE_HEADER_DIR} ABSOLUTE)
+		endif()
+		
+		target_include_directories(${PROJECT_NAME} PUBLIC
+			$<BUILD_INTERFACE:${MODEL_INCLUDE_HEADER_DIR}>
+			$<INSTALL_INTERFACE:include>)
+		message(STATUS "the folder ${MODEL_INCLUDE_HEADER_DIR} is set as the model definition folder and will be added to the includes")
+	else()
+		set(MODEL_INCLUDE_HEADER_DIR ${CMAKE_SOURCE_DIR})
+	endif()
 endif()
 
 
@@ -176,7 +186,18 @@ if(SOLVER_INCLUDE_HEADER_NAME)
 	endif()
 
 else()
-	set(SOLVER_INCLUDE_HEADER_DIR ${CMAKE_SOURCE_DIR})
+	if(SOLVER_INCLUDE_HEADER_DIR)
+		if(NOT IS_ABSOLUTE ${SOLVER_INCLUDE_HEADER_DIR})
+			get_filename_component(SOLVER_INCLUDE_HEADER_DIR ${CMAKE_SOURCE_DIR}/${SOLVER_INCLUDE_HEADER_DIR} ABSOLUTE)
+		endif()
+		
+		target_include_directories(${PROJECT_NAME} PUBLIC
+			$<BUILD_INTERFACE:${SOLVER_INCLUDE_HEADER_DIR}>
+			$<INSTALL_INTERFACE:include>)
+		message(STATUS "the folder ${SOLVER_INCLUDE_HEADER_DIR} is set as the solvers folder and will be added to the includes")
+	else()
+		set(SOLVER_INCLUDE_HEADER_DIR ${CMAKE_SOURCE_DIR})
+	endif()
 endif()
 
 get_target_property(EXTRA_INCLUDE_DIRECTORIES ${PROJECT_NAME} INCLUDE_DIRECTORIES)
