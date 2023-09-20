@@ -3,6 +3,9 @@
 #include "timer.h"
 #include "symphas.h"
 
+#ifndef SOLVER_TYPE
+#define SOLVER_TYPE SolverFT
+#endif
 
  // **************************************************************************************
 
@@ -75,13 +78,11 @@ namespace simulate
 		model_select m{ 2, StencilParams{2, 9, 6, 13} };
 #endif
 
-#ifdef SOLVER_INCLUDE_HEADER
 		if (m.call<SOLVER_TYPE>(modelname, coeff, num_coeff) == INVALID_MODEL)
 		{
 			fprintf(SYMPHAS_ERR, "Unknown model provided, '%s'\n", modelname);
 			exit(101);
 		}
-#endif
 
 #ifdef PRINT_TIMINGS
 		print_timings(SYMPHAS_LOG);
