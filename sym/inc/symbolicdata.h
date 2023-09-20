@@ -866,11 +866,17 @@ struct SymbolicDataArray<NamedData<T*>> : SymbolicDataArray<T>
 	//! Takes a copy of the data and manages it locally within the SymbolicData.
 	SymbolicDataArray(len_type len) : parent_type(len) {}
 
+#ifdef PRINTABLE_EQUATIONS
 	//! Takes a copy of the data and manages it locally within the SymbolicData.
 	SymbolicDataArray(NamedData<T*> data, len_type len, bool is_local = true) :
 		parent_type(data.data, len, is_local), name{ data.name } {}
-
+#else
+	//! Takes a copy of the data and manages it locally within the SymbolicData.
+	SymbolicDataArray(NamedData<T*> data, len_type len, bool is_local = true) :
+		parent_type(data.data, len, is_local), name{} {}
+#endif
 	expr::expr_name_arr<> name;
+
 };
 
 namespace symphas::internal

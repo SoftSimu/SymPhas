@@ -8529,7 +8529,11 @@ namespace expr
 		auto get_arg(SymbolicDataArray<std::tuple<NamedData<Variable<Ns, Gs>>...>> const& substitution)
 		{
 			auto el = substitution.data[symphas::lib::index_of_value<size_t, Z0, Ns...>];
+#ifdef PRINTABLE_EQUATIONS
 			return expr::make_term<Z0>(NamedData(std::ref(*el.data), el.name));
+#else
+			return expr::make_term<Z0>(NamedData(std::ref(*el.data)));
+#endif
 		}
 
 		template<size_t Z0, int N, int P>
