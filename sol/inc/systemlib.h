@@ -1403,7 +1403,22 @@ namespace symphas
 				symphas::stride_type(vdata, length()),
 				symphas::stride_type(bdata, length())).end();
 		}
-    
+
+
+		static problem_parameters_type init_default(size_t dimension)
+		{
+			problem_parameters_type problem_parameters(1);
+			symphas::b_data_type bdata(dimension);
+			symphas::init_data_type tdata(Inside::NONE);
+			symphas::interval_data_type vdata(dimension);
+
+			problem_parameters.set_boundary_data(&bdata, 1);
+			problem_parameters.set_initial_data(&tdata, 1);
+			problem_parameters.set_interval_data(&vdata, 1);
+
+			return problem_parameters;
+		}
+
         ~problem_parameters_type();
     
     };
