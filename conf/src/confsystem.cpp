@@ -2428,6 +2428,7 @@ void swap(SystemConf& first, SystemConf& second)
 	swap(first.coeff_len, second.coeff_len);
 	swap(first.num_fields_len, second.num_fields_len);
 
+	swap(first.modifiers, second.modifiers);
 	swap(first.init_coeff_copied, second.init_coeff_copied);
 }
 
