@@ -137,7 +137,7 @@ struct symphas::io::gp::gp_plotting_helper_specialized<3> : symphas::io::gp::gp_
 	using parent_type::in_bounds;
 
 	gp_plotting_helper_specialized(symphas::io::write_info const& winfo, symphas::grid_info const& ginfo) :
-		h{}, pos0{}, len{}, stride{}, dims{}, offset{}
+		h{}, pos0{}, len{}, stride{}, dims{}, offset{}, offset0{}
 	{
 		h[2] = ginfo.INTERVAL_Zh;
 		h[1] = ginfo.INTERVAL_Yh;
@@ -151,14 +151,17 @@ struct symphas::io::gp::gp_plotting_helper_specialized<3> : symphas::io::gp::gp_
 		dims[1] = ginfo.DOMAIN_Zc;
 		dims[0] = ginfo.DOMAIN_Xc;
 
-		stride[0] = 1;
-		stride[1] = dims[0];
-		stride[2] = dims[0] * dims[1];
+		stride[0] = ginfo.strides.at(Axis::X);
+		stride[1] = ginfo.strides.at(Axis::Y);
+		stride[2] = ginfo.strides.at(Axis::Z);
 
-		len_type pos[3]{};
-		offset[2] = ginfo.INTERVAL_Z0 - ginfo.DOMAIN_Z0;
-		offset[1] = ginfo.INTERVAL_Y0 - ginfo.DOMAIN_Y0;
-		offset[0] = ginfo.INTERVAL_X0 - ginfo.DOMAIN_X0;
+		offset[2] = (ginfo.INTERVAL_Z0 - ginfo.DOMAIN_Z0) / h[0];
+		offset[1] = (ginfo.INTERVAL_Y0 - ginfo.DOMAIN_Y0) / h[1];
+		offset[0] = (ginfo.INTERVAL_X0 - ginfo.DOMAIN_X0) / h[2];
+
+		offset0[2] = ginfo.DOMAIN_Z0 / h[0];
+		offset0[1] = ginfo.DOMAIN_Y0 / h[1];
+		offset0[0] = ginfo.DOMAIN_X0 / h[2];
 
 		pos0[2] = ginfo.INTERVAL_Z0;
 		pos0[1] = ginfo.INTERVAL_Y0;
@@ -170,7 +173,7 @@ struct symphas::io::gp::gp_plotting_helper_specialized<3> : symphas::io::gp::gp_
 		len_type coords_corrected[3]{};
 		for (iter_type i = 0; i < 3; ++i)
 		{
-			coords_corrected[i] = (coords[i] + offset[i]) % dims[i];
+			coords_corrected[i] = (coords[i] + offset[i] + dims[i]) % dims[i] + offset0[i];
 		}
 		return grid::index_from_position((len_type[3]){ coords_corrected[0], coords_corrected[1], coords_corrected[2] }, stride);
 	}
@@ -208,6 +211,7 @@ struct symphas::io::gp::gp_plotting_helper_specialized<3> : symphas::io::gp::gp_
 	len_type stride[3];
 	len_type dims[3];
 	len_type offset[3];
+	len_type offset0[3];
 
 };
 
@@ -220,7 +224,7 @@ struct symphas::io::gp::gp_plotting_helper_specialized<2> : symphas::io::gp::gp_
 	using parent_type::in_bounds;
 
 	gp_plotting_helper_specialized(symphas::io::write_info const& winfo, symphas::grid_info const& ginfo) :
-		h{}, pos0{}, len{}, stride{}, dims{}, offset{}
+		h{}, pos0{}, len{}, stride{}, dims{}, offset{}, offset0{}
 	{
 		h[1] = ginfo.INTERVAL_Yh;
 		h[0] = ginfo.INTERVAL_Xh;
@@ -231,11 +235,14 @@ struct symphas::io::gp::gp_plotting_helper_specialized<2> : symphas::io::gp::gp_
 		dims[1] = ginfo.DOMAIN_Yc;
 		dims[0] = ginfo.DOMAIN_Xc;
 
-		stride[0] = 1;
-		stride[1] = dims[0];
+		stride[0] = ginfo.strides.at(Axis::X);
+		stride[1] = ginfo.strides.at(Axis::Y);
 
-		offset[1] = ginfo.INTERVAL_Y0 - ginfo.DOMAIN_Y0;
-		offset[0] = ginfo.INTERVAL_X0 - ginfo.DOMAIN_X0;
+		offset[1] = (ginfo.INTERVAL_Y0 - ginfo.DOMAIN_Y0) / h[1];
+		offset[0] = (ginfo.INTERVAL_X0 - ginfo.DOMAIN_X0) / h[0];
+
+		offset0[1] = ginfo.DOMAIN_Y0 / h[1];
+		offset0[0] = ginfo.DOMAIN_X0 / h[0];
 
 		pos0[1] = ginfo.INTERVAL_Y0;
 		pos0[0] = ginfo.INTERVAL_X0;
@@ -246,7 +253,7 @@ struct symphas::io::gp::gp_plotting_helper_specialized<2> : symphas::io::gp::gp_
 		len_type coords_corrected[2]{};
 		for (iter_type i = 0; i < 2; ++i)
 		{
-			coords_corrected[i] = (coords[i] + offset[i]) % dims[i];
+			coords_corrected[i] = (coords[i] + offset[i] + dims[i]) % dims[i] + offset0[i];
 		}
 		return grid::index_from_position((len_type[2]) { coords_corrected[0], coords_corrected[1] }, stride);
 	}
@@ -285,6 +292,7 @@ struct symphas::io::gp::gp_plotting_helper_specialized<2> : symphas::io::gp::gp_
 	len_type stride[2];
 	len_type dims[2];
 	len_type offset[2];
+	len_type offset0[2];
 };
 
 template<>
@@ -296,19 +304,20 @@ struct symphas::io::gp::gp_plotting_helper_specialized<1> : symphas::io::gp::gp_
 	using parent_type::in_bounds;
 
 	gp_plotting_helper_specialized(symphas::io::write_info const& winfo, symphas::grid_info const& ginfo) :
-		h{}, pos0{}, len{}, dims{}, offset{}
+		h{}, pos0{}, len{}, dims{}, stride{}, offset{}, offset0{}
 	{
 		h[0] = ginfo.INTERVAL_Xh;
 		len[0] = ginfo.INTERVAL_Xc;
 		offset[0] = ginfo.INTERVAL_X0 - ginfo.DOMAIN_X0;
+		offset0[0] = ginfo.DOMAIN_X0 / h[0];
 		dims[0] = ginfo.DOMAIN_Xc;
-
+		stride[0] = ginfo.strides.at(Axis::X);
 		pos0[0] = ginfo.INTERVAL_X0;
 	}
 
 	len_type get_index(const len_type* coords) const
 	{
-		return ((coords[0] + offset[0]) % dims[0]);
+		return grid::index_from_position((len_type[1]) { ((coords[0] + offset[0] + dims[0]) % dims[0]) + offset0[0] }, stride);
 	}
 
 	double get_position(Axis ax, const len_type* coords) const
@@ -343,7 +352,9 @@ struct symphas::io::gp::gp_plotting_helper_specialized<1> : symphas::io::gp::gp_
 	double pos0[1];
 	len_type len[1];
 	len_type dims[1];
+	len_type stride[1];
 	len_type offset[1];
+	len_type offset0[1];
 };
 
 template<>

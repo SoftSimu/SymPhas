@@ -274,7 +274,36 @@ struct carry_value
 	carry_value() : value{ &fallback }, fallback{ 0 } {}
 	carry_value(T fallback) : value{ &this->fallback }, fallback{ fallback } {}
 	carry_value(T* value, T fallback) : value{ value }, fallback{ fallback } {}
-	carry_value(T* value, T fallback, bool valid) : value{ (valid) ? value : &this->fallback }, fallback{ fallback } {}
+	carry_value(T* value, T fallback, bool valid) : value{ this->value = (valid) ? value : &this->fallback }, fallback{ fallback } {}
+	carry_value(carry_value<T> const& other) : carry_value{ other.value, other.fallback, other.is_valid() } {}
+	carry_value(carry_value<T>&& other) : carry_value() 
+	{
+		swap(*this, other);
+	}
+
+	friend void swap(carry_value<T>& first, carry_value<T>& second)
+	{
+		using std::swap;
+		T* tmp = second.value;
+		if (first.is_valid())
+		{
+			second.value = first.value;
+		}
+		else
+		{
+			second.value = &second.fallback;
+		}
+
+		if (second.is_valid())
+		{
+			first.value = tmp;
+		}
+		else
+		{
+			first.value = &first.fallback;
+		}
+		swap(first.fallback, second.fallback);
+	}
 
 	carry_value& operator=(T const& other)
 	{

@@ -3007,6 +3007,13 @@ struct InitialConditions
 					return symphas::grid_info(nullptr, 0);
 				}
 			}
+			
+			for (auto& [axis, v] : ginfo)
+			{
+				iter_type i = symphas::axis_to_index(axis);
+				v.set_domain(interval[i][0] * v.width(), (interval[i][1] - 1) * v.width());
+			}
+			ginfo.set_strides(interval.dims);
 
 			int read_index = symphas::io::read_grid(values, rinfo, &ginfo);
 			if (data.at(ax)->init.file.get_index() != read_index)

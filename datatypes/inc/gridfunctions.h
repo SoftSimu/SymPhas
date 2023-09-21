@@ -471,6 +471,36 @@ namespace grid
 		return region;
 	}
 
+	template<typename T>
+	auto length(Block<T> const& grid)
+	{
+		return grid.len;
+	}
+
+	template<typename T, size_t D>
+	auto length(RegionalGrid<T, D> const& grid)
+	{
+		return length<D>(grid.region.dims);
+	}
+
+	template<typename T, size_t D>
+	auto length(BoundaryGrid<T, D> const& grid)
+	{
+		return length<D>(grid.dims);
+	}
+
+	template<typename T, size_t D>
+	auto length_interior(RegionalGrid<T, D> const& grid)
+	{
+		return length_interior<D>(grid.region.dims, grid.region.boundary_size);
+	}
+
+	template<typename T, size_t D>
+	auto length_interior(BoundaryGrid<T, D> const& grid)
+	{
+		return length_interior<D>(grid.dims, BOUNDARY_DEPTH);
+	}
+
 	template<typename T, size_t D>
 	inline bool is_interior_point(const iter_type(&pos)[D], BoundaryGrid<T, D> const& grid)
 	{

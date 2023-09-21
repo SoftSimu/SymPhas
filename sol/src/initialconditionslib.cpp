@@ -468,14 +468,14 @@ namespace symphas::internal
 
 
 	template<>
-	inline void get_num_hex_tiles<1>(len_type(&num_tiles)[1], size_t N, len_type const* dims)
+	void get_num_hex_tiles<1>(len_type(&num_tiles)[1], size_t N, len_type const* dims)
 	{
 		len_type tile_count = 2;
 		num_tiles[0] = N / tile_count;
 	}
 
 	template<>
-	inline void get_num_hex_tiles<2>(len_type(&num_tiles)[2], size_t N, len_type const* dims)
+	void get_num_hex_tiles<2>(len_type(&num_tiles)[2], size_t N, len_type const* dims)
 	{
 		len_type element_tile_count = 4;
 		double tile_count = std::ceil(N / double(element_tile_count));
@@ -489,7 +489,7 @@ namespace symphas::internal
 	}
 
 	template<>
-	inline void get_num_hex_tiles<3>(len_type(&num_tiles)[3], size_t N, len_type const* dims)
+	void get_num_hex_tiles<3>(len_type(&num_tiles)[3], size_t N, len_type const* dims)
 	{
 		len_type element_tile_count = 8;
 		double tile_count = std::ceil(N / double(element_tile_count));

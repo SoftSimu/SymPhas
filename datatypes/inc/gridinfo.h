@@ -664,32 +664,45 @@ protected:
 public:
 	
 	symphas::interval_data_type intervals;				//!< Extent of the grid in the spatial axes.
+	std::map<Axis, len_type> strides;					//!< Stride of the array.
 
 
 	template<size_t... Is>
 	grid_info(const double(&intervals)[sizeof...(Is)][2], double width, std::index_sequence<Is...>) :
-		intervals{ { symphas::index_to_axis(Is), interval_element_type(intervals[Is][0], intervals[Is][1] - width, width) }... } {}
+		intervals{ { symphas::index_to_axis(Is), interval_element_type(intervals[Is][0], intervals[Is][1] - width, width) }... }, strides{} 
+	{
+		update_strides();
+	}
 
 	template<size_t D>
 	grid_info(const double(&intervals)[D][2], double width = 1.) : grid_info(intervals, width, std::make_index_sequence<D>{}) {}
 
 	template<size_t... Is>
 	grid_info(const len_type(&intervals)[sizeof...(Is)][2], std::index_sequence<Is...>) :
-		intervals{ { symphas::index_to_axis(Is), interval_element_type(intervals[Is][0], intervals[Is][1] - 1) }... } {}
+		intervals{ { symphas::index_to_axis(Is), interval_element_type(intervals[Is][0], intervals[Is][1] - 1) }... }, strides{}
+	{
+		update_strides();
+	}
 
 	template<size_t D>
 	grid_info(const len_type(&intervals)[D][2]) : grid_info(intervals, std::make_index_sequence<D>{}) {}
 
 	template<size_t... Is>
 	grid_info(const double(&domain)[sizeof...(Is)][2], const double(&intervals)[sizeof...(Is)][2], double width, std::index_sequence<Is...>) :
-		intervals{ { symphas::index_to_axis(Is), interval_element_type(domain[Is], intervals[Is], width)}...} {}
+		intervals{ { symphas::index_to_axis(Is), interval_element_type(domain[Is], intervals[Is], width)}...}, strides{}
+	{
+		update_strides();
+	}
 
 	template<size_t D>
 	grid_info(const double(&domain)[D][2], const double(&intervals)[D][2], double width = 1.) : grid_info(domain, intervals, width, std::make_index_sequence<D>{}) {}
 
 	template<size_t... Is>
 	grid_info(const len_type(&dims)[sizeof...(Is)], const len_type(&intervals)[sizeof...(Is)][2], std::index_sequence<Is...>) :
-		intervals{ { symphas::index_to_axis(Is), interval_element_type((double[2]) { 0, double(dims[Is] - 1) }, (double[2]) { double(intervals[Is][0]), double(intervals[Is][1] - 1) }, 1.) }... } {}
+		intervals{ { symphas::index_to_axis(Is), interval_element_type((double[2]) { 0, double(dims[Is] - 1) }, (double[2]) { double(intervals[Is][0]), double(intervals[Is][1] - 1) }, 1.) }... }, strides{}
+	{
+		update_strides();
+	}
 
 	template<size_t D>
 	grid_info(const len_type(&dims)[D], const len_type(&intervals)[D][2]) : grid_info(dims, intervals, std::make_index_sequence<D>{}) {}
@@ -702,7 +715,13 @@ public:
 	 * 
 	 * \param intervals The intervals which define the system.
 	 */
-	grid_info(interval_data_type const& intervals) : intervals{ intervals } {}
+	grid_info(interval_data_type const& intervals) : intervals{ intervals }, strides{}
+	{
+		update_strides();
+	}
+
+	grid_info(interval_data_type const& intervals, std::map<Axis, len_type> const& strides) : 
+		intervals{ intervals }, strides{ strides } {}
 
 	//! Create the grid information using the intervals of the system.
 	/*!
@@ -727,7 +746,7 @@ public:
 
 	grid_info(grid::dim_list const& dims) : grid_info(dims, dims.n) {}
 
-	grid_info(grid_info const& other) : grid_info{ other.intervals } {}
+	grid_info(grid_info const& other) : grid_info{ other.intervals, other.strides } {}
 	grid_info(grid_info&& other) noexcept : grid_info()
 	{
 		::swap(*this, other);
@@ -937,6 +956,42 @@ public:
 		return r;
 	}
 
+	void set_strides(symphas::interval_data_type const& other)
+	{
+		if (dimension() > 0)
+		{
+			strides[Axis::X] = 1;
+			for (iter_type i = 1; i < dimension(); ++i)
+			{
+				Axis axis0 = symphas::index_to_axis(i - 1);
+				Axis axis1 = symphas::index_to_axis(i);
+				strides[axis1] = other.at(axis0).get_domain_count() * strides.at(axis0);
+			}
+		}
+	}
+
+	void set_strides(std::map<Axis, len_type> const& other)
+	{
+		strides = other;
+	}
+	
+	template<size_t D>
+	void set_strides(const len_type(&dims)[D])
+	{
+		strides[Axis::X] = 1;
+		for (iter_type i = 1; i < D; ++i)
+		{
+			Axis axis0 = symphas::index_to_axis(i - 1);
+			Axis axis1 = symphas::index_to_axis(i);
+			strides[axis1] = dims[i - 1] * strides.at(axis0);
+		}
+	}
+
+	void update_strides()
+	{
+		set_strides(intervals);
+	}
+
 	//! Gives the first position of the interval.
 	/*!
 	 * Gives the left element count for each interval as a position list.
@@ -983,6 +1038,7 @@ inline void swap(symphas::grid_info& first, symphas::grid_info& second)
 {
 	using std::swap;
 	swap(first.intervals, second.intervals);
+	swap(first.strides, second.strides);
 }
 
 namespace symphas

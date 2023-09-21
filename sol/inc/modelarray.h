@@ -701,15 +701,19 @@ namespace symphas::internal
 
 		virtual void update(const S* _s, len_type len) override
 		{
-			for (iter_type n = 0; n < s_max.len; ++n)
+			auto s_max_it_start = symphas::data_iterator_region(s_max.as_grid(), grid::get_iterable_domain(s_max));
+			auto s_max_it_end = s_max_it_start + grid::length_interior(s_max);
+
+			for (auto it(s_max_it_start); it < s_max_it_end; ++it)
 			{
-				s_max[n] = OpVoid{};
+				*it = OpVoid{};
 			}
 			for (iter_type i = 0; i < len; ++i)
 			{
-				for (iter_type n = 0; n < s_max.len; ++n)
+				auto it0 = symphas::data_iterator_region(_s[i].as_grid(), grid::get_iterable_domain(s_max));
+				for (auto it(s_max_it_start); it < s_max_it_end; ++it, ++it0)
 				{
-					s_max[n] = std::max(s_max[n], _s[i][n]);
+					*it = std::max(*it, *it0);
 				}
 			}
 		}

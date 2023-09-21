@@ -338,6 +338,16 @@ namespace symphas::io
 
 		int index = -1;
 		symphas::grid_info ginfo = read_header(f, &index);
+
+		if (ginfo_ptr != nullptr)
+		{
+			ginfo.set_strides(ginfo_ptr->strides);
+		}
+		else
+		{
+			ginfo.update_strides();
+		}
+
 		symphas::grid_info ginfo_initial(ginfo);
 
 		auto stride = ginfo.get_stride();
@@ -358,6 +368,16 @@ namespace symphas::io
 				else
 				{
 					interval.set_domain(0, (*ginfo_ptr)[axis].domain_right() - (*ginfo_ptr)[axis].domain_left());
+				}
+			}
+		}
+		else
+		{
+			if (ginfo_ptr != nullptr)
+			{
+				for (auto& [axis, interval] : ginfo)
+				{
+					interval.set_domain((*ginfo_ptr)[axis].domain_left(), (*ginfo_ptr)[axis].domain_right());
 				}
 			}
 		}
