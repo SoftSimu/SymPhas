@@ -59,6 +59,21 @@ namespace symphas::internal
 		}
 		info.update_strides();
 	}
+
+	template<typename T, size_t D>
+	void update_for_regional(PhaseFieldSystem<RegionalGridMPI, T, D>& system, symphas::grid_info& info)
+	{
+		grid::resize_adjust_region(system, info);
+
+		for (auto& [axis, interval] : info)
+		{
+			double offset = system.region.boundary_size * interval.width();
+			system.info[axis].set_interval(interval.left() + offset, interval.right() - offset);
+
+			interval.domain_to_interval();
+		}
+		info.update_strides();
+	}
 }
 
 

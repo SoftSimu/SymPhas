@@ -891,6 +891,7 @@ struct PersistentSystemData<RegionalGridMPI<T, D>> : SystemData<RegionalGridMPI<
 			interval.set_domain(interval.domain_left() - offset, interval.domain_right() + offset);
 		}
 
+		g.update_strides();
 		symphas::io::save_grid_plotting(values, w, g);
 	}
 
