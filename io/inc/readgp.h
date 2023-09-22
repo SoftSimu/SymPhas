@@ -37,11 +37,6 @@ template<typename F> inline symphas::grid_info read_header(F* f, iter_type* inde
 
 namespace symphas::io::gp
 {
-
-	struct gp_plotting_helper;
-	gp_plotting_helper* new_helper(symphas::io::write_info const& winfo, symphas::grid_info const& ginfo);
-	void free_helper(gp_plotting_helper* helper);
-
 	//! Open the file which was written in the gnuplot (plain text) format.
 	FILE* open_gpgridf(const char* name);
 	FILE* open_gpgridf_nofail(const char* name);
@@ -58,7 +53,7 @@ namespace symphas::io::gp
 	 * \param f The pointer to the file that is accessed.
 	 */
 	template<typename value_type>
-	void read_block(value_type values, symphas::grid_info ginfo, FILE* f);
+	void read_block(value_type values, symphas::io::block_info binfo, FILE* f);
 
 	//! Plain text implementation of reading data.
 	template<typename value_type>

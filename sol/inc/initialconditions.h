@@ -2977,7 +2977,10 @@ struct InitialConditions
 			}
 			else if (symphas::internal::tag_bit_compare(data.at(ax)->init.intag, InsideTag::DEFAULT))
 			{
-				data.at(ax)->init.f_init->initialize(values, interval);
+				if (!symphas::internal::tag_bit_compare(data.at(ax)->init.intag, InsideTag::NONE))
+				{
+					data.at(ax)->init.f_init->initialize(values, interval);
+				}
 				return symphas::grid_info(interval);
 			}
 			else
@@ -3011,7 +3014,8 @@ struct InitialConditions
 			for (auto& [axis, v] : ginfo)
 			{
 				iter_type i = symphas::axis_to_index(axis);
-				v.set_domain(interval[i][0] * v.width(), (interval[i][1] - 1) * v.width());
+				double h = data.at(ax)->vdata.at(axis).width();
+				v.set_domain(interval[i][0] * h, (interval[i][1] - 1) * h);
 			}
 			ginfo.set_strides(interval.dims);
 

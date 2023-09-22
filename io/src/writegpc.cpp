@@ -28,7 +28,7 @@
 void symphas::io::gp::col::save_grid_plotting(const scalar_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
-	auto helper = symphas::io::gp::new_helper(winfo, ginfo);
+	auto helper = symphas::io::new_helper(winfo, ginfo);
 
 	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
@@ -45,7 +45,7 @@ void symphas::io::gp::col::save_grid_plotting(const scalar_t* grid, symphas::io:
 			}
 		}
 	}
-	symphas::io::gp::free_helper(helper);
+	symphas::io::free_helper(helper);
 	fprintf(f, "\n");
 	fclose(f);
 }
@@ -53,7 +53,7 @@ void symphas::io::gp::col::save_grid_plotting(const scalar_t* grid, symphas::io:
 void symphas::io::gp::col::save_grid_plotting(const complex_t* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
-	auto helper = symphas::io::gp::new_helper(winfo, ginfo);
+	auto helper = symphas::io::new_helper(winfo, ginfo);
 
 	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
@@ -70,7 +70,7 @@ void symphas::io::gp::col::save_grid_plotting(const complex_t* grid, symphas::io
 			}
 		}
 	}
-	symphas::io::gp::free_helper(helper);
+	symphas::io::free_helper(helper);
 	fprintf(f, "\n");
 	fclose(f);
 }
@@ -78,7 +78,7 @@ void symphas::io::gp::col::save_grid_plotting(const complex_t* grid, symphas::io
 void symphas::io::gp::col::save_grid_plotting(const double_arr2 *grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
-	auto helper = symphas::io::gp::new_helper(winfo, ginfo);
+	auto helper = symphas::io::new_helper(winfo, ginfo);
 
 	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
@@ -95,7 +95,7 @@ void symphas::io::gp::col::save_grid_plotting(const double_arr2 *grid, symphas::
 			}
 		}
 	}
-	symphas::io::gp::free_helper(helper);
+	symphas::io::free_helper(helper);
 	fprintf(f, "\n");
 	fclose(f);
 }
@@ -103,7 +103,7 @@ void symphas::io::gp::col::save_grid_plotting(const double_arr2 *grid, symphas::
 void symphas::io::gp::col::save_grid_plotting(const vector_t<3>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
-	auto helper = symphas::io::gp::new_helper(winfo, ginfo);
+	auto helper = symphas::io::new_helper(winfo, ginfo);
 
 	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
@@ -133,7 +133,7 @@ void symphas::io::gp::col::save_grid_plotting(const vector_t<3>* grid, symphas::
 			}
 		}
 	}
-	symphas::io::gp::free_helper(helper);
+	symphas::io::free_helper(helper);
 	fprintf(f, "\n\n");
 	fclose(f);
 }
@@ -141,7 +141,7 @@ void symphas::io::gp::col::save_grid_plotting(const vector_t<3>* grid, symphas::
 void symphas::io::gp::col::save_grid_plotting(const vector_t<2>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
-	auto helper = symphas::io::gp::new_helper(winfo, ginfo);
+	auto helper = symphas::io::new_helper(winfo, ginfo);
 
 	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
@@ -169,7 +169,7 @@ void symphas::io::gp::col::save_grid_plotting(const vector_t<2>* grid, symphas::
 			}
 		}
 	}
-	symphas::io::gp::free_helper(helper);
+	symphas::io::free_helper(helper);
 	fprintf(f, "\n\n");
 	fclose(f);
 }
@@ -178,7 +178,7 @@ void symphas::io::gp::col::save_grid_plotting(const vector_t<2>* grid, symphas::
 void symphas::io::gp::col::save_grid_plotting(const vector_t<1>* grid, symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
-	auto helper = symphas::io::gp::new_helper(winfo, ginfo);
+	auto helper = symphas::io::new_helper(winfo, ginfo);
 
 	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
@@ -197,7 +197,7 @@ void symphas::io::gp::col::save_grid_plotting(const vector_t<1>* grid, symphas::
 			}
 		}
 	}
-	symphas::io::gp::free_helper(helper);
+	symphas::io::free_helper(helper);
 	fprintf(f, "\n\n");
 	fclose(f);
 }
@@ -206,7 +206,7 @@ void symphas::io::gp::col::save_grid_plotting(const vector_t<1>* grid, symphas::
 void symphas::io::gp::col::save_grid_plotting(const scalar_ptr_t(&grid)[3], symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
-	auto helper = symphas::io::gp::new_helper(winfo, ginfo);
+	auto helper = symphas::io::new_helper(winfo, ginfo);
 
 	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
@@ -235,7 +235,7 @@ void symphas::io::gp::col::save_grid_plotting(const scalar_ptr_t(&grid)[3], symp
 			}
 		}
 	}
-	symphas::io::gp::free_helper(helper);
+	symphas::io::free_helper(helper);
 	fprintf(f, "\n\n");
 	fclose(f);
 }
@@ -243,7 +243,7 @@ void symphas::io::gp::col::save_grid_plotting(const scalar_ptr_t(&grid)[3], symp
 void symphas::io::gp::col::save_grid_plotting(const scalar_ptr_t(&grid)[2], symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
-	auto helper = symphas::io::gp::new_helper(winfo, ginfo);
+	auto helper = symphas::io::new_helper(winfo, ginfo);
 
 	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
@@ -270,7 +270,7 @@ void symphas::io::gp::col::save_grid_plotting(const scalar_ptr_t(&grid)[2], symp
 			}
 		}
 	}
-	symphas::io::gp::free_helper(helper);
+	symphas::io::free_helper(helper);
 	fprintf(f, "\n\n");
 	fclose(f);
 }
@@ -279,7 +279,7 @@ void symphas::io::gp::col::save_grid_plotting(const scalar_ptr_t(&grid)[2], symp
 void symphas::io::gp::col::save_grid_plotting(const scalar_ptr_t(&grid)[1], symphas::io::write_info winfo, symphas::grid_info ginfo)
 {
 	FILE* f = symphas::io::open_data_file(winfo.dir_str_ptr, winfo.index, winfo.id, winfo.type);
-	auto helper = symphas::io::gp::new_helper(winfo, ginfo);
+	auto helper = symphas::io::new_helper(winfo, ginfo);
 
 	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
@@ -296,7 +296,7 @@ void symphas::io::gp::col::save_grid_plotting(const scalar_ptr_t(&grid)[1], symp
 			}
 		}
 	}
-	symphas::io::gp::free_helper(helper);
+	symphas::io::free_helper(helper);
 	fprintf(f, "\n\n");
 	fclose(f);
 }

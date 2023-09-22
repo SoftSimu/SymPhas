@@ -43,7 +43,7 @@ namespace symphas::io::gp::col
 	 * \param f The pointer to the file that is accessed.
 	 */
 	template<typename value_type>
-	void read_block(value_type values, symphas::grid_info ginfo, FILE* f);
+	void read_block(value_type values, symphas::io::block_info binfo, FILE* f);
 
 	//! Plain text implementation of reading data.
 	template<typename value_type>

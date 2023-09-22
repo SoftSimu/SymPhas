@@ -181,9 +181,9 @@ symphas::grid_info symphas::io::gp::read_header(FILE* f, int* index)
 
 
 template<>
-void symphas::io::gp::read_block(scalar_t* grid, symphas::grid_info ginfo, FILE* f)
+void symphas::io::gp::read_block(scalar_t* grid, symphas::io::block_info binfo, FILE* f)
 {
-	auto helper = symphas::io::gp::new_helper(ginfo);
+	auto helper = symphas::io::new_helper(binfo);
 
 	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
@@ -202,13 +202,13 @@ void symphas::io::gp::read_block(scalar_t* grid, symphas::grid_info ginfo, FILE*
 			}
 		}
 	}
-	symphas::io::gp::free_helper(helper);
+	symphas::io::free_helper(helper);
 }
 
 template<>
-void symphas::io::gp::read_block(complex_t* grid, symphas::grid_info ginfo, FILE* f)
+void symphas::io::gp::read_block(complex_t* grid, symphas::io::block_info binfo, FILE* f)
 {
-	auto helper = symphas::io::gp::new_helper(ginfo);
+	auto helper = symphas::io::new_helper(binfo);
 
 	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
@@ -227,13 +227,13 @@ void symphas::io::gp::read_block(complex_t* grid, symphas::grid_info ginfo, FILE
 			}
 		}
 	}
-	symphas::io::gp::free_helper(helper);
+	symphas::io::free_helper(helper);
 }
 
 template<>
-void symphas::io::gp::read_block(double_arr2*grid, symphas::grid_info ginfo, FILE* f)
+void symphas::io::gp::read_block(double_arr2*grid, symphas::io::block_info binfo, FILE* f)
 {
-	auto helper = symphas::io::gp::new_helper(ginfo);
+	auto helper = symphas::io::new_helper(binfo);
 
 	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
@@ -253,13 +253,13 @@ void symphas::io::gp::read_block(double_arr2*grid, symphas::grid_info ginfo, FIL
 			}
 		}
 	}
-	symphas::io::gp::free_helper(helper);
+	symphas::io::free_helper(helper);
 }
 
 template<>
-void symphas::io::gp::read_block(vector_t<3>* grid, symphas::grid_info ginfo, FILE* f)
+void symphas::io::gp::read_block(vector_t<3>* grid, symphas::io::block_info binfo, FILE* f)
 {
-	auto helper = symphas::io::gp::new_helper(ginfo);
+	auto helper = symphas::io::new_helper(binfo);
 
 	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
@@ -281,13 +281,13 @@ void symphas::io::gp::read_block(vector_t<3>* grid, symphas::grid_info ginfo, FI
 			}
 		}
 	}
-	symphas::io::gp::free_helper(helper);
+	symphas::io::free_helper(helper);
 }
 
 template<>
-void symphas::io::gp::read_block(vector_t<2>* grid, symphas::grid_info ginfo, FILE* f)
+void symphas::io::gp::read_block(vector_t<2>* grid, symphas::io::block_info binfo, FILE* f)
 {
-	auto helper = symphas::io::gp::new_helper(ginfo);
+	auto helper = symphas::io::new_helper(binfo);
 	for (iter_type j = 0; j < GP_HELPER_LENY; j++)
 	{
 		for (iter_type i = 0; i < GP_HELPER_LENX; i++)
@@ -305,14 +305,14 @@ void symphas::io::gp::read_block(vector_t<2>* grid, symphas::grid_info ginfo, FI
 			}
 		}
 	}
-	symphas::io::gp::free_helper(helper);
+	symphas::io::free_helper(helper);
 }
 
 
 template<>
-void symphas::io::gp::read_block(vector_t<1>* grid, symphas::grid_info ginfo, FILE* f)
+void symphas::io::gp::read_block(vector_t<1>* grid, symphas::io::block_info binfo, FILE* f)
 {
-	auto helper = symphas::io::gp::new_helper(ginfo);
+	auto helper = symphas::io::new_helper(binfo);
 	for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 	{
 		double m;
@@ -324,13 +324,13 @@ void symphas::io::gp::read_block(vector_t<1>* grid, symphas::grid_info ginfo, FI
 			grid[ii] = vector_t<1>{ m };
 		}
 	}
-	symphas::io::gp::free_helper(helper);
+	symphas::io::free_helper(helper);
 }
 
 template<>
-void symphas::io::gp::read_block(scalar_ptr_t(&grid)[3], symphas::grid_info ginfo, FILE* f)
+void symphas::io::gp::read_block(scalar_ptr_t(&grid)[3], symphas::io::block_info binfo, FILE* f)
 {
-	auto helper = symphas::io::gp::new_helper(ginfo);
+	auto helper = symphas::io::new_helper(binfo);
 	for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 	{
 		for (iter_type j = 0; j < GP_HELPER_LENY; j++)
@@ -353,13 +353,13 @@ void symphas::io::gp::read_block(scalar_ptr_t(&grid)[3], symphas::grid_info ginf
 			}
 		}
 	}
-	symphas::io::gp::free_helper(helper);
+	symphas::io::free_helper(helper);
 }
 
 template<>
-void symphas::io::gp::read_block(scalar_ptr_t(&grid)[2], symphas::grid_info ginfo, FILE* f)
+void symphas::io::gp::read_block(scalar_ptr_t(&grid)[2], symphas::io::block_info binfo, FILE* f)
 {
-	auto helper = symphas::io::gp::new_helper(ginfo);
+	auto helper = symphas::io::new_helper(binfo);
 	for (iter_type j = 0; j < GP_HELPER_LENY; j++)
 	{
 		for (iter_type i = 0; i < GP_HELPER_LENX; i++)
@@ -378,14 +378,14 @@ void symphas::io::gp::read_block(scalar_ptr_t(&grid)[2], symphas::grid_info ginf
 			}
 		}
 	}
-	symphas::io::gp::free_helper(helper);
+	symphas::io::free_helper(helper);
 }
 
 
 template<>
-void symphas::io::gp::read_block(scalar_ptr_t(&grid)[1], symphas::grid_info ginfo, FILE* f)
+void symphas::io::gp::read_block(scalar_ptr_t(&grid)[1], symphas::io::block_info binfo, FILE* f)
 {
-	auto helper = symphas::io::gp::new_helper(ginfo);
+	auto helper = symphas::io::new_helper(binfo);
 	for (iter_type i = 0; i < GP_HELPER_LENX; i++)
 	{
 		double m;
@@ -396,7 +396,7 @@ void symphas::io::gp::read_block(scalar_ptr_t(&grid)[1], symphas::grid_info ginf
 			grid[0][ii] = m;
 		}
 	}
-	symphas::io::gp::free_helper(helper);
+	symphas::io::free_helper(helper);
 }
 
 

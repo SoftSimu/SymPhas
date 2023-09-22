@@ -202,7 +202,7 @@ symphas::problem_parameters_type::problem_parameters_type(problem_parameters_typ
 
 void symphas::problem_parameters_type::set_initial_data(const symphas::init_data_type* tdata_set, size_t n)
 {
-	if (n <= len)
+	if (n <= len && n > 0)
 	{
 		for (size_t i = 0; i < n; ++i)
 		{
@@ -221,7 +221,7 @@ void symphas::problem_parameters_type::set_initial_data(const symphas::init_data
 
 void symphas::problem_parameters_type::set_interval_data(const symphas::interval_data_type* vdata_set, size_t n)
 {
-	if (n <= len)
+	if (n <= len && n > 0)
 	{
 		for (size_t i = 0; i < n; ++i)
 		{
@@ -240,7 +240,7 @@ void symphas::problem_parameters_type::set_interval_data(const symphas::interval
 
 void symphas::problem_parameters_type::set_boundary_data(const symphas::b_data_type* bdata_set, size_t n)
 {
-	if (n <= len)
+	if (n <= len && n > 0)
 	{
 		for (size_t i = 0; i < n; ++i)
 		{
@@ -259,7 +259,7 @@ void symphas::problem_parameters_type::set_boundary_data(const symphas::b_data_t
 
 void symphas::problem_parameters_type::set_num_fields(len_type* num_fields_set, size_t n)
 {
-	if (n <= num_fields_len)
+	if (n <= num_fields_len && n > 0)
 	{
 		for (size_t i = 0; i < n; ++i)
 		{

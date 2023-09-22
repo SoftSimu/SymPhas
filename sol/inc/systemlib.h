@@ -499,7 +499,7 @@ struct PersistentSystemData<G<T, D>> : SystemData<G<T, D>>
 	void write(const char* dir, iter_type index) const
 	{
 		symphas::io::write_info w{ dir, index, id, DataFileType::SOLUTION_DATA };
-		symphas::grid_info g{ info };
+		symphas::grid_info g{ info.intervals };
 		writer.write(w, g);
 	}
 
@@ -517,7 +517,7 @@ struct PersistentSystemData<G<T, D>> : SystemData<G<T, D>>
 		snprintf(write_loc, BUFFER_LENGTH, "%s/%s", dir, name);
 
 		symphas::io::write_info w{ write_loc, index, id, DataFileType::NAMED_DATA };
-		symphas::grid_info g{ info };
+		symphas::grid_info g{ info.intervals };
 		writer.write(w, g);
 
 		delete[] write_loc;
@@ -635,6 +635,7 @@ struct PersistentSystemData<RegionalGrid<T, D>> : SystemData<RegionalGrid<T, D>>
 			interval.set_domain(interval.domain_left() - offset, interval.domain_right() + offset);
 		}
 
+		g.update_strides();
 		symphas::io::save_grid_plotting(values, w, g);
 	}
 
@@ -969,9 +970,9 @@ namespace symphas
             * \param len The number of systems that the problem parameters refer to.
             */
         problem_parameters_type(const size_t len) : 
-            tdata{ (len > 0) ? new symphas::init_data_type[len] : nullptr }, 
-			vdata{ (len > 0) ? new symphas::interval_data_type[len] : nullptr }, 
-			bdata{ (len > 0) ? new symphas::b_data_type[len] : nullptr },
+			tdata{ (len > 0) ? new symphas::init_data_type[len]{} : nullptr },
+			vdata{ (len > 0) ? new symphas::interval_data_type[len]{} : nullptr }, 
+			bdata{ (len > 0) ? new symphas::b_data_type[len]{} : nullptr },
 			num_fields{ new len_type[1]{ len_type(len) } },
 			len{ len }, num_fields_len{ 1 }, dt_list{},
 			modifiers{ new size_t[1]{} }, time { TIME_INIT }, index{ params::start_index } {}

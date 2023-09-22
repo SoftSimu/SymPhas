@@ -53,12 +53,33 @@
 namespace symphas::io
 {
 	struct write_info;
+	struct block_info;
 }
 
-namespace symphas::io::gp
+struct symphas::io::block_info : symphas::grid_info
+{
+	using parent_type = symphas::grid_info;
+	using parent_type::parent_type;
+	std::map<Axis, iter_type> offset;			//!< Interval inside the domain.
+
+	block_info(symphas::grid_info const& other) : parent_type(other) {}
+	block_info(block_info const& other) = default;
+	block_info(block_info&& other) = default;
+
+	void set_offset(symphas::interval_data_type const& intervals)
+	{
+		for (auto [axis, interval] : intervals)
+		{
+			offset[axis] = (interval.domain_left() - at(axis).domain_left()) / at(axis).width();
+		}
+	}
+
+};
+
+namespace symphas::io
 {
 
-	struct gp_plotting_helper
+	struct plotting_helper
 	{
 		virtual size_t get_dim() const = 0;
 		virtual len_type get_len(iter_type n) const = 0;
@@ -75,7 +96,7 @@ namespace symphas::io::gp
 		virtual bool in_bounds(const len_type(&coords)[2]) const = 0;
 		virtual bool in_bounds(const len_type(&coords)[1]) const = 0;
 		virtual bool in_bounds(std::initializer_list<len_type> const&) const = 0;
-		virtual ~gp_plotting_helper() {};
+		virtual ~plotting_helper() {};
 
 		len_type get_interval_len(Axis ax) const
 		{
@@ -94,11 +115,13 @@ namespace symphas::io::gp
 	};
 
 	template<size_t D>
-	struct gp_plotting_helper_specialized;
+	struct plotting_helper_specialized;
 
-	gp_plotting_helper* new_helper(symphas::io::write_info const& winfo, symphas::grid_info const& ginfo);
-	gp_plotting_helper* new_helper(symphas::grid_info ginfo);
-	inline void free_helper(gp_plotting_helper* helper)
+	plotting_helper* new_helper(symphas::io::write_info const& winfo, symphas::io::block_info const& binfo);
+	plotting_helper* new_helper(symphas::io::block_info const& binfo);
+	plotting_helper* new_helper(symphas::io::write_info const& winfo, symphas::grid_info const& ginfo);
+	plotting_helper* new_helper(symphas::grid_info const& ginfo);
+	inline void free_helper(plotting_helper* helper)
 	{
 		delete helper;
 	}

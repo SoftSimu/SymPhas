@@ -130,7 +130,7 @@ void adjust_data_format(symphas::grid_info const& ginfo, T* from, T* to)
 {
 	if (to != nullptr)
 	{
-		auto helper = symphas::io::gp::new_helper(ginfo);
+		auto helper = symphas::io::new_helper(ginfo);
 		iter_type n = 0;
 		for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 		{
@@ -151,84 +151,84 @@ void adjust_data_format(symphas::grid_info const& ginfo, T* from, T* to)
  * functions to write data from the grid to a file
  */
 template<>
-void symphas::io::xdr::read_block(scalar_t* grid, symphas::grid_info ginfo, XDRFILE* f)
+void symphas::io::xdr::read_block(scalar_t* grid, symphas::io::block_info binfo, XDRFILE* f)
 {
-	double* raw_data = new double[ginfo.num_interval_points()] {};
-	xdrfile_read_double(raw_data, ginfo.num_interval_points(), f);
-	adjust_data_format(ginfo, raw_data, grid);
+	double* raw_data = new double[binfo.num_interval_points()] {};
+	xdrfile_read_double(raw_data, binfo.num_interval_points(), f);
+	adjust_data_format(binfo, raw_data, grid);
 	delete[] raw_data;
 }
 
 template<>
-void symphas::io::xdr::read_block(complex_t* grid, symphas::grid_info ginfo, XDRFILE* f)
+void symphas::io::xdr::read_block(complex_t* grid, symphas::io::block_info binfo, XDRFILE* f)
 {
-	double* raw_data = new double[ginfo.num_interval_points() * 2] {};
-	xdrfile_read_double(raw_data, ginfo.num_interval_points() * 2, f);
-	adjust_data_format(ginfo, reinterpret_cast<complex_t*>(raw_data), grid);
+	double* raw_data = new double[binfo.num_interval_points() * 2] {};
+	xdrfile_read_double(raw_data, binfo.num_interval_points() * 2, f);
+	adjust_data_format(binfo, reinterpret_cast<complex_t*>(raw_data), grid);
 	delete[] raw_data;
 }
 
 template<>
-void symphas::io::xdr::read_block(double_arr2 *grid, symphas::grid_info ginfo, XDRFILE* f)
+void symphas::io::xdr::read_block(double_arr2 *grid, symphas::io::block_info binfo, XDRFILE* f)
 {
-	double* raw_data = new double[ginfo.num_interval_points() * 2] {};
-	xdrfile_read_double(raw_data, ginfo.num_interval_points() * 2, f);
-	adjust_data_format(ginfo, reinterpret_cast<double_arr2*>(raw_data), grid);
+	double* raw_data = new double[binfo.num_interval_points() * 2] {};
+	xdrfile_read_double(raw_data, binfo.num_interval_points() * 2, f);
+	adjust_data_format(binfo, reinterpret_cast<double_arr2*>(raw_data), grid);
 	delete[] raw_data;
 }
 
 template<>
-void symphas::io::xdr::read_block(vector_t<3>* grid, symphas::grid_info ginfo, XDRFILE* f)
+void symphas::io::xdr::read_block(vector_t<3>* grid, symphas::io::block_info binfo, XDRFILE* f)
 {
-	double* raw_data = new double[ginfo.num_interval_points() * 3] {};
-	xdrfile_read_double(raw_data, ginfo.num_interval_points() * 3, f);
-	adjust_data_format(ginfo, reinterpret_cast<vector_t<3>*>(raw_data), grid);
+	double* raw_data = new double[binfo.num_interval_points() * 3] {};
+	xdrfile_read_double(raw_data, binfo.num_interval_points() * 3, f);
+	adjust_data_format(binfo, reinterpret_cast<vector_t<3>*>(raw_data), grid);
 	delete[] raw_data;
 }
 
 template<>
-void symphas::io::xdr::read_block(vector_t<2>* grid, symphas::grid_info ginfo, XDRFILE* f)
+void symphas::io::xdr::read_block(vector_t<2>* grid, symphas::io::block_info binfo, XDRFILE* f)
 {
-	double* raw_data = new double[ginfo.num_interval_points() * 2] {};
-	xdrfile_read_double(raw_data, ginfo.num_interval_points() * 2, f);
-	adjust_data_format(ginfo, reinterpret_cast<vector_t<2>*>(raw_data), grid);
+	double* raw_data = new double[binfo.num_interval_points() * 2] {};
+	xdrfile_read_double(raw_data, binfo.num_interval_points() * 2, f);
+	adjust_data_format(binfo, reinterpret_cast<vector_t<2>*>(raw_data), grid);
 	delete[] raw_data;
 }
 
 template<>
-void symphas::io::xdr::read_block(vector_t<1>* grid, symphas::grid_info ginfo, XDRFILE* f)
+void symphas::io::xdr::read_block(vector_t<1>* grid, symphas::io::block_info binfo, XDRFILE* f)
 {
-	double* raw_data = new double[ginfo.num_interval_points() * 1] {};
-	xdrfile_read_double(raw_data, ginfo.num_interval_points() * 1, f);
-	adjust_data_format(ginfo, reinterpret_cast<vector_t<1>*>(raw_data), grid);
+	double* raw_data = new double[binfo.num_interval_points() * 1] {};
+	xdrfile_read_double(raw_data, binfo.num_interval_points() * 1, f);
+	adjust_data_format(binfo, reinterpret_cast<vector_t<1>*>(raw_data), grid);
 	delete[] raw_data;
 }
 
 
 
 template<>
-void symphas::io::xdr::read_block(scalar_ptr_t(&grid)[3], symphas::grid_info ginfo, XDRFILE* f)
+void symphas::io::xdr::read_block(scalar_ptr_t(&grid)[3], symphas::io::block_info binfo, XDRFILE* f)
 {
-	double* raw_data = new double[ginfo.num_interval_points() * 3] {};
-	xdrfile_read_double(raw_data, ginfo.num_interval_points() * 3, f);
-	adjust_data_format(ginfo, reinterpret_cast<scalar_ptr_t(&)[3]>(raw_data), grid);
+	double* raw_data = new double[binfo.num_interval_points() * 3] {};
+	xdrfile_read_double(raw_data, binfo.num_interval_points() * 3, f);
+	adjust_data_format(binfo, reinterpret_cast<scalar_ptr_t(&)[3]>(raw_data), grid);
 	delete[] raw_data;
 }
 
 template<>
-void symphas::io::xdr::read_block(scalar_ptr_t(&grid)[2], symphas::grid_info ginfo, XDRFILE* f)
+void symphas::io::xdr::read_block(scalar_ptr_t(&grid)[2], symphas::io::block_info binfo, XDRFILE* f)
 {
-	double* raw_data = new double[ginfo.num_interval_points() * 2] {};
-	xdrfile_read_double(raw_data, ginfo.num_interval_points() * 2, f);
-	adjust_data_format(ginfo, reinterpret_cast<scalar_ptr_t(&)[2]>(raw_data), grid);
+	double* raw_data = new double[binfo.num_interval_points() * 2] {};
+	xdrfile_read_double(raw_data, binfo.num_interval_points() * 2, f);
+	adjust_data_format(binfo, reinterpret_cast<scalar_ptr_t(&)[2]>(raw_data), grid);
 	delete[] raw_data;
 }
 
 template<>
-void symphas::io::xdr::read_block(scalar_ptr_t(&grid)[1], symphas::grid_info ginfo, XDRFILE* f)
+void symphas::io::xdr::read_block(scalar_ptr_t(&grid)[1], symphas::io::block_info binfo, XDRFILE* f)
 {
-	double* raw_data = new double[ginfo.num_interval_points() * 1] {};
-	xdrfile_read_double(raw_data, ginfo.num_interval_points() * 1, f);
-	adjust_data_format(ginfo, reinterpret_cast<scalar_ptr_t(&)[1]>(raw_data), grid);
+	double* raw_data = new double[binfo.num_interval_points() * 1] {};
+	xdrfile_read_double(raw_data, binfo.num_interval_points() * 1, f);
+	adjust_data_format(binfo, reinterpret_cast<scalar_ptr_t(&)[1]>(raw_data), grid);
 	delete[] raw_data;
 }

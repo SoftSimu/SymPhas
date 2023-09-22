@@ -981,7 +981,11 @@ namespace symphas
 		 * algorithm.
 		 */
 		init_entry_type(Inside in) :
-			init_entry_type(in, InsideTag::DEFAULT, init_data_parameters::one()) {}
+			init_entry_type(in, 
+				(in == Inside::NONE) 
+					? symphas::build_intag(InsideTag::NONE)
+					: symphas::build_intag(InsideTag::DEFAULT), 
+				init_data_parameters::one()) {}
 
 		//! Create initial conditions data from a file.
 		/*!

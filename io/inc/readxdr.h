@@ -51,7 +51,7 @@ namespace symphas::io::xdr
 	 * \param f The pointer to the file that is accessed.
 	 */
 	template<typename value_type>
-	void read_block(value_type grid, symphas::grid_info ginfo, XDRFILE* f);
+	void read_block(value_type grid, symphas::io::block_info binfo, XDRFILE* f);
 
 	//! Read the xdr data into the given array.
 	/*!

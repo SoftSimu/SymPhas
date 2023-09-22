@@ -640,9 +640,6 @@ struct symphas::grid_info
 {
 protected:
 
-
-	grid_info() : intervals{} {}
-
 	interval_data_type make_intervals(const len_type* dims, size_t dimension)
 	{
 		if (!dims)
@@ -666,6 +663,7 @@ public:
 	symphas::interval_data_type intervals;				//!< Extent of the grid in the spatial axes.
 	std::map<Axis, len_type> strides;					//!< Stride of the array.
 
+	grid_info() : intervals{}, strides{} {}
 
 	template<size_t... Is>
 	grid_info(const double(&intervals)[sizeof...(Is)][2], double width, std::index_sequence<Is...>) :
@@ -894,7 +892,7 @@ public:
 	/*!
 	 * Gives the number of cells along each dimension.
 	 */
-	grid::dim_list get_stride() const
+	grid::dim_list get_domain_stride() const
 	{
 		auto dims = get_dims();
 		grid::dim_list stride(nullptr, dimension());

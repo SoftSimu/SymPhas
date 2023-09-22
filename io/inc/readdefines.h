@@ -48,21 +48,20 @@ SYMPHAS_MSG_BAD_INDEX_READ "the closest index found was '%d'\n"
 #define BAD_INDEX -1
 
 #define SPECIALIZE_READ_BLOCK_FILE(NAMESPACE, F) \
-template<> void symphas::io::NAMESPACE::read_block(scalar_t* grid, symphas::grid_info ginfo, F* f); \
-template<> void symphas::io::NAMESPACE::read_block(complex_t* grid, symphas::grid_info ginfo, F* f); \
-template<> void symphas::io::NAMESPACE::read_block(double_arr2* grid, symphas::grid_info ginfo, F* f); \
-template<> void symphas::io::NAMESPACE::read_block(vector_t<3>* grid, symphas::grid_info ginfo, F* f); \
-template<> void symphas::io::NAMESPACE::read_block(vector_t<2>* grid, symphas::grid_info ginfo, F* f); \
-template<> void symphas::io::NAMESPACE::read_block(vector_t<1>* grid, symphas::grid_info ginfo, F* f); \
-template<> void symphas::io::NAMESPACE::read_block(scalar_ptr_t (&grid)[3], symphas::grid_info ginfo, F* f); \
-template<> void symphas::io::NAMESPACE::read_block(scalar_ptr_t (&grid)[2], symphas::grid_info ginfo, F* f); \
-template<> void symphas::io::NAMESPACE::read_block(scalar_ptr_t (&grid)[1], symphas::grid_info ginfo, F* f);
+template<> void symphas::io::NAMESPACE::read_block(scalar_t* grid, symphas::io::block_info binfo, F* f); \
+template<> void symphas::io::NAMESPACE::read_block(complex_t* grid, symphas::io::block_info binfo, F* f); \
+template<> void symphas::io::NAMESPACE::read_block(double_arr2* grid, symphas::io::block_info binfo, F* f); \
+template<> void symphas::io::NAMESPACE::read_block(vector_t<3>* grid, symphas::io::block_info binfo, F* f); \
+template<> void symphas::io::NAMESPACE::read_block(vector_t<2>* grid, symphas::io::block_info binfo, F* f); \
+template<> void symphas::io::NAMESPACE::read_block(vector_t<1>* grid, symphas::io::block_info binfo, F* f); \
+template<> void symphas::io::NAMESPACE::read_block(scalar_ptr_t (&grid)[3], symphas::io::block_info binfo, F* f); \
+template<> void symphas::io::NAMESPACE::read_block(scalar_ptr_t (&grid)[2], symphas::io::block_info binfo, F* f); \
+template<> void symphas::io::NAMESPACE::read_block(scalar_ptr_t (&grid)[1], symphas::io::block_info binfo, F* f);
 
 #define SPECIALIZE_READ_BLOCK(NAMESPACE) SPECIALIZE_READ_BLOCK_FILE(NAMESPACE, FILE)
 
 
 // \endcond
-
 
 namespace symphas::io
 {
@@ -324,6 +323,25 @@ namespace symphas::io
 	 * methods to read the header, open the file and the block are provided
 	 * as parameters.
 	 * 
+	 * Half the work is properly constructing the ginfo object passed to the \p read_block_f.
+	 * When the \p ginfo_ptr object is not `nullptr`, then information needs to be taken from it
+	 * since it specifies properties about the grid being read into, including:
+	 *	- the stride sizes
+	 *	- the interval interior to the domain (when reading into a boundary or regional grid)
+	 * The functionality here supports multiple use cases, including:
+	 *	- populating the system in a virtual grid, which can potentially be smaller
+	 *		than the data and so needs to be bounded by the domain
+	 * the ginfo_ptr variable will:
+	 *	- defines the maximum domain
+	 *	- define the offset data is positioned at inside grid parameter
+	 *
+	 * In general:
+	 *	 - The data will be placed at an offset computed by the difference of domain and interval
+	 *	 - An additional offset will be (possibly) computed by the difference between the
+	 *	 	domain of ginfo_ptr and domain of ginfo read from the file
+	 *	 - The input will read as many elements as there are in the interval of ginfo
+	 *	 - The dimensions of the iterable region of the grid parameter is inferred from the domain
+	 * 
 	 * \param grid The array to where the data from file is written.
 	 * \param rinfo Information about the file to be read.
 	 * \param open_file_f The function to open the file to be read.
@@ -339,6 +357,7 @@ namespace symphas::io
 		int index = -1;
 		symphas::grid_info ginfo = read_header(f, &index);
 
+
 		if (ginfo_ptr != nullptr)
 		{
 			ginfo.set_strides(ginfo_ptr->strides);
@@ -350,21 +369,31 @@ namespace symphas::io
 
 		symphas::grid_info ginfo_initial(ginfo);
 
-		auto stride = ginfo.get_stride();
-		auto dims = ginfo.get_dims();
+		// Set the info object used to read blocks, see symphas::io::gp_plotting_helper.
+		symphas::io::block_info binfo(ginfo);
 
-		symphas::grid_info ginfo0(ginfo);
-		symphas::grid_info ginfo1(ginfo);
-		
+		// Set the offset used when inserting data into the grid.
+		if (ginfo_ptr != nullptr && rinfo.uses_offset())
+		{
+			binfo.set_offset(*ginfo_ptr);
+		}
+
 		if (!rinfo.uses_offset())
 		{
-			for (auto& [axis, interval] : ginfo)
+			// if an offset is not used, push the interval and domain to the leftmost point,
+			// that way the grid will start being placed at 0,0.
+			//
+			// The reason that domain and interval both have to start at zero is because
+			// that data streaming into the grid will be offset by the difference
+			// between the domain and offset.
+			for (auto& [axis, interval] : binfo)
 			{
 				interval.set_interval(0, interval.right() - interval.left());
 				if (ginfo_ptr == nullptr)
 				{
 					interval.domain_to_interval();
 				}
+				// when the ginfo_ptr is defined, it is used to set the domain data.
 				else
 				{
 					interval.set_domain(0, (*ginfo_ptr)[axis].domain_right() - (*ginfo_ptr)[axis].domain_left());
@@ -373,45 +402,31 @@ namespace symphas::io
 		}
 		else
 		{
+			// when an offset is not used, but the ginfo_ptr is defined, set the domain
+			// data using ginfo_ptr.
 			if (ginfo_ptr != nullptr)
 			{
-				for (auto& [axis, interval] : ginfo)
+				for (auto& [axis, interval] : binfo)
 				{
 					interval.set_domain((*ginfo_ptr)[axis].domain_left(), (*ginfo_ptr)[axis].domain_right());
 				}
 			}
 		}
 
+		symphas::grid_info ginfo0;
+		symphas::grid_info ginfo1;
+
 		int prev;
 		if (!params::single_input_file)
 		{
-			read_block_f(std::forward<value_type>(grid), ginfo, f);
+			read_block_f(std::forward<value_type>(grid), binfo, f);
 			prev = index;
 		}
 		else
 		{
 			do
 			{
-				//if (!symphas::lib::is_null(grid))
-				//{
-				//	grid::pos_list offset = ginfo.left();
-				//	grid::pos_list pos = offset;
-				//	auto interval_stride = ginfo.get_interval_stride();
-				//	auto interval_dims = ginfo.get_interval_dims();
-				//
-				//	for (iter_type i = 0; i < ginfo.num_interval_points(); ++i)
-				//	{
-				//		grid::get_grid_position_offset(pos, interval_dims, interval_stride, offset, i);
-				//		for (iter_type j = 0; j < ginfo.dimension(); ++j)
-				//		{
-				//			pos[j] = (pos[j] >= dims[j]) ? pos[j] - dims[j] : (pos[j] < 0) ? pos[j] + dims[j] : pos[j];
-				//		}
-				//		iter_type ii = grid::index_from_position(pos, stride);
-				//		symphas::lib::assign(grid, ii);
-				//	}
-				//}
-
-				read_block_f(std::forward<value_type>(grid), ginfo, f);
+				read_block_f(std::forward<value_type>(grid), binfo, f);
 				prev = index;
 				
 				ginfo0 = ginfo1;
@@ -420,15 +435,15 @@ namespace symphas::io
 				{
 					if (!rinfo.uses_offset())
 					{
-						ginfo[axis].set_interval(0, interval.right() - interval.left());
+						binfo[axis].set_interval(0, interval.right() - interval.left());
 						if (ginfo_ptr == nullptr)
 						{
-							ginfo[axis].domain_to_interval();
+							binfo[axis].domain_to_interval();
 						}
 					}
 					else
 					{
-						ginfo[axis].set_interval(interval.left(), interval.right());
+						binfo[axis].set_interval(interval.left(), interval.right());
 					}
 				}
 

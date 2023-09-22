@@ -37,10 +37,16 @@
 namespace symphas::internal
 {
 	template<template<typename, size_t> typename G, typename T, size_t D>
-	void update_for_regional(PhaseFieldSystem<G, T, D>& system, symphas::grid_info const& info) {}
+	void update_for_regional(PhaseFieldSystem<G, T, D>& system, symphas::grid_info& info)
+	{
+		for (auto& [axis, interval] : info)
+		{
+			interval.domain_to_interval();
+		}
+	}
 
 	template<typename T, size_t D>
-	void update_for_regional(PhaseFieldSystem<RegionalGrid, T, D>& system, symphas::grid_info const& info)
+	void update_for_regional(PhaseFieldSystem<RegionalGrid, T, D>& system, symphas::grid_info& info)
 	{
 		grid::resize_adjust_region(system, info);
 
@@ -48,7 +54,25 @@ namespace symphas::internal
 		{
 			double offset = system.region.boundary_size * interval.width();
 			system.info[axis].set_interval(interval.left() + offset, interval.right() - offset);
+
+			interval.domain_to_interval();
 		}
+		info.update_strides();
+	}
+
+	template<typename T, size_t D>
+	void update_for_regional(PhaseFieldSystem<RegionalGridMPI, T, D>& system, symphas::grid_info& info)
+	{
+		grid::resize_adjust_region(system, info);
+
+		for (auto& [axis, interval] : info)
+		{
+			double offset = system.region.boundary_size * interval.width();
+			system.info[axis].set_interval(interval.left() + offset, interval.right() - offset);
+
+			interval.domain_to_interval();
+		}
+		info.update_strides();
 	}
 }
 
@@ -121,11 +145,6 @@ struct DataStepper
 		symphas::grid_info ginfo(system.info);
 		iter_type read_index = symphas::io::read_grid<solver_implicit_t<S>>(rinfo, &ginfo);
 		symphas::internal::update_for_regional(system, ginfo);
-
-		for (auto& [_, interval] : ginfo)
-		{
-			interval.domain_to_interval();
-		}
 
 		symphas::io::read_grid(system.values, rinfo, &ginfo);
 		data[system.id].file.set_index(read_index);
