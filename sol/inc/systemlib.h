@@ -377,7 +377,7 @@ struct SystemData<RegionalGrid<T, D>> : RegionalGrid<T, D>, SystemInfo
 				auto& interval = info.intervals.at(ax);
 				double boundary = region.boundary_size * interval.width();
 
-				interval.set_count(dims[i] - 2 * BOUNDARY_DEPTH);
+				interval.set_domain_count(dims[i] - 2 * BOUNDARY_DEPTH);
 				interval.set_interval(interval.left() + boundary, interval.right() - boundary);
 			}
 		}
@@ -1060,7 +1060,7 @@ namespace symphas
         void set_initial_data(const symphas::init_data_type* tdata_set, size_t n);
         inline void set_initial_data(const symphas::init_data_type* tdata_set)
         {
-            set_initial_data(tdata_set, len - 1);
+            set_initial_data(tdata_set, len);
         }
         inline void set_initial_data(symphas::init_data_type const& tdata_set, iter_type i)
         {
@@ -1096,7 +1096,7 @@ namespace symphas
         void set_interval_data(const symphas::interval_data_type* vdata_set, size_t n);
         inline void set_interval_data(const symphas::interval_data_type* vdata_set)
         {
-            set_interval_data(vdata_set, len - 1);
+            set_interval_data(vdata_set, len);
         }
         inline void set_interval_data(symphas::interval_data_type const& vdata_set, iter_type i)
         {
@@ -1128,7 +1128,7 @@ namespace symphas
         void set_boundary_data(const symphas::b_data_type* bdata_set, size_t n);
         inline void set_boundary_data(const symphas::b_data_type* bdata_set)
         {
-            set_boundary_data(bdata_set, len - 1);
+            set_boundary_data(bdata_set, len);
         }
         inline void set_boundary_data(symphas::b_data_type const& bdata_set, iter_type i)
         {

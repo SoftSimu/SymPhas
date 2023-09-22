@@ -419,9 +419,71 @@ namespace symphas
 		 * \param The point (from 0 to 1) along which the new interval is centered 
 		 * around the old interval.
 		 */
-		void set_domain_count_from_r(len_type count, double ratio)
+		void set_domain_count_from_r(len_type count, double ratio = 0.5)
 		{
 			symphas::internal::set_count_from_r(domain, h, count, ratio);
+		}
+
+		//! Sets the beginning and end values of the interval. 
+		/*
+		 * See set_interval(double, double, double).
+		 *
+		 * This overload is given the number of points and will determine the
+		 * spatial width of elements from the given number of elements
+		 * constituting the interval.
+		 *
+		 * The number of given elements is the same value that is
+		 * produced by the function count.
+		 *
+		 * \param count The number of points in the interval.
+		 * \param left The left endpoint of the interval.
+		 * \param right The right endpoint of the interval.
+		 */
+		void set_domain_count(len_type count)
+		{
+			set_domain_count_from_r(count);
+		}
+
+		//! Resize the domain with the given number of elements, with constant width.
+		/*!
+		 * See set_interval(double, double, double).
+		 *
+		 * This overload is given the number of points (without the width),
+		 * and will resize the interval such that a point is fixed
+		 * along the interval that corresponds to the value
+		 * of the given ratio (between 0 and 1).
+		 *
+		 * The number of given elements is the same value that is
+		 * produced by the function count().
+		 *
+		 * \param count The number of points in the interval.
+		 * \param The point (from 0 to 1) along which the new interval is centered
+		 * around the old interval.
+		 */
+		void set_interval_count_from_r(len_type count, double width, double ratio)
+		{
+			symphas::internal::set_count_from_r(data, h, count, width, ratio);
+		}
+
+		//! Resize the domain with the given number of elements, with constant width.
+		/*!
+		 * See set_interval(double, double, double).
+		 *
+		 * This overload is given the number of points (without the width),
+		 * and will resize the interval such that a point is fixed
+		 * along the interval that corresponds to the value
+		 * of the given ratio (between 0 and 1).
+		 *
+		 * The number of given elements is the same value that is
+		 * produced by the function count().
+		 *
+		 * \param count The number of points in the interval.
+		 * \param The point (from 0 to 1) along which the new interval is centered
+		 * around the old interval.
+		 */
+		void set_interval_count_from_r(len_type count, double ratio = 0.5)
+		{
+			symphas::internal::set_count_from_r(data, h, count, ratio);
 		}
 
 		//! Resize the domain with the given number of elements, with constant width.
@@ -444,6 +506,7 @@ namespace symphas
 		void set_count_from_r(len_type count, double width, double ratio)
 		{
 			set_domain_count_from_r(count, width, ratio);
+			set_interval_count_from_r(count, width, ratio);
 		}
 
 		//! Resize the domain with the given number of elements, with constant width.
@@ -464,6 +527,7 @@ namespace symphas
 		void set_count_from_r(len_type count, double ratio)
 		{
 			set_domain_count_from_r(count, ratio);
+			set_interval_count_from_r(count, ratio);
 		}
 
 		//! Resize the interval with the given number of elements, with constant width.
@@ -704,6 +768,17 @@ public:
 
 	template<size_t D>
 	grid_info(const len_type(&dims)[D], const len_type(&intervals)[D][2]) : grid_info(dims, intervals, std::make_index_sequence<D>{}) {}
+
+	template<size_t... Is>
+	grid_info(const len_type(&intervals)[sizeof...(Is)][2], const double* widths, std::index_sequence<Is...>) :
+		intervals{ { symphas::index_to_axis(Is), interval_element_type((double[2]) { intervals[Is][0] * widths[Is], intervals[Is][0] * widths[Is] }, widths[Is]) }... }, strides{}
+	{
+		update_strides();
+	}
+
+	template<size_t D>
+	grid_info(const len_type(&intervals)[D][2], const double* widths) : grid_info(intervals, widths, std::make_index_sequence<D>{}) {}
+
 
 	//! Create the grid information using the intervals of the system.
 	/*!

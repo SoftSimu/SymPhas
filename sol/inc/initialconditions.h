@@ -2968,12 +2968,15 @@ struct InitialConditions
 
 	symphas::grid_info initialize(Axis ax, T* values, grid::region_interval<D> const& interval, size_t id = 0) const
 	{
+		//symphas::grid_info interval_ginfo(interval.intervals, symphas::grid_info(data.at(ax)->vdata).get_widths());
+		symphas::grid_info interval_ginfo(data.at(ax)->vdata);
+
 		// If the initial conditions are not set, then nothing is done.
 		if (data.at(ax)->init.in == Inside::NONE)
 		{
 			if (symphas::internal::tag_bit_compare(data.at(ax)->init.intag, InsideTag::NONE))
 			{
-				return symphas::grid_info(interval);
+				return interval_ginfo;
 			}
 			else if (symphas::internal::tag_bit_compare(data.at(ax)->init.intag, InsideTag::DEFAULT))
 			{
@@ -2981,7 +2984,7 @@ struct InitialConditions
 				{
 					data.at(ax)->init.f_init->initialize(values, interval);
 				}
-				return symphas::grid_info(interval);
+				return interval_ginfo;
 			}
 			else
 			{
@@ -3034,7 +3037,7 @@ struct InitialConditions
 		{
 			bool filled = match_init_expr<D>(data.at(ax)->init.expr_data.get_name(), ax, values,
 				interval, data.at(ax)->vdata, data.at(ax)->init.expr_data.get_coeff(), data.at(ax)->init.expr_data.get_num_coeff());
-			return (filled) ? symphas::grid_info(interval) : symphas::grid_info(nullptr, 0);
+			return (filled) ? interval_ginfo : symphas::grid_info(nullptr, 0);
 		}
 		else
 		{
@@ -3054,7 +3057,7 @@ struct InitialConditions
 			}
 		}
 
-		return symphas::grid_info(interval);
+		return interval_ginfo;
 	}
 
 	operator bool() const
