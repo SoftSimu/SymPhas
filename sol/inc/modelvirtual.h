@@ -60,6 +60,8 @@ namespace symphas::internal
 		info.update_strides();
 	}
 
+#ifdef USING_MPI
+
 	template<typename T, size_t D>
 	void update_for_regional(PhaseFieldSystem<RegionalGridMPI, T, D>& system, symphas::grid_info& info)
 	{
@@ -74,6 +76,8 @@ namespace symphas::internal
 		}
 		info.update_strides();
 	}
+
+#endif
 }
 
 

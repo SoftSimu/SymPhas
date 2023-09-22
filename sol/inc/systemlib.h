@@ -445,6 +445,7 @@ protected:
 	SystemData() : RegionalGrid<T, D>{}, SystemInfo{ { {} }, 0 } {}
 };
 
+#ifdef USING_MPI
 
 //! Maintains grid data and associated information.
 /*!
@@ -551,7 +552,7 @@ protected:
 	SystemData() : RegionalGrid<T, D>{}, SystemInfo{ { {} }, 0 } {}
 };
 
-
+#endif
 
 
 template<typename G>
@@ -840,6 +841,7 @@ protected:
 
 
 
+#ifdef USING_MPI
 
 //! Maintains grid data parameters as well as a snapshot.
 /*!
@@ -990,6 +992,7 @@ protected:
 	PersistentSystemData() : PersistentSystemData{ {}, 0 } {}
 };
 
+#endif
 
 #include "writedefines.h"
 

@@ -311,6 +311,7 @@ protected:
 	regional_system_info_type<T> regional_info;
 };
 
+#ifdef USING_MPI
 
 template<typename T, size_t D>
 struct PhaseFieldSystem<RegionalGridMPI, T, D> : PersistentSystemData<RegionalGridMPI<T, D>>, BoundaryGroup<T, D>
@@ -368,6 +369,7 @@ protected:
 	regional_system_info_type<T> regional_info;
 };
 
+#endif
 
 namespace grid
 {
@@ -481,6 +483,8 @@ void PhaseFieldSystem<RegionalGrid, T, D>::update(iter_type index, double time)
 	BoundaryGroup<T, D>::update_boundaries(*this, index, time);
 }
 
+#ifdef USING_MPI
+
 template<typename T, size_t D>
 void PhaseFieldSystem<RegionalGridMPI, T, D>::update(iter_type index, double time)
 {
@@ -488,7 +492,7 @@ void PhaseFieldSystem<RegionalGridMPI, T, D>::update(iter_type index, double tim
 	BoundaryGroup<T, D>::update_boundaries(*this, index, time);
 }
 
-
+#endif
 
 
 template<typename T, size_t D>
@@ -534,6 +538,11 @@ PhaseFieldSystem<RegionalGrid, T, D>::PhaseFieldSystem(
 }
 
 template<typename T, size_t D>
+using RegionalSystem = PhaseFieldSystem<RegionalGrid, T, D>;
+
+#ifdef USING_MPI
+
+template<typename T, size_t D>
 PhaseFieldSystem<RegionalGridMPI, T, D>::PhaseFieldSystem() :
 	parent_type{}, BoundaryGroup<T, D>{},
 	regional_info{}
@@ -558,15 +567,16 @@ PhaseFieldSystem<RegionalGridMPI, T, D>::PhaseFieldSystem(
 }
 
 template<typename T, size_t D>
-using RegionalSystem = PhaseFieldSystem<RegionalGrid, T, D>;
-template<typename T, size_t D>
 using RegionalSystemMPI = PhaseFieldSystem<RegionalGridMPI, T, D>;
+
+DEFINE_SYMBOL_ID((typename T, size_t D), (RegionalGridMPI<T, D>), return data.values)
+
+#endif
 
 
 
 DEFINE_SYMBOL_ID((typename T, size_t D), (BoundaryGrid<T, D>), return data.values)
 DEFINE_SYMBOL_ID((typename T, size_t D), (RegionalGrid<T, D>), return data.values)
-DEFINE_SYMBOL_ID((typename T, size_t D), (RegionalGridMPI<T, D>), return data.values)
 DEFINE_BASE_DATA_INHERITED((template<typename, size_t> typename grid_t, typename T, size_t D), (PhaseFieldSystem<grid_t, T, D>), (grid_t<T, D>))
 
 

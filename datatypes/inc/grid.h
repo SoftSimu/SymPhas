@@ -2236,6 +2236,7 @@ public:
 	constexpr RegionalGrid() : parent_type(), region{}, empty{} {}
 };
 
+#ifdef USING_MPI
 
 template<typename T, size_t D>
 struct RegionalGridMPI : RegionalGrid<T, D>
@@ -2305,6 +2306,8 @@ struct RegionalGridMPI<any_vector_t<T, D>, D> : RegionalGrid<any_vector_t<T, D>,
 	}
 
 };
+
+#endif
 
 // **************************************************************************************
 

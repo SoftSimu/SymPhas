@@ -128,6 +128,8 @@ namespace symphas
 		symphas::io::save_grid(sys.values, w, g);
 	}
 
+#ifdef USING_MPI
+
 	template<typename T, size_t D>
 	void checkpoint_system(PhaseFieldSystem<RegionalGridMPI, T, D> const& sys, const char* dir, iter_type index)
 	{
@@ -148,6 +150,8 @@ namespace symphas
 		symphas::grid_info g{ intervals };
 		symphas::io::save_grid(sys.values, w, g);
 	}
+
+#endif 
 
 	template<typename... Ts, size_t... Is>
 	void checkpoint_systems(std::tuple<Ts...> const& sys, const char* dir, iter_type index, std::index_sequence<Is...>)

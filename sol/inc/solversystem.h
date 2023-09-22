@@ -78,6 +78,7 @@ struct SolverSystemFDwSD : RegionalSystem<T, D>
 	}
 };
 
+#ifdef USING_MPI
 
 template<typename T, size_t D>
 struct SolverSystemFDwSDMPI : RegionalSystemMPI<T, D>
@@ -95,6 +96,8 @@ struct SolverSystemFDwSDMPI : RegionalSystemMPI<T, D>
 		dframe.adjust(RegionalSystemMPI<T, D>::region);
 	}
 };
+
+#endif
 
 #ifdef USING_FFTW
 
@@ -718,9 +721,13 @@ inline SolverSystemSpectral<vector_t<D>, D>::~SolverSystemSpectral()
 
 #endif
 
+#ifdef USING_MPI
 DEFINE_BASE_DATA_INHERITED((typename T, size_t D), (SolverSystemFDwSDMPI<T, D>), (RegionalGridMPI<T, D>))
+#endif
+
 DEFINE_BASE_DATA_INHERITED((typename T, size_t D), (SolverSystemFDwSD<T, D>), (RegionalGrid<T, D>))
 DEFINE_BASE_DATA_INHERITED((typename T, size_t D), (SolverSystemFD<T, D>), (BoundaryGrid<T, D>))
+
 #ifdef USING_FFTW
 DEFINE_BASE_DATA_INHERITED((typename T, size_t D), (SolverSystemSpectral<T, D>), (Grid<T, D>))
 #endif
