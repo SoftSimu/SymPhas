@@ -345,8 +345,15 @@ struct model_select
 	template<template<size_t> typename AppliedSolver, typename... Ts>
 	auto call(const char* name, Ts&& ...args)
 	{
-		constexpr int last_index = decltype(symphas::internal::model_counter(symphas::internal::model_count_index<MAX_DEFINED_MODELS>{}))::value;
-		return model_call_wrapper<last_index - 1>::call<AppliedSolver>(dimension, name, std::forward<Ts>(args)...);
+		if (name != nullptr)
+		{
+			constexpr int last_index = decltype(symphas::internal::model_counter(symphas::internal::model_count_index<MAX_DEFINED_MODELS>{}))::value;
+			return model_call_wrapper<last_index - 1>::call<AppliedSolver>(dimension, name, std::forward<Ts>(args)...);
+		}
+		else
+		{
+			return 0;
+		}
 	}
 
 };
