@@ -315,6 +315,7 @@ CMakeCache.txt
 CMakeSettings.json
 out
 .vs*
+build
 
 doxy_warn
 cpp.hint
@@ -322,3 +323,7 @@ cpp.hint
 /prereq-defs.h
 /examples/*/inc
 /tests.cpp
+
+*.code-workspace
+*.json
+*toolchain.*
