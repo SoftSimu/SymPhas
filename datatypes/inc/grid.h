@@ -2243,24 +2243,92 @@ struct RegionalGridMPI : RegionalGrid<T, D>
 {
 	using parent_type = RegionalGrid<T, D>;
 	using parent_type::parent_type;
+	using parent_type::dims;
+	using parent_type::len;
+	using parent_type::region;
 	
-	RegionalGridMPI(int mpi_index, const len_type* dimensions) :
-		parent_type(mpi_dims(mpi_index, dimensions)) {}
-	RegionalGridMPI(int mpi_index, const len_type* dimensions, T empty) :
-		parent_type(mpi_dims(mpi_index, dimensions), empty) {}
-	RegionalGridMPI(int mpi_index, const len_type* dimensions, T empty, len_type boundary_size) :
-		parent_type(mpi_dims(mpi_index, dimensions), empty, boundary_size) {}
-
-	RegionalGridMPI(int mpi_index, grid::dim_list dimensions) :
-		parent_type(mpi_dims(mpi_index, dimensions)) {}
-	RegionalGridMPI(int mpi_index, grid::dim_list dimensions, T empty) :
-		parent_type(mpi_dims(mpi_index, dimensions), empty) {}
-	RegionalGridMPI(int mpi_index, grid::dim_list dimensions, T empty, len_type boundary_size) :
-		parent_type(mpi_dims(mpi_index, dimensions), empty, boundary_size) {}
-	
-	auto mpi_dims(int mpi_index, const len_type* dimensions)
+	RegionalGridMPI(symphas::multi_thr_info_type const& info, const len_type* dimensions) :
+		parent_type(mpi_dims(info, dimensions))
 	{
-		return (symphas::mpi::index_in_node(mpi_index)) ? dimensions : nullptr;
+		update_dimensions(dimensions);
+	}
+
+	RegionalGridMPI(symphas::multi_thr_info_type const& info, const len_type* dimensions, T empty) :
+		parent_type(mpi_dims(info, dimensions), empty)
+	{
+		update_dimensions(dimensions);
+	}
+
+	RegionalGridMPI(symphas::multi_thr_info_type const& info, const len_type* dimensions, T empty, len_type boundary_size) :
+		parent_type(mpi_dims(info, dimensions), empty, boundary_size)
+	{
+		update_dimensions(dimensions);
+	}
+
+	RegionalGridMPI(symphas::multi_thr_info_type const& info, grid::dim_list dimensions) :
+		parent_type(mpi_dims(info, dimensions))
+	{
+		update_dimensions(dimensions);
+	}
+
+	RegionalGridMPI(symphas::multi_thr_info_type const& info, grid::dim_list dimensions, T empty) :
+		parent_type(mpi_dims(info, dimensions), empty)
+	{
+		update_dimensions(dimensions);
+	}
+
+	RegionalGridMPI(symphas::multi_thr_info_type const& info, grid::dim_list dimensions, T empty, len_type boundary_size) :
+		parent_type(mpi_dims(info, dimensions), empty, boundary_size)
+	{
+		update_dimensions(dimensions);
+	}
+
+	RegionalGridMPI(RegionalGridMPI<T, D> const& other) : RegionalGridMPI(nullptr, other.empty, other.region.boundary_size)
+	{
+		using std::swap;
+
+		parent_type::len = other.len;
+		std::copy(other.dims, other.dims + D, parent_type::dims);
+		region = other.region;
+
+		if (other.values != nullptr)
+		{
+			Block<T> tmp(other.region.len);
+			std::copy(other.values, other.values + other.region.len, tmp.values);
+			swap(tmp.values, parent_type::values);
+		}
+	}
+
+	auto operator[](iter_type n) const -> std::invoke_result_t<decltype(&parent_type::operator[]), parent_type, iter_type>
+	{
+		if (parent_type::values != nullptr) return parent_type::operator[](n); else return parent_type::empty;
+	}
+
+	const RegionalGridMPI<T, D>& as_grid() const
+	{
+		return *this;
+	}
+
+	RegionalGridMPI<T, D>& as_grid()
+	{
+		return *this;
+	}
+	
+protected:
+
+	void update_dimensions(const len_type* dimensions)
+	{
+		if (dimensions != nullptr)
+		{
+			std::copy(dimensions, dimensions + D, parent_type::dims);
+			parent_type::len = grid::length<D>(dimensions);
+			parent_type::region = { parent_type::dims, parent_type::region.boundary_size };
+		}
+	}
+
+	auto mpi_dims(symphas::multi_thr_info_type const& info, const len_type* dimensions)
+	{
+		return (info.index_in_node()) ? dimensions : nullptr;
 	}
 };
 
@@ -2271,38 +2339,120 @@ struct RegionalGridMPI<any_vector_t<T, D>, D> : RegionalGrid<any_vector_t<T, D>,
 {
 	using parent_type = RegionalGrid<any_vector_t<T, D>, D>;
 	using parent_type::parent_type;
+	using parent_type::dims;
+	using parent_type::len;
+	using parent_type::region;
 
 
 	RegionalGridMPI(int mpi_index, const len_type* dimensions) :
-		parent_type(mpi_dims(mpi_index, dimensions)) {}
-	RegionalGridMPI(int mpi_index, const len_type* dimensions, T empty) :
-		parent_type(mpi_dims(mpi_index, dimensions), empty) {}
-	RegionalGridMPI(int mpi_index, const len_type* dimensions, const T(&empty)[D]) :
-		parent_type(mpi_dims(mpi_index, dimensions), empty) {}
-	RegionalGridMPI(int mpi_index, const len_type* dimensions, T empty, len_type boundary_size) :
-		parent_type(mpi_dims(mpi_index, dimensions), empty, boundary_size) {}
-	RegionalGridMPI(int mpi_index, const len_type* dimensions, const T(&empty)[D], len_type boundary_size) :
-		parent_type(mpi_dims(mpi_index, dimensions), empty, boundary_size) {}
-
-	RegionalGridMPI(int mpi_index, grid::dim_list dimensions) :
-		parent_type(mpi_dims(mpi_index, dimensions)) {}
-	RegionalGridMPI(int mpi_index, grid::dim_list dimensions, T empty) :
-		parent_type(mpi_dims(mpi_index, dimensions), empty) {}
-	RegionalGridMPI(int mpi_index, grid::dim_list dimensions, const T(&empty)[D]) :
-		parent_type(mpi_dims(mpi_index, dimensions), empty) {}
-	RegionalGridMPI(int mpi_index, grid::dim_list dimensions, T empty, len_type boundary_size) :
-		parent_type(mpi_dims(mpi_index, dimensions), empty, boundary_size) {}
-	RegionalGridMPI(int mpi_index, grid::dim_list dimensions, const T(&empty)[D], len_type boundary_size) :
-		parent_type(mpi_dims(mpi_index, dimensions), empty, boundary_size) {}
-
-	auto mpi_dims(int mpi_index, const len_type* dimensions)
+		parent_type(mpi_dims(mpi_index, dimensions))
 	{
-		return (symphas::mpi::index_in_node(mpi_index)) ? dimensions : nullptr;
+		update_dimensions(dimensions);
 	}
 
-	auto mpi_dims(int mpi_index, grid::dim_list dimensions)
+	RegionalGridMPI(int mpi_index, const len_type* dimensions, T empty) :
+		parent_type(mpi_dims(mpi_index, dimensions), empty)
 	{
-		return mpi_dims(mpi_index, dimensions.data);
+		update_dimensions(dimensions);
+	}
+
+	RegionalGridMPI(int mpi_index, const len_type* dimensions, const T(&empty)[D]) :
+		parent_type(mpi_dims(mpi_index, dimensions), empty)
+	{
+		update_dimensions(dimensions);
+	}
+
+	RegionalGridMPI(int mpi_index, const len_type* dimensions, T empty, len_type boundary_size) :
+		parent_type(mpi_dims(mpi_index, dimensions), empty, boundary_size)
+	{
+		update_dimensions(dimensions);
+	}
+
+	RegionalGridMPI(int mpi_index, const len_type* dimensions, const T(&empty)[D], len_type boundary_size) :
+		parent_type(mpi_dims(mpi_index, dimensions), empty, boundary_size)
+	{
+		update_dimensions(dimensions);
+	}
+
+	RegionalGridMPI(int mpi_index, grid::dim_list dimensions) :
+		parent_type(mpi_dims(mpi_index, dimensions))
+	{
+		update_dimensions(dimensions);
+	}
+
+	RegionalGridMPI(int mpi_index, grid::dim_list dimensions, T empty) :
+		parent_type(mpi_dims(mpi_index, dimensions), empty)
+	{
+		update_dimensions(dimensions);
+	}
+
+	RegionalGridMPI(int mpi_index, grid::dim_list dimensions, const T(&empty)[D]) :
+		parent_type(mpi_dims(mpi_index, dimensions), empty)
+	{
+		update_dimensions(dimensions);
+	}
+
+	RegionalGridMPI(int mpi_index, grid::dim_list dimensions, T empty, len_type boundary_size) :
+		parent_type(mpi_dims(mpi_index, dimensions), empty, boundary_size)
+	{
+		update_dimensions(dimensions);
+	}
+
+	RegionalGridMPI(int mpi_index, grid::dim_list dimensions, const T(&empty)[D], len_type boundary_size) :
+		parent_type(mpi_dims(mpi_index, dimensions), empty, boundary_size)
+	{
+		update_dimensions(dimensions);
+	}
+
+	RegionalGridMPI(RegionalGridMPI<any_vector_t<T, D>, D> const& other) : RegionalGridMPI(nullptr, other.empty, other.region.boundary_size)
+	{
+		using std::swap;
+
+		parent_type::len = other.len;
+		std::copy(other.dims, other.dims + D, parent_type::dims);
+		region = other.region;
+
+		if (other.values != nullptr)
+		{
+			MultiBlock<D, T> tmp(other.region.len);
+			for (iter_type i = 0; i < D; ++i)
+			{
+				std::copy(other.values[i], other.values[i] + other.region.len, tmp.values[i]);
+			}
+			swap(tmp.values, parent_type::values);
+		}
+	}
+
+	auto operator[](iter_type n) const->std::invoke_result_t<decltype(&parent_type::operator[]), parent_type, iter_type>
+	{
+		if (parent_type::values != nullptr) return parent_type::operator[](n); else return parent_type::empty;
+	}
+
+	const RegionalGridMPI<any_vector_t<T, D>, D>& as_grid() const
+	{
+		return *this;
+	}
+
+	RegionalGridMPI<any_vector_t<T, D>, D>& as_grid()
+	{
+		return *this;
+	}
+
+protected:
+
+	void update_dimensions(const len_type* dimensions)
+	{
+		if (dimensions != nullptr)
+		{
+			std::copy(dimensions, dimensions + D, parent_type::dims);
+			parent_type::len = grid::length<D>(dimensions);
+			parent_type::region = { parent_type::dims, parent_type::region.boundary_size };
+		}
+	}
+
+	auto mpi_dims(symphas::multi_thr_info_type const& info, const len_type* dimensions)
+	{
+		return (info.index_in_node()) ? dimensions : nullptr;
 	}
 
 };
@@ -2376,7 +2526,7 @@ namespace grid
 			static RegionalGridMPI<T, D> apply()
 			{
 				len_type dims[D]{ 0 };
-				return { -1, dims };
+				return { {}, dims };
 			}
 
 			//! Obtain a newly initialized grid using the interval data.
@@ -2388,13 +2538,13 @@ namespace grid
 			 * \param vdata The interval data of the grid to generate.
 			 */
 			template<typename T, size_t D>
-			static RegionalGridMPI<T, D> apply(size_t id, symphas::interval_data_type const& vdata)
+			static RegionalGridMPI<T, D> apply(symphas::multi_thr_info_type const& thr_info, symphas::interval_data_type const& vdata)
 			{
 				if (vdata.size() < D)
 				{
 					return apply<T, D>();
 				}
-				return { int(id), symphas::grid_info(vdata).get_dims()};
+				return { thr_info, symphas::grid_info(vdata).get_dims()};
 			}
 		};
 	}

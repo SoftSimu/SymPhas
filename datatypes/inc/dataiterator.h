@@ -1362,6 +1362,12 @@ namespace grid
 	{
 		return is_fully_overlapping<D>(region0.intervals, region1.intervals);
 	}
+
+	template<size_t D>
+	bool is_overlapping(grid::region_interval<D> const& region0, grid::region_interval<D> const& region1)
+	{
+		return is_overlapping<D>(region0.intervals, region1.intervals);
+	}
 }
 
 namespace symphas::internal
@@ -1409,6 +1415,30 @@ namespace symphas::internal
 		using ref = carry_value<T>;
 
 		ref operator()(RegionalGrid<T, D>* data, iter_type n)
+		{
+			return (*data)[n];
+		}
+	};
+
+	template<typename T, size_t D>
+	struct data_value_type<RegionalGridMPI<any_vector_t<T, D>, D>>
+	{
+		using type = any_vector_t<T, D>;
+		using ref = multi_value<D, T>;
+
+		ref operator()(RegionalGridMPI<any_vector_t<T, D>, D>* data, iter_type n)
+		{
+			return (*data)[n];
+		}
+	};
+
+	template<typename T, size_t D>
+	struct data_value_type<RegionalGridMPI<T, D>>
+	{
+		using type = T;
+		using ref = carry_value<T>;
+
+		ref operator()(RegionalGridMPI<T, D>* data, iter_type n)
 		{
 			return (*data)[n];
 		}
