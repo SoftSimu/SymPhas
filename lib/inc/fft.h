@@ -37,6 +37,7 @@
 #include "dft.h"
 #include "symphasthread.h"
 
+#ifdef __NO_DEF__
 
 //! Macro for calling custom FFT implementation.
 #define FFT_2D_BASE(IN, OUT, L_2_POW, M_2_POW) \
@@ -557,7 +558,7 @@ void symphas::dft::fft(T* data, complex_t* out)
 }
 
 
-
+#endif
 
 
 
