@@ -2721,7 +2721,6 @@ namespace symphas::internal
 		typename std::enable_if_t<(R0 == 0), int> = 0>
 	auto apply_directional_derivative(OpExpression<E> const& e, solver_op_type<Sp> solver)
 	{
-		constexpr size_t D = expr::grid_dim<E>::value;
 		return symphas::internal::nth_directional_derivative_apply<ax, O, Sp>::template get(*static_cast<E const*>(&e), solver);
 	}
 
@@ -2730,7 +2729,7 @@ namespace symphas::internal
 	auto apply_directional_derivative(OpExpression<E> const& e, solver_op_type<Sp> solver)
 	{
 		constexpr size_t D = expr::eval_type<E>::rank;
-		constexpr size_t Q = expr::eval_type<E>::template rank_<1>;
+		//constexpr size_t Q = expr::eval_type<E>::template rank_<1>;
 
 		auto rtensor = expr::make_row_vector<R - 1, D>();
 		auto ctensor = expr::make_column_vector<R - 1, D>();
@@ -2909,7 +2908,7 @@ namespace symphas::internal
 		auto operator()(OpExpression<E> const& e, solver_op_type<Sp> solver)
 		{
 			constexpr size_t D = expr::eval_type<E>::rank;
-			constexpr Axis ax = (R == 1) ? Axis::X : (R == 2) ? Axis::Y : Axis::Z;
+			//constexpr Axis ax = (R == 1) ? Axis::X : (R == 2) ? Axis::Y : Axis::Z;
 			auto rtensor = expr::make_row_vector<R - 1, D>();
 
 			auto d = apply_derivative<0, O, 0, 1>{}(rtensor * (*static_cast<E const*>(&e)), solver) * rtensor;

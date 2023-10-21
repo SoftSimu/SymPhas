@@ -117,7 +117,6 @@ symphas::grid_info symphas::io::gp::read_header(FILE* f, int* index)
 		*index = (index_scanned) ? get : BAD_INDEX;
 	}
 
-	char token;
 	char buffer[4]{};
 	if (fscanf(f, " %s", buffer) == 1)
 	{

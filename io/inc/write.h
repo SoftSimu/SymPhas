@@ -177,7 +177,7 @@ void symphas::io::print_grid(FILE* out, Grid<T, D> const& grid)
 	iter_type last_y = grid.dims[1] - 2;
 
 	grid::get_grid_position(last_pos, grid.dims, 0);
-	printf("/");
+	fprintf(out, "/");
 	for (iter_type n = 0; n < grid::length<D>(grid.dims); ++n)
 	{
 		iter_type pos[D]{};
@@ -186,20 +186,20 @@ void symphas::io::print_grid(FILE* out, Grid<T, D> const& grid)
 		{
 			if (last_pos[1] == 0)
 			{
-				printf(" \\ \n| ");
+				fprintf(out, " \\ \n| ");
 			}
 			else if (last_pos[1] == last_y)
 			{
-				printf(" | \n\\ ");
+				fprintf(out, " | \n\\ ");
 			}
 			else
 			{
-				printf(" | \n| ");
+				fprintf(out, " | \n| ");
 			}
 		}
 		else
 		{
-			printf(" ");
+			fprintf(out, " ");
 		}
 		write_data_entry(out, grid::value_at(grid, pos));
 		for (iter_type i = 0; i < D; ++i)
@@ -207,7 +207,7 @@ void symphas::io::print_grid(FILE* out, Grid<T, D> const& grid)
 			last_pos[i] = pos[i];
 		}
 	}
-	printf(" /\n");
+	fprintf(out, " /\n");
 }
 
 template<typename T, size_t D>

@@ -1534,7 +1534,7 @@ auto operator*(Term<K1, X1> const& a, Term<K2, X2> const& b)
 	constexpr size_t O1 = order_K_type<K1>::value * expr::_Xk_t<X1>::N * expr::_Xk_t<X2>::D;
 	constexpr size_t O2 = order_K_type<K2>::value * expr::_Xk_t<X2>::N * expr::_Xk_t<X1>::D;
 
-	constexpr size_t dimension = expr::grid_dim<K1>::dimension;
+	//constexpr size_t dimension = expr::grid_dim<K1>::dimension;
 	constexpr size_t D = expr::_Xk_t<X1>::D * expr::_Xk_t<X2>::D;
 
 	if constexpr (expr::_Xk_t<X1>::sign == expr::_Xk_t<X2>::sign)

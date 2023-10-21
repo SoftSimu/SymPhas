@@ -2296,7 +2296,7 @@ namespace expr
 	template<Axis ax, size_t O, size_t N, size_t D>
 	auto get_central_space_directional_stencil()
 	{
-		constexpr int R = symphas::internal::R_<O, N>;
+		//constexpr int R = symphas::internal::R_<O, N>;
 		if constexpr (D == 1)
 		{
 			return get_central_space_stencil<O, N, 1>();

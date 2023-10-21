@@ -2311,9 +2311,9 @@ scalar_t bubble_value_1(iter_type n, const len_type* dims, size_t N, double R,
 	int x = n;
 	axis_1d_type p{ static_cast<axis_coord_t>(x) };
 
-	axis_coord_t d0 = symphas::lib::length(
-		axis_1d_type{
-			static_cast<axis_coord_t>(dims[0]) });
+	//axis_coord_t d0 = symphas::lib::length(
+	//	axis_1d_type{
+	//		static_cast<axis_coord_t>(dims[0]) });
 
 	int i_start = (select < 0) ? 0 : select;
 	int i_end = (select < 0) ? len_type(offsets.size()) : select + 1;
@@ -2379,7 +2379,7 @@ scalar_t bubble_value_3(iter_type n, const len_type* dims, size_t N, double R,
 			static_cast<axis_coord_t>(dims[1]),
 			static_cast<axis_coord_t>(dims[2]) };
 
-	axis_coord_t d0 = symphas::lib::length(dm);
+	//axis_coord_t d0 = symphas::lib::length(dm);
 
 	int i_start = (select < 0) ? 0 : select;
 	int i_end = (select < 0) ? len_type(offsets.size()) : select + 1;
@@ -2409,7 +2409,7 @@ scalar_t bubble_value_A_1(iter_type n, const len_type* dims, size_t N, double R,
 
 	axis_1d_type dm{
 			static_cast<axis_coord_t>(dims[0]) };
-	axis_coord_t d0 = symphas::lib::length(dm * 2);
+	//axis_coord_t d0 = symphas::lib::length(dm * 2);
 
 	int i_start = (select < 0) ? 0 : select;
 	int i_end = (select < 0) ? len_type(offsets.size()) : select + 1;
@@ -2457,10 +2457,10 @@ scalar_t bubble_value_A_2(iter_type n, const len_type* dims, size_t N, double R,
 			static_cast<axis_coord_t>(dims[0]),
 			static_cast<axis_coord_t>(dims[1]) };
 
-	axis_coord_t d0 = symphas::lib::length(
-		axis_2d_type{
-			dm[0] * 2,
-			dm[1] * 2 });
+	//axis_coord_t d0 = symphas::lib::length(
+	//	axis_2d_type{
+	//		dm[0] * 2,
+	//		dm[1] * 2 });
 
 	int i_start = (select < 0) ? 0 : select;
 	int i_end = (select < 0) ? len_type(offsets.size()) : select + 1;
@@ -2505,11 +2505,11 @@ scalar_t bubble_value_A_3(iter_type n, const len_type* dims, size_t N, double R,
 			static_cast<axis_coord_t>(dims[1]),
 			static_cast<axis_coord_t>(dims[2]) };
 
-	axis_coord_t d0 = symphas::lib::length(
-		axis_3d_type{
-			dm[0] * 16,
-			dm[1] * 16,
-			dm[2] * 16 });
+	//axis_coord_t d0 = symphas::lib::length(
+	//	axis_3d_type{
+	//		dm[0] * 16,
+	//		dm[1] * 16,
+	//		dm[2] * 16 });
 
 	int i_start = (select < 0) ? 0 : select;
 	int i_end = (select < 0) ? len_type(offsets.size()) : select + 1;

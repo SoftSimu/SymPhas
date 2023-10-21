@@ -93,8 +93,8 @@ DLLLIB void* params::viz_index_enable[2]{ (void*)&params::viz_index, (void*)&par
 
 void param_map_element::print_help(FILE* out, const char* name) const
 {
-	len_type tab_buffer = 26;
-	len_type tab = 2;
+	//len_type tab_buffer = 26;
+	//len_type tab = 2;
 	len_type len = len_type(description.size());
 
 	if (alias)

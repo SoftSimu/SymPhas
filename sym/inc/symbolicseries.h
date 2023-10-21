@@ -1696,6 +1696,7 @@ namespace symphas::internal
 	//	}
 	//};
 
+    //! Applies normalization of indices to a given expression.
 	template<typename v_types, int I0, int... P0s>
 	struct normalize_parse_one<v_types, symphas::lib::types_list<expr::symbols::i_<I0, P0s>...>>
 	{
@@ -1735,7 +1736,7 @@ namespace symphas::internal
 			symphas::lib::types_list<expr::symbols::i_<I0, P0>, expr::symbols::i_<I0s, P0s>...>,
 			std::tuple<expr::series_limits<T1s, T2s>...> const& limits)
 		{
-			auto vs = select_v_i_<expr::symbols::i_<I0, 0>, v_types>{};
+			//auto vs = select_v_i_<expr::symbols::i_<I0, 0>, v_types>{};
 			//auto e0 = normalize_indices(normalize_placeholders<P0>(*static_cast<E const*>(&e), vs), i_types0{}, std::get<0>(limits));
 			auto e0 = normalize_indices(*static_cast<E const*>(&e), i_types0{}, std::get<0>(limits));
 			return normalize_parse<v_types, i_types...>{}(e0, symphas::lib::types_list<expr::symbols::i_<I0s, P0s>...>{}, symphas::lib::get_tuple_ge<1>(limits));
@@ -3798,10 +3799,13 @@ public:
 		expr::series_limits<T1, T2> const& limit,
 		symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<I0, P0s>>...>) const
 	{
-		auto e0 = symphas::internal::normalize_parse_one<
-			symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<I0, P0s>>...>, 
-			all_indices_of_id
-		>{}(e, expr::symbols::i_<I0, P0>{}, limit);
+		// Unsure whether normalize_parse_one has to be used or not.
+		// Normalizing will normalize the indices so there are no index offsets.
+
+		//auto e0 = symphas::internal::normalize_parse_one<
+		//	symphas::lib::types_list<expr::symbols::v_id_type<expr::symbols::i_<I0, P0s>>...>, 
+		//	all_indices_of_id
+		//>{}(e, expr::symbols::i_<I0, P0>{}, limit);
 		return (expr::template_of(expr::symbols::v_id_type<expr::symbols::i_<I0, P0s>>{}..., expr::symbols::i_<I0, 0>{}) = e);
 	}
 

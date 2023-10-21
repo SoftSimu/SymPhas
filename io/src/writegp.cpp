@@ -587,9 +587,9 @@ void symphas::io::gp::save_grid_plotting(const complex_t* grid, symphas::io::wri
 
 	if (ginfo.dimension() > 1)
 	{
-		double
-			dX = ginfo.INTERVAL_Xh,
-			dY = ginfo.INTERVAL_Yh;
+		//double
+		//	dX = ginfo.INTERVAL_Xh,
+		//	dY = ginfo.INTERVAL_Yh;
 
 		for (iter_type k = 0; k < GP_HELPER_LENZ; k++)
 		{

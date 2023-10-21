@@ -305,7 +305,7 @@ namespace symphas::dft
 	{
 		axis_coord_t dx = (x[1] - x[0]) / (len - 1);
 		axis_coord_t avg = ((x[1] + dx) + x[0]) / 2;
-		axis_coord_t adj[]{ avg - x[0], (x[1] + dx) - avg };
+		//axis_coord_t adj[]{ avg - x[0], (x[1] + dx) - avg };
 
 		double rx = (2.0 * symphas::PI / ((x[1] + dx) - x[0]));
 		for (iter_type i = 0; i < len; ++i)

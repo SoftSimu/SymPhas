@@ -1327,7 +1327,7 @@ namespace symphas::internal
 	{
 		using current_ind_t = symphas::lib::type_at_index<N, expr::symbols::i_<I0s, P0s>...>;
 
-		len_type offsets[sizeof...(I0s)]{};
+		//len_type offsets[sizeof...(I0s)]{};
 		auto limit0 = std::get<size_t(N)>(limits);
 		int start = symphas::internal::limit_start(std::integer_sequence<int, I0s...>{}, limits, limit0/*, offsets*/);
 		int end = symphas::internal::limit_end(std::integer_sequence<int, I0s...>{}, limits, limit0/*, offsets*/);

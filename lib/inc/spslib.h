@@ -1837,7 +1837,7 @@ namespace symphas::lib
 				return select_non_empty_seq<N>(symphas::lib::types_list<Seqs0...>{}, symphas::lib::types_list<Seqs...>{});
 			}
 
-			template<size_t N, typename... Seqs0, typename... Seqs>
+			template<size_t N, typename... Seqs0>
 			static auto constexpr select_non_empty_seq(symphas::lib::types_list<Seqs0...>, symphas::lib::types_list<>)
 			{
 				return select<N>(Seqs0{}...);

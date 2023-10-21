@@ -2575,7 +2575,7 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::
 
 		offsets = offsets0;
 
-		double value_rng[] = { (init.data.gp[2] + init.data.gp[3]) / 2 };
+		//double value_rng[] = { (init.data.gp[2] + init.data.gp[3]) / 2 };
 		values = get_values(init);
 	}
 
@@ -2704,7 +2704,7 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::
 
 		offsets = offsets0;
 
-		double value_rng[] = { (init.data.gp[1] + init.data.gp[2]) / 2 };
+		//double value_rng[] = { (init.data.gp[1] + init.data.gp[2]) / 2 };
 		values = get_values(init);
 	}
 

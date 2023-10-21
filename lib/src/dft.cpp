@@ -25,7 +25,7 @@
 template<typename T>
 inline void long_dft(T* data, complex_t* out, len_type len, bool backward = false)
 {
-	int const dL = static_cast<int>(len) / 2;
+	//int const dL = static_cast<int>(len) / 2;
 	for (iter_type ii = 0; ii < len; ++ii)
 	{
 		double ti = 0, p_ti = (2.0 * symphas::PI / len) * (ii);
@@ -42,9 +42,9 @@ inline void long_dft(T* data, complex_t* out, iter_type L, iter_type M, bool bac
 	int sign = (backward) ? 1 : -1;
 
 	len_type len = L * M;
-	int const
-		dL = L / 2,
-		dM = M / 2;
+	//int const
+	//	dL = L / 2,
+	//	dM = M / 2;
 
 	auto long_dft = [&](iter_type thr_i, len_type thr_n)
 	{

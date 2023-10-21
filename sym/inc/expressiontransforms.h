@@ -449,7 +449,7 @@ namespace expr
 	template<typename V, typename E, typename Dd, typename Sp>
 	auto apply_operators(OpDerivative<std::index_sequence<1>, V, OpDerivative<Dd, OpIdentity, E, Sp>, SymbolicDerivative<OpDerivative<Dd, OpIdentity, E, Sp>>> const& e)
 	{
-		auto expr = expr::get_enclosed_expression(e);
+		//auto expr = expr::get_enclosed_expression(e);
 		return expr::coeff(e);
 	}
 
@@ -4248,8 +4248,8 @@ namespace expr::transform
 	template<typename Sg, typename Dd, typename V, typename E, typename Sp, typename G_F, typename>
 	auto swap_grid(OpDerivative<Dd, V, E, Sp> const& e, G_F&& g)
 	{
-		constexpr size_t order = OpDerivative<Dd, V, E, Sp>::order;
-		constexpr Axis axis = OpDerivative<Dd, V, E, Sp>::axis;
+		//constexpr size_t order = OpDerivative<Dd, V, E, Sp>::order;
+		//constexpr Axis axis = OpDerivative<Dd, V, E, Sp>::axis;
 		auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
 		return c * expr::make_derivative<Dd>(
 			swap_grid<Sg>(expr::get_enclosed_expression(e), std::forward<G_F>(g)), swap_grid_solver<Sg>(e.solver, std::forward<G_F>(g)));
@@ -8287,8 +8287,10 @@ namespace expr
 		constexpr size_t D0 = expr::_Xk_t<X0>::D;
 		constexpr bool sign = expr::_Xk_t<X0>::sign;
 		
-		constexpr expr::exp_key_t _X = (sign) ? N0 + D0 : (N0 < D0) ? D0 - N0 : N0 - D0;
-		constexpr expr::exp_key_t _sign = (sign) ? sign : (N0 < D0) ? true : false;
+		constexpr int N1 = (sign) ? N0 + D0 : (N0 < D0) ? D0 - N0 : N0 - D0;
+		constexpr bool _sign = (sign) ? sign : (N0 < D0) ? true : false;
+
+        constexpr expr::exp_key_t _X = expr::Xk<N1, D0, _sign>;
 
 		auto result = expr::coeff(e) * expr::coeff(power) * expr::make_fraction<N0, D0>() * 
 			expr::dot(expr::make_pow<_X>(p), apply_operators(expr::make_derivative<1, GG>(p, e.solver)));
@@ -8641,7 +8643,7 @@ namespace expr
 			SymbolicDerivative<G0> const& symbol,
 			symphas::lib::types_list<SymbolicTernaryCase<expr::symbols::i_<I0, P0>, G0, Ls, Rs>...>)
 		{
-			constexpr int ind_N = symphas::lib::index_of_value<int, I0, I0s...>;
+			//constexpr int ind_N = symphas::lib::index_of_value<int, I0, I0s...>;
 
 			using v_type = expr::symbols::v_<expr::symbols::i_<I0, P0>>;
 
@@ -8678,11 +8680,11 @@ namespace expr
 
 			auto left_case = expr::transform::swap_grid<v_type>
 				(SymbolicCase(expr::symbols::i_<I0, P0>{} = DynamicVariable<G0>{}), *static_cast<E0 const*>(&applied), arg);
-			auto right_case = expr::transform::swap_grid<v_type>
-				(SymbolicCase(expr::symbols::i_<I0, P0>{} != DynamicVariable<G0>{}), *static_cast<E0 const*>(&applied), arg);
+			//auto right_case = expr::transform::swap_grid<v_type>
+			//	(SymbolicCase(expr::symbols::i_<I0, P0>{} != DynamicVariable<G0>{}), *static_cast<E0 const*>(&applied), arg);
 
 			auto left = expr::transform::swap_grid<SymbolicCaseSwap<>>(left_case, OpVoid{});
-			auto right = expr::transform::swap_grid<SymbolicCaseSwap<>>(right_case, OpVoid{});
+			//auto right = expr::transform::swap_grid<SymbolicCaseSwap<>>(right_case, OpVoid{});
 
 			auto series_left = expr::recreate_series(expr::symbols::i_<I0, P0>{} = expr::symbols::placeholder_N{}, left, series);
 			auto series_right = OpVoid{};// expr::recreate_series(expr::symbols::i_<I0, 0>{} != expr::val<arg_N>, expr_right, series);
