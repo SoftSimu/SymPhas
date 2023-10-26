@@ -553,9 +553,6 @@ namespace solver_sp
 	{
 		using vt = variable_type<std::tuple_element_t<Z0, std::tuple<S...>>>;
 
-		constexpr Axis axis = OpDerivative<Dd, V, E, Sp>::axis;
-		constexpr size_t order = OpDerivative<Dd, V, E, Sp>::order;
-
 		auto [op, en] = expr::split::separate_operator(e);
 		auto B_expression = (*static_cast<B const*>(&bop)) * expr::transform::to_ft<D>(op, h, dims);
 		auto B_term = get_B_term<vt>(B_expression);
@@ -834,7 +831,7 @@ namespace solver_sp
 		expr::fill_data_dimensions(e, dims);
 
 		constexpr size_t order = OpDerivative<Dd, V, E, Sp>::order;
-		constexpr Axis axis = OpDerivative<Dd, V, E, Sp>::axis;
+		//constexpr Axis axis = OpDerivative<Dd, V, E, Sp>::axis;
 
 		static_assert(order > 0);
 
@@ -955,7 +952,7 @@ namespace solver_sp
 		expr::fill_data_dimensions(e, dims);
 
 		constexpr size_t order = OpDerivative<Dd, V, E, Sp>::order;
-		constexpr Axis axis = OpDerivative<Dd, V, E, Sp>::axis;
+		//constexpr Axis axis = OpDerivative<Dd, V, E, Sp>::axis;
 
 		static_assert(order > 0);
 
