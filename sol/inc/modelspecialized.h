@@ -430,8 +430,14 @@ struct ModelApplied<D, Sp>::ArrayType<Ts...>::Specialized : eq_type
 	eqs equations;
 
 	Specialized(double const* coeff, size_t num_coeff, symphas::problem_parameters_type const& parameters) :
-		parent_type(coeff, num_coeff, parameters), equations{ parent_type::make_equations() } {}
-	Specialized(symphas::problem_parameters_type const& parameters) : Specialized(nullptr, 0, parameters) {}
+		parent_type(coeff, num_coeff, parameters), equations{ parent_type::make_equations() } 
+	{
+		M::synchronize_systems(equations);
+	}
+	Specialized(symphas::problem_parameters_type const& parameters) : Specialized(nullptr, 0, parameters)
+	{
+		M::synchronize_systems(equations);
+	}
 
     /*
 	this_type& operator=(this_type other)
@@ -449,10 +455,14 @@ struct ModelApplied<D, Sp>::ArrayType<Ts...>::Specialized : eq_type
 
 	void equation()
 	{
-#		ifndef DEBUG
-#		pragma omp parallel for
-#		endif
-		for (iter_type i = 0; i < parent_type::len; ++i)
+		M::synchronize_systems(equations);
+
+		auto range = symphas::parallel::get_index_range(M::len);
+		iter_type start = range.first;
+		iter_type end = range.second;
+
+		SYMPHAS_OMP_PARALLEL_DIRECTIVE
+		for (iter_type i = start; i < end; ++i)
 		{
 			M::solver.equation(equations[i]);
 		}
@@ -1500,7 +1510,8 @@ struct TraitEquation<enclosing_type, symphas::internal::MakeEquation<ArrayModel<
 		void* ptr = operator new[](parent_trait::len * sizeof(scheme_type));
 		scheme_type* eqns = static_cast<scheme_type*>(ptr);
 
-		for (iter_type i = 0; i < parent_trait::len; ++i)
+		auto [start, end] = symphas::parallel::get_index_range(parent_trait::len);
+		for (iter_type i = start; i < end; ++i)
 		{
 			new(&eqns[i]) scheme_type(_make_equations(a, i));
 		}
@@ -1513,7 +1524,8 @@ protected:
 	template<typename scheme_type>
 	void delete_equations(scheme_type* eqns)
 	{
-		for (int i = parent_trait::len - 1; i >= 0; --i)
+		auto [start, end] = symphas::parallel::get_index_range(parent_trait::len);
+		for (int i = end - 1; i >= start; --i)
 		{
 			eqns[i].~scheme_type();
 		}
@@ -1696,7 +1708,7 @@ struct TraitEquationModel : TraitEquation<TraitEquationModel, parent_trait> \
 		auto t = parent_type::get_time_var(); \
 		using symphas::internal::parameterized::INT; \
 		constexpr size_t D = model_dimension<parent_type>::value; \
-		UNUSED(D) \
+		UNUSED(D, x, y, z, t) \
 		__VA_ARGS__
 
 //! Defines a TraitEquation child class used to define dynamical equations.

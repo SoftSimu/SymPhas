@@ -32,28 +32,46 @@
 #include "definitions.h"
 #include <mpi.h>
 
+
+#ifdef _MSC_VER
+#include <process.h>
+#include <windows.h>
+#else
+#include <unistd.h> 
+#endif
+
+
 namespace symphas
 {
-	namespace mpi {}
+	namespace parallel {}
 }
 
 
-namespace symphas::mpi
+namespace symphas::parallel
 {
 
-	inline int get_current_rank()
+	inline int get_pid()
+	{
+#ifdef _MSC_VER
+		return _getpid();
+#else
+		return getpid();
+#endif
+	}
+
+	inline int get_node_rank()
 	{
 		int rank;
 		MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 		return rank;
 	}
 
-    inline bool is_host_rank()
+    inline bool is_host_node()
     {
-        return get_current_rank() == SYMPHAS_MPI_HOST_RANK;
+        return get_node_rank() == SYMPHAS_MPI_HOST_RANK;
     }
 
-	inline bool is_host_rank(int rank)
+	inline bool is_host_node(int rank)
 	{
 		return rank == SYMPHAS_MPI_HOST_RANK;
 	}
@@ -65,7 +83,7 @@ namespace symphas::mpi
 		return size;
 	}
 
-	inline std::pair<int, int> get_lower_upper(int num_fields, int rank)
+	inline std::pair<iter_type, iter_type> get_index_range(len_type num_fields, iter_type rank)
 	{
 		int N = get_num_nodes();
 		int size = num_fields / N;
@@ -78,16 +96,16 @@ namespace symphas::mpi
 	}
 
 
-	inline std::pair<int, int> get_lower_upper(int num_fields)
+	inline std::pair<iter_type, iter_type> get_index_range(len_type num_fields)
 	{
-		int rank = get_current_rank();
-		return get_lower_upper(num_fields, rank);
+		int rank = get_node_rank();
+		return get_index_range(num_fields, rank);
 	}
 
 	//! Node manages the index when 
 	inline bool index_in_node(int index, int num_fields)
 	{
-		auto [lower, upper] = get_lower_upper(num_fields);
+		auto [lower, upper] = get_index_range(num_fields);
 		return (index >= lower && index < upper);
 	}
 
@@ -97,7 +115,7 @@ namespace symphas::mpi
 		int index;
 		int num_fields;
 
-		info_type(int index, int num_fields) : rank{ get_current_rank() }, index{ index }, num_fields{ num_fields }
+		info_type(int index, int num_fields) : rank{ get_node_rank() }, index{ index }, num_fields{ num_fields }
 		{
 
 		}
@@ -107,7 +125,71 @@ namespace symphas::mpi
 		//! Node manages the index when 
 		inline bool index_in_node() const
 		{
-			auto [lower, upper] = get_lower_upper(num_fields);
+			auto [lower, upper] = get_index_range(num_fields);
+			return (index >= lower && index < upper);
+		}
+	};
+}
+
+#else
+
+namespace symphas::parallel
+{
+
+	inline int get_node_rank()
+	{
+		return SYMPHAS_MPI_HOST_RANK;
+	}
+
+	inline bool is_host_node()
+	{
+		return true;
+	}
+
+	inline bool is_host_node(int rank)
+	{
+		return true;
+	}
+
+	inline int get_num_nodes()
+	{
+		return 1;
+	}
+
+	inline std::pair<int, int> get_index_range(int num_fields, int rank)
+	{
+		return { 0, num_fields };
+	}
+
+
+	inline std::pair<int, int> get_index_range(int num_fields)
+	{
+		return get_index_range(num_fields, get_node_rank());
+s	}
+
+	//! Node manages the index when 
+	inline bool index_in_node(int index, int num_fields)
+	{
+		return true;
+	}
+
+	using info_type = size_t;
+	{
+		int rank;
+		int index;
+		int num_fields;
+
+		info_type(int index, int num_fields) : rank{ get_node_rank() }, index{ index }, num_fields{ num_fields }
+		{
+
+		}
+
+		info_type() : rank{ 0 }, index{ 0 }, num_fields{ 1 } {}
+
+		//! Node manages the index when 
+		inline bool index_in_node() const
+		{
+			auto [lower, upper] = get_index_range(num_fields);
 			return (index >= lower && index < upper);
 		}
 	};
@@ -117,11 +199,5 @@ namespace symphas::mpi
 
 namespace symphas
 {
-
-
-#ifdef USING_MPI
-	using multi_thr_info_type = symphas::mpi::info_type;
-#else
-	using multi_thr_info_type = size_t;
-#endif
+	using multi_thr_info_type = symphas::parallel::info_type;
 }

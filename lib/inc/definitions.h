@@ -75,6 +75,13 @@
 #endif
 #define MULTITHREAD_TRIGGER_COUNT 128
 
+
+#ifndef DEBUG
+#define SYMPHAS_OMP_PARALLEL_DIRECTIVE _Pragma("omp parallel for")
+#else
+#define SYMPHAS_OMP_PARALLEL_DIRECTIVE
+#endif
+
 //! \endcond
 
 

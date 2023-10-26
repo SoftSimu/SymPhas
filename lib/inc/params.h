@@ -738,9 +738,11 @@ namespace params
 		case ParamNames::VIZ_ENABLED:
 			viz_enabled = value;
 			break;
+#ifdef EXECUTION_HEADER_AVAILABLE
 		case ParamNames::PARALLELIZATION:
 			parallelization = (value) ? symphas::ParallelizationType::PAR : symphas::ParallelizationType::SEQ;
 			break;
+#endif
 		default:
 			break;
 		}

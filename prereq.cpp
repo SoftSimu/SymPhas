@@ -99,6 +99,10 @@ param_map_type symphas::build_params()
 void symphas::init(const char* config, const char* const* param_list, int num_params)
 {
 
+#ifdef USING_MPI
+	MPI_Init(NULL, NULL);
+#endif
+
 #ifdef PRINT_TIMINGS
 	symphas::Time t;
 #endif
@@ -127,7 +131,9 @@ void symphas::init(const char* config, const char* const* param_list, int num_pa
 	{
 		symphas::conf::setup_global_config(config, param_map);
 	}
+
 	params::assign(param_map["title"], symphas::conf::config().get_title());
+
 }
 
 #else
@@ -149,6 +155,10 @@ void symphas::init(const char* config, const char* const* param_list, int num_pa
  */
 void symphas::init(const char* title, const char* const* param_list, size_t num_params)
 {
+
+#ifdef USING_MPI
+	MPI_Init(NULL, NULL);
+#endif
 
 #ifdef PRINT_TIMINGS
 	symphas::Time t;
@@ -173,3 +183,9 @@ void symphas::init(const char* title, const char* const* param_list, size_t num_
 
 
 
+void symphas::finalize()
+{
+#ifdef USING_MPI
+	MPI_Finalize();
+#endif
+}

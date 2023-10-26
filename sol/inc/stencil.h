@@ -252,6 +252,102 @@ struct Stencil
 	}
 
 
+
+
+	template<Axis ax, size_t O, typename T, size_t D>
+	auto applied_generalized_directional_derivative(RegionalGridMPI<T, D> const& grid, iter_type n) const
+	{
+		if (grid.values != nullptr)
+		{
+			return applied_generalized_directional_derivative<ax, O>(static_cast<RegionalGrid<T, D> const&>(grid), n);
+		}
+		else
+		{
+			return grid.empty;
+		}
+	}
+
+	template<size_t... Os, typename T, size_t D>
+	auto applied_generalized_mixed_derivative(RegionalGridMPI<T, D> const& grid, iter_type n) const
+	{
+		if (grid.values != nullptr)
+		{
+			return applied_generalized_mixed_derivative<Os...>(static_cast<RegionalGrid<T, D> const&>(grid), n);
+		}
+		else
+		{
+			return grid.empty;
+		}
+	}
+
+	template<Axis ax, size_t O, typename T, size_t D>
+	auto applied_generalized_derivative(RegionalGridMPI<T, D> const& grid, iter_type n) const
+	{
+		if (grid.values != nullptr)
+		{
+			return applied_generalized_derivative<ax, O>(static_cast<RegionalGrid<T, D> const&>(grid), n);
+		}
+		else
+		{
+			return grid.empty;
+		}
+	}
+
+	template<typename T, size_t D>
+	auto applied_laplacian(RegionalGridMPI<T, D> const& grid, iter_type n) const
+	{
+		if (grid.values != nullptr)
+		{
+			return applied_laplacian(static_cast<RegionalGrid<T, D> const&>(grid), n);
+		}
+		else
+		{
+			return grid.empty;
+		}
+	}
+
+	template<typename T, size_t D>
+	auto applied_bilaplacian(RegionalGridMPI<T, D> const& grid, iter_type n) const
+	{
+		if (grid.values != nullptr)
+		{
+			return applied_bilaplacian(static_cast<RegionalGrid<T, D> const&>(grid), n);
+		}
+		else
+		{
+			return grid.empty;
+		}
+	}
+
+	template<Axis ax, typename T, size_t D>
+	auto applied_gradlaplacian(RegionalGridMPI<T, D> const& grid, iter_type n) const
+	{
+		if (grid.values != nullptr)
+		{
+			return applied_gradlaplacian<ax>(static_cast<RegionalGrid<T, D> const&>(grid), n);
+		}
+		else
+		{
+			return grid.empty;
+		}
+	}
+
+
+	template<Axis ax, typename T, size_t D>
+	auto applied_gradient(RegionalGridMPI<T, D> const& grid, iter_type n) const
+	{
+		if (grid.values != nullptr)
+		{
+			return applied_gradient<ax>(static_cast<RegionalGrid<T, D> const&>(grid), n);
+		}
+		else
+		{
+			return grid.empty;
+		}
+	}
+
+
+
 	template<Axis ax, size_t O, typename T, size_t D>
 	auto applied_generalized_directional_derivative(VectorComponentData<ax, T*, D> const& data, iter_type n) const
 	{

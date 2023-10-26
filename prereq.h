@@ -163,6 +163,9 @@ namespace symphas
 	{
 		init("--" ARGUMENT_HELP_STRING);
 	}
+
+	void finalize();
+
 }
 
 

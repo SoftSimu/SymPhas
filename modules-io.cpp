@@ -52,21 +52,30 @@ FILE* symphas::open_record(const char* name)
 	return f;
 }
 
+
 void symphas::record_index(const char* dir, SaveParams const& save, int index)
 {
-	const char* name = get_record_name(dir);
-	FILE* f = open_record(name);
-#ifdef USING_CONF
-	fprintf(f, CONFIG_INDEX_PREFIX "%d\n", index);
-	if (index == save.get_stop())
+#ifdef USING_MPI
+	if (symphas::parallel::is_host_node())
 	{
-		fprintf(f, CONFIG_INDEX_PREFIX SIMULATION_DONE_KEY "\n");
-	}
-#else
-	fprintf(f, "%d\n", index);
 #endif
-	fclose(f);
+		const char* name = get_record_name(dir);
+		FILE* f = open_record(name);
+#ifdef USING_CONF
+		fprintf(f, CONFIG_INDEX_PREFIX "%d\n", index);
+		if (index == save.get_stop())
+		{
+			fprintf(f, CONFIG_INDEX_PREFIX SIMULATION_DONE_KEY "\n");
+		}
+#else
+		fprintf(f, "%d\n", index);
+#endif
+		fclose(f);
 
-	delete[] name;
+		delete[] name;
+
+#ifdef USING_MPI
+	}
+#endif
 }
 

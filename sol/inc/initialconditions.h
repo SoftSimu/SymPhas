@@ -154,7 +154,7 @@ struct InitialConditionsData
 	InitialConditionsData(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims
+		len_type const* dims, size_t id = 0
 	) :
 		init{ init }, vdata{ vdata }, dims{ 0 }
 	{
@@ -211,11 +211,11 @@ namespace symphas::internal
 		InitialConditionsData<D>* operator()(
 			symphas::init_entry_type const& init,
 			symphas::interval_data_type const& vdata,
-			len_type const* origin) const
+			len_type const* origin, size_t id) const
 		{
 			if (init.in == in)
 			{
-				return check_tags_start(init, vdata, origin, typename tags_for_init_value<in>::type{});
+				return check_tags_start(init, vdata, origin, id, typename tags_for_init_value<in>::type{});
 			}
 			else
 			{
@@ -228,26 +228,26 @@ namespace symphas::internal
 		InitialConditionsData<D>* check_tags(
 			symphas::init_entry_type const& init,
 			symphas::interval_data_type const& vdata,
-			len_type const* origin) const
+			len_type const* origin, size_t id) const
 		{
-			return new InitialConditionsAlg<D, in>(init, vdata, grid::interior_dimensions(vdata));
+			return new InitialConditionsAlg<D, in>(init, vdata, grid::interior_dimensions(vdata), id);
 		}
 
 		template<typename... other_tag_types, InsideTag... tags>
 		InitialConditionsData<D>* check_tags(
 			symphas::init_entry_type const& init,
 			symphas::interval_data_type const& vdata,
-			len_type const* origin,
+			len_type const* origin, size_t id,
 			init_tag_values_list<tags...>, other_tag_types... other_tags) const
 		{
 			size_t check_tag = build_intag(tags...);
 			if (init.intag == check_tag)
 			{
-				return new InitialConditionsAlg<D, in, tags...>(init, vdata, grid::interior_dimensions(vdata));
+				return new InitialConditionsAlg<D, in, tags...>(init, vdata, grid::interior_dimensions(vdata), id);
 			}
 			else
 			{
-				return check_tags(init, vdata, origin, other_tags...);
+				return check_tags(init, vdata, origin, id, other_tags...);
 			}
 		}
 
@@ -255,10 +255,10 @@ namespace symphas::internal
 		InitialConditionsData<D>* check_tags_start(
 			symphas::init_entry_type const& init,
 			symphas::interval_data_type const& vdata,
-			len_type const* origin,
+			len_type const* origin, size_t id,
 			symphas::lib::types_list<tag_tuple_types...>) const
 		{
-			return check_tags(init, vdata, origin, tag_tuple_types{}...);
+			return check_tags(init, vdata, origin, id, tag_tuple_types{}...);
 		}
 
 		
@@ -331,9 +331,9 @@ struct InitialConditionsAlg<D, Inside::SQUARE, InsideTag::RANDOM> :
 	InitialConditionsAlg(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims
+		len_type const* dims, size_t id
 	) :
-		parent_type(init, vdata, dims)
+		parent_type(init, vdata, dims, id)
 	{
 		offsets = symphas::internal::RandomDeltas<D>(1, dims, IC_SQUARE_RND_FACTOR);
 	}
@@ -472,9 +472,9 @@ struct InitialConditionsAlg<D, Inside::CIRCLE, InsideTag::RANDOM> :
 	InitialConditionsAlg(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims
+		len_type const* dims, size_t id
 	) :
-		parent_type(init, vdata, dims)
+		parent_type(init, vdata, dims, id)
 	{
 		offsets = symphas::internal::RandomDeltas<D>(1, dims, IC_CIRCLE_RND_FACTOR);
 	}
@@ -650,9 +650,9 @@ struct InitialConditionsAlg<D, Inside::CUBIC, InsideTag::RANDOM> :
 	InitialConditionsAlg(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims
+		len_type const* dims, size_t id
 	) :
-		parent_type(init, vdata, dims)
+		parent_type(init, vdata, dims, id)
 	{
 		size_t prod = 1;
 		len_type local_dims[D];
@@ -780,9 +780,9 @@ struct InitialConditionsAlg<D, Inside::HEXAGONAL, InsideTag::RANDOM> :
 	InitialConditionsAlg(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims
+		len_type const* dims, size_t id
 	) :
-		parent_type(init, vdata, dims)
+		parent_type(init, vdata, dims, id)
 	{
 		size_t prod = D;
 		len_type local_dims[D];
@@ -860,9 +860,9 @@ struct InitialConditionsAlg<D, Inside::SEEDSSQUARE> :
 	InitialConditionsAlg(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims
+		len_type const* dims, size_t id
 	) :
-		parent_type(init, vdata, dims)
+		parent_type(init, vdata, dims, id)
 	{
 		size_t n = static_cast<size_t>(init.data.gp[0]);
 
@@ -909,9 +909,9 @@ struct InitialConditionsAlg<D, Inside::SEEDSSQUARE, InsideTag::RANDOM> :
 	InitialConditionsAlg(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims
+		len_type const* dims, size_t id
 	) :
-		parent_type(init, vdata, dims)
+		parent_type(init, vdata, dims, id)
 	{
 		size_t n = static_cast<size_t>(init.data.gp[0]);
 		scalar_t in_value = (symphas::internal::tag_bit_compare(init.intag, InsideTag::INVERT)
@@ -1043,9 +1043,9 @@ struct InitialConditionsAlg<D, Inside::SEEDSSQUARE, InsideTag::VARC> :
 	InitialConditionsAlg(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims
+		len_type const* dims, size_t id
 	) :
-		parent_type(init, vdata, dims),
+		parent_type(init, vdata, dims, id),
 		gen{ std::random_device{}() },
 		seed_value_dis{
 			(init.data.gp[2] < init.data.gp[3]) ? init.data.gp[2] : init.data.gp[3],
@@ -1074,9 +1074,9 @@ struct InitialConditionsAlg<D, Inside::SEEDSSQUARE, InsideTag::VARC, InsideTag::
 	InitialConditionsAlg(
 		symphas::init_entry_type const& tdata,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims
+		len_type const* dims, size_t id
 	) : 
-		parent_type(tdata, vdata, dims),
+		parent_type(tdata, vdata, dims, id),
 		gen{ std::random_device{}() },
 		seed_value_dis{
 			(tdata.data.gp[2] < tdata.data.gp[3]) ? tdata.data.gp[2] : tdata.data.gp[3],
@@ -1685,9 +1685,9 @@ struct InitialConditionsAlg<D, Inside::VORONOI> :
 	InitialConditionsAlg(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims
+		len_type const* dims, size_t id
 	) :
-		parent_type(init, vdata, dims),
+		parent_type(init, vdata, dims, id),
 		N{ static_cast<size_t>(init.data.gp[0]) }
 	{
 		scalar_t center_delta[D];
@@ -1737,9 +1737,9 @@ struct InitialConditionsAlg<D, Inside::BUBBLE> :
 	InitialConditionsAlg(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims
+		len_type const* dims, size_t id
 	) :
-		parent_type(init, vdata, dims),
+		parent_type(init, vdata, dims, id),
 		N{ size_t(init.data.gp[0]) }, R{ symphas::internal::compute_bubble_R(vdata, init.data.gp[3], N) }
 	{
 		// The amount of overlap controls how close bubbles should be to each other.
@@ -1789,11 +1789,11 @@ struct InitialConditionsAlg<D, Inside::SPIRALHEX> :
 	InitialConditionsAlg(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims
+		len_type const* dims, size_t id
 	) :
-		parent_type(init, vdata, dims),
+		parent_type(init, vdata, dims, id),
 		N{ size_t(init.data.gp[0]) },
-		I{ get_index() },
+		I{ id },
 		R{ symphas::internal::compute_bubble_R(vdata, init.data.gp[3], N) }, 
 		offsets{ generate_positions(dims) },
 		tile_dims{}
@@ -1814,12 +1814,6 @@ struct InitialConditionsAlg<D, Inside::SPIRALHEX> :
 		static auto positions = symphas::internal::to_spiral_order<D>(
 			symphas::internal::get_hex_positions<D>(N, dims), N, dims);
 		return positions;
-	}
-
-	auto get_index() const
-	{
-		static size_t I0 = 0;
-		return I0++;
 	}
 
 	scalar_t operator[](iter_type) const override;
@@ -1948,9 +1942,9 @@ struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED>
 	InitialConditionsAlg(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims
+		len_type const* dims, size_t id
 	) :
-		parent_type(init, vdata, dims), voronoi{ get_voronoi(init, vdata, dims) } {}
+		parent_type(init, vdata, dims, id), voronoi{ get_voronoi(init, vdata, dims, id) } {}
 
 
 	scalar_t operator[](iter_type n) const override
@@ -1961,9 +1955,9 @@ struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED>
 	auto get_voronoi(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims)
+		len_type const* dims, size_t id)
 	{
-		static InitialConditionsAlg<D, Inside::VORONOI> v(init, vdata, dims);
+		static InitialConditionsAlg<D, Inside::VORONOI> v(init, vdata, dims, id);
 		return v;
 	}
 
@@ -1988,9 +1982,9 @@ struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag:
 	InitialConditionsAlg(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims
+		len_type const* dims, size_t id
 	) :
-		parent_type(init, vdata, dims), voronoi{ get_voronoi(init, vdata, dims) } {}
+		parent_type(init, vdata, dims, id), voronoi{ get_voronoi(init, vdata, dims) } {}
 
 
 	scalar_t operator[](iter_type n) const override
@@ -2034,9 +2028,9 @@ struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag:
 	InitialConditionsAlg(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims
+		len_type const* dims, size_t id
 	) :
-		parent_type(init, vdata, dims),
+		parent_type(init, vdata, dims, id),
 		N{ static_cast<size_t>(init.data.gp[0]) }
 	{
 		static auto offsets0 = get_offsets(dims);
@@ -2123,15 +2117,15 @@ struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag:
 	InitialConditionsAlg(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims
+		len_type const* dims, size_t id
 	) :
-		parent_type(init, vdata, dims),
+		parent_type(init, vdata, dims, id),
 		N{ static_cast<size_t>(init.data.gp[0]) }
 	{
 		static auto offsets0 = get_offsets(dims);
 		offsets = offsets0;
 
-		values = get_values(init);
+		values = get_values(init, id);
 	}
 
 	auto get_offsets(len_type const* dims) const
@@ -2148,17 +2142,14 @@ struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag:
 		return offsets0;
 	}
 
-	auto get_values(symphas::init_entry_type const& init) const
+	auto get_values(symphas::init_entry_type const& init, size_t id) const
 	{
-		static int I = 0;
 		double value_rng[] = { (init.data.gp[1] + init.data.gp[2]) / 2 };
 		static symphas::internal::RandomOffsets<scalar_t, 1> values0(N, value_rng, (init.data.gp[1] - init.data.gp[2]) / 2);
 		
 		double value_rng0[] = { init.data.gp[1] };
 		symphas::internal::RandomOffsets<scalar_t, 1> values1(N, value_rng0, 0);
-		values1.set_offset(I, values0.get_offset(I));
-
-		I += 1;
+		values1.set_offset(id, values0.get_offset(id));
 		return values1;
 	}
 
@@ -2246,15 +2237,15 @@ struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag:
 	InitialConditionsAlg(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims
+		len_type const* dims, size_t id
 	) :
-		parent_type(init, vdata, dims),
+		parent_type(init, vdata, dims, id),
 		N{ static_cast<size_t>(init.data.gp[0]) }
 	{
 		static auto offsets0 = get_offsets(dims);
 		offsets = offsets0;
 
-		values = get_values(init);
+		values = get_values(init, id);
 	}
 
 	auto get_offsets(len_type const* dims) const
@@ -2271,15 +2262,12 @@ struct InitialConditionsAlg<D, Inside::VORONOI, InsideTag::FIXEDSEED, InsideTag:
 		return offsets0;
 	}
 
-	auto get_values(symphas::init_entry_type const& init) const
+	auto get_values(symphas::init_entry_type const& init, size_t id) const
 	{
-		static int I = 0;
-
 		double value_rng0[] = { init.data.gp[1] };
 		symphas::internal::RandomOffsets<scalar_t, 1> values1(N, value_rng0, 0);
-		values1.set_offset(I, init.data.gp[2]);
+		values1.set_offset(id, init.data.gp[2]);
 
-		I += 1;
 		return values1;
 	}
 
@@ -2379,9 +2367,9 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED>
 	InitialConditionsAlg(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims
+		len_type const* dims, size_t id
 	) :
-		parent_type(init, vdata, dims), bubble{ get_bubble(init, vdata, dims) } {}
+		parent_type(init, vdata, dims, id), bubble{ get_bubble(init, vdata, dims, id) } {}
 
 
 	scalar_t operator[](iter_type n) const override
@@ -2392,9 +2380,9 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED>
 	auto get_bubble(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims)
+		len_type const* dims, size_t id)
 	{
-		static InitialConditionsAlg<D, Inside::BUBBLE> v(init, vdata, dims);
+		static InitialConditionsAlg<D, Inside::BUBBLE> v(init, vdata, dims, id);
 		return v;
 	}
 
@@ -2419,9 +2407,9 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::
 	InitialConditionsAlg(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims
+		len_type const* dims, size_t id
 	) :
-		parent_type(init, vdata, dims), bubble{ get_bubble(init, vdata, dims) } {}
+		parent_type(init, vdata, dims, id), bubble{ get_bubble(init, vdata, dims) } {}
 
 
 	scalar_t operator[](iter_type n) const override
@@ -2466,9 +2454,9 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::
 	InitialConditionsAlg(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims
+		len_type const* dims, size_t id
 	) :
-		parent_type(init, vdata, dims),
+		parent_type(init, vdata, dims, id),
 		N{ size_t(init.data.gp[0]) }, R{ symphas::internal::compute_bubble_R(vdata, init.data.gp[3], N) }
 	{
 		// The amount of overlap controls how close bubbles should be to each other.
@@ -2554,9 +2542,9 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::
 	InitialConditionsAlg(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims
+		len_type const* dims, size_t id
 	) :
-		parent_type(init, vdata, dims),
+		parent_type(init, vdata, dims, id),
 		N{ size_t(init.data.gp[0]) }, R{ symphas::internal::compute_bubble_R(vdata, init.data.gp[3], N) }
 	{
 		// The amount of overlap controls how close bubbles should be to each other.
@@ -2576,23 +2564,21 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::
 		offsets = offsets0;
 
 		//double value_rng[] = { (init.data.gp[2] + init.data.gp[3]) / 2 };
-		values = get_values(init);
+		values = get_values(init, id);
 	}
 
 	scalar_t operator[](iter_type) const override;
 
 
-	auto get_values(symphas::init_entry_type const& init) const
+	auto get_values(symphas::init_entry_type const& init, size_t id) const
 	{
-		static int I = 0;
 		double value_rng[] = { (init.data.gp[1] + init.data.gp[2]) / 2 };
 		static auto values0 = symphas::internal::RandomOffsets<scalar_t, 1>(N, value_rng, (init.data.gp[2] - init.data.gp[1]) / 2);
 
 		double value_rng0[] = { init.data.gp[1] };
 		symphas::internal::RandomOffsets<scalar_t, 1> values1(N, value_rng0, 0);
-		values1.set_offset(I, values0.get_offset(I));
+		values1.set_offset(id, values0.get_offset(id));
 
-		I += 1;
 		return values1;
 	}
 
@@ -2677,11 +2663,11 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::
 	InitialConditionsAlg(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims
+		len_type const* dims, size_t id
 	) :
-		parent_type(init, vdata, dims),
+		parent_type(init, vdata, dims, id),
 		N{ size_t(init.data.gp[0]) }, R{ symphas::internal::compute_bubble_R(vdata, init.data.gp[3], N) },
-		select{ get_select() }
+		select{ get_select(id) }
 	{
 		// The amount of overlap controls how close bubbles should be to each other.
 		// For high packing ratios, the overlap will be positive because bubble can be generated
@@ -2710,11 +2696,9 @@ struct InitialConditionsAlg<D, Inside::BUBBLE, InsideTag::FIXEDSEED, InsideTag::
 
 	scalar_t operator[](iter_type) const override;
 
-	auto get_select()
+	auto get_select(size_t id)
 	{
-		static int I = 0;
-		I %= N;
-		return I++;
+		return int(id % N);
 	}
 
 	auto get_values(symphas::init_entry_type const& init) const
@@ -2798,9 +2782,9 @@ struct InitialConditionsAlg<D, Inside::GAUSSIAN> :
 	InitialConditionsAlg(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims
+		len_type const* dims, size_t id
 	) :
-		parent_type(init, vdata, dims),
+		parent_type(init, vdata, dims, id),
 		gen{ std::random_device{}() },
 		dis{ init.data.gp[0], init.data.gp[1] }
 	{}
@@ -2824,9 +2808,9 @@ struct InitialConditionsAlg<D, Inside::UNIFORM> :
 	InitialConditionsAlg(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims
+		len_type const* dims, size_t id
 	) :
-		parent_type(init, vdata, dims),
+		parent_type(init, vdata, dims, id),
 		gen{ std::random_device{}() },
 		dis{ 0, 1 }, a{ init.data.gp[0] }, b{ init.data.gp[1] }
 	{}
@@ -2875,9 +2859,9 @@ struct InitialConditionsAlg<D, Inside::CAPPED> :
 	InitialConditionsAlg(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* dims
+		len_type const* dims, size_t id
 	) :
-		parent_type(init, vdata, dims),
+		parent_type(init, vdata, dims, id),
 		mean{ (init.data.gp[0] + init.data.gp[1]) / 2 }
 	{}
 
@@ -2922,9 +2906,9 @@ struct InitialConditions
 	InitialConditions(
 		symphas::init_data_type const& tdata,
 		symphas::interval_data_type const& vdata,
-		len_type const* origin
+		len_type const* origin, size_t id
 	) :
-		data{ get_data(tdata, vdata, origin) }
+		data{ get_data(tdata, vdata, origin, id) }, id{ id }
 	{}
 
 	~InitialConditions()
@@ -2945,13 +2929,13 @@ struct InitialConditions
 		return symphas::internal::ic_iterator<T, D>(ax, values, *(data.at(ax)), interval, grid::length<D>(interval));
 	}
 
-	symphas::grid_info initialize(T* values, grid::region_interval<D> const& interval, size_t id = 0) const
+	symphas::grid_info initialize(T* values, grid::region_interval<D> const& interval) const
 	{
 		symphas::grid_info ginfo(nullptr, 0);
 		bool initialized = true;
 		if (data.find(Axis::NONE) != data.end())
 		{
-			ginfo = initialize(Axis::NONE, values, interval, id);
+			ginfo = initialize(Axis::NONE, values, interval);
 			initialized = symphas::is_valid(ginfo);
 		}
 
@@ -2959,14 +2943,14 @@ struct InitialConditions
 		{
 			if (key != Axis::NONE)
 			{
-				ginfo = initialize(key, values, interval, id);
+				ginfo = initialize(key, values, interval);
 				initialized = initialized && symphas::is_valid(ginfo);
 			}
 		}
 		return ginfo;
 	}
 
-	symphas::grid_info initialize(Axis ax, T* values, grid::region_interval<D> const& interval, size_t id = 0) const
+	symphas::grid_info initialize(Axis ax, T* values, grid::region_interval<D> const& interval) const
 	{
 		//symphas::grid_info interval_ginfo(interval.intervals, symphas::grid_info(data.at(ax)->vdata).get_widths());
 		symphas::grid_info interval_ginfo(data.at(ax)->vdata);
@@ -3073,11 +3057,12 @@ struct InitialConditions
 protected:
 	
 	std::map<Axis, InitialConditionsData<D>*> data;
+	size_t id;
 
 	auto get_data(
 		symphas::init_data_type const& tdata,
 		symphas::interval_data_type const& vdata,
-		len_type const* origin)
+		len_type const* origin, size_t id)
 	{
 		std::map<Axis, InitialConditionsData<D>*> data0;
 		for (auto& [key, entry] : tdata)
@@ -3085,12 +3070,12 @@ protected:
 			InitialConditionsData<D>* init;
 			if (entry.in == Inside::NONE)
 			{
-				init = next_ic(entry, vdata, origin,
+				init = next_ic(entry, vdata, origin, id,
 					symphas::internal::init_values_list<>{});
 			}
 			else
 			{
-				init = next_ic(entry, vdata, origin,
+				init = next_ic(entry, vdata, origin, id,
 					symphas::internal::init_values_list<
 					ALL_INSIDE_GEN_VALUES
 					>{});
@@ -3106,23 +3091,23 @@ protected:
 	InitialConditionsData<D>* next_ic(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* origin,
+		len_type const* origin, size_t id,
 		symphas::internal::init_values_list<>)
 	{
-		return new InitialConditionsAlg<D, Inside::NONE, InsideTag::NONE>(init, vdata, grid::interior_dimensions(vdata));
+		return new InitialConditionsAlg<D, Inside::NONE, InsideTag::NONE>(init, vdata, grid::interior_dimensions(vdata), id);
 	}
 
 	template<Inside in0, Inside... ins>
 	InitialConditionsData<D>* next_ic(
 		symphas::init_entry_type const& init,
 		symphas::interval_data_type const& vdata,
-		len_type const* origin,
+		len_type const* origin, size_t id,
 		symphas::internal::init_values_list<in0, ins...>)
 	{
-		InitialConditionsData<D>* ic = icd_type<in0>{}(init, vdata, origin);
+		InitialConditionsData<D>* ic = icd_type<in0>{}(init, vdata, origin, id);
 		if (!ic)
 		{
-			return next_ic(init, vdata, origin, symphas::internal::init_values_list<ins...>{});
+			return next_ic(init, vdata, origin, id, symphas::internal::init_values_list<ins...>{});
 		}
 		else
 		{

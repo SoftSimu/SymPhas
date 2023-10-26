@@ -31,7 +31,6 @@
 
 #include "solver.h"
 
-
 namespace symphas::internal
 {
 	template<typename T>
@@ -703,7 +702,7 @@ namespace symphas::internal
 		{
 			auto s_max_it_start = symphas::data_iterator_region(s_max.as_grid(), grid::get_iterable_domain(s_max));
 			auto s_max_it_end = s_max_it_start + grid::length_interior(s_max);
-
+			
 			for (auto it(s_max_it_start); it < s_max_it_end; ++it)
 			{
 				*it = OpVoid{};
@@ -934,7 +933,10 @@ protected:
 
 	void apply_save_types(iter_type index, const char* dir) const
 	{
-		apply_save_types(index, dir, std::make_index_sequence<num_array_types>{});
+		if (symphas::parallel::is_host_node())
+		{
+			apply_save_types(index, dir, std::make_index_sequence<num_array_types>{});
+		}
 	}
 
 	template<size_t I>
@@ -954,7 +956,10 @@ protected:
 
 	void apply_save_types(iter_type index, const char* dir, const char* name) const
 	{
-		apply_save_types(index, dir, name, std::make_index_sequence<num_array_types>{});
+		if (symphas::parallel::is_host_node())
+		{
+			apply_save_types(index, dir, name, std::make_index_sequence<num_array_types>{});
+		}
 	}
 
 	template<size_t I>
@@ -974,7 +979,11 @@ protected:
 
 	void update_save_types() const
 	{
-		update_save_types(std::make_index_sequence<num_array_types>{});
+		SolverSystemApplied<>::synchronize((void*)NULL, const_cast<Model<D, Sp, symphas::internal::field_array_t<void>, Ts...>*>(this));
+		if (symphas::parallel::is_host_node())
+		{
+			update_save_types(std::make_index_sequence<num_array_types>{});
+		}
 	}
 
 
@@ -1424,13 +1433,25 @@ public:
 	void update_systems(double time)
 	{
 		this->time = time;
-#		ifndef DEBUG
-#		pragma omp parallel for
-#		endif
+
+		SYMPHAS_OMP_PARALLEL_DIRECTIVE
 		for (iter_type i = 0; i < len; ++i)
 		{
 			_s[i].update(index, time);
 		}
+	}
+
+	//! Typically implemented for parallelization routines.
+	/*!
+	 * Synchronizes the state of the systems using the list of solver objects, and the
+	 * algorithm is selected based on the implemented solver and the implemented system.
+	 *
+	 * \param es The list of equation objects generated and used by the solver.
+	 */
+	template<typename E>
+	void synchronize_systems(E *es)
+	{
+		SolverSystemApplied<>::synchronize(es, this);
 	}
 
 	//! Advances to the next solution iteration.
@@ -1444,10 +1465,13 @@ public:
 	{
 		++index;
 		solver.dt = dt;
-#		ifndef DEBUG
-#		pragma omp parallel for
-#		endif
-		for (iter_type i = 0; i < len; ++i)
+
+		auto range = symphas::parallel::get_index_range(len);
+		iter_type start = range.first;
+		iter_type end = range.second;
+
+		SYMPHAS_OMP_PARALLEL_DIRECTIVE
+		for (iter_type i = start; i < end; ++i)
 		{
 			solver.step(system(i));
 		}
@@ -1845,14 +1869,35 @@ protected:
 		void* systems = operator new[](len * sizeof(SolverSystemApplied<>));
 		SolverSystemApplied<>* ptr = static_cast<SolverSystemApplied<>*>(systems);
 		
-		for (iter_type i = 0; i < std::min(data_len, len); ++i)
+        auto [start, end] = symphas::parallel::get_index_range(len);
+
+        iter_type end0 = std::min((iter_type)data_len, (iter_type)len);
+		for (iter_type i = 0; i < end0; ++i)
 		{
-			new(&ptr[i]) SolverSystemApplied<>(tdata[i], vdata[i], bdata[i], i);
+            auto tdata_i = tdata[i];
+            if (i < start || i >= end)
+            {
+                for (auto& [axis, init] : tdata_i)
+                {
+                    init = symphas::init_entry_type();
+                }
+            }
+
+			new(&ptr[i]) SolverSystemApplied<>(tdata_i, vdata[i], bdata[i], i);
 			ptr[i].update(index, 0);
 		}
-		for (iter_type i = (iter_type)std::min(data_len, len); i < len; ++i)
+		for (iter_type i = end0; i < len; ++i)
 		{
-			new(&ptr[i]) SolverSystemApplied<>(tdata[0], vdata[0], bdata[0], i);
+            auto tdata_i = tdata[0];
+            if (i < start || i >= end)
+            {
+                for (auto& [axis, init] : tdata_i)
+                {
+                    init = symphas::init_entry_type();
+                }
+            }
+
+			new(&ptr[i]) SolverSystemApplied<>(tdata_i, vdata[0], bdata[0], i);
 			ptr[i].update(index, 0);
 		}
 
@@ -1897,6 +1942,7 @@ protected:
 			for (iter_type i = 0; i < len; ++i)
 			{
 				new(&ptr[i]) SolverSystemApplied<>(systems[i]);
+			    ptr[i].update(index, 0);
 			}
 			return ptr;
 		}

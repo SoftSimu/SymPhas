@@ -554,7 +554,7 @@ void symphas::lib::make_directory_for_file(const char* name, int err_no)
 #ifdef FILESYSTEM_HEADER_AVAILABLE
 	symphas::lib::make_directory(std::filesystem::path(parent), err_no);
 #else
-	symphas::lib::make_directory(copy, err_no);
+	symphas::lib::make_directory(parent, err_no);
 #endif
 
 	delete[] parent;

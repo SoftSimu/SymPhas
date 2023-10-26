@@ -472,9 +472,9 @@ struct SystemData<RegionalGridMPI<T, D>> : RegionalGridMPI<T, D>, SystemInfo
 	 * Data for a phase field system is generated, resulting in a new
 	 * grid instance and information defining that grid.
 	 */
-	SystemData(symphas::interval_data_type const& vdata, size_t id) :
-		RegionalGridMPI<T, D>{ grid::construct<::RegionalGridMPI, T, D>(id, vdata) },
-		SystemInfo{ { vdata }, id }
+	SystemData(symphas::interval_data_type const& vdata, symphas::multi_thr_info_type const& thr_info) :
+		RegionalGridMPI<T, D>{ grid::construct<::RegionalGridMPI, T, D>(thr_info, vdata) },
+		SystemInfo{ { vdata }, size_t(thr_info.index) }
 	{
 		if (!info.intervals.empty())
 		{
@@ -484,7 +484,7 @@ struct SystemData<RegionalGridMPI<T, D>> : RegionalGridMPI<T, D>, SystemInfo
 				auto& interval = info.intervals.at(ax);
 				double boundary = region.boundary_size * interval.width();
 
-				interval.set_count(dims[i] - 2 * BOUNDARY_DEPTH);
+				interval.set_domain_count(dims[i] - 2 * BOUNDARY_DEPTH);
 				interval.set_interval(interval.left() + boundary, interval.right() - boundary);
 			}
 		}
@@ -549,7 +549,7 @@ struct SystemData<RegionalGridMPI<T, D>> : RegionalGridMPI<T, D>, SystemInfo
 
 protected:
 
-	SystemData() : RegionalGrid<T, D>{}, SystemInfo{ { {} }, 0 } {}
+	SystemData() : RegionalGridMPI<T, D>{}, SystemInfo{ { {} }, 0 } {}
 };
 
 #endif
@@ -872,8 +872,8 @@ struct PersistentSystemData<RegionalGridMPI<T, D>> : SystemData<RegionalGridMPI<
 	 * Data for a phase field system is generated, resulting in a new
 	 * grid instance and information defining that grid.
 	 */
-	PersistentSystemData(symphas::interval_data_type const& vdata, size_t id) :
-		parent_type(vdata, id) {}
+	PersistentSystemData(symphas::interval_data_type const& vdata, symphas::multi_thr_info_type const& thr_info) :
+		parent_type(vdata, thr_info) {}
 
 
 	void write(symphas::io::write_info w, symphas::grid_info g) const
@@ -989,7 +989,7 @@ struct PersistentSystemData<RegionalGridMPI<T, D>> : SystemData<RegionalGridMPI<
 
 protected:
 
-	PersistentSystemData() : PersistentSystemData{ {}, 0 } {}
+	PersistentSystemData() : PersistentSystemData{ {}, {} } {}
 };
 
 #endif
@@ -1177,6 +1177,10 @@ namespace symphas
 		}
 	};
 
+
+	struct problem_parameters_type;
+	void update_thr_info(multi_thr_info_type* thr_info, problem_parameters_type const& problem_parameters, int i = 0);
+
     //! Representation of the problem parameters for a phase field model.
     /*!
      * Represents all the information about a phase field problem. Contains data
@@ -1211,6 +1215,8 @@ namespace symphas
     
 		symphas::time_step_list dt_list;		//!< The list of time steps;
 		size_t* modifiers;						//!< A bit string of modifiers.
+
+		multi_thr_info_type thr_info;			//!< Used for constructing parallelized grids.
     
         problem_parameters_type() : 
             tdata{ nullptr }, vdata{ nullptr }, bdata{ nullptr },
@@ -1327,6 +1333,7 @@ namespace symphas
             if (i < len)
             {
                 tdata[i] = tdata_set;
+				symphas::update_thr_info(&tdata[i].thr_info, *this, i);
             }
             else
             {
@@ -1701,7 +1708,7 @@ namespace symphas::internal
 	void populate_tdata(symphas::init_data_type const& tdata, 
 		Grid<T, D>& data, [[maybe_unused]] symphas::grid_info* info, grid::region_interval<D> const& region, [[maybe_unused]] size_t id)
 	{
-		auto ginfo = InitialConditions<T, D>{ tdata, info->intervals, data.dims }.initialize(data.values, region, id);
+		auto ginfo = InitialConditions<T, D>{ tdata, info->intervals, data.dims, id }.initialize(data.values, region);
 		if (!symphas::is_valid(ginfo))
 		{
 			fprintf(SYMPHAS_ERR, INITIAL_CONDITION_INVALID_MSG);
@@ -1713,7 +1720,7 @@ namespace symphas::internal
 		Grid<any_vector_t<T, D>, D>& data, [[maybe_unused]] symphas::grid_info* info, grid::region_interval<D> const& region, [[maybe_unused]] size_t id)
 	{
 		any_vector_t<T, D>* values = new any_vector_t<T, D>[data.len];
-		auto ginfo = InitialConditions<any_vector_t<T, D>, D>{ tdata, info->intervals, data.dims }.initialize(values, region, id);
+		auto ginfo = InitialConditions<any_vector_t<T, D>, D>{ tdata, info->intervals, data.dims, id }.initialize(values, region);
 		if (!symphas::is_valid(ginfo))
 		{
 			fprintf(SYMPHAS_ERR, INITIAL_CONDITION_INVALID_MSG);
@@ -1744,7 +1751,7 @@ namespace symphas::internal
 	void populate_tdata(symphas::init_data_type const& tdata,
 		RegionalGrid<T, D>& data, [[maybe_unused]] symphas::grid_info* info, grid::region_interval<D> const& region, [[maybe_unused]] size_t id)
 	{
-		auto ginfo = InitialConditions<T, D>{ tdata, info->intervals, data.dims }.initialize(data.values, region, id);
+		auto ginfo = InitialConditions<T, D>{ tdata, info->intervals, data.dims, id }.initialize(data.values, region);
 		if (!symphas::is_valid(ginfo))
 		{
 			fprintf(SYMPHAS_ERR, INITIAL_CONDITION_INVALID_MSG);
@@ -1773,7 +1780,7 @@ namespace symphas::internal
 		RegionalGrid<any_vector_t<T, D>, D>& data, [[maybe_unused]] symphas::grid_info* info, grid::region_interval<D> const& region, [[maybe_unused]] size_t id)
 	{
 		any_vector_t<T, D>* values = new any_vector_t<T, D>[data.len];
-		auto ginfo = InitialConditions<any_vector_t<T, D>, D>{ tdata, info->intervals, data.dims }.initialize(values, region, id);
+		auto ginfo = InitialConditions<any_vector_t<T, D>, D>{ tdata, info->intervals, data.dims, id }.initialize(values, region);
 		if (!symphas::is_valid(ginfo))
 		{
 			fprintf(SYMPHAS_ERR, INITIAL_CONDITION_INVALID_MSG);
@@ -1823,5 +1830,26 @@ namespace symphas::internal
 }
 
 
+
+
+namespace symphas
+{
+
+#ifdef USING_MPI
+
+	inline void update_thr_info(multi_thr_info_type* thr_info, problem_parameters_type const& problem_parameters, int i)
+	{
+		(*thr_info) = multi_thr_info_type(i, problem_parameters.length());
+	}
+
+#else
+
+	inline void update_thr_info(multi_thr_info_type* thr_info, problem_parameters_type const& problem_parameters, int i)
+	{
+
+	}
+
+#endif
+}
 
 

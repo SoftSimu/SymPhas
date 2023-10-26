@@ -407,7 +407,14 @@ namespace symphas
 	{
 		inline bool tag_bit_compare(size_t a, InsideTag b)
 		{
-			return (a & build_intag(b)) > 0;
+			if (a == 0 && build_intag(b) == 0)
+			{
+				return true;
+			}
+			else
+			{
+				return (a & build_intag(b)) > 0;
+			}
 		}
 	}
 
@@ -1079,6 +1086,8 @@ namespace symphas
 		init_data_type(Inside in, Ts&&... args) : init_data_type(init_entry_type(in, std::forward<Ts>(args)...)) {}
 		init_data_type(Inside in, symphas::init_data_parameters const& args) : init_data_type(init_entry_type(in, args)) {}
 		init_data_type() : init_data_type(init_entry_type(Inside::NONE)) {}
+
+		symphas::multi_thr_info_type thr_info;
 	};
 
 	//! From the given string, get the corresponding initial condition.

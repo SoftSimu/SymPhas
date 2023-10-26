@@ -1497,7 +1497,7 @@ symphas::init_entry_type get_initial_condition_entry(char* input, size_t dimensi
 {
 	symphas::init_entry_type init;
 
-	char* pos0 = input;
+	//char* pos0 = input;
 	char* tok = input;
 	while (*++tok && *tok != ' ');
 
@@ -1510,7 +1510,7 @@ symphas::init_entry_type get_initial_condition_entry(char* input, size_t dimensi
 
 	if (init.in == Inside::EXPRESSION)
 	{
-		char* pos0 = input;
+		//char* pos0 = input;
 		tok = std::strtok(buffer, " ");
 		char* expression_name = new char[std::strlen(tok) + 1];
 
@@ -2086,13 +2086,41 @@ void SystemConf::set_directory(const char* directory)
 		 */
 
 		char ts_buffer[BUFFER_LENGTH_R2];
+
+#ifdef USING_MPI
+		MPI_Request *rqst = new MPI_Request[symphas::parallel::get_num_nodes()]{};
+
+		if (symphas::parallel::is_host_node())
+		{
+			symphas::lib::write_ts_str(ts_buffer);
+			for (iter_type i = 0; i < symphas::parallel::get_num_nodes(); ++i)
+			{
+				if (!symphas::parallel::is_host_node(i))
+				{
+					rqst[i] = MPI_REQUEST_NULL;
+					MPI_Isend(&ts_buffer[0], BUFFER_LENGTH_R2, MPI_CHAR, i, 0, MPI_COMM_WORLD, &rqst[i]);
+				}
+			}
+		}
+		else
+		{
+			MPI_Status status;
+			MPI_Recv(&ts_buffer[0], BUFFER_LENGTH_R2, MPI_CHAR, SYMPHAS_MPI_HOST_RANK, 0, MPI_COMM_WORLD, &status);
+		}
+#else
 		symphas::lib::write_ts_str(ts_buffer);
+#endif
 
 		size_t dlen = std::strlen(append_dir) + std::strlen(ts_buffer) + 2;
 
+#ifdef USING_MPI
+		int rank = symphas::parallel::get_node_rank();
+		result_dir = new char[dlen + 1 + symphas::lib::num_digits(rank)];
+		sprintf(result_dir, "%s/%s/%d", append_dir, ts_buffer, rank);
+#else
 		result_dir = new char[dlen];
 		sprintf(result_dir, "%s/%s", append_dir, ts_buffer);
-
+#endif
 
 		/*
 		 * decide if index should be appended
@@ -2108,11 +2136,15 @@ void SystemConf::set_directory(const char* directory)
 			&& (info.st_mode & S_IFMT) == S_IFDIR 
 			&& i < 10)
 		{
-			char dir_buffer[BUFFER_LENGTH];
-			sprintf(dir_buffer, "%s/%s" TIMESTAMP_ID_APPEND, append_dir, ts_buffer, ++i);
 
-			char* new_dir = new char[std::strlen(dir_buffer) + 1];
-			sprintf(new_dir, "%s", dir_buffer);
+#ifdef USING_MPI
+			int rank = symphas::parallel::get_node_rank();
+			char* new_dir = new char[dlen + symphas::lib::num_digits(rank) + STR_ARR_LEN(TIMESTAMP_ID_APPEND)];
+			sprintf(new_dir, "%s/%s" TIMESTAMP_ID_APPEND  "/%d", append_dir, ts_buffer, ++i, rank);
+#else
+			char* new_dir = new char[dlen + STR_ARR_LEN(TIMESTAMP_ID_APPEND)];
+			sprintf(new_dir, "%s/%s" TIMESTAMP_ID_APPEND, append_dir, ts_buffer, ++i);
+#endif
 
 			delete[] result_dir;
 			result_dir = new_dir;
@@ -2120,8 +2152,14 @@ void SystemConf::set_directory(const char* directory)
 	}
 	else
 	{
+#ifdef USING_MPI
+		int rank = symphas::parallel::get_node_rank();
+		root_dir = new char[std::strlen(append_dir) + 2 + symphas::lib::num_digits(rank)];
+		sprintf(result_dir, "%s/%d", append_dir, rank);
+#else
 		result_dir = new char[std::strlen(append_dir) + 1];
 		std::strcpy(result_dir, append_dir);
+#endif
 	}
 }
 

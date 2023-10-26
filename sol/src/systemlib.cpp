@@ -207,10 +207,12 @@ void symphas::problem_parameters_type::set_initial_data(const symphas::init_data
 		for (size_t i = 0; i < n; ++i)
 		{
 			tdata[i] = tdata_set[i];
+			symphas::update_thr_info(&tdata[i].thr_info, *this, i);
 		}
 		for (size_t i = n; i < len; ++i)
 		{
 			tdata[i] = tdata_set[0];
+			symphas::update_thr_info(&tdata[i].thr_info, *this, i);
 		}
 	}
 	else

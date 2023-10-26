@@ -84,10 +84,11 @@ template<typename T, size_t D>
 struct SolverSystemFDwSDMPI : RegionalSystemMPI<T, D>
 {
 	using RegionalSystemMPI<T, D>::dims;
+	using RegionalSystemMPI<T, D>::thr_info;
 
 	RegionalGrid<T, D> dframe;		// the working grid for the solver
 	SolverSystemFDwSDMPI(symphas::init_data_type const& tdata, symphas::interval_data_type const& vdata, symphas::b_data_type const& bdata, size_t id = 0) :
-		RegionalSystemMPI<T, D>(tdata, vdata, bdata, id), dframe{ dims } {}
+		RegionalSystemMPI<T, D>(tdata, vdata, bdata, id), dframe{ (thr_info.index_in_node()) ? dims : nullptr } {}
 	SolverSystemFDwSDMPI() : RegionalSystemMPI<T, D>(), dframe{ 0 } {}
 
 	inline void update(iter_type index, double time)

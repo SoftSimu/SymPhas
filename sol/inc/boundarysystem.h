@@ -200,6 +200,9 @@ struct PhaseFieldSystem<BoundaryGrid, T, D> : PersistentSystemData<BoundaryGrid<
 	 */
 	void update(iter_type index = 0, double time = 0);
 
+	//! Implemented for parallelization routines.
+	template<typename... Ts>
+	static void synchronize(Ts&&...) {}
 
 protected:
 
@@ -289,6 +292,9 @@ struct PhaseFieldSystem<RegionalGrid, T, D> : PersistentSystemData<RegionalGrid<
 	 */
 	void update(iter_type index = 0, double time = 0);
 
+	//! Implemented for parallelization routines.
+	template<typename... Ts>
+	static void synchronize(Ts&&...) {}
 
 protected:
 
@@ -347,6 +353,9 @@ struct PhaseFieldSystem<RegionalGridMPI, T, D> : PersistentSystemData<RegionalGr
 	 */
 	void update(iter_type index = 0, double time = 0);
 
+	//! Implemented for parallelization routines.
+	template<typename... Ts>
+	static void synchronize(Ts&&...);
 
 protected:
 
@@ -367,6 +376,8 @@ protected:
 
 
 	regional_system_info_type<T> regional_info;
+public:
+	symphas::multi_thr_info_type thr_info;
 };
 
 #endif
@@ -488,8 +499,11 @@ void PhaseFieldSystem<RegionalGrid, T, D>::update(iter_type index, double time)
 template<typename T, size_t D>
 void PhaseFieldSystem<RegionalGridMPI, T, D>::update(iter_type index, double time)
 {
-	symphas::internal::update_regional_system(regional_info, *this, info, time);
-	BoundaryGroup<T, D>::update_boundaries(*this, index, time);
+	if (thr_info.index_in_node())
+	{
+		symphas::internal::update_regional_system(regional_info, *this, info, time);
+		BoundaryGroup<T, D>::update_boundaries(*this, index, time);
+	}
 }
 
 #endif
@@ -553,16 +567,19 @@ PhaseFieldSystem<RegionalGridMPI, T, D>::PhaseFieldSystem(
 	symphas::init_data_type const& tdata,
 	symphas::interval_data_type const& vdata,
 	symphas::b_data_type const& bdata, size_t id) :
-	parent_type{ get_extended_intervals(vdata), id }, BoundaryGroup<T, D>{ info.intervals, bdata },
-	regional_info{}
+	parent_type{ get_extended_intervals(vdata), tdata.thr_info }, BoundaryGroup<T, D>{ info.intervals, bdata },
+	regional_info{}, thr_info{ tdata.thr_info }
 {
-	grid::region_interval<D> region(RegionalGridMPI<T, D>::region.dims, RegionalGridMPI<T, D>::region.boundary_size);
-	symphas::internal::populate_tdata(tdata, *this, &info, region, id);
-
-	if (grid::has_subdomain(vdata))
+	if (thr_info.index_in_node())
 	{
-		grid::resize_adjust_region(*this, vdata);
-		regional_info.next_resize = -1;
+		grid::region_interval<D> region(RegionalGridMPI<T, D>::region.dims, RegionalGridMPI<T, D>::region.boundary_size);
+		symphas::internal::populate_tdata(tdata, *this, &info, region, id);
+
+		if (grid::has_subdomain(vdata))
+		{
+			grid::resize_adjust_region(*this, vdata);
+			regional_info.next_resize = -1;
+		}
 	}
 }
 

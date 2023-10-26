@@ -71,6 +71,9 @@ struct PhaseFieldSystem : PersistentSystemData<G<T, D>>
 	//! There is no update mechanism required for the base object.
 	inline void update(iter_type = 0, double = 0) {}
 
+	//! Implemented for parallelization routines.
+	template<typename... Ts>
+	static void synchronize(Ts&&...) {}
 
 protected:
 
