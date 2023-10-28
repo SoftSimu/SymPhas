@@ -902,20 +902,6 @@ protected:
 		}
 	}
 
-	template<size_t... Is>
-	void construct_save_types(
-		const symphas::interval_data_type* vdata,
-		std::index_sequence<Is...>)
-	{
-		(construct_save_type<Is>(vdata), ...);
-	}
-
-	void construct_save_types(
-		const symphas::interval_data_type* vdata)
-	{
-		construct_save_types(vdata, std::make_index_sequence<num_array_types>{});
-	}
-
 	template<size_t I>
 	void apply_save_type(iter_type index, const char* dir) const
 	{
@@ -986,6 +972,21 @@ protected:
 		}
 	}
 
+
+	template<size_t... Is>
+	void construct_save_types(
+		const symphas::interval_data_type* vdata,
+		std::index_sequence<Is...>)
+	{
+		(construct_save_type<Is>(vdata), ...);
+	}
+
+	void construct_save_types(
+		const symphas::interval_data_type* vdata)
+	{
+		construct_save_types(vdata, std::make_index_sequence<num_array_types>{});
+		update_save_types();
+	}
 
 	template<size_t I>
 	void delete_save_type()
