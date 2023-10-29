@@ -62,6 +62,10 @@ bool add_base_params(param_map_type& param_map)
 		"specifies an input data file for initial conditions, read by the program when '!' is"
 		" provided in the configuration at the initial condition parameter" };
 	param_map["data"] = { &input_data_file, new param_assign<char*>, 'd' };
+	param_map["substitutions"] = { &config_key_values, new param_assign<config_key_value_type>, 'S',
+		"provides a filename with a matrix of parameters that are substituted into the"
+		" configuration when reading entries" };
+	param_map["key-value-list"] = { &config_key_values, new param_assign<config_key_value_type>, 'S' };
 
 
 #ifdef EXECUTION_HEADER_AVAILABLE
@@ -82,6 +86,7 @@ DLLLIB double params::init_outside_val = -1;
 DLLLIB double params::init_rand_val = 1;
 DLLLIB char* params::input_data_file = nullptr;
 DLLLIB int params::start_index = INDEX_INIT;
+DLLLIB config_key_value_type params::config_key_values = {};
 
 #ifdef EXECUTION_HEADER_AVAILABLE
 DLLLIB symphas::ParallelizationType params::parallelization = symphas::ParallelizationType::PAR;

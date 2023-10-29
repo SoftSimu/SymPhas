@@ -78,6 +78,8 @@ Parallelization is also off.
  * Parameter assignment functionality.
  * **************************************************************************/
 
+using config_key_value_type = std::vector<symphas::lib::string>;
+
 namespace params
 {
 
@@ -370,6 +372,78 @@ protected:
 	}
 };
 
+
+//! Specialization of parameter assignment functionality for `char*` type.
+template<>
+struct params::param_assign<config_key_value_type> : params::param_assign_base
+{
+	//! Implementation to assign a substitution key-value list from a matrix parameter file
+	/*!
+	 * A list of parameters is copied from a file containing a matrix of parameters. A specific
+	 * line is chosen from the list, which is by default the first line.
+	 *
+	 * \param param The parameter to assign.
+	 * \param value The value as a string to assign to `param`.
+	 */
+	void assign(void* param, const char* value)
+	{
+		 *static_cast<config_key_value_type*>(param) = extract_values(value, *static_cast<config_key_value_type*>(param));
+	}
+
+	size_t print_with_name(FILE* out, void* param, const char* name)
+	{
+		return fprintf(out, "%s=FILE", name);
+	}
+
+protected:
+
+	config_key_value_type extract_values(const char* value, config_key_value_type const& default_value)
+	{
+		config_key_value_type key_values;
+
+		iter_type index = 0;
+		const char* pos_index = strrchr(value, ',');
+		char* fname;
+		if (pos_index != NULL)
+		{
+			index = atoi(pos_index + 1);
+			fname = new char[int(pos_index - value) + 1];
+			std::copy(value, pos_index, fname);
+		}
+		else
+		{
+			fname = new char[std::strlen(value) + 1];
+			std::strcpy(fname, value);
+		}
+
+		FILE* f = fopen(fname, "r");
+		if (f == NULL)
+		{
+			fprintf(SYMPHAS_ERR, "substitution parameter matrix file '%s' was not found\n", value);
+		}
+		else
+		{
+			char* line = new char[BUFFER_LENGTH] {};
+			do
+			{
+				fgets(line, BUFFER_LENGTH, f);
+			} while (index-- > 0);
+
+			char* token = std::strtok(line, " ");
+			while (token != NULL)
+			{
+				//double value = atof(token);
+				key_values.emplace_back(symphas::lib::string{ token, std::strlen(token) + 1 });
+				token = std::strtok(NULL, " ");
+			}
+			delete[] line;
+		}
+
+		delete[] fname;
+		return key_values;
+	}
+};
+
 #ifdef EXECUTION_HEADER_AVAILABLE
 #include <execution>
 
@@ -515,6 +589,7 @@ using param_map_type = std::map<
 	std::string, 
 	param_map_element,
 	symphas::internal::any_case_comparator>;
+
 
 /* **************************************************************************
  * Parameters and parameter management functionality
@@ -664,6 +739,8 @@ namespace params
 #ifdef EXECUTION_HEADER_AVAILABLE
 	DLLLIB extern symphas::ParallelizationType parallelization;
 #endif
+
+	DLLLIB extern config_key_value_type config_key_values;
 
 	//! List of all the key/value parameter strings.
 	/*!

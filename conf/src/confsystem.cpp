@@ -1056,6 +1056,89 @@ SystemConf::SystemConf(symphas::problem_parameters_type const& parameters, const
 	}
 }
 
+symphas::lib::string handle_substitutions(const char* value)
+{
+	const char* pos_sub = std::strchr(value, CONFIG_SUBSTITUTION_PREFIX_C);
+	if (pos_sub == NULL)
+	{
+		symphas::lib::string result(value, std::strlen(value) + 1);
+		return result;
+	}
+	else
+	{
+		const char* start = value;
+		const char* end = NULL;
+		char* buffer = new char[1] {};
+		while (pos_sub != NULL)
+		{
+			int index = -1;
+			const char* it;
+			for (auto [open, close] : symphas::internal::OPTION_BRACKETS)
+			{
+				it = pos_sub + 1;
+				if (*it == open)
+				{
+					++it;
+					while (*it >= '0' && *it <= '9')
+					{
+						++it;
+					}
+					if (*it == close)
+					{
+						index = atoi(pos_sub + 2);
+						end = pos_sub;
+						break;
+					}
+				}
+			}
+
+			if (index > 0)
+			{
+				const char* default_substitution = "";
+				const char* substitution;
+				if (index < params::config_key_values.size())
+				{
+					auto& config_entry = params::config_key_values[index - 1];
+					substitution = config_entry.data;
+				}
+				else
+				{
+					substitution = default_substitution;
+				}
+
+				len_type size = end - start;
+				len_type substitution_len = std::strlen(substitution);
+				len_type buffer_len = std::strlen(buffer);
+
+				char* append_buffer = new char[buffer_len + size + substitution_len + 1] {};
+				sprintf(append_buffer, "%s", buffer);
+				std::copy(start, end, append_buffer + buffer_len);
+				sprintf(append_buffer + buffer_len + size, "%s", substitution);
+				
+				std::swap(buffer, append_buffer);
+				delete[] append_buffer;
+
+				end = it + 1;
+				start = end;
+				pos_sub = std::strchr(end + 1, CONFIG_SUBSTITUTION_PREFIX_C);
+			}
+		}
+
+		end = (value + std::strlen(value));
+		len_type size = end - start;
+		len_type buffer_len = std::strlen(buffer);
+
+		symphas::lib::string result(buffer_len + size + 1);
+		sprintf(result.data, "%s", buffer);
+		std::copy(start, end, result.data + buffer_len);
+		result.data[buffer_len + size] = '\0';
+
+		delete[] buffer;
+		return result;
+	}
+
+}
+
 SystemConf::SystemConf(std::vector<std::pair<std::string, std::string>> params, const char* title, const char* dir) : SystemConf()
 {
 	this->title = new char[std::strlen(title) + 1];
@@ -1231,7 +1314,7 @@ SystemConf::SystemConf(std::vector<std::pair<std::string, std::string>> params, 
 
 
 	// set the final configuration parameters
-	parse_model_spec(model_spec, dir);
+	parse_model_spec(handle_substitutions(model_spec), dir);
 	parse_width(width_spec);
 	parse_interval_array(r_spec);
 	parse_boundaries_array(b_spec);
@@ -2114,9 +2197,17 @@ void SystemConf::set_directory(const char* directory)
 		size_t dlen = std::strlen(append_dir) + std::strlen(ts_buffer) + 2;
 
 #ifdef USING_MPI
-		int rank = symphas::parallel::get_node_rank();
-		result_dir = new char[dlen + 1 + symphas::lib::num_digits(rank)];
-		sprintf(result_dir, "%s/%s/%d", append_dir, ts_buffer, rank);
+		if (symphas::parallel::is_host_node())
+		{
+			result_dir = new char[dlen + 1];
+			sprintf(result_dir, "%s/%s", append_dir, ts_buffer);
+		}
+		else
+		{
+			int rank = symphas::parallel::get_node_rank();
+			result_dir = new char[dlen + 1 + symphas::lib::num_digits(rank)];
+			sprintf(result_dir, "%s/%s/%d", append_dir, ts_buffer, rank);
+		}
 #else
 		result_dir = new char[dlen];
 		sprintf(result_dir, "%s/%s", append_dir, ts_buffer);
@@ -2138,9 +2229,18 @@ void SystemConf::set_directory(const char* directory)
 		{
 
 #ifdef USING_MPI
-			int rank = symphas::parallel::get_node_rank();
-			char* new_dir = new char[dlen + symphas::lib::num_digits(rank) + STR_ARR_LEN(TIMESTAMP_ID_APPEND)];
-			sprintf(new_dir, "%s/%s" TIMESTAMP_ID_APPEND  "/%d", append_dir, ts_buffer, ++i, rank);
+			char* new_dir;
+			if (symphas::parallel::is_host_node())
+			{
+				char* new_dir = new char[dlen + STR_ARR_LEN(TIMESTAMP_ID_APPEND)];
+				sprintf(new_dir, "%s/%s" TIMESTAMP_ID_APPEND  "", append_dir, ts_buffer, ++i);
+			}
+			else
+			{
+				int rank = symphas::parallel::get_node_rank();
+				char* new_dir = new char[dlen + symphas::lib::num_digits(rank) + STR_ARR_LEN(TIMESTAMP_ID_APPEND)];
+				sprintf(new_dir, "%s/%s" TIMESTAMP_ID_APPEND  "/%d", append_dir, ts_buffer, ++i, rank);
+			}
 #else
 			char* new_dir = new char[dlen + STR_ARR_LEN(TIMESTAMP_ID_APPEND)];
 			sprintf(new_dir, "%s/%s" TIMESTAMP_ID_APPEND, append_dir, ts_buffer, ++i);

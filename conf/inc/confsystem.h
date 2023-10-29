@@ -47,6 +47,8 @@
 
 //! Key used to prefix comments in the configuration file.
 #define CONFIG_COMMENT_PREFIX "#"
+#define CONFIG_SUBSTITUTION_PREFIX "$"
+#define CONFIG_SUBSTITUTION_PREFIX_C ((CONFIG_SUBSTITUTION_PREFIX)[0])
 
 //! The character usage of the comment key.
 #define CONFIG_COMMENT_PREFIX_C ((CONFIG_COMMENT_PREFIX)[0])
