@@ -94,7 +94,10 @@ struct SolverSystemFDwSDMPI : RegionalSystemMPI<T, D>
 	inline void update(iter_type index, double time)
 	{
 		RegionalSystemMPI<T, D>::update(index, time);
-		dframe.adjust(RegionalSystemMPI<T, D>::region);
+		if (thr_info.index_in_node())
+		{
+			dframe.adjust(RegionalSystemMPI<T, D>::region);
+		}
 	}
 };
 
