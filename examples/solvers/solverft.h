@@ -193,9 +193,8 @@ bool check_overlapping_domain(grid::region_interval_multiple<D> region, const it
 	}
 }
 
-
-template<typename V, typename E, typename T, size_t D>
-void synchronize_regional_grids(std::pair<V, E>* es, SolverSystemFDwSDMPI<T, D>* systems, len_type len, int *working_data)
+template<typename T, size_t D>
+void synchronize_regional_pos(SolverSystemFDwSDMPI<T, D>* systems, len_type len, int* region_info = nullptr, int* len_info = nullptr)
 {
 	auto [start, end] = symphas::parallel::get_index_range(len);
 	len_type index_count = end - start;
@@ -205,15 +204,13 @@ void synchronize_regional_grids(std::pair<V, E>* es, SolverSystemFDwSDMPI<T, D>*
 	int N = symphas::parallel::get_num_nodes();
 	int region_info_entries = ((len + N - 1) / N) * N;
 	int info_count = D * 2;
-
-	//int* region_info = new int[region_info_entries * info_count] {};
-	//int* request_info = new int[len] {};
-	//int* len_info = new int[region_info_entries * info_count] {};
-
-	int* region_info = &working_data[0];
-	int* request_info = &working_data[region_info_entries * info_count];
-	int* request_info_buffer = &working_data[region_info_entries * info_count + len];
-	int* len_info = &working_data[region_info_entries * info_count + 2 * len];
+	
+	bool clear_region_info = false;
+	if (!region_info)
+	{
+		region_info = new int[region_info_entries * info_count] {};
+		clear_region_info = true;
+	}
 
 	int offset = (region_info_entries / N) * symphas::parallel::get_node_rank();
 	for (iter_type i = start; i < end; ++i)
@@ -225,14 +222,21 @@ void synchronize_regional_grids(std::pair<V, E>* es, SolverSystemFDwSDMPI<T, D>*
 			region_info[ind1 + n] = systems[i].region.dims[n];
 			region_info[ind1 + D + n] = systems[i].region.origin[n];
 		}
-		len_info[ind0] = systems[i].region.len;
+
+		if (len_info)
+		{
+			len_info[ind0] = systems[i].region.len;
+		}
 	}
 
-	MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, 
+	MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
 		&region_info[0], (region_info_entries / N) * info_count, MPI_INT, MPI_COMM_WORLD);
 
-	MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
-		&len_info[0], len / N, MPI_INT, MPI_COMM_WORLD);
+	if (len_info)
+	{
+		MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
+			&len_info[0], len / N, MPI_INT, MPI_COMM_WORLD);
+	}
 
 	for (iter_type node = 0; node < N; ++node)
 	{
@@ -253,10 +257,34 @@ void synchronize_regional_grids(std::pair<V, E>* es, SolverSystemFDwSDMPI<T, D>*
 					origin[n] = region_info[ind0 + D + n];
 				}
 				systems[i].region.update(origin, dims);
-
 			}
 		}
 	}
+
+	if (clear_region_info)
+	{
+		delete[] region_info;
+	}
+}
+
+template<typename V, typename E, typename T, size_t D>
+void synchronize_regional_grids(std::pair<V, E>* es, SolverSystemFDwSDMPI<T, D>* systems, len_type len, int *working_data)
+{
+	auto [start, end] = symphas::parallel::get_index_range(len);
+	len_type index_count = end - start;
+
+	int node0 = symphas::parallel::get_node_rank();
+
+	int N = symphas::parallel::get_num_nodes();
+	int region_info_entries = ((len + N - 1) / N) * N;
+	int info_count = D * 2;
+
+	int* region_info = &working_data[0];
+	int* request_info = &working_data[region_info_entries * info_count];
+	int* request_info_buffer = &working_data[region_info_entries * info_count + len];
+	int* len_info = &working_data[region_info_entries * info_count + 2 * len];
+
+	synchronize_regional_pos(systems, len, region_info, len_info);
 
 	for (iter_type node = 0; node < N; ++node)
 	{
@@ -362,6 +390,8 @@ void synchronize_regional_grids(std::pair<V, E>* es, SolverSystemFDwSDMPI<T, D>*
 template<typename T, size_t D>
 void regional_grids_to_host(SolverSystemFDwSDMPI<T, D>* systems, len_type len)
 {
+	synchronize_regional_pos(systems, len);
+
 	MPI_Request* rqst = new MPI_Request[len];
 	for (iter_type i = 0; i < len; ++i)
 	{
