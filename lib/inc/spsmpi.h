@@ -49,7 +49,7 @@ namespace symphas
 namespace symphas::parallel
 {
 
-	inline int get_pid()
+	inline int get_node_pid()
 	{
 #ifdef _MSC_VER
 		return _getpid();

@@ -409,6 +409,7 @@ protected:
 			index = atoi(pos_index + 1);
 			fname = new char[int(pos_index - value) + 1];
 			std::copy(value, pos_index, fname);
+			fname[int(pos_index - value)] = '\0';
 		}
 		else
 		{
@@ -419,7 +420,7 @@ protected:
 		FILE* f = fopen(fname, "r");
 		if (f == NULL)
 		{
-			fprintf(SYMPHAS_ERR, "substitution parameter matrix file '%s' was not found\n", value);
+			fprintf(SYMPHAS_ERR, "substitution parameter matrix file '%s' was not found\n", fname);
 		}
 		else
 		{
