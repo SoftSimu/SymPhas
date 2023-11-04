@@ -2181,7 +2181,7 @@ void SystemConf::set_directory(const char* directory)
 				if (!symphas::parallel::is_host_node(i))
 				{
 					rqst[i] = MPI_REQUEST_NULL;
-					MPI_Isend(&ts_buffer[0], BUFFER_LENGTH_R2, MPI_CHAR, i, 0, MPI_COMM_WORLD, &rqst[i]);
+					MPI_Send(&ts_buffer[0], BUFFER_LENGTH_R2, MPI_CHAR, i, 0, MPI_COMM_WORLD);
 				}
 			}
 		}
