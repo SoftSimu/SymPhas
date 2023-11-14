@@ -98,7 +98,10 @@ namespace params
 		virtual void assign(void* param, const char* value) = 0;
 
 		//! Print the formatted name when writing to the help output.
-		virtual size_t print_with_name(FILE* out, void* param, const char* name) = 0;
+		virtual size_t print_with_name(FILE* out, void* param, const char* name) const = 0;
+
+		//! Print the formatted name when writing to the help output.
+		virtual size_t print_value(size_t len, char* out, void* param) const = 0;
 	};
 
 	//! Implementation of parameter assignment functionality.
@@ -149,9 +152,25 @@ namespace params
 			}
 		}
 
-		size_t print_with_name(FILE* out, void* param, const char* name)
+		size_t print_with_name(FILE* out, void* param, const char* name) const
 		{
 			return fprintf(out, "%s", name);
+		}
+
+		size_t print_value(size_t len, char* out, void* params) const
+		{
+			using param_type = void* [N];
+			void* (&param_arr)[N] = *static_cast<param_type*>(params);
+			
+			size_t n = 0;
+			for (iter_type i = 0; i < N; ++i)
+			{
+				if (len - n > 0)
+				{
+					n += param_assign<p_type>{}.print_value(len - n, out, param_arr[i]);
+				}
+			}
+			return n;
 		}
 	};
 
@@ -169,6 +188,18 @@ namespace params
 			(param_assign<p_types>{}.assign(param_arr[Is], value), ...);
 		}
 
+		template<size_t... Is, size_t N = sizeof...(Is)>
+		size_t print_value(size_t len, char* out, void* params, std::index_sequence<Is...>) const
+		{
+			using param_type = void* [N];
+			void* (&param_arr)[N] = *static_cast<param_type*>(params);
+
+			size_t n = 0;
+			((n += (len - n > 0) ? param_assign<p_types>{}.print_value(len - n, out, param_arr[Is]) : 0), ...);
+			return n;
+		}
+
+
 	public:
 
 		//! Implementation to assign the same value to multiple parameters.
@@ -184,9 +215,14 @@ namespace params
 			assign(params, value, std::make_index_sequence<sizeof...(p_types)>{});
 		}
 
-		size_t print_with_name(FILE* out, void* param, const char* name)
+		size_t print_with_name(FILE* out, void* param, const char* name) const
 		{
 			return fprintf(out, "%s", name);
+		}
+
+		size_t print_value(size_t len, char* out, void* params) const
+		{
+			print_value(len, out, params, std::make_index_sequence<sizeof...(p_types)>{});
 		}
 	};
 
@@ -217,9 +253,14 @@ struct params::param_assign<bool> : params::param_assign_base
 		*static_cast<bool*>(param) = extract_bool(value, *static_cast<bool*>(param));
 	}
 
-	size_t print_with_name(FILE* out, void* param, const char* name)
+	size_t print_with_name(FILE* out, void* param, const char* name) const
 	{
 		return fprintf(out, "%s[=yes|no](default=%s)", name, (*static_cast<bool*>(param)) ? "yes" : "no");
+	}
+
+	size_t print_value(size_t len, char* out, void* param) const
+	{
+		return sprintf(out, "%.*s", len, (*static_cast<bool*>(param)) ? "yes" : "no");
 	}
 
 protected:
@@ -277,9 +318,14 @@ struct params::param_assign<double> : params::param_assign_base
 		*static_cast<double*>(param) = extract_double(value, *static_cast<double*>(param));
 	}
 
-	size_t print_with_name(FILE* out, void* param, const char* name)
-	{
+	size_t print_with_name(FILE* out, void* param, const char* name) const
+	{ 
 		return fprintf(out, "%s=float(default=%.2lf)", name, *static_cast<double*>(param));
+	}
+
+	size_t print_value(size_t len, char* out, void* param) const
+	{
+		return sprintf(out, "%.2lf", *static_cast<double*>(param));
 	}
 
 protected:
@@ -315,9 +361,14 @@ struct params::param_assign<int> : params::param_assign_base
 		*static_cast<int*>(param) = extract_int(value, *static_cast<int*>(param));
 	}
 
-	size_t print_with_name(FILE* out, void* param, const char* name)
+	size_t print_with_name(FILE* out, void* param, const char* name) const
 	{
 		return fprintf(out, "%s=N(default=%d)", name, *static_cast<int*>(param));
+	}
+
+	size_t print_value(size_t len, char* out, void* param) const
+	{
+		return sprintf(out, "%d", *static_cast<int*>(param));
 	}
 
 protected:
@@ -356,9 +407,22 @@ struct params::param_assign<char*> : params::param_assign_base
 		param_str = extract_string(value);
 	}
 
-	size_t print_with_name(FILE* out, void* param, const char* name)
+	size_t print_with_name(FILE* out, void* param, const char* name) const
 	{
 		return fprintf(out, "%s=NAME", name);
+	}
+
+	size_t print_value(size_t len, char* out, void* param) const
+	{
+		char* str = *static_cast<char**>(param);
+		if (str && std::strlen(str) > 0)
+		{
+			return sprintf(out, "%.*s", len, str);
+		}
+		else
+		{
+			return sprintf(out, "%.*s", len, "<empty>");
+		}
 	}
 
 protected:
@@ -390,9 +454,42 @@ struct params::param_assign<config_key_value_type> : params::param_assign_base
 		 *static_cast<config_key_value_type*>(param) = extract_values(value, *static_cast<config_key_value_type*>(param));
 	}
 
-	size_t print_with_name(FILE* out, void* param, const char* name)
+	size_t print_with_name(FILE* out, void* param, const char* name) const
 	{
-		return fprintf(out, "%s=FILE", name);
+		return fprintf(out, "%s=FILE[,N]", name);
+	}
+
+	size_t print_value(size_t len, char* out, void* param) const
+	{
+		auto &values = *static_cast<config_key_value_type*>(param);
+		if (values.size() > 0)
+		{
+			size_t n = 0;
+			n += sprintf(out, "(");
+			len -= n;
+
+			auto it = std::begin(values);
+			for (; it < std::end(values) - 1; ++it)
+			{
+				char* str = it->data;
+				if (len > 2)
+				{
+					size_t nn = sprintf(out + n, "%.*s, ", len - 2, str);
+					len -= nn;
+					n += nn;
+				}
+			}
+			if (len > 1)
+			{
+				char* str = it->data;
+				n += sprintf(out + n, "%.*s)", len, str);
+			}
+			return n;
+		}
+		else
+		{
+			return sprintf(out, "%.*s", len, "<empty>");
+		}
 	}
 
 protected:
@@ -428,6 +525,7 @@ protected:
 			do
 			{
 				fgets(line, BUFFER_LENGTH, f);
+				symphas::lib::str_trim(line);
 			} while (index-- > 0);
 
 			char* token = std::strtok(line, " ");
@@ -476,9 +574,15 @@ struct params::param_assign<symphas::ParallelizationType> : params::param_assign
 		*static_cast<symphas::ParallelizationType*>(param) = extract_policy(value, *static_cast<symphas::ParallelizationType*>(param));
 	}
 
-	size_t print_with_name(FILE* out, void* param, const char* name)
+	size_t print_with_name(FILE* out, void* param, const char* name) const
 	{
 		return fprintf(out, "%s[=seq|par](default=%s)", name, 
+			(*static_cast<symphas::ParallelizationType*>(param) == symphas::ParallelizationType::SEQ) ? "seq" : "par");
+	}
+
+	size_t print_value(size_t len, char* out, void* param) const
+	{
+		return sprintf(out, "%.*s", len,
 			(*static_cast<symphas::ParallelizationType*>(param) == symphas::ParallelizationType::SEQ) ? "seq" : "par");
 	}
 
@@ -562,6 +666,9 @@ struct param_map_element
 	{
 		print_help(SYMPHAS_INFO, name);
 	}
+
+	symphas::lib::string value_str() const;
+
 
 	void* parameter;
 	params::param_assign_base* assign_method;
@@ -933,6 +1040,15 @@ namespace params
 	{
 		const char* list[]{ arg0, arg1, std::forward<Ts>(args)... };
 		parse_params(param_map, list, 2 + sizeof...(Ts));
+	}
+
+	//! Print the list of all arguments.
+	void print_params(FILE* out, param_map_type param_map);
+
+	//! Print the list of all arguments.
+	inline void print_params(param_map_type param_map)
+	{
+		print_params(SYMPHAS_INFO, param_map);
 	}
 
 	//! Print the list of all arguments.

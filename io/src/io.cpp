@@ -30,18 +30,29 @@ struct params::param_assign<symphas::IOType> : param_assign_base
 		*static_cast<symphas::IOType*>(param) = extract_writer(value);
 	}
 
-	size_t print_with_name(FILE* out, void* param, const char* name)
+	size_t print_with_name(FILE* out, void* param, const char* name) const
 	{
 		using symphas::IOType;
-		return fprintf(out, "%s=[gnu,xdr,column,movie,csv](default=%s)", name,
-			(*static_cast<IOType*>(param) == IOType::GNU) ? "gnu" :
-			(*static_cast<IOType*>(param) == IOType::XDR) ? "xdr" :
-			(*static_cast<IOType*>(param) == IOType::COLUMN) ? "column" :
-			(*static_cast<IOType*>(param) == IOType::MOVIE) ? "movie" :
-			(*static_cast<IOType*>(param) == IOType::CSV) ? "csv" : "");
+		return fprintf(out, case_writer(param));
+	}
+
+	size_t print_value(size_t len, char* out, void* param) const
+	{
+		return sprintf(out, "%.*s", len, case_writer(param));
 	}
 
 protected:
+
+
+	const char* case_writer(void* param) const
+	{
+		using symphas::IOType;
+		return (*static_cast<IOType*>(param) == IOType::GNU) ? "gnu" :
+			(*static_cast<IOType*>(param) == IOType::XDR) ? "xdr" :
+			(*static_cast<IOType*>(param) == IOType::COLUMN) ? "column" :
+			(*static_cast<IOType*>(param) == IOType::MOVIE) ? "movie" :
+			(*static_cast<IOType*>(param) == IOType::CSV) ? "csv" : "";
+	}
 
 	symphas::IOType extract_writer(const char* value)
 	{

@@ -132,6 +132,9 @@ void symphas::init(const char* config, const char* const* param_list, int num_pa
 		symphas::conf::setup_global_config(config, param_map);
 	}
 
+#ifdef DEBUG
+	params::print_params(param_map);
+#endif
 	params::assign(param_map["title"], symphas::conf::config().get_title());
 
 }

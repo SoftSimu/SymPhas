@@ -152,6 +152,13 @@ void param_map_element::print_help(FILE* out, const char* name) const
 
 }
 
+symphas::lib::string param_map_element::value_str() const
+{
+	char buffer[BUFFER_LENGTH]{};
+	assign_method->print_value(BUFFER_LENGTH, buffer, parameter);
+	return symphas::lib::string(buffer, std::strlen(buffer) + 1);
+}
+
 
 void params::parse_params(param_map_type param_map, const char* args, int n)
 {
@@ -257,6 +264,17 @@ void params::parse_params(param_map_type param_map, const char* const* args, int
 		}
 	}
 }
+
+void params::print_params(FILE* out, param_map_type param_map)
+{
+	for (const auto& [param, element] : param_map)
+	{
+		const char* key = param.c_str();
+		auto value = element.as_string();
+		fprintf(out, "%24s -> %s\n", key, value.data);
+	}
+}
+
 
 void params::print_param_help(FILE* out, param_map_type param_map)
 {
