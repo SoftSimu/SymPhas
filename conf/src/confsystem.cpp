@@ -1139,6 +1139,41 @@ symphas::lib::string handle_substitutions(const char* value)
 
 }
 
+void init_work_dirs(const char* result_dir)
+{
+
+#ifdef FILESYSTEM_HEADER_AVAILABLE
+	std::filesystem::path p_dir(".");
+	p_dir.append(result_dir);
+
+	symphas::lib::make_directory(p_dir / CHECKPOINT_DIR, 882);
+	symphas::lib::make_directory(p_dir / DATA_DIR, 883);
+	symphas::lib::make_directory(p_dir / PLOT_DIR, 884);
+
+#else
+
+	size_t p_dir_len = std::strlen(result_dir) + 3;
+	char* p_dir = new char[p_dir_len];
+	snprintf(p_dir, p_dir_len, "./%s", result_dir);
+
+
+	size_t sub_dir_len = p_dir_len + BUFFER_LENGTH;
+	char* sub_dir = new char[sub_dir_len];
+
+	snprintf(sub_dir, p_dir_len + sizeof(CHECKPOINT_DIR) / sizeof(char) + 1, "%s/%s", p_dir, CHECKPOINT_DIR);
+	symphas::lib::make_directory(sub_dir, 882);
+	snprintf(sub_dir, p_dir_len + sizeof(DATA_DIR) / sizeof(char) + 1, "%s/%s", p_dir, DATA_DIR);
+	symphas::lib::make_directory(sub_dir, 882);
+	snprintf(sub_dir, p_dir_len + sizeof(PLOT_DIR) / sizeof(char) + 1, "%s/%s", p_dir, PLOT_DIR);
+	symphas::lib::make_directory(sub_dir, 882);
+
+
+	delete[] p_dir;
+	delete[] sub_dir;
+
+#endif
+}
+
 SystemConf::SystemConf(std::vector<std::pair<std::string, std::string>> params, const char* title, const char* dir) : SystemConf()
 {
 	this->title = new char[std::strlen(title) + 1];
@@ -1322,35 +1357,22 @@ SystemConf::SystemConf(std::vector<std::pair<std::string, std::string>> params, 
 	parse_dt(dt_spec);
 	set_directory(original_dir);
 
-#ifdef FILESYSTEM_HEADER_AVAILABLE
-	std::filesystem::path p_dir(".");
-	p_dir.append(result_dir);
 
-	symphas::lib::make_directory(p_dir / CHECKPOINT_DIR, 882);
-	symphas::lib::make_directory(p_dir / DATA_DIR, 883);
-	symphas::lib::make_directory(p_dir / PLOT_DIR, 884);
 
+#ifdef USING_MPI
+	if (symphas::parallel::is_host_node())
+	{
+		init_work_dirs(result_dir);
+		MPI_Barrier(MPI_COMM_WORLD);
+	}
+	else
+	{
+		MPI_Barrier(MPI_COMM_WORLD);
+		init_work_dirs(result_dir);
+	}
 #else
 
-	size_t p_dir_len = std::strlen(result_dir) + 3;
-	char* p_dir = new char[p_dir_len];
-	snprintf(p_dir, p_dir_len, "./%s", result_dir);
-
-
-	size_t sub_dir_len = p_dir_len + BUFFER_LENGTH;
-	char* sub_dir = new char[sub_dir_len];
-
-	snprintf(sub_dir, p_dir_len + sizeof(CHECKPOINT_DIR) / sizeof(char) + 1, "%s/%s", p_dir, CHECKPOINT_DIR);
-	symphas::lib::make_directory(sub_dir, 882);
-	snprintf(sub_dir, p_dir_len + sizeof(DATA_DIR) / sizeof(char) + 1, "%s/%s", p_dir, DATA_DIR);
-	symphas::lib::make_directory(sub_dir, 882);
-	snprintf(sub_dir, p_dir_len + sizeof(PLOT_DIR) / sizeof(char) + 1, "%s/%s", p_dir, PLOT_DIR);
-	symphas::lib::make_directory(sub_dir, 882);
-
-
-	delete[] p_dir;
-	delete[] sub_dir;
-
+		init_work_dirs(result_dir);
 #endif
 
 
@@ -2194,22 +2216,22 @@ void SystemConf::set_directory(const char* directory)
 		symphas::lib::write_ts_str(ts_buffer);
 #endif
 
-		size_t dlen = std::strlen(append_dir) + std::strlen(ts_buffer) + 2;
+		size_t dlen = std::strlen(append_dir) + std::strlen(ts_buffer);
 
 #ifdef USING_MPI
 		if (symphas::parallel::is_host_node())
 		{
-			result_dir = new char[dlen + 1];
+			result_dir = new char[dlen + 2];
 			sprintf(result_dir, "%s/%s", append_dir, ts_buffer);
 		}
 		else
 		{
 			int rank = symphas::parallel::get_node_rank();
-			result_dir = new char[dlen + 1 + symphas::lib::num_digits(rank)];
+			result_dir = new char[dlen + symphas::lib::num_digits(rank) + 3];
 			sprintf(result_dir, "%s/%s/%d", append_dir, ts_buffer, rank);
-		}
+		} 
 #else
-		result_dir = new char[dlen];
+		result_dir = new char[dlen + 2];
 		sprintf(result_dir, "%s/%s", append_dir, ts_buffer);
 #endif
 
@@ -2232,17 +2254,17 @@ void SystemConf::set_directory(const char* directory)
 			char* new_dir;
 			if (symphas::parallel::is_host_node())
 			{
-				char* new_dir = new char[dlen + STR_ARR_LEN(TIMESTAMP_ID_APPEND)];
+				char* new_dir = new char[dlen + STR_ARR_LEN(TIMESTAMP_ID_APPEND) + 2];
 				sprintf(new_dir, "%s/%s" TIMESTAMP_ID_APPEND  "", append_dir, ts_buffer, ++i);
 			}
 			else
 			{
 				int rank = symphas::parallel::get_node_rank();
-				char* new_dir = new char[dlen + symphas::lib::num_digits(rank) + STR_ARR_LEN(TIMESTAMP_ID_APPEND)];
+				char* new_dir = new char[dlen + symphas::lib::num_digits(rank) + STR_ARR_LEN(TIMESTAMP_ID_APPEND) + 2];
 				sprintf(new_dir, "%s/%s" TIMESTAMP_ID_APPEND  "/%d", append_dir, ts_buffer, ++i, rank);
 			}
 #else
-			char* new_dir = new char[dlen + STR_ARR_LEN(TIMESTAMP_ID_APPEND)];
+			char* new_dir = new char[dlen + STR_ARR_LEN(TIMESTAMP_ID_APPEND) + 2];
 			sprintf(new_dir, "%s/%s" TIMESTAMP_ID_APPEND, append_dir, ts_buffer, ++i);
 #endif
 

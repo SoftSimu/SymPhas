@@ -65,7 +65,8 @@ if(FFTW3_FOUND)
 endif()
 
 if(TBB_FOUND)
-	target_link_libraries(symphas_lib_o PRIVATE TBB::tbb)
+	target_link_libraries(symphas_lib_o PUBLIC TBB::tbb)
+	message(STATUS "using TBB v${TBB_VERSION}")
 endif()
 
 if(MPI_FOUND)

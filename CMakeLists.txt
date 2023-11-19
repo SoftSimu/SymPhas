@@ -350,7 +350,7 @@ if(SOLVER_INCLUDE_HEADER_NAME
 
 	file(GLOB_RECURSE INCLUDE_FILES "${SOLVER_INCLUDE_HEADER_DIR}/*.h")
 	install(FILES ${INCLUDE_FILES} DESTINATION ${INCLUDEDIR})
-	message(STATUS "installing solver definition headers.. ${INCLUDE_FILES} to ${INCLUDEDIR}")
+	message(STATUS "installed solver definition headers.. ${INCLUDE_FILES}")
 endif()
 
 if(MODEL_INCLUDE_HEADER_NAME
@@ -359,12 +359,19 @@ if(MODEL_INCLUDE_HEADER_NAME
 
 	file(GLOB_RECURSE INCLUDE_FILES "${MODEL_INCLUDE_HEADER_DIR}/*.h")
 	install(FILES ${INCLUDE_FILES} DESTINATION ${INCLUDEDIR})
-	message(STATUS "installing model definition headers.. ${INCLUDE_FILES} to ${INCLUDEDIR}")
+	message(STATUS "installed model definition headers.. ${INCLUDE_FILES}")
 endif()
 
 
-file(GLOB_RECURSE INSTALL_HEADERS "*.h")
+message(STATUS "installing rest of headers..")
+file(GLOB INSTALL_HEADERS "*.h")
 install(FILES ${INSTALL_HEADERS} DESTINATION ${INCLUDEDIR})
+foreach(GROUP_NAME ${GROUP_NAMES_0})
+	file(GLOB INSTALL_HEADERS "{GROUP_NAME}/inc/*.h")
+	install(FILES ${INSTALL_HEADERS} DESTINATION ${INCLUDEDIR})
+endforeach()
+message(STATUS "finished installing all headers to ${INCLUDEDIR}")
+
 
 
 # configure the pkgconfig file
