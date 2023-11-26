@@ -252,7 +252,7 @@ struct Stencil
 	}
 
 
-
+#ifdef USING_MPI
 
 	template<Axis ax, size_t O, typename T, size_t D>
 	auto applied_generalized_directional_derivative(RegionalGridMPI<T, D> const& grid, iter_type n) const
@@ -346,7 +346,7 @@ struct Stencil
 		}
 	}
 
-
+#endif
 
 	template<Axis ax, size_t O, typename T, size_t D>
 	auto applied_generalized_directional_derivative(VectorComponentData<ax, T*, D> const& data, iter_type n) const

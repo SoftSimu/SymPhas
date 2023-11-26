@@ -1708,7 +1708,7 @@ struct TraitEquationModel : TraitEquation<TraitEquationModel, parent_trait> \
 		auto t = parent_type::get_time_var(); \
 		using symphas::internal::parameterized::INT; \
 		constexpr size_t D = model_dimension<parent_type>::value; \
-		UNUSED(D, x, y, z, t) \
+		UNUSED(D); UNUSED(x); UNUSED(y); UNUSED(z); UNUSED(t); \
 		__VA_ARGS__
 
 //! Defines a TraitEquation child class used to define dynamical equations.

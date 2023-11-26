@@ -270,7 +270,7 @@ void params::print_params(FILE* out, param_map_type param_map)
 	for (const auto& [param, element] : param_map)
 	{
 		const char* key = param.c_str();
-		auto value = element.as_string();
+		auto value = element.value_str();
 		fprintf(out, "%24s -> %s\n", key, value.data);
 	}
 }

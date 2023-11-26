@@ -164,9 +164,13 @@ NEW_SOLVER_WITH_STENCIL(SolverFT)
 };
 
 
-//ASSOCIATE_SELECTABLE_SOLVER_SYSTEM_TYPE(SolverFT, SolverSystemFD)
+ASSOCIATE_SELECTABLE_SOLVER_SYSTEM_TYPE(SolverFT, SolverSystemFD)
 ASSOCIATE_SELECTABLE_SOLVER_SYSTEM_TYPE(SolverFT, SolverSystemFDwSD)
+
+#ifdef USING_MPI
 ASSOCIATE_SELECTABLE_SOLVER_SYSTEM_TYPE(SolverFT, SolverSystemFDwSDMPI)
+#endif
+
 ASSOCIATE_PROVISIONAL_SYSTEM_TYPE(SolverFT, ProvisionalSystemFD)
 SYMPHAS_SOLVER_ALL_SUPPORTED(SolverFT)
 
@@ -192,6 +196,8 @@ bool check_overlapping_domain(grid::region_interval_multiple<D> region, const it
 		return true;
 	}
 }
+
+#ifdef USING_MPI
 
 template<typename T, size_t D>
 void synchronize_regional_pos(SolverSystemFDwSDMPI<T, D>* systems, len_type len, int* region_info = nullptr, int* len_info = nullptr)
@@ -487,5 +493,5 @@ void PhaseFieldSystem<RegionalGridMPI, T, D>::synchronize(Ts&&... args)
 }
 
 
-
+#endif
 

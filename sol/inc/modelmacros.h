@@ -1145,12 +1145,6 @@ namespace symphas::internal
 //! Smoothing with Gaussian based on the spatial width of the i-th field.
 #define smoothing_n(i, Z) expr::make_convolution(Gaussian_F(i), Z)
 
-//! Use an integer in an expression as a constant value.
-/*!
- * The integer is generated as a compile-time constant value.
- */
-#define integer(N) expr::make_integer<N>()
-
 
 //! The unit vector, which can be defined with one or two (for 3D) angles.
 /*!
@@ -1164,7 +1158,7 @@ namespace symphas::internal
 /*!
  * Construct an expression representing an expression E to the power of the given value, N.
  */
-#define power(E, N) expr::pow<N>(E)
+#define POWER(E, N) expr::pow<N>(E)
 
 // free energy parameters
 

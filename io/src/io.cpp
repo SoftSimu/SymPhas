@@ -36,7 +36,7 @@ struct params::param_assign<symphas::IOType> : param_assign_base
 		return fprintf(out, case_writer(param));
 	}
 
-	size_t print_value(size_t len, char* out, void* param) const
+	size_t print_value(int len, char* out, void* param) const
 	{
 		return sprintf(out, "%.*s", len, case_writer(param));
 	}

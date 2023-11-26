@@ -25,9 +25,9 @@
 
 #pragma once
 
+#define SYMPHAS_MPI_HOST_RANK 0
 #ifdef USING_MPI
 
-#define SYMPHAS_MPI_HOST_RANK 0
 
 #include "definitions.h"
 #include <mpi.h>
@@ -164,7 +164,7 @@ namespace symphas::parallel
 	inline std::pair<int, int> get_index_range(int num_fields)
 	{
 		return get_index_range(num_fields, get_node_rank());
-s	}
+	}
 
 	//! Node manages the index when 
 	inline bool index_in_node(int index, int num_fields)
@@ -173,25 +173,6 @@ s	}
 	}
 
 	using info_type = size_t;
-	{
-		int rank;
-		int index;
-		int num_fields;
-
-		info_type(int index, int num_fields) : rank{ get_node_rank() }, index{ index }, num_fields{ num_fields }
-		{
-
-		}
-
-		info_type() : rank{ 0 }, index{ 0 }, num_fields{ 1 } {}
-
-		//! Node manages the index when 
-		inline bool index_in_node() const
-		{
-			auto [lower, upper] = get_index_range(num_fields);
-			return (index >= lower && index < upper);
-		}
-	};
 }
 
 #endif

@@ -112,25 +112,42 @@ enum class BoundaryTag
 	NONE			//!< No modifier, values are never updated.
 };
 
+namespace symphas
+{
+	struct boundary_tag_list
+	{
+		BoundaryTag tag[2];
+
+		BoundaryTag& operator[](iter_type n)
+		{
+			return tag[n];
+		}
+		
+		BoundaryTag const& operator[](iter_type n) const
+		{
+			return tag[n];
+		}
+	};
+}
 
 namespace symphas::internal
 {
 	struct boundary_info
 	{
-		BoundaryTag tag[2];				//!< The tag associated with the main type.
+		boundary_tag_list tag;				//!< The tag associated with the main type.
 		double* params;
 		int argc;
 
 		boundary_info(BoundaryTag tag0, const double* params, int argc) : tag{ tag0, BoundaryTag::NONE }, params{ (argc > 0) ? new double[argc] {} : nullptr }, argc{ argc } {}
 		boundary_info(BoundaryTag tag0, double param) : boundary_info(tag0, &param, 1) {}
-		boundary_info(const BoundaryTag tag[2], const double* params, int argc) : tag{ tag[0], tag[1] }, params{ (argc > 0) ? new double[argc] {} : nullptr }, argc{ argc } 
+		boundary_info(boundary_tag_list const& tag, const double* params, int argc) : tag{ tag[0], tag[1] }, params{ (argc > 0) ? new double[argc] {} : nullptr }, argc{ argc } 
 		{
 			if (argc > 0)
 			{
 				std::copy(params, params + argc, this->params);
 			}
 		}
-		boundary_info(const BoundaryTag tag[2], double param) : boundary_info(tag, &param, 1) {}
+		boundary_info(boundary_tag_list const& tag, double param) : boundary_info(tag, &param, 1) {}
 
 		boundary_info() : tag{ BoundaryTag::NONE, BoundaryTag::NONE }, params{ nullptr }, argc{ 0 } {}
 		boundary_info(boundary_info const& other) : boundary_info(other.tag, other.params, other.argc) {}
@@ -157,6 +174,8 @@ namespace symphas::internal
 namespace symphas
 {
 
+	
+
 	//! Manages boundary data along one boundary.
 	/*! 
 	 * Contain the boundary information for configuring the phase field 
@@ -165,7 +184,7 @@ namespace symphas
 	struct b_element_type
 	{
 		BoundaryType type;				//!< The boundary type.
-		BoundaryTag tag[2];				//!< The tag associated with the main type.
+		boundary_tag_list tag;			//!< The tag associated with the main type.
 		double *params;					//!< Parameters controlling the boundary behaviour.
 		int argc;						//!< The number of parameters used.
 
@@ -187,11 +206,11 @@ namespace symphas
 		 * a new boundary data element. The given parameters are stored.
 		 *
 		 * \param type The type of boundary condition.
-		 * \param tags An array of 2 modifiers of the boundary condition.
+		 * \param tag An array of 2 modifiers of the boundary condition.
 		 * \param params A list of parameters used in the boundary algorithm.
 		 * \param argc The number of parameters.
 		 */
-		b_element_type(BoundaryType type, const BoundaryTag tag[2], const double* params, int argc) :
+		b_element_type(BoundaryType type, boundary_tag_list const& tag, const double* params, int argc) :
 			b_element_type(type, { tag[0], tag[1] }, params, argc) {}
 
 		//! Construct a new boundary data element.
@@ -211,9 +230,9 @@ namespace symphas
 		 * a new boundary data element. No parameters are provided.
 		 *
 		 * \param type The type of boundary condition.
-		 * \param tags An array of 2 modifiers of the boundary condition.
+		 * \param tag An array of 2 modifiers of the boundary condition.
 		 */
-		b_element_type(BoundaryType type, const BoundaryTag tag[2]) :
+		b_element_type(BoundaryType type, boundary_tag_list const& tag) :
 			b_element_type(type, { tag[0], tag[1] }) {}
 
 		//! Construct a new boundary data element.
@@ -329,15 +348,12 @@ namespace symphas
 
 }
 
-inline auto operator|(BoundaryType type, BoundaryTag tag)
+inline auto operator/(BoundaryType type, BoundaryTag tag)
 {
-	BoundaryTag tags[2];
-	tags[0] = tag;
-	tags[1] = BoundaryTag::NONE;
-	return symphas::b_element_type(type, tags);
+	return symphas::b_element_type(type, { tag, BoundaryTag::NONE });
 }
 
-inline auto operator|(BoundaryType type, symphas::internal::boundary_info const& info)
+inline auto operator/(BoundaryType type, symphas::internal::boundary_info const& info)
 {
 	return symphas::b_element_type(type, info);
 }

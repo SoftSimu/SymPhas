@@ -1177,6 +1177,7 @@ namespace symphas
 		}
 	};
 
+	struct problem_parameters_element;
 
 	struct problem_parameters_type;
 	void update_thr_info(multi_thr_info_type* thr_info, problem_parameters_type const& problem_parameters, int i = 0);
@@ -1624,18 +1625,50 @@ namespace symphas
     
         friend void swap(symphas::problem_parameters_type& first, symphas::problem_parameters_type& second);
     
+		static problem_parameters_type init_default(size_t dimension, size_t len = 1)
+		{
+			problem_parameters_type problem_parameters(len);
+			
+			symphas::b_data_type bdata(dimension);
+			symphas::init_data_type tdata(Inside::NONE);
+			symphas::interval_data_type vdata(dimension);
+
+			for (iter_type i = 0; i < len; ++i)
+			{
+				problem_parameters.set_boundary_data(bdata, i);
+				problem_parameters.set_initial_data(tdata, i);
+				problem_parameters.set_interval_data(vdata, i);
+			}
+
+			return problem_parameters;
+		}
+
+
         void extend(size_t new_len)
         {
             if (new_len > len)
             {
-                problem_parameters_type pp{ new_len };
-                pp.set_boundary_data(get_boundary_data(), len);
-                pp.set_initial_data(get_initial_data(), len);
-                pp.set_interval_data(get_interval_data(), len);
-                pp.set_time_steps(dt_list);
-                pp.time = time;
-                pp.index = index;
-                swap(pp, *this);
+				auto pp0(problem_parameters_type::init_default(get_dimension(), new_len - len));
+				if (len == 0)
+				{
+					swap(pp0, *this);
+				}
+				else
+				{
+					problem_parameters_type pp{ new_len };
+					pp.set_boundary_data(get_boundary_data(), len);
+					pp.set_initial_data(get_initial_data(), len);
+					pp.set_interval_data(get_interval_data(), len);
+					pp.set_time_steps(dt_list);
+					pp.time = time;
+					pp.index = index;
+					
+					pp.set_boundary_data(pp0.get_boundary_data()[0], len);
+					pp.set_initial_data(pp0.get_initial_data()[0], len);
+					pp.set_interval_data(pp0.get_interval_data()[0], len);
+					
+					swap(pp, *this);
+				}
             }
         }
 
@@ -1673,19 +1706,10 @@ namespace symphas
 		}
 
 
-		static problem_parameters_type init_default(size_t dimension)
-		{
-			problem_parameters_type problem_parameters(1);
-			symphas::b_data_type bdata(dimension);
-			symphas::init_data_type tdata(Inside::NONE);
-			symphas::interval_data_type vdata(dimension);
-
-			problem_parameters.set_boundary_data(&bdata, 1);
-			problem_parameters.set_initial_data(&tdata, 1);
-			problem_parameters.set_interval_data(&vdata, 1);
-
-			return problem_parameters;
-		}
+		problem_parameters_element operator[](int);
+		template<typename T>
+		problem_parameters_element operator+=(T&&);
+    
         ~problem_parameters_type();
     
     };
@@ -1694,6 +1718,446 @@ namespace symphas
 }
 
 void swap(symphas::problem_parameters_type& first, symphas::problem_parameters_type& second);
+
+namespace symphas
+{
+	struct problem_parameters_element
+	{
+		problem_parameters_element(problem_parameters_type* parameters, int index) :
+			parameters{ parameters }, index{ index } {}
+
+		//! Set the boundary data of the parameters object.
+		auto set_boundary_data(b_data_type const& bdata)
+		{
+			return parameters->set_boundary_data(bdata, index);
+		}
+
+		// Set the initial conditions of the parameters object.
+		auto set_initial_data(init_data_type const& tdata)
+		{
+			return parameters->set_initial_data(tdata, index);
+		}
+
+		// Set the interval data of the parameters object.
+		auto set_interval_data(interval_data_type const& vdata)
+		{
+			return parameters->set_interval_data(vdata, index);
+		}
+
+		operator problem_parameters_type() const
+		{
+			problem_parameters_type parameters0(1);
+			parameters0.set_boundary_data(parameters->get_boundary_data()[index], 0);
+			parameters0.set_interval_data(parameters->get_interval_data()[index], 0);
+			parameters0.set_initial_data(parameters->get_initial_data()[index], 0);
+			parameters0.set_modifier(parameters->get_modifiers()[index], 0);
+			parameters0.set_time_steps(parameters->get_time_step_list());
+			return parameters0;
+		}
+
+		problem_parameters_type* parameters;
+		int index;
+	};
+
+	
+	template<size_t N>
+	struct interval_discretization_type
+	{
+		double data[N];
+	};
+	
+	
+	template<>
+	struct interval_discretization_type<0>
+	{
+		double data;
+	};
+
+	using interval_discrete_element = interval_discretization_type<0>;
+
+	struct interval_boundary_element_type
+	{
+		interval_element_type vdata;
+		b_element_type bdata[2];
+	};
+	
+	struct interval_boundary_data_type
+	{
+		interval_data_type vdata;
+		b_data_type bdata;
+	};
+	
+
+	//! Generate an interval
+	template<char... n>
+	constexpr auto operator ""_h()
+	{
+		return interval_element_type(0, symphas::lib::char_to_number<n...>{}());
+	}
+
+	//! Generate an interval discretization
+	template<char... n>
+	constexpr auto operator ""_dh()
+	{
+		return interval_discrete_element{ symphas::lib::char_to_number<n...>{}() };
+	}
+
+	
+
+	inline interval_data_type operator*(interval_element_type const& a, interval_element_type const& b)
+	{
+		interval_data_type vdata(2);
+		vdata[Axis::X] = a;
+		vdata[Axis::Y] = b;
+		return vdata;
+	}
+	
+	inline interval_data_type operator*(interval_data_type const& a, interval_element_type const& b)
+	{
+		interval_data_type vdata(a);
+		vdata[Axis::Y] = b;
+		vdata[Axis::Z] = b;
+		return vdata;
+	}
+
+	//! Generate an interval.
+	/*!
+	 * Generate an interval by defining the descretization over the
+	 * interval length. The left point will be kept the same.
+	 */ 
+	inline interval_element_type operator/(interval_element_type const& vdata0, interval_discrete_element const& width)
+	{
+		interval_element_type vdata(vdata0);
+		vdata.set_count_from_r(vdata.get_count(), width.data, 0);
+		return vdata;
+	}
+
+	//! Generate an interval.
+	/*!
+	 * Generate an interval by defining the descretization over the
+	 * interval length. The left point will be kept the same.
+	 */ 
+	inline interval_data_type operator/(interval_data_type const& vdata0, interval_discrete_element const& width)
+	{
+		interval_data_type vdata(vdata0);
+		for (auto& [axis, interval] : vdata)
+		{
+			interval.set_count_from_r(interval.get_count(), width.data, 0);
+		}
+		return vdata;
+	}
+	
+	//! Generate an interval.
+	/*!
+	 * Generate an interval by defining the descretization over the
+	 * interval length. The left point will be kept the same.
+	 */ 
+	template<size_t N>
+	inline interval_data_type operator/(interval_data_type const& vdata0, interval_discretization_type<N> const& width)
+	{
+		interval_data_type vdata(vdata0);
+		for (auto& [axis, interval] : vdata)
+		{
+			iter_type i = symphas::axis_to_index(axis);
+			interval.set_count_from_r(interval.get_count(), width.data[i], 0);
+		}
+		return vdata;
+	}
+
+
+	inline problem_parameters_element operator<<(problem_parameters_element a, interval_data_type const& vdata)
+	{
+		a.parameters->set_interval_data(vdata, a.index);
+		return a;
+	}
+
+	// problem_parameters_element& operator<<(problem_parameters_element a, interval_element_type& vdata0)
+	// {
+	// 	interval_data_type vdata(a.parameters->get_dimension());
+	// 	a.parameters->set_interval_data(interval_data_type(vdata), a.index);
+	// 	return a;
+	// }
+
+	inline problem_parameters_element operator<<(problem_parameters_element a, b_data_type const& bdata)
+	{
+		a.parameters->set_boundary_data(bdata, a.index);
+		return a;
+	}
+
+	inline problem_parameters_element operator<<(problem_parameters_element a, init_data_type const& tdata)
+	{
+		a.parameters->set_initial_data(tdata, a.index);
+		return a;
+	}
+	
+	inline problem_parameters_element operator<<(problem_parameters_element a, Inside condition)
+	{
+		a.parameters->set_initial_data(init_data_type(condition), a.index);
+		return a;
+	}
+	
+	inline problem_parameters_element operator<<(problem_parameters_element a, interval_boundary_data_type const& wdata)
+	{
+		return (a << wdata.vdata << wdata.bdata);
+	}
+
+	// Generate system grid parameter data
+
+	inline interval_boundary_element_type operator||(b_element_type const& bdata, interval_element_type const& vdata)
+	{
+		interval_boundary_element_type wdata;
+		wdata.bdata[0] = bdata;
+		if (bdata.type == BoundaryType::PERIODIC)
+		{
+			wdata.bdata[1] = bdata;
+		}
+		wdata.vdata = vdata;
+		return wdata;
+	}
+
+	inline interval_boundary_element_type operator||(b_element_type const& bdata, interval_boundary_element_type const& wdata0)
+	{
+		auto wdata(wdata0);
+		wdata.bdata[0] = bdata;
+		return wdata;
+	}
+
+	inline interval_boundary_element_type operator||(BoundaryType boundary, interval_element_type const& vdata)
+	{
+		return (b_element_type(boundary) || vdata);
+	}
+
+	inline interval_boundary_element_type operator||(BoundaryType boundary, interval_boundary_element_type const& wdata)
+	{
+		return (b_element_type(boundary) || wdata);
+	}
+
+	inline interval_boundary_element_type operator||(BoundaryTag tag, interval_element_type const& vdata)
+	{
+		return (b_element_type(BoundaryType::DEFAULT, { tag }) || vdata);
+	}
+
+	inline interval_boundary_element_type operator||(BoundaryTag tag, interval_boundary_element_type const& wdata)
+	{
+		return (b_element_type(BoundaryType::DEFAULT, { tag }) || wdata);
+	}
+
+	inline interval_boundary_element_type operator||(interval_element_type const& vdata, b_element_type const& bdata)
+	{
+		interval_boundary_element_type wdata;
+		wdata.bdata[1] = bdata;
+		if (bdata.type == BoundaryType::PERIODIC)
+		{
+			wdata.bdata[0] = bdata;
+		}
+		wdata.vdata = vdata;
+		return wdata;
+	}
+	
+	inline interval_boundary_element_type operator||(interval_boundary_element_type const& wdata0, b_element_type const& bdata)
+	{
+		auto wdata(wdata0);
+		wdata.bdata[1] = bdata;
+		return wdata;
+	}
+
+	inline interval_boundary_element_type operator||(interval_element_type const& vdata, BoundaryType boundary)
+	{
+		return (vdata || b_element_type(boundary));
+	}
+	
+	inline interval_boundary_element_type operator||(interval_boundary_element_type const& wdata, BoundaryType boundary)
+	{
+		return (wdata || b_element_type(boundary));
+	}
+
+	inline interval_boundary_element_type operator||(interval_element_type const& vdata, BoundaryTag tag)
+	{
+		return (vdata || b_element_type(BoundaryType::DEFAULT, { tag }));
+	}
+	
+	inline interval_boundary_element_type operator||(interval_boundary_element_type const& wdata, BoundaryTag tag)
+	{
+		return (wdata || b_element_type(BoundaryType::DEFAULT, { tag }));
+	}
+	
+	inline interval_boundary_data_type operator*(interval_boundary_element_type const& wdata0, interval_boundary_element_type const& wdata1)
+	{
+		interval_data_type vdata;
+		vdata[Axis::X] = wdata0.vdata;
+		vdata[Axis::Y] = wdata1.vdata;
+
+		b_data_type bdata;
+		bdata[Side::LEFT] = wdata0.bdata[0];
+		bdata[Side::RIGHT] = wdata0.bdata[1];
+		bdata[Side::TOP] = wdata1.bdata[0];
+		bdata[Side::BOTTOM] = wdata1.bdata[1];
+
+		return { vdata, bdata };
+	}
+	
+	inline interval_boundary_data_type operator*(interval_boundary_data_type const& wwdata0, interval_boundary_element_type const& wdata)
+	{
+		auto wwdata(wwdata0);
+		wwdata.vdata[Axis::Z] = wdata.vdata;
+		wwdata.bdata[Side::FRONT] = wdata.bdata[0];
+		wwdata.bdata[Side::BACK] = wdata.bdata[1];
+		return wwdata;
+	}
+
+
+	inline b_element_type operator/(BoundaryType type, BoundaryTag tag)
+	{
+		return b_element_type(type, { tag });
+	}
+	
+	inline b_element_type operator/(b_element_type type, BoundaryTag tag)
+	{
+		type.tag[1] = tag;
+		return type;
+	}
+	
+	inline b_element_type operator/(b_element_type type, boundary_tag_list tags)
+	{
+		type.tag = tags;
+		return type;
+	}
+	
+	inline boundary_tag_list operator/(BoundaryTag tag0, BoundaryTag tag1)
+	{
+		return boundary_tag_list({tag0, tag1});
+	}
+	
+
+	using spec_list = init_data_parameters;
+
+	inline init_entry_type operator<<(init_entry_type inside, spec_list const& params)
+	{
+		init_data_parameters params_list(params.N);
+		for (iter_type i = 0; i < params.N; ++i)
+		{
+			params_list[i] = params[i];
+		}
+
+		return init_entry_type(inside.in, inside.intag, params_list);
+	}
+	
+	inline init_entry_type operator<<(Inside inside, spec_list const& params)
+	{
+		return (init_entry_type(inside) << params);
+	}
+
+	// template<typename T>
+	// inline init_entry_type operator<<(Inside inside, T const& data)
+	// {
+	// 	switch (inside)
+	// 	{
+	// 		case Inside::FILE:
+	// 			return init_entry_type(init_data_read(data));
+	// 		case Inside::LAMBDA:
+	// 		case Inside::EXPRESSION:
+	// 			return init_entry_type(init_data_expr(data));
+	// 		default:
+	// 			return init_entry_type(inside, data);
+	// 	}
+	// }
+	
+	template<typename T>
+	inline init_entry_type operator<<(Inside inside, T init)
+	{
+		if (inside == Inside::LAMBDA)
+		{
+			return init_entry_type(init_data_functor(init));
+		}
+		else
+		{
+			throw;
+		}
+	}
+
+	inline init_entry_type operator<<(Inside inside, const char* name)
+	{
+		if (inside == Inside::EXPRESSION)
+		{
+			return init_entry_type(init_data_expr(name));
+		}
+		else if (inside == Inside::FILE)
+		{
+			return init_entry_type(init_data_read(name));
+		}
+		else
+		{
+			throw;
+		}
+	}
+
+	// template<size_t N>
+	// inline init_entry_type operator<<(Inside inside, const char (&name)[N])
+	// {
+	// 	if (inside == Inside::EXPRESSION)
+	// 	{
+	// 		return init_entry_type(init_data_expr(name));
+	// 	}
+	// 	else
+	// 	{
+	// 		throw;
+	// 	}
+	// }
+
+	template<typename T>
+	inline init_entry_type operator<<=(Inside inside, std::initializer_list<T> const& data)
+	{
+		return inside << spec_list(data);
+	}
+	
+	template<typename T>
+	inline init_entry_type operator<<=(init_entry_type inside, std::initializer_list<T> const& data)
+	{
+		return inside << spec_list(data);
+	}
+
+	
+	inline problem_parameters_type operator<<(interval_boundary_data_type const& wwdata, init_data_type const& tdata)
+	{
+		problem_parameters_type parameters(1);
+		parameters[0] << wwdata << tdata;
+		return parameters;
+	}
+	
+	inline problem_parameters_type operator<<(interval_boundary_data_type const& wwdata, init_entry_type const& tdata)
+	{
+		return wwdata << init_data_type(tdata);
+	}
+	
+	inline problem_parameters_type operator<<(init_entry_type const& tdata, interval_boundary_data_type const& wwdata)
+	{
+		return wwdata << init_data_type(tdata);
+	}
+
+	inline init_entry_type operator/(Inside inside, InsideTag tag)
+	{
+		return init_entry_type(inside, tag, init_data_parameters::one());
+	}
+	
+	inline init_entry_type operator/(init_entry_type inside, InsideTag tag)
+	{
+		inside.intag = symphas::build_intag(inside.intag, tag);
+		return inside;
+	}
+	
+	inline problem_parameters_element problem_parameters_type::operator[](int index)
+	{
+		return problem_parameters_element(this, index);
+	}
+
+	template<typename T>
+	problem_parameters_element problem_parameters_type::operator+=(T&& data)
+	{
+		extend(len + 1);
+		return (this->operator[len - 1] << std::forward<T>(data));
+	}
+	
+}
 
 /*
  * system initialization helper functions

@@ -43,7 +43,7 @@ set(ENABLE_INLINE_TIMINGS OFF CACHE BOOL "enable collecting the elapsed time of 
 
 configure_file("inc/names.h.in" "${CMAKE_SOURCE_DIR}/inc/names.h")
 	
-if(NOT MSVC)
+if(NOT WIN32)
 	list(APPEND ADD_LINUX_LIBS m ${CMAKE_THREAD_LIBS_INIT})
 endif()
 
@@ -92,22 +92,26 @@ if(MSVC)
 	find_package(OpenMP)
 	if(OpenMP_CXX_FOUND)
 		target_link_libraries(symphas_lib_o PUBLIC OpenMP::OpenMP_CXX)
-		message(STATUS "Using OpenMP Windows")
-	else()
-		message(STATUS "No OpenMP Windows")
 	endif()
 	target_compile_options(symphas_lib_o PUBLIC /openmp:experimental)
 else()
 	find_package(OpenMP)
 	if(OpenMP_CXX_FOUND)
 		target_link_libraries(symphas_lib_o PUBLIC OpenMP::OpenMP_CXX)
-		message(STATUS "Using OpenMP")
+		if (WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+			target_compile_options(symphas_lib_o PUBLIC "-fopenmp")
+		endif()
 	endif()
+endif()
+
+if(OpenMP_CXX_FOUND)
+	message(STATUS "Using OpenMP "${OpenMP_CXX_VERSION})
+else()
+	message(STATUS "No OpenMP")
 endif()
 
 if(MSVC)
 	target_compile_options(symphas_lib_o PUBLIC /bigobj -F85894592)
-	target_compile_definitions(symphas_lib_o PUBLIC _CRT_SECURE_NO_WARNINGS)
 else()
 	target_compile_options(symphas_lib_o PUBLIC -Wno-format-security)
 endif()
@@ -115,6 +119,10 @@ endif()
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 	target_compile_options(symphas_lib_o PUBLIC 
 		-Wno-unused-variable -Wno-unused-function -ftime-trace -mavx)
+endif()
+
+if(WIN32)
+	target_compile_definitions(symphas_lib_o PUBLIC _CRT_SECURE_NO_WARNINGS)
 endif()
 
 

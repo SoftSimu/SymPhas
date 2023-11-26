@@ -3947,144 +3947,54 @@ namespace expr::symbols
 	namespace
 	{
 
-		template<char n>
-		constexpr size_t get_value()
+		template<char... n>
+		struct char_to_lit
 		{
-			return n - '0';
-		}
-
-		template<char...> struct char_list {};
-
-		template<typename A, typename B>
-		struct filter_decimal_left;
-
-		template<char... cs>
-		struct filter_decimal_left<char_list<cs...>, char_list<>>
-		{
-			using type = char_list<cs...>;
+			constexpr auto operator()()
+			{
+				return expr::make_literal(symphas::lib::char_to_number<n...>{}());
+			}
 		};
-
-		template<char... cs, char c0, char... c1s>
-		struct filter_decimal_left<char_list<cs...>, char_list<c0, c1s...>>
-		{
-			using type = typename filter_decimal_left<char_list<cs..., c0>, char_list<c1s...>>::type;
-		};
-
-		template<char... cs, char... c1s>
-		struct filter_decimal_left<char_list<cs...>, char_list<'.', c1s...>>
-		{
-			using type = char_list<cs...>;
-		};
-
-		template<typename A, typename B>
-		struct filter_decimal_right;
-
-		template<>
-		struct filter_decimal_right<char_list<>, char_list<>>
-		{
-			using type = char_list<>;
-		};
-
-		template<char... cs>
-		struct filter_decimal_right<char_list<'.', cs...>, char_list<>>
-		{
-			using type = char_list<'.', cs...>;
-		};
-
-		template<char... cs, char c0, char... c1s>
-		struct filter_decimal_right<char_list<'.', cs...>, char_list<c0, c1s...>>
-		{
-			using type = typename filter_decimal_right<char_list<'.', cs..., c0>, char_list<c1s...>>::type;
-		};
-
-		template<char... c1s>
-		struct filter_decimal_right<char_list<>, char_list<'.', c1s...>>
-		{
-			using type = typename filter_decimal_right<char_list<'.'>, char_list<c1s...>>::type;
-		};
-
-		template<char c0, char... c1s>
-		struct filter_decimal_right<char_list<>, char_list<c0, c1s...>>
-		{
-			using type = typename filter_decimal_right<char_list<>, char_list<c1s...>>::type;
-		};
-
+		
 		template<char... n>
 		struct char_to_val
 		{
 			template<char... ln, size_t... Is>
-			constexpr auto left(char_list<ln...>, std::index_sequence<Is...>)
+			constexpr auto left(symphas::lib::char_list<ln...>, std::index_sequence<Is...>)
 			{
+				using namespace symphas::lib;
 				return (expr::make_integer<get_value<ln>() * fixed_pow<10, sizeof...(Is) - 1 - Is>>() + ... + OpVoid{});
 			}
 
 			template<char... ln>
-			constexpr auto left(char_list<ln...>)
+			constexpr auto left(symphas::lib::char_list<ln...>)
 			{
-				return left(char_list<ln...>{}, std::make_index_sequence<sizeof...(ln)>{});
+				return left(symphas::lib::char_list<ln...>{}, std::make_index_sequence<sizeof...(ln)>{});
 			}
 
 			template<char... rn, size_t... Is>
-			constexpr auto right(char_list<'.', rn...>, std::index_sequence<Is...>)
+			constexpr auto right(symphas::lib::char_list<'.', rn...>, std::index_sequence<Is...>)
 			{
+				using namespace symphas::lib;
 				return (expr::make_fraction<get_value<rn>(), fixed_pow<10, Is + 1>>() + ... + OpVoid{});
 			}
 
 			template<char... rn>
-			constexpr auto right(char_list<'.', rn...>)
+			constexpr auto right(symphas::lib::char_list<'.', rn...>)
 			{
-				return right(char_list<'.', rn...>{}, std::make_index_sequence<sizeof...(rn)>{});
+				return right(symphas::lib::char_list<'.', rn...>{}, std::make_index_sequence<sizeof...(rn)>{});
 			}
 
-			constexpr auto right(char_list<>)
+			constexpr auto right(symphas::lib::char_list<>)
 			{
 				return OpVoid{};
 			}
 
 			constexpr auto operator()()
 			{
-				return left(typename filter_decimal_left<char_list<>, char_list<n...>>::type{})
-					+ right(typename filter_decimal_right<char_list<>, char_list<n...>>::type{});
-			}
-		};
-
-		template<char... n>
-		struct char_to_lit
-		{
-			template<char... ln, size_t... Is>
-			constexpr int left(char_list<ln...>, std::index_sequence<Is...>)
-			{
-				return ((get_value<ln>() * fixed_pow<10, sizeof...(Is) - 1 - Is>) + ... + 0);
-			}
-
-			template<char... ln>
-			constexpr int left(char_list<ln...>)
-			{
-				return left(char_list<ln...>{}, std::make_index_sequence<sizeof...(ln)>{});
-			}
-
-			template<char... rn, size_t... Is>
-			constexpr double right(char_list<'.', rn...>, std::index_sequence<Is...>)
-			{
-				return ((get_value<rn>(), fixed_pow<10, Is + 1>) + ... + 0);
-			}
-
-			template<char... rn>
-			constexpr double right(char_list<'.', rn...>)
-			{
-				return right(char_list<'.', rn...>{}, std::make_index_sequence<sizeof...(rn)>{});
-			}
-
-			constexpr int right(char_list<>)
-			{
-				return 0;
-			}
-
-			constexpr auto operator()()
-			{
-				return expr::make_literal(
-					left(typename filter_decimal_left<char_list<>, char_list<n...>>::type{})
-					+ right(typename filter_decimal_right<char_list<>, char_list<n...>>::type{}));
+				using namespace symphas::lib;
+				return left(typename filter_decimal_left<symphas::lib::char_list<>, symphas::lib::char_list<n...>>::type{})
+					+ right(typename filter_decimal_right<symphas::lib::char_list<>, symphas::lib::char_list<n...>>::type{});
 			}
 		};
 	}

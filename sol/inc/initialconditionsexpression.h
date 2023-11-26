@@ -4,8 +4,28 @@
 #include "initialconditionslib.h"
 #include "expressionlib.h"
 #include "expressions.h"
+#include "expressiontypeincludes.h"
 
 
+//! Generates initial conditions using a defined equation. 
+/*!
+ * Initial conditions can be generated based on a predefined symbolic
+ * algebra expression. This expression is
+ * defined in a way similar to the model definitions. 
+ * The model will select
+ * the expression-based initial condition based on the configuration.
+ *
+ * The expression can refer to the parameters of the model, or
+ * parameters of the initial condition routine itself, which would
+ * be passed by the configuration.
+ *
+ * \param NAME The name of the initial condition as it will appear
+ * in the main problem, and can be referenced by a string.
+ * \param DIMENSIONS A parenthesized list of the system dimensions
+ * that are compatible with these initial conditions.
+ * \param EQUATION The equation itself, which can refer to the
+ * spatial variables, `x`, `y` and `z`. 
+ */
 #define INITIAL_CONDITION_EQUATION(NAME, DIMENSIONS, EQUATION) \
 DEFINE_INIT_EXPR_EQUATION(NAME, DIMENSIONS, EQUATION) \
 NEXT_INIT_EXPR_INDEX(NAME) \
@@ -23,7 +43,14 @@ struct InitExpression_ ## NAME : InitExpression<D>							\
 {																			\
 	using parent_type = InitExpression<D>;									\
 	using parent_type::parent_type;											\
-	auto get_equation() { using namespace expr; using namespace std; return EQUATION; }	\
+	auto get_equation() { 													\
+		using namespace symphas::internal; 									\
+		using namespace symphas::internal::parameterized; 					\
+		auto [x, y, z] = expr::make_coords<D>(								\
+			parent_type::dims, parent_type::info.intervals);				\
+		UNUSED(x); UNUSED(y); UNUSED(z);									\
+		using namespace expr; using namespace std; return EQUATION; 		\
+	}																		\
 };
 
 
@@ -63,22 +90,6 @@ struct symphas::internal::init_expr_call_wrapper<D, N> \
 };
 
 
-//! Generates initial conditions using a defined equation. 
-/*!
- * Initial conditions can be generated based on a predefined symbolic
- * algebra expression. This expression is
- * defined in a way similar to the model definitions. This class
- * defines that expression, and then this will be created similarly
- * to the model selection routine. The model will select
- * the expression-based initial condition based on the configuration.
- *
- * The expression can refer to the parameters of the model, or
- * parameters of the initial condition routine itself, which would
- * be passed by the configuration.
- *
- * \tparam F The functor type which is used to generate the initial
- * conditions.
- */
 
 template<size_t D>
 struct InitExpression

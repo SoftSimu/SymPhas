@@ -378,6 +378,17 @@ namespace grid
 		pos[1] = (n / dims[0]) % dims[1];
 		pos[2] = (n / (dims[0] * dims[1]));
 	}
+	
+	template<size_t D>
+	inline void get_grid_position(iter_type(&pos)[D], const len_type* dims, iter_type n)
+	{
+		len_type stride[D]{};
+		get_stride(stride, dims);
+		for (iter_type i = 0; i < D; ++i)
+		{
+			pos[i] = (n / stride[i]) % dims[i];
+		}
+	}
 
 	inline void get_grid_position_offset(iter_type(&pos)[1], const len_type(&dims)[1], const len_type(&offset)[1], iter_type n)
 	{
@@ -2513,6 +2524,8 @@ namespace grid
 			}
 		};
 
+#ifdef USING_MPI
+
 		template<>
 		struct make<RegionalGridMPI>
 		{
@@ -2547,6 +2560,8 @@ namespace grid
 				return { thr_info, symphas::grid_info(vdata).get_dims()};
 			}
 		};
+
+#endif 
 	}
 
 

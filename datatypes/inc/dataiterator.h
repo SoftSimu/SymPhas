@@ -1420,6 +1420,8 @@ namespace symphas::internal
 		}
 	};
 
+#ifdef USING_MPI
+
 	template<typename T, size_t D>
 	struct data_value_type<RegionalGridMPI<any_vector_t<T, D>, D>>
 	{
@@ -1443,6 +1445,8 @@ namespace symphas::internal
 			return (*data)[n];
 		}
 	};
+
+#endif
 
 	template<typename T>
 	struct data_value_type<Block<T>>

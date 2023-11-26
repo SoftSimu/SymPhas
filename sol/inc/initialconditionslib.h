@@ -91,6 +91,7 @@ enum class Inside
 	SIN,				//!< Generate values from the sin function.
 	COS,				//!< Generate values from the sin function.
 	FILE, 				//!< Values are read in from a file.
+	LAMBDA, 			//!< Values are read in from a file.
 	CHECKPOINT,			//!< Values are read in from a checkpoint.
 	EXPRESSION,			//!< An equation that is specified similar to the model definitions.
 	NONE				//!< Represents no initial condition.
@@ -436,6 +437,16 @@ namespace symphas
 		init_data_parameters(double param0, Ts... params) : gp{ new double[sizeof...(Ts) + 1] {param0, (double)params...} }, N{ sizeof...(Ts) + 1 } {}
 
 		init_data_parameters(size_t N = NUM_INIT_CONSTANTS) : gp{ (N > 0) ? new double[N] {0} : nullptr }, N{ N } {}
+		template<typename T>
+		init_data_parameters(std::initializer_list<T> const& data) : init_data_parameters(data.size())
+		{
+			auto it = data.begin();
+			for (iter_type i = 0; i < N; ++i)
+			{
+				gp[i] = *it++;
+			}
+		}
+
 		init_data_parameters(init_data_parameters const& other) : init_data_parameters(other.N)
 		{
 			std::copy(other.gp, other.gp + other.N, gp);
@@ -474,6 +485,16 @@ namespace symphas
 				tp.gp[i] = 1;
 			}
 			return tp;
+		}
+
+		double& operator[](int index)
+		{
+			return gp[index];
+		}
+
+		double const& operator[](int index) const
+		{
+			return gp[index];
 		}
 
 
@@ -623,9 +644,11 @@ namespace symphas
 		//! Initializes a list of 3 dimensional vector values.
 		virtual void initialize(vector_t<3>* values, grid::region_interval<3> const& interval) const = 0;
 
+		template<typename ret_type, size_t D>
+		void initialize(ret_type* values, grid::region_interval<D> const& interval) const {}
 
 		//! Initializes a list of scalar values.
-		void initialize(scalar_t* values, const len_type* dims, size_t dimension)
+		void initialize(scalar_t* values, const len_type* dims, size_t dimension) const
 		{
 			if (dimension == 1)
 			{
@@ -660,55 +683,55 @@ namespace symphas
 		//! Initializes a list of scalar values.
 		void initialize(scalar_t* values, grid::region_interval<1> const& interval) const override
 		{
-			cast().initialize(values, interval, 1);
+			cast().template initialize(values, interval);
 		}
 
 		//! Initializes a list of scalar values.
 		void initialize(scalar_t* values, grid::region_interval<2> const& interval) const override
 		{
-			cast().initialize(values, interval, 2);
+			cast().template initialize(values, interval);
 		}
 
 		//! Initializes a list of scalar values.
 		void initialize(scalar_t* values, grid::region_interval<3> const& interval) const override
 		{
-			cast().initialize(values, interval, 3);
+			cast().template initialize(values, interval);
 		}
 
 		//! Initializes a list of complex values.
 		void initialize(complex_t* values, grid::region_interval<1> const& interval) const override
 		{
-			cast().initialize(values, interval, 1);
+			cast().template initialize(values, interval);
 		}
 
 		//! Initializes a list of complex values.
 		void initialize(complex_t* values, grid::region_interval<2> const& interval) const override
 		{
-			cast().initialize(values, interval, 2);
+			cast().template initialize(values, interval);
 		}
 
 		//! Initializes a list of complex values.
 		void initialize(complex_t* values, grid::region_interval<3> const& interval) const override
 		{
-			cast().initialize(values, interval, 3);
+			cast().template initialize(values, interval);
 		}
 
 		//! Initializes a list of 1 dimensional vector values.
 		void initialize(vector_t<1>* values, grid::region_interval<1> const& interval) const override
 		{
-			cast().initialize(values, interval, 1);
+			cast().template initialize(values, interval);
 		}
 
 		//! Initializes a list of 2 dimensional vector values.
 		void initialize(vector_t<2>* values, grid::region_interval<2> const& interval) const override
 		{
-			cast().initialize(values, interval, 2);
+			cast().template initialize(values, interval);
 		}
 
 		//! Initializes a list of 3 dimensional vector values.
 		void initialize(vector_t<3>* values, grid::region_interval<3> const& interval) const override
 		{
-			cast().initialize(values, interval, 3);
+			cast().template initialize(values, interval);
 		}
 
 		const init_data_functor_specialized& cast() const
@@ -727,6 +750,7 @@ namespace symphas
 	{
 		using parent_type = init_data_functor<void>;
 		using ret_type = std::invoke_result_t<F, iter_type, len_type const*, size_t>;
+		using parent_type::initialize;
 
 		//! Create the initial condition algorithm based on a functor.
 		/*!
@@ -735,7 +759,7 @@ namespace symphas
 		init_data_functor(F f) : f{ f } {}
 
 		template<size_t D>
-		void initialize(ret_type* values, grid::region_interval<D> const& interval)
+		void initialize(ret_type* values, grid::region_interval<D> const& interval) const
 		{
 			auto it = symphas::data_iterator_region(values, interval);
 
@@ -754,6 +778,7 @@ namespace symphas
 	struct init_data_functor<Block<T>> : init_data_functor_impl<init_data_functor<Block<T>>>
 	{
 		using parent_type = init_data_functor<void>;
+		using parent_type::initialize;
 
 		//! Create the initial condition algorithm based on a functor.
 		/*!
@@ -762,7 +787,7 @@ namespace symphas
 		init_data_functor(Block<T> const& source) : source{ &source } {}
 
 		template<size_t D>
-		void initialize(T* values, grid::region_interval<D> const& interval)
+		void initialize(T* values, grid::region_interval<D> const& interval) const
 		{
 			auto it = symphas::data_iterator_region(values, interval);
 			std::copy(symphas::data_iterator(source), symphas::data_iterator(source, grid::length<D>(interval)), it);
@@ -776,6 +801,7 @@ namespace symphas
 	struct init_data_functor<MultiBlock<N, T>> : init_data_functor_impl<init_data_functor<MultiBlock<N, T>>>
 	{
 		using parent_type = init_data_functor<void>;
+		using parent_type::initialize;
 
 		//! Create the initial condition algorithm based on a functor.
 		/*!
@@ -784,7 +810,7 @@ namespace symphas
 		init_data_functor(MultiBlock<N, T> const& source) : source{ &source } {}
 
 		template<size_t D>
-		void initialize(T* values, grid::region_interval<D> const& interval)
+		void initialize(T* values, grid::region_interval<D> const& interval) const
 		{
 			auto it = symphas::data_iterator_region(values, interval);
 			std::copy(symphas::data_iterator(source), symphas::data_iterator(source, grid::length<D>(interval)), it);
