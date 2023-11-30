@@ -1009,9 +1009,9 @@ namespace symphas::io
 template<typename G>
 void symphas::io::save_grid(PersistentSystemData<G> const& sys)
 {
-	auto data = sys.get_snapshot();
+	//auto data = sys.get_snapshot();
 	symphas::io::save_grid(
-		data.values, symphas::io::write_info{ 0, sys.get_id() }, 
+		sys.values, symphas::io::write_info{ 0, sys.get_id() }, 
 		sys.dims, sys.info.dimension());
 }
 
@@ -1020,9 +1020,9 @@ void symphas::io::save_grid(PersistentSystemData<G> const& sys)
 template<typename G>
 void symphas::io::save_grid(PersistentSystemData<G> const& sys, const char* file)
 {
-	auto data = sys.get_snapshot();
+	//auto data = sys.get_snapshot();
 	symphas::io::save_grid(
-		data.values, symphas::io::write_info{ file, 0, sys.get_id(), DataFileType::NAMED_DATA },
+		sys.values, symphas::io::write_info{ file, 0, sys.get_id(), DataFileType::NAMED_DATA },
 		sys.dims, sys.info.dimension());
 }
 

@@ -392,9 +392,9 @@ public:
 	template<typename Type, size_t I, typename std::enable_if_t<(num_fields<Type>() == 0), int> = 0>
 	void copy_field_type_values([[maybe_unused]] Type* into) const {}
 
-	//! Return the values of the `N`-th field as a Grid. 
+	//! Return a copy of the field values of the `N`-th field as a `System`. 
 	/*!
-	 * Copies the values from the field and returns a new Grid, ensuring that
+	 * Copies the values from the field and returns a new `System`, ensuring that
 	 * only the true phase field values are copied. I.e. this means that for
 	 * systems which use boundaries, the boundary domain is not included.
 	 *
@@ -403,9 +403,9 @@ public:
 	template<size_t N>
 	auto get_field() const
 	{
-		Grid<type_of_S<N>, D> out(std::get<N>(_s).get_info().get_dims().get());
-		std::get<N>(_s).persist(out.values);
-		return out;
+		System<type_of_S<N>, D> field(std::get<N>(_s).get_info());
+		std::get<N>(_s).persist(field.values);
+		return field;
 	}
 
 	//! Persists all the systems managed by the model.

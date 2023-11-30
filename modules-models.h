@@ -210,6 +210,13 @@ namespace symphas::internal
 	}
 }
 
+//! Used for runtime-based model selection. 
+/*!
+ * Used for runtime-based model selection and requires selectable models to have
+ * #LINK_WITH_NAME defined. Using the dimension and stencil parameters, a model
+ * with the given name will be selected from the list of compiled models. The
+ * name must match exactly.
+ */
 struct model_select
 {
 	model_select(size_t dimension, StencilParams stp) :

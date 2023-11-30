@@ -7,10 +7,15 @@
 #define VECTOR_TYPE_NAME(TYPE, DIMENSION) @VECTOR_TYPE_NAME@<TYPE, DIMENSION>
 
 #cmakedefine MPI_ON
+#cmakedefine FFTW3_FOUND
 
 #if defined(MPI_ON) && !defined(USING_MPI)
 #define USING_MPI 
 #endif
 
+
+#if defined(FFTW3_FOUND) && !defined(USING_FFTW)
+#define USING_FFTW 
+#endif
 
 

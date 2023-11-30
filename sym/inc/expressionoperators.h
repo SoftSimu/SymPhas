@@ -1422,7 +1422,7 @@ public:
 	 * \param e The expression the operator is applied to.
 	 */
 	OpChain(OpOperatorChain<A1, A2> const& combination, E const& e) : 
-		eval_expr{ get_eval_expr(combination, e) },
+		eval_expr{ symphas::internal::get_eval_expr(combination, e) },
 		combination{ combination }, e{ e } {}
 
 

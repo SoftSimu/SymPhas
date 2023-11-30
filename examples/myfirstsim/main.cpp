@@ -1,11 +1,21 @@
 #include "symphas.h"
-#include "../examples/solvers/solverft.h"
+#include "solverinclude.h"
 
 // model definition: note that power is NOT denoted using ^
-MODEL(A, (SCALAR), EVOLUTION(dop(1) = lap(op(1)) - (power(op(1), 2) - 1_n) * op(1)))
+MODEL(A, (SCALAR), EVOLUTION(dop(1) = lap(op(1)) - (POWER(op(1), 2) - 1_n) * op(1)))
+MODEL(C, (SCALARS(2)), EVOLUTION(dop(1) = lap(op(1)) - (POWER(op(1), 2) - 1_n) * op(1), dop(2) = lap(op(2)) - (POWER(op(2), 2) - 1_n) * op(2)))
+//MODEL(AF, (SCALARS(1)), FREE_ENERGY(dop(1) = lap(op(1)) - (POWER(op(1), 2) - 1_n) * op(1), dop(2) = lap(op(2)) - (POWER(op(2), 2) - 1_n) * op(2)))
 
+	    MODEL(AFE, (SCALAR), 
+			FREE_ENERGY((NONCONSERVED), INT(LANDAU_FE(op(1)))))
 INITIAL_CONDITION_EQUATION(INIT, (2, 3), sin(x) + cos(y))
-
+MODEL(MH_FE, (SCALAR, VECTOR),
+	FREE_ENERGY((
+			EQUATION_OF(1)(-lap(-DF(1)) - grad(op(1)) * DF(2)), 
+			EQUATION_OF(2)(lap(DF(2)) + grad(op(1)) * -DF(1))
+			),
+		INT(LANDAU_FE(op(1)) + _2 * POWER(op(2), 2)))
+)
 int main()
 {
         
@@ -42,6 +52,9 @@ int main()
     
 
     // the model typename is derived from the model definition, the given name is inserted into 'model_*_t'. 
-    model_A_t<2, SolverFT<Stencil2d2h<>>> model{ parameters };
-    symphas::find_solution(model, 0.1, 50);
+    model_C_t<2, SolverFT<Stencil2d2h<>>> model{ parameters };
+    model_AFE_t<2, SolverSP<>> modela{ parameters };
+    symphas::find_solution(modela, 0.1, 50);
+	auto field = model.get_field<0>();
+	symphas::io::save_grid(field);
 }

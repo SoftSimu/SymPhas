@@ -915,11 +915,29 @@ namespace symphas
 
 	struct init_entry_data_type
 	{
-		init_entry_data_type(init_data_functor<void>* f_init) : f_init{ f_init }, data{  }, file{  }, expr_data{  } {}
+		init_entry_data_type(init_data_functor<void> const* f_init) : f_init{ f_init->make_copy() }, data{  }, file{  }, expr_data{  } {}
 		init_entry_data_type(init_data_parameters data) : f_init{ nullptr }, data{ data }, file{  }, expr_data{  } {}
 		init_entry_data_type(init_data_read file) : f_init{ nullptr }, data{  }, file{ file }, expr_data{  } {}
 		init_entry_data_type(init_data_expr expr_data) : f_init{ nullptr }, data{  }, file{  }, expr_data{ expr_data } {}
 		init_entry_data_type() : f_init{ nullptr }, data{  }, file{  }, expr_data{  } {}
+
+		init_entry_data_type(init_entry_data_type const& other) : 
+			f_init{ (other.f_init) ? other.f_init->make_copy() : nullptr }, 
+			data{ other.data }, file{ other.file }, expr_data{ other.expr_data } {}
+			
+		init_entry_data_type(init_entry_data_type&& other) : init_entry_data_type()
+		{
+			swap(*this, other);
+		}
+
+		friend void swap(init_entry_data_type& first, init_entry_data_type& second)
+		{
+			using std::swap;
+			swap(first.f_init, second.f_init);
+			swap(first.data, second.data);
+			swap(first.file, second.file);
+			swap(first.expr_data, second.expr_data);
+		}
 
 		init_data_functor<void>* f_init;	//!< Separate functor to generate the initial conditions.
 		init_data_parameters data;			//!< The parameters used by the initial condition algorithm.
@@ -1063,7 +1081,7 @@ namespace symphas
 		 */
 		template<typename F>
 		init_entry_type(init_data_functor<F> const& f) :
-			init_entry_data_type(f.make_copy()), in{ Inside::NONE }, intag{ symphas::build_intag(InsideTag::DEFAULT) } {}
+			init_entry_data_type(&f), in{ Inside::NONE }, intag{ symphas::build_intag(InsideTag::DEFAULT) } {}
 
 		template<typename F, typename = std::invoke_result_t<F, iter_type, len_type const*, size_t>>
 		init_entry_type(F&& f) : init_entry_type(init_data_functor{ std::forward<F>(f) }) {}

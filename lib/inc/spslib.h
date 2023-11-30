@@ -3434,7 +3434,7 @@ namespace symphas::lib
 			template<char... ln, size_t... Is>
 			constexpr int left(char_list<ln...>, std::index_sequence<Is...>) const
 			{
-				return ((get_value<ln>() * fixed_pow<10, sizeof...(Is) - 1 - Is>) + ... + 0);
+				return ((get_value<ln>() * fixed_pow<10, sizeof...(Is) - 1 - int(Is)>) + ... + 0);
 			}
 
 			template<char... ln>
@@ -3446,7 +3446,7 @@ namespace symphas::lib
 			template<char... rn, size_t... Is>
 			constexpr double right(char_list<'.', rn...>, std::index_sequence<Is...>) const
 			{
-				return ((get_value<rn>(), fixed_pow<10, Is + 1>) + ... + 0);
+				return ((get_value<rn>() / double(fixed_pow<10, Is + 1>)) + ... + 0);
 			}
 
 			template<char... rn>
