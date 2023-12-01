@@ -437,8 +437,7 @@ namespace symphas
 		init_data_parameters(double param0, Ts... params) : gp{ new double[sizeof...(Ts) + 1] {param0, (double)params...} }, N{ sizeof...(Ts) + 1 } {}
 
 		init_data_parameters(size_t N = NUM_INIT_CONSTANTS) : gp{ (N > 0) ? new double[N] {0} : nullptr }, N{ N } {}
-		template<typename T>
-		init_data_parameters(std::initializer_list<T> const& data) : init_data_parameters(data.size())
+		init_data_parameters(std::initializer_list<double> const& data) : init_data_parameters(data.size())
 		{
 			auto it = data.begin();
 			for (iter_type i = 0; i < N; ++i)

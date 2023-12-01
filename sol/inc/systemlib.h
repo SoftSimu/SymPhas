@@ -2154,7 +2154,7 @@ namespace symphas
 	problem_parameters_element problem_parameters_type::operator+=(T&& data)
 	{
 		extend(len + 1);
-		return (this->operator[len - 1] << std::forward<T>(data));
+		return (this->operator[](len - 1) << std::forward<T>(data));
 	}
 	
 }
