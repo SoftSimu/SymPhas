@@ -84,7 +84,8 @@ if(ENABLE_INLINE_TIMINGS)
 endif()
 
 message(STATUS "'CMake Build Type' = ${CMAKE_BUILD_TYPE}")
-if("${CMAKE_BUILD_TYPE}" MATCHES "Debug" OR "${CMAKE_CONFIGURATION_TYPES}" MATCHES "Debug")
+if("${CMAKE_BUILD_TYPE}" MATCHES "Debug" OR 
+	("${CMAKE_CONFIGURATION_TYPES}" MATCHES "Debug" AND NOT "${CMAKE_CONFIGURATION_TYPES}" MATCHES "Release"))
 	target_compile_definitions(symphas_lib_o PUBLIC DEBUG)
 	message(STATUS "using Debug mode")
 endif()

@@ -357,6 +357,50 @@ namespace grid
 		return (n / stride) % dim;
 	}
 
+	template<Axis ax = Axis::X>
+	void get_stride(len_type(&stride)[1], len_type const* dims)
+	{
+		stride[0] = 1;
+	}
+
+	template<Axis ax = Axis::X>
+	void get_stride(len_type(&stride)[2], len_type const* dims)
+	{
+		if constexpr (ax == Axis::X)
+		{
+			stride[0] = 1;
+			stride[1] = dims[0];
+		}
+		else
+		{
+			stride[0] = dims[0];
+			stride[1] = -1;
+		}
+	}
+
+	template<Axis ax = Axis::X>
+	void get_stride(len_type(&stride)[3], len_type const* dims)
+	{
+		if constexpr (ax == Axis::X)
+		{
+			stride[0] = 1;
+			stride[1] = dims[0];
+			stride[2] = dims[0] * dims[1];
+		}
+		else if constexpr (ax == Axis::Y)
+		{
+			stride[0] = dims[0];
+			stride[1] = -1;
+			stride[2] = dims[0] * dims[1];
+		}
+		else
+		{
+			stride[0] = -dims[0] * dims[1];
+			stride[1] = dims[0];
+			stride[2] = -1;
+		}
+	}
+
 	template<size_t D>
 	inline void get_grid_position(iter_type(&pos)[D], const len_type(&dims)[D], const len_type(&stride)[D], iter_type n)
 	{
@@ -441,50 +485,6 @@ namespace grid
 		for (iter_type i = 0; i < pos.n; ++i)
 		{
 			pos[i] += offset[i];
-		}
-	}
-
-	template<Axis ax = Axis::X>
-	void get_stride(len_type(&stride)[1], len_type const* dims)
-	{
-		stride[0] = 1;
-	}
-
-	template<Axis ax = Axis::X>
-	void get_stride(len_type(&stride)[2], len_type const* dims)
-	{
-		if constexpr (ax == Axis::X)
-		{
-			stride[0] = 1;
-			stride[1] = dims[0];
-		}
-		else
-		{
-			stride[0] = dims[0];
-			stride[1] = -1;
-		}
-	}
-
-	template<Axis ax = Axis::X>
-	void get_stride(len_type(&stride)[3], len_type const* dims)
-	{
-		if constexpr (ax == Axis::X)
-		{
-			stride[0] = 1;
-			stride[1] = dims[0];
-			stride[2] = dims[0] * dims[1];
-		}
-		else if constexpr (ax == Axis::Y)
-		{
-			stride[0] = dims[0];
-			stride[1] = -1;
-			stride[2] = dims[0] * dims[1];
-		}
-		else
-		{
-			stride[0] = -dims[0] * dims[1];
-			stride[1] = dims[0];
-			stride[2] = -1;
 		}
 	}
 

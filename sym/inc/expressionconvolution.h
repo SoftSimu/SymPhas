@@ -320,8 +320,8 @@ public:
 		expr::result(a, data_a.values, data_a.len);
 		expr::result(b, data_b.values, data_b.len);
 
-		compute.transform_in_out_0(data_a.values);
-		compute.transform_in_out_1(data_b.values);
+		compute.transform_in_out_0(&expr::BaseData<Block<e1_T>>::get(data_a)[0]);
+		compute.transform_in_out_1(&expr::BaseData<Block<e2_T>>::get(data_b)[0]);
 
 		len_type len = symphas::dft::length<G_T, D>(g0.dims);
 		if constexpr (std::is_same<G_T, complex_t>::value)
@@ -537,7 +537,7 @@ public:
 	void update(symphas::lib::types_list<condition_ts...>)
 	{
 		expr::result(e, data.values, data.len);
-		compute.transform_in_out(data.values);
+		compute.transform_in_out(&expr::BaseData<Block<G_T>>::get(data)[0]);
 
 		auto f = [&](iter_type i, iter_type ft_i)
 		{
