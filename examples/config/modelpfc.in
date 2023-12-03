@@ -1,0 +1,22 @@
+!Model B
+
+DIM				dimensions of model			: 2
+ORDER			order of accuracy			: 2
+WIDTH			grid draw size				: 1
+
+RNGX			interval of x				: 1 256
+RNGY			interval of y				: 1 256
+BNDLT			bound type on x1			: PERIODIC
+BNDRT			bound type on x2			: PERIODIC
+BNDTP			bound type on y1			: PERIODIC
+BNDBT			bound type on y2			: PERIODIC
+INSIDE			the conditions inside		: UNIFORM -2 1
+
+MODEL			type of the model			: PFC_C c1=.-1
+
+DELTA			time increment				: 0.05
+FRAMES			total time steps			: 10000
+SAVE			frame save interval			: 10000
+SAVEINIT		save time index 0 data?		: NO
+
+DIR				save directory				: simulations
