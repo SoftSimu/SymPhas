@@ -76,9 +76,9 @@ endif()
 if(MODEL_CALL_FUNCTION)
 
 	list(APPEND ADD_DEFINITIONS MODEL_APPLY_CALL=${MODEL_CALL_FUNCTION})
-	message(STATUS "model selection list is defined using definition MODEL_APPLY_CALL set to '${MODEL_CALL_FUNCTION}'")
+	message(STATUS "model selection list is defined using definition MODEL_CALL_FUNCTION set to '${MODEL_CALL_FUNCTION}'")
 else()
-	message(STATUS "model selection tree is not defined because no definition was given to MODEL_APPLY_CALL")
+	message(STATUS "model selection tree is not defined because no definition was given to MODEL_CALL_FUNCTION")
 endif()
 
 

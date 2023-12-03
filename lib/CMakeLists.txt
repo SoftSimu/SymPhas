@@ -106,7 +106,7 @@ else()
 endif()
 
 if(OpenMP_CXX_FOUND)
-	message(STATUS "Using OpenMP "${OpenMP_CXX_VERSION})
+	message(STATUS "Using OpenMP " ${OpenMP_CXX_VERSION})
 else()
 	message(STATUS "No OpenMP")
 endif()
