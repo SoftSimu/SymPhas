@@ -12,11 +12,11 @@ BNDTP			bound type on y1			: PERIODIC
 BNDBT			bound type on y2			: PERIODIC
 INSIDE			the conditions inside		: UNIFORM -2 1
 
-MODEL			type of the model			: PFC_C c1=.-1
+MODEL			type of the model			: PFC_C c1=-.1
 
-DELTA			time increment				: 0.05
-FRAMES			total time steps			: 10000
-SAVE			frame save interval			: 10000
-SAVEINIT		save time index 0 data?		: NO
+DELTA			time increment				: 0.005
+FRAMES			total time steps			: 1000
+SAVE			frame save interval			: 1000
+SAVEINIT		save time index 0 data?		: YES
 
 DIR				save directory				: simulations
