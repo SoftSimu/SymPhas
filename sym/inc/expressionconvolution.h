@@ -732,7 +732,7 @@ public:
 	template<typename... condition_ts>
 	void update(symphas::lib::types_list<condition_ts...>)
 	{
-		compute.transform_in_out(data.values);
+		compute.transform_in_out(&expr::BaseData<G>::get(data)[0]);
 
 		auto f = [&](iter_type ft_i, iter_type i)
 		{

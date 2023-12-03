@@ -318,6 +318,11 @@ struct carry_value
 		return *this;
 	}
 
+	T* operator&() const
+	{
+		return nullptr;
+	}
+
 	T* value;
 	T fallback;
 
