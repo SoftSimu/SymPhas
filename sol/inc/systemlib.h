@@ -2303,7 +2303,12 @@ namespace symphas
 
 	inline void update_thr_info(multi_thr_info_type* thr_info, problem_parameters_type const& problem_parameters, int i)
 	{
-		(*thr_info) = multi_thr_info_type(i, problem_parameters.length());
+		int flag = 0;
+		MPI_Initialized(&flag);
+		if (flag)
+		{
+			(*thr_info) = multi_thr_info_type(i, problem_parameters.length());
+		}
 	}
 
 #else
