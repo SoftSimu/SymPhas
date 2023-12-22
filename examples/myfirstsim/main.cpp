@@ -4,7 +4,6 @@
 // model definition: note that power is NOT denoted using ^
 MODEL(A, (SCALAR), EVOLUTION(dop(1) = lap(op(1)) - (POWER(op(1), 2) - 1_n) * op(1)))
 MODEL(C, (SCALARS(2)), EVOLUTION(dop(1) = lap(op(1)) - (POWER(op(1), 2) - 1_n) * op(1), dop(2) = lap(op(2)) - (POWER(op(2), 2) - 1_n) * op(2)))
-// MODEL(AF, (SCALARS(1)), FREE_ENERGY(dop(1) = lap(op(1)) - (POWER(op(1), 2) - 1_n) * op(1), dop(2) = lap(op(2)) - (POWER(op(2), 2) - 1_n) * op(2)))
 
 MODEL(AFE, (SCALAR),
 	  FREE_ENERGY((NONCONSERVED), INT(LANDAU_FE(op(1)))))
@@ -41,17 +40,17 @@ int main()
 	symphas::init_data_type tdata00(lambd);
 
 	// another way to make an interval:
-	auto interval0 = BoundaryType::PERIODIC || 100_h / 0.1_dh || BoundaryType::PERIODIC;
+	auto interval0 = BoundaryType::PERIODIC || 100_h / 0.5_dh || BoundaryType::PERIODIC;
 	auto grid_intervals = interval0 * interval0;
 
 	// set the parameters using 'problem spec notation'
-	parameters[0] << interval * interval << bdata << tdata;
+	parameters[0] << grid_intervals << tdata;
 
 	// the model typename is derived from the model definition, the given name is inserted into 'model_*_t'.
 	//model_C_t<2, SolverFT<Stencil2d2h<>>> model{parameters};
 	// model_AFE_t<2, SolverSP<>> modela{parameters};
 	model_AFE_t<2, SolverFT<Stencil2d2h<>>> modela{parameters};
-	symphas::find_solution(modela, 0.1, 50);
+	symphas::find_solution(modela, 0.01, 5000);
 	auto field = modela.get_field<0>();
 	for (int i = 0; i < field.dims[0]; ++i)
 	{
