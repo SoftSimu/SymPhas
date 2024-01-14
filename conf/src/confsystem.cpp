@@ -2952,7 +2952,7 @@ void SystemConf::write(const char* savedir, const char* name) const
 	{
 		if (s.second.size() == 0)
 		{
-			fprintf(f, CONFIG_PARAM_PREFIX "%s\n", s.first.c_str());
+			fprintf(f, CONFIG_PARAM_PREFIX "%s=\n", s.first.c_str());
 		}
 		else
 		{
