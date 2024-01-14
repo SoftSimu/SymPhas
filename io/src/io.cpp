@@ -33,7 +33,7 @@ struct params::param_assign<symphas::IOType> : param_assign_base
 	size_t print_with_name(FILE* out, void* param, const char* name) const
 	{
 		using symphas::IOType;
-		return fprintf(out, case_writer(param));
+		return fprintf(out, "%s=%s", name, case_writer(param));
 	}
 
 	size_t print_value(int len, char* out, void* param) const
