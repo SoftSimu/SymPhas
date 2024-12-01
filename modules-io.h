@@ -555,7 +555,7 @@ namespace symphas
 	void find_solution(M* models, len_type num_models, symphas::time_step_list const& dts, iter_type stop, const char* dir,
 		bool plotting_output = true, bool checkpoint = symphas::io::is_checkpoint_set())
 	{
-		SaveParams save{ SaveType::DEFAULT, stop, 0, stop };
+		SaveParams save{ SaveType::DEFAULT, double(stop), 0, stop };
 		find_solution(models, num_models, dts, save, { save.get_stop() }, dir, plotting_output, checkpoint);
 	}
 

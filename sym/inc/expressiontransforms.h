@@ -7108,14 +7108,14 @@ namespace expr
 	template<typename E, size_t D>
 	auto result_sum_by_term(OpEvaluable<E> const& e, grid::region_interval<D> const& interval)
 	{
+#ifdef EXECUTION_HEADER_AVAILABLE
 		if (params::parallelization)
 			return std::reduce(
-#ifdef EXECUTION_HEADER_AVAILABLE
 				std::execution::par_unseq,
-#endif
 				static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
 				static_cast<const E*>(&e)->end(symphas::it_grp, interval));
 		else
+#endif
 			return std::reduce(
 				static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
 				static_cast<const E*>(&e)->end(symphas::it_grp, interval));
@@ -7506,15 +7506,15 @@ namespace expr
 		{
 			symphas::data_iterator it(std::forward<assign_type>(data));
 
+#ifdef EXECUTION_HEADER_AVAILABLE
 			if (params::parallelization)
 				std::transform(
-#ifdef EXECUTION_HEADER_AVAILABLE
 					std::execution::par_unseq,
-#endif
 					static_cast<const E*>(&e)->begin(),
 					static_cast<const E*>(&e)->end(len), it,
 					forward_value{});
 			else
+#endif
 				std::transform(
 					static_cast<const E*>(&e)->begin(),
 					static_cast<const E*>(&e)->end(len), it,
@@ -7529,15 +7529,15 @@ namespace expr
 		{
 			symphas::data_iterator_group it(std::forward<assign_type>(data), interval);
 
+#ifdef EXECUTION_HEADER_AVAILABLE
 			if (params::parallelization)
 				std::transform(
-#ifdef EXECUTION_HEADER_AVAILABLE
 					std::execution::par_unseq,
-#endif
 					static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
 					static_cast<const E*>(&e)->end(symphas::it_grp, interval), it,
 					forward_value{});
 			else
+#endif
 				std::transform(
 					static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
 					static_cast<const E*>(&e)->end(symphas::it_grp, interval), it,
@@ -7582,13 +7582,13 @@ namespace expr
 		auto start = symphas::reduce_seq_iterator(expr::get<Is>(e).begin()...);
 		auto end = symphas::reduce_seq_iterator(expr::get<Is>(e).end(len)...);
 
+#ifdef EXECUTION_HEADER_AVAILABLE
 		if (params::parallelization)
 			std::transform(
-#ifdef EXECUTION_HEADER_AVAILABLE
 				std::execution::par_unseq,
-#endif
 				start, end, it, forward_value{});
 		else
+#endif
 			std::transform(start, end, it, forward_value{});
 	}
 
@@ -7613,13 +7613,13 @@ namespace expr
 		auto start = symphas::reduce_iterator(expr::get<Is>(e).begin(symphas::it_grp, interval)...);
 		auto end = symphas::reduce_iterator(expr::get<Is>(e).end(symphas::it_grp, interval)...);
 
+#ifdef EXECUTION_HEADER_AVAILABLE
 		if (params::parallelization)
 			std::transform(
-#ifdef EXECUTION_HEADER_AVAILABLE
 				std::execution::par_unseq,
-#endif
 				start, end, it, forward_value{});
 		else 
+#endif
 			std::transform(start, end, it, forward_value{});
 	}
 
@@ -7712,14 +7712,14 @@ namespace expr
 	{
 		if constexpr (expr::satisfies<E, expr::or_<condition_t, condition_ts...>>)
 		{
+#ifdef EXECUTION_HEADER_AVAILABLE
 			if (params::parallelization)
 				return std::reduce(
-#ifdef EXECUTION_HEADER_AVAILABLE
 					std::execution::par_unseq,
-#endif
 					static_cast<const E*>(&e)->begin(),
 					static_cast<const E*>(&e)->end(len));
 			else
+#endif
 				return std::reduce(
 					static_cast<const E*>(&e)->begin(),
 					static_cast<const E*>(&e)->end(len));
@@ -7735,14 +7735,14 @@ namespace expr
 	{
 		if constexpr (expr::satisfies<E, expr::or_<condition_t, condition_ts...>>)
 		{
+#ifdef EXECUTION_HEADER_AVAILABLE
 			if (params::parallelization)
 				return std::reduce(
-#ifdef EXECUTION_HEADER_AVAILABLE
 					std::execution::par_unseq,
-#endif
 					static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
 					static_cast<const E*>(&e)->end(symphas::it_grp, interval));
 			else
+#endif
 				return std::reduce(
 					static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
 					static_cast<const E*>(&e)->end(symphas::it_grp, interval));
@@ -7784,13 +7784,13 @@ namespace expr
 		auto start = symphas::reduce_seq_iterator(expr::get<Is>(e).begin()...);
 		auto end = symphas::reduce_seq_iterator(expr::get<Is>(e).end(len)...);
 
+#ifdef EXECUTION_HEADER_AVAILABLE
 		if (params::parallelization)
 			return std::reduce(
-#ifdef EXECUTION_HEADER_AVAILABLE
 				std::execution::par_unseq,
-#endif
 				start, end);
 		else
+#endif
 			return std::reduce(start, end);
 	}
 
@@ -7806,13 +7806,13 @@ namespace expr
 		auto start = symphas::reduce_iterator(expr::get<Is>(e).begin(symphas::it_grp, interval)...);
 		auto end = symphas::reduce_iterator(expr::get<Is>(e).end(symphas::it_grp, interval)...);
 
+#ifdef EXECUTION_HEADER_AVAILABLE
 		if (params::parallelization)
 			return std::reduce(
-#ifdef EXECUTION_HEADER_AVAILABLE
 				std::execution::par_unseq,
-#endif
 				start, end);
 		else
+#endif
 			return std::reduce(start, end);
 	}
 

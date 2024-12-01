@@ -32,6 +32,8 @@
 
 #pragma once
 
+#include <memory>
+
 #include "grid.h"
 #include "spslibfftw.h"
 

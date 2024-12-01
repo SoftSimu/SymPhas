@@ -49,7 +49,7 @@
 #include <cmath>
 #include <algorithm>
 #include <numeric>
-
+#include <tuple>
 
 //#include "symphasthread.h"
 #include "definitions.h"

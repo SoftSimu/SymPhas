@@ -172,19 +172,16 @@ namespace expr
 	{
 		symphas::data_iterator it(std::forward<assign_type>(data));
 		
+#ifdef EXECUTION_HEADER_AVAILABLE
 		if (params::parallelization)
 			std::transform(
-#ifdef EXECUTION_HEADER_AVAILABLE
 				std::execution::par_unseq,
-#endif
 				static_cast<const E*>(&e)->begin(),
 				static_cast<const E*>(&e)->end(len), it,
 				forward_value{});
 		else
-			std::transform(
-#ifdef EXECUTION_HEADER_AVAILABLE
-				std::execution::par_unseq,
 #endif
+			std::transform(
 				static_cast<const E*>(&e)->begin(),
 				static_cast<const E*>(&e)->end(len), it,
 				forward_value{});
@@ -195,15 +192,15 @@ namespace expr
 	{
 		symphas::data_iterator_group it(std::forward<assign_type>(data), interval);
 
+#ifdef EXECUTION_HEADER_AVAILABLE
 		if (params::parallelization)
 			std::transform(
-#ifdef EXECUTION_HEADER_AVAILABLE
 				std::execution::par_unseq,
-#endif
 				static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
 				static_cast<const E*>(&e)->end(symphas::it_grp, interval), it,
 				forward_value{});
 		else
+#endif
 			std::transform(
 				static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
 				static_cast<const E*>(&e)->end(symphas::it_grp, interval), it,
@@ -273,15 +270,15 @@ namespace expr
 	{
 		symphas::data_iterator it(std::forward<assign_type>(data));
 
+#ifdef EXECUTION_HEADER_AVAILABLE
 		if (params::parallelization)
 			std::transform(
-#ifdef EXECUTION_HEADER_AVAILABLE
 				std::execution::par_unseq,
-#endif
 				static_cast<const E*>(&e)->begin(), 
 				static_cast<const E*>(&e)->end(len), it, it,
 				[](auto expr_value, auto data_value) { return data_value + expr_value; });
 		else
+#endif
 			std::transform(
 				static_cast<const E*>(&e)->begin(),
 				static_cast<const E*>(&e)->end(len), it, it,
@@ -305,15 +302,15 @@ namespace expr
 		}
 		else
 		{
+#ifdef EXECUTION_HEADER_AVAILABLE
 			if (params::parallelization)
 				std::transform(
-#ifdef EXECUTION_HEADER_AVAILABLE
 					std::execution::par_unseq,
-#endif
 					static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
 					static_cast<const E*>(&e)->end(symphas::it_grp, interval), it, it,
 					[] (auto expr_value, auto data_value) { return data_value + expr_value; });
 			else
+#endif
 				std::transform(
 					static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
 					static_cast<const E*>(&e)->end(symphas::it_grp, interval), it, it,
@@ -414,14 +411,14 @@ namespace expr
 	template<typename E>
 	auto result_sum(OpEvaluable<E> const& e, len_type len)
 	{
+#ifdef EXECUTION_HEADER_AVAILABLE
 		if (params::parallelization)
 			return std::reduce(
-#ifdef EXECUTION_HEADER_AVAILABLE
 				std::execution::par_unseq,
-#endif
 				static_cast<const E*>(&e)->begin(),
 				static_cast<const E*>(&e)->end(len));
 		else
+#endif
 			return std::reduce(
 				static_cast<const E*>(&e)->begin(),
 				static_cast<const E*>(&e)->end(len));
@@ -481,14 +478,14 @@ namespace expr
 		}
 		else
 		{
+#ifdef EXECUTION_HEADER_AVAILABLE
 			if (params::parallelization)
 				return std::reduce(
-#ifdef EXECUTION_HEADER_AVAILABLE
 					std::execution::par_unseq,
-#endif
 					static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
 					static_cast<const E*>(&e)->end(symphas::it_grp, interval));
 			else
+#endif
 				return std::reduce(
 					static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
 					static_cast<const E*>(&e)->end(symphas::it_grp, interval));

@@ -2724,12 +2724,12 @@ void SystemConf::write(const char* savedir, const char* name) const
 	char close = symphas::internal::option_close_bracket();
 
 	fprintf(f, CONFIG_NAME_FMT "%zd\n", symphas::internal::C_DIM, dimension);
-	fprintf(f, CONFIG_NAME_FMT "%I32d\n", symphas::internal::C_ORDER, stp.ord);
-	fprintf(f, CONFIG_NAME_FMT "%I32d\n", symphas::internal::C_PTL, stp.ptl);
-	fprintf(f, CONFIG_NAME_FMT "%I32d\n", symphas::internal::C_PTB, stp.ptb);
-	fprintf(f, CONFIG_NAME_FMT "%I32d\n", symphas::internal::C_PTG, stp.ptg);
+	fprintf(f, CONFIG_NAME_FMT "%hu\n", symphas::internal::C_ORDER, stp.ord);
+	fprintf(f, CONFIG_NAME_FMT "%hu\n", symphas::internal::C_PTL, stp.ptl);
+	fprintf(f, CONFIG_NAME_FMT "%hu\n", symphas::internal::C_PTB, stp.ptb);
+	fprintf(f, CONFIG_NAME_FMT "%hu\n", symphas::internal::C_PTG, stp.ptg);
 	fprintf(f, CONFIG_NAME_FMT "%s\n", symphas::internal::C_FORM, "");
-	fprintf(f, CONFIG_NAME_FMT "%I32d\n", symphas::internal::C_SOLVERVAR, stp.type);
+	fprintf(f, CONFIG_NAME_FMT "%hu\n", symphas::internal::C_SOLVERVAR, stp.type);
 
 
 	fprintf(f, CONFIG_NAME_FMT, symphas::internal::C_WIDTH);

@@ -252,7 +252,7 @@ namespace expr
 		template<typename T>
 		grid::dim_list data_dimensions_cast(SymbolicData<T> const* data)
 		{
-			if (data.data)
+			if (data->data)
 			{
 				return data_dimensions_cast(data->data);
 			}

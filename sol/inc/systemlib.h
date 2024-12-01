@@ -238,7 +238,7 @@ struct SystemData<Grid<T, D>> : Grid<T, D>, SystemInfo
 
 protected:
 
-	SystemData() : Grid<T, D>{}, SystemInfo{ { {} }, 0 } {}
+	SystemData() : Grid<T, D>{}, SystemInfo{ symphas::grid_info{}, 0 } {}
 };
 
 //! Maintains grid data and associated information.
@@ -335,7 +335,7 @@ struct SystemData<BoundaryGrid<T, D>> : BoundaryGrid<T, D>, SystemInfo
 
 protected:
 
-	SystemData() : BoundaryGrid<T, D>{}, SystemInfo{ { {} }, 0 } {}
+	SystemData() : BoundaryGrid<T, D>{}, SystemInfo{ symphas::grid_info{}, 0 } {}
 };
 
 
@@ -442,7 +442,7 @@ struct SystemData<RegionalGrid<T, D>> : RegionalGrid<T, D>, SystemInfo
 
 protected:
 
-	SystemData() : RegionalGrid<T, D>{}, SystemInfo{ { {} }, 0 } {}
+	SystemData() : RegionalGrid<T, D>{}, SystemInfo{ symphas::grid_info{}, 0 } {}
 };
 
 #ifdef USING_MPI

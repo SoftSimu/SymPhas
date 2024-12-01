@@ -265,7 +265,7 @@ struct ModelVirtual : Model<D, DataStepper<D, Sp>, S...>
 	{
 		auto pp(parameters);
 
-		for (auto& [tdata, vdata, bdata] : pp)
+		for (auto [tdata, vdata, bdata] : pp)
 		{
 			modify_tdata(tdata, dir, params::start_index, checkpoint);
 		}
