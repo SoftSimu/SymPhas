@@ -5,8 +5,6 @@ project(SymPhas_Implementation
 	DESCRIPTION "Testing MPI in SymPhas"
 	LANGUAGES CXX)
 
-set(SOLVER_TYPE "SolverSP" CACHE STRING "the type of the solver used")
-
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../" "out/build")
 
 add_executable(symphas_impl "main.cpp")
@@ -17,5 +15,3 @@ if (WIN32)
 else()
 	target_compile_options(symphas_impl PRIVATE -v -ftemplate-backtrace-limit=0)
 endif()
-target_compile_definitions(symphas_impl PUBLIC SOLVER_TYPE=${SOLVER_TYPE})
-

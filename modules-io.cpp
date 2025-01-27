@@ -18,6 +18,8 @@
  * ***************************************************************************
  */
 
+#include "configured-defs.h"
+
 #ifdef USING_CONF
 #include "modules-conf.h"
 #else

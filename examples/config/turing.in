@@ -12,11 +12,11 @@ BNDTP			bound type on y1			: PERIODIC
 BNDBT			bound type on y2			: PERIODIC
 INSIDE			the conditions inside		: UNIFORM -1 1
 
-MODEL			type of the model			: TURING 0.516 0.46 1.112 0.50 -1.01 -1
+MODEL			type of the model			: TURING 0.516 0.45 1.112 0.50 -1.01 -1
 
-DELTA			time increment				: 0.1
-FRAMES			total time steps			: 2000
-SAVE			frame save interval			: 2000
+DELTA			time increment				: 0.05
+FRAMES			total time steps			: 500000
+SAVE			frame save interval			: 100000 200000
 SAVEINIT		save time index 0 data?		: NO
 
 NAMES			given system names			: "Morphogen u" "Morphogen v"

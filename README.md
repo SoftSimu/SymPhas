@@ -5,7 +5,7 @@
 
 
 **Papers:**
-- [SymPhas—General purpose software for phase-field, phase-field crystal and reaction-diffusion simulations](https://doi.org/10.1002/adts.202100351),   Steven A. Silber and Mikko Karttunen, Adv. Theor. Sim. 5, 2100351 (2022). 
+- [SymPhas--General purpose software for phase-field, phase-field crystal and reaction-diffusion simulations](https://doi.org/10.1002/adts.202100351),   Steven A. Silber and Mikko Karttunen, Adv. Theor. Sim. 5, 2100351 (2022). 
 - Preprint: [arXiv:2109.02598](https://arxiv.org/abs/2109.02598)
 
 
@@ -113,12 +113,14 @@ The compilation is cross-platform compatible through CMake for either the Linux 
 
 |Compiler|Tested Minimum Version|
 |--------|-------|
-|MSVC++|14.28|
+|MSVC++|Incompatible*|
 |gcc7| 7.5|
 |gcc10|10.2|
 |clang|11.0.1|
 
-> **_SymPhas_ uses the C++17 standard**. Depending on the compiler, this usually has to be explicitly indicated when compiling, either on the command line or in the CMake configuration.
+> _*MSVC is not able to compile the template code._
+
+> ** *SymPhas* uses the C++17 standard**. Depending on the compiler, this usually has to be explicitly indicated when compiling, either on the command line or in the CMake configuration.
 
 Third party packages that are used and the version they have been tested with are as follows:
 
@@ -298,7 +300,7 @@ In describing elements in *SymPhas*, colour coding is applied to some names. The
 
 | Color | Meaning |
 |-------|---------|
-|<span style="color:blue">`blue`</span> | Represents a functional class in *SymPhas*. |
+|<code style="color:blue">blue</code> | Represents a functional class in *SymPhas*. |
 |<span style="color:teal">`teal`</span>| A class that represents problem information. |
 |<span style="color:purple">`purple`</span>| An important C++ macro. |
 |<span style="color:violet">`violet`</span> | An enum class. |

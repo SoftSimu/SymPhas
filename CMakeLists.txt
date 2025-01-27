@@ -17,13 +17,31 @@
 # 
 # ***************************************************************************
 
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.18)
+
 
 project(SymPhas
 	VERSION 1.0
 	DESCRIPTION "Symbolic Phase Field Solver"
 	LANGUAGES CXX C)
 	
+
+set(USING_CUDA OFF CACHE BOOL "use CUDA (must be installed)")
+set(USING_MPI OFF CACHE BOOL "use MPI (must be installed)")
+
+if(USING_CUDA)
+	message(STATUS "CUDA is enabled")
+	enable_language(CUDA)	
+	set(SYMPHAS_CUDA_ARCHITECTURES "75" CACHE STRING "CUDA architectures to target")
+	set(CMAKE_CUDA_ARCHITECTURES "${SYMPHAS_CUDA_ARCHITECTURES}")
+	set(CMAKE_CUDA_STANDARD 17)
+	set(CMAKE_CUDA_STANDARD_REQUIRED True)
+	set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler /bigobj")
+else()
+	message(STATUS "CUDA is not enabled ${CMAKE_CUDA_COMPILER}")
+	
+endif()
+
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
@@ -50,6 +68,8 @@ set(MODEL_INCLUDE_HEADER_DIR "." CACHE PATH "the location of the header file def
 set(MODEL_INCLUDE_HEADER_NAME "" CACHE STRING "the name of the header file within MODEL_INCLUDE_HEADER_DIR")
 set(USE_TESTS OFF CACHE BOOL "include compilation of the tests")
 
+set(MAIN_FILE "" CACHE STRING "The main file that will be compiled into an executable")
+
 #
 # construct a list of the base group names
 
@@ -58,7 +78,7 @@ list(APPEND GROUP_NAMES_0 lib datatypes sym sol)
 
 
 if(USE_IO)
-	set(USE_PROC ON CACHE BOOL "include the module for data post processing")
+	set(USE_PROC OFF CACHE BOOL "include the module for data post processing")
 	set(USE_CONF ON CACHE BOOL "include the module for managing configurations")
 	list(APPEND GROUP_NAMES_0 io)
 else()
@@ -71,11 +91,16 @@ if(USE_PROC)
 endif()
 
 if(USE_CONF)
+	message(STATUS "getting 'nlohmann_json' from Github with FetchContent")
+	include(FetchContent)
+	FetchContent_Declare(nlohmann_json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
+	FetchContent_MakeAvailable(nlohmann_json)
+
 	list(APPEND GROUP_NAMES_0 conf)
 endif()
 
 
-set(MODULES_SOURCE "prereq.cpp")
+set(MODULES_SOURCE "symphas.cpp")
 if(USE_IO)
 	list(APPEND MODULES_SOURCE "modules-io.cpp")
 endif()
@@ -83,32 +108,35 @@ endif()
 if (USE_TESTS)
 	file(GLOB_RECURSE SOURCES_TESTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp")
 
-	set(CHOSEN_TEST "none" CACHE STRING "list of tests")
-	set_property(CACHE CHOSEN_TEST PROPERTY STRINGS ${SOURCES_TESTS})
-
-	get_filename_component(CHOSEN_TEST_NAME ${CHOSEN_TEST} NAME_WE)
-	set(CHOSEN_TEST_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/tests/${CHOSEN_TEST_NAME}.cpp")
+	set(CHOSEN_TESTS "" CACHE STRING "list of tests")
+	set_property(CACHE CHOSEN_TESTS PROPERTY STRINGS ${SOURCES_TESTS})
 	
-	if("${CHOSEN_TEST}" STREQUAL "none")
-		set(SOURCES_TESTS "")
+	if(NOT "${CHOSEN_TESTS}" STREQUAL "")
+		string(REPLACE " " ";" CHOSEN_TEST_LIST ${CHOSEN_TESTS})
+	endif()
 	
-	elseif("${CHOSEN_TEST}" STREQUAL "all")
+	if("${CHOSEN_TESTS}" STREQUAL "all")
 		foreach(SOURCE_TESTS ${SOURCES_TESTS})
 			get_filename_component(CHOSEN_TEST_NAME ${SOURCE_TESTS} NAME_WE)
 			set(INCLUDE_TEST_FILES "${INCLUDE_TEST_FILES}\n#include \"${CHOSEN_TEST_NAME}.h\"")
 			set(RUN_TEST_FILES "${RUN_TEST_FILES}\n\t${CHOSEN_TEST_NAME}();")
 		endforeach()
-
-	elseif("${CHOSEN_TEST_SOURCE}" IN_LIST SOURCES_TESTS)
-		set(SOURCES_TESTS ${CHOSEN_TEST_SOURCE})
-		set(INCLUDE_TEST_FILES "#include \"${CHOSEN_TEST_NAME}.h\"")
-		set(RUN_TEST_FILES "\t${CHOSEN_TEST_NAME}();")
-
-	else()
-		message(STATUS "test '${CHOSEN_TEST}' does not exist")
-		set(SOURCES_TESTS "")
-
 	endif()
+
+	foreach(CHOSEN_TEST ${CHOSEN_TEST_LIST})
+
+		get_filename_component(CHOSEN_TEST_NAME ${CHOSEN_TEST} NAME_WE)
+		set(CHOSEN_TEST_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/tests/${CHOSEN_TEST_NAME}.cpp")
+	
+		if("${CHOSEN_TEST_SOURCE}" IN_LIST SOURCES_TESTS)
+			list(APPEND SOURCES_TESTS ${CHOSEN_TEST_SOURCE})
+			set(INCLUDE_TEST_FILES "#include \"${CHOSEN_TEST_NAME}.h\"")
+			set(RUN_TEST_FILES "\t${CHOSEN_TEST_NAME}();")
+		else()
+			message(STATUS "test '${CHOSEN_TEST}' does not exist")
+			set(SOURCES_TESTS "")
+		endif()
+	endforeach()
 
 endif()
 
@@ -126,7 +154,7 @@ target_compile_features(${PROJECT_NAME}
 
 
 if(MODEL_INCLUDE_HEADER_NAME)
-	list(APPEND ADD_DEFINITIONS MODEL_INCLUDE_HEADER="${MODEL_INCLUDE_HEADER_NAME}")
+	list(APPEND SYMPHAS_DEFINITIONS MODEL_INCLUDE_HEADER="${MODEL_INCLUDE_HEADER_NAME}")
 	
 	if(MODEL_INCLUDE_HEADER_DIR)
 		if(NOT IS_ABSOLUTE ${MODEL_INCLUDE_HEADER_DIR})
@@ -135,8 +163,6 @@ if(MODEL_INCLUDE_HEADER_NAME)
 	else()
 		set(MODEL_INCLUDE_HEADER_DIR ${CMAKE_SOURCE_DIR})
 	endif()
-	
-
 		
 	if(EXISTS ${MODEL_INCLUDE_HEADER_DIR}/${MODEL_INCLUDE_HEADER_NAME})
 		message(STATUS "using model include source at '${MODEL_INCLUDE_HEADER_DIR}/${MODEL_INCLUDE_HEADER_NAME}'")
@@ -145,11 +171,11 @@ if(MODEL_INCLUDE_HEADER_NAME)
 			$<INSTALL_INTERFACE:include>)
 	else()
 		message(WARNING "the folder ${MODEL_INCLUDE_HEADER_DIR} does not contain ${MODEL_INCLUDE_HEADER_NAME}")
-		unset(MODEL_INCLUDE_HEADER_NAME)
+		set(MODEL_INCLUDE_HEADER_NAME "modelmacros.h")
 	endif()
-
 else()
 	if(MODEL_INCLUDE_HEADER_DIR)
+		message(STATUS ${MODEL_INCLUDE_HEADER_DIR})
 		if(NOT IS_ABSOLUTE ${MODEL_INCLUDE_HEADER_DIR})
 			get_filename_component(MODEL_INCLUDE_HEADER_DIR ${CMAKE_SOURCE_DIR}/${MODEL_INCLUDE_HEADER_DIR} ABSOLUTE)
 		endif()
@@ -161,11 +187,12 @@ else()
 	else()
 		set(MODEL_INCLUDE_HEADER_DIR ${CMAKE_SOURCE_DIR})
 	endif()
+	set(MODEL_INCLUDE_HEADER_NAME "modelmacros.h")
 endif()
 
 
 if(SOLVER_INCLUDE_HEADER_NAME)
-	list(APPEND ADD_DEFINITIONS SOLVER_INCLUDE_HEADER="${SOLVER_INCLUDE_HEADER_NAME}")
+	list(APPEND SYMPHAS_DEFINITIONS SOLVER_INCLUDE_HEADER="${SOLVER_INCLUDE_HEADER_NAME}")
 
 	if(SOLVER_INCLUDE_HEADER_DIR)
 		if(NOT IS_ABSOLUTE ${SOLVER_INCLUDE_HEADER_DIR})
@@ -182,9 +209,8 @@ if(SOLVER_INCLUDE_HEADER_NAME)
 			$<INSTALL_INTERFACE:include>)
 	else()
 		message(WARNING "the folder ${SOLVER_INCLUDE_HEADER_DIR} does not contain ${SOLVER_INCLUDE_HEADER_NAME}")
-		unset(SOLVER_INCLUDE_HEADER_NAME)
+		set(SOLVER_INCLUDE_HEADER_NAME "solver.h")
 	endif()
-
 else()
 	if(SOLVER_INCLUDE_HEADER_DIR)
 		if(NOT IS_ABSOLUTE ${SOLVER_INCLUDE_HEADER_DIR})
@@ -198,29 +224,29 @@ else()
 	else()
 		set(SOLVER_INCLUDE_HEADER_DIR ${CMAKE_SOURCE_DIR})
 	endif()
+	set(SOLVER_INCLUDE_HEADER_NAME "solver.h")
 endif()
 
 get_target_property(EXTRA_INCLUDE_DIRECTORIES ${PROJECT_NAME} INCLUDE_DIRECTORIES)
-
-if(BASIC_MODELS)
-	list(APPEND ADD_DEFINITIONS BASIC_MODELS)
-	message(STATUS "defining BASIC_MODELS")
-endif()
-
 	
 foreach(GROUP_NAME ${GROUP_NAMES_0})
+
+	if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${GROUP_NAME}/${GROUP_NAME}-defs.h.in)
+		set(CONFIGURED_DEF_FILES "${CONFIGURED_DEF_FILES}\n#include \"${GROUP_NAME}-defs.h\"")
+	endif()
 
 	if(${GROUP_NAME} STREQUAL "proc")
 		if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${GROUP_NAME})
 			
 			add_subdirectory(${GROUP_NAME})
 			#message(STATUS ${EXTRA_INCLUDE_DIRECTORIES})
-			#target_compile_definitions(symphas_${GROUP_NAME} PRIVATE ${ADD_DEFINITIONS})
+			#target_compile_definitions(symphas_${GROUP_NAME} PRIVATE ${SYMPHAS_DEFINITIONS})
 
 			list(APPEND GROUP_NAMES ${GROUP_NAME})
 
+
 			if(TARGET symphas_proc_o)
-				set(PROC_ENABLED ON)
+				set(USING_PROC ON)
 				
 				target_include_directories(symphas_${GROUP_NAME}_o PRIVATE
 					$<BUILD_INTERFACE:${MODEL_INCLUDE_HEADER_DIR}>
@@ -230,7 +256,7 @@ foreach(GROUP_NAME ${GROUP_NAMES_0})
 					$<INSTALL_INTERFACE:include>)
 			
 			else()
-				set(PROC_ENABLED OFF)
+				set(USING_PROC OFF)
 			endif()
 		endif()
 	else()
@@ -243,16 +269,20 @@ foreach(GROUP_NAME ${GROUP_NAMES_0})
 		list(APPEND SYMPHAS_OBJ_LIBS symphas_${GROUP_NAME}_o)
 		list(APPEND SYMPHAS_OBJ_SRCS $<TARGET_OBJECTS:symphas_${GROUP_NAME}_o>)
 	endif()
-
 endforeach()
+
 set_target_properties(${SYMPHAS_DEP_LIBS} ${PROJECT_NAME} PROPERTIES CXX_STANDARD 17)
+message(STATUS "the following def files are configured: ${CONFIGURED_DEF_FILES}")
+configure_file("configured-defs.h.in" "${CMAKE_SOURCE_DIR}/inc/configured-defs.h")
 
 if (USE_TESTS)
 	target_include_directories(${PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/tests/")
-	list(APPEND ADD_DEFINITIONS USING_TESTS)
+	set(USING_TESTS ON)
+else()
+	set(USING_TESTS OFF)
 endif()
 
-target_compile_definitions(${PROJECT_NAME} PUBLIC ${ADD_DEFINITIONS} PRIVATE MODULES_EXPORT)
+target_compile_definitions(${PROJECT_NAME} PUBLIC ${SYMPHAS_DEFINITIONS} PRIVATE MODULES_EXPORT)
 target_include_directories(${PROJECT_NAME} PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 	$<INSTALL_INTERFACE:include>)
@@ -280,6 +310,38 @@ endforeach()
 
 list(APPEND SYMPHAS_LIBS ${SYMPHAS_DEP_LIBS} ${PROJECT_NAME})
 
+
+if (USE_TESTS)
+
+	configure_file("tests.cpp.in" "${CMAKE_CURRENT_SOURCE_DIR}/tests.cpp")
+	add_library(symphas_tests_o OBJECT "tests.cpp")
+	target_include_directories(symphas_tests_o PUBLIC 
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
+		$<INSTALL_INTERFACE:include>)
+	target_link_libraries(symphas_tests_o PUBLIC ${PROJECT_NAME})
+
+	add_library(symphas_tests SHARED)
+	target_link_libraries(symphas_tests PUBLIC symphas_tests_o)
+
+	if("${CHOSEN_TESTS}" STREQUAL "all")
+		message(STATUS "using all tests in ${CMAKE_CURRENT_SOURCE_DIR}/tests/")
+	else()
+		message(STATUS "using test(s) '${CHOSEN_TESTS}' in ${CMAKE_CURRENT_SOURCE_DIR}/tests/")
+	endif()
+
+	add_executable(symphas_test "tests.cpp")
+	target_link_libraries(symphas_test PUBLIC symphas_tests)
+
+endif()
+
+configure_file("prereq-defs.h.in" "${CMAKE_SOURCE_DIR}/inc/prereq-defs.h")
+
+if (USE_CONF)
+	message(STATUS "exporting 'nlohmann_json' library")
+	list(APPEND SYMPHAS_LIBS nlohmann_json)
+endif()
+
 if(COMBINE_SHARED)
 	add_library(symphas_all STATIC ${MODULES_SOURCE})
 	target_link_libraries(symphas_all PRIVATE ${SYMPHAS_OBJ_LIBS})
@@ -299,37 +361,6 @@ if(COMBINE_SHARED)
 endif()
 	
 
-
-if (USE_TESTS)
-
-	configure_file("tests.cpp.in" "${CMAKE_CURRENT_SOURCE_DIR}/tests.cpp")
-	add_library(symphas_tests_o OBJECT "tests.cpp")
-	target_include_directories(symphas_tests_o PUBLIC 
-		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
-		$<INSTALL_INTERFACE:include>)
-	target_link_libraries(symphas_tests_o PUBLIC ${PROJECT_NAME})
-
-	add_library(symphas_tests SHARED)
-	target_link_libraries(symphas_tests PUBLIC symphas_tests_o)
-
-	if("${CHOSEN_TEST}" STREQUAL "all")
-		message(STATUS "using all tests in ${CMAKE_CURRENT_SOURCE_DIR}/tests/")
-	else()
-		message(STATUS "using test '${CHOSEN_TEST}' in ${CMAKE_CURRENT_SOURCE_DIR}/tests/")
-	endif()
-
-	add_executable(symphas_test "tests.cpp")
-	target_link_libraries(symphas_test PUBLIC symphas_tests)
-
-endif()
-
-#configure_file("symphas.h.in" "symphas.h")
-#configure_file("prereq-defs.h.in" "prereq-defs.h")
-
-configure_file("symphas.h.in" "${CMAKE_SOURCE_DIR}/inc/symphas.h")
-configure_file("prereq-defs.h.in" "${CMAKE_SOURCE_DIR}/inc/prereq-defs.h")
-
 install(TARGETS ${SYMPHAS_OBJ_LIBS} EXPORT SymPhasDepends)
 foreach(LIB ${SYMPHAS_LIBS})
 	set_target_properties (${LIB} PROPERTIES SOVERSION ${SymPhas_VERSION} VERSION ${SymPhas_VERSION_MAJOR})
@@ -338,6 +369,7 @@ foreach(LIB ${SYMPHAS_LIBS})
 		LIBRARY DESTINATION ${LIBDIR}
 		RUNTIME DESTINATION ${BINDIR})
 endforeach()
+
 
 foreach(GROUP_NAME IN LISTS GROUP_NAMES ITEMS "${CMAKE_SOURCE_DIR}")
 	file(GLOB_RECURSE INCLUDE_FILES "${GROUP_NAME}/inc/*.h")
@@ -367,11 +399,24 @@ message(STATUS "installing rest of headers..")
 file(GLOB INSTALL_HEADERS "*.h")
 install(FILES ${INSTALL_HEADERS} DESTINATION ${INCLUDEDIR})
 foreach(GROUP_NAME ${GROUP_NAMES_0})
-	file(GLOB INSTALL_HEADERS "{GROUP_NAME}/inc/*.h")
+	file(GLOB INSTALL_HEADERS "${GROUP_NAME}/inc/*.h" "${GROUP_NAME}/inc/*.cuh")
 	install(FILES ${INSTALL_HEADERS} DESTINATION ${INCLUDEDIR})
 endforeach()
 message(STATUS "finished installing all headers to ${INCLUDEDIR}")
 
+
+# check if MAIN_FILE is set and create an executable
+if (MAIN_FILE)
+	add_executable(symphas_main ${MAIN_FILE})
+	target_link_libraries(symphas_main ${SYMPHAS_LIBS})
+	
+	#if (WIN32)
+	#	target_compile_options(symphas_main PRIVATE -v -fmacro-backtrace-limit=0)
+	#else()
+	#	target_compile_options(symphas_main PRIVATE -v -ftemplate-backtrace-limit=0)
+	#endif()
+	#target_compile_definitions(symphas_impl PUBLIC SOLVER_TYPE=${SOLVER_TYPE})
+endif()
 
 
 # configure the pkgconfig file

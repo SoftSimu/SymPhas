@@ -28,7 +28,7 @@ int main(int argc, char* argv[])
 	auto pp = c.get_problem_parameters();
 	auto init_data = *pp.get_initial_data();
 
-	double h = c.get_interval(Axis::X, 0).width();
+	double h = pp.get_interval(Axis::X, 0).width();
 
 	symphas::interval_data_type intervals;
 	intervals[Axis::X].set_interval(0, 1 - h, h);
