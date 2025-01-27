@@ -23,8 +23,6 @@ list(REMOVE_ITEM SOURCES_SOL "${CMAKE_CURRENT_SOURCE_DIR}/src/colormap.cpp")
 
 option(USE_VTK "Use the VTK graphics library to display phase field" OFF)
 set(CUSTOM_SYS_IMPLEMENTATION_HEADER "" CACHE STRING "the header for additional implementations of solver and provisional systems")
-set(MODEL_CALL_FUNCTION "" CACHE STRING "a function templated on the specialized model type")
-
 
 if(USE_VTK)
 	find_package(VTK COMPONENTS
@@ -72,15 +70,6 @@ if(CUSTOM_SYS_IMPLEMENTATION_HEADER)
 		message(STATUS "custom system implementation header not found (place header in cmake source directory)")
 	endif()
 endif()
-
-if(MODEL_CALL_FUNCTION)
-
-	list(APPEND ADD_DEFINITIONS MODEL_APPLY_CALL=${MODEL_CALL_FUNCTION})
-	message(STATUS "model selection list is defined using definition MODEL_CALL_FUNCTION set to '${MODEL_CALL_FUNCTION}'")
-else()
-	message(STATUS "model selection tree is not defined because no definition was given to MODEL_CALL_FUNCTION")
-endif()
-
 
 set(AVAILABLE_DIMENSIONS "2" CACHE STRING "comma separated list of dimensions available to simulate (may dramatically increase compile time and resources)")
 set(AVAILABLE_STENCILS_BASIC_ONLY ON CACHE BOOL "when true, compile only the basic stencils, otherwise all stencils are compiled including fully auto-generated ones")

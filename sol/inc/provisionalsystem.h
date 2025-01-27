@@ -29,23 +29,22 @@
 
 #pragma once
 
-#include "boundarysystem.h"
+#include "boundarysystemcuda.cuh"
 #include "spslibfftw.h"
 
 //! The default provisional system.
 /*!
  * The representation of a provisional system, storing the values of the
  * provisional variable that is defined in a phase field problem.
- * 
+ *
  * Unless explicitly specified, this provisional system type will be
  * used by the solver. It does not manage boundaries or other data.
- * 
+ *
  * \tparam T The provisional system type.
  * \tparam D The provisional system dimension.
  */
-template<typename T, size_t D>
+template <typename T, size_t D>
 using ProvisionalSystem = System<T, D>;
-
 
 //! The initial conditions of a provisional system.
 /*!
@@ -59,17 +58,14 @@ using ProvisionalSystem = System<T, D>;
  * `NONE` value for both parameters, thereby skipping any initial generation.
  */
 inline symphas::init_entry_type provisional_init{
-	Inside::NONE,
-	symphas::build_intag(InsideTag::NONE),
-	symphas::init_data_parameters{} };
-
-
+    Inside::NONE, symphas::build_intag(InsideTag::NONE),
+    symphas::init_data_parameters{}};
 
 //! The representation of a provisional system.
 /*!
  * The representation of a provisional system, storing the values of the
  * provisional variable that is defined in a phase field problem.
- * 
+ *
  * This provisional system implementation is used when the solver implements
  * a finite difference stencil to approximate all derivatives, thereby
  * requiring boundaries.
@@ -83,23 +79,20 @@ inline symphas::init_entry_type provisional_init{
  * \tparam D The dimension of the provisional system, corresponding to
  * the dimension of the phase field problem.
  */
-template<typename T, size_t D>
-struct ProvisionalSystemFD : BoundarySystem<T, D>
-{
-	//! Create a provisional system.
-	/*!
-	 * Create a provisional system using the given intervals and boundary data.
-	 */
-	ProvisionalSystemFD(
-		const symphas::interval_data_type vdata, 
-		const symphas::b_data_type bdata) : 
-		BoundarySystem<T, D>(provisional_init, vdata, bdata) {}
+template <typename T, size_t D>
+struct ProvisionalSystemFD : BoundarySystem<T, D> {
+  //! Create a provisional system.
+  /*!
+   * Create a provisional system using the given intervals and boundary data.
+   */
+  ProvisionalSystemFD(const symphas::interval_data_type vdata,
+                      const symphas::b_data_type bdata)
+      : BoundarySystem<T, D>(provisional_init, vdata, bdata) {}
 };
 
+#ifdef USING_FFTW
 
-#if USING_FFTW
-
-//! The provisional system used by the spectral solver. 
+//! The provisional system used by the spectral solver.
 /*!
  * The spectral solver requires the Fourier transforms of all variables
  * when computing the solution, so in addition to storing the real-space
@@ -112,56 +105,52 @@ struct ProvisionalSystemFD : BoundarySystem<T, D>
  * \tparam T The provisional system type, in real space.
  * \tparam D The provisional system dimension.
  */
-template<typename T, size_t D>
-struct ProvisionalSystemSpectral : Grid<T, D>
-{
-	using Grid<T, D>::dims;
+template <typename T, size_t D>
+struct ProvisionalSystemSpectral : Grid<T, D> {
+  using Grid<T, D>::dims;
 
-	fftw_complex* frame_t;
-	fftw_plan p_src_out;
+  fftw_complex* frame_t;
+  fftw_plan p_src_out;
 
-	//! Construct the grid data of a provisional variable.
-	/*!
-	 * Construct the grid data of a provisional variable. The Fourier space
-	 * transform of the variable is also initialized.
-	 *
-	 * \param vdata Interval data about the grid system.
-	 */
-	ProvisionalSystemSpectral(symphas::interval_data_type const& vdata, symphas::b_data_type const&);
+  //! Construct the grid data of a provisional variable.
+  /*!
+   * Construct the grid data of a provisional variable. The Fourier space
+   * transform of the variable is also initialized.
+   *
+   * \param vdata Interval data about the grid system.
+   */
+  ProvisionalSystemSpectral(symphas::interval_data_type const& vdata,
+                            symphas::b_data_type const&);
 
-	ProvisionalSystemSpectral(ProvisionalSystemSpectral<T, D> const& other);
-	ProvisionalSystemSpectral(ProvisionalSystemSpectral<T, D>&& other) noexcept;
-	ProvisionalSystemSpectral<T, D>& operator=(ProvisionalSystemSpectral<T, D> other);
+  ProvisionalSystemSpectral(ProvisionalSystemSpectral<T, D> const& other);
+  ProvisionalSystemSpectral(ProvisionalSystemSpectral<T, D>&& other) noexcept;
+  ProvisionalSystemSpectral<T, D>& operator=(
+      ProvisionalSystemSpectral<T, D> other);
 
-	friend void swap(ProvisionalSystemSpectral<T, D>& first, ProvisionalSystemSpectral<T, D>& second)
-	{
-		using std::swap;
+  friend void swap(ProvisionalSystemSpectral<T, D>& first,
+                   ProvisionalSystemSpectral<T, D>& second) {
+    using std::swap;
 
-		swap(static_cast<Grid<T, D>&>(first), static_cast<Grid<T, D>&>(second));
-		swap(first.frame_t, second.frame_t);
-		swap(first.p_src_out, second.p_src_out);
-	}
+    swap(static_cast<Grid<T, D>&>(first), static_cast<Grid<T, D>&>(second));
+    swap(first.frame_t, second.frame_t);
+    swap(first.p_src_out, second.p_src_out);
+  }
 
-	~ProvisionalSystemSpectral();
+  ~ProvisionalSystemSpectral();
 
-	//! Executes the FFTW plan to transform the provisional variable.
-	/*!
-	 * Executes the FFTW plan to transform the provisional variable.
-	 * No parameters are used in the update.
-	 */
-	void update(iter_type, double)
-	{
-		symphas::dft::fftw_execute(p_src_out);
-	}
+  //! Executes the FFTW plan to transform the provisional variable.
+  /*!
+   * Executes the FFTW plan to transform the provisional variable.
+   * No parameters are used in the update.
+   */
+  void update(iter_type, double) { symphas::dft::fftw_execute(p_src_out); }
 
-
-protected:
-
-	ProvisionalSystemSpectral() : Grid<T, D>(), frame_t{ nullptr }, p_src_out{ nullptr } {}
-
+ protected:
+  ProvisionalSystemSpectral()
+      : Grid<T, D>(), frame_t{nullptr}, p_src_out{nullptr} {}
 };
 
-//! The provisional system used by the spectral solver. 
+//! The provisional system used by the spectral solver.
 /*!
  * Specialization when the provisional variable is a vector type.
  *
@@ -171,138 +160,145 @@ protected:
  *
  * \tparam D The provisional system dimension.
  */
-template<size_t D>
-struct ProvisionalSystemSpectral<vector_t<D>, D> : Grid<vector_t<D>, D>
-{
-	//! Construct the data of a vector-valued provisional variable.
-	ProvisionalSystemSpectral(
-		const symphas::interval_data_type vdata,
-		const symphas::b_data_type) :
-		Grid<vector_t<D>, D>{ grid::construct<Grid, vector_t<D>, D>(vdata) } {}
+template <size_t D>
+struct ProvisionalSystemSpectral<vector_t<D>, D> : Grid<vector_t<D>, D> {
+  //! Construct the data of a vector-valued provisional variable.
+  ProvisionalSystemSpectral(const symphas::interval_data_type vdata,
+                            const symphas::b_data_type)
+      : Grid<vector_t<D>, D>{grid::construct<Grid, vector_t<D>, D>(vdata)} {}
 
-protected:
-
-	ProvisionalSystemSpectral() : Grid<vector_t<D>, D>() {}
-
+ protected:
+  ProvisionalSystemSpectral() : Grid<vector_t<D>, D>() {}
 };
-
-
 
 using symphas::dft::new_fftw_plan;
 
-template<>
-inline ProvisionalSystemSpectral<scalar_t, 1>::ProvisionalSystemSpectral(symphas::interval_data_type const& vdata, symphas::b_data_type const& bdata) :
-	Grid<scalar_t, 1>(grid::construct<::Grid, scalar_t, 1>(vdata)),
-	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::length<scalar_t, 1>(dims)) },
-	p_src_out{ new_fftw_plan<1, scalar_t, complex_t>{}(values, frame_t, dims) }
-{}
+template <>
+inline ProvisionalSystemSpectral<scalar_t, 1>::ProvisionalSystemSpectral(
+    symphas::interval_data_type const& vdata, symphas::b_data_type const& bdata)
+    : Grid<scalar_t, 1>(grid::construct<::Grid, scalar_t, 1>(vdata)),
+      frame_t{symphas::dft::fftw_alloc_complex(
+          symphas::dft::length<scalar_t, 1>(dims))},
+      p_src_out{
+          new_fftw_plan<1, scalar_t, complex_t>{}(values, frame_t, dims)} {}
 
-template<>
-inline ProvisionalSystemSpectral<scalar_t, 2>::ProvisionalSystemSpectral(symphas::interval_data_type const& vdata, symphas::b_data_type const& bdata) :
-	Grid<scalar_t, 2>(grid::construct<::Grid, scalar_t, 2>(vdata)),
-	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::length<scalar_t, 2>(dims)) },
-	p_src_out{ new_fftw_plan<2, scalar_t, complex_t>{}(values, frame_t, dims) }
-{}
+template <>
+inline ProvisionalSystemSpectral<scalar_t, 2>::ProvisionalSystemSpectral(
+    symphas::interval_data_type const& vdata, symphas::b_data_type const& bdata)
+    : Grid<scalar_t, 2>(grid::construct<::Grid, scalar_t, 2>(vdata)),
+      frame_t{symphas::dft::fftw_alloc_complex(
+          symphas::dft::length<scalar_t, 2>(dims))},
+      p_src_out{
+          new_fftw_plan<2, scalar_t, complex_t>{}(values, frame_t, dims)} {}
 
-template<>
-inline ProvisionalSystemSpectral<scalar_t, 3>::ProvisionalSystemSpectral(symphas::interval_data_type const& vdata, symphas::b_data_type const& bdata) :
-	Grid<scalar_t, 3>(grid::construct<::Grid, scalar_t, 3>(vdata)),
-	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::length<scalar_t, 3>(dims)) },
-	p_src_out{ new_fftw_plan<3, scalar_t, complex_t>{}(values, frame_t, dims) }
-{}
+template <>
+inline ProvisionalSystemSpectral<scalar_t, 3>::ProvisionalSystemSpectral(
+    symphas::interval_data_type const& vdata, symphas::b_data_type const& bdata)
+    : Grid<scalar_t, 3>(grid::construct<::Grid, scalar_t, 3>(vdata)),
+      frame_t{symphas::dft::fftw_alloc_complex(
+          symphas::dft::length<scalar_t, 3>(dims))},
+      p_src_out{
+          new_fftw_plan<3, scalar_t, complex_t>{}(values, frame_t, dims)} {}
 
-template<>
-inline ProvisionalSystemSpectral<complex_t, 1>::ProvisionalSystemSpectral(symphas::interval_data_type const& vdata, symphas::b_data_type const& bdata) :
-	Grid<complex_t, 1>(grid::construct<::Grid, complex_t, 1>(vdata)),
-	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::length<complex_t, 1>(dims)) },
-	p_src_out{ new_fftw_plan<1, complex_t, complex_t>{}(values, frame_t, dims) }
-{}
+template <>
+inline ProvisionalSystemSpectral<complex_t, 1>::ProvisionalSystemSpectral(
+    symphas::interval_data_type const& vdata, symphas::b_data_type const& bdata)
+    : Grid<complex_t, 1>(grid::construct<::Grid, complex_t, 1>(vdata)),
+      frame_t{symphas::dft::fftw_alloc_complex(
+          symphas::dft::length<complex_t, 1>(dims))},
+      p_src_out{
+          new_fftw_plan<1, complex_t, complex_t>{}(values, frame_t, dims)} {}
 
-template<>
-inline ProvisionalSystemSpectral<complex_t, 2>::ProvisionalSystemSpectral(symphas::interval_data_type const& vdata, symphas::b_data_type const& bdata) :
-	Grid<complex_t, 2>(grid::construct<::Grid, complex_t, 2>(vdata)),
-	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::length<complex_t, 2>(dims)) },
-	p_src_out{ new_fftw_plan<2, complex_t, complex_t>{}(values, frame_t, dims) }
-{}
+template <>
+inline ProvisionalSystemSpectral<complex_t, 2>::ProvisionalSystemSpectral(
+    symphas::interval_data_type const& vdata, symphas::b_data_type const& bdata)
+    : Grid<complex_t, 2>(grid::construct<::Grid, complex_t, 2>(vdata)),
+      frame_t{symphas::dft::fftw_alloc_complex(
+          symphas::dft::length<complex_t, 2>(dims))},
+      p_src_out{
+          new_fftw_plan<2, complex_t, complex_t>{}(values, frame_t, dims)} {}
 
-template<>
-inline ProvisionalSystemSpectral<complex_t, 3>::ProvisionalSystemSpectral(symphas::interval_data_type const& vdata, symphas::b_data_type const& bdata) :
-	Grid<complex_t, 3>(grid::construct<::Grid, complex_t, 3>(vdata)),
-	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::length<complex_t, 3>(dims)) },
-	p_src_out{ new_fftw_plan<3, complex_t, complex_t>{}(values, frame_t, dims) }
-{}
+template <>
+inline ProvisionalSystemSpectral<complex_t, 3>::ProvisionalSystemSpectral(
+    symphas::interval_data_type const& vdata, symphas::b_data_type const& bdata)
+    : Grid<complex_t, 3>(grid::construct<::Grid, complex_t, 3>(vdata)),
+      frame_t{symphas::dft::fftw_alloc_complex(
+          symphas::dft::length<complex_t, 3>(dims))},
+      p_src_out{
+          new_fftw_plan<3, complex_t, complex_t>{}(values, frame_t, dims)} {}
 
+template <>
+inline ProvisionalSystemSpectral<scalar_t, 1>::ProvisionalSystemSpectral(
+    ProvisionalSystemSpectral<scalar_t, 1> const& other)
+    : Grid<scalar_t, 1>(other),
+      frame_t{symphas::dft::fftw_alloc_complex(
+          symphas::dft::length<scalar_t, 1>(dims))},
+      p_src_out{
+          new_fftw_plan<1, scalar_t, complex_t>{}(values, frame_t, dims)} {}
 
+template <>
+inline ProvisionalSystemSpectral<scalar_t, 2>::ProvisionalSystemSpectral(
+    ProvisionalSystemSpectral<scalar_t, 2> const& other)
+    : Grid<scalar_t, 2>(other),
+      frame_t{symphas::dft::fftw_alloc_complex(
+          symphas::dft::length<scalar_t, 2>(dims))},
+      p_src_out{
+          new_fftw_plan<2, scalar_t, complex_t>{}(values, frame_t, dims)} {}
 
+template <>
+inline ProvisionalSystemSpectral<scalar_t, 3>::ProvisionalSystemSpectral(
+    ProvisionalSystemSpectral<scalar_t, 3> const& other)
+    : Grid<scalar_t, 3>(other),
+      frame_t{symphas::dft::fftw_alloc_complex(
+          symphas::dft::length<scalar_t, 3>(dims))},
+      p_src_out{
+          new_fftw_plan<3, scalar_t, complex_t>{}(values, frame_t, dims)} {}
 
+template <>
+inline ProvisionalSystemSpectral<complex_t, 1>::ProvisionalSystemSpectral(
+    ProvisionalSystemSpectral<complex_t, 1> const& other)
+    : Grid<complex_t, 1>(other),
+      frame_t{symphas::dft::fftw_alloc_complex(
+          symphas::dft::length<complex_t, 1>(dims))},
+      p_src_out{
+          new_fftw_plan<1, complex_t, complex_t>{}(values, frame_t, dims)} {}
 
-template<>
-inline ProvisionalSystemSpectral<scalar_t, 1>::ProvisionalSystemSpectral(ProvisionalSystemSpectral<scalar_t, 1> const& other) :
-	Grid<scalar_t, 1>(other),
-	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::length<scalar_t, 1>(dims)) },
-	p_src_out{ new_fftw_plan<1, scalar_t, complex_t>{}(values, frame_t, dims) }
-{}
+template <>
+inline ProvisionalSystemSpectral<complex_t, 2>::ProvisionalSystemSpectral(
+    ProvisionalSystemSpectral<complex_t, 2> const& other)
+    : Grid<complex_t, 2>(other),
+      frame_t{symphas::dft::fftw_alloc_complex(
+          symphas::dft::length<complex_t, 2>(dims))},
+      p_src_out{
+          new_fftw_plan<2, complex_t, complex_t>{}(values, frame_t, dims)} {}
 
-template<>
-inline ProvisionalSystemSpectral<scalar_t, 2>::ProvisionalSystemSpectral(ProvisionalSystemSpectral<scalar_t, 2> const& other) :
-	Grid<scalar_t, 2>(other),
-	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::length<scalar_t, 2>(dims)) },
-	p_src_out{ new_fftw_plan<2, scalar_t, complex_t>{}(values, frame_t, dims) }
-{}
+template <>
+inline ProvisionalSystemSpectral<complex_t, 3>::ProvisionalSystemSpectral(
+    ProvisionalSystemSpectral<complex_t, 3> const& other)
+    : Grid<complex_t, 3>(other),
+      frame_t{symphas::dft::fftw_alloc_complex(
+          symphas::dft::length<complex_t, 3>(dims))},
+      p_src_out{
+          new_fftw_plan<3, complex_t, complex_t>{}(values, frame_t, dims)} {}
 
-template<>
-inline ProvisionalSystemSpectral<scalar_t, 3>::ProvisionalSystemSpectral(ProvisionalSystemSpectral<scalar_t, 3> const& other) :
-	Grid<scalar_t, 3>(other),
-	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::length<scalar_t, 3>(dims)) },
-	p_src_out{ new_fftw_plan<3, scalar_t, complex_t>{}(values, frame_t, dims) }
-{}
-
-template<>
-inline ProvisionalSystemSpectral<complex_t, 1>::ProvisionalSystemSpectral(ProvisionalSystemSpectral<complex_t, 1> const& other) :
-	Grid<complex_t, 1>(other),
-	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::length<complex_t, 1>(dims)) },
-	p_src_out{ new_fftw_plan<1, complex_t, complex_t>{}(values, frame_t, dims) }
-{}
-
-template<>
-inline ProvisionalSystemSpectral<complex_t, 2>::ProvisionalSystemSpectral(ProvisionalSystemSpectral<complex_t, 2> const& other) :
-	Grid<complex_t, 2>(other),
-	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::length<complex_t, 2>(dims)) },
-	p_src_out{ new_fftw_plan<2, complex_t, complex_t>{}(values, frame_t, dims) }
-{}
-
-template<>
-inline ProvisionalSystemSpectral<complex_t, 3>::ProvisionalSystemSpectral(ProvisionalSystemSpectral<complex_t, 3> const& other) :
-	Grid<complex_t, 3>(other),
-	frame_t{ symphas::dft::fftw_alloc_complex(symphas::dft::length<complex_t, 3>(dims)) },
-	p_src_out{ new_fftw_plan<3, complex_t, complex_t>{}(values, frame_t, dims) }
-{}
-
-
-
-template<typename T, size_t D>
-ProvisionalSystemSpectral<T, D>::ProvisionalSystemSpectral(ProvisionalSystemSpectral<T, D>&& other) noexcept : ProvisionalSystemSpectral()
-{
-	swap(*this, other);
+template <typename T, size_t D>
+ProvisionalSystemSpectral<T, D>::ProvisionalSystemSpectral(
+    ProvisionalSystemSpectral<T, D>&& other) noexcept
+    : ProvisionalSystemSpectral() {
+  swap(*this, other);
 }
 
-template<typename T, size_t D>
-ProvisionalSystemSpectral<T, D>& ProvisionalSystemSpectral<T, D>::operator=(ProvisionalSystemSpectral<T, D> other)
-{
-	swap(*this, other);
-	return *this;
+template <typename T, size_t D>
+ProvisionalSystemSpectral<T, D>& ProvisionalSystemSpectral<T, D>::operator=(
+    ProvisionalSystemSpectral<T, D> other) {
+  swap(*this, other);
+  return *this;
 }
 
-
-
-template<typename T, size_t D>
-inline ProvisionalSystemSpectral<T, D>::~ProvisionalSystemSpectral()
-{
-	symphas::dft::fftw_free(frame_t);
-	symphas::dft::fftw_destroy_plan(p_src_out);
+template <typename T, size_t D>
+inline ProvisionalSystemSpectral<T, D>::~ProvisionalSystemSpectral() {
+  symphas::dft::fftw_free(frame_t);
+  symphas::dft::fftw_destroy_plan(p_src_out);
 }
-
 
 #endif
-
-

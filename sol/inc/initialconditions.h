@@ -26,6 +26,8 @@
 
 #pragma once
 
+#include "definitions.h"
+
 #include <algorithm>
 #include <complex>
 #include <random>

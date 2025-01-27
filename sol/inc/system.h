@@ -31,88 +31,76 @@
 #include "initialconditions.h"
 #include "systemlib.h"
 
-
-
 // ****************************************************************************************************************
 
+//! Representation of a phase field and associated characteristics.
+/*!
+ * Represents a phase field system and manages the data thereof, based on the
+ * information given by ::SystemInfo.
+ *
+ * When the phase field is created, it will automatically populate the phase
+ * field values from the given initial conditions.
+ *
+ * The phase field is based on a PersistenSystemData, meaning it has the ability
+ * to persist its data to a file if the **io** module is enabled.
+ *
+ * \tparam T The type of the phase field.
+ * \tparam D The dimension of the phase field.
+ */
+template <template <typename, size_t> typename G, typename T, size_t D>
+struct PhaseFieldSystem : PersistentSystemData<G<T, D>> {
+  using parent_type = PersistentSystemData<G<T, D>>;
+  using parent_type::info;
+  using parent_type::length;
 
- //! Representation of a phase field and associated characteristics.
- /*!
-  * Represents a phase field system and manages the data thereof, based on the
-  * information given by ::SystemInfo.
-  *
-  * When the phase field is created, it will automatically populate the phase
-  * field values from the given initial conditions.
-  *
-  * The phase field is based on a PersistenSystemData, meaning it has the ability
-  * to persist its data to a file if the **io** module is enabled.
-  *
-  * \tparam T The type of the phase field.
-  * \tparam D The dimension of the phase field.
-  */
-template<template<typename, size_t> typename G, typename T, size_t D>
-struct PhaseFieldSystem : PersistentSystemData<G<T, D>>
-{
-	using parent_type = PersistentSystemData<G<T, D>>;
-	using parent_type::info;
-	using parent_type::length;
+  //! Create a phase field system using the boundary data.
+  /*!
+   * Initialize a phase field system using the provided boundary data. The
+   * initial conditions are treated as default, refer to symphas::init_data_type
+   * for details on the default value.
+   */
+  PhaseFieldSystem(symphas::interval_data_type const& vdata, size_t id = 0);
+  PhaseFieldSystem(symphas::init_data_type const& tdata,
+                   symphas::interval_data_type const& vdata, size_t id = 0);
+  PhaseFieldSystem(symphas::init_data_type const& tdata,
+                   symphas::interval_data_type const& vdata,
+                   symphas::b_data_type const&, size_t id = 0)
+      : PhaseFieldSystem(tdata, vdata, id) {}
 
-	//! Create a phase field system using the boundary data.
-	/*!
-	 * Initialize a phase field system using the provided boundary data. The
-	 * initial conditions are treated as default, refer to symphas::init_data_type
-	 * for details on the default value.
-	 */
-	PhaseFieldSystem(symphas::interval_data_type const& vdata, size_t id = 0);
-	PhaseFieldSystem(symphas::init_data_type const& tdata, symphas::interval_data_type const& vdata, size_t id = 0);
-	PhaseFieldSystem(symphas::init_data_type const& tdata, symphas::interval_data_type const& vdata, symphas::b_data_type const&, size_t id = 0) :
-		PhaseFieldSystem(tdata, vdata, id) {}
+  //! There is no update mechanism required for the base object.
+  inline void update(iter_type = 0, double = 0) {}
 
-	//! There is no update mechanism required for the base object.
-	inline void update(iter_type = 0, double = 0) {}
+  //! Implemented for parallelization routines.
+  template <typename... Ts>
+  static void synchronize(Ts&&...) {}
 
-	//! Implemented for parallelization routines.
-	template<typename... Ts>
-	static void synchronize(Ts&&...) {}
-
-protected:
-
-	PhaseFieldSystem();
+ protected:
+  PhaseFieldSystem();
 };
-
-
-
 
 // **********************************************************************************************
 
-
-template<template<typename, size_t> typename G, typename T, size_t D>
+template <template <typename, size_t> typename G, typename T, size_t D>
 PhaseFieldSystem<G, T, D>::PhaseFieldSystem() : parent_type{} {}
 
-template<template<typename, size_t> typename G, typename T, size_t D>
+template <template <typename, size_t> typename G, typename T, size_t D>
 PhaseFieldSystem<G, T, D>::PhaseFieldSystem(
-	symphas::init_data_type const& tdata, 
-	symphas::interval_data_type const& vdata, 
-	size_t id) :
-	parent_type{ vdata, id }
-{
-	symphas::internal::populate_tdata(tdata, static_cast<G<T, D>&>(*this), &info, id);
+    symphas::init_data_type const& tdata,
+    symphas::interval_data_type const& vdata, size_t id)
+    : parent_type{vdata, id} {
+  symphas::internal::populate_tdata(tdata, static_cast<G<T, D>&>(*this), &info,
+                                    id);
 }
 
-
-template<template<typename, size_t> typename G, typename T, size_t D>
+template <template <typename, size_t> typename G, typename T, size_t D>
 PhaseFieldSystem<G, T, D>::PhaseFieldSystem(
-	symphas::interval_data_type const& vdata,
-	size_t id) :
-	PhaseFieldSystem(symphas::init_data_type{}, vdata, id) 
-{}
+    symphas::interval_data_type const& vdata, size_t id)
+    : PhaseFieldSystem(symphas::init_data_type{}, vdata, id) {}
 
-
-
-template<typename T, size_t D>
+template <typename T, size_t D>
 using System = PhaseFieldSystem<Grid, T, D>;
 
-
-
-
-
+#ifdef USING_CUDA
+template <typename T, size_t D>
+using SystemCUDA = PhaseFieldSystem<GridCUDA, T, D>;
+#endif

@@ -20,6 +20,3 @@
 
 #include "modelmacros.h"
 
-#ifdef MODEL_APPLY_CALL
-
-#endif

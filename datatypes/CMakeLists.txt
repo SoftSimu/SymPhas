@@ -17,7 +17,7 @@
 # 
 # ***************************************************************************
 
-file(GLOB_RECURSE SOURCES_DATATYPES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+file(GLOB_RECURSE SOURCES_DATATYPES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cu")
 
 
 add_library(symphas_datatypes_o OBJECT ${SOURCES_DATATYPES})
@@ -30,3 +30,5 @@ target_compile_definitions(symphas_datatypes_o PRIVATE DATATYPES_EXPORTS)
 
 add_library(symphas_datatypes SHARED)
 target_link_libraries(symphas_datatypes PUBLIC symphas_datatypes_o)
+
+

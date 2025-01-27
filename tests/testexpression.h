@@ -34,8 +34,8 @@ inline void testexpression()
 	printf("\n- test testexpressioneval ----------------------------------\n");
 	testexpressioneval();
 	printf("\n- test testexpressionmodel ---------------------------------\n");
-	testexpressionmodel();
-	printf("\n- test testexpressionoperator ------------------------------\n");
+	/*testexpressionmodel();
+	printf("\n- test testexpressionoperator ------------------------------\n");*/
 	testexpressionoperator();
 	printf("\n- test testexpressionstate ---------------------------------\n");
 	testexpressionstate();

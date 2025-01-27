@@ -26,24 +26,16 @@
 
 #pragma once
 
-#include <string>
-#include <stack>
 #include <functional>
+#include <stack>
+#include <string>
 
 #include "io.h"
 #include "stencilincludes.h"
 #include "systemlib.h"
 
-
-
-
 //! The extension of the configuration file for SymPhas.
 #define CONFIG_EXTENSION "in"
-
-
-
-
-
 
 //! Key used to prefix comments in the configuration file.
 #define CONFIG_COMMENT_PREFIX "#"
@@ -52,7 +44,6 @@
 
 //! The character usage of the comment key.
 #define CONFIG_COMMENT_PREFIX_C ((CONFIG_COMMENT_PREFIX)[0])
-
 
 //! Key used to prefix the title in the configuration file.
 /*!
@@ -63,7 +54,6 @@
 
 //! The character usage of the title key.
 #define CONFIG_TITLE_PREFIX_C ((CONFIG_TITLE_PREFIX)[0])
-
 
 //! The key which separates keys and values in the configuration.
 #define CONFIG_SEP_KEY ":"
@@ -102,111 +92,101 @@
  */
 #define DEFAULT_PF_NAME_FMT "Phase Field %zd"
 
+namespace symphas {
+//! Specifies elements used in the management of SymPhas configuration.
+/*!
+ * Specifies elements used in the management of SymPhas configuration.
+ */
+namespace conf {}
+}  // namespace symphas
 
+namespace symphas::internal {
+char option_open_bracket();
+char option_close_bracket();
+}  // namespace symphas::internal
 
-namespace symphas
-{
-	//! Specifies elements used in the management of SymPhas configuration.
-	/*!
-	 * Specifies elements used in the management of SymPhas configuration.
-	 */
-	namespace conf {}
+namespace symphas::conf {
+
+std::vector<std::string> parse_options(const char* options,
+                                       bool spaces_are_delimiters = false,
+                                       const char* extra_delimiters = "");
+inline std::vector<std::string> parse_options(const char* options,
+                                              const char* extra_delimiters) {
+  return parse_options(options, false, extra_delimiters);
 }
 
-namespace symphas::internal
-{
-	char option_open_bracket();
-	char option_close_bracket();
+//! Append default phase field names starting at the given pointer.
+/*!
+ * The iterator to the names list is provided, which is expected to point to the
+ * start of an array of at least length `num`. The array is then filled with
+ * that many default names, with starting index which may be chosen to be
+ * greater than 0.
+ *
+ * \param names_it The iterator to the position in the names list to begin
+ * inserting the default names.
+ * \param num The number of default names to insert, and the expected length of
+ * the array.
+ * \param start_id The starting index for the default names, which is 0 by
+ * default.
+ */
+inline void insert_default_pf_names(char** names_it, size_t num,
+                                    size_t start_id = 0) {
+  for (size_t id = start_id; id < start_id + num; ++id) {
+    char name_buffer[BUFFER_LENGTH_R2];
+    sprintf(name_buffer, DEFAULT_PF_NAME_FMT, id);
+    names_it[id] = new char[std::strlen(name_buffer) + 1];
+    std::strcpy(names_it[id], name_buffer);
+  }
 }
 
-namespace symphas::conf
-{
+//! Expand memory and append default names to the given names list.
+/*
+ * Given a list of names of phase fields, append an additional number of names
+ * given by num, in the default phase field name format. The default format
+ * is given by #DEFAULT_PF_NAME_FMT. The list is expanded to fit the additional
+ * names.
+ *
+ * \param names The list of strings with the names of the phase fields, which
+ * will be appended with num default names. It will be reallocated to the
+ * expanded length to accommodate additional names.
+ * \param names_len The current length of the names list.
+ * \param num The number of default names to append.
+ */
+inline void append_default_pf_names(char**& names, size_t names_len,
+                                    size_t num) {
+  char** extend = new char*[names_len + num];
+  for (iter_type i = 0; i < names_len; ++i) {
+    extend[i] = names[i];
+  }
 
+  insert_default_pf_names(extend + names_len, num);
 
-	std::vector<std::string> parse_options(const char* options, bool spaces_are_delimiters = false, const char* extra_delimiters = "");
-	inline std::vector<std::string> parse_options(const char* options, const char* extra_delimiters)
-	{
-		return parse_options(options, false, extra_delimiters);
-	}
-
-
-
-	//! Append default phase field names starting at the given pointer.
-	/*!
-	 * The iterator to the names list is provided, which is expected to point to the
-	 * start of an array of at least length `num`. The array is then filled with 
-	 * that many default names, with starting index which may be chosen to be 
-	 * greater than 0.
-	 * 
-	 * \param names_it The iterator to the position in the names list to begin 
-	 * inserting the default names.
-	 * \param num The number of default names to insert, and the expected length of
-	 * the array.
-	 * \param start_id The starting index for the default names, which is 0 by 
-	 * default.
-	 */
-	inline void insert_default_pf_names(char** names_it, size_t num, size_t start_id = 0)
-	{
-		for (size_t id = start_id; id < start_id + num; ++id)
-		{
-			char name_buffer[BUFFER_LENGTH_R2];
-			sprintf(name_buffer, DEFAULT_PF_NAME_FMT, id);
-			names_it[id] = new char[std::strlen(name_buffer) + 1];
-			std::strcpy(names_it[id], name_buffer);
-		}
-
-	}
-
-	 //! Expand memory and append default names to the given names list.
-	 /*
-	  * Given a list of names of phase fields, append an additional number of names
-	  * given by num, in the default phase field name format. The default format
-	  * is given by #DEFAULT_PF_NAME_FMT. The list is expanded to fit the additional
-	  * names.
-	  * 
-	  * \param names The list of strings with the names of the phase fields, which
-	  * will be appended with num default names. It will be reallocated to the
-	  * expanded length to accommodate additional names.
-	  * \param names_len The current length of the names list.
-	  * \param num The number of default names to append.
-	  */
-	inline void append_default_pf_names(char** &names, size_t names_len, size_t num)
-	{
-		char** extend = new char* [names_len + num];
-		for (iter_type i = 0; i < names_len; ++i)
-		{
-			extend[i] = names[i];
-		}
-
-		insert_default_pf_names(extend + names_len, num);
-
-		delete[] names;
-		names = extend;
-	}
+  delete[] names;
+  names = extend;
 }
-
+}  // namespace symphas::conf
 
 // ***************************************************************************
 
 //! Object storing configurable properties.
 /*!
- * The configuration specifies a number of properties which could be used 
- * throughout the workflow of a simulation. The properties are entirely managed 
- * by this object, so  for example, copies of a configuration can be made in 
+ * The configuration specifies a number of properties which could be used
+ * throughout the workflow of a simulation. The properties are entirely managed
+ * by this object, so  for example, copies of a configuration can be made in
  * which case all the properties will be correctly constructed and assigned.
  * Also allows the configuration to be persisted.
- * 
+ *
  * Most of the members of the configuration are publicly accessible, and these
  * members can safely be modified. Members which are which are accessed through
  * function interfaces include the boundaries, initial conditions and
  * system intervals (these are arrays, such that each element represents
  * the description of one field, initialized in the order of the array).
- * 
+ *
  * The configuration has a default initialization, which does not represent
  * a valid set of properties of a phase field problem.
- * 
+ *
  * The parameters that are not detailed in the function docs are mentioned here:
- * 
+ *
  * |Property            | Configuration Key             | Format |
  * |--------------------|-------------------------------|--------|
  * | Dimension          | `DIM` | Either `1`, `2` or `3`. |
@@ -214,18 +194,18 @@ namespace symphas::conf
  * | `N`-point Laplacian Stencil | `PTL` | Refer to available stencils. |
  * | `N`-point Biaplacian Stencil | `PTB` | Refer to available stencils. |
  * | `N`-point Gradlaplacian Stencil | `PTG` | Refer to available stencils. |
- * | Time Step (\f$\Delta t\f$)  | `DELTA` | Any positive floating point number. |
- * | Number of Solution Iterations  | `FRAMES` | Any positive integer. |
- * | Number of Concurrent Simulations  | `FRAMES` | Any positive integer. |
- * | Directory of Results | `DIR` | Any valid system path (relative or absolute). |
- * | Save Interval | `SAVE` | See symphas::io::parse_save_str(). |
- * | Save Index 0? | `SAVEINIT` | `YES` or `NO`. |
+ * | Time Step (\f$\Delta t\f$)  | `DELTA` | Any positive floating point number.
+ * | | Number of Solution Iterations  | `FRAMES` | Any positive integer. | |
+ * Number of Concurrent Simulations  | `FRAMES` | Any positive integer. | |
+ * Directory of Results | `DIR` | Any valid system path (relative or absolute).
+ * | | Save Interval | `SAVE` | See symphas::io::parse_save_str(). | | Save
+ * Index 0? | `SAVEINIT` | `YES` or `NO`. |
  *
  * The format and key of each possible configurable property are described
  * for each function. The general configuration formatting rules are the
  * following:
  * - Each configuration property line consists of the key, the character `:`
- * and then the value of the property. The `:` character separates the key 
+ * and then the value of the property. The `:` character separates the key
  * from the value, and is called the _option delimiter_.
  * - Each item in a specification is separated by any number of spaces or tabs.
  * - Numeric values can be specified using scientific notation.
@@ -235,976 +215,463 @@ namespace symphas::conf
  * explanations.
  * - The title of the simulation is specified on its own line, preceded by
  * the character `!`, the _title specifier_.
- * 
+ *
  * Some configurable properties support multiple options, where
  * options are simply bracket surrounded elements. Each element of the options
  * follows the format of the property it is written for. Typically, options are
  * given to specify properties about multiple phase fields. This is
  * indicated in the format specification of the respective property.
- * 
+ *
  * Options may be surrounded in either brackets, `(` and `)`, or braces,
  * `{` and `}`. Options may also be surrounded in quotes, `"` or `'`. When
  * options are surrounded in brackets, nested options can be used.
- * 
+ *
  * Additionally, the configuration property key is case insensitive. Any
  * number of spaces and tabs may separate the key and the option delimiter, and
- * any number of spaces may separate the option delimiter and the value. 
+ * any number of spaces may separate the option delimiter and the value.
  * Moreover, as long as the key is followed by at least one tab or space,
  * then anything may be written up to the option delimiter (for example,
  * to provide a hint as to the meaning of that key).
  *
  */
-struct SystemConf
-{
-	size_t dimension;							//!< The dimension of the system, can be 1 or 2.
-	symphas::time_step_list dt_list;			//!< The list of time steps.
-	StencilParams stp;							//!< Parameters characterizing the stencils.
-	size_t runs;								//!< The number of systems that will be solved simultaneously.
-	SaveParams save;							//!< Encapsulation of save parameters.
-	Geometry g;									//!< The type of coordinate system of the simulated problem.
 
+using settings_spec_type = std::vector<std::pair<std::string, std::string>>;
 
-protected:
+struct DirectorySettings {
+  char* root_dir;    //!< The directory to save all the simulation information.
+  char* result_dir;  //!< The directory to save all the simulation information.
 
-	char* root_dir;								//!< The directory to save all the simulation information.
-	char* result_dir;							//!< The directory to save all the simulation information.
-	char* title;								//!< The name of the simulation.
-	char* model;								//!< The string representing the model which is simulated.
-	char** names;								//!< A list of names of each of the phase field.
+  DirectorySettings() : root_dir{nullptr}, result_dir{nullptr} {}
 
-	double* coeff;								//!< The coefficients in the equations of motion.
+  DirectorySettings(const char* directory) : DirectorySettings() {
+    set_directory(directory);
+  }
 
-	symphas::interval_data_type* intervals;		//!< A list of the intervals of all the axes of the system.
-	symphas::b_data_type* bdata;				//!< A list of the boundary data corresponding to all sides of the system.
-	symphas::init_data_type* tdata;				//!< A list of the parameters required for generating the initial data.
-	len_type* num_fields;						//!< The number of fields to generate in the parameters.
-	len_type** dims;							//!< An array of the full dimensions of the system, instead of single variables.
+  DirectorySettings(DirectorySettings const& other)
+      : root_dir{new char[std::strlen(other.root_dir) + 1]{}},
+        result_dir{new char[std::strlen(other.result_dir) + 1]{}} {
+    std::strcpy(root_dir, other.root_dir);
+    std::strcpy(result_dir, other.result_dir);
+  }
 
-	size_t intervals_len;						//!< The number of interval data elements provided.
-	size_t bdata_len;							//!< The number of boundary data elements provided.
-	size_t tdata_len;							//!< The number of initial condition elements provided.
-	size_t names_len;							//!< The number of phase field names provided.
-	size_t coeff_len;							//!< The number of coefficients provided.
-	size_t num_fields_len;						//!< The number of groups of fields, when array model type is used.
+  DirectorySettings(DirectorySettings&& other) : DirectorySettings() {
+    swap(*this, other);
+  }
 
-	char** modifiers;							//!< The coefficients in the equations of motion.
+  friend void swap(DirectorySettings& first, DirectorySettings& second) {
+    using std::swap;
+    swap(first.root_dir, second.root_dir);
+    swap(first.result_dir, second.result_dir);
+  }
 
-private:
+  void set_directory(const char* directory, const char* title = nullptr);
 
-	bool init_coeff_copied;
-
-public:
-
-
-	SystemConf();
-	SystemConf(symphas::problem_parameters_type const& parameters, const char* title, const char* dir = "");
-
-	//! Generate the configuration from the given options.
-	/*!
-	 * Generate the configuration from the given options. The name of the
-	 * configuration is also provided.
-	 * 
-	 * \param options The list of key-value pairs for all the options used
-	 * in the configuration.
-	 * \param title The title of the configuration.
-	 * \param dir The absolute parent directory of the configuration, which is
-	 * optional.
-	 */
-	SystemConf(std::vector<std::pair<std::string, std::string>> options, const char* title, const char* dir = "");
-	SystemConf(SystemConf const& other);
-	SystemConf(SystemConf&& other) noexcept;
-	SystemConf& operator=(SystemConf other);
-
-	friend void swap(SystemConf& first, SystemConf& second);
-
-
-	~SystemConf()
-	{
-		delete[] root_dir;
-		delete[] result_dir;
-		delete[] title;
-		delete[] model;
-		delete[] coeff;
-
-		for (iter_type i = 0; i < num_fields_len; ++i)
-		{
-			delete[] modifiers[i];
-		}
-		delete[] modifiers;
-
-		delete[] intervals;
-		delete[] bdata;
-		delete[] tdata;
-
-		for (iter_type i = 0; i < intervals_len; ++i)
-		{
-			delete[] dims[i];
-		}
-		delete[] dims;
-
-		for (iter_type i = 0; i < names_len; ++i)
-		{
-			delete[] names[i];
-		}
-		delete[] names;
-	}
-
-
-	/* **********************************************************************
-	 * Configuration functions to set members from strings.
-	 * **********************************************************************/
-
-	//! Sets the coordinate geometry.
-	/*!
-	 * Parses the given string and sets the parameter SystemConf::g based on
-	 * the result. The default geometry is Geometry::CARTESIAN.
-	 * 
-	 * > Configuration key = `FORM`
-	 *
-	 * The two valid string options to this parameter are:
-	 *  - `CARTESIAN`
-	 *  - `POLAR`
-	 *
-	 * \param str The string defining the desired system geometry.
-	 */
-	void parse_form(const char* str);
-
-	//! Sets the boundary specifications.
-	/*!
-	 * The input is parsed to set the member SystemConf::bdata. Multiple options
-	 * may be defined for each of the strings given in the string list. The
-	 * length of the input list is expected to be twice SystemConf::dimension
-	 * (because the number of boundaries is twice the dimension).
-	 * 
-	 * Each element in the list represents the boundary specification of
-	 * one or more systems for a single side. The side that the specification
-	 * index corresponds to is given by symphas::index_to_side().
-	 * The input list does not require each element to specify 
-	 * an equal number of options, but the boundaries which are not
-	 * specified will be copied from the first specification in that list.
-	 *
-	 * For each of the strings in the given list, the content is first parsed
-	 * for one or more options (boundaries for more than one system). The result
-	 * of the parsing is a new list containing boundary specifications for as
-	 * many systems as options provided. The options are used to
-	 * form a new list in order to initialize the boundary specification.
-	 * 
-	 * > Configuration keys = `BNDLT` (Side::LEFT), `BNDRT` (Side::RIGHT), 
-	 * > `BNDTP` (Side::TOP), `BNDBT` (Side::BOTTOM), `BNDFT` (Side::FRONT), `BNDBK` (Side::BACK)
-	 * 
-	 * See SystemConf::parse_boundaries() for formatting details of individual
-	 * options.
-	 *
-	 * \param str_list The list of strings that define the boundary
-	 * specifications. Expected to be initialized to a list of length
-	 * equal to twice the dimension given by SystemConf::dimension. The
-	 * boundary with #Side side is set by the element in the string list
-	 * with index given by symphas::side_to_index(Side).
-	 */
-	void parse_boundaries_array(const char* const* str_list);
-
-	//! Sets the specification for the nth boundary data element.
-	/*!
-	 * From the list of strings, which should be of length equal to twice the
-	 * dimension prescribed by SystemConf::dimension, each element is parsed to
-	 * set the boundary specification index for the boundary data element
-	 * corresponding to the side given by symphas::index_to_side().
-	 * 
-	 * > Configuration keys = `BNDLT` (Side::LEFT), `BNDRT` (Side::RIGHT), 
-	 * > `BNDTP` (Side::TOP), `BNDBT` (Side::BOTTOM), `BNDFT` (Side::FRONT), `BNDBK` (Side::BACK)
-	 * 
-	 * The format of each item in the list is:
-	 * `KEY MODIFIER... VALUE...`, where zero, one or two modifiers are
-	 * provided and zero or more values are provided. The
-	 * key is the boundary type, one of either `PERIODIC`, `DEFAULT` or `OPEN`.
-	 * This is described in more detail in ::BoundaryType.
-	 * The modifiers are tags which affect the generation algorithm, and this
-	 * is described in more detail in ::BoundaryTag. The additional values
-	 * affect the values generated by the algorithm, and are algorithm
-	 * specific. Refer to symphas::internal::new_boundary().
-	 *
-	 * The `KEY` is any key in symphas::internal::boundary_key_map:
-	 * - `DEFAULT` BoundaryType::DEFAULT
-	 * - `PERIODIC` BoundaryType::PERIODIC
-	 * 
-	 * If the key is not specified, then the tag needs to be specified, in which
-	 * case the boundary type is automatically BoundaryType::DEFAULT.
-	 * 
-	 * The tag is a modifier and is any of the keys in 
-	 * symphas::internal::boundary_tag_key_map, which are:
-	 * - `GAUSSIAN` BoundaryTag::GAUSSIAN
-	 * - `GA` BoundaryTag::GAUSSIAN
-	 * - `RANDOM` BoundaryTag::RANDOM
-	 * - `RA` BoundaryTag::RANDOM
-	 * - `TRIGONOMETRIC` BoundaryTag::TRIG
-	 * - `TR` BoundaryTag::TRIG
-	 * - `CONSTANT` BoundaryTag::CONSTANT
-	 * - `CO` BoundaryTag::CONSTANT
-	 * - `LINEAR` BoundaryTag::LINEAR
-	 * - `LI` BoundaryTag::LINEAR
-	 * - `TIME` BoundaryTag::TIME
-	 * - `T` BoundaryTag::TIME
-	 * 
-	 * These are parsed by symphas::boundary_from_str().
-	 *
-	 * \param str_list A list where each element defines a boundary
-	 * configuration. The boundary at #Side side has its configuration given by
-	 * the element in the list at index symphas::side_to_index(Side).
-	 * \param n The index of SystemConf::bdata which to set.
-	 */
-	void parse_boundaries(const char* const* str_list, size_t n);
-
-	//! Sets one or more initial conditions.
-	/*!
-	 * The string is first parsed for one or more options. Each option is then
-	 * parsed in turn by SystemConf::set_in(const char*, size_t) to initialize
-	 * the initial data. This initializes one or more initial conditions,
-	 * applied to the phase field problem fields in order of definition.
-	 *
-	 * > Configuration key = `INSIDE`.
-	 *
-	 * See SystemConf::parse_initial_condition() for the format specification
-	 * of each option.
-	 * 
-	 * \param str The input which contains the specification for one or more
-	 * initial conditions.
-	 */
-	void parse_initial_condition_array(const char* str);
-
-	//! Sets the initial condition at the given index.
-	/*!
-	 * The provided string configuration is parsed according to a standard
-	 * format, and the initial condition for the phase field system at given
-	 * index is initialized. Also an input file can be passed.
-	 * 
-	 * # Passing an initial condition type
-	 * 
-	 * > Configuration key = `INSIDE`.
-	 * 
-	 * The format of the specification is `KEY MODIFIER... VALUE...`, where
-	 * there are zero or more modifiers provided and
-	 * zero or more values are provided. The `KEY` is any of the
-	 * initial conditions specified in symphas::internal::init_key_map. These
-	 * are:
-	 * - `GAUSSIAN` Inside::GAUSSIAN
-	 * - `GA` Inside::GAUSSIAN
-	 * - `UNIFORM` Inside::UNIFORM
-	 * - `UN` Inside::UNIFORM
-	 * - `CAPPED` Inside::CAPPED
-	 * - `CA` Inside::CAPPED
-	 * - `CONSTANT` Inside::CONSTANT
-	 * - `CO` Inside::CONSTANT
-	 * - `CIRCLE` Inside::CIRCLE
-	 * - `CI` Inside::CIRCLE
-	 * - `SQUARE` Inside::SQUARE
-	 * - `SQ` Inside::SQUARE
-	 * - `HEXAGONAL` Inside::HEXAGONAL
-	 * - `HX` Inside::HEXAGONAL
-	 * - `CUBIC` Inside::CUBIC
-	 * - `CU` Inside::CUBIC
-	 * - `SEEDSSQUARE` Inside::SEEDSSQUARE
-	 * - `SS` Inside::SEEDSSQUARE
-	 * - `SEEDSCIRCLE` Inside::SEEDSCIRCLE
-	 * - `CS` Inside::SEEDSCIRCLE
-	 * 
-	 * The `MODIFIER` is specified in symphas::internal::init_tag_key_map, and 
-	 * is any of:
-	 * - `DEFAULT` InsideTag::DEFAULT
-	 * - `RANDOM` InsideTag::RANDOM
-	 * - `INVERT` InsideTag::INVERT
-	 * - `INV` InsideTag::INVERT
-	 * - `VARA` InsideTag::VARA
-	 * - `A` InsideTag::VARA
-	 * - `VARB` InsideTag::VARB
-	 * - `B` InsideTag::VARB
-	 * 
-	 * # Passing a file with initial conditions
-	 * 
-	 * When the entry starts with the special character `@`, then it is assumed
-	 * a file of initial conditions is being provided. The name of the file is provided
-	 * immediately after `@` with no spaces in between. If there are multiple files, then
-	 * each file needs to be preceded by `@`. If the file has spaces, then quotes or brackets
-	 * must surround the whole entry, including the @. If `!` character is provided  
-	 * first instead, then the parameter variable #input_data_file will be read
-	 * in order to get the file for the initial conditions.
-	 *
-	 * \param str The string detailing the initial condition specification.
-	 * \param n The index in the interval list which is initialized.
-	 */
-	void parse_initial_condition(const char* str, size_t n);
-
-	//! For a given axis, set one or more corresponding intervals.
-	/*!
-	 * The string specifies the interval of more or one systems. One or more
-	 * interval data sets are given as options following the option format.
-	 * 
-	 * > Configuration keys = `RNGX` (Axis::X), `RNGY` (Axis::Y), `RNGZ` (Axis::Z)
-	 * 
-	 * The format of each option is given by SystemConf::parse_interval().
-	 * 
-	 * Once all the intervals are specified, 
-	 *
-	 * \param str The specification string giving the interval information
-	 * across multiple systems.
-	 */
-	void parse_interval_array(const char* const* str);
-
-	//! Initializes the interval over the given axis.
-	/*!
-	 * Given the specification string, the interval endpoints are initialized
-	 * for the given axis.
-	 * 
-	 * > Configuration keys = `RNGX` (Axis::X), `RNGY` (Axis::Y), `RNGZ` (Axis::Z)
-	 * 
-	 * Interval follows the format `START END`, where both values are real
-	 * numbers, separated by a space. The interval can also be given
-	 * by `@ N`, where `N` is the number of discrete elements to put in
-	 * the interval. The interval `START` value will then always be zero, and
-	 * the `END` will be computed based on the width.
-	 *
-	 * \param str The specification string giving the interval information.
-	 * \param ax The axis of the interval.
-	 * \param n The index in the interval information array.
-	 */
-	void parse_interval(const char* str, Axis ax, size_t n);
-
-	//! Initialize the spacing along the axes.
-	/*!
-	 * The string may define a number of values up to the size of the dimension.
-	 * Each of the values then corresponds with the spacing along that axis,
-	 * unless there are fewer values than the size of the dimension provided,
-	 * in which case, the rest of the values will be initialized based
-	 * on the first value.
-	 * 
-	 * The format follows: `VALUE...`, where there is at least one value, and
-	 * at most, the number of values is the size of the dimension. When multiple 
-	 * options are specified, the spatial widths will be set individually
-	 * by system.
-	 * 
-	 * \param str The specification of the spatial width along the axes.
-	 */
-	void parse_width(const char* str);
-
-	//! Initialize the time steps, possibly changing over time.
-	/*!
-	 * A single value can be specified, which will set the time step for all time. Values
-	 * can also be provided in the format `dt @ t` where `dt` is the time step that will
-	 * be used starting from the time at `t`. If there is no time step specified starting at
-	 * time 0, then the smallest time step will be used.
-	 *
-	 * \param str The specification of the time step.
-	 */
-	void parse_dt(const char* str);
-
-	//! Initializes the names of the phase field systems.
-	/*!
-	 * Initializes the names of the phase field systems. Can specify any number
-	 * of names, and the systems are named in the order they are specified in
-	 * the model definition. Names are individual options separated by
-	 * brackets or quotes.
-	 * 
-	 * Note that this does not name the variables, as this is done through the 
-	 * macro definition of the model. 
-	 * 
-	 * The phase field names are used in the plotting configuration, in
-	 * order to assign names to the plots.
-	 *
-	 * \param str The list of phase field system names.
-	 */
-	void parse_names(const char* str);
-
-
-	//! Sets the coefficients and model string.
-	/*!
-	 * The provided input defines a model name and the coefficients of that 
-	 * model. The string name of the model is
-	 * associated with the linked name given in the model definition, see
-	 * #LINK_WITH_NAME.
-	 *
-	 * The format of the input is `MODEL VALUES...`, where `MODEL` is the
-	 * key name of the model, and `VALUES...` are zero or more numbers given
-	 * as coefficients to the model.
-	 * 
-	 * The format of each value is not required to be numeric, but can also
-	 * follow the format used in specifying coefficients in a file, described
-	 * next.
-	 *
-	 * A variation of the format is `MODEL @ FILE`, where `MODEL` is the same,
-	 * but `FILE` is the name of a file containing a list of coefficients in
-	 * a specific format. Each line in the file follows one of the following
-	 * formats:
-	 * 1. `[FORMAT]=VALUE`, the coefficients specified by `FORMAT` 
-	 * are initialized to `VALUE`. The `FORMAT` specifier is one or more
-	 * indices separated by either a comma (`,`) or two dots (`..`). The index
-	 * is the position of the coefficient in a 0-indexed list.
-	 *    - If `FORMAT` includes indices separated by `..` as in `N..M`, then 
-	 * the  coefficients with indices from `N` to `M`, including coefficient `M` 
-	 * itself, are initialized to `VALUE`. 
-	 *    - If `FORMAT` includes indices separated by `,` as in `N,M`, then the
-	 * two different coefficients at indices `N` and `M` are initialized to 
-	 * `VALUE`. 
-	 * 2. `LETTER=VALUE`, where `LETTER` is any identifier of the form `c<N>`,
-	 * where `<N>` indicates a substituted integer value, which must be greater
-	 * than 0. This is using the equivalent form as in the
-	 * model definition. The corresponding coefficient is then initialized.
-	 * The `LETTER` identifier can also be any of the capital letters from
-	 * `A` to `H` or `AA` to `HH`, where the sequence refers to the coefficient
-	 * index from 0 to 7 (i.e. the alphanumeric index represented by the
-	 * character) plus the offset equal to the length of the sequence (8), 
-	 * times the number of repeated characters. Mixing characters is not
-	 * a valid format.
-	 * 
-	 * As an example of using the previous format, `B` is the same as `c2`, is the 
-	 * same as `[1]`. Also, `EE` is the same as `c13`, is the same as `[12]`. Two
-	 * repetitions of the `E` indicates that `EE` is in the second coefficient
-	 * index sequence, so 8 will be added to the alphanumeric index of `E`.
-	 *
-	 * If this option is used, no other parameters may be
-	 * specified (i.e. no coefficients may be additionally specified).
-	 * 
-	 * In general, not all coefficients need to be specified. Any coefficient
-	 * which is not specified is initialized to a default value,
-	 * typically `1`. This is given by #DEFAULT_COEFF_VALUE.
-	 * 
-	 * \param str The written parameter specification.
-	 * \param dir The directory to search for additional information,
-	 * specifically coefficients files.
-	 */
-	void parse_model_spec(const char* str, const char* dir);
-
-	//! Set the type of model.
-	/*!
-	 * The name of the model is set, which is typically associated with the
-	 * particular phase field problem.
-	 */
-	void set_model_name(const char* str);
-
-
-	//! Set the name at the given index.
-	/*!
-	 * This is the name of the phase field corresponding to the `n`th
-	 * index in the problem.
-	 * 
-	 * \param name The given name of the phase field.
-	 * \param n The index of the phase field that is named.
-	 */
-	void set_name(const char* name, size_t n);
-
-	//! Set the directory in which to save the results. 
-	/*!
-	 * Set the directory in which to save the results.
-	 */
-	void set_directory(const char* directory);
-
-	void select_stencil(size_t order, const char* str);
-
-	void select_stencil_accuracy(size_t dimension, const char* str);
-
-	//! Set the boundary on the given side for the system at the given index.
-	void set_boundary(symphas::b_element_type boundary, Side side, int n)
-	{
-		if (n < bdata_len)
-		{
-			bdata[n][side] = boundary;
-		}
-		else
-		{
-			auto extend = new symphas::b_data_type[n + 1]{};
-			for (iter_type i = 0; i < bdata_len; ++i)
-			{
-				extend[i] = bdata[i];
-			}
-			delete[] bdata;
-			bdata = extend;
-			bdata_len = n + 1;
-
-			set_boundary(boundary, side, n);
-		}
-	}
-
-
-	//! Set the initial condition for the system at the given index.
-	void set_initial_condition(symphas::init_data_type condition, int n)
-	{
-		if (n < tdata_len)
-		{
-			tdata[n] = condition;
-		}
-		else
-		{
-			auto extend = new symphas::init_data_type[n + 1]{};
-			for (iter_type i = 0; i < tdata_len; ++i)
-			{
-				extend[i] = tdata[i];
-			}
-			delete[] tdata;
-			tdata = extend;
-			tdata_len = n + 1;
-
-			set_initial_condition(condition, n);
-		}
-	}
-
-
-
-	//! Set the interval on the given axis for the system at the given index.
-	void set_intervals(symphas::interval_data_type interval, int n)
-	{
-		if (n < intervals_len)
-		{
-			intervals[n] = interval;
-			set_dimensions(n);
-		}
-		else
-		{
-			auto extendv = new symphas::interval_data_type[n + 1]{};
-			auto extendm = new len_type * [n] {};
-			for (iter_type i = 0; i < intervals_len; ++i)
-			{
-				extendv[i] = intervals[i];
-				extendm[i] = dims[i];
-			}
-
-			delete[] intervals;
-			delete[] dims;
-
-			intervals = extendv;
-			dims = extendm;
-			intervals_len = n + 1;
-
-			set_intervals(interval, n);
-		}
-	}
-
-	//! Set the interval on the given axis for the system at the given index.
-	void set_interval(symphas::interval_element_type interval, Axis ax, int n)
-	{
-		if (n < intervals_len)
-		{
-			intervals[n][ax] = interval;
-			set_dimensions(n);
-		}
-		else
-		{
-			set_intervals(intervals[0], n);
-			set_interval(interval, ax, n);
-		}
-	}
-
-	void set_width(double h)
-	{
-		for (auto i = 0; i < intervals_len; ++i)
-		{
-			for (auto& [_, interval] : intervals[i])
-			{
-				interval.set_domain(interval.domain_left(), interval.domain_left(), h);
-			}
-		}
-	}
-
-	template<Axis ax>
-	void set_width(double h)
-	{
-		for (auto i = 0; i < intervals_len; ++i)
-		{
-            auto& interval = intervals[i].at(ax);
-			interval.set_domain(interval.domain_left(), interval.domain_left(), h);
-		}
-	}
-
-
-	//! Provide the time step used in the solution of the problem.
-	void set_time_step(double dt, double time)
-	{
-		dt_list.set_time_step(dt, time);
-	}
-
-	//! Provide the time step used in the solution of the problem.
-	void set_time_steps(const double* dts, const double* t_dts, size_t dts_len)
-	{
-		dt_list.set_time_steps(dts, t_dts, dts_len);
-	}
-
-	void clear_time_steps(double default_dt)
-	{
-		dt_list.clear_time_steps(default_dt);
-	}
-
-	//! Provide the time step used in the solution of the problem.
-	void set_time_steps(symphas::time_step_list const& list)
-	{
-		dt_list = list;
-	}
-
-	inline auto get_time_steps() const
-	{
-		return dt_list.get_time_steps();
-	}
-
-	inline auto get_times_of_steps() const
-	{
-		return dt_list.get_times_of_steps();
-	}
-
-	inline size_t get_num_time_steps() const
-	{
-		return dt_list.get_num_time_steps();
-	}
-
-	inline auto& get_time_step_list() 
-	{
-		return dt_list;
-	}
-
-	inline const auto& get_time_step_list() const
-	{
-		return dt_list;
-	}
-
-	//! Clears all the coefficients by making the coefficient list zero.
-	/*!
-	 * Clears all the coefficients by making the coefficient list zero.
-	 * Deallocates the coefficient array.
-	 */
-	void reset_coeff()
-	{
-		coeff_len = 0;
-		delete[] coeff;
-		coeff = nullptr;
-	}
-
-	//! Initializes the coefficient at the given index.
-	/*!
-	 * The coefficient at the given index is initialized to the value. If the
-	 * index is greater than the number of coefficients, then the list is
-	 * expanded.
-	 */
-	void set_coeff(double c, iter_type n)
-	{
-		if (n < coeff_len)
-		{
-			coeff[n] = c;
-		}
-		else
-		{
-			double* extend = new double[n + 1];
-			for (iter_type i = 0; i < coeff_len; ++i)
-			{
-				extend[i] = coeff[i];
-			}
-			for (size_t i = coeff_len; i < n; ++i)
-			{
-				extend[i] = DEFAULT_COEFF_VALUE;
-			}
-			extend[n] = c;
-
-			delete[] coeff;
-			coeff = extend;
-			coeff_len = n + 1;
-		}
-	}
-
-
-	//! Get the value of the coefficient.
-	double get_coeff(iter_type n) const
-	{
-		if (n < coeff_len)
-		{
-			return coeff[n];
-		}
-		else
-		{
-			return DEFAULT_COEFF_VALUE;
-		}
-	}
-
-	//! Get the array of coefficients.
-	const double* get_coeff_list() const
-	{
-		return coeff;
-	}
-
-	//! Get the number of defined coefficients.
-	size_t get_coeff_len() const
-	{
-		return coeff_len;
-	}
-
-	//! Get the number of defined phase field names.
-	size_t name_count() const
-	{
-		return names_len;
-	}
-
-	//! Get the number of systems this configuration represents.
-	/*!
-	 * The number of systems that the configuration represents is the
-	 * greatest number between the number of boundaries and the number of
-	 * intervals.
-	 */
-	size_t system_count() const
-	{
-		return std::max(bdata_len, intervals_len);
-	}
-
-	//! Return a reference to the boundary.
-	/*!
-	 * Obtain the boundary condition associated with the field of the given
-	 * index, for the given side.
-	 * 
-	 * \param side The side to which the desired boundary corresponds.
-	 * \param n The index of the field the boundary is taken from.
-	 */
-	const symphas::b_element_type& get_boundary(Side side, int n) const
-	{
-		if (n < bdata_len)
-		{
-			if (bdata[n].count(side))
-			{
-				return bdata[n].at(side);
-			}
-		}
-
-		throw "there is no such boundary condition";
-	}
-
-
-	//! Return a reference to the initial condition.
-	/*!
-	 * Obtain the initial condition associated with the field of the given
-	 * index.
-	 *
-	 * \param n The index of the field the boundary is taken from.
-	 */
-	const symphas::init_data_type& get_initial_condition(int n) const
-	{
-		if (n < tdata_len)
-		{
-			return tdata[n];
-		}
-
-		throw "there is no such initial condition";
-	}
-
-	//! Return a reference to the interval.
-	/*!
-	 * Obtain the interval associated with the field of the given
-	 * index, for the given axis.
-	 *
-	 * \param ax The axis to which the desired interval corresponds.
-	 * \param n The index of the field the boundary is taken from.
-	 */
-	const symphas::interval_element_type& get_interval(Axis ax, int n) const
-	{
-		if (n < intervals_len)
-		{
-			if (intervals[n].count(ax))
-			{
-				return intervals[n].at(ax);
-			}
-		}
-
-		throw "there is no such axis";
-	}
-
-	const len_type* get_dimensions(int n)
-	{
-		return dims[n];
-	}
-
-
-	const char* get_name(int n) const
-	{
-		if (n < names_len)
-		{
-			return names[n];
-		}
-		else
-		{
-			return "";
-		}
-	}
-
-
-	auto get_names(len_type desired_len = -1) const
-	{
-		desired_len = (desired_len < 1) ? names_len : desired_len;
-		symphas::lib::array_container<symphas::lib::string> name_list(desired_len);
-
-		iter_type i = 0;
-		for (auto& name : name_list)
-		{
-			if (i >= names_len)
-			{
-				name = symphas::lib::string(STR_ARR_LEN(DEFAULT_FIELD_NAME) + symphas::lib::num_digits(i));
-				sprintf(name.begin(), DEFAULT_FIELD_NAME "%d", i);
-			}
-			else
-			{
-				name = symphas::lib::string(get_name(i), std::strlen(get_name(i)) + 1);
-			}
-			++i;
-		}
-		return name_list;
-	}
-
-	const char* get_result_dir() const
-	{
-		return result_dir;
-	}
-
-	const char* get_dir() const
-	{
-		return root_dir;
-	}
-
-	const char* get_title() const
-	{
-		return title;
-	}
-
-	void set_title(const char* new_title) 
-	{
-		delete[] title;
-		title = new char[std::strlen(new_title) + 1] {};
-		std::strcpy(title, new_title);
-	}
-
-	const char* get_model_name() const
-	{
-		if (model != nullptr)
-		{
-			if (std::strcmp(model, STR(VIRTUAL_MODEL_KEYWORD)) == 0)
-			{
-				return model + sizeof(STR(VIRTUAL_MODEL_KEYWORD)) / sizeof(char);
-			}
-			else
-			{
-				return model;
-			}
-		}
-		else
-		{
-			return nullptr;
-		}
-	}
-
-	//! Return the problem parameters object.
-	/*!
-	 * Constructs the problem parameters object in order to be used in model
-	 * initialization. The problem parameters are defined so that the maximum
-	 * amount of information is included.
-	 */
-	symphas::problem_parameters_type get_problem_parameters() const
-	{
-		size_t sys_len = std::max({ intervals_len, bdata_len, tdata_len });
-		symphas::problem_parameters_type pp(0);
-		if (num_fields_len > 0)
-		{
-			len_type field_len = std::reduce(num_fields, num_fields + num_fields_len);
-			if (sys_len > field_len)
-			{
-				len_type* num_fields_expand = new len_type[num_fields_len + 1];
-				char** modifiers_expand = new char* [num_fields_len + 1] {};
-				for (iter_type i = 0; i < num_fields_len; ++i)
-				{
-					num_fields_expand[i] = num_fields[i];
-					modifiers_expand[i] = new char[std::strlen(modifiers[i]) + 1] {};
-					std::strcpy(modifiers_expand[i], modifiers[i]);
-				}
-				num_fields_expand[num_fields_len] = sys_len - field_len;
-				modifiers_expand[num_fields_len] = nullptr;
-
-				pp = symphas::problem_parameters_type(num_fields_expand, num_fields_len + 1);
-				pp.set_modifiers(modifiers_expand, num_fields_len + 1);
-
-			}
-			else
-			{
-				pp = symphas::problem_parameters_type(num_fields, num_fields_len);
-				pp.set_modifiers(modifiers, num_fields_len);
-			}
-		}
-		else
-		{
-			pp = symphas::problem_parameters_type(sys_len);
-		}
-
-		pp.set_boundary_data(bdata, bdata_len);
-		pp.set_initial_data(tdata, tdata_len);
-		pp.set_interval_data(intervals, intervals_len);
-		pp.set_time_steps(dt_list);
-
-		return pp;
-	}
-
-
-
-
-	void write(const char* savedir, const char* name = BACKUP_CONFIG_NAME) const;
-
-
-
-
-protected:
-
-	//! Extend the number of intervals.
-	/*!
-	 * Information from the original intervals is copied in the longer
-	 * array.
-	 * 
-	 * \param new_intervals_len The length of the new intervals array.
-	 */
-	void extend_intervals(size_t new_intervals_len)
-	{
-		if (new_intervals_len > intervals_len)
-		{
-			auto extendv = new symphas::interval_data_type[new_intervals_len];
-			auto extendm = new len_type*[new_intervals_len];
-			for (iter_type i = 0; i < intervals_len; ++i)
-			{
-				extendv[i] = intervals[i];
-				extendm[i] = new len_type[dimension];
-				for (iter_type d = 0; d < dimension; ++d)
-				{
-					extendm[i][d] = dims[i][d];
-				}
-			}
-			for (size_t i = intervals_len; i < new_intervals_len; ++i)
-			{
-				extendv[i] = symphas::interval_data_type{};
-				extendm[i] = nullptr;
-
-				for (iter_type d = 0; d < dimension; ++d)
-				{
-					extendv[i][symphas::index_to_axis(d)] = symphas::interval_element_type{};
-				}
-			}
-
-			delete[] intervals;
-			delete[] dims;
-
-			intervals = extendv;
-			dims = extendm;
-			intervals_len = new_intervals_len;
-
-		}
-	}
-
-
-	//! Set the dimensions using the nth interval set.
-	/*!
-		* Set the SystemConf::dims member to be an array of length prescribed by
-		* the member SystemConf::dimension. Then fill the array by computing the
-		* length (number of grid points) along each of the intervals from the data
-		* given by the nth element from the interval list SystemConf::intervals.
-		*
-		* \param n The element index from SystemConf::intervals to choose the
-		* interval data from.
-		*/
-	void set_dimensions(size_t n);
-
+  ~DirectorySettings() {
+    delete[] root_dir;
+    delete[] result_dir;
+  }
 };
 
+struct SimulationSettings {
+  symphas::time_step_list dt_list;  //!< The list of time steps.
+  SaveParams save;                  //!< Encapsulation of save parameters.
+  StencilParams stp;                //!< Parameters characterizing the stencils.
+  size_t dimension;  //!< The dimension of the system, can be 1 or 2.
 
+  SimulationSettings() : dt_list{}, stp{}, dimension{} {}
 
+  void parse_dimension(const char* value);
+  void parse_stencil(size_t order, const char* value);
+  void parse_stencil_accuracy(const char* str);
+  void parse_solver_type(const char* str);
+  void parse_dt(const char* str);
+
+  void parse_save(const char* save_spec) {
+    symphas::io::parse_save_str(save_spec, &save);
+  }
+
+  void parse_save_init(const char* value) {
+    save.set_init_flag(std::strcmp(value, "NO") != 0);
+  }
+
+  void parse_frame_count(const char* value) { save.set_stop(atoi(value)); }
+
+  //! Provide the time step used in the solution of the problem.
+  void set_time_step(double dt, double time) {
+    dt_list.set_time_step(dt, time);
+  }
+
+  //! Provide the time step used in the solution of the problem.
+  void set_time_steps(const double* dts, const double* t_dts, size_t dts_len) {
+    dt_list.set_time_steps(dts, t_dts, dts_len);
+  }
+
+  void clear_time_steps(double default_dt) {
+    dt_list.clear_time_steps(default_dt);
+  }
+
+  //! Provide the time step used in the solution of the problem.
+  void set_time_steps(symphas::time_step_list const& list) { dt_list = list; }
+
+  inline auto get_time_steps() const { return dt_list.get_time_steps(); }
+
+  inline auto get_times_of_steps() const {
+    return dt_list.get_times_of_steps();
+  }
+
+  inline size_t get_num_time_steps() const {
+    return dt_list.get_num_time_steps();
+  }
+
+  inline auto& get_time_step_list() { return dt_list; }
+
+  inline const auto& get_time_step_list() const { return dt_list; }
+};
+
+struct NameSettings {
+  char* title;
+  char** names;      //!< A list of names of each of the phase field.
+  size_t names_len;  //!< The number of phase field names provided.
+
+  NameSettings() : title{nullptr}, names{nullptr}, names_len{0} {}
+
+  NameSettings(const char* title) : NameSettings() {
+    this->title = new char[std::strlen(title) + 1]{};
+    std::strcpy(this->title, title);
+  }
+
+  NameSettings(NameSettings const& other)
+      : title{new char[std::strlen(other.title) + 1]{}}, names{}, names_len{0} {
+    std::strcpy(title, other.title);
+    symphas::lib::resize_array(other.names_len, names, names_len);
+    for (int i = 0; i < names_len; ++i) {
+      names[i] = new char[std::strlen(other.names[i]) + 1]{};
+      std::strcpy(names[i], other.names[i]);
+    }
+  }
+
+  NameSettings(NameSettings&& other) : NameSettings() { swap(*this, other); }
+
+  friend void swap(NameSettings& first, NameSettings& second) {
+    using std::swap;
+    swap(first.title, second.title);
+    swap(first.names, second.names);
+    swap(first.names_len, second.names_len);
+  }
+
+  void parse_names(const char* value);
+
+  void set_title(const char* title) {
+    delete[] this->title;
+    this->title = new char[std::strlen(title) + 1]{};
+    std::strcpy(this->title, title);
+  }
+
+  void set_name(const char* name, size_t n) {
+    symphas::lib::set_array_value(name, n, names, names_len);
+  }
+
+  symphas::lib::array_container<symphas::lib::string> get_names(
+      len_type desired_len = -1) const;
+  symphas::lib::string get_name(int n) const;
+
+  const char* get_title() const { return title; }
+
+  ~NameSettings() {
+    delete[] title;
+    symphas::lib::clear_array(names, names_len);
+  }
+};
+
+struct ModelSettings {
+  char* model;       //!< The string representing the model which is simulated.
+  double* coeff;     //!< The coefficients in the equations of motion.
+  char** modifiers;  //!< The coefficients in the equations of motion.
+  len_type*
+      num_fields;  //!< The number of fields to generate in the parameters.
+  size_t num_fields_len;  //!< The number of groups of fields, when array model
+                          //!< type is used.
+  size_t coeff_len;       //!< The number of coefficients provided.
+  bool init_coeff_copied;
+
+  ModelSettings()
+      : model{nullptr},
+        coeff{nullptr},
+        modifiers{nullptr},
+        num_fields{nullptr},
+        num_fields_len{0},
+        coeff_len{0},
+        init_coeff_copied{false} {}
+
+  ModelSettings(ModelSettings const& other)
+      : model{new char[std::strlen(other.model) + 1]{}},
+        coeff{new double[other.coeff_len]{}},
+        modifiers{new char* [other.num_fields_len] {}},
+        num_fields{new len_type[other.num_fields_len]{}},
+        num_fields_len{other.num_fields_len},
+        coeff_len{other.coeff_len},
+        init_coeff_copied{other.init_coeff_copied} {
+    std::strcpy(model, other.model);
+    for (int i = 0; i < num_fields_len; ++i) {
+      num_fields[i] = other.num_fields[i];
+      modifiers[i] = new char[std::strlen(other.modifiers[i]) + 1]{};
+      std::strcpy(modifiers[i], other.modifiers[i]);
+    }
+    for (int i = 0; i < coeff_len; ++i) {
+      coeff[i] = other.coeff[i];
+    }
+  }
+
+  ModelSettings(ModelSettings&& other) : ModelSettings() { swap(*this, other); }
+
+  friend void swap(ModelSettings& first, ModelSettings& second) {
+    using std::swap;
+    swap(first.model, second.model);
+    swap(first.coeff, second.coeff);
+    swap(first.modifiers, second.modifiers);
+    swap(first.num_fields, second.num_fields);
+    swap(first.num_fields_len, second.num_fields_len);
+    swap(first.coeff_len, second.coeff_len);
+    swap(first.init_coeff_copied, second.init_coeff_copied);
+  }
+
+  void parse_model_spec(const char* value, const char* dir);
+  void set_model_name(const char* str);
+
+  double get_coeff(size_t n) const {
+    if (n < coeff_len) {
+      return coeff[n];
+    } else {
+      return DEFAULT_COEFF_VALUE;
+    }
+  }
+
+  ~ModelSettings() {
+    delete[] model;
+    delete[] num_fields;
+    for (int i = 0; i < num_fields_len; ++i) {
+      delete[] modifiers[i];
+    }
+    delete[] modifiers;
+    delete[] coeff;
+  }
+};
+
+struct DomainSettings {
+  symphas::interval_data_type*
+      intervals;  //!< A list of the intervals of all the axes of the system.
+  symphas::b_data_type* bdata;  //!< A list of the boundary data corresponding
+                                //!< to all sides of the system.
+  symphas::init_data_type* tdata;  //!< A list of the parameters required for
+                                   //!< generating the initial data.
+  len_type** dims;  //!< An array of the full dimensions of the system, instead
+                    //!< of single variables.
+
+  size_t intervals_len;  //!< The number of interval data elements provided.
+  size_t bdata_len;      //!< The number of boundary data elements provided.
+  size_t tdata_len;      //!< The number of initial condition elements provided.
+
+  DomainSettings()
+      : intervals{nullptr},
+        bdata{nullptr},
+        tdata{nullptr},
+        dims{nullptr},
+        intervals_len{0},
+        bdata_len{0},
+        tdata_len{0} {}
+
+  DomainSettings(DomainSettings const& other)
+      : intervals{nullptr},
+        bdata{nullptr},
+        tdata{nullptr},
+        dims{nullptr},
+        intervals_len{0},
+        bdata_len{0},
+        tdata_len{0} {
+    symphas::lib::resize_array(other.intervals_len, intervals, intervals_len);
+    symphas::lib::resize_array(other.bdata_len, bdata, bdata_len);
+    symphas::lib::resize_array(other.tdata_len, tdata, tdata_len);
+    symphas::lib::resize_array(other.intervals_len, dims, 0,
+                               other.get_dimension());
+
+    for (int i = 0; i < intervals_len; ++i) {
+      intervals[i] = other.intervals[i];
+
+      len_type dimension = len_type(other.get_dimension());
+      for (int n = 0; n < dimension; ++n) {
+        dims[i][n] = other.dims[i][n];
+      }
+    }
+    for (int i = 0; i < bdata_len; ++i) {
+      bdata[i] = other.bdata[i];
+    }
+    for (int i = 0; i < tdata_len; ++i) {
+      tdata[i] = other.tdata[i];
+    }
+  }
+
+  DomainSettings(DomainSettings&& other) : DomainSettings() {
+    swap(*this, other);
+  }
+
+  friend void swap(DomainSettings& first, DomainSettings& second) {
+    using std::swap;
+    swap(first.intervals, second.intervals);
+    swap(first.bdata, second.bdata);
+    swap(first.tdata, second.tdata);
+    swap(first.dims, second.dims);
+    swap(first.intervals_len, second.intervals_len);
+    swap(first.bdata_len, second.bdata_len);
+    swap(first.tdata_len, second.tdata_len);
+  }
+
+  void parse_boundaries_array(const char* const* b_specs, size_t dimension);
+  void parse_boundaries_array(Side side, const char* b_specs, size_t dimension);
+  void parse_boundaries(const char* const* b_spec, size_t n, size_t dimension);
+  void parse_boundaries(Side side, const char* b_spec, size_t n);
+  void parse_interval_array(const char* const* v_specs, size_t dimension);
+  void parse_interval_array(Axis ax, const char* r_spec, size_t dimension);
+  void parse_interval(const char* value, Axis ax, size_t n);
+  void parse_initial_condition_array(const char* t_specs,
+                                     ModelSettings* model_settings);
+  void parse_initial_condition(const char* value, size_t n,
+                               ModelSettings* model_settings);
+  void parse_width(const char* str, size_t dimension);
+
+  void set_interval(symphas::interval_data_type const& value, size_t n) {
+    symphas::lib::set_array_value(value, n, intervals, intervals_len);
+  }
+  void set_boundary(symphas::b_data_type const& value, size_t n) {
+    symphas::lib::set_array_value(value, n, bdata, bdata_len);
+  }
+  void set_initial_condition(symphas::init_data_type const& value, size_t n) {
+    symphas::lib::set_array_value(value, n, tdata, tdata_len);
+  }
+
+  void set_num_domains(size_t len) {
+    intervals_len = len;
+    bdata_len = len;
+    tdata_len = len;
+  }
+
+  void set_interval_array(symphas::interval_data_type const* arr,
+                          size_t len = 0) {
+    if (len == 0) {
+      len = intervals_len;
+    }
+    std::copy(arr, arr + len, intervals);
+    intervals_len = len;
+  }
+
+  void set_boundary_array(symphas::b_data_type const* arr, size_t len = 0) {
+    if (len == 0) {
+      len = bdata_len;
+    }
+    std::copy(arr, arr + len, bdata);
+    bdata_len = len;
+  }
+
+  void set_initial_condition_array(symphas::init_data_type const* arr,
+                                   size_t len = 0) {
+    if (len == 0) {
+      len = tdata_len;
+    }
+    std::copy(arr, arr + len, tdata);
+    tdata_len = len;
+  }
+
+  size_t get_dimension() const {
+    if (intervals_len > 0) {
+      auto* max_interval = std::max_element(
+          intervals, intervals + intervals_len,
+          [](auto& a, auto& b) { return a.size() < b.size(); });
+      return max_interval->size();
+    } else {
+      return 0;
+    }
+  }
+
+  ~DomainSettings() {
+    size_t dimension = get_dimension();
+    symphas::lib::clear_array(intervals, intervals_len);
+    symphas::lib::clear_array(bdata, bdata_len);
+    symphas::lib::clear_array(tdata, tdata_len);
+    symphas::lib::clear_array(dims, intervals_len, dimension);
+  }
+
+ protected:
+  void set_dimensions(size_t n);
+  void parse_initial_condition_expression(char* input, size_t n,
+                                          ModelSettings* model_settings);
+  void parse_initial_condition_file(char* input, size_t n);
+  void parse_initial_condition_params(char* input, size_t n);
+};
+
+struct SymPhasSettings {
+  DirectorySettings directory_settings;
+  NameSettings name_settings;
+  SimulationSettings simulation_settings;
+  ModelSettings model_settings;
+  DomainSettings domain_settings;
+
+  size_t runs;
+
+  SymPhasSettings(settings_spec_type const& settings_list, const char* title,
+                  const char* dir = "");
+  SymPhasSettings()
+      : directory_settings{},
+        name_settings{},
+        simulation_settings{},
+        model_settings{},
+        domain_settings{},
+        runs{1} {}
+
+  symphas::problem_parameters_type get_problem_parameters() const;
+
+  //! Return the problem parameters object.
+  /*!
+   * Constructs the problem parameters object in order to be used in model
+   * initialization. The problem parameters are defined so that the maximum
+   * amount of information is included.
+   */
+  void write(const char* savedir, const char* name = BACKUP_CONFIG_NAME) const;
+
+ protected:
+  void make_directories() const {
+#ifdef USING_MPI
+    if (symphas::parallel::is_host_node()) {
+      init_work_dirs();
+      MPI_Barrier(MPI_COMM_WORLD);
+    } else {
+      MPI_Barrier(MPI_COMM_WORLD);
+      init_work_dirs();
+    }
+#else
+
+    init_work_dirs();
+#endif
+  }
+  void init_work_dirs() const;
+};
+
+struct SystemConf : SymPhasSettings {
+  using SymPhasSettings::SymPhasSettings;
+
+  SystemConf(SymPhasSettings const& settings) : SymPhasSettings(settings) {}
+
+  //! Set the dimensions using the nth interval set.
+  /*!
+   * Set the SystemConf::dims member to be an array of length prescribed by
+   * the member SystemConf::dimension. Then fill the array by computing the
+   * length (number of grid points) along each of the intervals from the data
+   * given by the nth element from the interval list SystemConf::intervals.
+   *
+   * \param n The element index from SystemConf::intervals to choose the
+   * interval data from.
+   */
+  const char* get_result_dir() const { return directory_settings.result_dir; }
+  size_t system_count() const {
+    return std::max({domain_settings.bdata_len, domain_settings.intervals_len,
+                     domain_settings.tdata_len});
+  }
+};

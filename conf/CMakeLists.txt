@@ -17,21 +17,26 @@
 # 
 # ***************************************************************************
 
-set(SOURCES_CONF "src/conf.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/src/confsystem.cpp")
+set(SOURCES_CONF "src/conf.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/src/confsystem.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/src/confjson.cpp")
 
-
-if(PROC_ENABLED)
+if(USE_PROC)
 	set(ADD_PROC_LIB symphas_proc)
+	set(WITH_PROC_LIB ON)
 	list(APPEND SOURCES_CONF "${CMAKE_CURRENT_SOURCE_DIR}/src/confdata.cpp")
 	message(STATUS "including proc lib")
+else()
+	set(WITH_PROC_LIB OFF)
 endif()
 
 add_library(symphas_conf_o OBJECT ${SOURCES_CONF})
 target_include_directories(symphas_conf_o PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
 	$<INSTALL_INTERFACE:include>)
-target_link_libraries(symphas_conf_o PUBLIC symphas_sol ${ADD_PROC_LIB})
-target_compile_definitions(symphas_conf_o PUBLIC USING_CONF)
-	
+target_link_libraries(symphas_conf_o PUBLIC symphas_sol ${ADD_PROC_LIB} nlohmann_json::nlohmann_json)
+
+set(USING_CONF ON)
+configure_file("conf-defs.h.in" "${CMAKE_SOURCE_DIR}/inc/conf-defs.h")
+
 add_library(symphas_conf SHARED)
 target_link_libraries(symphas_conf PUBLIC symphas_conf_o)
+

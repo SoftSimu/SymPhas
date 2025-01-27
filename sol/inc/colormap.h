@@ -28,27 +28,28 @@
 
 #include <utility>
 
+#include "definitions.h"
+#ifdef USING_CUDA
+#include "gridfunctions.cuh"
+#else
 #include "gridfunctions.h"
-
-struct ColourPlotUpdater
-{
-	virtual void update() {}
-	virtual ~ColourPlotUpdater() {}
+#endif
+struct ColourPlotUpdater {
+  virtual void update() {}
+  virtual ~ColourPlotUpdater() {}
 };
 
+struct ColourPlot2d {
+  void init(scalar_t*(&values), len_type* dims, iter_type& index,
+            ColourPlotUpdater*(&updater));
 
-struct ColourPlot2d
-{
-	void init(scalar_t* (&values), len_type* dims, iter_type& index, ColourPlotUpdater* (&updater));
-
-	template<size_t D>
-	void init(scalar_t* (&values), grid::region_interval<D> const& interval, iter_type& index, ColourPlotUpdater* (&updater))
-	{
-		len_type dims[D]{};
-		for (iter_type i = 0; i < D; ++i)
-		{
-			dims[i] = interval[i][1] - interval[i][0];
-		}
-		init(values, &dims[0], index, updater);
-	}
+  template <size_t D>
+  void init(scalar_t*(&values), grid::region_interval<D> const& interval,
+            iter_type& index, ColourPlotUpdater*(&updater)) {
+    len_type dims[D]{};
+    for (iter_type i = 0; i < D; ++i) {
+      dims[i] = interval[i][1] - interval[i][0];
+    }
+    init(values, &dims[0], index, updater);
+  }
 };

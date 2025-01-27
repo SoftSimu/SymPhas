@@ -34,8 +34,6 @@
 #define DLLIO DLLIMPORT
 #endif
 
-
-
 // ****************************************************************************
 
 #define GP_HELPER_LEN(AXIS) helper->get_interval_len(AXIS)
@@ -50,90 +48,79 @@
 
 #define GP_HELPER_INDEX(...) helper->get_index(__VA_ARGS__)
 
-namespace symphas::io
-{
-	struct write_info;
-	struct block_info;
-}
+namespace symphas::io {
+struct write_info;
+struct block_info;
+}  // namespace symphas::io
 
-struct symphas::io::block_info : symphas::grid_info
-{
-	using parent_type = symphas::grid_info;
-	using parent_type::parent_type;
-	std::map<Axis, iter_type> offset;			//!< Interval inside the domain.
+struct symphas::io::block_info : symphas::grid_info {
+  using parent_type = symphas::grid_info;
+  using parent_type::parent_type;
+  std::map<Axis, iter_type> offset;  //!< Interval inside the domain.
 
-	block_info(symphas::grid_info const& other) : parent_type(other) {}
-	block_info(block_info const& other) = default;
-	block_info(block_info&& other) = default;
+  block_info(symphas::grid_info const& other) : parent_type(other) {}
+  block_info(block_info const& other) = default;
+  block_info(block_info&& other) = default;
 
-	void set_offset(symphas::interval_data_type const& intervals)
-	{
-		for (auto [axis, interval] : intervals)
-		{
-			offset[axis] = (interval.domain_left() - at(axis).domain_left()) / at(axis).width();
-		}
-	}
-
+  void set_offset(symphas::interval_data_type const& intervals) {
+    for (auto [axis, interval] : intervals) {
+      offset[axis] = iter_type(
+          (interval.domain_left() - at(axis).domain_left()) / at(axis).width());
+    }
+  }
 };
 
-namespace symphas::io
-{
+namespace symphas::io {
 
-	struct plotting_helper
-	{
-		virtual size_t get_dim() const = 0;
-		virtual len_type get_len(iter_type n) const = 0;
-		virtual len_type get_index(const len_type(&coords)[3]) const = 0;
-		virtual len_type get_index(const len_type(&coords)[2]) const = 0;
-		virtual len_type get_index(const len_type(&coords)[1]) const = 0;
-		virtual len_type get_index(std::initializer_list<len_type> const&) const = 0;
-		virtual double get_position(Axis ax, const len_type(&coords)[3]) const = 0;
-		virtual double get_position(Axis ax, const len_type(&coords)[2]) const = 0;
-		virtual double get_position(Axis ax, const len_type(&coords)[1]) const = 0;
-		virtual double get_position(Axis ax, std::initializer_list<len_type> const&) const = 0;
-		virtual double get_position(Axis ax, len_type coord) const = 0;
-		virtual bool in_bounds(const len_type(&coords)[3]) const = 0;
-		virtual bool in_bounds(const len_type(&coords)[2]) const = 0;
-		virtual bool in_bounds(const len_type(&coords)[1]) const = 0;
-		virtual bool in_bounds(std::initializer_list<len_type> const&) const = 0;
-		virtual ~plotting_helper() {};
+struct plotting_helper {
+  virtual size_t get_dim() const = 0;
+  virtual len_type get_len(iter_type n) const = 0;
+  virtual len_type get_index(const len_type (&coords)[3]) const = 0;
+  virtual len_type get_index(const len_type (&coords)[2]) const = 0;
+  virtual len_type get_index(const len_type (&coords)[1]) const = 0;
+  virtual len_type get_index(std::initializer_list<len_type> const&) const = 0;
+  virtual double get_position(Axis ax, const len_type (&coords)[3]) const = 0;
+  virtual double get_position(Axis ax, const len_type (&coords)[2]) const = 0;
+  virtual double get_position(Axis ax, const len_type (&coords)[1]) const = 0;
+  virtual double get_position(Axis ax,
+                              std::initializer_list<len_type> const&) const = 0;
+  virtual double get_position(Axis ax, len_type coord) const = 0;
+  virtual bool in_bounds(const len_type (&coords)[3]) const = 0;
+  virtual bool in_bounds(const len_type (&coords)[2]) const = 0;
+  virtual bool in_bounds(const len_type (&coords)[1]) const = 0;
+  virtual bool in_bounds(std::initializer_list<len_type> const&) const = 0;
+  virtual ~plotting_helper(){};
 
-		len_type get_interval_len(Axis ax) const
-		{
-			int n = this->get_dim();
-			int n0 = symphas::axis_to_index(ax);
+  len_type get_interval_len(Axis ax) const {
+    int n = int(this->get_dim());
+    int n0 = symphas::axis_to_index(ax);
 
-			if (n0 >= n)
-			{
-				return 1;
-			}
-			else
-			{
-				return this->get_len(n0);
-			}
-		}
-	};
+    if (n0 >= n) {
+      return 1;
+    } else {
+      return this->get_len(n0);
+    }
+  }
+};
 
-	template<size_t D>
-	struct plotting_helper_specialized;
+template <size_t D>
+struct plotting_helper_specialized;
 
-	plotting_helper* new_helper(symphas::io::write_info const& winfo, symphas::io::block_info const& binfo);
-	plotting_helper* new_helper(symphas::io::block_info const& binfo);
-	plotting_helper* new_helper(symphas::io::write_info const& winfo, symphas::grid_info const& ginfo);
-	plotting_helper* new_helper(symphas::grid_info const& ginfo);
-	inline void free_helper(plotting_helper* helper)
-	{
-		delete helper;
-	}
-}
+plotting_helper* new_helper(symphas::io::write_info const& winfo,
+                            symphas::io::block_info const& binfo);
+plotting_helper* new_helper(symphas::io::block_info const& binfo);
+plotting_helper* new_helper(symphas::io::write_info const& winfo,
+                            symphas::grid_info const& ginfo);
+plotting_helper* new_helper(symphas::grid_info const& ginfo);
+inline void free_helper(plotting_helper* helper) { delete helper; }
+}  // namespace symphas::io
 
 // ****************************************************************************
-
 
 using double_arr2 = double[2];
 using scalar_ptr_t = scalar_t*;
 
-template<typename T>
+template <typename T>
 using T_ptr_t = T*;
 
 //! \endcond
@@ -150,18 +137,21 @@ using T_ptr_t = T*;
 //! Relative name of the directory storing all the checkpoint information.
 #define CHECKPOINT_DIR "checkpoint"
 
- /* the name of the backup configuration
-  */
+/* the name of the backup configuration
+ */
 
-//! Key used at the end of the backup configuration to indicate a completed simulation.
+//! Key used at the end of the backup configuration to indicate a completed
+//! simulation.
 #define SIMULATION_DONE_KEY "DONE"
 
 //! Name of the backup configuration file, without extension.
 #define BACKUP_CONFIG_NAME "configuration"
 
 //! Relative location of the backup configuration, format string.
-#define BACKUP_CONFIG_LOC_FMT "%s/" CHECKPOINT_DIR "/" BACKUP_CONFIG_NAME "." CONFIG_EXTENSION
-
+#ifdef USING_CONF
+#define BACKUP_CONFIG_LOC_FMT \
+  "%s/" CHECKPOINT_DIR "/" BACKUP_CONFIG_NAME "." CONFIG_EXTENSION
+#endif
 
 //! The character used to prefix special options in the configuration.
 #define CONFIG_OPTION_PREFIX @
@@ -169,29 +159,33 @@ using T_ptr_t = T*;
 //! Character usage of #CONFIG_OPTION_PREFIX
 #define CONFIG_OPTION_PREFIX_C (STR(CONFIG_OPTION_PREFIX)[0])
 
-
 /*
  * name formatting strings
  */
 
-#define DATA_DIR_RELATIVE_PLOT ".."		//!< The directory of data relative to the plot configuration.
-#define PHASEFIELD_DATA_NAME "data"	//!< Name used to identify the file of the phase field grid.
-#define POSTFIX_ID_FMT "%zd"			//!< Format for printing the ID value of data.
-#define OUTPUT_INDEX_WIDTH_STR "9"		//!< The maximum number of digits in the a solution index value.
-#define OUTPUT_DATA_DIR "%s/" DATA_DIR	//!< The output data directory.
+#define DATA_DIR_RELATIVE_PLOT \
+  ".."  //!< The directory of data relative to the plot configuration.
+#define PHASEFIELD_DATA_NAME \
+  "data"  //!< Name used to identify the file of the phase field grid.
+#define POSTFIX_ID_FMT "%zd"  //!< Format for printing the ID value of data.
+#define OUTPUT_INDEX_WIDTH_STR \
+  "9"  //!< The maximum number of digits in the a solution index value.
+#define OUTPUT_DATA_DIR "%s/" DATA_DIR  //!< The output data directory.
 
-#define OUTPUT_PLOT_EXTENSION "gp"		//!< The extension given to plot files which are printed.
-#define OUTPUT_DATA_EXTENSION "txt"		//!< The extension given to data output files.
+#define OUTPUT_PLOT_EXTENSION \
+  "gp"  //!< The extension given to plot files which are printed.
+#define OUTPUT_DATA_EXTENSION \
+  "txt"  //!< The extension given to data output files.
 
- /* the format of the checkpoint datafile name, which is always the same regardless of the
-  * type of printer or compilation options
-  * the format is simply the defined data name, without any extension
-  * if the data is saved in individual files per index, then the index is also prepended
-  */
-#define OUTPUT_CHECKPOINT_FMT "%s/" CHECKPOINT_DIR "/" PHASEFIELD_DATA_NAME POSTFIX_ID_FMT
-#define OUTPUT_CHECKPOINT_INDEX_FMT "%s/" CHECKPOINT_DIR "/" PHASEFIELD_DATA_NAME POSTFIX_ID_FMT "_%d"
-
-
+/* the format of the checkpoint datafile name, which is always the same
+ * regardless of the type of printer or compilation options the format is simply
+ * the defined data name, without any extension if the data is saved in
+ * individual files per index, then the index is also prepended
+ */
+#define OUTPUT_CHECKPOINT_FMT \
+  "%s/" CHECKPOINT_DIR "/" PHASEFIELD_DATA_NAME POSTFIX_ID_FMT
+#define OUTPUT_CHECKPOINT_INDEX_FMT \
+  "%s/" CHECKPOINT_DIR "/" PHASEFIELD_DATA_NAME POSTFIX_ID_FMT "_%d"
 
 /* in writing the output, the data will be printed according to the specified
  * formatting definitions, related tot he number of decimals in the axis output
@@ -221,9 +215,6 @@ using T_ptr_t = T*;
 //! The compression ratio for printing data with the XDR utility.
 constexpr double XDR_COORD_COMPRESSION = 1E5;
 
-
-
-
 //! Definition for the default stop index.
 /*!
  * Definition associated with generalized save information
@@ -231,242 +222,209 @@ constexpr double XDR_COORD_COMPRESSION = 1E5;
 #define DEFAULT_SAVE_STOP -1
 #define DEFAULT_SAVE_BASE 0
 
+namespace symphas {
+//! Values representing the I/O types available.
+/*!
+ * The enumeration contains the types of I/O methods which may be
+ * selected through the parameters. Specifically, see params::writer and
+ * params::reader.
+ */
+enum class IOType { GNU, XDR, COLUMN, MOVIE, CSV };
 
-namespace symphas
-{
-	//! Values representing the I/O types available.
-	/*!
-	 * The enumeration contains the types of I/O methods which may be
-	 * selected through the parameters. Specifically, see params::writer and
-	 * params::reader.
-	 */
-	enum class IOType
-	{
-		GNU,
-		XDR,
-		COLUMN,
-		MOVIE,
-		CSV
-	};
+enum class RW { READER, WRITER, BOTH };
 
-	enum class RW
-	{
-		READER,
-		WRITER,
-		BOTH
-	};
+//! Contains all functionality related to I/O.
+/*!
+ * The functionality implemented by SymPhas to write persistent data and
+ * other information including plot configuration is a member of this namespace.
+ */
+namespace io {}
+}  // namespace symphas
 
-	//! Contains all functionality related to I/O.
-	/*!
-	 * The functionality implemented by SymPhas to write persistent data and
-	 * other information including plot configuration is a member of this namespace.
-	 */
-	namespace io {}
+namespace params {
+//! Only print plot configuration.
+/*!
+ * Don't do computation, only provide the plot files when printing output.
+ *
+ * This is `false` by default.
+ */
+DLLIO extern bool plots_only;
+
+//! Picks the I/O writer.
+/*!
+ * Controls which writer is chosen as the output.
+ * The data can be written as data to be read by gnuplot (and the associated
+ * gnuplot config files) or another writer based on the enum.
+ *
+ * This is equal to IOType::GNU by default.
+ */
+DLLIO extern symphas::IOType writer;
+
+//! Picks the I/O reader.
+/*!
+ * The reader can be chosen when loading data from
+ * another file instead of generating with given initial conditions. See
+ * params::writer.
+ *
+ * This is equal to IOType::GNU by default.
+ */
+DLLIO extern symphas::IOType reader;
+
+//! Use the timestamp as a subdirectory in the output.
+/*!
+ * Allows the user to choose whether the current execution should be put
+ * under a directory with the timestamp name.
+ *
+ * This is `true` by default.
+ */
+DLLIO extern bool use_timestamp;
+
+//! Indicates whether the output data should go to the same file.
+/*!
+ * The output is given in either separate files or appended to a single file.
+ *
+ * This is `true` by default.
+ */
+DLLIO extern bool single_output_file;
+
+//! Indicates whether the input data comes from the same file.
+/*!
+ * The input is given in either separate files or appended to a single file.
+ *
+ * This is `true` by default.
+ */
+DLLIO extern bool single_input_file;
+
+//! Indicates whether a checkpoint should be made.
+/*!
+ * The checkpoint is restored from the given directory if this string is
+ * set; the backup configuration will be loaded and the original parameters
+ * of the program restored (this means that any parameters passed to the
+ * current program will be ignored, and a message is given to indicate it).
+ * When the argument passed to checkpoint is parsed, params::start_index
+ * will also be initialized.
+ *
+ * This is expected in the format `checkpointdir`,`index`
+ * If the checkpoint option can't be tokenized again on ',' then no index
+ * was given in which case the index will be taken from the backup
+ * configuration file. In other words, if only `checkpointdir` is provided,
+ * then the latest index is used.
+ */
+DLLIO extern char* checkpoint;
+
+//! Defines the number of checkpoints to be made.
+/*!
+ * The num_checkpoints parameter holds the number of checkpoints that should be
+ * saved throughout the execution of the solution
+ */
+DLLIO extern int checkpoint_count;
+
+DLLIO extern bool* single_io_file[2];
+DLLIO extern symphas::IOType* io_type[2];
+
+//! This enumeration is used as `ParamNamesIO << bool`.
+enum ParamNamesIO {
+  SINGLE_INPUT,      //!< See params::single_input_file.
+  SINGLE_OUTPUT,     //!< See params::single_output_file.
+  USE_TIMESTAMP,     //!< See params::use_timestamp.
+  PLOTS_ONLY,        //!< See params::plots_only.
+  READER,            //!< To be used with symphas::IOType values.
+  WRITER,            //!< To be used with symphas::IOType values.
+  READER_AND_WRITER  //!< To be used with symphas::IOType values.
+};
+
+struct io_param_value {
+  ParamNamesIO param;
+  bool value;
+};
+
+struct io_param_reader {
+  ParamNamesIO param;
+  symphas::IOType value;
+};
+
+inline io_param_value operator<<(ParamNamesIO param, bool value) {
+  return {param, value};
 }
 
-namespace params
-{
-	//! Only print plot configuration. 
-	/*! 
-	 * Don't do computation, only provide the plot files when printing output.
-	 * 
-	 * This is `false` by default.
-	 */
-	DLLIO extern bool plots_only;
-
-	//! Picks the I/O writer.
-	/*! 
-	 * Controls which writer is chosen as the output.
-	 * The data can be written as data to be read by gnuplot (and the associated
-	 * gnuplot config files) or another writer based on the enum.
-	 * 
-	 * This is equal to IOType::GNU by default.
-	 */
-	DLLIO extern symphas::IOType writer;
-
-	//! Picks the I/O reader.
-	/*! 
-	 * The reader can be chosen when loading data from
-	 * another file instead of generating with given initial conditions. See
-	 * params::writer.
-	 * 
-	 * This is equal to IOType::GNU by default.
-	 */
-	DLLIO extern symphas::IOType reader;
-
-	//! Use the timestamp as a subdirectory in the output.
-	/*!
-	 * Allows the user to choose whether the current execution should be put
-	 * under a directory with the timestamp name.
-	 * 
-	 * This is `true` by default.
-	 */
-	DLLIO extern bool use_timestamp;
-
-	//! Indicates whether the output data should go to the same file.
-	/*!
-	 * The output is given in either separate files or appended to a single file.
-	 * 
-	 * This is `true` by default.
-	 */
-	DLLIO extern bool single_output_file;
-
-	//! Indicates whether the input data comes from the same file.
-	/*!
-	 * The input is given in either separate files or appended to a single file.
-	 *
-	 * This is `true` by default.
-	 */
-	DLLIO extern bool single_input_file;
-
-	//! Indicates whether a checkpoint should be made.
-	/*!
-	 * The checkpoint is restored from the given directory if this string is
-	 * set; the backup configuration will be loaded and the original parameters
-	 * of the program restored (this means that any parameters passed to the 
-	 * current program will be ignored, and a message is given to indicate it).
-	 * When the argument passed to checkpoint is parsed, params::start_index 
-	 * will also be initialized.
-	 * 
-	 * This is expected in the format `checkpointdir`,`index`
-	 * If the checkpoint option can't be tokenized again on ',' then no index 
-	 * was given in which case the index will be taken from the backup 
-	 * configuration file. In other words, if only `checkpointdir` is provided,
-	 * then the latest index is used.
-	 */
-	DLLIO extern char* checkpoint;
-
-	//! Defines the number of checkpoints to be made.
-	/*!
-	 * The num_checkpoints parameter holds the number of checkpoints that should be
-	 * saved throughout the execution of the solution
-	 */
-	DLLIO extern int checkpoint_count;
-
-	DLLIO extern bool* single_io_file[2];
-	DLLIO extern symphas::IOType* io_type[2];
-
-
-	//! This enumeration is used as `ParamNamesIO << bool`.
-	enum ParamNamesIO
-	{
-		SINGLE_INPUT,		//!< See params::single_input_file.
-		SINGLE_OUTPUT,		//!< See params::single_output_file.
-		USE_TIMESTAMP,		//!< See params::use_timestamp.
-		PLOTS_ONLY,			//!< See params::plots_only.
-		READER,				//!< To be used with symphas::IOType values.
-		WRITER,				//!< To be used with symphas::IOType values.
-		READER_AND_WRITER	//!< To be used with symphas::IOType values.
-	};
-
-	struct io_param_value
-	{
-		ParamNamesIO param;
-		bool value;
-	};
-
-	struct io_param_reader
-	{
-		ParamNamesIO param;
-		symphas::IOType value;
-	};
-
-	inline io_param_value operator<<(ParamNamesIO param, bool value)
-	{
-		return { param, value };
-	}
-
-	inline io_param_reader operator<<(ParamNamesIO param, symphas::IOType value)
-	{
-		return { param, value };
-	}
-
-	inline void set_param(symphas::RW type, symphas::IOType io)
-	{
-		switch (type)
-		{
-		case symphas::RW::READER:
-			reader = io;
-			break;
-		case symphas::RW::WRITER:
-			writer = io;
-			break;
-		case symphas::RW::BOTH:
-			writer = io;
-			reader = io;
-			break;
-		default:
-			break;
-		}
-	}
-
-	inline void set_param(symphas::IOType io)
-	{
-		set_param(symphas::RW::BOTH, io);
-	}
-
-	inline void set_param(ParamNamesIO param, bool value)
-	{
-		switch (param)
-		{
-		case ParamNamesIO::SINGLE_INPUT:
-			single_input_file = value;
-			break;
-		case ParamNamesIO::SINGLE_OUTPUT:
-			single_output_file = value;
-			break;
-		case ParamNamesIO::USE_TIMESTAMP:
-			use_timestamp = value;
-			break;
-		case ParamNamesIO::PLOTS_ONLY:
-			plots_only = value;
-			break;
-		default:
-			break;
-		}
-	}
-
-	inline void set_param(ParamNamesIO param, symphas::IOType value)
-	{
-		switch (param)
-		{
-		case ParamNamesIO::READER:
-			set_param(symphas::RW::READER, value);
-			break;
-		case ParamNamesIO::WRITER:
-			set_param(symphas::RW::WRITER, value);
-			break;
-		case ParamNamesIO::READER_AND_WRITER:
-			set_param(symphas::RW::BOTH, value);
-			break;
-		default:
-			break;
-		}
-	}
-
-	inline void set_param(io_param_value const& input)
-	{
-		auto [param, value] = input;
-		set_param(param, value);
-	}
-
-	inline void set_param(io_param_reader const& input)
-	{
-		auto [param, value] = input;
-		set_param(param, value);
-	}
-
+inline io_param_reader operator<<(ParamNamesIO param, symphas::IOType value) {
+  return {param, value};
 }
+
+inline void set_param(symphas::RW type, symphas::IOType io) {
+  switch (type) {
+    case symphas::RW::READER:
+      reader = io;
+      break;
+    case symphas::RW::WRITER:
+      writer = io;
+      break;
+    case symphas::RW::BOTH:
+      writer = io;
+      reader = io;
+      break;
+    default:
+      break;
+  }
+}
+
+inline void set_param(symphas::IOType io) { set_param(symphas::RW::BOTH, io); }
+
+inline void set_param(ParamNamesIO param, bool value) {
+  switch (param) {
+    case ParamNamesIO::SINGLE_INPUT:
+      single_input_file = value;
+      break;
+    case ParamNamesIO::SINGLE_OUTPUT:
+      single_output_file = value;
+      break;
+    case ParamNamesIO::USE_TIMESTAMP:
+      use_timestamp = value;
+      break;
+    case ParamNamesIO::PLOTS_ONLY:
+      plots_only = value;
+      break;
+    default:
+      break;
+  }
+}
+
+inline void set_param(ParamNamesIO param, symphas::IOType value) {
+  switch (param) {
+    case ParamNamesIO::READER:
+      set_param(symphas::RW::READER, value);
+      break;
+    case ParamNamesIO::WRITER:
+      set_param(symphas::RW::WRITER, value);
+      break;
+    case ParamNamesIO::READER_AND_WRITER:
+      set_param(symphas::RW::BOTH, value);
+      break;
+    default:
+      break;
+  }
+}
+
+inline void set_param(io_param_value const& input) {
+  auto [param, value] = input;
+  set_param(param, value);
+}
+
+inline void set_param(io_param_reader const& input) {
+  auto [param, value] = input;
+  set_param(param, value);
+}
+
+}  // namespace params
 
 //! Add the I/O parameters to the given map.
 /*
  * Add the key value pairs for parsing and assigning io parameters.
- * 
+ *
  * \param param_map The map into which to add key/value pairs corresponding to
  * parameter string names and pointers to parameter variables.
  */
 bool add_io_params(param_map_type& param_map);
-
 
 /*
  *
@@ -478,21 +436,21 @@ bool add_io_params(param_map_type& param_map);
  * should be saved
  */
 
-
 //! The type of datafile determines how the file is saved.
 /*!
  * The method of persisting the file changes based on what kind of data
  * is being saved.
  */
-enum class DataFileType
-{
-	SOLUTION_DATA,		//!< Value representing phase field data which will be plotted.
-	POSTPROC_DATA,		//!< Value representing some additional data not directly related to the phase field.
-	CHECKPOINT_DATA,	//!< Value representing the backup of the phase field data.
-	GENERIC_DATA,		//!< Some generic data which is saved, for example for testing.
-	NAMED_DATA			//!< The written data is given a specific name, and is otherwise same functionally as SOLUTION_DATA.
+enum class DataFileType {
+  SOLUTION_DATA,    //!< Value representing phase field data which will be
+                    //!< plotted.
+  POSTPROC_DATA,    //!< Value representing some additional data not directly
+                    //!< related to the phase field.
+  CHECKPOINT_DATA,  //!< Value representing the backup of the phase field data.
+  GENERIC_DATA,  //!< Some generic data which is saved, for example for testing.
+  NAMED_DATA  //!< The written data is given a specific name, and is otherwise
+              //!< same functionally as SOLUTION_DATA.
 };
-
 
 //! Identifies how the spacing between save frames is chosen.
 /*!
@@ -501,127 +459,125 @@ enum class DataFileType
  * same, but for slowly evolving systems for example, it may be desirable
  * to increase the time between incrementally.
  */
-enum class SaveType
-{
-	DEFAULT,			//!< The save intervals are equal.
-	MULTIPLICATIVE,		//!< The save interval increases by a percentage.
-	EXP,				//!< The save interval grows exponentially.
-	LIST,				//!< The save intervals are given in a list.
-	SPLIT,				//!< Make a given number of equally spaced intervals.
-	NONE				//!< Does not represent any type of saving method.
+enum class SaveType {
+  DEFAULT,         //!< The save intervals are equal.
+  MULTIPLICATIVE,  //!< The save interval increases by a percentage.
+  EXP,             //!< The save interval grows exponentially.
+  LIST,            //!< The save intervals are given in a list.
+  SPLIT,           //!< Make a given number of equally spaced intervals.
+  NONE             //!< Does not represent any type of saving method.
 };
 
 struct SaveParams;
 
-namespace symphas::io
-{
-	//! Get the save type from the key string.
-	/*!
-	 * Returns the save type corresponding to the given string key.
-	 * If the key is not valid, then the SaveType::NONE value is returned.
-	 * 
-	 * \param str The key string to interpret.
-	 */
-	SaveType get_save_type(const char* str);
+namespace symphas::io {
+//! Get the save type from the key string.
+/*!
+ * Returns the save type corresponding to the given string key.
+ * If the key is not valid, then the SaveType::NONE value is returned.
+ *
+ * \param str The key string to interpret.
+ */
+SaveType get_save_type(const char* str);
 
-	//! Get the save key string based on the type. 
-	/*!
-	 * Returns the key string representing the given type. If the parameter
-	 * is invalid, then a `nullptr` is returned.
-	 * 
-	 * \param type The save type to convert to string.
-	 */
-	const char* get_save_str(SaveType type);
+//! Get the save key string based on the type.
+/*!
+ * Returns the key string representing the given type. If the parameter
+ * is invalid, then a `nullptr` is returned.
+ *
+ * \param type The save type to convert to string.
+ */
+const char* get_save_str(SaveType type);
 
-	//! Parses the specification to initialize save information.
-	/*!
-	 * The given string is parsed to initialize save information. The parameters
-	 * which are not identified in the specification are left unchanged, which is
-	 * typically the default values.
-	 * 
-	 * The format can be given in two different ways:
-	 * - `N`: The interval of saving will be every `N` iterations.
-	 * - `N` `N0`: The interval of saving will be every `N` iterations starting
-	 * with the `N0` frame.
-	 * 
-	 * Any word specified after the above formats will be interpreted as a
-	 * modifier of the save routine. The modifier will change the interval
-	 * of saving. There is only one modifier:
-	 * - `EXP`: This will increase the spacing between save frame \f$i\f$ and
-	 * \f$i+1\f$ according to N\f$^{i}\f$. I.e. if `N` is 10, then the space
-	 * between the first save frame and the second save frame is 10, and then
-	 * between the second and the third is 100, and so on.
-	 * - `MULT`: The given value specifies the number of frames which are saved,
-	 * and the intervals are chosen so that subsequent intervals grow as a
-	 * percentage of the previous interval.
-	 * 
-	 * It is also possible to explicitly list the indices which are saved, this
-	 * is done by providing the indices in a comma delimited list. This will
-	 * automatically make the save type be value SaveType::LIST. _The comma
-	 * delimited list must not have spaces_, and is not preceded or followed
-	 * by any other tokens.
-	 *
-	 * \param str The save specification.
-	 * \param save The save instance to modify based on the save specification.
-	 */
-	void parse_save_str(const char* str, SaveParams* save);
+//! Parses the specification to initialize save information.
+/*!
+ * The given string is parsed to initialize save information. The parameters
+ * which are not identified in the specification are left unchanged, which is
+ * typically the default values.
+ *
+ * The format can be given in two different ways:
+ * - `N`: The interval of saving will be every `N` iterations.
+ * - `N` `N0`: The interval of saving will be every `N` iterations starting
+ * with the `N0` frame.
+ *
+ * Any word specified after the above formats will be interpreted as a
+ * modifier of the save routine. The modifier will change the interval
+ * of saving. There is only one modifier:
+ * - `EXP`: This will increase the spacing between save frame \f$i\f$ and
+ * \f$i+1\f$ according to N\f$^{i}\f$. I.e. if `N` is 10, then the space
+ * between the first save frame and the second save frame is 10, and then
+ * between the second and the third is 100, and so on.
+ * - `MULT`: The given value specifies the number of frames which are saved,
+ * and the intervals are chosen so that subsequent intervals grow as a
+ * percentage of the previous interval.
+ *
+ * It is also possible to explicitly list the indices which are saved, this
+ * is done by providing the indices in a comma delimited list. This will
+ * automatically make the save type be value SaveType::LIST. _The comma
+ * delimited list must not have spaces_, and is not preceded or followed
+ * by any other tokens.
+ *
+ * \param str The save specification.
+ * \param save The save instance to modify based on the save specification.
+ */
+void parse_save_str(const char* str, SaveParams* save);
 
+//! Display the save parameters as a string.
+/*!
+ * The save parameters are displayed as a string, in a format which is
+ * compatible with symphas::io::parse_save_str().
+ *
+ * \param save The save parameters which are written.
+ * \param output The string containing the result, which must be
+ * initialized already.
+ * \param buffer_size The maximum size of output.
+ */
+void save_as_str(SaveParams const* save, char* output, size_t buffer_size);
 
-	//! Display the save parameters as a string.
-	/*!
-	 * The save parameters are displayed as a string, in a format which is
-	 * compatible with symphas::io::parse_save_str().
-	 * 
-	 * \param save The save parameters which are written.
-	 * \param output The string containing the result, which must be
-	 * initialized already.
-	 * \param buffer_size The maximum size of output.
-	 */
-	void save_as_str(SaveParams const* save, char* output, size_t buffer_size);
+//! Obtain the index of the next checkpoint.
+iter_type next_checkpoint(iter_type index, SaveParams const& save);
 
+//! Returns whether the index corresponds to a checkpoint.
+bool at_checkpoint(iter_type index, SaveParams const& save);
 
+//! Returns whether there is a checkpoint to load.
+/*!
+ * Indicates whether there is a checkpoint to load using the parameters.
+ */
+bool is_checkpoint_set();
 
-	//! Obtain the index of the next checkpoint.
-	iter_type next_checkpoint(iter_type index, SaveParams const& save);
+//! Get a list of save points defined by the given configuration.
+std::vector<iter_type> get_save_indices(
+    SaveParams const& main_save,
+    std::vector<SaveParams> const& other_saves = {});
 
-	//! Returns whether the index corresponds to a checkpoint.
-	bool at_checkpoint(iter_type index, SaveParams const& save);
+//! Get the index of the next global stop point.
+/*
+ * A stop point is anywhere that the solution should be interrupted to do
+ * another kind of activity, typically saving the phase field data.
+ *
+ * \param index The index to begin looking from, when finding the next index
+ * that the program should stop at.
+ */
+iter_type next_save_from_list(iter_type index, SaveParams const& main_save,
+                              std::vector<SaveParams> const& other_saves);
 
-	//! Returns whether there is a checkpoint to load.
-	/*!
-	 * Indicates whether there is a checkpoint to load using the parameters.
-	 */
-	bool is_checkpoint_set();
+//! Get the index of the next global stop point, given all the points.
+iter_type next_save_from_list(iter_type index,
+                              std::vector<iter_type> const& saves);
 
+//! Returns whether the given index is the last index at which to stop.
+/*!
+ * Checks whether the given index is the last index that the program will
+ * stop at. That is, no more solving will occur after this point according
+ * to the global configuration.
+ *
+ * \param index The index to compare to see if its the last index.
+ * \param saves List of savepoints which are compared.
+ */
+bool is_last_save(iter_type index, std::vector<iter_type> const& saves);
 
-	//! Get a list of save points defined by the given configuration.
-	std::vector<iter_type> get_save_indices(SaveParams const& main_save, std::vector<SaveParams> const& other_saves = {});
-
-	//! Get the index of the next global stop point.
-	/*
-	 * A stop point is anywhere that the solution should be interrupted to do
-	 * another kind of activity, typically saving the phase field data.
-	 *
-	 * \param index The index to begin looking from, when finding the next index
-	 * that the program should stop at.
-	 */
-	iter_type next_save_from_list(iter_type index, SaveParams const& main_save, std::vector<SaveParams> const& other_saves);
-
-	//! Get the index of the next global stop point, given all the points.
-	iter_type next_save_from_list(iter_type index, std::vector<iter_type> const& saves);
-
-	//! Returns whether the given index is the last index at which to stop.
-	/*!
-	 * Checks whether the given index is the last index that the program will
-	 * stop at. That is, no more solving will occur after this point according
-	 * to the global configuration.
-	 *
-	 * \param index The index to compare to see if its the last index.
-	 * \param saves List of savepoints which are compared.
-	 */
-	bool is_last_save(iter_type index, std::vector<iter_type> const& saves);
-
-}
+}  // namespace symphas::io
 
 //! Information about how data should be saved.
 /*!
@@ -629,294 +585,251 @@ namespace symphas::io
  * importantly the beginning and end of the iteration range, as well as
  * information about the save interval between frames.
  */
-struct SaveParams
-{
+struct SaveParams {
+  SaveParams(SaveType type, double base, iter_type start, iter_type stop,
+             bool init_flag)
+      : init_flag{init_flag},
+        type{type},
+        start{start},
+        stop{stop},
+        base{base} {}
+  SaveParams(SaveType type, double base, iter_type start, iter_type stop)
+      : SaveParams(type, base, start, stop, true) {}
+  SaveParams(SaveType type, double base, iter_type stop)
+      : SaveParams(type, base, INDEX_INIT, stop) {}
+  SaveParams(SaveType type, double base)
+      : SaveParams(type, base, DEFAULT_SAVE_STOP) {}
 
-	SaveParams(SaveType type, double base, iter_type start, iter_type stop, bool init_flag) :
-		init_flag{ init_flag }, type{ type }, start{ start }, stop{ stop }, base{ base } {}
-	SaveParams(SaveType type, double base, iter_type start, iter_type stop) :
-		SaveParams(type, base, start, stop, true) {}
-	SaveParams(SaveType type, double base, iter_type stop) :
-		SaveParams(type, base, INDEX_INIT, stop) {}
-	SaveParams(SaveType type, double base) :
-		SaveParams(type, base, DEFAULT_SAVE_STOP) {}
+  SaveParams(double base, iter_type start, iter_type stop, bool init_flag)
+      : SaveParams(SaveType::DEFAULT, base, start, stop, init_flag) {}
+  SaveParams(double base, iter_type start, iter_type stop)
+      : SaveParams(base, start, stop, true) {}
+  SaveParams(double base, iter_type stop)
+      : SaveParams(base, INDEX_INIT, stop) {}
+  SaveParams(double base) : SaveParams(base, DEFAULT_SAVE_STOP) {}
 
-	SaveParams(double base, iter_type start, iter_type stop, bool init_flag) :
-		SaveParams(SaveType::DEFAULT, base, start, stop, init_flag) {}
-	SaveParams(double base, iter_type start, iter_type stop) :
-		SaveParams(base, start, stop, true) {}
-	SaveParams(double base, iter_type stop) :
-		SaveParams(base, INDEX_INIT, stop) {}
-	SaveParams(double base) :
-		SaveParams(base, DEFAULT_SAVE_STOP) {}
+  SaveParams(iter_type base, iter_type start, iter_type stop)
+      : SaveParams(static_cast<double>(base), start, stop) {}
+  SaveParams(iter_type base, iter_type stop)
+      : SaveParams(static_cast<double>(base), stop) {}
+  SaveParams(iter_type base) : SaveParams(static_cast<double>(base)) {}
 
+  SaveParams() : SaveParams(DEFAULT_SAVE_BASE) {}
 
-	SaveParams(iter_type base, iter_type start, iter_type stop) :
-		SaveParams(static_cast<double>(base), start, stop) {}
-	SaveParams(iter_type base, iter_type stop) :
-		SaveParams(static_cast<double>(base), stop) {}
-	SaveParams(iter_type base) :
-		SaveParams(static_cast<double>(base)) {}
+  SaveParams(iter_type* indices, size_t count)
+      : init_flag{true},
+        type{SaveType::LIST},
+        indices{(count > 0) ? new iter_type[count] : nullptr},
+        count{count} {
+    std::copy(indices, indices + count, this->indices);
+  }
 
-	SaveParams() : SaveParams(DEFAULT_SAVE_BASE) {}
+  SaveParams(SaveParams const& other) : SaveParams() {
+    init_flag = other.init_flag;
+    type = other.type;
 
-	SaveParams(iter_type* indices, size_t count) :
-		init_flag{ true }, type{ SaveType::LIST },
-		indices{ (count > 0) ? new iter_type[count] : nullptr }, count{ count }
-	{
-		std::copy(indices, indices + count, this->indices);
-	}
+    if (other.type == SaveType::LIST) {
+      count = other.count;
+      indices = new iter_type[other.count];
+      std::copy(other.indices, other.indices + other.count, indices);
+    } else {
+      start = other.start;
+      stop = other.stop;
+      base = other.base;
+    }
+  }
 
-	SaveParams(SaveParams const& other) : SaveParams()
-	{
-		init_flag = other.init_flag;
-		type = other.type;
+  SaveParams(SaveParams&& other) noexcept : SaveParams() { swap(*this, other); }
 
-		if (other.type == SaveType::LIST)
-		{
-			count = other.count;
-			indices = new iter_type[other.count];
-			std::copy(other.indices, other.indices + other.count, indices);
-		}
-		else
-		{
-			start = other.start;
-			stop = other.stop;
-			base = other.base;
-		}
-	}
+  SaveParams& operator=(SaveParams other) {
+    swap(*this, other);
+    return *this;
+  }
 
-	SaveParams(SaveParams&& other) noexcept : SaveParams()
-	{
-		swap(*this, other);
-	}
+  //! Change the size of the list of save indices.
+  /*!
+   * Change the size of the list of save indices.
+   *
+   * \param count The new size of the save indices.
+   */
+  void set_indices(size_t count) {
+    if (type == SaveType::LIST) {
+      delete[] this->indices;
+    } else {
+      type = SaveType::LIST;
+    }
+    this->count = count;
+    this->indices = new iter_type[count];
+  }
 
-	SaveParams& operator=(SaveParams other)
-	{
-		swap(*this, other);
-		return *this;
-	}
+  //! Set a new list of save indices.
+  /*!
+   * Set a new list of save indices.
+   *
+   * \param count The new size of the save indices.
+   */
+  void set_indices(iter_type* indices, size_t count) {
+    set_indices(count);
+    std::copy(indices, indices + count, this->indices);
+  }
 
+  //! Change the parameters, depending on the type.
+  /*!
+   * If the type is SaveType::LIST, then \p base will be interpreted as the
+   * number of save points to put between \p start and \p stop, where start will
+   * be omitted if SaveParams::init_flag is false.
+   *
+   * If the type is not SaveType::LIST, then the parameters will be
+   * interpreted as according to the respective save algorithm.
+   *
+   * Therefore, set_init_flag()
+   * has to be called with the desired value before the parameters are set.
+   */
+  void set_params(SaveType type, double base, iter_type start, iter_type stop);
 
-	//! Change the size of the list of save indices.
-	/*!
-	 * Change the size of the list of save indices.
-	 *
-	 * \param count The new size of the save indices.
-	 */
-	void set_indices(size_t count)
-	{
-		if (type == SaveType::LIST)
-		{
-			delete[] this->indices;
-		}
-		else
-		{
-			type = SaveType::LIST;
-		}
-		this->count = count;
-		this->indices = new iter_type[count];
-	}
+  void set_params(SaveType type, double base, iter_type stop) {
+    set_params(type, base, get_start(), stop);
+  }
 
-	//! Set a new list of save indices.
-	/*!
-	 * Set a new list of save indices.
-	 *
-	 * \param count The new size of the save indices.
-	 */
-	void set_indices(iter_type* indices, size_t count)
-	{
-		set_indices(count);
-		std::copy(indices, indices + count, this->indices);
-	}
+  void set_params(SaveType type, double base) {
+    set_params(type, base, get_start(), get_stop());
+  }
 
-	//! Change the parameters, depending on the type.
-	/*!
-	 * If the type is SaveType::LIST, then \p base will be interpreted as the number of
-	 * save points to put between \p start and \p stop, where start will be
-	 * omitted if SaveParams::init_flag is false. 
-	 * 
-	 * If the type is not SaveType::LIST, then the parameters will be 
-	 * interpreted as according to the respective save algorithm. 
-	 * 
-	 * Therefore, set_init_flag()
-	 * has to be called with the desired value before the parameters are set.
-	 */
-	void set_params(SaveType type, double base, iter_type start, iter_type stop);
+  void set_params(double base, iter_type start, iter_type stop);
 
-	void set_params(SaveType type, double base, iter_type stop)
-	{
-		set_params(type, base, get_start(), stop);
-	}
+  void set_params(double base, iter_type stop) {
+    set_params(base, get_start(), stop);
+  }
 
-	void set_params(SaveType type, double base)
-	{
-		set_params(type, base, get_start(), get_stop());
-	}
+  void set_params(double base) { set_params(base, get_start(), get_stop()); }
 
-	void set_params(double base, iter_type start, iter_type stop);
+  //! Change the flag controlling if the very first index is saved.
+  void set_init_flag(bool flag) { init_flag = flag; }
 
-	void set_params(double base, iter_type stop)
-	{
-		set_params(base, get_start(), stop);
-	}
-	
-	void set_params(double base)
-	{
-		set_params(base, get_start(), get_stop());
-	}
+  //! Returns whether the very first index is saved.
+  bool get_init_flag() const { return init_flag; }
 
-	//! Change the flag controlling if the very first index is saved.
-	void set_init_flag(bool flag)
-	{
-		init_flag = flag;
-	}
+  //! Return the first index that will be saved.
+  iter_type get_start() const {
+    if (type == SaveType::LIST) {
+      return indices[0];
+    } else {
+      return start;
+    }
+  }
 
-	//! Returns whether the very first index is saved.
-	bool get_init_flag() const
-	{
-		return init_flag;
-	}
+  //! Return the final index that will be saved.
+  iter_type get_stop() const {
+    if (type == SaveType::LIST) {
+      return indices[count - 1];
+    } else {
+      return stop;
+    }
+  }
 
-	//! Return the first index that will be saved.
-	iter_type get_start() const
-	{
-		if (type == SaveType::LIST)
-		{
-			return indices[0];
-		}
-		else
-		{
-			return start;
-		}
-	}
+  //! Set the starting index for the save method.
+  /*!
+   * Set the starting index for the save method.
+   */
+  void set_start(iter_type start);
 
-	//! Return the final index that will be saved.
-	iter_type get_stop() const
-	{
-		if (type == SaveType::LIST)
-		{
-			return indices[count - 1];
-		}
-		else
-		{
-			return stop;
-		}
-	}
+  //! Set the stop index for the save method.
+  /*!
+   * Set the stop index for the save method.
+   */
+  void set_stop(iter_type stop);
 
-	//! Set the starting index for the save method.
-	/*!
-	 * Set the starting index for the save method.
-	 */
-	void set_start(iter_type start);
+  //! Returns the number of saves that will be performed.
+  iter_type num_saves() const;
 
-	//! Set the stop index for the save method.
-	/*!
-	 * Set the stop index for the save method.
-	 */
-	void set_stop(iter_type stop);
+  //! Get the index of the next global stop point.
+  /*!
+   * Get the index of the next global stop point. The point after the
+   * given index is returned.
+   *
+   * \param current The index before the next save point.
+   */
+  iter_type next_save(iter_type current) const;
 
-	//! Returns the number of saves that will be performed.
-	iter_type num_saves() const;
+  // the save state can be the following
+  // 1. index 0 with saveinit = true (save the first index)
+  // 2. index > 0 with index = save.start
+  // 3. we want to save the current index but require index > 0 so no
+  // overlapping with 1.
 
-	//! Get the index of the next global stop point.
-	/*!
-	 * Get the index of the next global stop point. The point after the
-	 * given index is returned.
-	 *
-	 * \param current The index before the next save point.
-	 */
-	iter_type next_save(iter_type current) const;
+  //! Returns true if the first index needs to be saved.
+  /*!
+   * Returns true if the save object needs to be saved on the very first
+   * global save index, which corresponds to the value at params::start_index.
+   *
+   * \param index Return true if this is the first index.
+   */
+  bool index_zero_save(iter_type index) const;
 
+  //! Check whether the index is the very first save that is made.
+  /*!
+   * This test checks whether the state of the given save object will correspond
+   * to being saved for the first time.
+   *
+   * \param index Returns true if the given index is the first index to
+   * save.
+   */
+  bool first_save(iter_type index) const;
 
-	// the save state can be the following
-	// 1. index 0 with saveinit = true (save the first index)
-	// 2. index > 0 with index = save.start
-	// 3. we want to save the current index but require index > 0 so no overlapping with 1.
+  //! Check whether the current index corresponds to a save index.
+  /*!
+   * Returns true if the given index corresponds to a save point for the save
+   * object.
+   *
+   * \param index Returns true if this value is the same as a save point.
+   */
+  bool current_save(iter_type index) const;
 
-	//! Returns true if the first index needs to be saved.
-	/*!
-	 * Returns true if the save object needs to be saved on the very first
-	 * global save index, which corresponds to the value at params::start_index.
-	 *
-	 * \param index Return true if this is the first index.
-	 */
-	bool index_zero_save(iter_type index) const;
+  //! Returns whether the given index is the last index at which to stop.
+  /*!
+   * Checks whether the given index is the last index that the program will
+   * stop at. That is, no more solving will occur after this point according
+   * to the global configuration.
+   *
+   * \param index The index to compare to see if its the last index.
+   * \param save Save parameter object which is compared.
+   */
+  bool is_last_save(iter_type index) const;
 
-	//! Check whether the index is the very first save that is made. 
-	/*!
-	 * This test checks whether the state of the given save object will correspond
-	 * to being saved for the first time.
-	 *
-	 * \param index Returns true if the given index is the first index to
-	 * save.
-	 */
-	bool first_save(iter_type index) const;
+  ~SaveParams() {
+    if (type == SaveType::LIST) {
+      delete[] indices;
+    }
+  }
 
-	//! Check whether the current index corresponds to a save index.
-	/*!
-	 * Returns true if the given index corresponds to a save point for the save
-	 * object.
-	 *
-	 * \param index Returns true if this value is the same as a save point.
-	 */
-	bool current_save(iter_type index) const;
+  friend void swap(SaveParams& first, SaveParams& second) {
+    using std::swap;
+    swap(first.init_flag, second.init_flag);
+    swap(first.type, second.type);
 
-	//! Returns whether the given index is the last index at which to stop.
-	/*!
-	 * Checks whether the given index is the last index that the program will
-	 * stop at. That is, no more solving will occur after this point according
-	 * to the global configuration.
-	 *
-	 * \param index The index to compare to see if its the last index.
-	 * \param save Save parameter object which is compared.
-	 */
-	bool is_last_save(iter_type index) const;
+    swap(first.start, second.start);
+    swap(first.stop, second.stop);
+    swap(first.base, second.base);
+  }
 
-	~SaveParams()
-	{
-		if (type == SaveType::LIST)
-		{
-			delete[] indices;
-		}
-	}
+  friend void symphas::io::parse_save_str(const char* value, SaveParams* save);
+  friend void symphas::io::save_as_str(SaveParams const* save, char* output,
+                                       size_t buffer_size);
 
-	friend void swap(SaveParams& first, SaveParams& second)
-	{
-		using std::swap;
-		swap(first.init_flag, second.init_flag);
-		swap(first.type, second.type);
+ protected:
+  bool init_flag;  //!< Flag for whether to save the first time index.
+  SaveType type;   //!< Changes how the interval is chosen.
 
-		swap(first.start, second.start);
-		swap(first.stop, second.stop);
-		swap(first.base, second.base);
-	}
+  union {
+    struct {
+      iter_type start,  //!< The first save index.
+          stop;         //!< The final index the solver will go to.
+      double base;      //!< Used in calculating the each save index.
+    };
 
-	friend void symphas::io::parse_save_str(const char* value, SaveParams* save);
-	friend void symphas::io::save_as_str(SaveParams const* save, char* output, size_t buffer_size);
-
-protected:
-
-	bool init_flag;				//!< Flag for whether to save the first time index.
-	SaveType type;				//!< Changes how the interval is chosen.
-
-
-	union
-	{
-		struct
-		{
-			iter_type
-				start,			//!< The first save index.
-				stop;			//!< The final index the solver will go to.
-			double base;		//!< Used in calculating the each save index.
-		};
-
-		struct
-		{
-			iter_type* indices;	//!< List of indices to be saved at.
-			size_t count;		//!< The number of indices in the list.
-		};
-	};
-
+    struct {
+      iter_type* indices;  //!< List of indices to be saved at.
+      size_t count;        //!< The number of indices in the list.
+    };
+  };
 };
-

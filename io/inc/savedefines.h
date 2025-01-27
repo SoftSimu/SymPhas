@@ -34,12 +34,6 @@
 
 //! \cond
 
-#ifdef PROC_EXPORTS
-#define DLLPROC DLLEXPORT
-#else
-#define DLLPROC DLLIMPORT
-#endif
-
 #define DEFAULT_PTS_NAME "pts-data-output"
 #define DEFAULT_ABS_NAME "abs-data-output"
 #define DEFAULT_VEC_NAME "vec-data-output"

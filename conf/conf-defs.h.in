@@ -1,0 +1,3 @@
+
+#cmakedefine USING_CONF 
+#cmakedefine WITH_PROC_LIB 

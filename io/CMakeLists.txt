@@ -19,7 +19,6 @@
 
 find_package(xdrfile)
 
-include_directories(SYSTEM ${xdrfile_INCLUDE_DIRS})
 
 
 
@@ -37,8 +36,9 @@ list(APPEND SOURCES_IO
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/writegpc.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/writecsv.cpp")
 
-if(${xdrfile_FOUND})
-	set(USING_XDR 1)
+set(XDR_LIBS "")
+if(xdrfile_FOUND)
+	set(USING_XDR ON)
 	list(APPEND XDR_LIBS ${xdrfile_LIBRARIES})
 	list(APPEND XDR_INC ${xdrfile_INCLUDE_DIRS})
 
@@ -46,6 +46,7 @@ if(${xdrfile_FOUND})
 		"${CMAKE_CURRENT_SOURCE_DIR}/src/readxdr.cpp"
 		"${CMAKE_CURRENT_SOURCE_DIR}/src/writexdr.cpp")
 else()
+	set(USING_XDR OFF)
 	message(STATUS "xdrfile package was not found!")
 endif()
 
@@ -66,11 +67,15 @@ target_include_directories(symphas_io_o PUBLIC
 	$<INSTALL_INTERFACE:include>)
 target_include_directories(symphas_io_o PRIVATE ${XDR_INC})
 target_link_libraries(symphas_io_o PUBLIC symphas_datatypes PRIVATE ${XDR_LIBS})
-target_compile_definitions(symphas_io_o PUBLIC USING_IO PRIVATE IO_EXPORTS ${XDR_DEFINITIONS})
+target_compile_definitions(symphas_io_o PRIVATE IO_EXPORTS ${XDR_DEFINITIONS})
 
 if(USE_LATEX_FORMAT)
-	target_compile_definitions(symphas_io_o PUBLIC LATEX_PLOT)
+	set(LATEX_PLOT ON)
 endif()
+
+set(USING_IO ON)
+configure_file("io-defs.h.in" "${CMAKE_SOURCE_DIR}/inc/io-defs.h")
+
 message(STATUS "LaTeX formats is ${USE_LATEX_FORMAT}")
 
 add_library(symphas_io SHARED)

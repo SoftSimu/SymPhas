@@ -44,7 +44,7 @@ template<>
 struct apply_laplacian_2d4h<9>
 {
 	template<typename T>
-	auto operator()(T* const v, double divh2, const len_type(&stride)[2])
+	__device__ __host__ auto operator()(T* const v, double divh2, const len_type(&stride)[2])
 	{
 		return (-vx2_ - vx2 - vy2 - vy2_
 			+ 16. * (vx_ + vx + vy + vy_) - 60. * v0
@@ -56,7 +56,7 @@ template<>
 struct apply_laplacian_2d4h<17>
 {
 	template<typename T>
-	auto operator()(T* const v, double divh2, const len_type(&stride)[2])
+	__device__ __host__ auto operator()(T* const v, double divh2, const len_type(&stride)[2])
 	{
 		return (-(vx2y2 + vx2_y2 + vx2y2_ + vx2_y2_)
 			- 8. * (vx2 + vx2_ + vy2 + vy2_) +
@@ -71,7 +71,7 @@ template<>
 struct apply_laplacian_2d4h<21>
 {
 	template<typename T>
-	auto operator()(T* const v, double divh2, const len_type(&stride)[2])
+	__device__ __host__ auto operator()(T* const v, double divh2, const len_type(&stride)[2])
 	{
 		return (-2. * (vx2y + vx2_y + vx2y_ + vx2_y_ +
 			vxy2 + vx_y2 + vxy2_ + vx_y2_)
@@ -88,7 +88,7 @@ template<>
 struct apply_bilaplacian_2d4h<21>
 {
 	template<typename T>
-	auto operator()(T* const v, double divh4, const len_type(&stride)[2])
+	__device__ __host__ auto operator()(T* const v, double divh4, const len_type(&stride)[2])
 	{
 		return (-4. * (vx3 + vx3_ + vy3 + vy3_)
 			- (vx2y2 + vx2_y2 + vx2y2_ + vx2_y2_)
@@ -104,7 +104,7 @@ template<>
 struct apply_bilaplacian_2d4h<25>
 {
 	template<typename T>
-	auto operator()(T* const v, double divh4, const len_type(&stride)[2])
+	__device__ __host__ auto operator()(T* const v, double divh4, const len_type(&stride)[2])
 	{
 		return (-(vx3 + vx3_ + vy3 + vy3_)
 			- (vx2y + vx2_y + vx2y_ + vx2_y_ + vxy2 + vx_y2 + vxy2_ + vx_y2_) +
@@ -120,7 +120,7 @@ template<>
 struct apply_bilaplacian_2d4h<33>
 {
 	template<typename T>
-	auto operator()(T* const v, double divh4, const len_type(&stride)[2])
+	__device__ __host__ auto operator()(T* const v, double divh4, const len_type(&stride)[2])
 	{
 		return (-17. * (vx3y3 + vx3_y3 + vx3y3_ + vx3_y3_)
 			- 236. * (vx3 + vx3_ + vy3 + vy3_)
@@ -138,7 +138,7 @@ template<>
 struct apply_bilaplacian_2d4h<37>
 {
 	template<typename T>
-	auto operator()(T* const v, double divh4, const len_type(&stride)[2])
+	__device__ __host__ auto operator()(T* const v, double divh4, const len_type(&stride)[2])
 	{
 		return (-17. * (vx3y + vx3_y + vx3y_ + vx3_y_ + vxy3 + vx_y3 + vxy3_ + vx_y3_)
 			+ 4. * (vx3 + vx3_ + vy3 + vy3_)
@@ -156,7 +156,7 @@ template<>
 struct apply_gradlaplacian_2d4h<14>
 {
 	template<typename T>
-	auto operator()(T* const v, double divh3, const len_type(&stride)[2])
+	__device__ __host__ auto operator()(T* const v, double divh3, const len_type(&stride)[2])
 	{
 		auto x = (-6. * (vx3 - vx3_)
 			- (vx2y2 - vx2_y2 + vx2y2_ - vx2_y2_)
@@ -172,7 +172,7 @@ template<>
 struct apply_gradlaplacian_2d4h<18>
 {
 	template<typename T>
-	auto operator()(T* const v, double divh3, const len_type(&stride)[2])
+	__device__ __host__ auto operator()(T* const v, double divh3, const len_type(&stride)[2])
 	{
 		auto x = (-3. * (vx3)
 			-2. * (vx2y - vx2_y + vx2y_ - vx2_y_)
@@ -189,7 +189,7 @@ template<>
 struct apply_gradlaplacian_2d4h<26>
 {
 	template<typename T>
-	auto operator()(T* const v, double divh3, const len_type(&stride)[2])
+	__device__ __host__ auto operator()(T* const v, double divh3, const len_type(&stride)[2])
 	{
 		auto x = (-17. * (vx3y3 - vx3_y3 + vx3y3_ - vx3_y3_)
 			- 236. * (vx3)
@@ -208,7 +208,7 @@ template<>
 struct apply_gradlaplacian_2d4h<30>
 {
 	template<typename T>
-	auto operator()(T* const v, double divh3, const len_type(&stride)[2])
+	__device__ __host__ auto operator()(T* const v, double divh3, const len_type(&stride)[2])
 	{
 		auto x = (-51. * (vx3y - vx3_y + vx3y_ - vx3_y_)
 			+ 12. * (vx3)
