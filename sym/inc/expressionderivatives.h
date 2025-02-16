@@ -2638,8 +2638,7 @@ auto operator*(OpOperatorDirectionalDerivative<ax, O2, V2, Sp> const& a,
 template <Axis ax1, Axis ax2, Axis ax3, typename V, typename Sp, typename E,
           typename std::enable_if_t<
               (expr::grid_dim<E>::value <= 3 && expr::grid_dim<E>::value > 0 &&
-               (ax1 != ax2 && ax1 != ax3 && ax2 != ax3) &&
-               (expr::is_identity<V> || expr::is_fraction<V>)),
+               (ax1 != ax2 && ax1 != ax3 && ax2 != ax3) && expr::is_const<V>),
               int> = 0>
 auto operator*(
     OpOperatorCombination<
@@ -2656,7 +2655,7 @@ template <Axis ax1, Axis ax2, typename V, typename Sp, typename E,
           typename std::enable_if_t<
               (expr::grid_dim<E>::value <= 2 && expr::grid_dim<E>::value > 0 &&
                (ax1 != ax2) && (ax1 != Axis::Z && ax2 != Axis::Z) &&
-               (expr::is_identity<V> || expr::is_fraction<V>)),
+               expr::is_const<V>),
               int> = 0>
 auto operator*(OpOperatorCombination<
                    OpOperatorDirectionalDerivative<ax1, 2, V, Sp>,
@@ -2680,12 +2679,11 @@ auto operator*(OpOperatorDirectionalDerivative<Axis::X, O, V, Sp> const& op,
 template <
     typename V, typename Sp, typename E, typename Dd1, typename Dd2,
     Axis ax1 = Dd1::axis, Axis ax2 = Dd2::axis,
-    typename std::enable_if_t<(expr::grid_dim<E>::value == 2 && (ax1 != ax2) &&
-                               (expr::is_identity<V> || expr::is_fraction<V>)&&(
-                                   ax1 != Axis::Z && ax2 != Axis::Z) &&
-                               Dd1::is_directional && Dd1::order == 2 &&
-                               Dd2::is_directional && Dd2::order == 2),
-                              int> = 0>
+    typename std::enable_if_t<
+        (expr::grid_dim<E>::value == 2 && (ax1 != ax2) && expr::is_const<V> &&
+         (ax1 != Axis::Z && ax2 != Axis::Z) && Dd1::is_directional &&
+         Dd1::order == 2 && Dd2::is_directional && Dd2::order == 2),
+        int> = 0>
 auto operator+(OpDerivative<Dd1, V, E, Sp> const& dop0,
                OpDerivative<Dd2, V, E, Sp> const& dop1) {
   return expr::make_operator_derivative<2>(expr::coeff(dop0), dop0.solver) *
@@ -2693,48 +2691,48 @@ auto operator+(OpDerivative<Dd1, V, E, Sp> const& dop0,
 }
 
 // Summing together directional derivatives will transform into a combination
-template <
-    typename V, typename Sp, typename E, typename Dd1, typename Dd2,
-    Axis ax1 = Dd1::axis, Axis ax2 = Dd2::axis,
-    typename std::enable_if_t<
-        (expr::grid_dim<E>::value == 3 && (ax1 != ax2) &&
-         (expr::is_identity<V> || expr::is_fraction<V>)&&Dd1::is_directional &&
-         Dd1::order == 2 && Dd2::is_directional && Dd2::order == 2),
-        int> = 0>
+template <typename V, typename Sp, typename E, typename Dd1, typename Dd2,
+          Axis ax1 = Dd1::axis, Axis ax2 = Dd2::axis,
+          typename std::enable_if_t<(expr::grid_dim<E>::value == 3 &&
+                                     (ax1 != ax2) && expr::is_const<V> &&
+                                     Dd1::is_directional && Dd1::order == 2 &&
+                                     Dd2::is_directional && Dd2::order == 2),
+                                    int> = 0>
 auto operator+(OpDerivative<Dd1, V, E, Sp> const& dop0,
                OpDerivative<Dd2, V, E, Sp> const& dop1) {
-  return (expr::make_operator_directional_derivative<ax1, 2>(dop0.solver) +
-          expr::make_operator_directional_derivative<ax2, 2>(dop0.solver))(
-      expr::coeff(dop0) * expr::get_enclosed_expression(dop0));
+  return (expr::coeff(dop0) *
+              expr::make_operator_directional_derivative<ax1, 2>(dop0.solver) +
+          expr::coeff(dop0) *
+              expr::make_operator_directional_derivative<ax2, 2>(dop0.solver))(
+      expr::get_enclosed_expression(dop0));
 }
 
 // Summing together directional derivatives will transform into a combination
-template <
-    typename V, typename Sp, typename E, typename Dd1, typename Dd2,
-    Axis ax1 = Dd1::axis, Axis ax2 = Dd2::axis,
-    typename std::enable_if_t<
-        (expr::grid_dim<E>::value == 3 && (ax1 != ax2) &&
-         (expr::is_identity<V> || expr::is_fraction<V>)&&Dd1::is_directional &&
-         Dd1::order == 2 && Dd2::is_directional && Dd2::order == 2),
-        int> = 0>
+template <typename V, typename Sp, typename E, typename Dd1, typename Dd2,
+          Axis ax1 = Dd1::axis, Axis ax2 = Dd2::axis,
+          typename std::enable_if_t<(expr::grid_dim<E>::value == 3 &&
+                                     (ax1 != ax2) && expr::is_const<V> &&
+                                     Dd1::is_directional && Dd1::order == 2 &&
+                                     Dd2::is_directional && Dd2::order == 2),
+                                    int> = 0>
 auto operator-(
     OpDerivative<Dd1, V, E, Sp> const& dop0,
     OpDerivative<Dd2, decltype(-std::declval<V>()), E, Sp> const& dop1) {
-  return (expr::make_operator_directional_derivative<ax1, 2>(dop0.solver) +
-          expr::make_operator_directional_derivative<ax2, 2>(dop0.solver))(
-      expr::coeff(dop0) * expr::get_enclosed_expression(dop0));
+  return (expr::coeff(dop0) *
+              expr::make_operator_directional_derivative<ax1, 2>(dop0.solver) +
+          expr::coeff(dop0) *
+              expr::make_operator_directional_derivative<ax2, 2>(dop0.solver))(
+      expr::get_enclosed_expression(dop0));
 }
 
 // Summing together directional derivatives will transform into a combination
-template <
-    Axis ax1, Axis ax2, typename V, typename Sp, typename E, typename Dd,
-    Axis ax3 = Dd::axis,
-    typename std::enable_if_t<(expr::grid_dim<E>::value == 3 &&
-                               (ax1 != ax2 && ax1 != ax3 && ax2 != ax3) &&
-                               (expr::is_identity<V> ||
-                                expr::is_fraction<V>)&&Dd::is_directional &&
-                               Dd::order == 2),
-                              int> = 0>
+template <Axis ax1, Axis ax2, typename V, typename Sp, typename E, typename Dd,
+          Axis ax3 = Dd::axis,
+          typename std::enable_if_t<(expr::grid_dim<E>::value == 3 &&
+                                     (ax1 != ax2 && ax1 != ax3 && ax2 != ax3) &&
+                                     expr::is_const<V> && Dd::is_directional &&
+                                     Dd::order == 2),
+                                    int> = 0>
 auto operator+(OpCombination<OpOperatorDirectionalDerivative<ax1, 2, V, Sp>,
                              OpOperatorDirectionalDerivative<ax2, 2, V, Sp>,
                              E> const& combination,
@@ -2745,15 +2743,28 @@ auto operator+(OpCombination<OpOperatorDirectionalDerivative<ax1, 2, V, Sp>,
 }
 
 // Summing together directional derivatives will transform into a combination
-template <
-    Axis ax1, Axis ax2, typename V, typename Sp, typename E, typename Dd,
-    Axis ax3 = Dd::axis,
-    typename std::enable_if_t<(expr::grid_dim<E>::value == 3 &&
-                               (ax1 != ax2 && ax1 != ax3 && ax2 != ax3) &&
-                               (expr::is_identity<V> ||
-                                expr::is_fraction<V>)&&Dd::is_directional &&
-                               Dd::order == 2),
-                              int> = 0>
+template <Axis ax1, Axis ax2, typename V, typename Sp, typename E, typename Dd,
+          Axis ax3 = Dd::axis,
+          typename std::enable_if_t<(expr::grid_dim<E>::value == 3 &&
+                                     (ax1 != ax2 && ax1 != ax3 && ax2 != ax3) &&
+                                     expr::is_const<V> && Dd::is_directional &&
+                                     Dd::order == 2),
+                                    int> = 0>
+auto operator+(OpDerivative<Dd, V, E, Sp> const& dop,
+               OpCombination<OpOperatorDirectionalDerivative<ax1, 2, V, Sp>,
+                             OpOperatorDirectionalDerivative<ax2, 2, V, Sp>,
+                             E> const& combination) {
+  return combination + dop;
+}
+
+// Summing together directional derivatives will transform into a combination
+template <Axis ax1, Axis ax2, typename V, typename Sp, typename E, typename Dd,
+          Axis ax3 = Dd::axis,
+          typename std::enable_if_t<(expr::grid_dim<E>::value == 3 &&
+                                     (ax1 != ax2 && ax1 != ax3 && ax2 != ax3) &&
+                                     expr::is_const<V> && Dd::is_directional &&
+                                     Dd::order == 2),
+                                    int> = 0>
 auto operator-(
     OpCombination<OpOperatorDirectionalDerivative<ax1, 2, V, Sp>,
                   OpOperatorDirectionalDerivative<ax2, 2, V, Sp>, E> const&
@@ -2762,6 +2773,21 @@ auto operator-(
   return symphas::internal::make_operator_derivative<2>::template get(
              V{}, dop.solver) *
          expr::get_enclosed_expression(dop);
+}
+
+// Summing together directional derivatives will transform into a combination
+template <Axis ax1, Axis ax2, typename V, typename Sp, typename E, typename Dd,
+          Axis ax3 = Dd::axis,
+          typename std::enable_if_t<(expr::grid_dim<E>::value == 3 &&
+                                     (ax1 != ax2 && ax1 != ax3 && ax2 != ax3) &&
+                                     expr::is_const<V> && Dd::is_directional &&
+                                     Dd::order == 2),
+                                    int> = 0>
+auto operator-(OpDerivative<Dd, decltype(-std::declval<V>()), E, Sp> const& dop,
+               OpCombination<OpOperatorDirectionalDerivative<ax1, 2, V, Sp>,
+                             OpOperatorDirectionalDerivative<ax2, 2, V, Sp>,
+                             E> const& combination) {
+  return -(combination - dop);
 }
 
 namespace symphas::internal {
@@ -3304,7 +3330,8 @@ auto OpOperatorDerivative<O, V, Sp>::operator*(OpExpression<E> const& e) const {
   if constexpr (expr::is_coeff<E>) {
     return *static_cast<E const*>(&e) * (*this);
   } else {
-    return value * symphas::internal::apply_derivative_dot<O>(e, solver);
+    return value * symphas::internal::apply_derivative_dot<O>(
+                       *static_cast<E const*>(&e), solver);
   }
 }
 

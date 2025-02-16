@@ -386,7 +386,7 @@ template <
         (symphas::is_non_vector<T> && symphas::is_non_vector<S>), int> = 0>
 __host__ __device__ auto operator*(any_row_vector_t<T, D> const& lhs,
                                    any_vector_t<S, D> const& rhs) {
-  any_vector_t<T, D> lhs0;
+  any_vector_t<mul_result_t<T, S>, D> lhs0;
   for (iter_type i = 0; i < D; ++i) {
     lhs0[i] = lhs[0][i];
   }
@@ -394,6 +394,21 @@ __host__ __device__ auto operator*(any_row_vector_t<T, D> const& lhs,
   using namespace std;
   using namespace symphas::math;
   return dot(lhs0, rhs);
+}
+
+template <
+    typename T, typename S, size_t D,
+    typename std::enable_if_t<
+        (symphas::is_non_vector<T> && symphas::is_non_vector<S>), int> = 0>
+__host__ __device__ auto operator*(any_vector_t<T, D> const& lhs,
+                                   any_row_vector_t<S, D> const& rhs) {
+  any_matrix_t<mul_result_t<T, S>, D, D> lhs0;
+  for (iter_type i = 0; i < D; ++i) {
+    for (iter_type j = 0; j < D; ++j) {
+      lhs0[i][j] = lhs[i] * rhs[0][j];
+    }
+  }
+  return lhs0;
 }
 
 template <
@@ -784,8 +799,8 @@ constexpr auto max_value(T0 val0) {
  * \tparam Ts List of types of the additional compared value list.
  */
 template <typename T0, typename T1, typename... Ts>
-constexpr auto max_value(T0 val0, T1 val1, Ts... vals)
-    -> add_result_t<T0, T1, Ts...> {
+constexpr auto max_value(T0 val0, T1 val1,
+                         Ts... vals) -> add_result_t<T0, T1, Ts...> {
   auto amin = max_value(val1, vals...);
   return (val0 > amin) ? val0 : amin;
 }
@@ -826,8 +841,8 @@ constexpr auto min_value(T0 val0) {
  * \tparam Ts List of types of the additional compared value list.
  */
 template <typename T0, typename T1, typename... Ts>
-constexpr auto min_value(T0 val0, T1 val1, Ts... vals)
-    -> add_result_t<T0, T1, Ts...> {
+constexpr auto min_value(T0 val0, T1 val1,
+                         Ts... vals) -> add_result_t<T0, T1, Ts...> {
   auto amin = min_value(val1, vals...);
   return (val0 < amin) ? val0 : amin;
 }

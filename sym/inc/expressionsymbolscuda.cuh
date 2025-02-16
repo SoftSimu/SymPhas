@@ -175,6 +175,15 @@ struct CuTermRegion : CuEvaluable<CuTermRegion<D, T, X>> {
                const len_type (&dims)[D], T const &empty)
       : CuTermRegion(data, region, dims, empty, std::make_index_sequence<D>{}) {
   }
+  template <size_t... Is>
+  CuTermRegion(T *data, grid::select_region<D> const &region,
+               const len_type (&dims)[D], T const &empty,
+               std::index_sequence<Is...>)
+      : term{data}, region{region}, dims{dims[Is]...}, empty{empty} {}
+  CuTermRegion(T *data, grid::select_region<D> const &region,
+               const len_type (&dims)[D], T const &empty)
+      : CuTermRegion(data, region, dims, empty, std::make_index_sequence<D>{}) {
+  }
 
   __host__ __device__ T eval(position_type<D> const &n) const {
     return term.result(region(n.pos, term.values, dims, empty).dev());
@@ -905,6 +914,12 @@ auto to_cuda_expr(VectorComponentData<ax, T *, D> const &data) {
   return CuTerm<T, X>(data.values);
 }
 
+template <expr::exp_key_t X, Axis ax, typename T, size_t D>
+auto to_cuda_expr(
+    VectorComponentRegionData<ax, CUDADataType<T> *, D> const &data) {
+  return CuTermRegion<D, T, X>(data.values, data.region, data.dims, data.empty);
+}
+
 template <typename G, expr::exp_key_t X>
 auto to_cuda_expr(Term<G, X> const &e) {
   return to_cuda_expr<X>(BaseData<G>::get(e));
@@ -965,6 +980,14 @@ auto to_cuda_expr_deriv(VectorComponentData<ax, T *, D> const &data,
   return CuDerivative<Dd, T, D, Sp>{data.values, solver};
 }
 
+template <typename Dd, Axis ax, typename T, size_t D, typename Sp>
+auto to_cuda_expr_deriv(
+    VectorComponentRegionData<ax, CUDADataType<T> *, D> const &data,
+    Sp const &solver) {
+  return CuDerivativeRegion<Dd, T, D, Sp>{data.values, data.region, data.dims,
+                                          data.empty, solver};
+}
+
 template <typename Dd, typename T, size_t D, typename Sp>
 auto to_cuda_expr_deriv(Grid<T, D> const &data, Sp const &solver) {
   return CuDerivativeHost<Dd, T, D, Sp>{data.values, data.len, solver};
@@ -974,7 +997,7 @@ template <typename Dd, typename G, typename Sp>
 auto to_cuda_expr(
     OpDerivative<Dd, OpIdentity, OpTerm<OpIdentity, G>, Sp> const &e) {
   auto term = expr::get_enclosed_expression(e);
-  auto &data = expr::BaseData<G>::get(expr::data(term));
+  decltype(auto) data = expr::BaseData<G>::get(expr::data(term));
   auto dimensions = expr::data_dimensions(term);
 
   using T = expr::eval_type_t<OpTerm<OpIdentity, G>>;
@@ -996,7 +1019,7 @@ auto to_cuda_expr(OpDerivative<Dd, OpIdentity, E, Sp> const &e) {
 template <typename Dd, typename V, typename G, typename Sp>
 auto to_cuda_expr(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> const &e) {
   auto term = expr::get_enclosed_expression(e);
-  auto &data = expr::BaseData<G>::get(expr::data(term));
+  decltype(auto) data = expr::BaseData<G>::get(expr::data(term));
   auto dimensions = expr::data_dimensions(term);
 
   using T = expr::eval_type_t<OpTerm<OpIdentity, G>>;
@@ -1122,13 +1145,17 @@ auto to_cuda_expr(OpFunctionApply<f, V, E> const &e) {
 
 template <typename E>
 auto to_cuda_expr(OpOptimized<E> const &e) {
-  return CuVoid{};
-  // return to_cuda_expr(e.e) * to_cuda_expr<1>(e.working);
+  return to_cuda_expr(e.e) * to_cuda_expr<1>(e.working);
+}
+
+template <typename A1, typename A2, typename E>
+auto to_cuda_expr(OpChain<A1, A2, E> const &e) {
+  return to_cuda_expr(e.eval_expr);
 }
 
 template <typename... Es, size_t... Is>
 auto to_cuda_expr(OpAdd<Es...> const &e, std::index_sequence<Is...>) {
-  return CuAdd{to_cuda_expr(get<Is>(e))...};
+  return CuAdd(to_cuda_expr(get<Is>(e))...);
 }
 
 template <typename... Es>

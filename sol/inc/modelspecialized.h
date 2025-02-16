@@ -608,6 +608,13 @@ struct apply_dynamics<symphas::internal::DynamicType::NONCONSERVED> {
 };
 
 template <>
+struct apply_dynamics<symphas::internal::DynamicType::HYDRODYNAMIC> {
+  template <typename U_D, typename F, typename Sp>
+  auto operator()(U_D const& dop, F const& dfe, Sp const& solver) {
+    return (dop = expr::make_operator_derivative<2>(solver) * dfe);
+  }
+};
+template <>
 struct apply_dynamics<symphas::internal::DynamicType::NONE> {
   template <typename U_D, typename F, typename Sp>
   auto operator()(U_D const& dop, F const& dfe, Sp const& solver) {
@@ -1081,8 +1088,9 @@ struct apply_special_dynamics<special_dynamics<N, void, E>> {
 template <typename S>
 apply_special_dynamics(S) -> apply_special_dynamics<S>;
 template <DynamicType dynamic>
-apply_special_dynamics(dynamics_key_t<dynamic>) -> apply_special_dynamics<
-    special_dynamics<0, void, dynamics_key_t<dynamic>>>;
+apply_special_dynamics(dynamics_key_t<dynamic>)
+    -> apply_special_dynamics<
+        special_dynamics<0, void, dynamics_key_t<dynamic>>>;
 
 template <DynamicType dynamic, size_t I>
 constexpr DynamicType dynamic_i = dynamic;
@@ -1185,7 +1193,7 @@ struct param_matrix_factory {
     //	{
     //		iter_type index = i * num_coeff + n;
     //		arr[index] = parameterized_values[i - (model.len -
-    //sizeof...(Ts)) + 1][n];
+    // sizeof...(Ts)) + 1][n];
     //	}
     // }
 
@@ -1495,9 +1503,9 @@ struct TraitEquation<enclosing_type,
   // auto update_placeholders(std::pair<L, E> const& equation) const
   //{
   //	using swap_t = GridSymbol<symphas::internal::non_parameterized_type<S>,
-  //D>; 	auto&& [l, e] = equation; 	return std::make_pair(l,
-  //expr::transform::swap_grid<swap_t, expr::symbols::placeholder_N_symbol>(e,
-  //op(), index));
+  // D>; 	auto&& [l, e] = equation; 	return std::make_pair(l,
+  // expr::transform::swap_grid<swap_t, expr::symbols::placeholder_N_symbol>(e,
+  // op(), index));
   // }
 };
 

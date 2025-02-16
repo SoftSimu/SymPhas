@@ -439,7 +439,27 @@ struct VectorComponentRegionData<ax, T *, D> {
       : VectorComponentRegionData(data, region, dims, empty,
                                   std::make_index_sequence<D>{}) {}
 
+  __host__ __device__ auto operator[](iter_type n) const {
+    iter_type pos[D]{};
+    grid::get_grid_position(pos, dims, n);
+    return region(pos, values, dims, empty);
+  }
+
+  __host__ __device__ auto operator[](iter_type n) {
+    iter_type pos[D]{};
+    grid::get_grid_position(pos, dims, n);
+    return region(pos, values, dims, empty);
+  }
+};
+
 #ifdef USING_CUDA
+
+template <Axis ax, typename T, size_t D>
+struct VectorComponentRegionData<ax, CUDADataType<T> *, D> {
+  T *values;
+  grid::select_region_cuda<D> region;
+  len_type dims[D];
+  T empty;
 
   template <size_t... Is>
   VectorComponentRegionData(T *data, grid::select_region_cuda<D> const &region,
@@ -451,14 +471,20 @@ struct VectorComponentRegionData<ax, T *, D> {
       : VectorComponentRegionData(data, region, dims, empty,
                                   std::make_index_sequence<D>{}) {}
 
-#endif
+  __host__ __device__ auto operator[](iter_type n) const {
+    iter_type pos[D]{};
+    grid::get_grid_position(pos, dims, n);
+    return region(pos, values, dims, empty);
+  }
 
-  auto operator[](iter_type n) const {
+  __host__ __device__ auto operator[](iter_type n) {
     iter_type pos[D]{};
     grid::get_grid_position(pos, dims, n);
     return region(pos, values, dims, empty);
   }
 };
+
+#endif
 
 //! Wraps a pointer in order to represent it as a grid.
 /*!
@@ -644,14 +670,14 @@ VectorComponentData<ax, T, D> resolve_axis_component(any_vector_t<T, D> &data) {
 #ifdef USING_CUDA
 
 template <Axis ax, size_t N, typename T>
-VectorComponentRegionData<ax, T *, N> resolve_axis_component(
+VectorComponentRegionData<ax, CUDADataType<T> *, N> resolve_axis_component(
     RegionalGridCUDA<any_vector_t<T, N>, N> const &data) {
   return {data.values[symphas::axis_to_index(ax)], data.region, data.dims,
           data.empty[symphas::axis_to_index(ax)]};
 }
 
 template <Axis ax, size_t N, typename T>
-VectorComponentRegionData<ax, T *, N> resolve_axis_component(
+VectorComponentRegionData<ax, CUDADataType<T> *, N> resolve_axis_component(
     RegionalGridCUDA<any_vector_t<T, N>, N> &data) {
   return {data.values[symphas::axis_to_index(ax)], data.region, data.dims,
           data.empty[symphas::axis_to_index(ax)]};
@@ -1650,6 +1676,12 @@ template <typename E>
 constexpr bool is_fraction = symphas::internal::test_is_op_fraction<E>::value;
 
 template <typename E>
+constexpr bool is_const = is_identity<E> || is_fraction<E>;
+
+template <typename T, size_t... Ns>
+constexpr bool is_const<OpTensor<T, Ns...>> = is_const<T>;
+
+template <typename E>
 constexpr bool is_literal = false;
 
 template <typename T>
@@ -1678,9 +1710,9 @@ constexpr bool is_tensor = symphas::internal::test_is_op_tensor<E>::value;
 // constexpr bool is_tensor<OpAdd<Es...>> = (is_tensor<Es> && ...);
 
 template <typename E>
-constexpr bool is_coeff =
-    (is_fraction<E> || is_identity<E> || is_tensor<E> || is_literal<E> ||
-     is_arr_coeff<E>)&&!std::is_same<E, OpVoid>::value;
+constexpr bool is_coeff = (is_fraction<E> || is_identity<E> || is_tensor<E> ||
+                           is_literal<E> || is_arr_coeff<E>) &&
+                          !std::is_same<E, OpVoid>::value;
 
 template <typename... Es>
 constexpr bool is_coeff<OpAdd<Es...>> = (is_coeff<Es> && ...);

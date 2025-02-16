@@ -395,7 +395,7 @@ struct select_region_cuda : select_region<D> {
 
   template <typename T>
   __device__ __host__ inline decltype(auto) operator()(
-      T * values, const iter_type (&domain_dims)[D], const T & empty,
+      T* values, const iter_type (&domain_dims)[D], const T& empty,
       const iter_type (&pos)[D]) const {
     iter_type pos0[D]{};
     for (iter_type i = 0; i < D; ++i) pos0[i] = pos[i];
@@ -404,7 +404,7 @@ struct select_region_cuda : select_region<D> {
 
   template <typename T>
   __device__ __host__ inline decltype(auto) operator()(
-      const T * values, const iter_type (&domain_dims)[D], const T & empty,
+      const T* values, const iter_type (&domain_dims)[D], const T& empty,
       const iter_type (&pos)[D]) const {
     iter_type pos0[D]{};
     for (iter_type i = 0; i < D; ++i) pos0[i] = pos[i];
@@ -492,8 +492,8 @@ struct select_region_cuda : select_region<D> {
       typename T, typename T0, typename... Ts,
       std::enable_if_t<symphas::are_all_same_v<iter_type, Ts...>, int> = 0>
   __device__ __host__ decltype(auto) operator()(
-      T && values, const iter_type (&domain_dims)[D], T0 empty,
-      iter_type coord0, Ts&&... coords) const {
+      T&& values, const iter_type (&domain_dims)[D], T0 empty, iter_type coord0,
+      Ts&&... coords) const {
     iter_type pos[D]{coord0, std::forward<Ts>(coords)...};
     return operator()(pos, std::forward<T>(values), domain_dims, empty);
   }
@@ -948,7 +948,11 @@ struct GridCUDA : BlockCUDA<T> {
     return grid;
   }
 
-  template <typename... Ts, std::enable_if_t<(sizeof...(Ts) == D), int> = 0>
+  template <typename... Ts,
+            std::enable_if_t<
+                (sizeof...(Ts) == D &&
+                 std::conjunction_v<std::is_convertible<Ts, iter_type>...>),
+                int> = 0>
   decltype(auto) operator()(Ts&&... indices) const {
     return grid::select_grid_index_cuda(dims).entry(
         BlockCUDA<T>::values, std::forward<Ts>(indices)...);
@@ -1030,12 +1034,17 @@ struct GridCUDA<any_vector_t<T, D>, D> : MultiBlockCUDA<D, T> {
 
   T* axis(Axis ax) { return parent_type::values[symphas::axis_to_index(ax)]; }
 
-  template <typename... Ts, std::enable_if_t<(sizeof...(Ts) == D), int> = 0>
+  template <typename... Ts,
+            std::enable_if_t<
+                (sizeof...(Ts) == D &&
+                 std::conjunction_v<std::is_convertible<Ts, iter_type>...>),
+                int> = 0>
   decltype(auto) operator()(Ts&&... rest) const {
     return grid::select_grid_index_cuda(dims).entry_arr(
         MultiBlockCUDA<D, T>::values, std::forward<Ts>(rest)...);
   }
 
+ protected:
   constexpr GridCUDA() : GridCUDA(nullptr) {}
 };
 
@@ -1067,12 +1076,17 @@ struct BoundaryGridCUDA : GridCUDA<T, D> {
 
   BoundaryGridCUDA<T, D>& as_grid() { return *this; }
 
-  template <typename... Ts, std::enable_if_t<(sizeof...(Ts) == D), int> = 0>
+  template <typename... Ts,
+            std::enable_if_t<
+                (sizeof...(Ts) == D &&
+                 std::conjunction_v<std::is_convertible<Ts, iter_type>...>),
+                int> = 0>
   decltype(auto) operator()(Ts&&... rest) const {
     return GridCUDA<T, D>::operator()(
         (std::forward<Ts>(rest) + BOUNDARY_DEPTH)...);
   }
 
+ protected:
   constexpr BoundaryGridCUDA() : GridCUDA<T, D>() {}
 };
 
@@ -1096,6 +1110,7 @@ struct BoundaryGridCUDA<T, 3> : GridCUDA<T, 3> {
                                       z + BOUNDARY_DEPTH);
   }
 
+ protected:
   constexpr BoundaryGridCUDA() : GridCUDA<T, 3>() {}
 };
 
@@ -1117,6 +1132,7 @@ struct BoundaryGridCUDA<T, 2> : GridCUDA<T, 2> {
     return GridCUDA<T, 2>::operator()(x + BOUNDARY_DEPTH, y + BOUNDARY_DEPTH);
   }
 
+ protected:
   constexpr BoundaryGridCUDA() : GridCUDA<T, 2>() {}
 };
 
@@ -1139,6 +1155,7 @@ struct BoundaryGridCUDA<T, 1> : GridCUDA<T, 1> {
     return GridCUDA<T, 1>::operator()(x + BOUNDARY_DEPTH);
   }
 
+ protected:
   constexpr BoundaryGridCUDA() : GridCUDA<T, 1>() {}
 };
 
@@ -1221,7 +1238,11 @@ struct RegionalGridCUDA : GridCUDA<T, D> {
 
   RegionalGridCUDA<T, D>& as_grid() { return *this; }
 
-  template <typename... Ts, std::enable_if_t<(sizeof...(Ts) == D), int> = 0>
+  template <typename... Ts,
+            std::enable_if_t<
+                (sizeof...(Ts) == D &&
+                 std::conjunction_v<std::is_convertible<Ts, iter_type>...>),
+                int> = 0>
   __device__ __host__ decltype(auto) operator()(Ts&&... rest) const {
     return region(BlockCUDA<T>::values, parent_type::dims, empty,
                   (std::forward<Ts>(rest) + region.boundary_size)...);
@@ -1281,6 +1302,7 @@ struct RegionalGridCUDA : GridCUDA<T, D> {
     }
   }
 
+ protected:
   constexpr RegionalGridCUDA() : parent_type(), region{}, empty{} {}
 };
 
@@ -1450,6 +1472,7 @@ struct RegionalGridCUDA<any_vector_t<T, D>, D>
     }
   }
 
+ protected:
   constexpr RegionalGridCUDA() : parent_type(), region{}, empty{} {}
 };
 

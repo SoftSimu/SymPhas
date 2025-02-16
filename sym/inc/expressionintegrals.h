@@ -47,6 +47,10 @@ struct make_integral {
   static auto get(V const &v, OpExpression<E> const &e,
                   symphas::grid_info const &domain);
 
+  template <typename V, typename E, typename G>
+  static auto get(V const &v, OpExpression<E> const &e,
+                  OpTerms<OpIdentity, G> const &var);
+
   template <typename V, typename E, typename T>
   static auto get(V const &v, OpOperator<E> const &e, T const &domain);
 
@@ -69,16 +73,16 @@ auto make_integral(A &&a, T &&domain) {
   return make_integral(OpIdentity{}, std::forward<A>(a),
                        std::forward<T>(domain));
 }
-
-template <size_t Z, typename V, typename A>
-auto make_integral(V &&v, A &&a) {
-  return make_integral(std::forward<V>(v), std::forward<A>(a), Variable<Z>{});
-}
-
-template <size_t Z, typename A>
-auto make_integral(A &&a) {
-  return make_integral(OpIdentity{}, std::forward<A>(a), Variable<Z>{});
-}
+//
+// template <size_t Z, typename V, typename A>
+// auto make_integral(V &&v, A &&a) {
+//  return make_integral(std::forward<V>(v), std::forward<A>(a), Variable<Z>{});
+//}
+//
+// template <size_t Z, typename A>
+// auto make_integral(A &&a) {
+//  return make_integral(OpIdentity{}, std::forward<A>(a), Variable<Z>{});
+//}
 
 template <typename V, typename A>
 auto make_domain_integral(V &&v, A &&a, symphas::grid_info const &info) {
@@ -261,59 +265,59 @@ struct OpIntegral<V, E, expr::variational_t<T>>
  * \tparam V The type of the coefficient.
  * \tparam E The type of the expression which is being integrated.
  */
-template <typename V, typename E, typename T>
-struct OpIntegral<V, E, SymbolicDerivative<T>>
-    : OpExpression<OpIntegral<V, E, SymbolicDerivative<T>>> {
-  OpIntegral() : e{}, value{V{}}, domain{SymbolicDerivative<T>{}} {}
-  OpIntegral(V value, E const &e,
-             SymbolicDerivative<T> domain = SymbolicDerivative<T>{})
-      : e{e}, value{value} {}
-
-  inline auto eval(iter_type n = 0) const { return expr::symbols::Symbol{}; }
-
-  auto operator-() const {
-    return symphas::internal::make_integral::get(-value, e,
-                                                 SymbolicDerivative<T>{});
-  }
-
-  template <typename eval_handler_type, typename... condition_ts>
-  void update(eval_handler_type const &eval_handler,
-              symphas::lib::types_list<condition_ts...>) {}
-  template <typename eval_handler_type>
-  void update(eval_handler_type const &eval_handler) {
-    update(eval_handler, symphas::lib::types_list<>{});
-  }
-
-#ifdef PRINTABLE_EQUATIONS
-
-  size_t print(FILE *out) const {
-    return expr::integral_print<T>{}(out, domain, value * e);
-  }
-
-  size_t print(char *out) const {
-    return expr::integral_print<T>{}(out, domain, value * e);
-  }
-
-  size_t print_length() const {
-    return expr::integral_print<T>{}(domain, value * e);
-  }
-
-#endif
-
-  template <typename V0, typename E0, typename T0>
-  friend auto const &expr::get_enclosed_expression(
-      OpIntegral<V0, E0, T0> const &);
-  template <typename V0, typename E0, typename T0>
-  friend auto &expr::get_enclosed_expression(OpIntegral<V0, E0, T0> &);
-
-  V value;  // value multiplying the result of this derivative
-  SymbolicDerivative<T> domain;
-
- protected:
-  // result_t data;					//!< Grid storing the
-  // resulting values.
-  E e;  //!< expression object specifying grid values
-};
+// template <typename V, typename E, typename T>
+// struct OpIntegral<V, E, SymbolicDerivative<T>>
+//     : OpExpression<OpIntegral<V, E, SymbolicDerivative<T>>> {
+//   OpIntegral() : e{}, value{V{}}, domain{SymbolicDerivative<T>{}} {}
+//   OpIntegral(V value, E const &e,
+//              SymbolicDerivative<T> domain = SymbolicDerivative<T>{})
+//       : e{e}, value{value} {}
+//
+//   inline auto eval(iter_type n = 0) const { return expr::symbols::Symbol{}; }
+//
+//   auto operator-() const {
+//     return symphas::internal::make_integral::get(-value, e,
+//                                                  SymbolicDerivative<T>{});
+//   }
+//
+//   template <typename eval_handler_type, typename... condition_ts>
+//   void update(eval_handler_type const &eval_handler,
+//               symphas::lib::types_list<condition_ts...>) {}
+//   template <typename eval_handler_type>
+//   void update(eval_handler_type const &eval_handler) {
+//     update(eval_handler, symphas::lib::types_list<>{});
+//   }
+//
+// #ifdef PRINTABLE_EQUATIONS
+//
+//   size_t print(FILE *out) const {
+//     return expr::integral_print<T>{}(out, domain, value * e);
+//   }
+//
+//   size_t print(char *out) const {
+//     return expr::integral_print<T>{}(out, domain, value * e);
+//   }
+//
+//   size_t print_length() const {
+//     return expr::integral_print<T>{}(domain, value * e);
+//   }
+//
+// #endif
+//
+//   template <typename V0, typename E0, typename T0>
+//   friend auto const &expr::get_enclosed_expression(
+//       OpIntegral<V0, E0, T0> const &);
+//   template <typename V0, typename E0, typename T0>
+//   friend auto &expr::get_enclosed_expression(OpIntegral<V0, E0, T0> &);
+//
+//   V value;  // value multiplying the result of this derivative
+//   SymbolicDerivative<T> domain;
+//
+//  protected:
+//   // result_t data;					//!< Grid storing the
+//   // resulting values.
+//   E e;  //!< expression object specifying grid values
+// };
 
 template <typename V, typename E, typename T>
 using OpDomainIntegral = OpIntegral<V, E, expr::variational_t<T>>;
@@ -364,6 +368,13 @@ inline auto make_integral::get(V const &v, OpExpression<E> const &e,
                                symphas::grid_info const &domain) {
   return OpIntegral<V, E, expr::variational_t<symphas::grid_info>>(
       v, *static_cast<E const *>(&e), domain);
+}
+
+template <typename V, typename E, typename G>
+inline auto make_integral::get(V const &v, OpExpression<E> const &e,
+                               OpTerms<OpIdentity, G> const &var) {
+  return make_integral::get(v, *static_cast<E const *>(&e),
+                            symphas::grid_info(expr::data_dimensions(var)));
 }
 
 template <typename V, typename E, typename T>

@@ -81,6 +81,92 @@ DEFINE_SYMBOL_ID(
 
 namespace symphas::internal {
 
+template <typename A, typename B>
+struct fixed_min_fold_trait;
+
+template <typename T, T A0, T A1, T A2, T... As>
+struct fixed_min_fold_trait<std::integer_sequence<T, A0, A1, A2, As...>,
+                            std::integer_sequence<T>> {
+  static const T value =
+      fixed_min_fold_trait<std::integer_sequence<T, A2, As...>,
+                           std::integer_sequence<T, fixed_min<A0, A1>>>::value;
+};
+
+template <typename T, T A0, T A1>
+struct fixed_min_fold_trait<std::integer_sequence<T, A0, A1>,
+                            std::integer_sequence<T>> {
+  static const T value =
+      fixed_min_fold_trait<std::integer_sequence<T, fixed_min<A0, A1>>,
+                           std::integer_sequence<T, fixed_min<A0, A1>>>::value;
+};
+template <typename T, T A0, T A1, T A2, T... As, T B0>
+struct fixed_min_fold_trait<std::integer_sequence<T, A0, A1, A2, As...>,
+                            std::integer_sequence<T, B0>> {
+  static const T value =
+      fixed_min_fold_trait<std::integer_sequence<T, fixed_min<A1, A2>, As...>,
+                           std::integer_sequence<T, fixed_min<B0, A0>>>::value;
+};
+
+template <typename T, T A0, T A1, T B0>
+struct fixed_min_fold_trait<std::integer_sequence<T, A0, A1>,
+                            std::integer_sequence<T, B0>> {
+  static const T value = fixed_min<B0, fixed_min<A0, A1>>;
+};
+
+template <typename T, T A0, T B0>
+struct fixed_min_fold_trait<std::integer_sequence<T, A0>,
+                            std::integer_sequence<T, B0>> {
+  static const T value = fixed_min<B0, A0>;
+};
+
+template <int... Vs>
+constexpr auto fixed_min_many =
+    fixed_min_fold_trait<std::integer_sequence<int, Vs...>,
+                         std::integer_sequence<int>>::value;
+
+template <typename A, typename B>
+struct fixed_max_fold_trait;
+
+template <typename T, T A0, T A1, T A2, T... As>
+struct fixed_max_fold_trait<std::integer_sequence<T, A0, A1, A2, As...>,
+                            std::integer_sequence<T>> {
+  static const T value =
+      fixed_max_fold_trait<std::integer_sequence<T, A2, As...>,
+                           std::integer_sequence<T, fixed_max<A0, A1>>>::value;
+};
+
+template <typename T, T A0, T A1>
+struct fixed_max_fold_trait<std::integer_sequence<T, A0, A1>,
+                            std::integer_sequence<T>> {
+  static const T value =
+      fixed_max_fold_trait<std::integer_sequence<T, fixed_max<A0, A1>>,
+                           std::integer_sequence<T, fixed_max<A0, A1>>>::value;
+};
+template <typename T, T A0, T A1, T A2, T... As, T B0>
+struct fixed_max_fold_trait<std::integer_sequence<T, A0, A1, A2, As...>,
+                            std::integer_sequence<T, B0>> {
+  static const T value =
+      fixed_max_fold_trait<std::integer_sequence<T, fixed_max<A1, A2>, As...>,
+                           std::integer_sequence<T, fixed_max<B0, A0>>>::value;
+};
+
+template <typename T, T A0, T A1, T B0>
+struct fixed_max_fold_trait<std::integer_sequence<T, A0, A1>,
+                            std::integer_sequence<T, B0>> {
+  static const T value = fixed_max<B0, fixed_max<A0, A1>>;
+};
+
+template <typename T, T A0, T B0>
+struct fixed_max_fold_trait<std::integer_sequence<T, A0>,
+                            std::integer_sequence<T, B0>> {
+  static const T value = fixed_max<B0, A0>;
+};
+
+template <int... Vs>
+constexpr auto fixed_max_many =
+    fixed_max_fold_trait<std::integer_sequence<int, Vs...>,
+                         std::integer_sequence<int>>::value;
+
 using namespace symphas::lib;
 
 template <int... Ns>
@@ -563,12 +649,12 @@ auto keep_axes_2d(
     types_list<
         OpTerm<OpIdentity, expr::symbols::internal::S2_symbol<Is, Js>>...>,
     std::integer_sequence<int, Is...>, std::integer_sequence<int, Js...>) {
-  constexpr int Jm = fixed_min<Js...>;
-  constexpr int JM = fixed_max<Js...>;
+  constexpr int Jm = symphas::internal::fixed_min_many<Js...>;
+  constexpr int JM = symphas::internal::fixed_max_many<Js...>;
   constexpr int RJ = JM - Jm + 1;
 
-  constexpr int Im = fixed_min<Is...>;
-  constexpr int IM = fixed_max<Is...>;
+  constexpr int Im = symphas::internal::fixed_min_many<Is...>;
+  constexpr int IM = symphas::internal::fixed_max_many<Is...>;
   constexpr int RI = IM - Im + 1;
 
   constexpr int R = fixed_min<RI, RJ>;
@@ -683,12 +769,12 @@ auto keep_axes_3d(
         OpTerm<OpIdentity, expr::symbols::internal::S3_symbol<Is, Js, Ks>>...>,
     std::integer_sequence<int, Is...>, std::integer_sequence<int, Js...>,
     std::integer_sequence<int, Ks...>) {
-  constexpr int Im = fixed_min<Js...>;
-  constexpr int IM = fixed_max<Js...>;
-  constexpr int Jm = fixed_min<Js...>;
-  constexpr int JM = fixed_max<Js...>;
-  constexpr int Km = fixed_min<Ks...>;
-  constexpr int KM = fixed_max<Ks...>;
+  constexpr int Im = symphas::internal::fixed_min_many<Is...>;
+  constexpr int IM = symphas::internal::fixed_max_many<Is...>;
+  constexpr int Jm = symphas::internal::fixed_min_many<Js...>;
+  constexpr int JM = symphas::internal::fixed_max_many<Js...>;
+  constexpr int Km = symphas::internal::fixed_min_many<Ks...>;
+  constexpr int KM = symphas::internal::fixed_max_many<Ks...>;
   constexpr int RI = IM - Im + 1;
   constexpr int RJ = JM - Jm + 1;
   constexpr int RK = KM - Km + 1;
@@ -2955,7 +3041,8 @@ struct StencilCoeff<std::pair<S, OpVoid>> {
   }
 
   template <typename T, size_t D>
-  constexpr auto operator()(T const* v, const len_type (&stride)[D]) {
+  __host__ __device__ constexpr auto operator()(T const* v,
+                                                const len_type (&stride)[D]) {
     return OpVoid{}.eval();
   }
 
@@ -2977,6 +3064,9 @@ struct StencilCoeff<std::pair<S, OpVoid>> {
     return OpVoid{}.print_length() + OpTerm<OpIdentity, S>{}.print_length();
   }
 };
+
+template<typename Nt, typename Dt>
+auto compute_stencil_coeff() { return (Nt{} / Dt{}).eval(); }
 
 template <int N, typename Nt, typename Dt, expr::exp_key_t P>
 struct StencilCoeff<
@@ -3009,13 +3099,13 @@ struct StencilCoeff<
            expr::symbols::internal::S1<N>{}.print_length();
   }
 
-  auto get_coeff() { return (Nt{} / Dt{}).eval(); }
+  auto get_coeff() const { return (Nt{} / Dt{}).eval(); }
 
   using this_type = StencilCoeff<std::pair<
       expr::symbols::internal::S1_symbol<N>,
       OpBinaryDiv<Nt, OpTerms<Dt, Term<expr::symbols::h_symbol, P>>>>>;
   using coeff_type =
-      std::invoke_result_t<decltype(&this_type::get_coeff), this_type>;
+      std::invoke_result_t<decltype(&compute_stencil_coeff<Nt, Dt>)>;
 
   coeff_type coeff;
 };
@@ -3051,13 +3141,13 @@ struct StencilCoeff<
            expr::symbols::internal::S2<N0, N1>{}.print_length();
   }
 
-  auto get_coeff() { return (Nt{} / Dt{}).eval(); }
+  auto get_coeff() const { return (Nt{} / Dt{}).eval(); }
 
   using this_type = StencilCoeff<std::pair<
       expr::symbols::internal::S2_symbol<N0, N1>,
       OpBinaryDiv<Nt, OpTerms<Dt, Term<expr::symbols::h_symbol, P>>>>>;
   using coeff_type =
-      std::invoke_result_t<decltype(&this_type::get_coeff), this_type>;
+      std::invoke_result_t<decltype(&compute_stencil_coeff<Nt, Dt>)>;
 
   coeff_type coeff;
 };
@@ -3093,13 +3183,13 @@ struct StencilCoeff<
            expr::symbols::internal::S3<N0, N1, N2>{}.print_length();
   }
 
-  auto get_coeff() { return (Nt{} / Dt{}).eval(); }
+  auto get_coeff() const { return (Nt{} / Dt{}).eval(); }
 
   using this_type = StencilCoeff<std::pair<
       expr::symbols::internal::S3_symbol<N0, N1, N2>,
       OpBinaryDiv<Nt, OpTerms<Dt, Term<expr::symbols::h_symbol, P>>>>>;
   using coeff_type =
-      std::invoke_result_t<decltype(&this_type::get_coeff), this_type>;
+      std::invoke_result_t<decltype(&compute_stencil_coeff<Nt, Dt>)>;
 
   coeff_type coeff;
 };

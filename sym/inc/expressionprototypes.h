@@ -401,6 +401,9 @@ struct CuEvaluable {};
 
 #endif
 
+template <typename T>
+struct CUDADataType {};
+
 namespace expr {
 //! Defines elements which transform an expression into another one.
 /*!

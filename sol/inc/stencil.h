@@ -172,7 +172,8 @@ struct Stencil {
       RegionalGrid<T, D> const &grid, iter_type n) const {
     auto v = grid[n];
     if (v.is_valid()) {
-      return cast().template apply_directional<ax, O>(v.value);
+      return cast().template apply_directional<ax, O>(v.value,
+                                                      grid.region.dims);
     } else {
       return *v.value;
     }
@@ -183,7 +184,7 @@ struct Stencil {
       RegionalGrid<T, D> const &grid, iter_type n) const {
     auto v = grid[n];
     if (v.is_valid()) {
-      return cast().template apply_mixed<Os...>(v.value);
+      return cast().template apply_mixed<Os...>(v.value, grid.region.dims);
     } else {
       return *v.value;
     }
@@ -513,6 +514,90 @@ struct Stencil {
     len_type stride[D];
     grid::get_stride<ax>(stride, cast().dims);
     return gradient(data.values + n, stride);
+  }
+
+  template <Axis ax, size_t O, typename T, size_t D>
+  __host__ __device__ auto applied_generalized_directional_derivative(
+      VectorComponentRegionData<ax, T *, D> const &data, iter_type n) const {
+    auto v = data[n];
+    if (v.is_valid()) {
+      return cast().template apply_directional<ax, O>(v.value,
+                                                      data.region.dims);
+    } else {
+      return *v.value;
+    }
+  }
+
+  template <size_t... Os, Axis ax, typename T, size_t D>
+  __host__ __device__ auto applied_generalized_mixed_derivative(
+      VectorComponentRegionData<ax, T *, D> const &grid, iter_type n) const {
+    auto v = grid[n];
+    if (v.is_valid()) {
+      return cast().template apply_mixed<Os...>(v.value, grid.region.dims);
+    } else {
+      return *v.value;
+    }
+  }
+
+  template <Axis ax, size_t O, typename T, size_t D>
+  __host__ __device__ auto applied_generalized_derivative(
+      VectorComponentRegionData<ax, T *, D> const &data, iter_type n) const {
+    auto v = data[n];
+    if (v.is_valid()) {
+      len_type stride[D];
+      grid::get_stride<ax>(stride, data.region.dims);
+      return cast().template apply<O>(v.value, stride);
+    } else {
+      return *v.value;
+    }
+  }
+
+  template <Axis ax, typename T, size_t D>
+  __host__ __device__ auto applied_laplacian(
+      VectorComponentRegionData<ax, T *, D> const &data, iter_type n) const {
+    auto v = data[n];
+    if (v.is_valid()) {
+      return laplacian(v.value, data.region.stride);
+    } else {
+      return *v.value;
+    }
+  }
+
+  template <Axis ax, typename T, size_t D>
+  __host__ __device__ auto applied_bilaplacian(
+      VectorComponentRegionData<ax, T *, D> const &data, iter_type n) const {
+    auto v = data[n];
+    if (v.is_valid()) {
+      return bilaplacian(v.value, data.region.stride);
+    } else {
+      return *v.value;
+    }
+  }
+
+  template <Axis ax, typename T, size_t D>
+  __host__ __device__ auto applied_gradlaplacian(
+      VectorComponentRegionData<ax, T *, D> const &data, iter_type n) const {
+    auto v = data[n];
+    if (v.is_valid()) {
+      len_type stride[D];
+      grid::get_stride<ax>(stride, data.region.dims);
+      return gradlaplacian(v.value, stride);
+    } else {
+      return *v.value;
+    }
+  }
+
+  template <Axis ax, typename T, size_t D>
+  __host__ __device__ auto applied_gradient(
+      VectorComponentRegionData<ax, T *, D> const &data, iter_type n) const {
+    auto v = data[n];
+    if (v.is_valid()) {
+      len_type stride[D];
+      grid::get_stride<ax>(stride, data.region.dims);
+      return gradient(v.value, stride);
+    } else {
+      return *v.value;
+    }
   }
 
   template <Axis ax, size_t O, typename T, size_t D>

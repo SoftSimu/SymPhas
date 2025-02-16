@@ -67,7 +67,8 @@ inline void equation(std::pair<S, E>* r, len_type len) const {
 
     SYMPHAS_OMP_PARALLEL_DIRECTIVE
     for (iter_type i = 0; i < len; ++i) {
-      expr::prune::update<expr::not_<expr::matches_series>>(r[i].second, handler);
+      expr::prune::update<expr::not_<expr::matches_series>>(r[i].second,
+                                                            handler);
     }
   }
   {
@@ -174,7 +175,8 @@ void evaluate_one(std::pair<G, E>&& r) const {
 
   expr::result(equation, expr::BaseData<G>::get(grid));
 }
-};
+}
+;
 
 template <size_t D>
 bool check_overlapping_domain(grid::region_interval<D> const& region0,
@@ -223,4 +225,3 @@ ASSOCIATE_SELECTABLE_SOLVER_SYSTEM_TYPE(SolverFT, SolverSystemFDwSDMPI)
 
 ASSOCIATE_PROVISIONAL_SYSTEM_TYPE(SolverFT, ProvisionalSystemFD)
 SYMPHAS_SOLVER_ALL_SUPPORTED(SolverFT)
-    

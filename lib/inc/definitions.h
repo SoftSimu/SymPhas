@@ -336,6 +336,8 @@ constexpr auto fixed_max = fixed_max<A, fixed_max<Rest...>>;
 template <auto A, auto B>
 constexpr auto fixed_max<A, B> = (A > B) ? A : B;
 template <auto A>
+constexpr auto fixed_max<A, A> = A;
+template <auto A>
 constexpr auto fixed_max<A> = A;
 
 //! Compile time constant template variable to return minimum.
@@ -343,6 +345,8 @@ template <auto A, auto... Rest>
 constexpr auto fixed_min = fixed_min<A, fixed_min<Rest...>>;
 template <auto A, auto B>
 constexpr auto fixed_min<A, B> = (A < B) ? A : B;
+template <auto A>
+constexpr auto fixed_min<A, A> = A;
 template <auto A>
 constexpr auto fixed_min<A> = A;
 

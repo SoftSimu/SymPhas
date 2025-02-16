@@ -636,6 +636,65 @@ struct OpLHS : G {
   }
 };
 
+namespace expr {
+
+template <typename T, size_t D>
+auto make_lhs(Grid<T, D> const& data) {
+  return OpLHS<Grid<T, D>>(data);
+}
+template <typename T, size_t D>
+auto make_lhs(BoundaryGrid<T, D> const& data) {
+  return OpLHS<BoundaryGrid<T, D>>(data);
+}
+template <typename T, size_t D>
+auto make_lhs(RegionalGrid<T, D> const& data) {
+  return OpLHS<RegionalGrid<T, D>>(data);
+}
+#ifdef USING_MPI
+
+template <typename T, size_t D>
+auto make_lhs(GridMPI<T, D> const& data) {
+  return OpLHS<Grid<T, D>>(data);
+}
+template <typename T, size_t D>
+auto make_lhs(BoundaryGridMPI<T, D> const& data) {
+  return OpLHS<BoundaryGrid<T, D>>(data);
+}
+template <typename T, size_t D>
+auto make_lhs(RegionalGridMPI<T, D> const& data) {
+  return OpLHS<RegionalGrid<T, D>>(data);
+}
+#endif
+
+#ifdef USING_CUDA
+
+template <typename T, size_t D>
+auto make_lhs(GridCUDA<T, D> const& data) {
+  return OpLHS<Grid<T, D>>(data);
+}
+template <typename T, size_t D>
+auto make_lhs(BoundaryGridCUDA<T, D> const& data) {
+  return OpLHS<BoundaryGrid<T, D>>(data);
+}
+template <typename T, size_t D>
+auto make_lhs(RegionalGridCUDA<T, D> const& data) {
+  return OpLHS<RegionalGrid<T, D>>(data);
+}
+#endif
+template <typename G>
+auto make_lhs(NamedData<G> const& e) {
+  return make_lhs(*static_cast<G const*>(&e));
+}
+template <size_t Z, typename G>
+auto make_lhs(Variable<Z, G> const& e) {
+  return make_lhs(*static_cast<G const*>(&e));
+}
+template <typename G>
+auto make_lhs(OpTerms<OpIdentity, G> const& e) {
+  return make_lhs(expr::get<1>(e));
+}
+}  // namespace expr
+
 // *************************************************************************************
 
 template <typename G, expr::exp_key_t X>

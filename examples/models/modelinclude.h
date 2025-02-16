@@ -28,14 +28,6 @@
 
 #pragma once
 
-
-namespace simulate
-{
-	template<typename M>
-	int simulate(double const *coeff, size_t num_coeff);
-}
-
-
 #ifdef BASIC_MODELS
 
 #include "modelmacros.h"
@@ -43,30 +35,20 @@ namespace simulate
 #define dpsi dop(1)
 #define psi op(1)
 
-MODEL(NOCHANGE, (SCALAR),
-	EVOLUTION(dpsi = lit(0))
-)
+MODEL(NOCHANGE, (SCALAR), EVOLUTION(dpsi = 0_c))
 LINK_WITH_NAME(NOCHANGE, NOCHANGE)
 
 MODEL(MA, (SCALAR),
-	EVOLUTION(
-		dpsi = lap(psi) + (c1 - lit(4.) * c2 * psi * psi) * psi)
-)
+      EVOLUTION(dpsi = lap(psi) + (c(0) - 4_c * c(1) * psi * psi) * psi))
 LINK_WITH_NAME(MA, MODELA)
 
-MODEL(CONV, (SCALAR),
-	EVOLUTION(
-		dpsi = -smoothing(psi))
-)
+MODEL(CONV, (SCALAR), EVOLUTION(dpsi = -smoothing(psi)))
 LINK_WITH_NAME(CONV, CONVOLUTION)
-
 
 #else
 
-//#include "advancedmodeldefs.h"
-//#include "pfcdefs.h"
-#include "modeldefs.h"
-//#include "modelacmms.h"
+// #include "advancedmodeldefs.h"
+#include "modeldefinitions.h"
+// #include "pfcdefs.h"
+// #include "modelacmms.h"
 #endif
-
-

@@ -57,7 +57,9 @@ struct array_values_type {
   __device__ __host__ const arr_t& as_array() const { return range; }
   __device__ __host__ arr_t& as_array() { return range; }
 
-  __device__ __host__ T& operator[](iter_type i) const { return range[i]; }
+  __device__ __host__ const T& operator[](iter_type i) const {
+    return range[i];
+  }
   __device__ __host__ T& operator[](iter_type i) { return range[i]; }
 };
 

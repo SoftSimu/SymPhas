@@ -394,6 +394,12 @@ auto iterable_domain_cast(RegionalGrid<T, D> const* data) {
   return regions += grid::get_iterable_domain(*data);
 }
 
+//! The iterable_domain of a typical data object is 1.
+inline auto iterable_domain_cast(...) { return region_interval<0>{}; }
+
+//! The iterable_domain of a typical data object is 1.
+inline auto iterable_domain_cast(int) { return region_interval<0>{}; }
+
 #ifdef USING_CUDA
 //! Obtains the iterable_domain from the Block compatible instance.
 template <typename T, size_t D>
@@ -440,12 +446,6 @@ inline auto iterable_domain_cast(BlockCUDA<T> const* data) {
   return iterable_domain_cast(grid::get_iterable_domain(*data));
 }
 #endif
-
-//! The iterable_domain of a typical data object is 1.
-inline auto iterable_domain_cast(...) { return region_interval<0>{}; }
-
-//! The iterable_domain of a typical data object is 1.
-inline auto iterable_domain_cast(int) { return region_interval<0>{}; }
 
 //! Specialization based on expr::iterable_domain_data().
 template <typename G>
@@ -530,13 +530,26 @@ auto iterable_domain_data(VectorComponent<ax, G> const& data) {
   return iterable_domain_data(*static_cast<G const*>(&data));
 }
 
+template <typename T>
+struct empty_iterable_domain_data {
+  auto call_iterable_domain_data(T const& data) {
+    return iterable_domain_data(data);
+  }
+  using type = std::invoke_result_t<
+      decltype(&empty_iterable_domain_data<T>::call_iterable_domain_data),
+      empty_iterable_domain_data<T>, T>;
+};
+
+template <typename T>
+using empty_iterable_domain_t = typename empty_iterable_domain_data<T>::type;
+
 //! Specialization based on expr::iterable_domain_data().
 template <typename T>
 auto iterable_domain_data(SymbolicData<T> const& data) {
   if (data.data) {
     return iterable_domain_data(*data.data);
   } else {
-    return iterable_domain_data(T{});
+    return empty_iterable_domain_t<T>{};
   }
 }
 
@@ -546,7 +559,7 @@ auto iterable_domain_data(SymbolicDataArray<T> const& data) {
   if (data.data) {
     return iterable_domain_data(*data.data);
   } else {
-    return iterable_domain_data(T{});
+    return empty_iterable_domain_t<T>{};
   }
 }
 

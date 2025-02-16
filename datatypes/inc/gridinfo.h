@@ -611,6 +611,9 @@ struct box_list : symphas::lib::array_container<T> {
     }
   }
 
+  __host__ __device__ operator const T*() const { return data; }
+  __host__ __device__ operator T*() { return data; }
+
   std::tuple<T, T, T> _3() const {
     return {operator[](0), operator[](1), operator[](2)};
   }
@@ -776,7 +779,7 @@ struct symphas::grid_info {
   grid_info(const len_type* dims, int dimension)
       : grid_info(dims, static_cast<size_t>(dimension)) {}
 
-  grid_info(grid::dim_list const& dims) : grid_info(dims, dims.n) {}
+  grid_info(grid::dim_list const& dims) : grid_info(dims.data, dims.n) {}
 
   grid_info(grid_info const& other)
       : grid_info{other.intervals, other.strides} {}

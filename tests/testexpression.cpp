@@ -5,23 +5,6 @@
 
 using namespace symphas;
 
-NEW_SOLVER_WITH_STENCIL(SolverFT)
-
-/*
- * the parameter is a tuple with the first parameter being a Variable object
- * with ref base type, and the ref is a reference to the system; like this, the
- * variable index is packaged and the equality operator is deferred to the
- * oplvariable
- */
-template <typename S, typename E>
-inline void equation(std::pair<S, E>& r) const {
-  auto& [sys, equation] = r;
-  expr::prune::update(equation);
-  expr::result(equation, sys.get().dframe);
-}
-}
-;
-
 // **********************************************************************************
 
 void testexpressioneval() {
@@ -147,7 +130,7 @@ void testexpressionmodelspeed() {
   grid::fill_random(grid0);
   grid::fill_random(grid1);
   auto op = expr::make_term(grid0);
-  auto dop = OpLHS(op);
+  auto dop = OpLHS(grid0);
   SolverFT<Stencil2d2h<5, 6, 13>> solver(grid0.dims, 1.);
 
   // use the coefficients from the configuration
@@ -203,7 +186,7 @@ void testexpressionmodelspeed() {
   printf(
       "tests how long it takes to evaluate model A using different methods.\n");
 
-  iter_type steps = symphas::conf::config().save_settings.save.get_stop();
+  iter_type steps = symphas::conf::config().simulation_settings.save.get_stop();
   Stencil2d2h<5, 13, 6> stencil(grid0.dims, 1.);
 
   {
@@ -433,15 +416,16 @@ void testexpressionconvolution() {
   Grid<double, 2> grid0({100, 100});
   grid::fill_random(grid0);
   auto op = expr::make_term(grid0);
+  double h[2]{1, 1};
 
   // testing the correct behaviour of convolution
   auto cc1 =
-      expr::make_convolution::get(GaussianSmoothing<2>{grid0.dims, 1, 1}, op);
+      expr::make_convolution::get(GaussianSmoothing<2>{grid0.dims, h, 1}, op);
   auto cc2 =
       expr::make_literal(1.0) *
-      expr::make_convolution::get(GaussianSmoothing<2>{grid0.dims, 1, 1}, cc1);
+      expr::make_convolution::get(GaussianSmoothing<2>{grid0.dims, h, 1}, cc1);
   auto cc3 =
-      expr::make_convolution::get(GaussianSmoothing<2>{grid0.dims, 1, 1}, op) -
+      expr::make_convolution::get(GaussianSmoothing<2>{grid0.dims, h, 1}, op) -
       op;
 }
 
@@ -637,213 +621,6 @@ void testderivativefactor() {
 
   auto eq = (3_c + 4_c) * 5_c;
 
-  using TE = OpAdd<
-      OpBinaryMul<
-          OpTerms<OpTensor<OpIdentity, 0, 2>, Term<NamedData<Grid<double, 2>>>>,
-          OpBinaryMul<OpTerms<OpIdentity, Term<NamedData<Grid<double, 2>>>>,
-                      OpSymbolicEval<OpTensor<OpIdentity, 0, 0, 1, 2>,
-                                     NoiseData<expr::NoiseType::WHITE,
-                                               VectorValue<double, 2>, 2>,
-                                     SymbolicFunction<OpLiteral<int>>>>>,
-      OpBinaryMul<
-          OpTerms<OpTensor<OpIdentity, 1, 2>, Term<NamedData<Grid<double, 2>>>>,
-          OpBinaryMul<OpTerms<OpIdentity, Term<NamedData<Grid<double, 2>>>>,
-                      OpSymbolicEval<OpTensor<OpIdentity, 0, 1, 1, 2>,
-                                     NoiseData<expr::NoiseType::WHITE,
-                                               VectorValue<double, 2>, 2>,
-                                     SymbolicFunction<OpLiteral<int>>>>>,
-      OpBinaryMul<
-          OpTerms<OpTensor<OpIdentity, 0, 0, 2, 2>,
-                  Term<NamedData<Grid<double, 2>>>>,
-          OpMap<
-              MapGridFourier<double, std::complex<double>, 2>, OpIdentity,
-              OpBinaryMul<
-                  OpMap<MapGridInverseFourier<std::complex<double>, double, 2>,
-                        OpIdentity,
-                        OpTerms<
-                            OpLiteral<double>,
-                            Term<NamedData<Grid<std::complex<double>, 2>>>,
-                            Term<Variable<2, NamedData<GridData<
-                                                 std::complex<double>, 2>>>>>>,
-                  OpMap<MapGridInverseFourier<std::complex<double>, double, 2>,
-                        OpIdentity,
-                        OpTerms<OpLiteral<double>,
-                                Term<NamedData<Grid<std::complex<double>, 2>>>,
-                                Term<Variable<
-                                    2, NamedData<GridData<std::complex<double>,
-                                                          2>>>>>>>>>,
-      OpBinaryMul<
-          OpTerms<OpTensor<OpIdentity, 0, 0, 2, 2>,
-                  Term<NamedData<Grid<double, 2>>>>,
-          OpMap<
-              MapGridFourier<double, std::complex<double>, 2>, OpIdentity,
-              OpBinaryMul<
-                  OpMap<MapGridInverseFourier<std::complex<double>, double, 2>,
-                        OpIdentity,
-                        OpTerms<
-                            OpLiteral<double>,
-                            Term<NamedData<Grid<std::complex<double>, 2>>>,
-                            Term<Variable<2, NamedData<GridData<
-                                                 std::complex<double>, 2>>>>>>,
-                  OpMap<MapGridInverseFourier<std::complex<double>, double, 2>,
-                        OpIdentity,
-                        OpTerms<OpLiteral<double>,
-                                Term<NamedData<Grid<std::complex<double>, 2>>>,
-                                Term<Variable<
-                                    2, NamedData<GridData<std::complex<double>,
-                                                          2>>>>>>>>>,
-      OpBinaryMul<
-          OpTerms<OpTensor<OpIdentity, 0, 0, 2, 2>,
-                  Term<NamedData<Grid<double, 2>>>>,
-          OpMap<
-              MapGridFourier<double, std::complex<double>, 2>, OpIdentity,
-              OpBinaryMul<
-                  OpMap<MapGridInverseFourier<std::complex<double>, double, 2>,
-                        OpIdentity,
-                        OpTerms<
-                            OpLiteral<double>,
-                            Term<NamedData<Grid<std::complex<double>, 2>>>,
-                            Term<Variable<2, NamedData<GridData<
-                                                 std::complex<double>, 2>>>>>>,
-                  OpMap<MapGridInverseFourier<std::complex<double>, double, 2>,
-                        OpIdentity,
-                        OpTerms<OpLiteral<double>,
-                                Term<NamedData<Grid<std::complex<double>, 2>>>,
-                                Term<Variable<
-                                    2, NamedData<GridData<std::complex<double>,
-                                                          2>>>>>>>>>,
-      OpBinaryMul<
-          OpTerms<OpTensor<OpIdentity, 0, 0, 2, 2>,
-                  Term<NamedData<Grid<double, 2>>>>,
-          OpMap<
-              MapGridFourier<double, std::complex<double>, 2>, OpIdentity,
-              OpBinaryMul<
-                  OpMap<MapGridInverseFourier<std::complex<double>, double, 2>,
-                        OpIdentity,
-                        OpTerms<
-                            OpLiteral<double>,
-                            Term<NamedData<Grid<std::complex<double>, 2>>>,
-                            Term<Variable<2, NamedData<GridData<
-                                                 std::complex<double>, 2>>>>>>,
-                  OpMap<MapGridInverseFourier<std::complex<double>, double, 2>,
-                        OpIdentity,
-                        OpTerms<OpLiteral<double>,
-                                Term<NamedData<Grid<std::complex<double>, 2>>>,
-                                Term<Variable<
-                                    2, NamedData<GridData<std::complex<double>,
-                                                          2>>>>>>>>>,
-      OpBinaryMul<
-          OpTerms<OpTensor<OpIdentity, 1, 1, 2, 2>,
-                  Term<NamedData<Grid<double, 2>>>>,
-          OpMap<
-              MapGridFourier<double, std::complex<double>, 2>, OpIdentity,
-              OpBinaryMul<
-                  OpMap<MapGridInverseFourier<std::complex<double>, double, 2>,
-                        OpIdentity,
-                        OpTerms<
-                            OpLiteral<double>,
-                            Term<NamedData<Grid<std::complex<double>, 2>>>,
-                            Term<Variable<2, NamedData<GridData<
-                                                 std::complex<double>, 2>>>>>>,
-                  OpMap<MapGridInverseFourier<std::complex<double>, double, 2>,
-                        OpIdentity,
-                        OpTerms<OpLiteral<double>,
-                                Term<NamedData<Grid<std::complex<double>, 2>>>,
-                                Term<Variable<
-                                    2, NamedData<GridData<std::complex<double>,
-                                                          2>>>>>>>>>,
-      OpBinaryMul<
-          OpTerms<OpTensor<OpIdentity, 1, 1, 2, 2>,
-                  Term<NamedData<Grid<double, 2>>>>,
-          OpMap<
-              MapGridFourier<double, std::complex<double>, 2>, OpIdentity,
-              OpBinaryMul<
-                  OpMap<MapGridInverseFourier<std::complex<double>, double, 2>,
-                        OpIdentity,
-                        OpTerms<
-                            OpLiteral<double>,
-                            Term<NamedData<Grid<std::complex<double>, 2>>>,
-                            Term<Variable<2, NamedData<GridData<
-                                                 std::complex<double>, 2>>>>>>,
-                  OpMap<MapGridInverseFourier<std::complex<double>, double, 2>,
-                        OpIdentity,
-                        OpTerms<OpLiteral<double>,
-                                Term<NamedData<Grid<std::complex<double>, 2>>>,
-                                Term<Variable<
-                                    2, NamedData<GridData<std::complex<double>,
-                                                          2>>>>>>>>>,
-      OpBinaryMul<
-          OpTerms<OpTensor<OpIdentity, 1, 1, 2, 2>,
-                  Term<NamedData<Grid<double, 2>>>>,
-          OpMap<
-              MapGridFourier<double, std::complex<double>, 2>, OpIdentity,
-              OpBinaryMul<
-                  OpMap<MapGridInverseFourier<std::complex<double>, double, 2>,
-                        OpIdentity,
-                        OpTerms<
-                            OpLiteral<double>,
-                            Term<NamedData<Grid<std::complex<double>, 2>>>,
-                            Term<Variable<2, NamedData<GridData<
-                                                 std::complex<double>, 2>>>>>>,
-                  OpMap<MapGridInverseFourier<std::complex<double>, double, 2>,
-                        OpIdentity,
-                        OpTerms<OpLiteral<double>,
-                                Term<NamedData<Grid<std::complex<double>, 2>>>,
-                                Term<Variable<
-                                    2, NamedData<GridData<std::complex<double>,
-                                                          2>>>>>>>>>,
-      OpBinaryMul<
-          OpTerms<OpTensor<OpIdentity, 1, 1, 2, 2>,
-                  Term<NamedData<Grid<double, 2>>>>,
-          OpMap<
-              MapGridFourier<double, std::complex<double>, 2>, OpIdentity,
-              OpBinaryMul<
-                  OpMap<MapGridInverseFourier<std::complex<double>, double, 2>,
-                        OpIdentity,
-                        OpTerms<
-                            OpLiteral<double>,
-                            Term<NamedData<Grid<std::complex<double>, 2>>>,
-                            Term<Variable<2, NamedData<GridData<
-                                                 std::complex<double>, 2>>>>>>,
-                  OpMap<MapGridInverseFourier<std::complex<double>, double, 2>,
-                        OpIdentity,
-                        OpTerms<OpLiteral<double>,
-                                Term<NamedData<Grid<std::complex<double>, 2>>>,
-                                Term<Variable<
-                                    2, NamedData<GridData<std::complex<double>,
-                                                          2>>>>>>>>>>;
-
-  auto noise = OpBinaryMul<
-      OpTerms<OpTensor<OpIdentity, 1, 2>, Term<NamedData<Grid<double, 2>>>>,
-      OpBinaryMul<OpTerms<OpIdentity, Term<NamedData<Grid<double, 2>>>>,
-                  OpSymbolicEval<OpTensor<OpIdentity, 0, 1, 1, 2>,
-                                 NoiseData<expr::NoiseType::WHITE,
-                                           VectorValue<double, 2>, 2>,
-                                 SymbolicFunction<OpLiteral<int>>>>>{};
-
-  auto mul1 = OpBinaryMul<
-      OpTerms<OpTensor<OpIdentity, 0, 0, 2, 2>,
-              Term<NamedData<Grid<double, 2>>>>,
-      OpMap<
-          MapGridFourier<double, std::complex<double>, 2>, OpIdentity,
-          OpBinaryMul<
-              OpMap<MapGridInverseFourier<std::complex<double>, double, 2>,
-                    OpIdentity,
-                    OpTerms<OpLiteral<double>,
-                            Term<NamedData<Grid<std::complex<double>, 2>>>,
-                            Term<Variable<2, NamedData<GridData<
-                                                 std::complex<double>, 2>>>>>>,
-              OpMap<MapGridInverseFourier<std::complex<double>, double, 2>,
-                    OpIdentity,
-                    OpTerms<
-                        OpLiteral<double>,
-                        Term<NamedData<Grid<std::complex<double>, 2>>>,
-                        Term<Variable<2, NamedData<GridData<
-                                             std::complex<double>, 2>>>>>>>>>{};
-
-  auto eval_noise = noise.eval(0);
-  auto eval_mul = mul1.eval(0);
-
   /*auto te_impl = TE{};
   auto te_applied = expr::apply_operators(te_impl);*/
 
@@ -884,6 +661,251 @@ void testexpressiondistribution() {
   auto c = OpLiteral{5.1};
   auto e1 = -op * op + c * (one - op);
   auto e2 = op - op * op + c * (one - op);
+}
+
+void testexpressionnoisetype() {
+  // using TE = OpAdd<
+  //     OpBinaryMul<
+  //         OpTerms<OpTensor<OpIdentity, 0, 2>, Term<NamedData<Grid<double,
+  //         2>>>>, OpBinaryMul<OpTerms<OpIdentity, Term<NamedData<Grid<double,
+  //         2>>>>,
+  //                     OpSymbolicEval<OpTensor<OpIdentity, 0, 0, 1, 2>,
+  //                                    NoiseData<expr::NoiseType::WHITE,
+  //                                              VectorValue<double, 2>, 2>,
+  //                                    SymbolicFunction<OpLiteral<int>>>>>,
+  //     OpBinaryMul<
+  //         OpTerms<OpTensor<OpIdentity, 1, 2>, Term<NamedData<Grid<double,
+  //         2>>>>, OpBinaryMul<OpTerms<OpIdentity, Term<NamedData<Grid<double,
+  //         2>>>>,
+  //                     OpSymbolicEval<OpTensor<OpIdentity, 0, 1, 1, 2>,
+  //                                    NoiseData<expr::NoiseType::WHITE,
+  //                                              VectorValue<double, 2>, 2>,
+  //                                    SymbolicFunction<OpLiteral<int>>>>>,
+  //     OpBinaryMul<
+  //         OpTerms<OpTensor<OpIdentity, 0, 0, 2, 2>,
+  //                 Term<NamedData<Grid<double, 2>>>>,
+  //         OpMap<
+  //             MapGridFourier<double, std::complex<double>, 2>, OpIdentity,
+  //             OpBinaryMul<
+  //                 OpMap<MapGridInverseFourier<std::complex<double>, double,
+  //                 2>,
+  //                       OpIdentity,
+  //                       OpTerms<
+  //                           OpLiteral<double>,
+  //                           Term<NamedData<Grid<std::complex<double>, 2>>>,
+  //                           Term<Variable<2, NamedData<GridData<
+  //                                                std::complex<double>,
+  //                                                2>>>>>>,
+  //                 OpMap<MapGridInverseFourier<std::complex<double>, double,
+  //                 2>,
+  //                       OpIdentity,
+  //                       OpTerms<OpLiteral<double>,
+  //                               Term<NamedData<Grid<std::complex<double>,
+  //                               2>>>, Term<Variable<
+  //                                   2,
+  //                                   NamedData<GridData<std::complex<double>,
+  //                                                         2>>>>>>>>>,
+  //     OpBinaryMul<
+  //         OpTerms<OpTensor<OpIdentity, 0, 0, 2, 2>,
+  //                 Term<NamedData<Grid<double, 2>>>>,
+  //         OpMap<
+  //             MapGridFourier<double, std::complex<double>, 2>, OpIdentity,
+  //             OpBinaryMul<
+  //                 OpMap<MapGridInverseFourier<std::complex<double>, double,
+  //                 2>,
+  //                       OpIdentity,
+  //                       OpTerms<
+  //                           OpLiteral<double>,
+  //                           Term<NamedData<Grid<std::complex<double>, 2>>>,
+  //                           Term<Variable<2, NamedData<GridData<
+  //                                                std::complex<double>,
+  //                                                2>>>>>>,
+  //                 OpMap<MapGridInverseFourier<std::complex<double>, double,
+  //                 2>,
+  //                       OpIdentity,
+  //                       OpTerms<OpLiteral<double>,
+  //                               Term<NamedData<Grid<std::complex<double>,
+  //                               2>>>, Term<Variable<
+  //                                   2,
+  //                                   NamedData<GridData<std::complex<double>,
+  //                                                         2>>>>>>>>>,
+  //     OpBinaryMul<
+  //         OpTerms<OpTensor<OpIdentity, 0, 0, 2, 2>,
+  //                 Term<NamedData<Grid<double, 2>>>>,
+  //         OpMap<
+  //             MapGridFourier<double, std::complex<double>, 2>, OpIdentity,
+  //             OpBinaryMul<
+  //                 OpMap<MapGridInverseFourier<std::complex<double>, double,
+  //                 2>,
+  //                       OpIdentity,
+  //                       OpTerms<
+  //                           OpLiteral<double>,
+  //                           Term<NamedData<Grid<std::complex<double>, 2>>>,
+  //                           Term<Variable<2, NamedData<GridData<
+  //                                                std::complex<double>,
+  //                                                2>>>>>>,
+  //                 OpMap<MapGridInverseFourier<std::complex<double>, double,
+  //                 2>,
+  //                       OpIdentity,
+  //                       OpTerms<OpLiteral<double>,
+  //                               Term<NamedData<Grid<std::complex<double>,
+  //                               2>>>, Term<Variable<
+  //                                   2,
+  //                                   NamedData<GridData<std::complex<double>,
+  //                                                         2>>>>>>>>>,
+  //     OpBinaryMul<
+  //         OpTerms<OpTensor<OpIdentity, 0, 0, 2, 2>,
+  //                 Term<NamedData<Grid<double, 2>>>>,
+  //         OpMap<
+  //             MapGridFourier<double, std::complex<double>, 2>, OpIdentity,
+  //             OpBinaryMul<
+  //                 OpMap<MapGridInverseFourier<std::complex<double>, double,
+  //                 2>,
+  //                       OpIdentity,
+  //                       OpTerms<
+  //                           OpLiteral<double>,
+  //                           Term<NamedData<Grid<std::complex<double>, 2>>>,
+  //                           Term<Variable<2, NamedData<GridData<
+  //                                                std::complex<double>,
+  //                                                2>>>>>>,
+  //                 OpMap<MapGridInverseFourier<std::complex<double>, double,
+  //                 2>,
+  //                       OpIdentity,
+  //                       OpTerms<OpLiteral<double>,
+  //                               Term<NamedData<Grid<std::complex<double>,
+  //                               2>>>, Term<Variable<
+  //                                   2,
+  //                                   NamedData<GridData<std::complex<double>,
+  //                                                         2>>>>>>>>>,
+  //     OpBinaryMul<
+  //         OpTerms<OpTensor<OpIdentity, 1, 1, 2, 2>,
+  //                 Term<NamedData<Grid<double, 2>>>>,
+  //         OpMap<
+  //             MapGridFourier<double, std::complex<double>, 2>, OpIdentity,
+  //             OpBinaryMul<
+  //                 OpMap<MapGridInverseFourier<std::complex<double>, double,
+  //                 2>,
+  //                       OpIdentity,
+  //                       OpTerms<
+  //                           OpLiteral<double>,
+  //                           Term<NamedData<Grid<std::complex<double>, 2>>>,
+  //                           Term<Variable<2, NamedData<GridData<
+  //                                                std::complex<double>,
+  //                                                2>>>>>>,
+  //                 OpMap<MapGridInverseFourier<std::complex<double>, double,
+  //                 2>,
+  //                       OpIdentity,
+  //                       OpTerms<OpLiteral<double>,
+  //                               Term<NamedData<Grid<std::complex<double>,
+  //                               2>>>, Term<Variable<
+  //                                   2,
+  //                                   NamedData<GridData<std::complex<double>,
+  //                                                         2>>>>>>>>>,
+  //     OpBinaryMul<
+  //         OpTerms<OpTensor<OpIdentity, 1, 1, 2, 2>,
+  //                 Term<NamedData<Grid<double, 2>>>>,
+  //         OpMap<
+  //             MapGridFourier<double, std::complex<double>, 2>, OpIdentity,
+  //             OpBinaryMul<
+  //                 OpMap<MapGridInverseFourier<std::complex<double>, double,
+  //                 2>,
+  //                       OpIdentity,
+  //                       OpTerms<
+  //                           OpLiteral<double>,
+  //                           Term<NamedData<Grid<std::complex<double>, 2>>>,
+  //                           Term<Variable<2, NamedData<GridData<
+  //                                                std::complex<double>,
+  //                                                2>>>>>>,
+  //                 OpMap<MapGridInverseFourier<std::complex<double>, double,
+  //                 2>,
+  //                       OpIdentity,
+  //                       OpTerms<OpLiteral<double>,
+  //                               Term<NamedData<Grid<std::complex<double>,
+  //                               2>>>, Term<Variable<
+  //                                   2,
+  //                                   NamedData<GridData<std::complex<double>,
+  //                                                         2>>>>>>>>>,
+  //     OpBinaryMul<
+  //         OpTerms<OpTensor<OpIdentity, 1, 1, 2, 2>,
+  //                 Term<NamedData<Grid<double, 2>>>>,
+  //         OpMap<
+  //             MapGridFourier<double, std::complex<double>, 2>, OpIdentity,
+  //             OpBinaryMul<
+  //                 OpMap<MapGridInverseFourier<std::complex<double>, double,
+  //                 2>,
+  //                       OpIdentity,
+  //                       OpTerms<
+  //                           OpLiteral<double>,
+  //                           Term<NamedData<Grid<std::complex<double>, 2>>>,
+  //                           Term<Variable<2, NamedData<GridData<
+  //                                                std::complex<double>,
+  //                                                2>>>>>>,
+  //                 OpMap<MapGridInverseFourier<std::complex<double>, double,
+  //                 2>,
+  //                       OpIdentity,
+  //                       OpTerms<OpLiteral<double>,
+  //                               Term<NamedData<Grid<std::complex<double>,
+  //                               2>>>, Term<Variable<
+  //                                   2,
+  //                                   NamedData<GridData<std::complex<double>,
+  //                                                         2>>>>>>>>>,
+  //     OpBinaryMul<
+  //         OpTerms<OpTensor<OpIdentity, 1, 1, 2, 2>,
+  //                 Term<NamedData<Grid<double, 2>>>>,
+  //         OpMap<
+  //             MapGridFourier<double, std::complex<double>, 2>, OpIdentity,
+  //             OpBinaryMul<
+  //                 OpMap<MapGridInverseFourier<std::complex<double>, double,
+  //                 2>,
+  //                       OpIdentity,
+  //                       OpTerms<
+  //                           OpLiteral<double>,
+  //                           Term<NamedData<Grid<std::complex<double>, 2>>>,
+  //                           Term<Variable<2, NamedData<GridData<
+  //                                                std::complex<double>,
+  //                                                2>>>>>>,
+  //                 OpMap<MapGridInverseFourier<std::complex<double>, double,
+  //                 2>,
+  //                       OpIdentity,
+  //                       OpTerms<OpLiteral<double>,
+  //                               Term<NamedData<Grid<std::complex<double>,
+  //                               2>>>, Term<Variable<
+  //                                   2,
+  //                                   NamedData<GridData<std::complex<double>,
+  //                                                         2>>>>>>>>>>;
+
+  // auto noise = OpBinaryMul<
+  //     OpTerms<OpTensor<OpIdentity, 1, 2>, Term<NamedData<Grid<double, 2>>>>,
+  //     OpBinaryMul<OpTerms<OpIdentity, Term<NamedData<Grid<double, 2>>>>,
+  //                 OpSymbolicEval<OpTensor<OpIdentity, 0, 1, 1, 2>,
+  //                                NoiseData<expr::NoiseType::WHITE,
+  //                                          VectorValue<double, 2>, 2>,
+  //                                SymbolicFunction<OpLiteral<int>>>>>{};
+
+  // auto mul1 = OpBinaryMul<
+  //     OpTerms<OpTensor<OpIdentity, 0, 0, 2, 2>,
+  //             Term<NamedData<Grid<double, 2>>>>,
+  //     OpMap<
+  //         MapGridFourier<double, std::complex<double>, 2>, OpIdentity,
+  //         OpBinaryMul<
+  //             OpMap<MapGridInverseFourier<std::complex<double>, double, 2>,
+  //                   OpIdentity,
+  //                   OpTerms<OpLiteral<double>,
+  //                           Term<NamedData<Grid<std::complex<double>, 2>>>,
+  //                           Term<Variable<2, NamedData<GridData<
+  //                                                std::complex<double>,
+  //                                                2>>>>>>,
+  //             OpMap<MapGridInverseFourier<std::complex<double>, double, 2>,
+  //                   OpIdentity,
+  //                   OpTerms<
+  //                       OpLiteral<double>,
+  //                       Term<NamedData<Grid<std::complex<double>, 2>>>,
+  //                       Term<Variable<2, NamedData<GridData<
+  //                                            std::complex<double>,
+  //                                            2>>>>>>>>>{};
+
+  // auto eval_noise = noise.eval(0);
+  // auto eval_mul = mul1.eval(0);
 }
 
 // ************************************************************************************************
@@ -1117,4 +1139,73 @@ void testcoefftype() {
   constexpr bool is_neg1 = expr::has_nmi_coeff<Gneg>;
   constexpr bool is_pos1 = expr::has_pmi_coeff<Gpos>;
   constexpr bool is_pos2 = expr::has_val_coeff<Gneg>;
+}
+
+void testorganizederivative() {
+  len_type dims[]{100, 100, 100};
+  SolverFT<Stencil3d2h<7, 10, 21>> solver(dims, 1.);
+  {
+    Grid<double, 3> grid0(dims);
+    grid::fill_random(grid0);
+    auto op0 = expr::make_term(grid0);
+    SolverFT<Stencil3d2h<7, 10, 21>> solver(grid0.dims, 1.);
+
+    auto opx2 = expr::make_operator_directional_derivative<Axis::X, 2>(solver);
+    auto opy2 = expr::make_operator_directional_derivative<Axis::Y, 2>(solver);
+    auto opz2 = expr::make_operator_directional_derivative<Axis::Z, 2>(solver);
+
+    auto eq = opx2 * op0 + opy2 * op0 + opz2 * op0;
+  }
+
+  {
+    Grid<any_vector_t<double, 3>, 3> grid0(dims);
+    grid::fill_random(grid0);
+    auto op0 = expr::make_term(grid0);
+
+    auto opx2 = expr::make_operator_directional_derivative<Axis::X, 2>(solver);
+    auto opy2 = expr::make_operator_directional_derivative<Axis::Y, 2>(solver);
+    auto opz2 = expr::make_operator_directional_derivative<Axis::Z, 2>(solver);
+
+    auto xx = expr::get<0>(opx2 * op0);
+    auto yx = expr::get<0>(opy2 * op0);
+    auto zx = expr::get<0>(opz2 * op0);
+
+    auto xxx = xx + yx + zx;
+
+    auto eq = opx2 * op0 + opy2 * op0 + opz2 * op0;
+  }
+  {
+    auto lap = expr::make_operator_derivative<2>(solver);
+
+    Grid<double, 3> grid0(dims);
+    Grid<any_vector_t<double, 3>, 3> grid1(dims);
+    grid::fill_random(grid0);
+    auto op0 = expr::make_term<1>(grid0);
+    auto op1 = expr::make_term<1>(grid1);
+    auto opd = expr::make_operator_derivative<1>(solver)(op0);
+
+    // auto list = std::make_tuple(
+    //     Term(expr::as_variable<1>(NamedData(SymbolicData(grid0)))));
+    // using namespace expr::symbols;
+    // using ii = i_<0>;
+    // using v = v_<ii>;
+
+    // auto lfe =
+    //     expr::sum(expr::landau_fe(solver, v{})).template
+    //     select<0>(ii{})(list);
+
+    // expr::sum_over(lfe) / ii{};?
+    auto lfe = expr::landau_fe(solver, op0);
+
+    auto intg0 = expr::make_integral(lfe, op0) + op1 * op1;
+    auto fe_derv0 = expr::make_functional_derivative(intg0, op0);
+    auto intg1 = expr::make_integral(lfe, op0);
+    auto fe_derv1 = expr::make_functional_derivative(intg1, op0);
+    auto intg2 = expr::make_integral(lfe + op1 * op1, op0);
+    auto fe_derv2 = expr::make_functional_derivative(intg2, op0);
+
+    auto ee0 = expr::apply_operators(fe_derv0);
+    auto ee1 = expr::apply_operators(fe_derv1);
+    auto ee2 = expr::apply_operators(fe_derv2);
+  }
 }

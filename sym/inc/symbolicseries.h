@@ -5064,12 +5064,6 @@ struct SymbolicSeries<
   auto evaluate_function(func_entry_t f) { return f(); }
   auto evaluate_function_at(func_entry_t const& f, iter_type n) { return f[n]; }
 
-  using func_value_t =
-      std::invoke_result_t<decltype(&this_type::evaluate_function), this_type,
-                           func_entry_t>;
-  using func_value_at_t =
-      std::invoke_result_t<decltype(&this_type::evaluate_function_at),
-                           this_type, func_entry_t, iter_type>;
 
   using func_t = std::invoke_result_t<
       decltype(&symphas::internal::get_function<
@@ -5078,6 +5072,10 @@ struct SymbolicSeries<
   using func_storage_t = expr::storage_type_t<func_t>;
 
   auto eval_series(iter_type n) const {
+    using func_value_at_t =
+        std::invoke_result_t<decltype(&this_type::evaluate_function_at),
+                            this_type, func_entry_t, iter_type>;
+
     using namespace symphas::internal;
 
     if (persistent.len > 0) {
@@ -5093,6 +5091,10 @@ struct SymbolicSeries<
   }
 
   auto eval_series() const {
+    using func_value_t =
+        std::invoke_result_t<decltype(&this_type::evaluate_function), this_type,
+                            func_entry_t>;
+
     using namespace symphas::internal;
     if (persistent.len > 0) {
       auto result = persistent[0]();

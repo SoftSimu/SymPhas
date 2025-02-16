@@ -552,6 +552,7 @@ struct region_interval_multiple : region_interval<D> {
 };
 
 struct region_size {
+  region_size() : len{0} {}
   region_size(len_type len) : len{len} {}
   len_type len;
 
@@ -2405,6 +2406,12 @@ struct iterator_type_impl {
 }  // namespace symphas
 
 namespace grid {
+
+//! Obtains the iterable_domain from the Block compatible instance.
+template <typename T>
+auto get_iterable_domain(Block<T> const& data) {
+  return region_size(data.len);
+}
 
 //! Obtains the iterable_domain from the Block compatible instance.
 template <typename T, size_t D>

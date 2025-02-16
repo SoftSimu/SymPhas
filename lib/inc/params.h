@@ -576,7 +576,7 @@ struct params::param_assign<config_key_value_type> : params::param_assign_base {
     } else {
       char* line = new char[BUFFER_LENGTH]{};
       do {
-        std::fgets(line, BUFFER_LENGTH, f);
+        char* _ = std::fgets(line, BUFFER_LENGTH, f);
         symphas::lib::str_trim(line);
       } while (index-- > 0);
 
@@ -1120,8 +1120,8 @@ void print_param_help(param_map_type param_map);
  * \param value The value to which to assign the parameter.
  */
 template <typename T>
-auto assign(param_map_element& param, T&& value)
-    -> decltype(param.assign(std::forward<T>(value))) {
+auto assign(param_map_element& param,
+            T&& value) -> decltype(param.assign(std::forward<T>(value))) {
   param.assign(std::forward<T>(value));
 }
 

@@ -701,32 +701,56 @@ struct BaseData<VectorComponentData<ax, T*, D>> {
 //! Specialization based on expr::BaseData.
 template <Axis ax, typename T, size_t D>
 struct BaseData<VectorComponentRegionData<ax, T*, D>> {
-  static auto const& get(VectorComponentRegionData<ax, T*, D> const& data,
-                         iter_type n) {
+  static carry_value<T> get(VectorComponentRegionData<ax, T*, D> const& data,
+                            iter_type n) {
     return data[n];
   }
   static auto get(VectorComponentRegionData<ax, T*, D> const& data) {
     return data;
   }
-  static auto& get(VectorComponentRegionData<ax, T*, D>& data, iter_type n) {
+  static carry_value<T> get(VectorComponentRegionData<ax, T*, D>& data,
+                            iter_type n) {
     return data[n];
   }
   static auto get(VectorComponentRegionData<ax, T*, D>& data) { return data; }
 };
 
 //! Specialization based on expr::BaseData.
+template <Axis ax, typename T, size_t D>
+struct BaseData<VectorComponentRegionData<ax, CUDADataType<T>*, D>> {
+  static carry_value<T> get(
+      VectorComponentRegionData<ax, CUDADataType<T>*, D> const& data,
+      iter_type n) {
+    return data[n];
+  }
+  static auto get(
+      VectorComponentRegionData<ax, CUDADataType<T>*, D> const& data) {
+    return data;
+  }
+  static carry_value<T> get(
+      VectorComponentRegionData<ax, CUDADataType<T>*, D>& data, iter_type n) {
+    return data[n];
+  }
+  static auto get(VectorComponentRegionData<ax, CUDADataType<T>*, D>& data) {
+    return data;
+  }
+};
+
+//! Specialization based on expr::BaseData.
 template <typename T, size_t D>
 struct BaseData<GridData<T, D>> {
-  static auto const& get(GridData<T, D> const& data, iter_type n) {
+  static decltype(auto) get(GridData<T, D> const& data, iter_type n) {
     return BaseData<T*>::get(data, n);
   }
-  static auto get(GridData<T, D> const& data) {
+  static decltype(auto) get(GridData<T, D> const& data) {
     return BaseData<T*>::get(data);
   }
-  static auto& get(GridData<T, D>& data, iter_type n) {
+  static decltype(auto) get(GridData<T, D>& data, iter_type n) {
     return BaseData<T*>::get(data, n);
   }
-  static auto get(GridData<T, D>& data) { return BaseData<T*>::get(data); }
+  static decltype(auto) get(GridData<T, D>& data) {
+    return BaseData<T*>::get(data);
+  }
 };
 
 //! Specialization based on expr::BaseData.
@@ -804,31 +828,31 @@ struct BaseData<VectorComponentData<ax, T, D>> {
 template <Axis ax, typename G>
 struct BaseData<VectorComponent<ax, G>> {
   template <typename T>
-  static auto const& get_index(T const& data, iter_type n) {
+  static decltype(auto) get_index(T const& data, iter_type n) {
     return BaseData<T>::get(data, n);
   }
 
   template <typename T>
-  static auto& get_index(T& data, iter_type n) {
+  static decltype(auto) get_index(T& data, iter_type n) {
     return BaseData<T>::get(data, n);
   }
 
-  static auto const& get(VectorComponent<ax, G> const& data, iter_type n) {
+  static decltype(auto) get(VectorComponent<ax, G> const& data, iter_type n) {
     return get_index(resolve_axis_component<ax>(
                          BaseData<G>::get(*static_cast<G const*>(&data))),
                      n);
   }
 
-  static auto get(VectorComponent<ax, G> const& data) {
+  static decltype(auto) get(VectorComponent<ax, G> const& data) {
     return resolve_axis_component<ax>(
         BaseData<G>::get(*static_cast<G const*>(&data)));
   }
-  static auto& get(VectorComponent<ax, G>& data, iter_type n) {
+  static decltype(auto) get(VectorComponent<ax, G>& data, iter_type n) {
     return get_index(
         resolve_axis_component<ax>(BaseData<G>::get(*static_cast<G*>(&data))),
         n);
   }
-  static auto get(VectorComponent<ax, G>& data) {
+  static decltype(auto) get(VectorComponent<ax, G>& data) {
     return resolve_axis_component<ax>(
         BaseData<G>::get(*static_cast<G*>(&data)));
   }
@@ -875,7 +899,7 @@ struct construct_result_data<Grid<T, D>> {
   grid::dim_list get_dimensions(std::tuple<G0, G1, Gs...> const& data) const {
     auto dims0 = expr::data_dimensions(std::get<0>(data));
     if (dims0) {
-      return grid::dim_list(dims0, D);
+      return dims0;
     } else {
       return get_dimensions(symphas::lib::get_tuple_ge<1>(data));
     }
@@ -979,6 +1003,29 @@ struct construct_result_data {
   construct_result_data<Block<T>> get_constructor(Block<T>) const {
     return {};
   }
+
+#ifdef USING_CUDA
+
+  template <size_t N, typename T>
+  construct_result_data<MultiBlockCUDA<N, T>> get_constructor(
+      MultiBlockCUDA<N, T>) const {
+    return {};
+  }
+  template <typename T, size_t D>
+  construct_result_data<GridCUDA<T, D>> get_constructor(GridCUDA<T, D>) const {
+    return {};
+  }
+  template <typename T, size_t D>
+  construct_result_data<MultiBlockCUDA<D, T>> get_constructor(
+      GridCUDA<any_vector_t<T, D>, D>) const {
+    return {};
+  }
+  template <typename T>
+  construct_result_data<BlockCUDA<T>> get_constructor(BlockCUDA<T>) const {
+    return {};
+  }
+
+#endif
 
   any_construct get_constructor(...) const { return {}; }
 

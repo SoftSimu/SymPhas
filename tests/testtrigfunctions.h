@@ -2,4 +2,4 @@
 
 #include "spslib.h"
 
-bool testtrigfunctions();
+void testtrigfunctions();

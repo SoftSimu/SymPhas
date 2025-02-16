@@ -55,7 +55,7 @@ struct equation_ptr_list_type {
 
 struct forward_value {
   template <typename T>
-  decltype(auto) operator()(T && value) {
+  decltype(auto) operator()(T&& value) {
     return std::forward<T>(value);
   }
 };
@@ -70,7 +70,7 @@ struct evaluate_expression_trait {
 #ifdef EXECUTION_HEADER_AVAILABLE
     if (params::parallelization)
       std::transform(
-          std::execution::par_unseq,
+          std::execution::par,
           static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
           static_cast<const E*>(&e)->end(symphas::it_grp, interval), it,
           forward_value{});
@@ -95,11 +95,11 @@ struct evaluate_expression_trait {
   template <typename E>
   evaluate_expression_trait(OpEvaluable<E> const& e, assign_type& data,
                             len_type len) {
-    symphas::data_iterator it(data);
+    symphas::data_iterator<assign_type> it(data);
 
 #ifdef EXECUTION_HEADER_AVAILABLE
     if (params::parallelization)
-      std::transform(std::execution::par_unseq,
+      std::transform(std::execution::par,
                      static_cast<const E*>(&e)->begin(),
                      static_cast<const E*>(&e)->end(len), it, forward_value{});
     else
@@ -227,11 +227,11 @@ struct accumulate_expression_trait {
   template <typename E>
   accumulate_expression_trait(OpEvaluable<E> const& e, assign_type& data,
                               len_type len) {
-    symphas::data_iterator it(std::forward<assign_type>(data));
+    symphas::data_iterator<assign_type> it(data);
 
 #ifdef EXECUTION_HEADER_AVAILABLE
     if (params::parallelization)
-      std::transform(std::execution::par_unseq,
+      std::transform(std::execution::par,
                      static_cast<const E*>(&e)->begin(),
                      static_cast<const E*>(&e)->end(len), it, it,
                      [](auto expr_value, auto data_value) {
@@ -249,7 +249,7 @@ struct accumulate_expression_trait {
   template <typename E, size_t D>
   accumulate_expression_trait(OpEvaluable<E> const& e, assign_type& data,
                               grid::region_interval<D> const& interval) {
-    symphas::data_iterator_group it(std::forward<assign_type>(data), interval);
+    symphas::data_iterator_group it(data, interval);
 
     if (grid::length<D>(interval) <= PARALLELIZATION_CUTOFF_COUNT) {
       auto start = static_cast<const E*>(&e)->begin(symphas::it_grp, interval);
@@ -262,7 +262,7 @@ struct accumulate_expression_trait {
 #ifdef EXECUTION_HEADER_AVAILABLE
       if (params::parallelization)
         std::transform(
-            std::execution::par_unseq,
+            std::execution::par,
             static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
             static_cast<const E*>(&e)->end(symphas::it_grp, interval), it, it,
             [](auto expr_value, auto data_value) {
@@ -283,7 +283,7 @@ struct accumulate_expression_trait {
   accumulate_expression_trait(OpTerms<V, Term<Gs, Xs>...> const& e,
                               assign_type& data,
                               grid::region_interval<D> const& interval) {
-    symphas::data_iterator_group it(std::forward<assign_type>(data), interval);
+    symphas::data_iterator_group it(data, interval);
 
     auto start = e.begin(symphas::it_grp, interval);
     auto end = e.end(symphas::it_grp, interval);
@@ -415,7 +415,7 @@ struct result_sum_trait {
 #ifdef EXECUTION_HEADER_AVAILABLE
           (params::parallelization)
               ? std::reduce(
-                    std::execution::par_unseq,
+                    std::execution::par,
                     static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
                     static_cast<const E*>(&e)->end(symphas::it_grp, interval))
               :
@@ -445,7 +445,7 @@ struct result_sum_trait {
   void result(OpEvaluable<E> const& e, assign_type&& assign, len_type len) {
 #ifdef EXECUTION_HEADER_AVAILABLE
     if (params::parallelization)
-      assign = std::reduce(std::execution::par_unseq,
+      assign = std::reduce(std::execution::par,
                            static_cast<const E*>(&e)->begin(),
                            static_cast<const E*>(&e)->end(len));
     else
@@ -462,7 +462,7 @@ struct result_sum_trait {
 
 #ifdef EXECUTION_HEADER_AVAILABLE
     if (params::parallelization)
-      assign = std::reduce(std::execution::par_unseq, start, end);
+      assign = std::reduce(std::execution::par, start, end);
     else
 #endif
       assign = std::reduce(start, end);
@@ -479,7 +479,7 @@ struct result_sum_trait {
 
 #ifdef EXECUTION_HEADER_AVAILABLE
     if (params::parallelization)
-      assign = std::reduce(std::execution::par_unseq, start, end);
+      assign = std::reduce(std::execution::par, start, end);
     else
 #endif
       assign = std::reduce(start, end);
@@ -1089,7 +1089,7 @@ struct result_only_trait {
 
 #ifdef EXECUTION_HEADER_AVAILABLE
     if (params::parallelization)
-      std::transform(std::execution::par_unseq, start, end, it,
+      std::transform(std::execution::par, start, end, it,
                      forward_value{});
     else
 #endif
@@ -1105,7 +1105,7 @@ struct result_only_trait {
 
 #ifdef EXECUTION_HEADER_AVAILABLE
     if (params::parallelization)
-      std::transform(std::execution::par_unseq, start, end, it,
+      std::transform(std::execution::par, start, end, it,
                      forward_value{});
     else
 #endif
@@ -1299,7 +1299,7 @@ struct result_sum_only_trait {
 
 #ifdef EXECUTION_HEADER_AVAILABLE
     if (params::parallelization)
-      assign = std::reduce(std::execution::par_unseq, start, end);
+      assign = std::reduce(std::execution::par, start, end);
     else
 #endif
       assign = std::reduce(start, end);
@@ -1316,7 +1316,7 @@ struct result_sum_only_trait {
 
 #ifdef EXECUTION_HEADER_AVAILABLE
     if (params::parallelization)
-      assign = std::reduce(std::execution::par_unseq, start, end);
+      assign = std::reduce(std::execution::par, start, end);
     else
 #endif
       assign = std::reduce(start, end);

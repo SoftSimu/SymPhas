@@ -154,6 +154,10 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 	if(DISABLE_EXCEPTIONS)
 		# target_compile_options(symphas_lib_o PUBLIC /EHs-c-)
 	endif()
+else()
+    target_compile_options(symphas_lib_o PUBLIC
+        $<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:-ftemplate-backtrace-limit=0>
+    )
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
@@ -165,14 +169,18 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 		$<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:-ftime-trace>
 		$<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:-mavx>
 		$<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:-fno-limit-debug-info>
+		$<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:-fmacro-backtrace-limit=0>
 	)
 
 	if(MSVC)
 		target_compile_options(symphas_lib_o PUBLIC
-			$<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:-fmacro-backtrace-limit=0>
 			$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler /bigobj>
+			$<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:-Xclang -ftemplate-backtrace-limit=0>
 		)
 	else()
+        target_compile_options(symphas_lib_o PUBLIC
+			$<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:-Xclang -ftemplate-backtrace-limit=0>
+        )
 	endif()
 
 	if(DISABLE_EXCEPTIONS)

@@ -1079,9 +1079,8 @@ inline void fill_random(Block<complex_t>& grid, scalar_t min = 0,
 #ifdef EXECUTION_HEADER_AVAILABLE
       std::execution::par_unseq,
 #endif
-      grid.values, grid.values + grid.len, [&](auto& e) {
-        e = {dist(gen), dist(gen)};
-      });
+      grid.values, grid.values + grid.len,
+      [&](auto& e) { e = {dist(gen), dist(gen)}; });
 }
 
 //! Copies the system data into the given array.
@@ -1147,9 +1146,7 @@ inline void fill_random(RegionalGrid<complex_t, D>& grid, scalar_t min = 0,
 #ifdef EXECUTION_HEADER_AVAILABLE
       std::execution::par_unseq,
 #endif
-      it, it + len, [&](auto e) {
-        e = {dist(gen), dist(gen)};
-      });
+      it, it + len, [&](auto e) { e = {dist(gen), dist(gen)}; });
 }
 
 //! Copies the system data into the given array.
@@ -1487,6 +1484,19 @@ __host__ __device__ bool compare_cutoff(T* const (&left)[D], iter_type index,
   T result{};
   for (iter_type i = 0; i < D; ++i) {
     result += left[i][index] * left[i][index];
+  }
+  using std::abs;
+  using std::sqrt;
+  using symphas::math::abs;
+  return compare_cutoff(sqrt(result), abs(right));
+}
+
+template <typename T, size_t D>
+__host__ __device__ bool compare_cutoff(const T (&left)[D],
+                                        any_vector_t<T, D> const& right) {
+  T result{};
+  for (iter_type i = 0; i < D; ++i) {
+    result += left[i] * left[i];
   }
   using std::abs;
   using std::sqrt;
@@ -1946,7 +1956,7 @@ void get_view_intervals(iter_type (&intervals)[D][2], iter_type (&stride)[D],
     for (iter_type d = 0; d < D; ++d) {
       pos[d] = (n / stride[d]) % dims[d];
     }
-    if (grid.values[n] >= cutoff_value) {
+    if (compare_cutoff(grid.values, n, cutoff_value)) {
       for (iter_type d = 0; d < D; ++d) {
         intervals[d][0] = std::min(pos[d], intervals[d][0]);
         intervals[d][1] = std::max(pos[d], intervals[d][1]);

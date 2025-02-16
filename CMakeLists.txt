@@ -276,7 +276,8 @@ message(STATUS "the following def files are configured: ${CONFIGURED_DEF_FILES}"
 configure_file("configured-defs.h.in" "${CMAKE_SOURCE_DIR}/inc/configured-defs.h")
 
 if (USE_TESTS)
-	target_include_directories(${PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/tests/")
+	target_include_directories(${PROJECT_NAME} PUBLIC 
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/tests/>)
 	set(USING_TESTS ON)
 else()
 	set(USING_TESTS OFF)

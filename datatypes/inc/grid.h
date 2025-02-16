@@ -1308,7 +1308,7 @@ struct select_region {
 
   template <typename T>
   __device__ __host__ inline decltype(auto) operator()(
-      T * values, const iter_type (&domain_dims)[D], const T & empty,
+      T* values, const iter_type (&domain_dims)[D], const T& empty,
       const iter_type (&pos)[D]) const {
     iter_type pos0[D]{};
     for (iter_type i = 0; i < D; ++i) pos0[i] = pos[i];
@@ -1317,7 +1317,7 @@ struct select_region {
 
   template <typename T>
   __device__ __host__ inline decltype(auto) operator()(
-      const T * values, const iter_type (&domain_dims)[D], const T & empty,
+      const T* values, const iter_type (&domain_dims)[D], const T& empty,
       const iter_type (&pos)[D]) const {
     iter_type pos0[D]{};
     for (iter_type i = 0; i < D; ++i) pos0[i] = pos[i];
@@ -1427,8 +1427,8 @@ struct select_region {
       typename T, typename T0, typename... Ts,
       std::enable_if_t<symphas::are_all_same_v<iter_type, Ts...>, int> = 0>
   __device__ __host__ decltype(auto) operator()(
-      T && values, const iter_type (&domain_dims)[D], T0 empty,
-      iter_type coord0, Ts&&... coords) const {
+      T&& values, const iter_type (&domain_dims)[D], T0 empty, iter_type coord0,
+      Ts&&... coords) const {
     iter_type pos[D]{coord0, std::forward<Ts>(coords)...};
     return operator()(pos, std::forward<T>(values), domain_dims, empty);
   }
@@ -1820,7 +1820,11 @@ struct Grid : Block<T> {
 
   Grid<T, D>& as_grid() { return *this; }
 
-  template <typename... Ts, std::enable_if_t<(sizeof...(Ts) == D), int> = 0>
+  template <typename... Ts,
+            std::enable_if_t<
+                (sizeof...(Ts) == D &&
+                 std::conjunction_v<std::is_convertible<Ts, iter_type>...>),
+                int> = 0>
   decltype(auto) operator()(Ts&&... indices) const {
     return grid::select_grid_index(dims)(Block<T>::values,
                                          std::forward<Ts>(indices)...);
@@ -1886,7 +1890,11 @@ struct Grid<any_vector_t<T, D>, D> : MultiBlock<D, T> {
 
   T* axis(Axis ax) { return parent_type::values[symphas::axis_to_index(ax)]; }
 
-  template <typename... Ts, std::enable_if_t<(sizeof...(Ts) == D), int> = 0>
+  template <typename... Ts,
+            std::enable_if_t<
+                (sizeof...(Ts) == D &&
+                 std::conjunction_v<std::is_convertible<Ts, iter_type>...>),
+                int> = 0>
   decltype(auto) operator()(Ts&&... rest) const {
     return grid::select_grid_index(dims)(MultiBlock<D, T>::values,
                                          std::forward<Ts>(rest)...);
@@ -1932,6 +1940,7 @@ struct BoundaryGrid : Grid<T, D> {
         Block<T>::values, (std::forward<Ts>(rest) + BOUNDARY_DEPTH)...);
   }
 
+ protected:
   constexpr BoundaryGrid() : Grid<T, D>() {}
 };
 
@@ -1956,6 +1965,7 @@ struct BoundaryGrid<T, 3> : Grid<T, 3> {
                                          z + BOUNDARY_DEPTH);
   }
 
+ protected:
   constexpr BoundaryGrid() : Grid<T, 3>() {}
 };
 
@@ -1978,6 +1988,7 @@ struct BoundaryGrid<T, 2> : Grid<T, 2> {
         parent_type::values, x + BOUNDARY_DEPTH, y + BOUNDARY_DEPTH);
   }
 
+ protected:
   constexpr BoundaryGrid() : Grid<T, 2>() {}
 };
 
@@ -2001,6 +2012,7 @@ struct BoundaryGrid<T, 1> : Grid<T, 1> {
                                          x + BOUNDARY_DEPTH);
   }
 
+ protected:
   constexpr BoundaryGrid() : Grid<T, 1>() {}
 };
 
@@ -2080,10 +2092,14 @@ struct RegionalGrid : Grid<T, D> {
 
   RegionalGrid<T, D>& as_grid() { return *this; }
 
-  template <typename... Ts, std::enable_if_t<(sizeof...(Ts) == D), int> = 0>
+  template <typename... Ts,
+            std::enable_if_t<
+                (sizeof...(Ts) == D &&
+                 std::conjunction_v<std::is_convertible<Ts, iter_type>...>),
+                int> = 0>
   decltype(auto) operator()(Ts&&... rest) const {
-    return region(Block<T>::values, parent_type::dims, empty,
-                  (std::forward<Ts>(rest) + region.boundary_size)...);
+    iter_type pos[D]{(std::forward<Ts>(rest) + region.boundary_size)...};
+    return region(pos, Block<T>::values, parent_type::dims, empty);
   }
 
   __device__ __host__ decltype(auto) operator[](iter_type n) const {
@@ -2135,6 +2151,7 @@ struct RegionalGrid : Grid<T, D> {
     }
   }
 
+ protected:
   constexpr RegionalGrid() : parent_type(), region{}, empty{} {}
 };
 
@@ -2221,7 +2238,11 @@ struct RegionalGrid<any_vector_t<T, D>, D> : Grid<any_vector_t<T, D>, D> {
 
   T* axis(Axis ax) { return parent_type::values[symphas::axis_to_index(ax)]; }
 
-  template <typename... Ts, std::enable_if_t<(sizeof...(Ts) == D), int> = 0>
+  template <typename... Ts,
+            std::enable_if_t<
+                (sizeof...(Ts) == D &&
+                 std::conjunction_v<std::is_convertible<Ts, iter_type>...>),
+                int> = 0>
   decltype(auto) operator()(Ts&&... rest) const {
     return region(MultiBlock<D, T>::values, parent_type::dims, empty,
                   (std::forward<Ts>(rest) + region.boundary_size)...);
@@ -2284,6 +2305,7 @@ struct RegionalGrid<any_vector_t<T, D>, D> : Grid<any_vector_t<T, D>, D> {
     }
   }
 
+ protected:
   constexpr RegionalGrid() : parent_type(), region{}, empty{} {}
 };
 

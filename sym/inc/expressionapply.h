@@ -60,6 +60,13 @@ struct expr_has_deriv {
       expr::derivative_index<deriv_order_1, E>::value > deriv_order_0;
 };
 
+
+template<typename T>
+constexpr bool is_term_type = false;
+
+template<typename G>
+constexpr bool is_term_type<OpTerm<OpIdentity, G>> = true;
+
 }  // namespace
 
 //! Distribute operators so they are applied to individual expressions.
@@ -459,7 +466,7 @@ auto apply_operators(
 
 template <size_t O, typename V, typename V0, typename G0, typename G1,
           typename... Gs, expr::exp_key_t X0, expr::exp_key_t X1,
-          expr::exp_key_t... Xs, typename GG>
+          expr::exp_key_t... Xs, typename GG, typename = std::enable_if_t<!is_term_type<GG>, int>>
 auto apply_operators(
     OpDerivative<std::index_sequence<O>, V,
                  OpTerms<V0, Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...>,
@@ -921,6 +928,17 @@ template <typename A1, typename A2, typename E,
 auto apply_operators_combination(OpCombination<A1, A2, E> const& e) {
   return apply_operators(
       expr::expand_operator(e.combination, expr::get_enclosed_expression(e)));
+}
+
+template <
+    Axis ax1, Axis ax2, size_t O, typename V, typename Sp, typename E,
+    typename std::enable_if_t<(!expr_has_deriv<E>::value && expr::is_const<V> &&
+                               expr::grid_dim<E>::value == 3),
+                              int> = 0>
+auto apply_operators_combination(
+    OpCombination<OpOperatorDirectionalDerivative<ax1, O, V, Sp>,
+                  OpOperatorDirectionalDerivative<ax2, O, V, Sp>, E> const& e) {
+  return e;
 }
 
 template <typename... Es, size_t... Is>
@@ -1415,6 +1433,14 @@ auto apply_operators_deriv(OpDerivative<Dd, V, E, Sp> const& d,
   return apply_operators(
       expr::make_derivative<Dd>(*static_cast<E0 const*>(&e), d.solver));
 }
+//
+// template <typename Dd, typename V, typename E, typename Sp, typename E0,
+//          typename std::enable_if_t<expr_has_deriv<E>::value, int> = 0>
+// auto apply_operators_deriv(OpDerivative<Dd, V, E, Sp> const& d,
+//                           OpCombination<A, B, E> const& e) {
+//  return apply_operators(
+//      expr::make_derivative<Dd>(*static_cast<E0 const*>(&e), d.solver));
+//}
 
 template <typename Dd, typename V, typename E, typename Sp, typename E0,
           typename std::enable_if_t<!expr_has_deriv<E>::value, int> = 0>
@@ -1882,7 +1908,7 @@ auto apply_operators(
 
 template <size_t O, typename V, typename V0, typename G0, typename G1,
           typename... Gs, expr::exp_key_t X0, expr::exp_key_t X1,
-          expr::exp_key_t... Xs, typename GG>
+          expr::exp_key_t... Xs, typename GG, typename>
 auto apply_operators(
     OpDerivative<std::index_sequence<O>, V,
                  OpTerms<V0, Term<G0, X0>, Term<G1, X1>, Term<Gs, Xs>...>,

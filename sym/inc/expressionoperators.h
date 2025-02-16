@@ -233,10 +233,21 @@ auto operator+(OpOperator<A1> const& a, OpOperatorChain<B1, B2> const& b) {
   return OpOperatorCombination(*static_cast<A1 const*>(&a), b);
 }
 
+template <typename A1, typename B1, typename B2>
+auto operator+(OpOperatorChain<B1, B2> const& a, OpOperator<A1> const& b) {
+  return OpOperatorCombination(*static_cast<A1 const*>(&b), a);
+}
+
 template <typename A1, typename A2, typename B1, typename B2>
 auto operator+(OpOperatorCombination<A1, A2> const& a,
                OpOperatorChain<B1, B2> const& b) {
   return OpOperatorCombination(a, b);
+}
+
+template <typename A1, typename A2, typename B1, typename B2>
+auto operator+(OpOperatorChain<B1, B2> const& a,
+               OpOperatorCombination<A1, A2> const& b) {
+  return OpOperatorCombination(b, a);
 }
 
 template <typename A1, typename A2, typename B1, typename B2>
@@ -1342,10 +1353,11 @@ struct OpChain : OpExpression<OpChain<A1, A2, E>> {
   using expr_type = std::invoke_result_t<
       decltype(&symphas::internal::get_eval_expr<OpOperatorChain<A1, A2>, E>),
       OpOperatorChain<A1, A2>, E>;
+
+ public:
   expr_type
       eval_expr;  //!< The result of applying the outer operator to the inner.
 
- public:
   OpChain() : eval_expr{}, combination{}, e{} {}
 
   //! Create the combination of two operators applied to an expression.
@@ -1448,6 +1460,26 @@ template <typename coeff_t, typename A1, typename A2, typename E,
 auto operator*(coeff_t const& value, OpChain<A1, A2, E> const& b) {
   return (value * b.combination)(b.e);
 }
+
+namespace expr {
+
+template <typename E>
+auto make_operator(OpExpression<E> const& e) {
+  return OpOperatorChain(OpIdentity{}, *static_cast<E const*>(&e));
+}
+
+template <typename E>
+auto make_chain(OpEvaluable<E> const& e) {
+  return OpChain(OpOperatorChain(OpIdentity{}, OpIdentity{}),
+                 *static_cast<E const*>(&e));
+}
+template <typename V, typename E>
+auto make_chain(OpExpression<V> const& v, OpEvaluable<E> const& e) {
+  return OpChain(OpOperatorChain(*static_cast<V const*>(&v), OpIdentity{}),
+                 *static_cast<E const*>(&e));
+}
+
+}  // namespace expr
 
 // *********************************************************************************************************************************
 
@@ -1847,7 +1879,7 @@ struct OpMap : OpExpression<OpMap<G, V, E>> {
    * \param e The expression which is evaluated and mapped.
    */
   OpMap(V value, E const& e)
-      : value{value}, e{e}, data{expr::data_dimensions(e)} {}
+      : value{value}, e{e}, data{G(expr::data_dimensions(e))} {}
 
   inline auto eval(iter_type n) const { return expr::eval(value) * data[n]; }
 
@@ -2045,8 +2077,8 @@ struct eval_fftw_hcts {
 template <>
 struct eval_fftw_hcts<1> {
   template <typename E>
-  auto operator()(iter_type n, OpExpression<E> const& e, const len_type* dims)
-      -> expr::eval_type_t<E> {
+  auto operator()(iter_type n, OpExpression<E> const& e,
+                  const len_type* dims) -> expr::eval_type_t<E> {
     using namespace expr;
     using symphas::math::conj;
 
@@ -2064,8 +2096,8 @@ struct eval_fftw_hcts<1> {
 template <>
 struct eval_fftw_hcts<2> {
   template <typename E>
-  auto operator()(iter_type n, OpExpression<E> const& e, const len_type* dims)
-      -> expr::eval_type_t<E> {
+  auto operator()(iter_type n, OpExpression<E> const& e,
+                  const len_type* dims) -> expr::eval_type_t<E> {
     using namespace expr;
     using symphas::math::conj;
 
@@ -2094,8 +2126,8 @@ struct eval_fftw_hcts<2> {
 template <>
 struct eval_fftw_hcts<3> {
   template <typename E>
-  auto operator()(iter_type n, OpExpression<E> const& e, const len_type* dims)
-      -> expr::eval_type_t<E> {
+  auto operator()(iter_type n, OpExpression<E> const& e,
+                  const len_type* dims) -> expr::eval_type_t<E> {
     using namespace expr;
     using symphas::math::conj;
 

@@ -787,13 +787,13 @@ auto inverse(OpPow<X, V, E> const& e) {
 
 //! Division between anything and the identity expression.
 template <typename E>
-decltype(auto) operator/(E && a, OpIdentity) {
+decltype(auto) operator/(E&& a, OpIdentity) {
   return std::forward<E>(a);
 }
 
 //! Division between the identity expression and anything.
 template <typename E>
-decltype(auto) operator/(OpIdentity, E && b) {
+decltype(auto) operator/(OpIdentity, E&& b) {
   return expr::inverse(std::forward<E>(b));
 }
 
@@ -802,7 +802,7 @@ inline auto operator/(OpIdentity, OpVoid) = delete;
 
 //! Division between anything and the identity expression.
 template <typename E>
-decltype(auto) operator/(E && a, OpNegIdentity) {
+decltype(auto) operator/(E&& a, OpNegIdentity) {
   return -std::forward<E>(a);
 }
 
@@ -897,13 +897,13 @@ inline auto operator+(complex_t const& a, int const b) {
 
 //! Addition between anything and the 0 identity.
 template <typename E>
-decltype(auto) operator+(E && a, OpVoid) {
+decltype(auto) operator+(E&& a, OpVoid) {
   return std::forward<E>(a);
 }
 
 //! Addition between the 0 identity and anything.
 template <typename E>
-decltype(auto) operator+(OpVoid, E && b) {
+decltype(auto) operator+(OpVoid, E&& b) {
   return std::forward<E>(b);
 }
 
@@ -1052,13 +1052,13 @@ inline auto operator-(complex_t const& a, int const b) {
 
 //! Subtraction between anything and the 0 identity.
 template <typename E>
-decltype(auto) operator-(E && a, OpVoid const) {
+decltype(auto) operator-(E&& a, OpVoid const) {
   return std::forward<E>(a);
 }
 
 //! Subtraction between the 0 identity and anything.
 template <typename E>
-decltype(auto) operator-(OpVoid const, E && b) {
+decltype(auto) operator-(OpVoid const, E&& b) {
   return -std::forward<E>(b);
 }
 
@@ -2565,7 +2565,8 @@ auto operator*(OpOperator<E> const& a,
   return (*static_cast<E const*>(&a)).operator()(b);
 }
 
-template <typename V, typename E1, typename E2>
+template <typename V, typename E1, typename E2,
+          std::enable_if_t<expr::is_const<V>, int> = 0>
 auto operator+(OpChain<V, OpIdentity, E1> const& a,
                OpChain<V, OpIdentity, E2> const& b) {
   return (a.combination)(expr::get_enclosed_expression(a) +

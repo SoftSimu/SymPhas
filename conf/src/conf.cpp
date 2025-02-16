@@ -167,7 +167,7 @@ Conf symphas::conf::make_config(const char *file,
       symphas::lib::get_parent_directory(parent_dir, parent_dir);
 
       Conf c{options, title.c_str(), parent_dir};
-      delete[] parent_dir;
+      //delete[] parent_dir;
 
       c.append_computed_index(indices);
       if (c.sim_done) {

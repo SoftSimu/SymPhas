@@ -51,7 +51,7 @@ void testvirtualmodel() {
   ModelVirtualBasic<2, scalar_t> pyma("load_dir", pyma_save);
   Conf c(symphas::conf::config());
   c.directory_settings.set_directory("pyma");
-  c.save_settings.save = pyma_save;
+  c.simulation_settings.save = pyma_save;
   symphas::find_solution(pyma, c);
 
   // symphas::init_data_type tdata{ { Axis::NONE, { Inside::FILE, { second_file,

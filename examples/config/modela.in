@@ -1,6 +1,6 @@
 !Model A
 
-DIM				dimensions of model			: 3
+DIM				dimensions of model			: 2
 ORDER			order of accuracy			: 2
 PTL				laplacian stencil			: @
 WIDTH			grid draw size				: .2
@@ -15,7 +15,7 @@ BNDFT			bound type on z1			: PERIODIC
 BNDBK			bound type on z2			: PERIODIC
 INSIDE			the conditions inside		: UNIFORM -1 1
 
-MODEL			type of the model			: MODELC
+MODEL			type of the model			: MODELA
 
 DELTA			time increment				: 0.5
 FRAMES			total time steps			: 10000

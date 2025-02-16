@@ -513,8 +513,7 @@ struct initiate_region_copy<any_vector_t<T, 2>, 2> {
     kernelCopyRegionVec2D CUDA_KERNEL(gridDim, blockDim)(
         outputDevice[0], outputDevice[1], inputDevice[0], inputDevice[1],
         interval.intervals[0][0], interval.intervals[0][1],
-        interval.intervals[1][0], interval.intervals[1][1], interval.dims[0],
-        interval.dims[1]);
+        interval.intervals[1][0], interval.intervals[1][1], interval.dims[0]);
     CHECK_CUDA_ERROR(cudaPeekAtLastError());
     CHECK_CUDA_ERROR(cudaDeviceSynchronize());
   }
@@ -527,7 +526,7 @@ struct initiate_region_copy<any_vector_t<T, 2>, 2> {
     kernelCopyRegionVec2D CUDA_KERNEL(gridDim, blockDim)(
         outputDevice, inputDevice[0], inputDevice[1], interval.intervals[0][0],
         interval.intervals[0][1], interval.intervals[1][0],
-        interval.intervals[1][1], interval.dims[0], interval.dims[1]);
+        interval.intervals[1][1], interval.dims[0]);
     CHECK_CUDA_ERROR(cudaPeekAtLastError());
     CHECK_CUDA_ERROR(cudaDeviceSynchronize());
   }
@@ -546,8 +545,7 @@ struct initiate_region_copy<any_vector_t<T, 3>, 3> {
         inputDevice[1], inputDevice[2], interval.intervals[0][0],
         interval.intervals[0][1], interval.intervals[1][0],
         interval.intervals[1][1], interval.intervals[2][0],
-        interval.intervals[2][1], interval.dims[0], interval.dims[1],
-        interval.dims[2]);
+        interval.intervals[2][1], interval.dims[0], interval.dims[1]);
     CHECK_CUDA_ERROR(cudaPeekAtLastError());
     CHECK_CUDA_ERROR(cudaDeviceSynchronize());
   }
@@ -563,7 +561,7 @@ struct initiate_region_copy<any_vector_t<T, 3>, 3> {
         interval.intervals[0][0], interval.intervals[0][1],
         interval.intervals[1][0], interval.intervals[1][1],
         interval.intervals[2][0], interval.intervals[2][1], interval.dims[0],
-        interval.dims[1], interval.dims[2]);
+        interval.dims[1]);
     CHECK_CUDA_ERROR(cudaPeekAtLastError());
     CHECK_CUDA_ERROR(cudaDeviceSynchronize());
   }
@@ -611,12 +609,10 @@ void copy_region(RegionalGridCUDA<any_vector_t<T, D>, D> const& input,
       &outputDevice, grid::length<D>(input.dims) * sizeof(any_vector_t<T, D>)));
   initiate_region_copy<any_vector_t<T, D>, D>{}(interval, input.values,
                                                 outputDevice);
-  for (iter_type i = 0; i < D; ++i) {
-    CHECK_CUDA_ERROR(cudaMemcpy(output[i], outputDevice[i],
-                                grid::length<D>(interval) * sizeof(T),
-                                cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERROR(cudaFree(outputDevice[i]));
-  }
+  CHECK_CUDA_ERROR(cudaMemcpy(output, outputDevice,
+                              grid::length<D>(interval) * sizeof(T) * D,
+                              cudaMemcpyDeviceToHost));
+  CHECK_CUDA_ERROR(cudaFree(outputDevice));
 }
 
 }  // namespace grid
@@ -663,6 +659,137 @@ __global__ void findMinimalRegion(const T* values, T cutoff_value,
   }
 }
 
+// Kernel to find the minimal region with values greater than the cutoff
+template <typename T>
+__global__ void findMinimalRegionVec1D(const T* values0,
+                                       any_vector_t<T, 1> cutoff_value,
+                                       grid::MinimalRegionParams<1>* params,
+                                       iter_type* min_indices,
+                                       iter_type* max_indices,
+                                       len_type total_size) {
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+  if (idx >= total_size) return;
+  /*compare_cutoff(grid.values, index, cutoff_value) &&
+      !grid::is_in_region(pos, intervals) */
+  if (grid::compare_cutoff(values0, idx, cutoff_value)) {
+    iter_type coord = (idx / params->stride[0]) % params->dims[0];
+    atomicMin(&min_indices[0], coord);
+    atomicMax(&max_indices[0], coord);
+  }
+}
+
+// Kernel to find the minimal region with values greater than the cutoff
+template <typename T>
+__global__ void findMinimalRegionVec2D(const T* values0, const T* values1,
+                                       any_vector_t<T, 2> cutoff_value,
+                                       grid::MinimalRegionParams<2>* params,
+                                       iter_type* min_indices,
+                                       iter_type* max_indices,
+                                       len_type total_size) {
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+  if (idx >= total_size) return;
+  /*compare_cutoff(grid.values, index, cutoff_value) &&
+      !grid::is_in_region(pos, intervals) */
+  T value[]{values0[idx], values1[idx]};
+  if (grid::compare_cutoff(value, cutoff_value)) {
+    for (size_t d = 0; d < 2; ++d) {
+      iter_type coord = (idx / params->stride[d]) % params->dims[d];
+      atomicMin(&min_indices[d], coord);
+      atomicMax(&max_indices[d], coord);
+    }
+  }
+}
+
+// Kernel to find the minimal region with values greater than the cutoff
+template <typename T>
+__global__ void findMinimalRegionVec3D(
+    const T* values0, const T* values1, const T* values2,
+    any_vector_t<T, 3> cutoff_value, grid::MinimalRegionParams<3>* params,
+    iter_type* min_indices, iter_type* max_indices, len_type total_size) {
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+  if (idx >= total_size) return;
+  /*compare_cutoff(grid.values, index, cutoff_value) &&
+      !grid::is_in_region(pos, intervals) */
+  T value[]{values0[idx], values1[idx], values2[idx]};
+  if (grid::compare_cutoff(value, cutoff_value)) {
+    for (size_t d = 0; d < 3; ++d) {
+      iter_type coord = (idx / params->stride[d]) % params->dims[d];
+      atomicMin(&min_indices[d], coord);
+      atomicMax(&max_indices[d], coord);
+    }
+  }
+}
+
+template <size_t D>
+struct run_find_minimal_region;
+
+template <>
+struct run_find_minimal_region<1> {
+  template <typename T>
+  void operator()(T* const (&values)[1], any_vector_t<T, 1> const& cutoff_value,
+                  grid::MinimalRegionParams<1>* params, iter_type* min_indices,
+                  iter_type* max_indices, len_type total_size) {
+    int numBlocks = (total_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    findMinimalRegionVec1D CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
+        values[0], cutoff_value, params, min_indices, max_indices, total_size);
+  }
+
+  template <typename T>
+  void operator()(const T* values, T cutoff_value,
+                  grid::MinimalRegionParams<1>* params, iter_type* min_indices,
+                  iter_type* max_indices, len_type total_size) {
+    int numBlocks = (total_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    findMinimalRegion CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
+        values, cutoff_value, params, min_indices, max_indices, total_size);
+  }
+};
+
+template <>
+struct run_find_minimal_region<2> {
+  template <typename T>
+  void operator()(T* const (&values)[2], any_vector_t<T, 2> const& cutoff_value,
+                  grid::MinimalRegionParams<2>* params, iter_type* min_indices,
+                  iter_type* max_indices, len_type total_size) {
+    int numBlocks = (total_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    findMinimalRegionVec2D CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
+        values[0], values[1], cutoff_value, params, min_indices, max_indices,
+        total_size);
+  }
+
+  template <typename T>
+  void operator()(const T* values, T cutoff_value,
+                  grid::MinimalRegionParams<2>* params, iter_type* min_indices,
+                  iter_type* max_indices, len_type total_size) {
+    int numBlocks = (total_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    findMinimalRegion CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
+        values, cutoff_value, params, min_indices, max_indices, total_size);
+  }
+};
+
+template <>
+struct run_find_minimal_region<3> {
+  template <typename T>
+  void operator()(T* const (&values)[3], any_vector_t<T, 3> const& cutoff_value,
+                  grid::MinimalRegionParams<3>* params, iter_type* min_indices,
+                  iter_type* max_indices, len_type total_size) {
+    int numBlocks = (total_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    findMinimalRegionVec3D CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
+        values[0], values[1], values[2], cutoff_value, params, min_indices,
+        max_indices, total_size);
+  }
+
+  template <typename T>
+  void operator()(const T* values, T cutoff_value,
+                  grid::MinimalRegionParams<3>* params, iter_type* min_indices,
+                  iter_type* max_indices, len_type total_size) {
+    int numBlocks = (total_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    findMinimalRegion CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
+        values, cutoff_value, params, min_indices, max_indices, total_size);
+  }
+};
 template <typename T>
 __global__ void computeEnclosingInterval1d(
     const T* values, iter_type* intervals_0, iter_type* intervals_1,
@@ -753,6 +880,66 @@ __global__ void computeEnclosingInterval2d(
 }
 
 template <typename T>
+__global__ void computeEnclosingInterval2d(
+    const T* values0, const T* values1, iter_type* intervals_0,
+    iter_type* intervals_1, any_vector_t<T, 2> cutoff_value,
+    iter_type total_length, iter_type posx, iter_type posy, len_type dimx,
+    len_type dimy, iter_type startx, iter_type starty, len_type stride) {
+  extern __shared__ iter_type shared_intervals[];
+  iter_type* shared_intervals_x = &shared_intervals[0];
+  iter_type* shared_intervals_y = &shared_intervals_x[blockDim.x * 2];
+
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  int idy = blockIdx.y * blockDim.y + threadIdx.y;
+  int tidx = threadIdx.x;
+  int tidy = threadIdx.y;
+  // Initialize shared memory
+  if (tidy == 0) {
+    shared_intervals_x[tidx * 2] = grid::getMaxValue<iter_type>();
+    shared_intervals_x[tidx * 2 + 1] = grid::getMinValue<iter_type>();
+  }
+  if (tidx == 0) {
+    shared_intervals_y[tidy * 2] = grid::getMaxValue<iter_type>();
+    shared_intervals_y[tidy * 2 + 1] = grid::getMinValue<iter_type>();
+  }
+  __syncthreads();
+
+  if (idx < dimx && idy < dimy) {
+    iter_type idxn = posx + idx;
+    iter_type idyn = posy + idy;
+
+    iter_type xn = ((idxn >= dimx) ? idxn - dimx : idxn) + startx;
+    iter_type yn = ((idyn >= dimy) ? idyn - dimy : idyn) + starty;
+    iter_type n = xn + yn * stride;
+    T value[]{values0[n], values1[n]};
+    if (grid::compare_cutoff(value, cutoff_value)) {
+      atomicMin(&shared_intervals_x[tidx * 2], idxn);
+      atomicMax(&shared_intervals_x[tidx * 2 + 1], idxn);
+      atomicMin(&shared_intervals_y[tidy * 2], idyn);
+      atomicMax(&shared_intervals_y[tidy * 2 + 1], idyn);
+    }
+  }
+  __syncthreads();
+
+  iter_type* start_interval_x = intervals_0;
+  iter_type* start_interval_y = intervals_0 + dimx;
+  iter_type* end_interval_x = intervals_1;
+  iter_type* end_interval_y = intervals_1 + dimx;
+
+  // Write local minimums to global memory
+  if (idx < dimx && idy < dimy) {
+    if (tidy == 0) {
+      atomicMin(&start_interval_x[idx], shared_intervals_x[tidx * 2]);
+      atomicMax(&end_interval_x[idx], shared_intervals_x[tidx * 2 + 1]);
+    }
+    if (tidx == 0) {
+      atomicMin(&start_interval_y[idy], shared_intervals_y[tidy * 2]);
+      atomicMax(&end_interval_y[idy], shared_intervals_y[tidy * 2 + 1]);
+    }
+  }
+}
+
+template <typename T>
 __global__ void computeEnclosingInterval3d(
     const T* values, iter_type* intervals_0, iter_type* intervals_1,
     T cutoff_value, iter_type total_length, iter_type posx, iter_type posy,
@@ -790,6 +977,78 @@ __global__ void computeEnclosingInterval3d(
     iter_type zn = ((idzn > dimz) ? idzn - dimz : idzn) + startz;
     iter_type n = xn + yn * stridey + zn * stridez;
     if (values[n] > cutoff_value) {
+      atomicMin(&shared_intervals_x[tidx * 2], idxn);
+      atomicMax(&shared_intervals_x[tidx * 2 + 1], idxn);
+      atomicMin(&shared_intervals_y[tidy * 2], idyn);
+      atomicMax(&shared_intervals_y[tidy * 2 + 1], idyn);
+      atomicMin(&shared_intervals_z[tidz * 2], idzn);
+      atomicMax(&shared_intervals_z[tidz * 2 + 1], idzn);
+    }
+  }
+  __syncthreads();
+
+  iter_type* start_interval_x = &intervals_0[0];
+  iter_type* start_interval_y = &start_interval_x[0] + dimx;
+  iter_type* start_interval_z = &start_interval_y[0] + dimy;
+  iter_type* end_interval_x = &intervals_1[0];
+  iter_type* end_interval_y = &end_interval_x[0] + dimx;
+  iter_type* end_interval_z = &end_interval_y[0] + dimy;
+
+  // Write local minimums to global memory
+  if (tidy == 0 && tidz == 0) {
+    atomicMin(&start_interval_x[idx], shared_intervals_x[tidx * 2]);
+    atomicMax(&end_interval_x[idx], shared_intervals_x[tidx * 2 + 1]);
+  }
+  if (tidx == 0 && tidz == 0) {
+    atomicMin(&start_interval_y[idy], shared_intervals_y[tidy * 2]);
+    atomicMax(&end_interval_y[idy], shared_intervals_y[tidy * 2 + 1]);
+  }
+  if (tidx == 0 && tidy == 0) {
+    atomicMin(&start_interval_z[idz], shared_intervals_z[tidz * 2]);
+    atomicMax(&end_interval_z[idz], shared_intervals_z[tidz * 2 + 1]);
+  }
+}
+
+template <typename T>
+__global__ void computeEnclosingInterval3d(
+    const T* values0, const T* values1, const T* values2,
+    iter_type* intervals_0, iter_type* intervals_1,
+    any_vector_t<T, 3> cutoff_value, iter_type total_length, iter_type posx,
+    iter_type posy, iter_type posz, len_type dimx, len_type dimy, len_type dimz,
+    iter_type startx, iter_type starty, iter_type startz, len_type stridey,
+    len_type stridez) {
+  extern __shared__ iter_type shared_intervals[];
+  iter_type* shared_intervals_x = &shared_intervals[0];
+  iter_type* shared_intervals_y = &shared_intervals_x[0] + blockDim.x * 2;
+  iter_type* shared_intervals_z = &shared_intervals_y[0] + blockDim.y * 2;
+
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  int idy = blockIdx.y * blockDim.y + threadIdx.y;
+  int idz = blockIdx.z * blockDim.z + threadIdx.z;
+  int tidx = threadIdx.x;
+  int tidy = threadIdx.y;
+  int tidz = threadIdx.z;
+
+  // Initialize shared memory
+  shared_intervals_x[tidx * 2] = grid::getMaxValue<iter_type>();
+  shared_intervals_x[tidx * 2 + 1] = grid::getMinValue<iter_type>();
+  shared_intervals_y[tidy * 2] = grid::getMaxValue<iter_type>();
+  shared_intervals_y[tidy * 2 + 1] = grid::getMinValue<iter_type>();
+  shared_intervals_z[tidy * 2] = grid::getMaxValue<iter_type>();
+  shared_intervals_z[tidy * 2 + 1] = grid::getMinValue<iter_type>();
+  __syncthreads();
+
+  if (idx < dimx && idy < dimy) {
+    iter_type idxn = posx + idx;
+    iter_type idyn = posy + idy;
+    iter_type idzn = posz + idz;
+
+    iter_type xn = ((idxn > dimx) ? idxn - dimx : idxn) + startx;
+    iter_type yn = ((idyn > dimy) ? idyn - dimy : idyn) + starty;
+    iter_type zn = ((idzn > dimz) ? idzn - dimz : idzn) + startz;
+    iter_type n = xn + yn * stridey + zn * stridez;
+    T value[]{values0[n], values1[n], values2[n]};
+    if (grid::compare_cutoff(value, cutoff_value)) {
       atomicMin(&shared_intervals_x[tidx * 2], idxn);
       atomicMax(&shared_intervals_x[tidx * 2 + 1], idxn);
       atomicMin(&shared_intervals_y[tidy * 2], idyn);
@@ -950,7 +1209,33 @@ struct run_find_enclosing_intervals;
 template <>
 struct run_find_enclosing_intervals<1> {
   template <typename T>
-  void operator()(const T* values, T cutoff_value, iter_type total_length,
+  void call_kernel(iter_type* d_intervals_0, iter_type* d_intervals_1,
+                   const T* values, T cutoff_value, iter_type total_length,
+                   const iter_type (&dims)[1], const iter_type (&stride)[1],
+                   const iter_type (&start_pos)[1]) {
+    int numBlocks = (total_length + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    computeEnclosingInterval1d CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
+        values, d_intervals_0, d_intervals_1, cutoff_value, start_pos[0],
+        dims[0], total_length);
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+  }
+  template <typename T>
+  void call_kernel(iter_type* d_intervals_0, iter_type* d_intervals_1,
+                   T* const (&values)[1], any_vector_t<T, 1> cutoff_value,
+                   iter_type total_length, const iter_type (&dims)[1],
+                   const iter_type (&stride)[1],
+                   const iter_type (&start_pos)[1]) {
+    int numBlocks = (total_length + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    computeEnclosingInterval1d CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
+        values[0], d_intervals_0, d_intervals_1, cutoff_value, start_pos[0],
+        dims[0], total_length);
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+  }
+
+  template <typename S, typename T>
+  void operator()(S&& values, T const& cutoff_value, iter_type total_length,
                   const iter_type (&dims)[1], const iter_type (&stride)[1],
                   const iter_type (&offset)[1], const iter_type (&start_pos)[1],
                   iter_type (&intervals)[1][2]) {
@@ -962,14 +1247,8 @@ struct run_find_enclosing_intervals<1> {
         d_intervals_0, std::numeric_limits<iter_type>::max(), 1);
     symphas::cuda::initializeArray CUDA_KERNEL(1, BLOCK_SIZE)(d_intervals_1, 0,
                                                               1);
-
-    int numBlocks = (total_length + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    computeEnclosingInterval1d CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
-        values, d_intervals_0, d_intervals_1, cutoff_value, start_pos[0],
-        dims[0], total_length);
-    CHECK_CUDA_ERROR(cudaPeekAtLastError());
-    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
-
+    call_kernel(d_intervals_0, d_intervals_1, std::forward<S>(values),
+                cutoff_value, total_length, dims, stride, offset, start_pos);
     CHECK_CUDA_ERROR(cudaMemcpy(&intervals[0][0], &d_intervals_0[0],
                                 sizeof(iter_type), cudaMemcpyDeviceToHost));
     CHECK_CUDA_ERROR(cudaMemcpy(&intervals[0][1], &d_intervals_1[0],
@@ -982,7 +1261,46 @@ struct run_find_enclosing_intervals<1> {
 template <>
 struct run_find_enclosing_intervals<2> {
   template <typename T>
-  void operator()(const T* values, T cutoff_value, iter_type total_length,
+  void call_kernel(iter_type* d_intervals_0, iter_type* d_intervals_1,
+                   const T* values, T cutoff_value, iter_type total_length,
+                   const iter_type (&dims)[2], const iter_type (&stride)[2],
+                   const iter_type (&offset)[2],
+                   const iter_type (&start_pos)[2]) {
+    dim3 blockDim(32, 32);
+    dim3 gridDim((dims[0] + blockDim.x - 1) / blockDim.x,
+                 (dims[1] + blockDim.y - 1) / blockDim.y);
+
+    size_t sharedMemSize =
+        (2 * blockDim.x + 2 * blockDim.y) * sizeof(iter_type);
+    computeEnclosingInterval2d CUDA_KERNEL(gridDim, blockDim, sharedMemSize)(
+        values, d_intervals_0, d_intervals_1, cutoff_value, total_length,
+        start_pos[0], start_pos[1], dims[0], dims[1], offset[0], offset[1],
+        stride[1]);
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+  }
+  template <typename T>
+  void call_kernel(iter_type* d_intervals_0, iter_type* d_intervals_1,
+                   T* const (&values)[2], any_vector_t<T, 2> cutoff_value,
+                   iter_type total_length, const iter_type (&dims)[2],
+                   const iter_type (&stride)[2], const iter_type (&offset)[2],
+                   const iter_type (&start_pos)[2]) {
+    dim3 blockDim(32, 32);
+    dim3 gridDim((dims[0] + blockDim.x - 1) / blockDim.x,
+                 (dims[1] + blockDim.y - 1) / blockDim.y);
+
+    size_t sharedMemSize =
+        (2 * blockDim.x + 2 * blockDim.y) * sizeof(iter_type);
+    computeEnclosingInterval2d CUDA_KERNEL(gridDim, blockDim, sharedMemSize)(
+        values[0], values[1], d_intervals_0, d_intervals_1, cutoff_value,
+        total_length, start_pos[0], start_pos[1], dims[0], dims[1], offset[0],
+        offset[1], stride[1]);
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+  }
+
+  template <typename S, typename T>
+  void operator()(S&& values, T const& cutoff_value, iter_type total_length,
                   const iter_type (&dims)[2], const iter_type (&stride)[2],
                   const iter_type (&offset)[2], const iter_type (&start_pos)[2],
                   iter_type (&intervals)[2][2]) {
@@ -999,18 +1317,8 @@ struct run_find_enclosing_intervals<2> {
     symphas::cuda::initializeArray CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
         d_intervals_1, 0, dims[0] + dims[1]);
 
-    dim3 blockDim(32, 32);  // 16x16 threads per block
-    dim3 gridDim((dims[0] + blockDim.x - 1) / blockDim.x,
-                 (dims[1] + blockDim.y - 1) / blockDim.y);
-
-    size_t sharedMemSize =
-        (2 * blockDim.x + 2 * blockDim.y) * sizeof(iter_type);
-    computeEnclosingInterval2d CUDA_KERNEL(gridDim, blockDim, sharedMemSize)(
-        values, d_intervals_0, d_intervals_1, cutoff_value, total_length,
-        start_pos[0], start_pos[1], dims[0], dims[1], offset[0], offset[1],
-        stride[1]);
-    CHECK_CUDA_ERROR(cudaPeekAtLastError());
-    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+    call_kernel(d_intervals_0, d_intervals_1, std::forward<S>(values),
+                cutoff_value, total_length, dims, stride, offset, start_pos);
 
     numBlocks = (total_length + BLOCK_SIZE - 1) / BLOCK_SIZE;
     reduceIntervals2d<T> CUDA_KERNEL(numBlocks, BLOCK_SIZE,
@@ -1035,7 +1343,51 @@ struct run_find_enclosing_intervals<2> {
 template <>
 struct run_find_enclosing_intervals<3> {
   template <typename T>
-  void operator()(const T* values, T cutoff_value, iter_type total_length,
+  void call_kernel(iter_type* d_intervals_0, iter_type* d_intervals_1,
+                   const T* values, T cutoff_value, iter_type total_length,
+                   const iter_type (&dims)[3], const iter_type (&stride)[3],
+                   const iter_type (&offset)[3],
+                   const iter_type (&start_pos)[3]) {
+    dim3 blockDim(8, 8, 8);  // 16x16 threads per block
+    dim3 gridDim((dims[0] + blockDim.x - 1) / blockDim.x,
+                 (dims[1] + blockDim.y - 1) / blockDim.y,
+                 (dims[2] + blockDim.z - 1) / blockDim.z);
+
+    size_t sharedMemSize =
+        (2 * blockDim.x + 2 * blockDim.y + 2 * blockDim.z) * sizeof(iter_type);
+
+    computeEnclosingInterval3d CUDA_KERNEL(gridDim, blockDim, sharedMemSize)(
+        values, d_intervals_0, d_intervals_1, cutoff_value, total_length,
+        start_pos[0], start_pos[1], start_pos[2], dims[0], dims[1], dims[2],
+        offset[0], offset[1], offset[2], stride[1], stride[2]);
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+  }
+  template <typename T>
+  void call_kernel(iter_type* d_intervals_0, iter_type* d_intervals_1,
+                   T* const (&values)[3], any_vector_t<T, 3> cutoff_value,
+                   iter_type total_length, const iter_type (&dims)[3],
+                   const iter_type (&stride)[3], const iter_type (&offset)[3],
+                   const iter_type (&start_pos)[3]) {
+    dim3 blockDim(8, 8, 8);  // 16x16 threads per block
+    dim3 gridDim((dims[0] + blockDim.x - 1) / blockDim.x,
+                 (dims[1] + blockDim.y - 1) / blockDim.y,
+                 (dims[2] + blockDim.z - 1) / blockDim.z);
+
+    size_t sharedMemSize =
+        (2 * blockDim.x + 2 * blockDim.y + 2 * blockDim.z) * sizeof(iter_type);
+
+    computeEnclosingInterval3d CUDA_KERNEL(gridDim, blockDim, sharedMemSize)(
+        values[0], values[1], values[2], d_intervals_0, d_intervals_1,
+        cutoff_value, total_length, start_pos[0], start_pos[1], start_pos[2],
+        dims[0], dims[1], dims[2], offset[0], offset[1], offset[2], stride[1],
+        stride[2]);
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+  }
+
+  template <typename S, typename T>
+  void operator()(S&& values, T const& cutoff_value, iter_type total_length,
                   const iter_type (&dims)[3], const iter_type (&stride)[3],
                   const iter_type (&offset)[3], const iter_type (&start_pos)[3],
                   iter_type (&intervals)[3][2]) {
@@ -1051,22 +1403,11 @@ struct run_find_enclosing_intervals<3> {
     CHECK_CUDA_ERROR(cudaMemset(
         d_intervals_1, 0, (dims[0] + dims[1] + dims[2]) * sizeof(iter_type)));
 
-    dim3 blockDim(8, 8, 8);  // 16x16 threads per block
-    dim3 gridDim((dims[0] + blockDim.x - 1) / blockDim.x,
-                 (dims[1] + blockDim.y - 1) / blockDim.y,
-                 (dims[2] + blockDim.z - 1) / blockDim.z);
-
-    size_t sharedMemSize =
-        (2 * blockDim.x + 2 * blockDim.y + 2 * blockDim.z) * sizeof(iter_type);
-
-    computeEnclosingInterval3d CUDA_KERNEL(gridDim, blockDim, sharedMemSize)(
-        values, d_intervals_0, d_intervals_1, cutoff_value, start_pos[0],
-        start_pos[1], start_pos[2], dims[0], dims[1], dims[2], total_length);
-    CHECK_CUDA_ERROR(cudaPeekAtLastError());
-    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+    call_kernel(d_intervals_0, d_intervals_1, std::forward<S>(values),
+                cutoff_value, total_length, dims, stride, offset, start_pos);
 
     int numBlocks = (total_length + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    reduceIntervals3d<T> CUDA_KERNEL(num_blocks, BLOCK_SIZE,
+    reduceIntervals3d<T> CUDA_KERNEL(numBlocks, BLOCK_SIZE,
                                      6 * BLOCK_SIZE * sizeof(iter_type))(
         d_intervals_0, d_intervals_1, dims[0], dims[1], dims[2]);
     CHECK_CUDA_ERROR(cudaPeekAtLastError());
@@ -1114,6 +1455,29 @@ __global__ void computeStartingPosKernel1d(const T* values,
 }
 
 template <typename T>
+__global__ void computeStartingPosKernel1d(const T* values0,
+                                           iter_type* starting_pos,
+                                           any_vector_t<T, 1> cutoff_value,
+                                           iter_type total_length,
+                                           iter_type start) {
+  extern __shared__ iter_type shared_min_pos[];
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  shared_min_pos[threadIdx.x] = grid::getMaxValue<iter_type>();
+  __syncthreads();
+
+  iter_type n = idx + start;
+  T value[]{values0[n]};
+  if (idx < total_length && grid::compare_cutoff(value, n, cutoff_value)) {
+    atomicMin(&shared_min_pos[0], idx);
+  }
+  __syncthreads();
+  // Write local minimums to global memory
+  if (threadIdx.x == 0) {
+    atomicMin(&starting_pos[0], shared_min_pos[0]);
+  }
+}
+
+template <typename T>
 __global__ void computeStartingPosKernel2d(
     const T* values, iter_type* local_min_pos_x, iter_type* local_min_pos_y,
     T cutoff_value, iter_type total_length, len_type dimx, len_type dimy,
@@ -1135,6 +1499,44 @@ __global__ void computeStartingPosKernel2d(
 
   iter_type n = (startx + idx) + (starty + idy) * stride;
   if (idx < dimx && idy < dimy && values[n] <= cutoff_value) {
+    atomicMin(&local_min_pos_x[idx], idy);
+    atomicMin(&local_min_pos_y[idy], idx);
+  }
+  //__syncthreads();
+
+  //// Write local minimums to global memory
+  // if (tidy == 0) {
+  //   atomicMin(&local_min_pos_x[idx], shared_min_pos_x[tidx]);
+  // }
+  // if (tidx == 0) {
+  //   atomicMin(&local_min_pos_y[idy], shared_min_pos_y[tidy]);
+  // }
+}
+
+template <typename T>
+__global__ void computeStartingPosKernel2d(
+    const T* values0, const T* values1, iter_type* local_min_pos_x,
+    iter_type* local_min_pos_y, any_vector_t<T, 2> cutoff_value,
+    iter_type total_length, len_type dimx, len_type dimy, iter_type startx,
+    iter_type starty, len_type stride) {
+  extern __shared__ iter_type shared_min_pos[];
+
+  iter_type* shared_min_pos_x = &shared_min_pos[0];
+  iter_type* shared_min_pos_y = &shared_min_pos_x[blockDim.x];
+
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  int idy = blockIdx.y * blockDim.y + threadIdx.y;
+  int tidx = threadIdx.x;
+  int tidy = threadIdx.y;
+
+  // Initialize shared memory
+  shared_min_pos_x[tidx] = grid::getMaxValue<iter_type>();
+  shared_min_pos_y[tidy] = grid::getMaxValue<iter_type>();
+  __syncthreads();
+
+  iter_type n = (startx + idx) + (starty + idy) * stride;
+  T value[]{values0[n], values1[n]};
+  if (idx < dimx && idy < dimy && grid::compare_cutoff(value, cutoff_value)) {
     atomicMin(&local_min_pos_x[idx], idy);
     atomicMin(&local_min_pos_y[idy], idx);
   }
@@ -1196,6 +1598,46 @@ __global__ void computeStartingPosKernel3d(
   //   atomicMin(&local_min_pos_yz[idy + idz * dimy],
   //             shared_min_pos_yz[tidy + tidz * blockDim.y]);
   // }
+}
+
+template <typename T>
+__global__ void computeStartingPosKernel3d(
+    const T* values0, const T* values1, const T* values2,
+    iter_type* local_min_pos_xy, iter_type* local_min_pos_xz,
+    iter_type* local_min_pos_yz, any_vector_t<T, 3> cutoff_value,
+    iter_type total_length, len_type dimx, len_type dimy, len_type dimz,
+    iter_type startx, iter_type starty, iter_type startz, len_type stridey,
+    len_type stridez) {
+  extern __shared__ iter_type shared_min_pos[];
+
+  iter_type* shared_min_pos_xy = &shared_min_pos[0];
+  iter_type* shared_min_pos_xz = &shared_min_pos_xy[blockDim.x * blockDim.y];
+  iter_type* shared_min_pos_yz = &shared_min_pos_xz[blockDim.y * blockDim.z];
+
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  int idy = blockIdx.y * blockDim.y + threadIdx.y;
+  int idz = blockIdx.z * blockDim.z + threadIdx.z;
+  int tidx = threadIdx.x;
+  int tidy = threadIdx.y;
+  int tidz = threadIdx.z;
+
+  // Initialize shared memory
+  shared_min_pos_xy[tidx + tidy * blockDim.x] = grid::getMaxValue<iter_type>();
+  shared_min_pos_xz[tidx + tidz * blockDim.x] = grid::getMaxValue<iter_type>();
+  shared_min_pos_yz[tidy + tidz * blockDim.x] = grid::getMaxValue<iter_type>();
+  __syncthreads();
+
+  iter_type n =
+      (startx + idx) + (starty + idy) * stridey + (startz + idz) * stridez;
+  T value[]{values0[n], values1[n], values2[n]};
+  if (idx < dimx && idy < dimy && idz < dimz &&
+      grid::compare_cutoff(value, n, cutoff_value)) {
+    atomicMin(&local_min_pos_xy[idx + idy * dimx], idz);
+    atomicMin(&local_min_pos_xz[idx + idz * dimx], idy);
+    atomicMin(&local_min_pos_yz[idy + idz * dimy], idx);
+  }
+
+  // copy from top
 }
 
 template <typename T>
@@ -1275,17 +1717,39 @@ struct run_compute_starting_pos;
 template <>
 struct run_compute_starting_pos<1> {
   template <typename T>
-  void operator()(const T* values, T cutoff_value, iter_type total_length,
+  void call_kernel(iter_type* starting_pos, const T* values, T cutoff_value,
+                   iter_type total_length, const iter_type (&dims)[1],
+                   const iter_type (&stride)[1], const iter_type (&offset)[1]) {
+    int numBlocks = (total_length + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    computeStartingPosKernel1d CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
+        values, starting_pos, cutoff_value, total_length, offset[0]);
+
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+  }
+
+  template <typename T>
+  void call_kernel(iter_type* starting_pos, T* const (&values)[1],
+                   any_vector_t<T, 1> const& cutoff_value,
+                   iter_type total_length, const iter_type (&dims)[1],
+                   const iter_type (&stride)[1], const iter_type (&offset)[1]) {
+    int numBlocks = (total_length + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    computeStartingPosKernel1d CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
+        values, starting_pos, cutoff_value, total_length, offset[0]);
+
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+  }
+
+  template <typename S, typename T>
+  void operator()(S&& values, T const& cutoff_value, iter_type total_length,
                   const iter_type (&dims)[1], const iter_type (&stride)[1],
                   const iter_type (&offset)[1], iter_type (&pos)[1]) {
     iter_type* starting_pos;
     CHECK_CUDA_ERROR(cudaMalloc(&starting_pos, sizeof(iter_type)));
 
-    int numBlocks = (total_length + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    computeStartingPosKernel1d CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
-        values, starting_pos, cutoff_value, total_lengthm, offset[0]);
-    CHECK_CUDA_ERROR(cudaPeekAtLastError());
-    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+    call_kernel(starting_pos, std::forward<S>(values), cutoff_value,
+                total_length, dims, stride, offset);
 
     CHECK_CUDA_ERROR(cudaMemcpy(&pos[0], starting_pos, sizeof(iter_type),
                                 cudaMemcpyDeviceToHost));
@@ -1296,7 +1760,42 @@ struct run_compute_starting_pos<1> {
 template <>
 struct run_compute_starting_pos<2> {
   template <typename T>
-  void operator()(const T* values, T cutoff_value, iter_type total_length,
+  void call_kernel(iter_type* starting_pos_x, iter_type* starting_pos_y,
+                   const T* values, T cutoff_value, iter_type total_length,
+                   const iter_type (&dims)[2], const iter_type (&stride)[2],
+                   const iter_type (&offset)[2]) {
+    dim3 blockDim(16, 16);  // 16x16 threads per block
+    dim3 gridDim((dims[0] + blockDim.x - 1) / blockDim.x,
+                 (dims[1] + blockDim.y - 1) / blockDim.y);
+    computeStartingPosKernel2d<T> CUDA_KERNEL(
+        gridDim, blockDim, (blockDim.x + blockDim.y) * sizeof(iter_type))(
+        values, starting_pos_x, starting_pos_y, cutoff_value, total_length,
+        dims[0], dims[1], offset[0], offset[1], stride[1]);
+
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+  }
+
+  template <typename T>
+  void call_kernel(iter_type* starting_pos_x, iter_type* starting_pos_y,
+                   T* const (&values)[2],
+                   any_vector_t<T, 2> const& cutoff_value,
+                   iter_type total_length, const iter_type (&dims)[2],
+                   const iter_type (&stride)[2], const iter_type (&offset)[2]) {
+    dim3 blockDim(16, 16);  // 16x16 threads per block
+    dim3 gridDim((dims[0] + blockDim.x - 1) / blockDim.x,
+                 (dims[1] + blockDim.y - 1) / blockDim.y);
+    computeStartingPosKernel2d<T> CUDA_KERNEL(
+        gridDim, blockDim, (blockDim.x + blockDim.y) * sizeof(iter_type))(
+        values[0], values[1], starting_pos_x, starting_pos_y, cutoff_value,
+        total_length, dims[0], dims[1], offset[0], offset[1], stride[1]);
+
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+  }
+
+  template <typename S, typename T>
+  void operator()(S&& values, T const& cutoff_value, iter_type total_length,
                   const iter_type (&dims)[2], const iter_type (&stride)[2],
                   const iter_type (&offset)[2], iter_type (&pos)[2]) {
     iter_type* starting_pos;
@@ -1316,15 +1815,8 @@ struct run_compute_starting_pos<2> {
                                 (dims[0] + dims[1]) * sizeof(iter_type),
                                 cudaMemcpyDeviceToHost));
 
-    dim3 blockDim(16, 16);  // 16x16 threads per block
-    dim3 gridDim((dims[0] + blockDim.x - 1) / blockDim.x,
-                 (dims[1] + blockDim.y - 1) / blockDim.y);
-    computeStartingPosKernel2d<T> CUDA_KERNEL(
-        gridDim, blockDim, (blockDim.x + blockDim.y) * sizeof(iter_type))(
-        values, starting_pos_x, starting_pos_y, cutoff_value, total_length,
-        dims[0], dims[1], offset[0], offset[1], stride[1]);
-    CHECK_CUDA_ERROR(cudaPeekAtLastError());
-    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+    call_kernel(starting_pos_x, starting_pos_y, std::forward<S>(values),
+                cutoff_value, total_length, dims, stride, offset);
 
     len_type max_dim = std::max(dims[0], dims[1]);
     int num_blocks = (max_dim + BLOCK_SIZE - 1) / BLOCK_SIZE;
@@ -1352,7 +1844,52 @@ struct run_compute_starting_pos<2> {
 template <>
 struct run_compute_starting_pos<3> {
   template <typename T>
-  void operator()(const T* values, T cutoff_value, iter_type total_length,
+  void call_kernel(iter_type* starting_pos_xy, iter_type* starting_pos_xz,
+                   iter_type* starting_pos_yz, const T* values, T cutoff_value,
+                   iter_type total_length, const iter_type (&dims)[3],
+                   const iter_type (&stride)[3], const iter_type (&offset)[3]) {
+    dim3 blockDim(8, 8, 8);  // 8x8x8 threads per block
+    dim3 gridDim((dims[0] + blockDim.x - 1) / blockDim.x,
+                 (dims[1] + blockDim.y - 1) / blockDim.y,
+                 (dims[2] + blockDim.z - 1) / blockDim.z);
+
+    computeStartingPosKernel3d<T> CUDA_KERNEL(
+        num_blocks, BLOCK_SIZE,
+        (blockDim.x * blockDim.y + blockDim.x * blockDim.z +
+         blockDim.y * blockDim.z) *
+            sizeof(iter_type))(values, starting_pos_xy, starting_pos_xz,
+                               starting_pos_yz, cutoff_value, total_length,
+                               dims[0], dims[1], dims[2], offset[0], offset[1],
+                               offset[2], stride[1], stride[2]);
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+  }
+
+  template <typename T>
+  void call_kernel(iter_type* starting_pos_xy, iter_type* starting_pos_xz,
+                   iter_type* starting_pos_yz, T* const (&values)[3],
+                   any_vector_t<T, 3> const& cutoff_value,
+                   iter_type total_length, const iter_type (&dims)[3],
+                   const iter_type (&stride)[3], const iter_type (&offset)[3]) {
+    dim3 blockDim(8, 8, 8);  // 8x8x8 threads per block
+    dim3 gridDim((dims[0] + blockDim.x - 1) / blockDim.x,
+                 (dims[1] + blockDim.y - 1) / blockDim.y,
+                 (dims[2] + blockDim.z - 1) / blockDim.z);
+
+    computeStartingPosKernel3d<T> CUDA_KERNEL(
+        num_blocks, BLOCK_SIZE,
+        (blockDim.x * blockDim.y + blockDim.x * blockDim.z +
+         blockDim.y * blockDim.z) *
+            sizeof(iter_type))(
+        values[0], values[1], values[2], starting_pos_xy, starting_pos_xz,
+        starting_pos_yz, cutoff_value, total_length, dims[0], dims[1], dims[2],
+        offset[0], offset[1], offset[2], stride[1], stride[2]);
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+  }
+
+  template <typename S, typename T>
+  void operator()(S&& values, T const& cutoff_value, iter_type total_length,
                   const iter_type (&dims)[3], const iter_type (&stride)[3],
                   const iter_type (&offset)[3], iter_type (&pos)[3]) {
     iter_type* starting_pos;
@@ -1375,21 +1912,9 @@ struct run_compute_starting_pos<3> {
     iter_type* starting_pos_yz =
         &starting_pos[dims[0] * dims[1] + dims[0] * dims[2]];
 
-    dim3 blockDim(8, 8, 8);  // 8x8x8 threads per block
-    dim3 gridDim((dims[0] + blockDim.x - 1) / blockDim.x,
-                 (dims[1] + blockDim.y - 1) / blockDim.y,
-                 (dims[2] + blockDim.z - 1) / blockDim.z);
-
-    computeStartingPosKernel3d<T> CUDA_KERNEL(
-        num_blocks, BLOCK_SIZE,
-        (blockDim.x * blockDim.y + blockDim.x * blockDim.z +
-         blockDim.y * blockDim.z) *
-            sizeof(iter_type))(values, starting_pos_xy, starting_pos_xz,
-                               starting_pos_yz, cutoff_value, total_length,
-                               dims[0], dims[1], dims[2], offset[0], offset[1],
-                               offset[2], stride[1], stride[2]);
-    CHECK_CUDA_ERROR(cudaPeekAtLastError());
-    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+    call_kernel(starting_pos_xy, starting_pos_xz, starting_pos_yz,
+                std::forward<S>(values), cutoff_value, total_length, dims,
+                stride, offset);
 
     len_type max_dim = std::max(dims[0] * dims[1],
                                 std::max(dims[0] * dims[2], dims[1] * dims[2]));
@@ -1448,7 +1973,8 @@ struct run_compute_starting_pos<3> {
 //                  iter_type total_length, iter_type (&stride)[3]) {
 //    int numBlocks = (total_length + BLOCK_SIZE - 1) / BLOCK_SIZE;
 //    updateIntervalsKernel3d CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
-//        values, intervals, cutoff_value, total_length, stride[0], stride[1]);
+//        values, intervals, cutoff_value, total_length, stride[0],
+//        stride[1]);
 //    CHECK_CUDA_ERROR(cudaPeekAtLastError());
 //    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 //  }
@@ -1463,7 +1989,8 @@ namespace grid {
  * dimensions.
  *
  * \param new_values The new region to fit the old region inside. This needs
- * to have as much space as the given dimensions with an added boundary layer.
+ * to have as much space as the given dimensions with an added boundary
+ * layer.
  *
  * \param new_origin The new starting point of the new region inside the
  * global domain. This origin point includes the boundary layer as well,
@@ -1476,8 +2003,8 @@ namespace grid {
  * that is overlapping with the new region will be copied.
  *
  * \param old_origin The starting point of the old region inside the global
- * domain. The origin point includes the boundary layer as well, meaning that
- * the interior data starts after this origin point.
+ * domain. The origin point includes the boundary layer as well, meaning
+ * that the interior data starts after this origin point.
  *
  * \param old_dims The dimensions of the old region, also counting the
  * boundary.
@@ -1515,16 +2042,16 @@ void adjust_region_to_from_cuda(
  * Adjust the floating region inside the grid to a new position and
  * dimensions.
  *
- * \param values The existing region which will have its values moved in place
- * to accommodate a new origin.
+ * \param values The existing region which will have its values moved in
+ * place to accommodate a new origin.
  *
  * \param new_origin The new starting point of the new region inside the
  * global domain. This origin point includes the boundary layer as well,
  * meaning that the interior data starts after this origin point.
  *
  * \param old_origin The starting point of the old region inside the global
- * domain. The origin point includes the boundary layer as well, meaning that
- * the interior data starts after this origin point.
+ * domain. The origin point includes the boundary layer as well, meaning
+ * that the interior data starts after this origin point.
  *
  * \param dims The dimensions of the existing region, counting the boundary
  * layer.
@@ -1572,16 +2099,16 @@ void adjust_origin_to_from_replace_cuda(T*(&values_device),
  * Adjust the floating region inside the grid to a new position and
  * dimensions.
  *
- * \param values The existing region which will have its values moved in place
- * to accommodate a new origin.
+ * \param values The existing region which will have its values moved in
+ * place to accommodate a new origin.
  *
  * \param new_origin The new starting point of the new region inside the
  * global domain. This origin point includes the boundary layer as well,
  * meaning that the interior data starts after this origin point.
  *
  * \param old_origin The starting point of the old region inside the global
- * domain. The origin point includes the boundary layer as well, meaning that
- * the interior data starts after this origin point.
+ * domain. The origin point includes the boundary layer as well, meaning
+ * that the interior data starts after this origin point.
  *
  * \param dims The dimensions of the existing region, counting the boundary
  * layer.
@@ -1603,10 +2130,11 @@ void adjust_origin_to_from_cuda(T*(&values), const iter_type (&new_origin)[D],
 
 //! Construct a new view around a region with values greater than a cutoff.
 /*!
- * Given the regional grid, populate the origin and dimensions for the minimal
- * new region where all values outside are less than cutoff. The regional grid
- * dimensions give the total region size including boundaries, and this
- * algorithm will compute the dimensions without extending them to boundaries.
+ * Given the regional grid, populate the origin and dimensions for the
+ * minimal new region where all values outside are less than cutoff. The
+ * regional grid dimensions give the total region size including boundaries,
+ * and this algorithm will compute the dimensions without extending them to
+ * boundaries.
  *
  * \param grid The regional grid from which to find a new view.
  * \param origin The values of the new region origin are populated here.
@@ -1645,11 +2173,8 @@ void get_view_resized_cuda(RegionalGridCUDA<T, D>& grid, T cutoff_value,
   len_type len = grid::length<D>(grid.region.dims);
 
   // Launch kernel to find the minimal region
-  int blocksPerGrid = (len + BLOCK_SIZE - 1) / BLOCK_SIZE;
-  findMinimalRegion<T, D> CUDA_KERNEL(blocksPerGrid, BLOCK_SIZE)(
-      grid.values, cutoff_value, d_params, d_min_indices, d_max_indices, len);
-  CHECK_CUDA_ERROR(cudaPeekAtLastError());
-  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+  run_find_minimal_region<D>{}(grid.values, cutoff_value, d_params,
+                               d_min_indices, d_max_indices, len);
 
   // Copy results back to host
   CHECK_CUDA_ERROR(cudaMemcpy(h_min_indices, d_min_indices,
@@ -1675,8 +2200,8 @@ void get_view_resized_cuda(RegionalGridCUDA<T, D>& grid, T cutoff_value,
 /*!
  * Given the regional grid, populate the origin for the new region
  * where all values outside are less than cutoff. The dimensions of the
- * regional grid will be the same, since only the position of the view itself
- * is adjusted.
+ * regional grid will be the same, since only the position of the view
+ * itself is adjusted.
  *
  * \param grid The regional grid from which to find a new view.
  * \param origin The values of the new region origin are populated here.
@@ -1709,16 +2234,16 @@ void get_view(RegionalGridCUDA<T, D>& grid, T cutoff_value,
  * @tparam D The dimensionality of the grid.
  * @param grid A reference to a RegionalGrid object containing the grid data
  * and metadata.
- * @param cutoff_value The threshold value used to determine significant grid
- * values.
+ * @param cutoff_value The threshold value used to determine significant
+ * grid values.
  * @param origin An array to store the origin of the resized view.
  * @param dims An array to store the dimensions of the resized view.
  *
  * This function performs the following steps:
- * 1. Initializes `offset` and `stride` arrays to store the offset and stride
- * for each dimension.
- * 2. Adjusts the dimensions to exclude the boundary size and sets the offset
- * to the boundary size.
+ * 1. Initializes `offset` and `stride` arrays to store the offset and
+ * stride for each dimension.
+ * 2. Adjusts the dimensions to exclude the boundary size and sets the
+ * offset to the boundary size.
  * 3. Initializes the stride based on the grid dimensions.
  * 4. Iterates through the grid to find the first position where the value
  * exceeds the cutoff.
@@ -1809,9 +2334,10 @@ void adjust_region(RegionalGridCUDA<T, D>& grid, T cutoff) {
  * \param padding_factor Increases the smallest determined dimensions by the
  * given ratio. \param dims_relative_eps Computes the relative distance
  * between new and current dimensions, and uses the new dimensions if the
- * relative distance exceeds this value. The relative distance is defined as:
- * $\f(\\text{dims}_0 - \\text{dims}_1) / \\text{dims}_0\f$, where subscript 0
- * represents current dimensions and subscript 1 represents the newly
+ * relative distance exceeds this value. The relative distance is defined
+ * as:
+ * $\f(\\text{dims}_0 - \\text{dims}_1) / \\text{dims}_0\f$, where subscript
+ * 0 represents current dimensions and subscript 1 represents the newly
  * determined dimensions.
  */
 template <typename T, size_t D>
@@ -1839,8 +2365,8 @@ void resize_adjust_region(RegionalGridCUDA<T, D>& grid, T cutoff,
                          : 0;
     dims_set[i] = dim0;
 
-    // if the new dimensions are close to the current dimensions, don't change
-    // it
+    // if the new dimensions are close to the current dimensions, don't
+    // change it
     if (std::abs(dims_set[i] - grid.region.dims[i]) /
             double(grid.region.dims[i]) >
         dims_relative_eps) {

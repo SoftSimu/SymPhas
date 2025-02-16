@@ -190,7 +190,7 @@ __global__ void findMinKernel(const T *d_array, T *d_min, int size) {
   if (i < size) {
     sdata[tid] = d_array[i];
   } else {
-    sdata[tid] = getMaxValue<T>();
+    sdata[tid] = grid::getMaxValue<T>();
   }
   __syncthreads();
 
@@ -222,8 +222,8 @@ __global__ void findMinKernelVec(const T *d_array0, const T *d_array1,
     sdata0[tid] = d_array0[i];
     sdata1[tid] = d_array1[i];
   } else {
-    sdata0[tid] = std::numeric_limits<T>::max();
-    sdata1[tid] = std::numeric_limits<T>::max();
+    sdata0[tid] = grid::getMaxValue<T>();
+    sdata1[tid] = grid::getMaxValue<T>();
   }
   __syncthreads();
 
@@ -265,9 +265,9 @@ __global__ void findMinKernelVec(const T *d_array0, const T *d_array1,
     sdata1[tid] = d_array1[i];
     sdata2[tid] = d_array2[i];
   } else {
-    sdata0[tid] = std::numeric_limits<T>::max();
-    sdata1[tid] = std::numeric_limits<T>::max();
-    sdata2[tid] = std::numeric_limits<T>::max();
+    sdata0[tid] = grid::getMaxValue<T>();
+    sdata1[tid] = grid::getMaxValue<T>();
+    sdata2[tid] = grid::getMaxValue<T>();
   }
   __syncthreads();
 
@@ -320,7 +320,7 @@ struct find_min_val_vec<1> {
 template <>
 struct find_min_val_vec<2> {
   template <typename T>
-  void operator()(const T *(&d_array)[2], T *(&d_min)[2], int size) {
+  void operator()(T *const (&d_array)[2], T *(&d_min)[2], int size) {
     int blocksPerGrid = (size + BLOCK_SIZE - 1) / BLOCK_SIZE;
     findMinKernelVec CUDA_KERNEL(blocksPerGrid, BLOCK_SIZE,
                                  2 * BLOCK_SIZE * sizeof(T))(
@@ -331,7 +331,7 @@ struct find_min_val_vec<2> {
 template <>
 struct find_min_val_vec<3> {
   template <typename T>
-  void operator()(const T *(&d_array)[3], T *(&d_min)[3], int size) {
+  void operator()(T *const (&d_array)[3], T *(&d_min)[3], int size) {
     int blocksPerGrid = (size + BLOCK_SIZE - 1) / BLOCK_SIZE;
     findMinKernelVec CUDA_KERNEL(blocksPerGrid, BLOCK_SIZE,
                                  3 * BLOCK_SIZE * sizeof(T))(
@@ -412,7 +412,11 @@ auto min_value(RegionalGridCUDA<any_vector_t<T, D>, D> const &grid) {
     CHECK_CUDA_ERROR(cudaFree(d_blockMin[i]));
   }
 
-  return any_vector_t<T, D>(minVal);
+  any_vector_t<T, D> result;
+  for (iter_type i = 0; i < D; ++i) {
+    result[i] = minVal[i];
+  }
+  return result;
 }
 }  // namespace grid
 
