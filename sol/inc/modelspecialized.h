@@ -62,7 +62,7 @@ auto cellular_fe(Sp const& solver, OpTerm<OpIdentity, G> const& term,
          OpChain(OpOperatorChain(OpIdentity{}, OpIdentity{}),
                  expr::pow<2>(expr::make_operator_derivative<1>(solver)(term)));
 }
-}
+}  // namespace expr
 
 namespace symphas::internal {
 /* whether the model exhibits conserved or nonconserved EVOLUTION
@@ -277,8 +277,8 @@ struct ModelApplied<D, Sp>::OpTypes<S...>::Specialized : eq_type {
   using eq_type_solver =
       Eq<symphas::internal::MakeEquation<Model<D, Sp0, S...>>>;
 
-  template <template <template <typename> typename, typename>
-            typename SpecializedModel,
+  template <template <template <typename> typename,
+                      typename> typename SpecializedModel,
             typename Sp0>
   using impl_type = SpecializedModel<Eq, eq_type_solver<Sp0>>;
 
@@ -339,11 +339,10 @@ struct ModelApplied<D, Sp>::OpTypes<S...>::ProvTypes<P...>::Specialized
   using eq_type_solver =
       Eq<symphas::internal::MakeEquationProvisional<pr_type_solver<Sp0>>>;
 
-  template <
-      template <template <typename> typename,
-                template <typename, typename...> typename, typename, typename>
-      typename SpecializedModel,
-      typename Sp0>
+  template <template <template <typename> typename,
+                      template <typename, typename...> typename, typename,
+                      typename> typename SpecializedModel,
+            typename Sp0>
   using impl_type =
       SpecializedModel<Eq, Pr, pr_type_solver<Sp0>, eq_type_solver<Sp0>>;
 
@@ -437,8 +436,8 @@ struct ModelApplied<D, Sp>::ArrayType<Ts...>::Specialized : eq_type {
   using eq_type_solver =
       Eq<symphas::internal::MakeEquation<ArrayModel<D, Sp0, Ts...>>>;
 
-  template <template <template <typename> typename, typename>
-            typename SpecializedModel,
+  template <template <template <typename> typename,
+                      typename> typename SpecializedModel,
             typename Sp0>
   using impl_type = SpecializedModel<Eq, eq_type_solver<Sp0>>;
 
@@ -1088,9 +1087,8 @@ struct apply_special_dynamics<special_dynamics<N, void, E>> {
 template <typename S>
 apply_special_dynamics(S) -> apply_special_dynamics<S>;
 template <DynamicType dynamic>
-apply_special_dynamics(dynamics_key_t<dynamic>)
-    -> apply_special_dynamics<
-        special_dynamics<0, void, dynamics_key_t<dynamic>>>;
+apply_special_dynamics(dynamics_key_t<dynamic>) -> apply_special_dynamics<
+    special_dynamics<0, void, dynamics_key_t<dynamic>>>;
 
 template <DynamicType dynamic, size_t I>
 constexpr DynamicType dynamic_i = dynamic;
@@ -1267,21 +1265,29 @@ struct TraitEquation : parent_trait {
 
   template <expr::NoiseType nt, typename T, typename... T0s>
   auto make_noise(T0s&&... args) const {
+    using enclosing_grid_type = typename expr::parent_storage_type<
+        decltype(parent_trait::template system<0>()
+                     .as_grid())>::enclosing_wrapped_type;
+
     return symphas::internal::parameterized::NOISE<
         nt, symphas::internal::parameterized::dimensionalized_t<Dm, T>, Dm>(
         parent_trait::template system<0>().info,
         grid::get_data_domain(parent_trait::template system<0>().as_grid()),
-        &solver.dt)(std::forward<T0s>(args)...);
+        &solver.dt, enclosing_grid_type{})(std::forward<T0s>(args)...);
   }
 
   template <expr::NoiseType nt, size_t Z, typename G, typename... T0s>
   auto make_noise(OpTerm<OpIdentity, Variable<Z, G>>, T0s&&... args) const {
+    using enclosing_grid_type = typename expr::parent_storage_type<
+        decltype(parent_trait::template system<Z>()
+                     .as_grid())>::enclosing_wrapped_type;
+
     using T = model_field_t<parent_trait, Z>;
     return symphas::internal::parameterized::NOISE<
         nt, symphas::internal::parameterized::dimensionalized_t<Dm, T>, Dm>(
         parent_trait::template system<Z>().info,
         grid::get_data_domain(parent_trait::template system<Z>().as_grid()),
-        &solver.dt)(std::forward<T0s>(args)...);
+        &solver.dt, enclosing_grid_type{})(std::forward<T0s>(args)...);
   }
 
   template <template <typename> typename other_enclosing_type,
@@ -1329,8 +1335,6 @@ struct TraitEquation : parent_trait {
                                 std::tuple<dynamics_ts...> const& dynamics,
                                 std::index_sequence<Is...>) const {
     using namespace symphas::internal;
-    auto dys = std::make_tuple(dynamics_ts{}...);
-
     return parent_trait::make_equations(
         apply_special_dynamics(
             std::get<
@@ -1442,8 +1446,9 @@ struct TraitEquation<enclosing_type,
 
     expr::printe(*static_cast<E const*>(&e), "free energy");
 
-    return make_equations(apply_special_dynamics(std::get<0>(dynamics))(
-        dop(), *this, *static_cast<E const*>(&e), solver));
+    apply_special_dynamics special_dynamics(std::get<0>(dynamics));
+    return make_equations(
+        special_dynamics(dop(), *this, *static_cast<E const*>(&e), solver));
   }
 
   template <typename Dd, typename Ee>
@@ -1673,10 +1678,10 @@ struct TraitProvisional : TraitEquation<enclosing_type, parent_model> {
  *
  * \param ... The equations of the phase fields.
  */
-#define EQUATION_TRAIT_DEFINITION(...)                      \
-  return parent_type::template make_equations(__VA_ARGS__); \
-  }                                                         \
-  }                                                         \
+#define EQUATION_TRAIT_DEFINITION(...)             \
+  return parent_type::make_equations(__VA_ARGS__); \
+  }                                                \
+  }                                                \
   ;
 
 //! Defines a TraitEquation child class used to define dynamical equations.
@@ -1688,7 +1693,7 @@ struct TraitProvisional : TraitEquation<enclosing_type, parent_model> {
  * \param ... The equations of the phase fields.
  */
 #define EQUATION_FE_TRAIT_DEFINITION(SELECTED_DYNAMICS, ...)       \
-  return parent_type::template generate_equations(                 \
+  return parent_type::generate_equations(                          \
       std::make_tuple(SINGLE_ARG SELECTED_DYNAMICS), __VA_ARGS__); \
   }                                                                \
   }                                                                \

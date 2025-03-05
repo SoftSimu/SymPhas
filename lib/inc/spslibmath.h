@@ -176,7 +176,7 @@ scalar_t imag(T const& v) {
 }
 
 template <typename T, size_t D>
-T abs(const T (&value)[D]) {
+__host__ __device__ T abs(const T (&value)[D]) {
   T result{};
   for (iter_type i = 0; i < D; ++i) {
     result += value[i] * value[i];

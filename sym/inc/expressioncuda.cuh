@@ -26,8 +26,10 @@
 
 #include <boundarysystem.h>
 
+#include "expressionderivatives.cuh"
 #include "expressionsymbolscuda.cuh"
 #include "expressiontypeincludes.h"
+#include "expressiontypenoise.cuh"
 
 #ifdef USING_CUDA
 
@@ -230,6 +232,7 @@ __global__ void evaluateCudaExpr2d(
       stride *= region_dimensions[i];
     }
     auto r = e->eval(position_type<2>(dimensions, pos));
+    if (r != 0) printf("got %lf for %d %d\n", r, pos[0], pos[1]);
     values[n] = r;
   }
 }
@@ -2028,7 +2031,6 @@ struct expr::evaluate_expression_trait<GridCUDA<T, D>> {
   evaluate_expression_trait(OpEvaluable<E> const &e, GridCUDA<T, D> &data,
                             len_type len, bool synchronize = true) {
     auto ec = to_cuda_expr(*static_cast<E const *>(&e));
-    auto numBlocks = (len + BLOCK_SIZE - 1) / BLOCK_SIZE;
     submit_expr(len, ec, data.values, len);
     if (synchronize) CHECK_CUDA_ERROR(cudaDeviceSynchronize());
   }
@@ -2188,7 +2190,7 @@ struct expr::result_sum_trait<GridCUDA<T, D>> {
     CHECK_CUDA_ERROR(cudaFree(ecDevPtr));
   }
 
-  template <typename E, typename assign_type, size_t D>
+  template <typename E, typename assign_type>
   void result(OpEvaluable<E> const &e, assign_type &&output,
               grid::region_interval<D> const &interval,
               bool synchronize = true) {
@@ -2225,7 +2227,7 @@ struct expr::result_sum_trait<GridCUDA<T, D>> {
     auto numBlocks = (len + BLOCK_SIZE - 1) / BLOCK_SIZE;
     T *devPtr;
     CHECK_CUDA_ERROR(cudaMalloc(&devPtr, sizeof(T) * numBlocks));
-    submit_expr(len, ec, devPtr, interval);
+    submit_expr(len, ec, devPtr, len);
     if (synchronize) CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 
     T *result = new T[numBlocks];
@@ -2247,7 +2249,7 @@ struct expr::result_sum_trait<GridCUDA<T, D>> {
     auto numBlocks = (len + BLOCK_SIZE - 1) / BLOCK_SIZE;
     T *devPtr;
     CHECK_CUDA_ERROR(cudaMalloc(&devPtr, sizeof(T) * numBlocks));
-    submit_expr(len, ec, devPtr, interval);
+    submit_expr(len, ec, devPtr, len);
     if (synchronize) CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 
     T *result = new T[numBlocks];
@@ -2262,7 +2264,7 @@ struct expr::result_sum_trait<GridCUDA<T, D>> {
     std::forward<assign_type>(output) = sum;
   }
 
-  template <typename... Es, typename assign_type, size_t D, size_t... Is>
+  template <typename... Es, typename assign_type, size_t... Is>
   void result(OpAdd<Es...> const &e, assign_type &&output,
               grid::region_interval<D> const &interval,
               std::index_sequence<Is...>, bool synchronize = true) {
@@ -2308,7 +2310,7 @@ struct expr::result_sum_trait<GridCUDA<any_vector_t<T, D>, D>> {
     CHECK_CUDA_ERROR(cudaFree(ecDevPtr));
   }
 
-  template <typename E, typename assign_type, size_t D>
+  template <typename E, typename assign_type>
   void result(OpEvaluable<E> const &e, assign_type &&output,
               grid::region_interval<D> const &interval,
               bool synchronize = true) {
@@ -2355,7 +2357,7 @@ struct expr::result_sum_trait<GridCUDA<any_vector_t<T, D>, D>> {
       CHECK_CUDA_ERROR(cudaMalloc(&devPtrArr[i], sizeof(T) * numBlocks));
     }
     CHECK_CUDA_ERROR(cudaMalloc(&devPtrArr, sizeof(T) * numBlocks));
-    submit_expr(len, ec, devPtrArr, interval);
+    submit_expr(len, ec, devPtrArr, len);
     if (synchronize) CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 
     T *result = new T[numBlocks];
@@ -2385,7 +2387,7 @@ struct expr::result_sum_trait<GridCUDA<any_vector_t<T, D>, D>> {
       CHECK_CUDA_ERROR(cudaMalloc(&devPtrArr[i], sizeof(T) * numBlocks));
     }
     CHECK_CUDA_ERROR(cudaMalloc(&devPtrArr, sizeof(T) * numBlocks));
-    submit_expr(len, ec, devPtrArr, interval);
+    submit_expr(len, ec, devPtrArr, len);
     if (synchronize) CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 
     T *result = new T[numBlocks];
@@ -2405,7 +2407,7 @@ struct expr::result_sum_trait<GridCUDA<any_vector_t<T, D>, D>> {
     std::forward<assign_type>(output) = sum;
   }
 
-  template <typename... Es, typename assign_type, size_t D, size_t... Is>
+  template <typename... Es, typename assign_type, size_t... Is>
   void result(OpAdd<Es...> const &e, assign_type &&output,
               grid::region_interval<D> const &interval,
               std::index_sequence<Is...>, bool synchronize = true) {
@@ -2468,7 +2470,7 @@ struct expr::result_sum_only_trait<GridCUDA<any_vector_t<T, D>, D>> {
       CHECK_CUDA_ERROR(cudaMalloc(&devPtrArr[i], sizeof(T) * numBlocks));
     }
     CHECK_CUDA_ERROR(cudaMalloc(&devPtrArr, sizeof(T) * numBlocks));
-    submit_expr(len, ec, devPtrArr, interval);
+    submit_expr(len, ec, devPtrArr, len);
     if (synchronize) CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 
     T *result = new T[numBlocks];
@@ -2488,7 +2490,7 @@ struct expr::result_sum_only_trait<GridCUDA<any_vector_t<T, D>, D>> {
     std::forward<assign_type>(output) = sum;
   }
 
-  template <typename... Es, typename assign_type, size_t D, size_t... Is>
+  template <typename... Es, typename assign_type, size_t... Is>
   void result(OpAdd<Es...> const &e, assign_type &&output,
               grid::region_interval<D> const &interval,
               std::index_sequence<Is...>, bool synchronize = true) {
@@ -2548,7 +2550,7 @@ struct expr::result_sum_only_trait<GridCUDA<T, D>> {
     for (iter_type i = 0; i < D; ++i) {
       CHECK_CUDA_ERROR(cudaMalloc(&devPtrArr[i], sizeof(T) * numBlocks));
     }
-    submit_expr(len, ec, devPtrArr, interval);
+    submit_expr(len, ec, devPtrArr, len);
     if (synchronize) CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 
     T *result = new T[numBlocks];
@@ -2568,7 +2570,7 @@ struct expr::result_sum_only_trait<GridCUDA<T, D>> {
     std::forward<assign_type>(output) = sum;
   }
 
-  template <typename... Es, typename assign_type, size_t D, size_t... Is>
+  template <typename... Es, typename assign_type, size_t... Is>
   void result(OpAdd<Es...> const &e, assign_type &&output,
               grid::region_interval<D> const &interval,
               std::index_sequence<Is...>, bool synchronize = true) {
@@ -2645,7 +2647,7 @@ struct expr::accumulate_expression_trait<RegionalGridCUDA<T, D>>
 
 template <typename T, size_t D>
 struct expr::result_only_trait<GridCUDA<T, D>> {
-  template <typename... Es, size_t D, typename assign_type, size_t... Is>
+  template <typename... Es, typename assign_type, size_t... Is>
   result_only_trait(OpAdd<Es...> const &e, assign_type &&data,
                     grid::region_interval<D> const &interval,
                     std::index_sequence<Is...>) {
@@ -2657,7 +2659,7 @@ struct expr::result_only_trait<GridCUDA<T, D>> {
   result_only_trait(OpAdd<Es...> const &e, assign_type &&data, len_type len,
                     std::index_sequence<Is...>) {
     evaluate_expression_trait<GridCUDA<T, D>>(
-        (expr::get<Is>(e) + ...), std::forward<assign_type>(data), interval);
+        (expr::get<Is>(e) + ...), std::forward<assign_type>(data), len);
   }
 };
 

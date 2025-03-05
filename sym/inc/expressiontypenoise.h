@@ -41,45 +41,53 @@
 
 namespace expr {
 
-template <NoiseType nt, size_t D>
-struct noise_data;
-
-template <typename T, size_t D, typename E>
-auto make_poisson_event(NoiseData<expr::NoiseType::POISSON, T, D> const& noise,
-                        OpExpression<E> const& e);
-
-template <size_t D, typename E>
+template <typename T, size_t D, template <typename, size_t> typename grid_type,
+          typename E>
 auto make_poisson_event(
-    expr::noise_data<expr::NoiseType::POISSON, D> const& noise,
+    NoiseData<expr::NoiseType::POISSON, T, D, grid_type> const& noise,
+    OpExpression<E> const& e);
+
+template <size_t D, template <typename, size_t> typename grid_type, typename E>
+auto make_poisson_event(
+    expr::noise_data<expr::NoiseType::POISSON, D, grid_type> const& noise,
     OpExpression<E> const& e) {
   return make_poisson_event(
-      NoiseData<expr::NoiseType::POISSON, scalar_t, D>(noise),
+      NoiseData<expr::NoiseType::POISSON, scalar_t, D, grid_type>(noise),
       *static_cast<E const*>(&e));
 }
 
-template <typename T, size_t D, typename E, typename... Ts>
-auto make_poisson_event(NoiseData<expr::NoiseType::POISSON, T, D> const& noise,
-                        SymbolicFunction<E, Ts...> const& f);
-
-template <size_t D, typename E, typename... Ts>
+template <typename T, size_t D, template <typename, size_t> typename grid_type,
+          typename E, typename... Ts>
 auto make_poisson_event(
-    expr::noise_data<expr::NoiseType::POISSON, D> const& noise,
+    NoiseData<expr::NoiseType::POISSON, T, D, grid_type> const& noise,
+    SymbolicFunction<E, Ts...> const& f);
+
+template <size_t D, template <typename, size_t> typename grid_type, typename E,
+          typename... Ts>
+auto make_poisson_event(
+    expr::noise_data<expr::NoiseType::POISSON, D, grid_type> const& noise,
     SymbolicFunction<E, Ts...> const& f) {
   return make_poisson_event(
-      NoiseData<expr::NoiseType::POISSON, scalar_t, D>(noise), f);
+      NoiseData<expr::NoiseType::POISSON, scalar_t, D, grid_type>(noise), f);
 }
 
-template <NoiseType nt, typename T, size_t D, typename E, typename... Ts>
-auto make_noise(NoiseData<nt, T, D> const& noise,
+template <NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type, typename E,
+          typename... Ts>
+auto make_noise(NoiseData<nt, T, D, grid_type> const& noise,
                 SymbolicFunction<E, Ts...> const& f);
 
-template <NoiseType nt, typename T, size_t D, typename E>
-auto make_noise(NoiseData<nt, T, D> const& noise, OpExpression<E> const& e);
+template <NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type, typename E>
+auto make_noise(NoiseData<nt, T, D, grid_type> const& noise,
+                OpExpression<E> const& e);
 
-template <NoiseType nt, size_t D, typename E, typename... Ts>
-auto make_noise(expr::noise_data<nt, D> const& noise,
+template <NoiseType nt, size_t D,
+          template <typename, size_t> typename grid_type, typename E,
+          typename... Ts>
+auto make_noise(expr::noise_data<nt, D, grid_type> const& noise,
                 SymbolicFunction<E, Ts...> const& f) {
-  return make_noise(NoiseData<nt, scalar_t, D>(noise), f);
+  return make_noise(NoiseData<nt, scalar_t, D, grid_type>(noise), f);
 }
 
 template <NoiseType nt, typename T, size_t D>
@@ -108,6 +116,12 @@ auto build_function_for_noise(OpExpression<E> const& e, Ts&&... args) {
 
 namespace expr {
 
+template <typename G>
+struct random_state {
+  random_state(len_type = 0) {}
+  void* states;
+};
+
 template <NoiseType nt>
 struct random_seed {
   random_seed(int index = -1) : index{index} {}
@@ -133,25 +147,31 @@ struct random_seed {
   int index;
 };
 
-template <typename F, size_t D>
-struct noise_data_with_function : Grid<complex_t, D> {
-  using parent_type = Grid<complex_t, D>;
+template <typename F, size_t D, template <typename, size_t> typename grid_type>
+struct noise_data_with_function : grid_type<complex_t, D>,
+                                  random_state<grid_type<complex_t, D>> {
+  using parent_type = grid_type<complex_t, D>;
+  using state_type = random_state<grid_type<complex_t, D>>;
   using parent_type::dims;
   using parent_type::len;
   using parent_type::values;
 
   noise_data_with_function(F f, const len_type* dims, const double* h,
                            const double* dt)
-      : parent_type(dims), dt{dt}, h{0}, f{f} {
+      : parent_type(dims),
+        state_type(grid::length<D>(dims)),
+        dt{dt},
+        h{0},
+        f{f} {
     std::copy(h, h + D, this->h);
   }
 
   scalar_t operator[](iter_type n) const { return values[n].real(); }
 
  protected:
-  template <NoiseType nt>
-  void update(random_seed<nt> const& seed, double intensity,
-              bool fourier_space = true) {
+  template <NoiseType nt, typename eval_handler_type>
+  void update(random_seed<nt> const& seed, double intensity, bool fourier_space,
+              eval_handler_type const& eval_handler) {
     using std::exp;
     using std::sqrt;
 
@@ -203,85 +223,116 @@ inline constexpr auto eigen_one(scalar_t intensity, scalar_t lambda_n) {
   return intensity * lambda_n;
 }
 
-template <size_t D>
-struct noise_data<NoiseType::WHITE, D> : Grid<scalar_t, D>,
-                                         random_seed<NoiseType::WHITE> {
-  using parent_type = Grid<scalar_t, D>;
+template <size_t D, template <typename, size_t> typename grid_type>
+struct noise_data<NoiseType::WHITE, D, grid_type>
+    : grid_type<scalar_t, D>,
+      random_seed<NoiseType::WHITE>,
+      random_state<grid_type<scalar_t, D>> {
+  using parent_type = grid_type<scalar_t, D>;
+  using parent_type::as_grid;
   using parent_type::dims;
   using parent_type::len;
-  using parent_type::values;
   using parent_type::operator[];
   using seed_type = random_seed<NoiseType::WHITE>;
+  using state_type = random_state<grid_type<scalar_t, D>>;
+  using state_type::states;
 
   noise_data(const len_type* dims, const double* h, const double* dt)
-      : parent_type(dims), seed_type(), H{1}, dt{dt} {
+      : parent_type(dims),
+        seed_type(),
+        state_type(grid::length<D>(dims)),
+        H{1},
+        dt{dt},
+        gen{get_seed()} {
     for (iter_type i = 0; i < D; ++i) H *= h[i];
   }
 
-  noise_data() : parent_type(nullptr), seed_type(), H{1}, dt{nullptr} {}
+  noise_data()
+      : parent_type(nullptr),
+        seed_type(),
+        state_type(grid::length<D>(dims)),
+        H{1},
+        dt{nullptr},
+        gen{get_seed()} {}
 
-  void update(double intensity, double mean = NOISE_MEAN,
-              double std_dev = NOISE_STD) {
-    auto gen = get_seed();
+  auto operator()(double mean, double std_dev) {
     std::normal_distribution<> dis(mean, std_dev);
+    return dis(gen);
+  }
 
+  template <typename eval_handler_type>
+  void update(double intensity, double mean, double std_dev,
+              eval_handler_type const& eval_handler) {
     scalar_t sq_corr = intensity * std::sqrt(*dt) / H;
-    for (iter_type i = 0; i < len; ++i) {
-      values[i] = sq_corr * dis(gen);
-    }
+    auto ex =
+        expr::make_literal(sq_corr) * expr::callable_of(this)(mean, std_dev);
+    eval_handler.result(ex, this->as_grid(), len);
   }
 
-  template <typename R>
-  void update(OpExpression<R> const& intensity, std::tuple<> const& args) {
-    update(static_cast<R const*>(&intensity)->eval());
+  template <typename R, typename eval_handler_type>
+  void update(OpExpression<R> const& intensity, std::tuple<> const& args,
+              eval_handler_type const& eval_handler) {
+    update(static_cast<R const*>(&intensity)->eval(), NOISE_MEAN, NOISE_STD,
+           eval_handler);
   }
 
-  template <typename R, typename T0>
-  void update(OpExpression<R> const& intensity, std::tuple<T0> const& args) {
-    update(static_cast<R const*>(&intensity)->eval(), std::get<0>(args));
+  template <typename R, typename T0, typename eval_handler_type>
+  void update(OpExpression<R> const& intensity, std::tuple<T0> const& args,
+              eval_handler_type const& eval_handler) {
+    update(static_cast<R const*>(&intensity)->eval(), NOISE_STD,
+           std::get<0>(args), eval_handler);
   }
 
-  template <typename R, typename E, typename T0, typename T1, typename... Ts>
+  template <typename R, typename E, typename T0, typename T1, typename... Ts,
+            typename eval_handler_type>
   void update(OpExpression<R> const& intensity,
-              std::tuple<T0, T1, Ts...> const& args) {
+              std::tuple<T0, T1, Ts...> const& args,
+              eval_handler_type const& eval_handler) {
     update(static_cast<R const*>(&intensity)->eval(), std::get<0>(args),
-           std::get<1>(args));
+           std::get<1>(args), eval_handler);
   }
 
   double H;
   const double* dt;
+  std::mt19937 gen;
 };
 
-template <size_t D>
-struct noise_data<NoiseType::DECAY_EXP, D>
-    : noise_data_with_function<decltype(&eigen_exponential), D>,
+template <size_t D, template <typename, size_t> typename grid_type>
+struct noise_data<NoiseType::DECAY_EXP, D, grid_type>
+    : noise_data_with_function<decltype(&eigen_exponential), D, grid_type>,
       random_seed<NoiseType::DECAY_EXP> {
-  using parent_type = noise_data_with_function<decltype(&eigen_exponential), D>;
+  using parent_type =
+      noise_data_with_function<decltype(&eigen_exponential), D, grid_type>;
   using seed_type = random_seed<NoiseType::DECAY_EXP>;
   using parent_type::operator[];
 
   noise_data(const len_type* dims, const double* h, const double* dt)
       : parent_type(&eigen_exponential, dims, h, dt), seed_type() {}
 
-  noise_data() : parent_type(&eigen_exponential, nullptr, nullptr, nullptr) {}
+  noise_data()
+      : parent_type(&eigen_exponential, nullptr, nullptr, nullptr),
+        seed_type() {}
 
-  template <typename R>
-  void update(OpExpression<R> const& intensity) {
-    parent_type::update(*this, static_cast<R const*>(&intensity)->eval(),
-                        false);
+  template <typename R, typename eval_handler_type>
+  void update(OpExpression<R> const& intensity,
+              eval_handler_type const& eval_handler) {
+    parent_type::update(*this, static_cast<R const*>(&intensity)->eval(), false,
+                        eval_handler);
   }
 
-  template <typename R, typename... Ts>
-  void update(OpExpression<R> const& intensity, std::tuple<Ts...> const& args) {
-    update(*static_cast<R const*>(&intensity));
+  template <typename R, typename... Ts, typename eval_handler_type>
+  void update(OpExpression<R> const& intensity, std::tuple<Ts...> const& args,
+              eval_handler_type const& eval_handler) {
+    update(*static_cast<R const*>(&intensity), eval_handler);
   }
 };
 
-template <size_t D>
-struct noise_data<NoiseType::DECAY_POLY, D>
-    : noise_data_with_function<decltype(&eigen_polynomial), D>,
+template <size_t D, template <typename, size_t> typename grid_type>
+struct noise_data<NoiseType::DECAY_POLY, D, grid_type>
+    : noise_data_with_function<decltype(&eigen_polynomial), D, grid_type>,
       random_seed<NoiseType::DECAY_POLY> {
-  using parent_type = noise_data_with_function<decltype(&eigen_polynomial), D>;
+  using parent_type =
+      noise_data_with_function<decltype(&eigen_polynomial), D, grid_type>;
   using seed_type = random_seed<NoiseType::DECAY_POLY>;
   using parent_type::operator[];
 
@@ -289,63 +340,74 @@ struct noise_data<NoiseType::DECAY_POLY, D>
       : parent_type(&eigen_polynomial, dims, h, dt), seed_type() {}
 
   noise_data()
-      : parent_type(&eigen_polynomial, nullptr, nullptr, nullptr, 1.0) {}
+      : parent_type(&eigen_polynomial, nullptr, nullptr, nullptr, 1.0),
+        seed_type() {}
 
-  template <typename R>
-  void update(OpExpression<R> const& intensity) {
-    parent_type::update(*this, static_cast<R const*>(&intensity)->eval(),
-                        false);
+  template <typename R, typename eval_handler_type>
+  void update(OpExpression<R> const& intensity,
+              eval_handler_type const& eval_handler) {
+    parent_type::update(*this, static_cast<R const*>(&intensity)->eval(), false,
+                        eval_handler);
   }
 
-  template <typename R, typename... Ts>
-  void update(OpExpression<R> const& intensity, std::tuple<Ts...> const& args) {
-    update(*static_cast<R const*>(&intensity));
+  template <typename R, typename... Ts, typename eval_handler_type>
+  void update(OpExpression<R> const& intensity, std::tuple<Ts...> const& args,
+              eval_handler_type const& eval_handler) {
+    update(*static_cast<R const*>(&intensity), eval_handler);
   }
 };
 
-template <size_t D>
-struct noise_data<NoiseType::NONE, D>
-    : noise_data_with_function<decltype(&eigen_one), D>,
+template <size_t D, template <typename, size_t> typename grid_type>
+struct noise_data<NoiseType::NONE, D, grid_type>
+    : noise_data_with_function<decltype(&eigen_one), D, grid_type>,
       random_seed<NoiseType::NONE> {
-  using parent_type = noise_data_with_function<decltype(&eigen_one), D>;
+  using parent_type =
+      noise_data_with_function<decltype(&eigen_one), D, grid_type>;
   using seed_type = random_seed<NoiseType::NONE>;
   using parent_type::operator[];
 
   noise_data(const len_type* dims, const double* h, const double* dt)
       : parent_type(&eigen_one, dims, h, dt), seed_type() {}
 
-  noise_data() : parent_type(&eigen_one, nullptr, nullptr, nullptr, 1.0) {}
+  noise_data()
+      : parent_type(&eigen_one, nullptr, nullptr, nullptr, 1.0), seed_type() {}
 
-  template <typename R>
-  void update(OpExpression<R> const& intensity) {
-    parent_type::update(*this, static_cast<R const*>(&intensity)->eval(),
-                        false);
+  template <typename R, typename eval_handler_type>
+  void update(OpExpression<R> const& intensity,
+              eval_handler_type const& eval_handler) {
+    parent_type::update(*this, static_cast<R const*>(&intensity)->eval(), false,
+                        eval_handler);
   }
 
-  template <typename R, typename... Ts>
-  void update(OpExpression<R> const& intensity, std::tuple<Ts...> const& args) {
-    update(*static_cast<R const*>(&intensity));
+  template <typename R, typename... Ts, typename eval_handler_type>
+  void update(OpExpression<R> const& intensity, std::tuple<Ts...> const& args,
+              eval_handler_type const& eval_handler) {
+    update(*static_cast<R const*>(&intensity), eval_handler);
   }
 };
 
-template <size_t D>
-struct noise_data<NoiseType::POISSON, D> : random_seed<NoiseType::POISSON> {
+template <size_t D, template <typename, size_t> typename grid_type>
+struct noise_data<NoiseType::POISSON, D, grid_type>
+    : random_seed<NoiseType::POISSON>, random_state<scalar_t> {
   using seed_type = random_seed<NoiseType::POISSON>;
+  using state_type = random_state<scalar_t>;
 
   noise_data(const len_type* dims, const double* h, const double* dt)
-      : seed_type(), next{0}, value{0} {}
+      : seed_type(), state_type(grid::length<D>(dims)), next{0}, value{0} {}
 
   noise_data(const len_type* dims) : noise_data(dims, nullptr, nullptr) {}
 
-  noise_data() : seed_type(), next{0}, value{0} {}
+  noise_data() : seed_type(), state_type(), next{0}, value{0} {}
 
   auto get_index(expr::symbols::Symbol) { return -1; }
 
   auto get_index(int index) { return index; }
 
-  template <typename R, typename T0, typename T1, typename... Ts>
+  template <typename R, typename T0, typename T1, typename... Ts,
+            typename eval_handler_type>
   void update(OpExpression<R> const& intensity,
-              std::tuple<T0, T1, Ts...> const& args) {
+              std::tuple<T0, T1, Ts...> const& args,
+              eval_handler_type const& eval_handler) {
     auto current = expr::eval(std::get<0>(args));
     if (current >= next) {
       index = get_index(expr::eval(std::get<1>(args)));
@@ -367,12 +429,15 @@ struct noise_data<NoiseType::POISSON, D> : random_seed<NoiseType::POISSON> {
   double value;
 };
 
-template <size_t D0, NoiseType nt, size_t D>
+template <size_t D0, NoiseType nt, size_t D,
+          template <typename, size_t> typename grid_type>
 struct noise_data_axis;
 
-template <NoiseType nt, size_t D>
-struct noise_data_axis<3, nt, D> : noise_data_axis<2, nt, D> {
-  using parent_type = noise_data_axis<2, nt, D>;
+template <NoiseType nt, size_t D,
+          template <typename, size_t> typename grid_type>
+struct noise_data_axis<3, nt, D, grid_type>
+    : noise_data_axis<2, nt, D, grid_type> {
+  using parent_type = noise_data_axis<2, nt, D, grid_type>;
   using parent_type::parent_type;
 
   noise_data_axis(const len_type* dims, const double* h, const double* dt)
@@ -384,18 +449,21 @@ struct noise_data_axis<3, nt, D> : noise_data_axis<2, nt, D> {
             data[n]};
   }
 
-  template <typename R, typename... Ts>
-  void update(OpExpression<R> const& intensity, std::tuple<Ts...> const& args) {
-    data.update(*static_cast<R const*>(&intensity), args);
-    parent_type::update(*static_cast<R const*>(&intensity), args);
+  template <typename R, typename... Ts, typename eval_handler_type>
+  void update(OpExpression<R> const& intensity, std::tuple<Ts...> const& args,
+              eval_handler_type const& eval_handler) {
+    data.update(*static_cast<R const*>(&intensity), args, eval_handler);
+    parent_type::update(*static_cast<R const*>(&intensity), args, eval_handler);
   }
 
-  noise_data<nt, D> data;
+  noise_data<nt, D, grid_type> data;
 };
 
-template <NoiseType nt, size_t D>
-struct noise_data_axis<2, nt, D> : noise_data_axis<1, nt, D> {
-  using parent_type = noise_data_axis<1, nt, D>;
+template <NoiseType nt, size_t D,
+          template <typename, size_t> typename grid_type>
+struct noise_data_axis<2, nt, D, grid_type>
+    : noise_data_axis<1, nt, D, grid_type> {
+  using parent_type = noise_data_axis<1, nt, D, grid_type>;
 
   noise_data_axis(const len_type* dims, const double* h, const double* dt)
       : parent_type(dims, h, dt), data(dims, h, dt) {}
@@ -405,18 +473,20 @@ struct noise_data_axis<2, nt, D> : noise_data_axis<1, nt, D> {
     return {parent_type::operator[](n)[0], data[n]};
   }
 
-  template <typename R, typename... Ts>
-  void update(OpExpression<R> const& intensity, std::tuple<Ts...> const& args) {
-    data.update(*static_cast<R const*>(&intensity), args);
-    parent_type::update(*static_cast<R const*>(&intensity), args);
+  template <typename R, typename... Ts, typename eval_handler_type>
+  void update(OpExpression<R> const& intensity, std::tuple<Ts...> const& args,
+              eval_handler_type const& eval_handler) {
+    data.update(*static_cast<R const*>(&intensity), args, eval_handler);
+    parent_type::update(*static_cast<R const*>(&intensity), args, eval_handler);
   }
 
-  noise_data<nt, D> data;
+  noise_data<nt, D, grid_type> data;
 };
 
-template <NoiseType nt, size_t D>
-struct noise_data_axis<1, nt, D> : noise_data<nt, D> {
-  using parent_type = noise_data<nt, D>;
+template <NoiseType nt, size_t D,
+          template <typename, size_t> typename grid_type>
+struct noise_data_axis<1, nt, D, grid_type> : noise_data<nt, D, grid_type> {
+  using parent_type = noise_data<nt, D, grid_type>;
 
   noise_data_axis(const len_type* dims, const double* h, const double* dt)
       : parent_type(dims, h, dt) {}
@@ -426,22 +496,25 @@ struct noise_data_axis<1, nt, D> : noise_data<nt, D> {
     return {parent_type::operator[](n)};
   }
 
-  template <typename R, typename... Ts>
-  void update(OpExpression<R> const& intensity, std::tuple<Ts...> const& args) {
-    parent_type::update(*static_cast<R const*>(&intensity), args);
+  template <typename R, typename... Ts, typename eval_handler_type>
+  void update(OpExpression<R> const& intensity, std::tuple<Ts...> const& args,
+              eval_handler_type const& eval_handler) {
+    parent_type::update(*static_cast<R const*>(&intensity), args, eval_handler);
   }
 };
 }  // namespace expr
 
-template <expr::NoiseType nt, typename T, size_t D>
-struct NoiseData : expr::noise_data<nt, D> {
-  using parent_type = expr::noise_data<nt, D>;
+template <expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type>
+struct NoiseData : expr::noise_data<nt, D, grid_type> {
+  using parent_type = expr::noise_data<nt, D, grid_type>;
   using parent_type::parent_type;
   using parent_type::operator[];
   using parent_type::update;
 
-  NoiseData(expr::noise_data<nt, D> const& noise) : parent_type(noise) {}
-  NoiseData(expr::noise_data<nt, D>&& noise) : parent_type(noise) {}
+  NoiseData(expr::noise_data<nt, D, grid_type> const& noise)
+      : parent_type(noise) {}
+  NoiseData(expr::noise_data<nt, D, grid_type>&& noise) : parent_type(noise) {}
   NoiseData() : parent_type() {}
 
   template <typename E, typename... Ts>
@@ -461,16 +534,19 @@ struct NoiseData : expr::noise_data<nt, D> {
   auto operator()() const { return expr::make_noise(*this, OpIdentity{}); }
 };
 
-template <expr::NoiseType nt, typename T, size_t D>
-struct NoiseData<nt, any_vector_t<T, D>, D> : expr::noise_data_axis<D, nt, D> {
-  using parent_type = expr::noise_data_axis<D, nt, D>;
+template <expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type>
+struct NoiseData<nt, any_vector_t<T, D>, D, grid_type>
+    : expr::noise_data_axis<D, nt, D, grid_type> {
+  using parent_type = expr::noise_data_axis<D, nt, D, grid_type>;
   using parent_type::parent_type;
   using parent_type::update;
   using parent_type::operator[];
 
-  NoiseData(expr::noise_data_axis<D, nt, D> const& noise)
+  NoiseData(expr::noise_data_axis<D, nt, D, grid_type> const& noise)
       : parent_type(noise) {}
-  NoiseData(expr::noise_data_axis<D, nt, D>&& noise) : parent_type(noise) {}
+  NoiseData(expr::noise_data_axis<D, nt, D, grid_type>&& noise)
+      : parent_type(noise) {}
   NoiseData() : parent_type() {}
 
   template <typename E, typename... Ts>
@@ -495,13 +571,14 @@ struct NoiseData<nt, any_vector_t<T, D>, D> : expr::noise_data_axis<D, nt, D> {
 // DEFINE_SYMBOL_ID((typename T, size_t D), (NoiseData<expr::NoiseType::NONE, T,
 // D>), { return SYEX_NOISE_NONE_OP_STR; })
 
-template <typename V, expr::NoiseType nt, typename T, size_t D, typename E,
+template <typename V, expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type, typename E,
           size_t... Ns, typename... Ts>
-struct OpSymbolicEval<V, NoiseData<nt, T, D>,
+struct OpSymbolicEval<V, NoiseData<nt, T, D, grid_type>,
                       SymbolicFunction<E, Variable<Ns, Ts>...>>
-    : OpExpression<OpSymbolicEval<V, NoiseData<nt, T, D>,
+    : OpExpression<OpSymbolicEval<V, NoiseData<nt, T, D, grid_type>,
                                   SymbolicFunction<E, Variable<Ns, Ts>...>>> {
-  using sub_t = NoiseData<nt, T, D>;
+  using sub_t = NoiseData<nt, T, D, grid_type>;
   using eval_t = SymbolicFunction<E, Variable<Ns, Ts>...>;
   using this_t = OpSymbolicEval<V, sub_t, eval_t>;
 
@@ -524,7 +601,7 @@ struct OpSymbolicEval<V, NoiseData<nt, T, D>,
   template <typename eval_handler_type, typename... condition_ts>
   void update(eval_handler_type const& eval_handler,
               symphas::lib::types_list<condition_ts...>) {
-    data.update(f.e, f.data);
+    data.update(f.e, f.data, eval_handler);
   }
 
   template <typename eval_handler_type>
@@ -556,80 +633,97 @@ struct OpSymbolicEval<V, NoiseData<nt, T, D>,
 #endif
 };
 
-template <typename V, expr::NoiseType nt, typename T, size_t D, typename E,
+template <typename V, expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type, typename E,
           size_t... Ns, typename... Ts>
-OpSymbolicEval(V, NoiseData<nt, T, D>, SymbolicFunction<E, Variable<Ns, Ts>...>)
-    -> OpSymbolicEval<V, NoiseData<nt, T, D>,
+OpSymbolicEval(V, NoiseData<nt, T, D, grid_type>,
+               SymbolicFunction<E, Variable<Ns, Ts>...>)
+    -> OpSymbolicEval<V, NoiseData<nt, T, D, grid_type>,
                       SymbolicFunction<E, Variable<Ns, Ts>...>>;
 
 namespace expr {
 
-template <typename T, size_t D, typename E, typename... Ts>
-auto make_poisson_event(NoiseData<expr::NoiseType::POISSON, T, D> const& noise,
-                        SymbolicFunction<E, Ts...> const& f) {
+template <typename T, size_t D, template <typename, size_t> typename grid_type,
+          typename E, typename... Ts>
+auto make_poisson_event(
+    NoiseData<expr::NoiseType::POISSON, T, D, grid_type> const& noise,
+    SymbolicFunction<E, Ts...> const& f) {
   return symphas::internal::make_symbolic_eval(OpIdentity{}, noise, f);
 }
 
-template <typename T, size_t D, typename E, typename L>
-auto make_poisson_event(NoiseData<expr::NoiseType::POISSON, T, D> const& noise,
-                        OpExpression<E> const& e,
-                        OpExpression<L> const& lambda) {
+template <typename T, size_t D, template <typename, size_t> typename grid_type,
+          typename E, typename L>
+auto make_poisson_event(
+    NoiseData<expr::NoiseType::POISSON, T, D, grid_type> const& noise,
+    OpExpression<E> const& e, OpExpression<L> const& lambda) {
   return make_poisson_event(noise, function_of(*static_cast<L>(&lambda)) =
                                        *static_cast<E const*>(&e));
 }
 
-template <NoiseType nt, typename T, size_t D, typename E, typename... Ts>
-auto make_noise(NoiseData<nt, T, D> const& noise,
+template <NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type, typename E,
+          typename... Ts>
+auto make_noise(NoiseData<nt, T, D, grid_type> const& noise,
                 SymbolicFunction<E, Ts...> const& f) {
   return symphas::internal::make_symbolic_eval(OpIdentity{}, noise, f);
 }
 
-template <NoiseType nt, typename T, size_t D, typename E>
-auto make_noise(NoiseData<nt, T, D> const& noise, OpExpression<E> const& e) {
+template <NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type, typename E>
+auto make_noise(NoiseData<nt, T, D, grid_type> const& noise,
+                OpExpression<E> const& e) {
   return make_noise(noise, function_of() = *static_cast<E const*>(&e));
 }
 
-template <NoiseType nt, typename T, size_t D>
+template <NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type>
 auto make_noise(const len_type* dimensions, const double* h, const double* dt) {
-  return make_noise(NoiseData<nt, T, D>(dimensions, h, const_cast<double*>(dt)),
-                    OpIdentity{});
+  return make_noise(
+      NoiseData<nt, T, D, grid_type>(dimensions, h, const_cast<double*>(dt)),
+      OpIdentity{});
 }
 
-template <typename T, size_t D>
+template <typename T, size_t D, template <typename, size_t> typename grid_type>
 auto make_white_noise(const len_type* dimensions, const double* h,
                       const double* dt, double intensity = 1.0) {
-  return make_noise(
-      NoiseData<NoiseType::WHITE, T, D>(dimensions, h, dt, intensity),
-      OpVoid{});
+  return make_noise(NoiseData<NoiseType::WHITE, T, D, grid_type>(dimensions, h,
+                                                                 dt, intensity),
+                    OpVoid{});
 }
 
-template <Axis ax, NoiseType nt, typename T, size_t D>
-auto resolve_axis_component(NoiseData<nt, any_vector_t<T, D>, D> const& data) {
+template <Axis ax, NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type>
+auto resolve_axis_component(
+    NoiseData<nt, any_vector_t<T, D>, D, grid_type> const& data) {
   if constexpr (ax == Axis::X) {
     return as_component_data<ax, D>(
-        static_cast<noise_data<nt, D> const*>(&data)->values);
+        static_cast<noise_data<nt, D, grid_type> const*>(&data)->values);
   } else if constexpr (ax == Axis::Y) {
     return as_component_data<ax, D>(
-        static_cast<noise_data_axis<2, nt, D> const*>(&data)->data.values);
+        static_cast<noise_data_axis<2, nt, D, grid_type> const*>(&data)
+            ->data.values);
   } else if constexpr (ax == Axis::Z) {
     return as_component_data<ax, D>(
-        static_cast<noise_data_axis<3, nt, D> const*>(&data)->data.values);
+        static_cast<noise_data_axis<3, nt, D, grid_type> const*>(&data)
+            ->data.values);
   } else {
     return as_component_data<ax, D>((double*)nullptr);
   }
 }
 
-template <Axis ax, NoiseType nt, typename T, size_t D>
-auto resolve_axis_component(NoiseData<nt, any_vector_t<T, D>, D>& data) {
+template <Axis ax, NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type>
+auto resolve_axis_component(
+    NoiseData<nt, any_vector_t<T, D>, D, grid_type>& data) {
   if constexpr (ax == Axis::X) {
     return as_component_data<ax, D>(
-        static_cast<noise_data<nt, D>*>(&data)->values);
+        static_cast<noise_data<nt, D, grid_type>*>(&data)->values);
   } else if constexpr (ax == Axis::Y) {
     return as_component_data<ax, D>(
-        static_cast<noise_data_axis<2, nt, D>*>(&data)->data.values);
+        static_cast<noise_data_axis<2, nt, D, grid_type>*>(&data)->data.values);
   } else if constexpr (ax == Axis::Z) {
     return as_component_data<ax, D>(
-        static_cast<noise_data_axis<3, nt, D>*>(&data)->data.values);
+        static_cast<noise_data_axis<3, nt, D, grid_type>*>(&data)->data.values);
   } else {
     return as_component_data<ax, D>((double*)nullptr);
   }
@@ -639,15 +733,17 @@ auto resolve_axis_component(NoiseData<nt, any_vector_t<T, D>, D>& data) {
 
 namespace expr::transform {
 
-template <size_t D, NoiseType nt, typename T>
-auto to_ft(NoiseData<nt, T, D> const& e, double const* h,
+template <size_t D, NoiseType nt, typename T,
+          template <typename, size_t> typename grid_type>
+auto to_ft(NoiseData<nt, T, D, grid_type> const& e, double const* h,
            const len_type* dims) {
   return e;
 }
 
-template <size_t D, typename V, typename T, typename E, size_t... Ns,
-          typename... Ts>
-auto to_ft(OpSymbolicEval<V, NoiseData<NoiseType::WHITE, T, D>,
+template <size_t D, typename V, typename T,
+          template <typename, size_t> typename grid_type, typename E,
+          size_t... Ns, typename... Ts>
+auto to_ft(OpSymbolicEval<V, NoiseData<NoiseType::WHITE, T, D, grid_type>,
                           SymbolicFunction<E, Variable<Ns, Ts>...>> const& e,
            double const* h, const len_type* dims) {
   auto noise = to_ft<D>(e.data, h, dims);

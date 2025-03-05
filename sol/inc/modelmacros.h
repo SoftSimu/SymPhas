@@ -51,34 +51,34 @@
  * ternary tree in order to run the model on the correct solver type based on
  * the stencil and dimension.
  */
-#define MODEL_WRAPPER_FUNC(NAME, GIVEN_NAME, MODEL)                            \
-  template <template <typename> typename model_apply_type>                     \
-  struct model_call_wrapper<model_apply_type,                                  \
-                            symphas::internal::MODEL_INDEX_NAME(NAME)> {       \
-    template <template <typename, size_t> typename AppliedSolver,              \
-              typename... Ts>                                                  \
-    static int call(size_t dimension, StencilParams stp, const char* name,     \
-                    Ts&&... args) {                                            \
-      if (std::strcmp(name, #GIVEN_NAME) == 0) {                               \
-        return ModelSelectStencil<model_apply_type, MODEL, AppliedSolver>{     \
-            dimension, stp}(std::forward<Ts>(args)...);                        \
-      }                                                                        \
-      return model_call_wrapper<                                               \
-          model_apply_type, symphas::internal::MODEL_INDEX_NAME(NAME) - 1>::   \
-          template call<AppliedSolver>(dimension, stp, name,                   \
-                                       std::forward<Ts>(args)...);             \
-    }                                                                          \
-    template <template <size_t> typename AppliedSolver, typename... Ts>        \
-    static int call(size_t dimension, const char* name, Ts&&... args) {        \
-      if (std::strcmp(name, #GIVEN_NAME) == 0) {                               \
-        return ModelSelect<model_apply_type, MODEL, AppliedSolver>{dimension}( \
-            std::forward<Ts>(args)...);                                        \
-      }                                                                        \
-      return model_call_wrapper<                                               \
-          model_apply_type, symphas::internal::MODEL_INDEX_NAME(NAME) - 1>::   \
-          template call<AppliedSolver>(dimension, name,                        \
-                                       std::forward<Ts>(args)...);             \
-    }                                                                          \
+#define MODEL_WRAPPER_FUNC(NAME, GIVEN_NAME, MODEL)                          \
+  template <template <typename> typename model_apply_type>                   \
+  struct model_call_wrapper<model_apply_type,                                \
+                            symphas::internal::MODEL_INDEX_NAME(NAME)> {     \
+    template <template <typename, size_t> typename AppliedSolver,            \
+              typename... Ts>                                                \
+    static int call(size_t dimension, StencilParams stp, const char* name,   \
+                    Ts&&... args) {                                          \
+      if (std::strcmp(name, #GIVEN_NAME) == 0) {                             \
+        return ModelSelectStencil<model_apply_type, MODEL, AppliedSolver>{   \
+            name, dimension, stp}(std::forward<Ts>(args)...);                \
+      }                                                                      \
+      return model_call_wrapper<                                             \
+          model_apply_type, symphas::internal::MODEL_INDEX_NAME(NAME) - 1>:: \
+          template call<AppliedSolver>(dimension, stp, name,                 \
+                                       std::forward<Ts>(args)...);           \
+    }                                                                        \
+    template <template <size_t> typename AppliedSolver, typename... Ts>      \
+    static int call(size_t dimension, const char* name, Ts&&... args) {      \
+      if (std::strcmp(name, #GIVEN_NAME) == 0) {                             \
+        return ModelSelect<model_apply_type, MODEL, AppliedSolver>{          \
+            name, dimension}(std::forward<Ts>(args)...);                     \
+      }                                                                      \
+      return model_call_wrapper<                                             \
+          model_apply_type, symphas::internal::MODEL_INDEX_NAME(NAME) - 1>:: \
+          template call<AppliedSolver>(dimension, name,                      \
+                                       std::forward<Ts>(args)...);           \
+    }                                                                        \
   };
 
 // **************************************************************************************
@@ -208,8 +208,10 @@ struct ModelSelectStencil {
   }
 
  public:
-  ModelSelectStencil(size_t dimension, StencilParams stp)
-      : parameters{stp.type, dimension, stp.ord, stp.ptl, stp.ptg, stp.ptb} {}
+  ModelSelectStencil(const char* name, size_t dimension, StencilParams stp)
+      : parameters{stp.type, dimension, stp.ord, stp.ptl, stp.ptg, stp.ptb} {
+    fprintf(SYMPHAS_LOG, "The selected model name is %s\n", name);
+  }
 
   template <typename... Ts>
   auto operator()(Ts&&... args) const {

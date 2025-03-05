@@ -154,7 +154,10 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 	if(DISABLE_EXCEPTIONS)
 		# target_compile_options(symphas_lib_o PUBLIC /EHs-c-)
 	endif()
-else()
+endif()
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	message(STATUS "compiling with GNU")
     target_compile_options(symphas_lib_o PUBLIC
         $<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:-ftemplate-backtrace-limit=0>
     )
@@ -179,7 +182,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 		)
 	else()
         target_compile_options(symphas_lib_o PUBLIC
-			$<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:-Xclang -ftemplate-backtrace-limit=0>
+			$<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:-ftemplate-backtrace-limit=0>
         )
 	endif()
 

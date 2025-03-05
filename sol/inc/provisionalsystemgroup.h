@@ -29,7 +29,7 @@
 #include <tuple>
 
 #include "provisionalsystem.h"
-#include "solversystemcuda.h"
+#include "solversystem.h"
 
 #ifdef CUSTOM_SYS_HEADER
 #include CUSTOM_SYS_HEADER

@@ -373,9 +373,10 @@ inline void _update(SymbolicCase<Ts...>& e,
 // template<typename G>
 // inline void _update(symphas::ref<G>& e);
 
-template <expr::NoiseType nt, typename T, size_t D, typename eval_handler_type,
-          typename... condition_ts>
-inline void _update(NoiseData<nt, T, D>& e,
+template <expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type,
+          typename eval_handler_type, typename... condition_ts>
+inline void _update(NoiseData<nt, T, D, grid_type>& e,
                     eval_handler_type const& eval_handler,
                     symphas::lib::types_list<condition_ts...>);
 template <typename T, typename eval_handler_type, typename... condition_ts>

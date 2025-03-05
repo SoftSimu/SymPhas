@@ -1838,14 +1838,12 @@ namespace expr {
 
 template <typename G, typename V, typename E>
 auto make_map(V const& value, OpExpression<E> const& e) {
-  return symphas::internal::make_map<G>::template get(
-      value, *static_cast<E const*>(&e));
+  return symphas::internal::make_map<G>::get(value, *static_cast<E const*>(&e));
 }
 
 template <typename G, typename E>
 auto make_map(OpExpression<E> const& e) {
-  return symphas::internal::make_map<G>::template get(
-      *static_cast<E const*>(&e));
+  return symphas::internal::make_map<G>::get(*static_cast<E const*>(&e));
 }
 }  // namespace expr
 
@@ -2077,8 +2075,8 @@ struct eval_fftw_hcts {
 template <>
 struct eval_fftw_hcts<1> {
   template <typename E>
-  auto operator()(iter_type n, OpExpression<E> const& e,
-                  const len_type* dims) -> expr::eval_type_t<E> {
+  auto operator()(iter_type n, OpExpression<E> const& e, const len_type* dims)
+      -> expr::eval_type_t<E> {
     using namespace expr;
     using symphas::math::conj;
 
@@ -2096,8 +2094,8 @@ struct eval_fftw_hcts<1> {
 template <>
 struct eval_fftw_hcts<2> {
   template <typename E>
-  auto operator()(iter_type n, OpExpression<E> const& e,
-                  const len_type* dims) -> expr::eval_type_t<E> {
+  auto operator()(iter_type n, OpExpression<E> const& e, const len_type* dims)
+      -> expr::eval_type_t<E> {
     using namespace expr;
     using symphas::math::conj;
 
@@ -2126,8 +2124,8 @@ struct eval_fftw_hcts<2> {
 template <>
 struct eval_fftw_hcts<3> {
   template <typename E>
-  auto operator()(iter_type n, OpExpression<E> const& e,
-                  const len_type* dims) -> expr::eval_type_t<E> {
+  auto operator()(iter_type n, OpExpression<E> const& e, const len_type* dims)
+      -> expr::eval_type_t<E> {
     using namespace expr;
     using symphas::math::conj;
 

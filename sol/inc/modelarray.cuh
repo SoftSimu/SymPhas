@@ -25,21 +25,22 @@
 
 #pragma once
 
-#ifdef USING_CUDA
-
 #include <cuda_runtime.h>
 
 #include <array>
 #include <set>
 #include <utility>
 
+#include "modelarray.h"
 #include "solver.h"
+#include "solversystem.cuh"
+#include "stencil.cuh"
 
 namespace symphas::internal {
 
 template <typename T, size_t D, typename grid_type>
-void update_max_grid(const SolverSystemFDwSDCUDA<T, D>* _s,
-                     grid_type const& s_max, len_type len) {
+void update_max_grid(const SolverSystemFDwSDCUDA<T, D> *_s,
+                     grid_type const &s_max, len_type len) {
   RegionalGrid<T, D> work_max(s_max.dims, s_max.empty,
                               s_max.region.boundary_size);
   work_max.adjust(s_max.region.origin, s_max.region.dims);
@@ -74,7 +75,7 @@ void update_max_grid(const SolverSystemFDwSDCUDA<T, D>* _s,
 }
 
 template <typename T, size_t D, typename grid_type>
-void update_max_grid(const SolverSystemFDCUDA<T, D>* _s, grid_type const& s_max,
+void update_max_grid(const SolverSystemFDCUDA<T, D> *_s, grid_type const &s_max,
                      len_type len) {
   BoundaryGrid<T, D> work_max(s_max.dims);
 
@@ -104,4 +105,68 @@ void update_max_grid(const SolverSystemFDCUDA<T, D>* _s, grid_type const& s_max,
 
 }  // namespace symphas::internal
 
-#endif
+template <size_t D, typename Sp, typename... Ts>
+void Model<D, Sp, symphas::internal::field_array_t<void>, Ts...>::
+    fill_interval_data(
+        PhaseFieldSystem<BoundaryGridCUDA, first_type_of_S, D> const &system,
+        symphas::problem_parameters_type &parameters, iter_type n) const {
+  auto intervals = system.get_info().intervals;
+  for (iter_type i = 0; i < D; ++i) {
+    Axis ax = symphas::index_to_axis(i);
+    auto &interval = intervals.at(ax);
+
+    interval.set_count(interval.left(), interval.right(), system.dims[i]);
+  }
+
+  parameters.set_interval_data(intervals, n);
+}
+
+template <size_t D, typename Sp, typename... Ts>
+void Model<D, Sp, symphas::internal::field_array_t<void>, Ts...>::
+    fill_interval_data(
+        PhaseFieldSystem<RegionalGridCUDA, first_type_of_S, D> const &system,
+        symphas::problem_parameters_type &parameters, iter_type n) const {
+  auto intervals = system.get_info().intervals;
+  for (iter_type i = 0; i < D; ++i) {
+    Axis ax = symphas::index_to_axis(i);
+    auto &interval = intervals.at(ax);
+
+    interval.set_count(interval.left(), interval.right(), system.dims[i]);
+  }
+
+  parameters.set_interval_data(intervals, n);
+}
+
+template <size_t D, typename Sp, typename... Ts>
+template <typename T0>
+void Model<D, Sp, symphas::internal::field_array_t<void>, Ts...>::
+    fill_boundary_data(PhaseFieldSystem<BoundaryGridCUDA, T0, D> const &system,
+                       symphas::problem_parameters_type &parameters,
+                       iter_type n) const {
+  symphas::b_data_type bdata;
+
+  for (iter_type i = 0; i < D * 2; ++i) {
+    Side side = symphas::index_to_side(i);
+    BoundaryType type = system.types[i];
+    bdata[side] = system.boundaries[i]->get_parameters();
+  }
+
+  parameters.set_boundary_data(bdata, n);
+}
+
+template <size_t D, typename Sp, typename... Ts>
+template <typename T0>
+void Model<D, Sp, symphas::internal::field_array_t<void>, Ts...>::
+    fill_boundary_data(PhaseFieldSystem<RegionalGridCUDA, T0, D> const &system,
+                       symphas::problem_parameters_type &parameters,
+                       iter_type n) const {
+  symphas::b_data_type bdata;
+
+  for (iter_type i = 0; i < D * 2; ++i) {
+    Side side = symphas::index_to_side(i);
+    BoundaryType type = system.types[i];
+    bdata[side] = system.boundaries[i]->get_parameters();
+  }
+
+  parameters.set_boundary_data(bdata, n);
+}

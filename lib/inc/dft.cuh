@@ -25,15 +25,12 @@
 
 #pragma once
 
-#include "spslib.h"
+#include "dft.h"
 
 #ifdef USING_CUDA
 #include <cuda_runtime.h>
-#endif
 
 namespace grid {
-
-#ifdef USING_CUDA
 
 template <typename T>
 __global__ void scale_arr_on_device(T* device_data_y, len_type len, double r) {
@@ -56,6 +53,6 @@ void scale_cuda(T* device_data_y, len_type len) {
   CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 }
 
-#endif
-
 }  // namespace grid
+
+#endif

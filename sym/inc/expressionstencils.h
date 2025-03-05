@@ -1418,10 +1418,15 @@ template <size_t I, typename... Es, size_t... Is>
 auto fill_stencil_vector(
     expr::stencil_vector_type<0, I, symphas::lib::types_list<Es...>>,
     std::index_sequence<Is...>) {
-  return expr::stencil_vector_type<
-      0, I,
-      symphas::lib::types_list<Es...,
-                               symphas::type_ignore_index<Is, OpVoid>...>>{};
+  using vector_argument_1_type = symphas::lib::types_list<Es...>;
+  using vector_argument_2_type =
+      symphas::lib::types_list<symphas::type_ignore_index<Is, OpVoid>...>;
+
+  using vector_argument_type =
+      symphas::lib::expand_types_list<vector_argument_1_type,
+                                      vector_argument_2_type>;
+
+  return expr::stencil_vector_type<0, I, vector_argument_type>{};
 }
 
 // template<size_t I, typename... Es, size_t... Is, size_t... Ns>
@@ -2899,7 +2904,9 @@ auto get_stencil(E const& d_op, types_list<Ss...> const& dict) {
   //	return construct_stencil<Q + 1, N, R>(dict0, d_op);
   // }
   // else
-  { return dict0; }
+  {
+    return dict0;
+  }
 }
 
 template <size_t O, size_t N, size_t D>
@@ -2978,12 +2985,12 @@ auto get_central_space_directional_stencil() {
   }
   if constexpr (D == 2) {
     return get_central_space_mixed_stencil<N>(
-        std::index_sequence < (ax == Axis::X) ? O : 0,
-        (ax == Axis::Y) ? O : 0 > {});
+        std::index_sequence<(ax == Axis::X) ? O : 0,
+                            (ax == Axis::Y) ? O : 0>{});
   } else {
     return get_central_space_mixed_stencil<N>(
-        std::index_sequence < (ax == Axis::X) ? O : 0, (ax == Axis::Y) ? O : 0,
-        (ax == Axis::Z) ? O : 0 > {});
+        std::index_sequence<(ax == Axis::X) ? O : 0, (ax == Axis::Y) ? O : 0,
+                            (ax == Axis::Z) ? O : 0>{});
   }
 }
 
@@ -3005,6 +3012,8 @@ struct StencilCoeff;
 template <typename S, typename E>
 struct StencilCoeff<std::pair<S, E>> {
   static const size_t h_exponent = 0;
+
+  __host__ __device__ StencilCoeff() {}
 
   template <typename T, size_t D>
   __host__ __device__ constexpr auto operator()(T const* v,
@@ -3034,6 +3043,8 @@ struct StencilCoeff<std::pair<S, E>> {
 template <typename S>
 struct StencilCoeff<std::pair<S, OpVoid>> {
   static const size_t h_exponent = 0;
+
+  __host__ __device__ StencilCoeff() {}
 
   template <typename T>
   __host__ __device__ constexpr auto operator()(T const* v, len_type) {
@@ -3065,15 +3076,17 @@ struct StencilCoeff<std::pair<S, OpVoid>> {
   }
 };
 
-template<typename Nt, typename Dt>
-auto compute_stencil_coeff() { return (Nt{} / Dt{}).eval(); }
+template <typename Nt, typename Dt>
+auto compute_stencil_coeff() {
+  return (Nt{} / Dt{}).eval();
+}
 
 template <int N, typename Nt, typename Dt, expr::exp_key_t P>
 struct StencilCoeff<
     std::pair<expr::symbols::internal::S1_symbol<N>,
               OpBinaryDiv<Nt, OpTerms<Dt, Term<expr::symbols::h_symbol, P>>>>> {
   static const size_t h_exponent = P;
-  StencilCoeff() : coeff{get_coeff()} {}
+  __host__ __device__ StencilCoeff() : coeff{get_coeff()} {}
 
   template <typename T>
   __host__ __device__ auto operator()(T const* v, len_type stride) {
@@ -3115,7 +3128,7 @@ struct StencilCoeff<
     std::pair<expr::symbols::internal::S2_symbol<N0, N1>,
               OpBinaryDiv<Nt, OpTerms<Dt, Term<expr::symbols::h_symbol, P>>>>> {
   static const size_t h_exponent = P;
-  StencilCoeff() : coeff{get_coeff()} {}
+  __host__ __device__ StencilCoeff() : coeff{get_coeff()} {}
 
   template <typename T>
   __host__ __device__ auto operator()(T const* v, len_type const (&stride)[2]) {
@@ -3141,7 +3154,7 @@ struct StencilCoeff<
            expr::symbols::internal::S2<N0, N1>{}.print_length();
   }
 
-  auto get_coeff() const { return (Nt{} / Dt{}).eval(); }
+  __host__ __device__ auto get_coeff() const { return (Nt{} / Dt{}).eval(); }
 
   using this_type = StencilCoeff<std::pair<
       expr::symbols::internal::S2_symbol<N0, N1>,
@@ -3157,7 +3170,7 @@ struct StencilCoeff<
     std::pair<expr::symbols::internal::S3_symbol<N0, N1, N2>,
               OpBinaryDiv<Nt, OpTerms<Dt, Term<expr::symbols::h_symbol, P>>>>> {
   static const size_t h_exponent = P;
-  StencilCoeff() : coeff{get_coeff()} {}
+  __host__ __device__ StencilCoeff() : coeff{get_coeff()} {}
 
   template <typename T>
   __host__ __device__ auto operator()(T const* v, len_type const (&stride)[3]) {
@@ -3183,7 +3196,7 @@ struct StencilCoeff<
            expr::symbols::internal::S3<N0, N1, N2>{}.print_length();
   }
 
-  auto get_coeff() const { return (Nt{} / Dt{}).eval(); }
+  __host__ __device__ auto get_coeff() const { return (Nt{} / Dt{}).eval(); }
 
   using this_type = StencilCoeff<std::pair<
       expr::symbols::internal::S3_symbol<N0, N1, N2>,
@@ -3282,11 +3295,7 @@ struct GeneratedStencilApply<
       expr::symbols::h_symbol, typename coeff_type_divh<Es>::type>::value...>;
 
   __host__ __device__ GeneratedStencilApply(
-      types_list<std::pair<expr::symbols::internal::S1_symbol<Is>, Es>...>) {
-#ifdef DEBUG
-    print(SYMPHAS_INFO);
-#endif
-  }
+      types_list<std::pair<expr::symbols::internal::S1_symbol<Is>, Es>...>) {}
 
   __host__ __device__ GeneratedStencilApply() {}
 
@@ -3329,11 +3338,7 @@ struct GeneratedStencilApply<
 
   __host__ __device__ GeneratedStencilApply(
       types_list<
-          std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...>) {
-#ifdef DEBUG
-    print(SYMPHAS_INFO);
-#endif
-  }
+          std::pair<expr::symbols::internal::S2_symbol<Is, Js>, Es>...>) {}
 
   __host__ __device__ GeneratedStencilApply() {}
 
@@ -3376,11 +3381,7 @@ struct GeneratedStencilApply<types_list<
 
   __host__ __device__ GeneratedStencilApply(
       types_list<
-          std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>...>) {
-#ifdef DEBUG
-    print(SYMPHAS_INFO);
-#endif
-  }
+          std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>...>) {}
 
   __host__ __device__ GeneratedStencilApply() {}
 

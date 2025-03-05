@@ -24,7 +24,7 @@
  * ***************************************************************************
  */
 
-#include "gridcuda.h"
+#include "gridcuda.cuh"
 
 #ifdef USING_CUDA
 

@@ -702,7 +702,7 @@ template <size_t Z, typename Dd, typename V, typename E, typename Sp,
 auto swap_grid(OpDerivative<Dd, V, E, Sp> const& e, G_F&& g) {
   constexpr size_t order = OpDerivative<Dd, V, E, Sp>::order;
   constexpr Axis axis = OpDerivative<Dd, V, E, Sp>::axis;
-  return symphas::internal::nth_derivative_apply<axis, order, Sp>::template get(
+  return symphas::internal::nth_derivative_apply<axis, order, Sp>::get(
       e.value,
       swap_grid<Z>(expr::get_enclosed_expression(e), std::forward<G_F>(g)),
       e.solver);
@@ -848,8 +848,9 @@ auto swap_grid_symbolic(Substitution<Ts...> const& data, G_F&& g) {
                                std::forward<G_F>(g));
 }
 
-template <size_t Z, expr::NoiseType nt, typename T, size_t D, typename G_F>
-auto swap_grid_symbolic(NoiseData<nt, T, D> const& data, G_F&& g) {
+template <size_t Z, expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type, typename G_F>
+auto swap_grid_symbolic(NoiseData<nt, T, D, grid_type> const& data, G_F&& g) {
   return data;
 }
 
@@ -1838,8 +1839,9 @@ auto swap_grid_symbolic(Substitution<Ts...> const& e, G_F&& g) {
                                 std::forward<G_F>(g));
 }
 
-template <typename Sg, expr::NoiseType nt, typename T, size_t D, typename G_F>
-auto swap_grid_symbolic(NoiseData<nt, T, D> const& data, G_F&& g) {
+template <typename Sg, expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type, typename G_F>
+auto swap_grid_symbolic(NoiseData<nt, T, D, grid_type> const& data, G_F&& g) {
   return data;
 }
 

@@ -26,7 +26,7 @@
 
 #pragma once
 
-#include "boundarysystemcuda.cuh"
+#include "boundarysystem.h"
 #include "spslibfftw.h"
 
 #ifdef EXECUTION_HEADER_AVAILABLE
@@ -40,7 +40,7 @@
  *
  * Unless explicitly specified, this phase field system type will be
  * used by the solver. It does not manage boundaries or other data.
- *
+ *cid
  * \tparam T The order parameter type.
  * \tparam D The order parameter dimension.
  */
@@ -840,4 +840,11 @@ DEFINE_BASE_DATA_INHERITED((typename T, size_t D), (SolverSystemFD<T, D>),
 #ifdef USING_FFTW
 DEFINE_BASE_DATA_INHERITED((typename T, size_t D), (SolverSystemSpectral<T, D>),
                            (Grid<T, D>))
+#endif
+
+#ifdef USING_CUDA
+template <typename T, size_t D>
+struct SolverSystemFDwSDCUDA;
+template <typename T, size_t D>
+struct SolverSystemFDCUDA;
 #endif

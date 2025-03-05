@@ -31,10 +31,6 @@
 
 #include "solver.h"
 
-#ifdef USING_CUDA
-#include "modelarray.cuh"
-#endif
-
 namespace symphas::internal {
 template <typename T>
 struct field_array_t;
@@ -229,25 +225,31 @@ decltype(auto) T(E &&e) {
   return expr::transpose(std::forward<E>(e));
 }
 
-template <expr::NoiseType nt, typename T, size_t D>
-decltype(auto) NOISE(symphas::grid_info const &info, const double *dt) {
-  return NoiseData<nt, T, D>(info.get_dims(), info.get_widths(), dt);
+template <expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type>
+decltype(auto) NOISE(symphas::grid_info const &info, const double *dt,
+                     enclosing_class_wrap<grid_type>) {
+  return NoiseData<nt, T, D, grid_type>(info.get_dims(), info.get_widths(), dt);
 }
 
-template <expr::NoiseType nt, typename T, size_t D>
+template <expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type>
 decltype(auto) NOISE(symphas::grid_info const &info,
-                     grid::region_interval<D> const &region, const double *dt) {
+                     grid::region_interval<D> const &region, const double *dt,
+                     enclosing_class_wrap<grid_type>) {
   len_type dims[D]{};
   for (iter_type i = 0; i < D; ++i) {
     dims[i] = region[i][1] - region[i][0];
   }
-  return NoiseData<nt, T, D>(dims, info.get_widths(), dt);
+  return NoiseData<nt, T, D, grid_type>(dims, info.get_widths(), dt);
 }
 
-template <expr::NoiseType nt, typename T, size_t D>
+template <expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type>
 decltype(auto) NOISE(symphas::grid_info const &info,
-                     grid::region_size const &region, const double *dt) {
-  return NoiseData<nt, T, D>(info.get_dims(), info.get_widths(), dt);
+                     grid::region_size const &region, const double *dt,
+                     enclosing_class_wrap<grid_type>) {
+  return NoiseData<nt, T, D, grid_type>(info.get_dims(), info.get_widths(), dt);
 }
 
 template <size_t D, typename T>
@@ -771,9 +773,12 @@ struct Model<D, Sp, symphas::internal::field_array_t<void>, Ts...> {
    *
    * \tparam N The phase field index to get the type.
    */
-  template <size_t N = 0>
+  template <size_t N>
   using type_of_S = symphas::lib::type_at_index<
       N, symphas::internal::non_parameterized_type<D, Ts>...>;
+
+  using first_type_of_S = symphas::lib::type_at_index<
+      0, symphas::internal::non_parameterized_type<D, Ts>...>;
 
   using all_field_types = symphas::lib::types_list<
       symphas::internal::non_parameterized_type<D, Ts>...>;
@@ -1239,7 +1244,7 @@ struct Model<D, Sp, symphas::internal::field_array_t<void>, Ts...> {
    * \tparam N The index of the phase field which is copied from.
    */
   template <size_t N>
-  void copy_field_values(type_of_S<> *into) const {
+  void copy_field_values(first_type_of_S *into) const {
     _s[N].persist(into);
   }
 
@@ -1285,7 +1290,7 @@ struct Model<D, Sp, symphas::internal::field_array_t<void>, Ts...> {
    */
   template <size_t N>
   auto get_field() const {
-    Grid<type_of_S<>, D> out(_s[N].get_info().get_dims().get());
+    Grid<first_type_of_S, D> out(_s[N].get_info().get_dims().get());
     _s[N].persist(out.values);
     return out;
   }
@@ -1415,7 +1420,8 @@ struct Model<D, Sp, symphas::internal::field_array_t<void>, Ts...> {
   template <size_t I>
   auto &system() {
     return const_cast<SolverSystemApplied<> &>(
-        static_cast<const ArrayModel<D, Sp, Ts...> &>(*this).system<I>());
+        static_cast<const ArrayModel<D, Sp, Ts...> &>(*this)
+            .template system<I>());
   }
 
   //! Returns the underlying grid of the system at the given index.
@@ -1641,7 +1647,7 @@ struct Model<D, Sp, symphas::internal::field_array_t<void>, Ts...> {
   }
 
   void fill_interval_data(
-      PhaseFieldSystem<BoundaryGrid, type_of_S<>, D> const &system,
+      PhaseFieldSystem<BoundaryGrid, first_type_of_S, D> const &system,
       symphas::problem_parameters_type &parameters, iter_type n) const {
     auto intervals = system.get_info().intervals;
     for (iter_type i = 0; i < D; ++i) {
@@ -1655,7 +1661,7 @@ struct Model<D, Sp, symphas::internal::field_array_t<void>, Ts...> {
   }
 
   void fill_interval_data(
-      PhaseFieldSystem<RegionalGrid, type_of_S<>, D> const &system,
+      PhaseFieldSystem<RegionalGrid, first_type_of_S, D> const &system,
       symphas::problem_parameters_type &parameters, iter_type n) const {
     auto intervals = system.get_info().intervals;
     for (iter_type i = 0; i < D; ++i) {
@@ -1670,36 +1676,16 @@ struct Model<D, Sp, symphas::internal::field_array_t<void>, Ts...> {
 
 #ifdef USING_CUDA
   void fill_interval_data(
-      PhaseFieldSystem<BoundaryGridCUDA, type_of_S<>, D> const &system,
-      symphas::problem_parameters_type &parameters, iter_type n) const {
-    auto intervals = system.get_info().intervals;
-    for (iter_type i = 0; i < D; ++i) {
-      Axis ax = symphas::index_to_axis(i);
-      auto &interval = intervals.at(ax);
-
-      interval.set_count(interval.left(), interval.right(), system.dims[i]);
-    }
-
-    parameters.set_interval_data(intervals, n);
-  }
+      PhaseFieldSystem<BoundaryGridCUDA, first_type_of_S, D> const &system,
+      symphas::problem_parameters_type &parameters, iter_type n) const;
 
   void fill_interval_data(
-      PhaseFieldSystem<RegionalGridCUDA, type_of_S<>, D> const &system,
-      symphas::problem_parameters_type &parameters, iter_type n) const {
-    auto intervals = system.get_info().intervals;
-    for (iter_type i = 0; i < D; ++i) {
-      Axis ax = symphas::index_to_axis(i);
-      auto &interval = intervals.at(ax);
-
-      interval.set_count(interval.left(), interval.right(), system.dims[i]);
-    }
-
-    parameters.set_interval_data(intervals, n);
-  }
+      PhaseFieldSystem<RegionalGridCUDA, first_type_of_S, D> const &system,
+      symphas::problem_parameters_type &parameters, iter_type n) const;
 #endif
 
   template <template <typename, size_t> typename G>
-  void fill_interval_data(PhaseFieldSystem<G, type_of_S<>, D> const &system,
+  void fill_interval_data(PhaseFieldSystem<G, first_type_of_S, D> const &system,
                           symphas::problem_parameters_type &parameters,
                           iter_type n) const {
     parameters.set_interval_data(system.get_info().intervals, n);
@@ -1754,32 +1740,12 @@ struct Model<D, Sp, symphas::internal::field_array_t<void>, Ts...> {
   template <typename T0>
   void fill_boundary_data(
       PhaseFieldSystem<BoundaryGridCUDA, T0, D> const &system,
-      symphas::problem_parameters_type &parameters, iter_type n) const {
-    symphas::b_data_type bdata;
-
-    for (iter_type i = 0; i < D * 2; ++i) {
-      Side side = symphas::index_to_side(i);
-      BoundaryType type = system.types[i];
-      bdata[side] = system.boundaries[i]->get_parameters();
-    }
-
-    parameters.set_boundary_data(bdata, n);
-  }
+      symphas::problem_parameters_type &parameters, iter_type n) const;
 
   template <typename T0>
   void fill_boundary_data(
       PhaseFieldSystem<RegionalGridCUDA, T0, D> const &system,
-      symphas::problem_parameters_type &parameters, iter_type n) const {
-    symphas::b_data_type bdata;
-
-    for (iter_type i = 0; i < D * 2; ++i) {
-      Side side = symphas::index_to_side(i);
-      BoundaryType type = system.types[i];
-      bdata[side] = system.boundaries[i]->get_parameters();
-    }
-
-    parameters.set_boundary_data(bdata, n);
-  }
+      symphas::problem_parameters_type &parameters, iter_type n) const;
 #endif
 
   template <template <typename, size_t> typename G, typename T0>
@@ -1846,7 +1812,7 @@ struct Model<D, Sp, symphas::internal::field_array_t<void>, Ts...> {
 
     params::extend_boundary = extend_boundary;
 
-    type_of_S<> *swap_arr = new type_of_S<>[system.length()];
+    first_type_of_S *swap_arr = new first_type_of_S[system.length()];
     system.persist(swap_arr);
     new_system.fill(swap_arr);
 

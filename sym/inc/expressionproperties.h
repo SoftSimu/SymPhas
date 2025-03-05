@@ -206,21 +206,15 @@ grid::dim_list data_dimensions_cast(Grid<T, 3> const* data) {
 
 //! Obtains the dimensions from the Grid compatible instance.
 template <typename T>
-grid::dim_list data_dimensions_cast(GridCUDA<T, 1> const* data) {
-  return {data->dims[0]};
-}
+grid::dim_list data_dimensions_cast(GridCUDA<T, 1> const* data);
 
 //! Obtains the dimensions from the Grid compatible instance.
 template <typename T>
-grid::dim_list data_dimensions_cast(GridCUDA<T, 2> const* data) {
-  return {data->dims[0], data->dims[1]};
-}
+grid::dim_list data_dimensions_cast(GridCUDA<T, 2> const* data);
 
 //! Obtains the dimensions from the Grid compatible instance.
 template <typename T>
-grid::dim_list data_dimensions_cast(GridCUDA<T, 3> const* data) {
-  return {data->dims[0], data->dims[1], data->dims[2]};
-}
+grid::dim_list data_dimensions_cast(GridCUDA<T, 3> const* data);
 
 #endif
 
@@ -403,22 +397,19 @@ inline auto iterable_domain_cast(int) { return region_interval<0>{}; }
 #ifdef USING_CUDA
 //! Obtains the iterable_domain from the Block compatible instance.
 template <typename T, size_t D>
-auto iterable_domain_cast(GridCUDA<T, D> const* data) {
-  return grid::get_iterable_domain(*data);
-}
+auto iterable_domain_cast(GridCUDA<T, D> const* data);
 
 //! Obtains the iterable_domain from the Block compatible instance.
 template <typename T, size_t D>
-auto iterable_domain_cast(BoundaryGridCUDA<T, D> const* data) {
-  return grid::get_iterable_domain(*data);
-}
+auto iterable_domain_cast(BoundaryGridCUDA<T, D> const* data);
 
 //! Obtains the iterable_domain from the Block compatible instance.
 template <typename T, size_t D>
-auto iterable_domain_cast(RegionalGridCUDA<T, D> const* data) {
-  region_interval_multiple<D> regions(data->dims, data->region.boundary_size);
-  return regions += grid::get_iterable_domain(*data);
-}
+auto iterable_domain_cast(RegionalGridCUDA<T, D> const* data);
+
+//! The iterable_domain of a typical data object is 1.
+template <typename T>
+inline auto iterable_domain_cast(BlockCUDA<T> const* data);
 
 #endif
 
@@ -438,14 +429,6 @@ template <typename T>
 inline auto iterable_domain_cast(Block<T> const* data) {
   return iterable_domain_cast(grid::get_iterable_domain(*data));
 }
-
-#ifdef USING_CUDA
-//! The iterable_domain of a typical data object is 1.
-template <typename T>
-inline auto iterable_domain_cast(BlockCUDA<T> const* data) {
-  return iterable_domain_cast(grid::get_iterable_domain(*data));
-}
-#endif
 
 //! Specialization based on expr::iterable_domain_data().
 template <typename G>
@@ -613,15 +596,20 @@ auto data_list(OpPow<X, V, E> const& e);
 template <auto f, typename V, typename E>
 auto data_list(OpFunctionApply<f, V, E> const& e);
 //! Specialization based on expr::data_list(E const&).
+template <typename V, typename F, typename... Args>
+auto data_list(OpCallable<V, F, Args...> const& e);
+//! Specialization based on expr::data_list(E const&).
 template <typename V, typename E, typename F, typename Arg0, typename... Args>
 auto data_list(OpFunction<V, E, F, Arg0, Args...> const& e);
 //! Specialization based on expr::data_list(E const&).
-template <expr::NoiseType nt, typename T, size_t D>
-auto data_list(NoiseData<nt, T, D> const& e);
+template <expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type>
+auto data_list(NoiseData<nt, T, D, grid_type> const& e);
 //! Specialization based on expr::data_list(E const&).
-template <typename V, expr::NoiseType nt, typename T, size_t D, typename E,
+template <typename V, expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type, typename E,
           typename... Ts>
-auto data_list(OpSymbolicEval<V, NoiseData<nt, T, D>,
+auto data_list(OpSymbolicEval<V, NoiseData<nt, T, D, grid_type>,
                               SymbolicFunction<E, Ts...>> const& e);
 //! Specialization based on expr::vars.
 template <typename V, typename sub_t, typename E, typename... Ts>
@@ -785,6 +773,16 @@ auto data_list(OpFunctionApply<f, V, E> const& e) {
   return data_list(e.e);
 }
 
+template <typename V, typename F, typename... Args, size_t... Is>
+auto data_list(OpCallable<V, F, Args...> const& e, std::index_sequence<Is...>) {
+  return std::make_tuple(data_list(std::get<Is>(e.args))...);
+}
+
+template <typename V, typename F, typename... Args>
+auto data_list(OpCallable<V, F, Args...> const& e) {
+  return data_list(e, std::make_index_sequence<sizeof...(Args)>{});
+}
+
 template <typename V, typename E, typename F, typename Arg0, typename... Args>
 auto data_list(OpFunction<V, E, F, Arg0, Args...> const& e) {
   return data_list(e.e);
@@ -795,9 +793,10 @@ auto data_list(OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e) {
   return data_list(expr::get_enclosed_expression(e));
 }
 
-template <typename V, expr::NoiseType nt, typename T, size_t D, typename E,
+template <typename V, expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type, typename E,
           typename... Ts>
-auto data_list(OpSymbolicEval<V, NoiseData<nt, T, D>,
+auto data_list(OpSymbolicEval<V, NoiseData<nt, T, D, grid_type>,
                               SymbolicFunction<E, Ts...>> const& e) {
   return std::tuple_cat(data_list(e.f.e), data_list(e.data));
 }
@@ -807,8 +806,9 @@ auto data_list(OpOptimized<E> const& e) {
   return std::tuple_cat(data_list(e.e), data_list(e.term));
 }
 
-template <expr::NoiseType nt, typename T, size_t D>
-auto data_list(NoiseData<nt, T, D> const& e) {
+template <expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type>
+auto data_list(NoiseData<nt, T, D, grid_type> const& e) {
   return std::make_tuple(e);
 }
 
@@ -984,6 +984,12 @@ grid::dim_list data_dimensions(OpPow<X, V, E> const& e);
 template <auto f, typename V, typename E>
 grid::dim_list data_dimensions(OpFunctionApply<f, V, E> const& e);
 //! Specialization based on expr::data_dimensions(E const&).
+template <typename V, typename F, typename... Args>
+grid::dim_list data_dimensions(OpCallable<V, F, Args...> const& e);
+//! Specialization based on expr::data_dimensions(E const&).
+template <typename V, typename F, typename... Args>
+grid::dim_list data_dimensions(OpCallable<V, F*, Args...> const& e);
+//! Specialization based on expr::data_dimensions(E const&).
 template <typename V, typename E, typename F, typename Arg0, typename... Args>
 grid::dim_list data_dimensions(OpFunction<V, E, F, Arg0, Args...> const& e);
 //! Specialization based on expr::data_dimensions(E const&).
@@ -991,17 +997,19 @@ template <typename V, typename sub_t, typename E, typename... Ts>
 grid::dim_list data_dimensions(
     OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e);
 //! Specialization based on expr::data_dimensions(E const&).
-template <typename V, expr::NoiseType nt, typename T, size_t D, typename E,
+template <typename V, expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type, typename E,
           typename... Ts>
 grid::dim_list data_dimensions(
-    OpSymbolicEval<V, NoiseData<nt, T, D>, SymbolicFunction<E, Ts...>> const&
-        e);
+    OpSymbolicEval<V, NoiseData<nt, T, D, grid_type>,
+                   SymbolicFunction<E, Ts...>> const& e);
 //! Specialization based on expr::data_dimensions(E const&).
 template <typename E>
 grid::dim_list data_dimensions(OpOptimized<E> const& e);
 //! Specialization based on expr::data_dimensions(E const&).
-template <expr::NoiseType nt, typename T, size_t D>
-grid::dim_list data_dimensions(NoiseData<nt, T, D> const& e);
+template <expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type>
+grid::dim_list data_dimensions(NoiseData<nt, T, D, grid_type> const& e);
 //! Specialization based on expr::data_dimensions(E const&).
 template <typename... Ts>
 grid::dim_list data_dimensions(Substitution<Ts...> const& e);
@@ -1128,6 +1136,35 @@ grid::dim_list data_dimensions(OpFunctionApply<f, V, E> const& e) {
   return data_dimensions(e.e);
 }
 
+template <typename V, typename F, typename... Args>
+grid::dim_list data_dimensions(OpCallable<V, F, Args...> const& e,
+                               std::index_sequence<>) {
+  return {};
+}
+
+template <typename V, typename F, typename... Args, size_t I0, size_t... Is>
+grid::dim_list data_dimensions(OpCallable<V, F, Args...> const& e,
+                               std::index_sequence<I0, Is...>) {
+  auto dims = data_dimensions_data(std::get<I0>(e.args));
+  return (dims.n > 0) ? dims : data_dimensions(e, std::index_sequence<Is...>{});
+}
+
+template <typename V, typename F, typename... Args>
+grid::dim_list data_dimensions(OpCallable<V, F, Args...> const& e) {
+  auto dims = data_dimensions_data(e.f);
+  return (dims.n > 0)
+             ? dims
+             : data_dimensions(e, std::make_index_sequence<sizeof...(Args)>{});
+}
+
+template <typename V, typename F, typename... Args>
+grid::dim_list data_dimensions(OpCallable<V, F*, Args...> const& e) {
+  auto dims = data_dimensions_data(*e.f);
+  return (dims.n > 0)
+             ? dims
+             : data_dimensions(e, std::make_index_sequence<sizeof...(Args)>{});
+}
+
 template <typename V, typename E, typename F, typename Arg0, typename... Args>
 grid::dim_list data_dimensions(OpFunction<V, E, F, Arg0, Args...> const& e) {
   return data_dimensions(e.e);
@@ -1139,11 +1176,12 @@ grid::dim_list data_dimensions(
   return data_dimensions(expr::get_enclosed_expression(e));
 }
 
-template <typename V, expr::NoiseType nt, typename T, size_t D, typename E,
+template <typename V, expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type, typename E,
           typename... Ts>
 grid::dim_list data_dimensions(
-    OpSymbolicEval<V, NoiseData<nt, T, D>, SymbolicFunction<E, Ts...>> const&
-        e) {
+    OpSymbolicEval<V, NoiseData<nt, T, D, grid_type>,
+                   SymbolicFunction<E, Ts...>> const& e) {
   return data_dimensions(e.data);
 }
 
@@ -1152,8 +1190,9 @@ grid::dim_list data_dimensions(OpOptimized<E> const& e) {
   return data_dimensions_data(e.e, e.term);
 }
 
-template <expr::NoiseType nt, typename T, size_t D>
-grid::dim_list data_dimensions(NoiseData<nt, T, D> const& e) {
+template <expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type>
+grid::dim_list data_dimensions(NoiseData<nt, T, D, grid_type> const& e) {
   return data_dimensions_data(e);
 }
 
@@ -1286,6 +1325,12 @@ len_type data_length(OpPow<X, V, E> const& e);
 template <auto f, typename V, typename E>
 len_type data_length(OpFunctionApply<f, V, E> const& e);
 //! Specialization based on expr::data_length(E const&).
+template <typename V, typename F, typename... Args>
+len_type data_length(OpCallable<V, F, Args...> const& e);
+//! Specialization based on expr::data_length(E const&).
+template <typename V, typename F, typename... Args>
+len_type data_length(OpCallable<V, F*, Args...> const& e);
+//! Specialization based on expr::data_length(E const&).
 template <typename V, typename E, typename F, typename Arg0, typename... Args>
 len_type data_length(OpFunction<V, E, F, Arg0, Args...> const& e);
 //! Specialization based on expr::data_length(E const&).
@@ -1293,16 +1338,18 @@ template <typename V, typename sub_t, typename E, typename... Ts>
 len_type data_length(
     OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e);
 //! Specialization based on expr::data_length(E const&).
-template <typename V, expr::NoiseType nt, typename T, size_t D, typename E,
+template <typename V, expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type, typename E,
           typename... Ts>
-len_type data_length(OpSymbolicEval<V, NoiseData<nt, T, D>,
+len_type data_length(OpSymbolicEval<V, NoiseData<nt, T, D, grid_type>,
                                     SymbolicFunction<E, Ts...>> const& e);
 //! Specialization based on expr::data_length(E const&).
 template <typename E>
 len_type data_length(OpOptimized<E> const& e);
 //! Specialization based on expr::data_length(E const&).
-template <expr::NoiseType nt, typename T, size_t D>
-len_type data_length(NoiseData<nt, T, D> const& e);
+template <expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type>
+len_type data_length(NoiseData<nt, T, D, grid_type> const& e);
 //! Specialization based on expr::data_length(E const&).
 template <typename... Ts>
 len_type data_length(Substitution<Ts...> const& e);
@@ -1435,6 +1482,35 @@ len_type data_length(OpFunctionApply<f, V, E> const& e) {
   return data_length(e.e);
 }
 
+template <typename V, typename F, typename... Args>
+len_type data_length(OpCallable<V, F, Args...> const& e,
+                     std::index_sequence<>) {
+  return data_len_data(0);
+}
+
+template <typename V, typename F, typename... Args, size_t I0, size_t... Is>
+len_type data_length(OpCallable<V, F, Args...> const& e,
+                     std::index_sequence<I0, Is...>) {
+  auto len = data_len_data(std::get<I0>(e.args));
+  return (len > 0) ? len : data_length(e, std::index_sequence<Is...>{});
+}
+
+template <typename V, typename F, typename... Args>
+len_type data_length(OpCallable<V, F, Args...> const& e) {
+  auto len = data_len_data(e.f);
+  return (len > 0)
+             ? len
+             : data_length(e, std::make_index_sequence<sizeof...(Args)>{});
+}
+
+template <typename V, typename F, typename... Args>
+len_type data_length(OpCallable<V, F*, Args...> const& e) {
+  auto len = data_len_data(*e.f);
+  return (len > 0)
+             ? len
+             : data_length(e, std::make_index_sequence<sizeof...(Args)>{});
+}
+
 template <typename V, typename E, typename F, typename Arg0, typename... Args>
 len_type data_length(OpFunction<V, E, F, Arg0, Args...> const& e) {
   return data_length(e.e);
@@ -1446,9 +1522,10 @@ len_type data_length(
   return data_length(expr::get_enclosed_expression(e));
 }
 
-template <typename V, expr::NoiseType nt, typename T, size_t D, typename E,
+template <typename V, expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type, typename E,
           typename... Ts>
-len_type data_length(OpSymbolicEval<V, NoiseData<nt, T, D>,
+len_type data_length(OpSymbolicEval<V, NoiseData<nt, T, D, grid_type>,
                                     SymbolicFunction<E, Ts...>> const& e) {
   return data_length(e.data);
 }
@@ -1458,8 +1535,9 @@ len_type data_length(OpOptimized<E> const& e) {
   return data_length(e.working);
 }
 
-template <expr::NoiseType nt, typename T, size_t D>
-len_type data_length(NoiseData<nt, T, D> const& e) {
+template <expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type>
+len_type data_length(NoiseData<nt, T, D, grid_type> const& e) {
   return data_len_data(e);
 }
 
@@ -1587,6 +1665,12 @@ auto iterable_domain(OpPow<X, V, E> const& e);
 template <auto f, typename V, typename E>
 auto iterable_domain(OpFunctionApply<f, V, E> const& e);
 //! Specialization based on expr::iterable_domain(E const&).
+template <typename V, typename F, typename... Args>
+auto iterable_domain(OpCallable<V, F, Args...> const& e);
+//! Specialization based on expr::iterable_domain(E const&).
+template <typename V, typename F, typename... Args>
+auto iterable_domain(OpCallable<V, F*, Args...> const& e);
+//! Specialization based on expr::iterable_domain(E const&).
 template <typename V, typename E, typename F, typename Arg0, typename... Args>
 auto iterable_domain(OpFunction<V, E, F, Arg0, Args...> const& e);
 //! Specialization based on expr::iterable_domain(E const&).
@@ -1594,16 +1678,18 @@ template <typename V, typename sub_t, typename E, typename... Ts>
 auto iterable_domain(
     OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>> const& e);
 //! Specialization based on expr::iterable_domain(E const&).
-template <typename V, expr::NoiseType nt, typename T, size_t D, typename E,
+template <typename V, expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type, typename E,
           typename... Ts>
-auto iterable_domain(OpSymbolicEval<V, NoiseData<nt, T, D>,
+auto iterable_domain(OpSymbolicEval<V, NoiseData<nt, T, D, grid_type>,
                                     SymbolicFunction<E, Ts...>> const& e);
 //! Specialization based on expr::iterable_domain(E const&).
 template <typename E>
 auto iterable_domain(OpOptimized<E> const& e);
 //! Specialization based on expr::iterable_domain(E const&).
-template <expr::NoiseType nt, typename T, size_t D>
-auto iterable_domain(NoiseData<nt, T, D> const& e);
+template <expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type>
+auto iterable_domain(NoiseData<nt, T, D, grid_type> const& e);
 //! Specialization based on expr::iterable_domain(E const&).
 template <typename... Ts>
 auto iterable_domain(Substitution<Ts...> const& e);
@@ -1747,6 +1833,25 @@ auto iterable_domain(OpFunctionApply<f, V, E> const& e) {
   return iterable_domain(e.e);
 }
 
+template <typename V, typename F, typename... Args, size_t... Is>
+auto iterable_domain(OpCallable<V, F, Args...> const& e,
+                     std::index_sequence<Is...>) {
+  return iterable_domain_union(iterable_domain_data(e.f),
+                               iterable_domain_data(std::get<Is>(e.args))...);
+}
+
+template <typename V, typename F, typename... Args, size_t... Is>
+auto iterable_domain(OpCallable<V, F*, Args...> const& e,
+                     std::index_sequence<Is...>) {
+  return iterable_domain_union(iterable_domain_data(*e.f),
+                               iterable_domain_data(std::get<Is>(e.args))...);
+}
+
+template <typename V, typename F, typename... Args>
+auto iterable_domain(OpCallable<V, F, Args...> const& e) {
+  return iterable_domain(e, std::make_index_sequence<sizeof...(Args)>{});
+}
+
 template <typename V, typename E, typename F, typename Arg0, typename... Args>
 auto iterable_domain(OpFunction<V, E, F, Arg0, Args...> const& e) {
   return iterable_domain(e.e);
@@ -1758,15 +1863,17 @@ auto iterable_domain(
   return iterable_domain(expr::get_enclosed_expression(e));
 }
 
-template <typename V, expr::NoiseType nt, typename T, size_t D, typename E,
+template <typename V, expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type, typename E,
           typename... Ts>
-auto iterable_domain(OpSymbolicEval<V, NoiseData<nt, T, D>,
+auto iterable_domain(OpSymbolicEval<V, NoiseData<nt, T, D, grid_type>,
                                     SymbolicFunction<E, Ts...>> const& e) {
   return iterable_domain(e.data);
 }
 
-template <expr::NoiseType nt, typename T, size_t D>
-auto iterable_domain(NoiseData<nt, T, D> const& e) {
+template <expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type>
+auto iterable_domain(NoiseData<nt, T, D, grid_type> const& e) {
   return iterable_domain_data(e);
 }
 

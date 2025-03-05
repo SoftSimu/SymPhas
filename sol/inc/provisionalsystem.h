@@ -29,7 +29,7 @@
 
 #pragma once
 
-#include "boundarysystemcuda.cuh"
+#include "boundarysystem.h"
 #include "spslibfftw.h"
 
 //! The default provisional system.

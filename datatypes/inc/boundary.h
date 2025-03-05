@@ -39,7 +39,8 @@
 #include <map>
 #include <random>
 
-#include "gridcuda.h"
+#include "grid.h"
+#include "gridcudaincludes.h"
 #include "spslib.h"
 
 //! \cond
@@ -505,23 +506,10 @@ struct BoundaryApplied<T, 0, BoundaryType::DEFAULT> : Boundary<T, 0> {
   template <typename vector_type = T,
             typename T0 = typename vector_element_type<vector_type>::type>
   void update(multi_value_cuda<1, T0> val, axis_coord_t, axis_coord_t,
-              double time) const {
-    any_vector_t<T0, 1> vector = val;
-    this->update(vector, 0, 0, time);
-    val = vector;
-  }
+              double time) const;
 
   void update(carry_value_cuda<T> val, axis_coord_t, axis_coord_t,
-              double time) const {
-    if (val.is_valid()) {
-      T value;
-      CHECK_CUDA_ERROR(
-          cudaMemcpy(&value, val.value, sizeof(T), cudaMemcpyDeviceToHost));
-      update(value, 0, 0, time);
-      CHECK_CUDA_ERROR(
-          cudaMemcpy(val.value, &value, sizeof(T), cudaMemcpyHostToDevice));
-    }
-  }
+              double time) const;
 
 #endif
 
@@ -600,23 +588,10 @@ struct BoundaryApplied<T, 1, BoundaryType::DEFAULT> : Boundary<T, 1> {
   template <typename vector_type = T,
             typename T0 = typename vector_element_type<vector_type>::type>
   void update(multi_value_cuda<2, T0> val, axis_coord_t x, axis_coord_t,
-              double time) const {
-    any_vector_t<T0, 2> vector = val;
-    this->update(vector, x, 0, time);
-    val = vector;
-  }
+              double time) const;
 
   void update(carry_value_cuda<T> val, axis_coord_t x, axis_coord_t,
-              double time) const {
-    if (val.is_valid()) {
-      T value;
-      CHECK_CUDA_ERROR(
-          cudaMemcpy(&value, val.value, sizeof(T), cudaMemcpyDeviceToHost));
-      update(value, x, 0, time);
-      CHECK_CUDA_ERROR(
-          cudaMemcpy(val.value, &value, sizeof(T), cudaMemcpyHostToDevice));
-    }
-  }
+              double time) const;
 
 #endif
 
@@ -688,23 +663,10 @@ struct BoundaryApplied<T, 2, BoundaryType::DEFAULT> : Boundary<T, 2> {
   template <typename vector_type = T,
             typename T0 = typename vector_element_type<vector_type>::type>
   void update(multi_value_cuda<3, T0> val, axis_coord_t x, axis_coord_t y,
-              double time) const {
-    any_vector_t<T0, 2> vector = val;
-    this->update(vector, x, y, time);
-    val = vector;
-  }
+              double time) const;
 
   void update(carry_value_cuda<T> val, axis_coord_t x, axis_coord_t y,
-              double time) const {
-    if (val.is_valid()) {
-      T value;
-      CHECK_CUDA_ERROR(
-          cudaMemcpy(&value, val.value, sizeof(T), cudaMemcpyDeviceToHost));
-      update(value, x, y, time);
-      CHECK_CUDA_ERROR(
-          cudaMemcpy(val.value, &value, sizeof(T), cudaMemcpyHostToDevice));
-    }
-  }
+              double time) const;
 
 #endif
 

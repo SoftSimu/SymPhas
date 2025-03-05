@@ -813,20 +813,23 @@ auto operator/(OpNegIdentity, E&& b) {
 }
 
 //! Division between two identities.
-constexpr inline auto operator/(OpIdentity, OpIdentity) { return OpIdentity{}; }
+__host__ __device__ constexpr inline auto operator/(OpIdentity, OpIdentity) {
+  return OpIdentity{};
+}
 
 //! Division between two negative identities.
-constexpr inline auto operator/(OpNegIdentity, OpNegIdentity) {
+__host__ __device__ constexpr inline auto operator/(OpNegIdentity,
+                                                    OpNegIdentity) {
   return OpIdentity{};
 }
 
 //! Division between the identity and the negative identity.
-constexpr inline auto operator/(OpIdentity, OpNegIdentity) {
+__host__ __device__ constexpr inline auto operator/(OpIdentity, OpNegIdentity) {
   return OpNegIdentity{};
 }
 
 //! Division between the negative identity and the identity.
-constexpr inline auto operator/(OpNegIdentity, OpIdentity) {
+__host__ __device__ constexpr inline auto operator/(OpNegIdentity, OpIdentity) {
   return OpNegIdentity{};
 }
 
@@ -835,19 +838,22 @@ template <typename E>
 auto operator/(E&&, OpVoid const) = delete;
 
 //! Division between 0 and 0.
-inline auto operator/(OpVoid const, OpVoid const) = delete;
+__host__ __device__ inline auto operator/(OpVoid const, OpVoid const) = delete;
 
 //! Division between 0 identity and anything.
 template <typename E>
-constexpr auto operator/(OpVoid const, E const&) {
+__host__ __device__ constexpr auto operator/(OpVoid const, E const&) {
   return OpVoid{};
 }
 
 //! Division between 0 identity and identity expression.
-constexpr inline auto operator/(OpVoid const, OpIdentity) { return OpVoid{}; }
+__host__ __device__ constexpr inline auto operator/(OpVoid const, OpIdentity) {
+  return OpVoid{};
+}
 
 //! Division between 0 identity and negative identity expression.
-constexpr inline auto operator/(OpVoid const, OpNegIdentity) {
+__host__ __device__ constexpr inline auto operator/(OpVoid const,
+                                                    OpNegIdentity) {
   return OpVoid{};
 }
 
@@ -1514,88 +1520,98 @@ auto operator/(OpNegFractionLiteral<N, D>, OpExpression<E> const& e) {
 // multiplication and division between fractions
 
 template <size_t N1, size_t D1, size_t N2, size_t D2>
-constexpr auto operator*(OpFractionLiteral<N1, D1>, OpFractionLiteral<N2, D2>) {
+__host__ __device__ constexpr auto operator*(OpFractionLiteral<N1, D1>,
+                                             OpFractionLiteral<N2, D2>) {
   return expr::make_fraction<N1 * N2, D1 * D2>();
 }
 
 template <size_t N1, size_t D1, size_t N2, size_t D2>
-constexpr auto operator*(OpNegFractionLiteral<N1, D1>,
-                         OpFractionLiteral<N2, D2>) {
+__host__ __device__ constexpr auto operator*(OpNegFractionLiteral<N1, D1>,
+                                             OpFractionLiteral<N2, D2>) {
   return -expr::make_fraction<N1 * N2, D1 * D2>();
 }
 
 template <size_t N1, size_t D1, size_t N2, size_t D2>
-constexpr auto operator*(OpFractionLiteral<N1, D1>,
-                         OpNegFractionLiteral<N2, D2>) {
+__host__ __device__ constexpr auto operator*(OpFractionLiteral<N1, D1>,
+                                             OpNegFractionLiteral<N2, D2>) {
   return -expr::make_fraction<N1 * N2, D1 * D2>();
 }
 
 template <size_t N1, size_t D1, size_t N2, size_t D2>
-constexpr auto operator*(OpNegFractionLiteral<N1, D1>,
-                         OpNegFractionLiteral<N2, D2>) {
+__host__ __device__ constexpr auto operator*(OpNegFractionLiteral<N1, D1>,
+                                             OpNegFractionLiteral<N2, D2>) {
   return expr::make_fraction<N1 * N2, D1 * D2>();
 }
 
 template <size_t N1, size_t D1, size_t N2, size_t D2>
-constexpr auto operator/(OpFractionLiteral<N1, D1>, OpFractionLiteral<N2, D2>) {
+__host__ __device__ constexpr auto operator/(OpFractionLiteral<N1, D1>,
+                                             OpFractionLiteral<N2, D2>) {
   return expr::make_fraction<N1 * D2, D1 * N2>();
 }
 
 template <size_t N1, size_t D1, size_t N2, size_t D2>
-constexpr auto operator/(OpNegFractionLiteral<N1, D1>,
-                         OpFractionLiteral<N2, D2>) {
+__host__ __device__ constexpr auto operator/(OpNegFractionLiteral<N1, D1>,
+                                             OpFractionLiteral<N2, D2>) {
   return -expr::make_fraction<N1 * D2, D1 * N2>();
 }
 
 template <size_t N1, size_t D1, size_t N2, size_t D2>
-constexpr auto operator/(OpFractionLiteral<N1, D1>,
-                         OpNegFractionLiteral<N2, D2>) {
+__host__ __device__ constexpr auto operator/(OpFractionLiteral<N1, D1>,
+                                             OpNegFractionLiteral<N2, D2>) {
   return -expr::make_fraction<N1 * D2, D1 * N2>();
 }
 
 template <size_t N1, size_t D1, size_t N2, size_t D2>
-constexpr auto operator/(OpNegFractionLiteral<N1, D1>,
-                         OpNegFractionLiteral<N2, D2>) {
+__host__ __device__ constexpr auto operator/(OpNegFractionLiteral<N1, D1>,
+                                             OpNegFractionLiteral<N2, D2>) {
   return expr::make_fraction<N1 * D2, D1 * N2>();
 }
 
 template <size_t N1, size_t D1>
-constexpr auto operator/(OpFractionLiteral<N1, D1>, OpIdentity) {
+__host__ __device__ constexpr auto operator/(OpFractionLiteral<N1, D1>,
+                                             OpIdentity) {
   return OpFractionLiteral<N1, D1>{};
 }
 
 template <size_t N2, size_t D2>
-constexpr auto operator/(OpIdentity, OpFractionLiteral<N2, D2>) {
+__host__ __device__ constexpr auto operator/(OpIdentity,
+                                             OpFractionLiteral<N2, D2>) {
   return OpFractionLiteral<D2, N2>{};
 }
 
 template <size_t N1, size_t D1>
-constexpr auto operator/(OpFractionLiteral<N1, D1>, OpNegIdentity) {
+__host__ __device__ constexpr auto operator/(OpFractionLiteral<N1, D1>,
+                                             OpNegIdentity) {
   return OpNegFractionLiteral<N1, D1>{};
 }
 
 template <size_t N2, size_t D2>
-constexpr auto operator/(OpNegIdentity, OpFractionLiteral<N2, D2>) {
+__host__ __device__ constexpr auto operator/(OpNegIdentity,
+                                             OpFractionLiteral<N2, D2>) {
   return OpNegFractionLiteral<D2, N2>{};
 }
 
 template <size_t N1, size_t D1>
-constexpr auto operator/(OpNegFractionLiteral<N1, D1>, OpIdentity) {
+__host__ __device__ constexpr auto operator/(OpNegFractionLiteral<N1, D1>,
+                                             OpIdentity) {
   return OpNegFractionLiteral<N1, D1>{};
 }
 
 template <size_t N2, size_t D2>
-constexpr auto operator/(OpIdentity, OpNegFractionLiteral<N2, D2>) {
+__host__ __device__ constexpr auto operator/(OpIdentity,
+                                             OpNegFractionLiteral<N2, D2>) {
   return OpNegFractionLiteral<D2, N2>{};
 }
 
 template <size_t N1, size_t D1>
-constexpr auto operator/(OpNegFractionLiteral<N1, D1>, OpNegIdentity) {
+__host__ __device__ constexpr auto operator/(OpNegFractionLiteral<N1, D1>,
+                                             OpNegIdentity) {
   return OpFractionLiteral<N1, D1>{};
 }
 
 template <size_t N2, size_t D2>
-constexpr auto operator/(OpNegIdentity, OpNegFractionLiteral<N2, D2>) {
+__host__ __device__ constexpr auto operator/(OpNegIdentity,
+                                             OpNegFractionLiteral<N2, D2>) {
   return OpFractionLiteral<D2, N2>{};
 }
 

@@ -18,35 +18,17 @@
  * ***************************************************************************
  *
  * MODULE:  sol
- * PURPOSE: Used to generate a VTK visualization of the simulated phase-field
- * model.
+ * PURPOSE: Defines a group of boundaries, which is used for a whole
+ * system in applying the boundary conditions to a grid.
  *
  * ***************************************************************************
  */
 
 #pragma once
 
-#include <utility>
-
-#include "definitions.h"
-#include "gridfunctions.h"
-
-struct ColourPlotUpdater {
-  virtual void update() {}
-  virtual ~ColourPlotUpdater() {}
-};
-
-struct ColourPlot2d {
-  void init(scalar_t*(&values), len_type* dims, iter_type& index,
-            ColourPlotUpdater*(&updater));
-
-  template <size_t D>
-  void init(scalar_t*(&values), grid::region_interval<D> const& interval,
-            iter_type& index, ColourPlotUpdater*(&updater)) {
-    len_type dims[D]{};
-    for (iter_type i = 0; i < D; ++i) {
-      dims[i] = interval[i][1] - interval[i][0];
-    }
-    init(values, &dims[0], index, updater);
-  }
-};
+#include "boundarygroup.h"
+#include "boundaryupdatecuda1d.cuh"
+#include "boundaryupdatecuda2d.cuh"
+#include "boundaryupdatecuda3dboundary.cuh"
+#include "boundaryupdatecuda3ddefault.cuh"
+#include "boundaryupdatecuda3dregional.cuh"

@@ -453,16 +453,9 @@ void make_directory_for_file(const char* dir, int err_no = ERR_CODE_FILE_OPEN);
 //! Return the directory component of the given path.
 /*!
  * Standardized method to get the directory component of the
- * given path.
+ * given path. The returned pointer must be deleted to avoid a memory leak.
  */
-void get_parent_directory(const char* path, const char*& basepath);
-
-//! Return the directory component of the given path.
-/*!
- * Standardized method to get the directory component of the
- * given path.
- */
-void get_parent_directory(char* path, char*& basepath);
+char* get_parent_directory(const char* path);
 
 std::filesystem::path get_parent_directory(std::filesystem::path dir);
 

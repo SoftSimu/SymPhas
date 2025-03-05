@@ -418,9 +418,7 @@ void symphas::lib::make_directory(const char* dir, int err_no) {
 //}
 
 void symphas::lib::make_directory_for_file(const char* name, int err_no) {
-  char* parent = new char[std::strlen(name) + 1];
-  std::strcpy(parent, name);
-  get_parent_directory(parent, parent);
+  char* parent = get_parent_directory(name);
 
   // #ifdef FILESYSTEM_HEADER_AVAILABLE
   symphas::lib::make_directory(std::filesystem::path(parent), err_no);
@@ -431,30 +429,22 @@ void symphas::lib::make_directory_for_file(const char* name, int err_no) {
   delete[] parent;
 }
 
-void symphas::lib::get_parent_directory(char* path, char*& basepath) {
+char* symphas::lib::get_parent_directory(const char* path) {
 #ifdef _MSC_VER
 
   char drive[_MAX_DRIVE];
   char parent[_MAX_DIR];
   _splitpath(path, drive, parent, NULL, NULL);
+  basepath = new char[std::strlen(drive) + std::strlen(parent) + 1]{};
   sprintf(basepath, "%s%s", drive, parent);
+  return basepath;
 
 #else
-  basepath = dirname(path);
-#endif
-}
 
-void symphas::lib::get_parent_directory(const char* path,
-                                        const char*& basepath) {
-#ifdef _MSC_VER
-
-  char drive[_MAX_DRIVE];
-  char parent[_MAX_DIR];
-  _splitpath(path, drive, parent, NULL, NULL);
-  sprintf(const_cast<char*&>(basepath), "%s%s", drive, parent);
-
-#else
-  basepath = dirname(const_cast<char*>(path));
+  char* path2 = strdup(path);
+  char* basepath = strdup(dirname(path2));
+  delete[] path2;
+  return basepath;
 #endif
 }
 

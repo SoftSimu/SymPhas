@@ -153,6 +153,16 @@ template <typename test_type, typename... Ts>
 constexpr bool are_all_same_v =
     std::conjunction_v<std::is_same<test_type, Ts>...>;
 
+template <size_t I, typename T>
+struct type_ignore_index_impl {
+  using type = T;
+};
+
+template <typename I, typename T>
+struct type_ignore_type_impl {
+  using type = T;
+};
+
 /*!
  * \brief A template alias that ignores its first parameter and returns the
  * second one.
@@ -165,7 +175,7 @@ constexpr bool are_all_same_v =
  * \tparam T The type that is returned by this template alias.
  */
 template <size_t I, typename T>
-using type_ignore_index = T;
+using type_ignore_index = typename type_ignore_index_impl<I, T>::type;
 
 /*!
  * \brief A template alias that ignores its first parameter and returns the
@@ -179,7 +189,7 @@ using type_ignore_index = T;
  * \tparam T The type that is returned by this template alias.
  */
 template <typename I, typename T>
-using type_ignore_type = T;
+using type_ignore_type = typename type_ignore_type_impl<I, T>::type;
 
 /*!
  * \brief A template alias that ignores its first parameter and returns the

@@ -556,24 +556,16 @@ struct BaseData {
 #ifdef USING_CUDA
 
   template <typename T>
-  static const auto& get(BlockCUDA<T> const& data, iter_type n) {
-    return data[n];
-  }
+  static const auto& get(BlockCUDA<T> const& data, iter_type n);
 
   template <typename T>
-  static const auto& get(BlockCUDA<T> const& data) {
-    return data;
-  }
+  static const auto& get(BlockCUDA<T> const& data);
 
   template <typename T>
-  static auto& get(BlockCUDA<T>& data, iter_type n) {
-    return data[n];
-  }
+  static auto& get(BlockCUDA<T>& data, iter_type n);
 
   template <typename T>
-  static auto& get(BlockCUDA<T>& data) {
-    return data;
-  }
+  static auto& get(BlockCUDA<T>& data);
 
 #endif
 
@@ -658,32 +650,6 @@ struct BaseData<MultiBlock<N, T>> {
   static auto& get(MultiBlock<N, T>& data) { return data; }
 };
 
-#ifdef USING_CUDA
-//! Specialization based on expr::BaseData.
-template <typename T>
-struct BaseData<BlockCUDA<T>> {
-  static auto const& get(BlockCUDA<T> const& data, iter_type n) {
-    return data[n];
-  }
-  static auto const& get(BlockCUDA<T> const& data) { return data; }
-  static auto& get(BlockCUDA<T>& data, iter_type n) { return data[n]; }
-  static auto& get(BlockCUDA<T>& data) { return data; }
-};
-
-//! Specialization based on expr::BaseData.
-template <size_t N, typename T>
-struct BaseData<MultiBlockCUDA<N, T>> {
-  static decltype(auto) get(MultiBlockCUDA<N, T> const& data, iter_type n) {
-    return data[n];
-  }
-  static auto const& get(MultiBlockCUDA<N, T> const& data) { return data; }
-  static decltype(auto) get(MultiBlockCUDA<N, T>& data, iter_type n) {
-    return data[n];
-  }
-  static auto& get(MultiBlockCUDA<N, T>& data) { return data; }
-};
-#endif
-
 //! Specialization based on expr::BaseData.
 template <Axis ax, typename T, size_t D>
 struct BaseData<VectorComponentData<ax, T*, D>> {
@@ -718,7 +684,7 @@ struct BaseData<VectorComponentRegionData<ax, T*, D>> {
 //! Specialization based on expr::BaseData.
 template <Axis ax, typename T, size_t D>
 struct BaseData<VectorComponentRegionData<ax, CUDADataType<T>*, D>> {
-  static carry_value<T> get(
+  static decltype(auto) get(
       VectorComponentRegionData<ax, CUDADataType<T>*, D> const& data,
       iter_type n) {
     return data[n];
@@ -727,7 +693,7 @@ struct BaseData<VectorComponentRegionData<ax, CUDADataType<T>*, D>> {
       VectorComponentRegionData<ax, CUDADataType<T>*, D> const& data) {
     return data;
   }
-  static carry_value<T> get(
+  static decltype(auto) get(
       VectorComponentRegionData<ax, CUDADataType<T>*, D>& data, iter_type n) {
     return data[n];
   }
@@ -787,27 +753,6 @@ struct BaseData<GridData<MultiBlock<N, T>, N>> {
     return BaseData<MultiBlock<N, T>>::get(data);
   }
 };
-
-#ifdef USING_CUDA
-//! Specialization based on expr::BaseData.
-template <typename T, size_t N>
-struct BaseData<GridData<MultiBlockCUDA<N, T>, N>> {
-  static decltype(auto) get(GridData<MultiBlockCUDA<N, T>, N> const& data,
-                            iter_type n) {
-    return BaseData<MultiBlockCUDA<N, T>>::get(data, n);
-  }
-  static decltype(auto) get(GridData<MultiBlockCUDA<N, T>, N> const& data) {
-    return BaseData<MultiBlockCUDA<N, T>>::get(data);
-  }
-  static decltype(auto) get(GridData<MultiBlockCUDA<N, T>, N>& data,
-                            iter_type n) {
-    return BaseData<MultiBlockCUDA<N, T>>::get(data, n);
-  }
-  static decltype(auto) get(GridData<MultiBlockCUDA<N, T>, N>& data) {
-    return BaseData<MultiBlockCUDA<N, T>>::get(data);
-  }
-};
-#endif
 
 //! Specialization based on expr::BaseData.
 template <Axis ax, typename T, size_t D>
@@ -1007,23 +952,16 @@ struct construct_result_data {
 #ifdef USING_CUDA
 
   template <size_t N, typename T>
-  construct_result_data<MultiBlockCUDA<N, T>> get_constructor(
-      MultiBlockCUDA<N, T>) const {
-    return {};
-  }
+  decltype(auto) get_constructor(MultiBlockCUDA<N, T>) const;
+
   template <typename T, size_t D>
-  construct_result_data<GridCUDA<T, D>> get_constructor(GridCUDA<T, D>) const {
-    return {};
-  }
+  decltype(auto) get_constructor(GridCUDA<T, D>) const;
+
   template <typename T, size_t D>
-  construct_result_data<MultiBlockCUDA<D, T>> get_constructor(
-      GridCUDA<any_vector_t<T, D>, D>) const {
-    return {};
-  }
+  decltype(auto) get_constructor(GridCUDA<any_vector_t<T, D>, D>) const;
+
   template <typename T>
-  construct_result_data<BlockCUDA<T>> get_constructor(BlockCUDA<T>) const {
-    return {};
-  }
+  decltype(auto) get_constructor(BlockCUDA<T>) const;
 
 #endif
 
@@ -1276,13 +1214,6 @@ DEFINE_BASE_DATA((typename T, size_t D), (BoundaryGrid<T, D>), (T)data[n], data)
 DEFINE_BASE_DATA((typename T, size_t D), (RegionalGrid<T, D>), (T)data[n], data)
 #ifdef USING_MPI
 DEFINE_BASE_DATA((typename T, size_t D), (RegionalGridMPI<T, D>), (T)data[n],
-                 data)
-#endif
-#ifdef USING_CUDA
-DEFINE_BASE_DATA((typename T, size_t D), (GridCUDA<T, D>), (T)data[n], data)
-DEFINE_BASE_DATA((typename T, size_t D), (BoundaryGridCUDA<T, D>), (T)data[n],
-                 data)
-DEFINE_BASE_DATA((typename T, size_t D), (RegionalGridCUDA<T, D>), (T)data[n],
                  data)
 #endif
 // DEFINE_BASE_DATA((template<typename, size_t> typename F, typename T, size_t

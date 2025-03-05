@@ -495,9 +495,10 @@ auto to_ft(OpTerm<V, k_grid_component_type<ax, O, D>> const& e, double const* h,
  *
  * \tparam D The real space dimension.
  */
-template <size_t D, typename V, typename T, typename E, size_t... Ns,
-          typename... Ts>
-auto to_ft(OpSymbolicEval<V, NoiseData<NoiseType::WHITE, T, D>,
+template <size_t D, typename V, typename T,
+          template <typename, size_t> typename grid_type, typename E,
+          size_t... Ns, typename... Ts>
+auto to_ft(OpSymbolicEval<V, NoiseData<NoiseType::WHITE, T, D, grid_type>,
                           SymbolicFunction<E, Variable<Ns, Ts>...>> const& e,
            double const* h, const len_type* dims);
 

@@ -397,7 +397,7 @@ namespace expr {
  */
 template <auto f, typename A>
 auto make_function(A&& a) {
-  return symphas::internal::make_function<f>::template get(std::forward<A>(a));
+  return symphas::internal::make_function<f>::get(std::forward<A>(a));
 }
 
 //! Create a function expression of another expression.
@@ -410,8 +410,8 @@ auto make_function(A&& a) {
  */
 template <auto f, typename V, typename A>
 auto make_function(V&& v, A&& a) {
-  return symphas::internal::make_function<f>::template get(std::forward<V>(v),
-                                                           std::forward<A>(a));
+  return symphas::internal::make_function<f>::get(std::forward<V>(v),
+                                                  std::forward<A>(a));
 }
 
 //! Create a function expression of another expression.
@@ -518,7 +518,7 @@ struct OpFunctionApply : OpExpression<OpFunctionApply<f, V, E>> {
   }
 
   auto operator-() const {
-    return symphas::internal::make_function<f>::template get(-value, e);
+    return symphas::internal::make_function<f>::get(-value, e);
   }
 
 #ifdef PRINTABLE_EQUATIONS
@@ -560,8 +560,7 @@ template <typename coeff_t, auto f2, typename V2, typename E2,
           typename std::enable_if_t<
               (expr::is_coeff<coeff_t> && !expr::is_tensor<V2>), int> = 0>
 auto operator*(coeff_t const& value, OpFunctionApply<f2, V2, E2> const& b) {
-  return symphas::internal::make_function<f2>::template get(value * b.value,
-                                                            b.e);
+  return symphas::internal::make_function<f2>::get(value * b.value, b.e);
 }
 
 template <typename coeff_t, typename tensor_t, auto f2, typename E2,
@@ -570,7 +569,7 @@ template <typename coeff_t, typename tensor_t, auto f2, typename E2,
 auto operator*(coeff_t const& value,
                OpFunctionApply<f2, tensor_t, E2> const& b) {
   return (value * b.value) *
-         symphas::internal::make_function<f2>::template get(OpIdentity{}, b.e);
+         symphas::internal::make_function<f2>::get(OpIdentity{}, b.e);
 }
 
 namespace symphas::internal {
@@ -1079,11 +1078,11 @@ OpFunction(std::string, OpLiteral<V>, E, F) -> OpFunction<V, E, F, void>;
 template <typename V, typename E, typename F>
 OpFunction(OpLiteral<V>, E, F) -> OpFunction<V, E, F, void>;
 template <typename V, typename E, typename F, typename... Args>
-OpFunction(std::string, OpLiteral<V>, E, F,
-           std::tuple<Args...>) -> OpFunction<V, E, F, Args...>;
+OpFunction(std::string, OpLiteral<V>, E, F, std::tuple<Args...>)
+    -> OpFunction<V, E, F, Args...>;
 template <typename V, typename E, typename F, typename... Args>
-OpFunction(OpLiteral<V>, E, F,
-           std::tuple<Args...>) -> OpFunction<V, E, F, Args...>;
+OpFunction(OpLiteral<V>, E, F, std::tuple<Args...>)
+    -> OpFunction<V, E, F, Args...>;
 
 template <typename coeff_t, typename V2, typename E2, typename F2, typename Arg,
           typename... Args,

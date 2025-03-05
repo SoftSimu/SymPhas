@@ -114,8 +114,7 @@ parse_conf_option_list(const char *file, param_map_type const &param_map,
          * characters for a key
          */
         char *it = k;
-        for (; *it >= 'A' && *it <= 'Z'; ++it)
-          ;
+        for (; *it >= 'A' && *it <= 'Z'; ++it);
         *it = '\0';
 
         options.emplace_back(k, v);
@@ -162,12 +161,10 @@ Conf symphas::conf::make_config(const char *file,
       auto [options, title, is_done] =
           parse_conf_option_list(file, param_map, indices);
 
-      char *parent_dir = new char[std::strlen(file) + 1]{};
-      std::strcpy(parent_dir, file);
-      symphas::lib::get_parent_directory(parent_dir, parent_dir);
+      char *parent_dir = symphas::lib::get_parent_directory(file);
 
       Conf c{options, title.c_str(), parent_dir};
-      //delete[] parent_dir;
+      delete[] parent_dir;
 
       c.append_computed_index(indices);
       if (c.sim_done) {

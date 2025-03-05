@@ -1440,10 +1440,10 @@ auto _select_terms(OpTerms<V, Term<Gs, Xs>...> const& e,
       1;
 
   auto factor_data = expr::get<I>(e).data();
-  auto factor_term =
-      (Term(factor_data) * ~(Term(factor_data).template pow<N0>()))
-          .template pow<N>();
-  auto nonfactor_term = expr::get<I>(e) * (~factor_term);
+  auto factor_term = Term(factor_data);
+  auto factor_eval =
+      (factor_term * ~(factor_term.template pow<N0>())).template pow<N>();
+  auto nonfactor_term = expr::get<I>(e) * (~factor_eval);
 
   return std::make_pair(
       _make_terms(OpIdentity{}, factor_term),

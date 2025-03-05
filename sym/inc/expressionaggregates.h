@@ -681,6 +681,7 @@ auto make_lhs(RegionalGridCUDA<T, D> const& data) {
   return OpLHS<RegionalGrid<T, D>>(data);
 }
 #endif
+
 template <typename G>
 auto make_lhs(NamedData<G> const& e) {
   return make_lhs(*static_cast<G const*>(&e));
@@ -2113,7 +2114,7 @@ auto make_term(A&& data) {
  */
 template <typename V, typename A>
 auto make_term(V&& value, A&& data) {
-  return symphas::internal::construct_term<A>::template get(
+  return symphas::internal::construct_term<A>::get(
       expr::make_literal(std::forward<V>(value)), std::forward<A>(data));
 }
 

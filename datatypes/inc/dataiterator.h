@@ -26,7 +26,8 @@
 
 #pragma once
 
-#include "gridcuda.h"
+#include "grid.h"
+#include "gridcudaincludes.h"
 
 namespace grid {
 template <size_t D>
@@ -35,6 +36,7 @@ template <size_t D>
 struct region_interval;
 template <size_t D>
 struct region_extent;
+struct region_size;
 
 inline len_type length(grid::region_interval<0> const& interval) { return 1; }
 
@@ -55,6 +57,8 @@ len_type length(grid::region_interval_multiple<D> const& interval) {
   }
   return len;
 }
+
+inline len_type length(grid::region_size const& interval);
 
 template <size_t D>
 len_type length(grid::region_extent<D> const& region) {
@@ -556,7 +560,7 @@ struct region_size {
   region_size(len_type len) : len{len} {}
   len_type len;
 
-  operator len_type() { return len; }
+  operator len_type() const { return len; }
 
   region_size& operator+=(region_size const& other) {
     len = std::max(len, other.len);
@@ -573,6 +577,8 @@ struct region_size {
     return *this;
   }
 };
+
+len_type length(grid::region_size const& interval) { return interval; }
 
 template <size_t D>
 struct region_extent {
@@ -1323,30 +1329,6 @@ struct data_value_type<RegionalGrid<T, D>> {
 
   ref operator()(RegionalGrid<T, D>* data, iter_type n) { return (*data)[n]; }
 };
-
-#ifdef USING_CUDA
-
-template <typename T, size_t D>
-struct data_value_type<RegionalGridCUDA<any_vector_t<T, D>, D>> {
-  using type = any_vector_t<T, D>;
-  using ref = multi_value_cuda<D, T>;
-
-  ref operator()(RegionalGridCUDA<any_vector_t<T, D>, D>* data, iter_type n) {
-    return (*data)[n];
-  }
-};
-
-template <typename T, size_t D>
-struct data_value_type<RegionalGridCUDA<T, D>> {
-  using type = T;
-  using ref = carry_value_cuda<T>;
-
-  ref operator()(RegionalGridCUDA<T, D>* data, iter_type n) {
-    return (*data)[n];
-  }
-};
-
-#endif
 
 #ifdef USING_MPI
 
@@ -2375,7 +2357,7 @@ struct iterator_type_impl {
 
   //! Subtract an offset from the iterator.
   specialized_iterator operator-(iter_type offset) const {
-    return (cast()) - difference_type(offset);
+    return (cast())-difference_type(offset);
   }
 
   //! Add an offset from the left hand side to an iterator.
@@ -2477,71 +2459,28 @@ auto get_data_domain(RegionalGrid<T, D> const& data) {
   return region;
 }
 
-#ifdef USING_CUDA
-
-//! Obtains the iterable_domain from the Block compatible instance.
-template <typename T, size_t D>
-auto get_iterable_domain(GridCUDA<T, D> const& data) {
-  return region_size(data.len);
-}
-
-//! Obtains the iterable_domain from the Block compatible instance.
-template <typename T, size_t D>
-auto get_iterable_domain(BoundaryGridCUDA<T, D> const& data) {
-  region_interval<D> region(data.dims);
-  for (iter_type i = 0; i < D; ++i) {
-    region[i][0] = BOUNDARY_DEPTH;
-    region[i][1] = data.dims[i] - BOUNDARY_DEPTH;
-  }
-  return region;
-}
-
-//! Obtains the iterable_domain from the Block compatible instance.
-template <typename T, size_t D>
-auto get_iterable_domain(RegionalGridCUDA<T, D> const& data) {
-  region_interval<D> region(data.dims);
-  if (data.region.len > 0) {
-    for (iter_type i = 0; i < D; ++i) {
-      region[i][0] = data.region.origin[i] + data.region.boundary_size;
-      region[i][1] = data.region.origin[i] + data.region.dims[i] -
-                     data.region.boundary_size;
-    }
-  } else {
-    for (iter_type i = 0; i < D; ++i) {
-      region[i][0] = data.region.origin[i];
-      region[i][1] = data.region.origin[i];
-    }
-  }
-  return region;
-}
-
-//! Obtains the iterable_domain from the Block compatible instance.
-template <typename T, size_t D>
-auto get_data_domain(GridCUDA<T, D> const& data) {
-  return region_size(data.len);
-}
-
-//! Obtains the iterable_domain from the Block compatible instance.
-template <typename T, size_t D>
-auto get_data_domain(BoundaryGridCUDA<T, D> const& data) {
-  region_interval<D> region(data.dims);
-  for (iter_type i = 0; i < D; ++i) {
-    region[i][0] = 0;
-    region[i][1] = data.dims[i];
-  }
-  return region;
-}
-
-//! Obtains the iterable_domain from the Block compatible instance.
-template <typename T, size_t D>
-auto get_data_domain(RegionalGridCUDA<T, D> const& data) {
-  region_interval<D> region(data.dims);
-  for (iter_type i = 0; i < D; ++i) {
-    region[i][0] = data.region.origin[i];
-    region[i][1] = data.region.origin[i] + data.region.dims[i];
-  }
-  return region;
-}
-
-#endif
 }  // namespace grid
+
+#ifdef USING_CUDA
+namespace grid {
+
+template <typename T, size_t D>
+auto get_iterable_domain(GridCUDA<T, D> const& data);
+
+template <typename T, size_t D>
+auto get_iterable_domain(BoundaryGridCUDA<T, D> const& data);
+
+template <typename T, size_t D>
+auto get_iterable_domain(RegionalGridCUDA<T, D> const& data);
+
+template <typename T, size_t D>
+auto get_data_domain(GridCUDA<T, D> const& data);
+
+template <typename T, size_t D>
+auto get_data_domain(BoundaryGridCUDA<T, D> const& data);
+
+template <typename T, size_t D>
+auto get_data_domain(RegionalGridCUDA<T, D> const& data);
+
+}  // namespace grid
+#endif

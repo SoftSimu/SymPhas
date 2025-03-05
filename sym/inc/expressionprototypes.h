@@ -346,6 +346,12 @@ using OpCoeffSwap = OpCoeff<void, I>;
 template <typename G>
 using SymbolicFunctionalDerivative = SymbolicDerivative<expr::variational_t<G>>;
 
+template <typename V, typename F, typename... Args>
+struct OpCallable;
+
+template <typename F>
+struct OpSymbolicCallable;
+
 //! @}
 
 template <typename specialized_eval_handler>
@@ -389,9 +395,14 @@ auto to_axis(OpExpression<E> const& e);
 
 enum class NoiseType { WHITE, NONE, DECAY_EXP, DECAY_POLY, POISSON };
 
+template <NoiseType nt, size_t D,
+          template <typename, size_t> typename grid_type>
+struct noise_data;
+
 }  // namespace expr
 
-template <expr::NoiseType nt, typename T, size_t D>
+template <expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type>
 struct NoiseData;
 
 #ifdef USING_CUDA

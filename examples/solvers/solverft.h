@@ -91,9 +91,15 @@ template <typename S, typename E>
 inline void equation(std::pair<S, E>& r) const {
   TIME_THIS_CONTEXT_LIFETIME(solverft_equation);
 
-  expr::prune::update<expr::not_<expr::matches_series>>(r.second);
+  {
+    expr::eval_handler_type<E> handler;
+    expr::prune::update<expr::not_<expr::matches_series>>(r.second, handler);
+  }
   expr::result(r.second, r.first.get().dframe);
-  // expr::result_by_term<expr::matches_series>(r.second, r.first.get().dframe);
+  // expr::eval_handler_type<E> handler;
+  // handler.result(r.second, r.first.get().dframe);
+  //  expr::result_by_term<expr::matches_series>(r.second,
+  //  r.first.get().dframe);
 }
 
 /*

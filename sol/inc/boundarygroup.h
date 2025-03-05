@@ -26,11 +26,7 @@
 
 #pragma once
 
-#include "boundaryupdatecuda1d.cuh"
-#include "boundaryupdatecuda2d.cuh"
-#include "boundaryupdatecuda3dboundary.cuh"
-#include "boundaryupdatecuda3ddefault.cuh"
-#include "boundaryupdatecuda3dregional.cuh"
+#include "boundaryupdate.h"
 
 //! Manages the boundaries across the whole `D`-dimensional system.
 /*!

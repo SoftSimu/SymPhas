@@ -32,6 +32,10 @@
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 
+#include "boundarygroup.cuh"
+#include "expressionlogic.cuh"
+#include "gridfunctions.cuh"
+
 //! Representation of a phase field and associated characteristics.
 /*!
  * Specialization based on a phase field system in which boundaries must be
@@ -481,8 +485,8 @@ PhaseFieldSystem<BoundaryGridCUDA, T, D>::PhaseFieldSystem(
 template <typename T, size_t D>
 void PhaseFieldSystem<RegionalGridCUDA, T, D>::update(iter_type index,
                                                       double time) {
+  // BoundaryGroup<T, D>::update_boundaries(*this, index, time);
   symphas::internal::update_regional_system(regional_info, *this, info, time);
-  BoundaryGroup<T, D>::update_boundaries(*this, index, time);
 }
 
 template <typename T, size_t D>
@@ -504,6 +508,11 @@ PhaseFieldSystem<RegionalGridCUDA, T, D>::PhaseFieldSystem(
                                parent_type::region.boundary_size);
   symphas::internal::populate_tdata(tdata, init_grid, &info, region, id);
   grid::copy(*this, init_grid);
+
+  auto min0 = grid::min_value(*this);
+  symphas::internal::set_value_for_resize(regional_info.cutoff, min0,
+                                          REGIONAL_GRID_CUTOFF_EPS);
+  symphas::internal::set_value_for_resize(parent_type::empty, min0);
 
   if (grid::has_subdomain(vdata)) {
     grid::resize_adjust_region(*this, vdata);

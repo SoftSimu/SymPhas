@@ -126,8 +126,8 @@ namespace expr {
  */
 template <typename A, typename B>
 auto make_convolution(A&& a, B&& b) {
-  return symphas::internal::make_convolution::template get(std::forward<A>(a),
-                                                           std::forward<B>(b));
+  return symphas::internal::make_convolution::get(std::forward<A>(a),
+                                                  std::forward<B>(b));
 }
 
 //! Create a convolution expression.
@@ -140,7 +140,7 @@ auto make_convolution(A&& a, B&& b) {
  */
 template <typename V, typename A, typename B>
 auto make_convolution(V&& v, A&& a, B&& b) {
-  return symphas::internal::make_convolution::template get(
+  return symphas::internal::make_convolution::get(
       std::forward<V>(v), std::forward<A>(a), std::forward<B>(b));
 }
 
@@ -194,8 +194,7 @@ struct OpConvolution : OpExpression<OpConvolution<V, E1, E2>> {
         value{value},
         a{a},
         b{b},
-        compute{data_a.values, data_b.values, g0} { /*update();*/
-  }
+        compute{data_a.values, data_b.values, g0} { /*update();*/ }
 
   OpConvolution(OpConvolution<V, E1, E2> const& other)
       : data_a{expr::data_length(other.a, other.b)},
@@ -432,8 +431,7 @@ struct OpConvolution<V, GaussianSmoothing<D>, E>
         value{value},
         e{e},
         smoother{smoother},
-        compute{data.values, g0} { /*update();*/
-  }
+        compute{data.values, g0} { /*update();*/ }
 
   OpConvolution(OpConvolution<V, GaussianSmoothing<D>, E> const& other)
       : g0{expr::data_dimensions(other.smoother)},
@@ -441,8 +439,7 @@ struct OpConvolution<V, GaussianSmoothing<D>, E>
         value{other.value},
         e{other.e},
         smoother{other.smoother},
-        compute{data.values, g0} { /*update();*/
-  }
+        compute{data.values, g0} { /*update();*/ }
 
   OpConvolution(OpConvolution<V, GaussianSmoothing<D>, E>&& other) noexcept
       : OpConvolution() {
@@ -653,8 +650,7 @@ struct OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>
         data{grid},
         value{value},
         smoother{smoother},
-        compute{expr::BaseData<G>::get(data), g0} { /*update();*/
-  }
+        compute{expr::BaseData<G>::get(data), g0} { /*update();*/ }
 
   OpConvolution(OpConvolution<V, GaussianSmoothing<D>,
                               OpTerm<OpIdentity, G>> const& other)
@@ -662,8 +658,7 @@ struct OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>
         data{other.data},
         value{other.value},
         smoother{other.smoother},
-        compute{expr::BaseData<G>::get(data), g0} { /*update();*/
-  }
+        compute{expr::BaseData<G>::get(data), g0} { /*update();*/ }
 
   OpConvolution(OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>&&
                     other) noexcept

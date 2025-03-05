@@ -36,7 +36,6 @@ if(USING_CUDA)
 	set(CMAKE_CUDA_ARCHITECTURES "${SYMPHAS_CUDA_ARCHITECTURES}")
 	set(CMAKE_CUDA_STANDARD 17)
 	set(CMAKE_CUDA_STANDARD_REQUIRED True)
-	set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler /bigobj")
 else()
 	message(STATUS "CUDA is not enabled ${CMAKE_CUDA_COMPILER}")
 	
@@ -100,7 +99,7 @@ if(USE_CONF)
 endif()
 
 
-set(MODULES_SOURCE "symphas.cpp")
+set(MODULES_SOURCE "modules-models.cpp")
 if(USE_IO)
 	list(APPEND MODULES_SOURCE "modules-io.cpp")
 endif()

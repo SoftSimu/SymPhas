@@ -26,7 +26,7 @@
 
 #pragma once
 
-#include "boundaryupdate.h"
+#include "boundaryupdatecuda.cuh"
 
 #ifdef USING_CUDA
 

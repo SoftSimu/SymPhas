@@ -30,47 +30,49 @@
 #ifdef USING_CUDA
 
 #include <cuda_runtime.h>
+#include <float.h>
 
 #include <limits>
 
-#include "dataiterator.h"
-#include "dft.h"
+#include "dataiterator.cuh"
+#include "dft.cuh"
+#include "gridcuda.cuh"
 
 namespace grid {
 
 template <typename T>
-__device__ T getMaxValue();
+__device__ constexpr T getMaxValue();
 
 template <>
-inline __device__ float getMaxValue<float>() {
+inline __device__ constexpr float getMaxValue<float>() {
   return FLT_MAX;
 }
 
 template <>
-inline __device__ double getMaxValue<double>() {
+inline __device__ constexpr double getMaxValue<double>() {
   return DBL_MAX;
 }
 
 template <>
-inline __device__ int getMaxValue<int>() {
+inline __device__ constexpr int getMaxValue<int>() {
   return INT_MAX;
 }
 
 template <typename T>
-__device__ T getMinValue();
+__device__ constexpr T getMinValue();
 
 template <>
-inline __device__ float getMinValue<float>() {
+inline __device__ constexpr float getMinValue<float>() {
   return FLT_MIN;
 }
 
 template <>
-inline __device__ double getMinValue<double>() {
+inline __device__ constexpr double getMinValue<double>() {
   return DBL_MIN;
 }
 
 template <>
-inline __device__ int getMinValue<int>() {
+inline __device__ constexpr int getMinValue<int>() {
   return INT_MIN;
 }
 //! Copy the interior values of the grid into an array.
@@ -182,8 +184,8 @@ void copy_interior(GridCUDA<any_vector_t<T, 3>, 3> const& input,
  */
 template <typename T>
 void copy_interior(RegionalGridCUDA<T, 1> const& input, T* output) {
-  copy_interior_cuda_1d(input.values, output, input.dims[0],
-                        input.dims[0] - 2 * BOUNDARY_DEPTH);
+  copy_interior_cuda_1d(input.values, output, input.region.dims[0],
+                        input.region.dims[0] - 2 * BOUNDARY_DEPTH);
 }
 
 //! Copy the interior values of the grid into an array.
@@ -196,9 +198,10 @@ void copy_interior(RegionalGridCUDA<T, 1> const& input, T* output) {
  */
 template <typename T>
 void copy_interior(RegionalGridCUDA<T, 2> const& input, T* output) {
-  copy_interior_cuda_2d(input.values, output, input.dims[0], input.dims[1],
-                        input.dims[0] - 2 * BOUNDARY_DEPTH,
-                        input.dims[1] - 2 * BOUNDARY_DEPTH);
+  copy_interior_cuda_2d(input.values, output, input.region.dims[0],
+                        input.region.dims[1],
+                        input.region.dims[0] - 2 * BOUNDARY_DEPTH,
+                        input.region.dims[1] - 2 * BOUNDARY_DEPTH);
 }
 
 //! Copy the interior values of the grid into an array.
@@ -211,10 +214,11 @@ void copy_interior(RegionalGridCUDA<T, 2> const& input, T* output) {
  */
 template <typename T>
 void copy_interior(RegionalGridCUDA<T, 3> const& input, T* output) {
-  copy_interior_cuda_3d(input.values, output, input.dims[0], input.dims[1],
-                        input.dims[2], input.dims[0] - 2 * BOUNDARY_DEPTH,
-                        input.dims[1] - 2 * BOUNDARY_DEPTH,
-                        input.dims[2] - 2 * BOUNDARY_DEPTH);
+  copy_interior_cuda_3d(input.values, output, input.region.dims[0],
+                        input.region.dims[1], input.region.dims[2],
+                        input.region.dims[0] - 2 * BOUNDARY_DEPTH,
+                        input.region.dims[1] - 2 * BOUNDARY_DEPTH,
+                        input.region.dims[2] - 2 * BOUNDARY_DEPTH);
 }
 
 //! Copy the interior values of the grid into an array.
@@ -230,8 +234,8 @@ void copy_interior(RegionalGridCUDA<T, 3> const& input, T* output) {
 template <typename T>
 void copy_interior(RegionalGridCUDA<any_vector_t<T, 1>, 1> const& input,
                    any_vector_t<T, 1>* output) {
-  copy_interior_cuda_1d(input.values, output, input.dims[0],
-                        input.dims[0] - 2 * BOUNDARY_DEPTH);
+  copy_interior_cuda_1d(input.values, output, input.region.dims[0],
+                        input.region.dims[0] - 2 * BOUNDARY_DEPTH);
 }
 
 //! Copy the interior values of the grid into an array.
@@ -245,9 +249,10 @@ void copy_interior(RegionalGridCUDA<any_vector_t<T, 1>, 1> const& input,
 template <typename T>
 void copy_interior(RegionalGridCUDA<any_vector_t<T, 2>, 2> const& input,
                    any_vector_t<T, 2>* output) {
-  copy_interior_cuda_2d(input.values, output, input.dims[0], input.dims[1],
-                        input.dims[0] - 2 * BOUNDARY_DEPTH,
-                        input.dims[1] - 2 * BOUNDARY_DEPTH);
+  copy_interior_cuda_2d(input.values, output, input.region.dims[0],
+                        input.region.dims[1],
+                        input.region.dims[0] - 2 * BOUNDARY_DEPTH,
+                        input.region.dims[1] - 2 * BOUNDARY_DEPTH);
 }
 
 //! Copy the interior values of the grid into an array.
@@ -261,19 +266,20 @@ void copy_interior(RegionalGridCUDA<any_vector_t<T, 2>, 2> const& input,
 template <typename T>
 void copy_interior(RegionalGridCUDA<any_vector_t<T, 3>, 3> const& input,
                    any_vector_t<T, 3>* output) {
-  copy_interior_cuda_3d(input.values, output, input.dims[0], input.dims[1],
-                        input.dims[2], input.dims[0] - 2 * BOUNDARY_DEPTH,
-                        input.dims[1] - 2 * BOUNDARY_DEPTH,
-                        input.dims[2] - 2 * BOUNDARY_DEPTH);
+  copy_interior_cuda_3d(input.values, output, input.region.dims[0],
+                        input.region.dims[1], input.region.dims[2],
+                        input.region.dims[0] - 2 * BOUNDARY_DEPTH,
+                        input.region.dims[1] - 2 * BOUNDARY_DEPTH,
+                        input.region.dims[2] - 2 * BOUNDARY_DEPTH);
 }
 
 }  // namespace grid
 
 // 1D Kernel
 template <typename T>
-__global__ void kernelCopyRegion1D(const T* smallGrid, T* largeGrid,
-                                   iter_type start, iter_type end,
-                                   iter_type largeLength) {
+__global__ void kernelCopyIntoRegion1D(const T* smallGrid, T* largeGrid,
+                                       iter_type start, iter_type end,
+                                       iter_type largeLength) {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
   len_type length = end - start;
   if (idx < length) {
@@ -283,10 +289,11 @@ __global__ void kernelCopyRegion1D(const T* smallGrid, T* largeGrid,
 
 // 2D Kernel
 template <typename T>
-__global__ void kernelCopyRegion2D(T* smallGrid, const T* largeGrid,
-                                   iter_type startX, iter_type endX,
-                                   iter_type startY, iter_type endY,
-                                   len_type largeWidth, len_type largeHeight) {
+__global__ void kernelCopyIntoRegion2D(T* smallGrid, const T* largeGrid,
+                                       iter_type startX, iter_type endX,
+                                       iter_type startY, iter_type endY,
+                                       len_type largeWidth,
+                                       len_type largeHeight) {
   int x = blockIdx.x * blockDim.x + threadIdx.x;
   int y = blockIdx.y * blockDim.y + threadIdx.y;
   len_type width = endX - startX;
@@ -299,12 +306,10 @@ __global__ void kernelCopyRegion2D(T* smallGrid, const T* largeGrid,
 
 // 3D Kernel
 template <typename T>
-__global__ void kernelCopyRegion3D(T* smallGrid, const T* largeGrid,
-                                   iter_type startX, iter_type endX,
-                                   iter_type startY, iter_type endY,
-                                   iter_type startZ, iter_type endZ,
-                                   len_type largeWidth, len_type largeHeight,
-                                   len_type largeDepth) {
+__global__ void kernelCopyIntoRegion3D(
+    T* smallGrid, const T* largeGrid, iter_type startX, iter_type endX,
+    iter_type startY, iter_type endY, iter_type startZ, iter_type endZ,
+    len_type largeWidth, len_type largeHeight, len_type largeDepth) {
   int x = blockIdx.x * blockDim.x + threadIdx.x;
   int y = blockIdx.y * blockDim.y + threadIdx.y;
   int z = blockIdx.z * blockDim.z + threadIdx.z;
@@ -320,9 +325,9 @@ __global__ void kernelCopyRegion3D(T* smallGrid, const T* largeGrid,
 
 // 1D Kernel
 template <typename T>
-__global__ void kernelCopyRegionVec1D(T* smallGrid0, const T* largeGrid0,
-                                      iter_type start, iter_type end,
-                                      iter_type largeLength) {
+__global__ void kernelCopyIntoRegionVec1D(T* smallGrid0, const T* largeGrid0,
+                                          iter_type start, iter_type end,
+                                          iter_type largeLength) {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
   len_type length = end - start;
   if (idx < length) {
@@ -332,11 +337,12 @@ __global__ void kernelCopyRegionVec1D(T* smallGrid0, const T* largeGrid0,
 
 // 2D Kernel
 template <typename T>
-__global__ void kernelCopyRegionVec2D(T* smallGrid0, T* smallGrid1,
-                                      const T* largeGrid0, const T* largeGrid1,
-                                      iter_type startX, iter_type endX,
-                                      iter_type startY, iter_type endY,
-                                      iter_type largeWidth) {
+__global__ void kernelCopyIntoRegionVec2D(T* smallGrid0, T* smallGrid1,
+                                          const T* largeGrid0,
+                                          const T* largeGrid1, iter_type startX,
+                                          iter_type endX, iter_type startY,
+                                          iter_type endY,
+                                          iter_type largeWidth) {
   int x = blockIdx.x * blockDim.x + threadIdx.x;
   int y = blockIdx.y * blockDim.y + threadIdx.y;
   len_type width = endX - startX;
@@ -351,7 +357,7 @@ __global__ void kernelCopyRegionVec2D(T* smallGrid0, T* smallGrid1,
 
 // 3D Kernel
 template <typename T>
-__global__ void kernelCopyRegionVec3D(
+__global__ void kernelCopyIntoRegionVec3D(
     T* smallGrid0, T* smallGrid1, T* smallGrid2, const T* largeGrid0,
     const T* largeGrid1, const T* largeGrid2, iter_type startX, iter_type endX,
     iter_type startY, iter_type endY, iter_type startZ, iter_type endZ,
@@ -374,9 +380,10 @@ __global__ void kernelCopyRegionVec3D(
 
 // 1D Kernel
 template <typename T>
-__global__ void kernelCopyRegionVec1D(any_vector_t<T, 1>* smallGrid,
-                                      const T* largeGrid0, iter_type start,
-                                      iter_type end, iter_type largeLength) {
+__global__ void kernelCopyIntoRegionVec1D(any_vector_t<T, 1>* smallGrid,
+                                          const T* largeGrid0, iter_type start,
+                                          iter_type end,
+                                          iter_type largeLength) {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
   len_type length = end - start;
   if (idx < length) {
@@ -386,11 +393,12 @@ __global__ void kernelCopyRegionVec1D(any_vector_t<T, 1>* smallGrid,
 
 // 2D Kernel
 template <typename T>
-__global__ void kernelCopyRegionVec2D(any_vector_t<T, 2>* smallGrid,
-                                      const T* largeGrid0, const T* largeGrid1,
-                                      iter_type startX, iter_type endX,
-                                      iter_type startY, iter_type endY,
-                                      iter_type largeWidth) {
+__global__ void kernelCopyIntoRegionVec2D(any_vector_t<T, 2>* smallGrid,
+                                          const T* largeGrid0,
+                                          const T* largeGrid1, iter_type startX,
+                                          iter_type endX, iter_type startY,
+                                          iter_type endY,
+                                          iter_type largeWidth) {
   int x = blockIdx.x * blockDim.x + threadIdx.x;
   int y = blockIdx.y * blockDim.y + threadIdx.y;
   len_type width = endX - startX;
@@ -405,13 +413,11 @@ __global__ void kernelCopyRegionVec2D(any_vector_t<T, 2>* smallGrid,
 
 // 3D Kernel
 template <typename T>
-__global__ void kernelCopyRegionVec3D(any_vector_t<T, 3>* smallGrid,
-                                      const T* largeGrid0, const T* largeGrid1,
-                                      const T* largeGrid2, iter_type startX,
-                                      iter_type endX, iter_type startY,
-                                      iter_type endY, iter_type startZ,
-                                      iter_type endZ, iter_type largeWidth,
-                                      iter_type largeHeight) {
+__global__ void kernelCopyIntoRegionVec3D(
+    any_vector_t<T, 3>* smallGrid, const T* largeGrid0, const T* largeGrid1,
+    const T* largeGrid2, iter_type startX, iter_type endX, iter_type startY,
+    iter_type endY, iter_type startZ, iter_type endZ, iter_type largeWidth,
+    iter_type largeHeight) {
   int x = blockIdx.x * blockDim.x + threadIdx.x;
   int y = blockIdx.y * blockDim.y + threadIdx.y;
   int z = blockIdx.z * blockDim.z + threadIdx.z;
@@ -428,25 +434,191 @@ __global__ void kernelCopyRegionVec3D(any_vector_t<T, 3>* smallGrid,
   }
 }
 
+// 1D Kernel
+template <typename T>
+__global__ void kernelCopyRegion1D(T* largeGrid, const T* smallGrid,
+                                   iter_type start, iter_type end,
+                                   iter_type smallLength,
+                                   len_type largeLength) {
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  len_type length = end - start;
+  if (idx < length) {
+    largeGrid[idx] = smallGrid[start + idx];
+  }
+}
+
+// 2D Kernel
+template <typename T>
+__global__ void kernelCopyRegion2D(T* largeGrid, const T* smallGrid,
+                                   iter_type startX, iter_type endX,
+                                   iter_type startY, iter_type endY,
+                                   len_type smallWidth, len_type smallHeight,
+                                   len_type largeWidth, len_type largeHeight) {
+  int x = blockIdx.x * blockDim.x + threadIdx.x;
+  int y = blockIdx.y * blockDim.y + threadIdx.y;
+  len_type width = endX - startX;
+  len_type height = endY - startY;
+  if (x < width && y < height) {
+    largeGrid[y * largeWidth + x] =
+        smallGrid[(y + startY) * smallWidth + (x + startX)];
+  }
+}
+
+// 3D Kernel
+template <typename T>
+__global__ void kernelCopyRegion3D(T* largeGrid, const T* smallGrid,
+                                   iter_type startX, iter_type endX,
+                                   iter_type startY, iter_type endY,
+                                   iter_type startZ, iter_type endZ,
+                                   len_type smallWidth, len_type smallHeight,
+                                   len_type smallDepth, len_type largeWidth,
+                                   len_type largeHeight, len_type largeDepth) {
+  int x = blockIdx.x * blockDim.x + threadIdx.x;
+  int y = blockIdx.y * blockDim.y + threadIdx.y;
+  int z = blockIdx.z * blockDim.z + threadIdx.z;
+  iter_type width = endX - startX;
+  iter_type height = endY - startY;
+  iter_type depth = endZ - startZ;
+  if (x < width && y < height && z < depth) {
+    largeGrid[(z * largeHeight + y) * largeWidth + x] =
+        smallGrid[((z + startZ) * smallHeight + (y + startY)) * smallWidth +
+                  (x + startX)];
+  }
+}
+
+// 1D Kernel
+template <typename T>
+__global__ void kernelCopyRegionVec1D(T* largeGrid0, const T* smallGrid0,
+                                      iter_type start, iter_type end,
+                                      iter_type smallLength,
+                                      len_type largeLength) {
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  len_type length = end - start;
+  if (idx < length) {
+    largeGrid0[idx] = smallGrid0[start + idx];
+  }
+}
+
+// 2D Kernel
+template <typename T>
+__global__ void kernelCopyRegionVec2D(
+    T* largeGrid0, T* largeGrid1, const T* smallGrid0, const T* smallGrid1,
+    iter_type startX, iter_type endX, iter_type startY, iter_type endY,
+    iter_type smallWidth, iter_type smallHeight, len_type largeWidth,
+    len_type largeHeight) {
+  int x = blockIdx.x * blockDim.x + threadIdx.x;
+  int y = blockIdx.y * blockDim.y + threadIdx.y;
+  len_type width = endX - startX;
+  len_type height = endY - startY;
+  if (x < width && y < height) {
+    iter_type largeGridIndex = y * largeWidth + x;
+    iter_type smallGridIndex = (y + startY) * smallWidth + (x + startX);
+    largeGrid0[largeGridIndex] = smallGrid0[smallGridIndex];
+    largeGrid1[largeGridIndex] = smallGrid1[smallGridIndex];
+  }
+}
+
+// 3D Kernel
+template <typename T>
+__global__ void kernelCopyRegionVec3D(
+    T* largeGrid0, T* largeGrid1, T* largeGrid2, const T* smallGrid0,
+    const T* smallGrid1, const T* smallGrid2, iter_type startX, iter_type endX,
+    iter_type startY, iter_type endY, iter_type startZ, iter_type endZ,
+    iter_type smallWidth, iter_type smallHeight, len_type smallDepth,
+    len_type largeWidth, len_type largeHeight, len_type largeDepth) {
+  int x = blockIdx.x * blockDim.x + threadIdx.x;
+  int y = blockIdx.y * blockDim.y + threadIdx.y;
+  int z = blockIdx.z * blockDim.z + threadIdx.z;
+  iter_type width = endX - startX;
+  iter_type height = endY - startY;
+  iter_type depth = endZ - startZ;
+  if (x < width && y < height && z < depth) {
+    iter_type largeGridIndex = (z * largeHeight + y) * largeWidth + x;
+    iter_type smallGridIndex =
+        ((z + startZ) * smallHeight + (y + startY)) * smallWidth + (x + startX);
+    largeGrid0[largeGridIndex] = smallGrid0[smallGridIndex];
+    largeGrid1[largeGridIndex] = smallGrid1[smallGridIndex];
+    largeGrid2[largeGridIndex] = smallGrid2[smallGridIndex];
+  }
+}
+
+// 1D Kernel
+template <typename T>
+__global__ void kernelCopyRegionVec1D(any_vector_t<T, 1>* largeGrid,
+                                      const T* smallGrid0, iter_type start,
+                                      iter_type end, iter_type smallLength,
+                                      len_type boundary_size) {
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  len_type length = end - start;
+  if (idx < length) {
+    largeGrid[start + idx - boundary_size][0] = smallGrid0[idx + boundary_size];
+  }
+}
+
+// 2D Kernel
+template <typename T>
+__global__ void kernelCopyRegionVec2D(
+    any_vector_t<T, 2>* largeGrid, const T* smallGrid0, const T* smallGrid1,
+    iter_type startX, iter_type endX, iter_type startY, iter_type endY,
+    iter_type smallWidth, iter_type smallHeight, len_type largeWidth,
+    len_type largeHeight) {
+  int x = blockIdx.x * blockDim.x + threadIdx.x;
+  int y = blockIdx.y * blockDim.y + threadIdx.y;
+  len_type width = endX - startX;
+  len_type height = endY - startY;
+  if (x < width && y < height) {
+    iter_type largeGridIndex = y * largeWidth + x;
+    iter_type smallGridIndex = (y + startY) * smallWidth + (x + startX);
+    largeGrid[largeGridIndex][0] = smallGrid0[smallGridIndex];
+    largeGrid[largeGridIndex][1] = smallGrid1[smallGridIndex];
+  }
+}
+
+// 3D Kernel
+template <typename T>
+__global__ void kernelCopyRegionVec3D(
+    any_vector_t<T, 3>* largeGrid, const T* smallGrid0, const T* smallGrid1,
+    const T* smallGrid2, iter_type startX, iter_type endX, iter_type startY,
+    iter_type endY, iter_type startZ, iter_type endZ, iter_type smallWidth,
+    iter_type smallHeight, len_type smallDepth, len_type largeWidth,
+    len_type largeHeight, len_type largeDepth) {
+  int x = blockIdx.x * blockDim.x + threadIdx.x;
+  int y = blockIdx.y * blockDim.y + threadIdx.y;
+  int z = blockIdx.z * blockDim.z + threadIdx.z;
+  iter_type width = endX - startX;
+  iter_type height = endY - startY;
+  iter_type depth = endZ - startZ;
+  if (x < width && y < height && z < depth) {
+    iter_type largeGridIndex = (z * largeHeight + y) * largeWidth + x;
+    iter_type smallGridIndex =
+        ((z + startZ) * smallHeight + (y + startY)) * smallWidth + (x + startX);
+    largeGrid[largeGridIndex][0] = smallGrid0[smallGridIndex];
+    largeGrid[largeGridIndex][1] = smallGrid1[smallGridIndex];
+    largeGrid[largeGridIndex][2] = smallGrid2[smallGridIndex];
+  }
+}
+
 template <typename T, size_t D>
 struct initiate_region_copy;
 
 template <typename T>
 struct initiate_region_copy<T, 1> {
   void operator()(grid::region_interval<1> const& interval,
-                  const T* inputDevice, T* outputDevice) {
+                  len_type boundary_size, const T* inputDevice, T* outputDevice,
+                  const len_type (&outputDims)[1]) {
     len_type len = grid::length<1>(interval.dims);
     int numBlocks = (len + BLOCK_SIZE - 1) / BLOCK_SIZE;
     kernelCopyRegion1D CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
         inputDevice, outputDevice, interval.intervals[0][0],
-        interval.intervals[0][1], interval.dims[0]);
+        interval.intervals[0][1], interval.dims[0], outputDims[0]);
   }
 };
 
 template <typename T>
 struct initiate_region_copy<T, 2> {
   void operator()(grid::region_interval<2> const& interval,
-                  const T* inputDevice, T* outputDevice) {
+                  len_type boundary_size, const T* inputDevice, T* outputDevice,
+                  const len_type (&outputDims)[2]) {
     dim3 blockDim(32, 32);
     dim3 gridDim((interval.dims[0] + blockDim.x - 1) / blockDim.x,
                  (interval.dims[1] + blockDim.y - 1) / blockDim.y);
@@ -454,7 +626,8 @@ struct initiate_region_copy<T, 2> {
     kernelCopyRegion2D CUDA_KERNEL(gridDim, blockDim)(
         outputDevice, inputDevice, interval.intervals[0][0],
         interval.intervals[0][1], interval.intervals[1][0],
-        interval.intervals[1][1], interval.dims[0], interval.dims[1]);
+        interval.intervals[1][1], interval.dims[0], interval.dims[1],
+        outputDims[0], outputDims[1]);
     CHECK_CUDA_ERROR(cudaPeekAtLastError());
     CHECK_CUDA_ERROR(cudaDeviceSynchronize());
   }
@@ -463,7 +636,8 @@ struct initiate_region_copy<T, 2> {
 template <typename T>
 struct initiate_region_copy<T, 3> {
   void operator()(grid::region_interval<3> const& interval,
-                  const T* inputDevice, T* outputDevice) {
+                  len_type boundary_size, const T* inputDevice, T* outputDevice,
+                  const len_type (&outputDims)[3]) {
     dim3 blockDim(8, 8, 8);
     dim3 gridDim((interval.dims[0] + blockDim.x - 1) / blockDim.x,
                  (interval.dims[1] + blockDim.y - 1) / blockDim.y,
@@ -474,7 +648,7 @@ struct initiate_region_copy<T, 3> {
         interval.intervals[0][1], interval.intervals[1][0],
         interval.intervals[1][1], interval.intervals[2][0],
         interval.intervals[2][1], interval.dims[0], interval.dims[1],
-        interval.dims[2]);
+        interval.dims[2], outputDims[0], outputDims[1], outputDims[2]);
     CHECK_CUDA_ERROR(cudaPeekAtLastError());
     CHECK_CUDA_ERROR(cudaDeviceSynchronize());
   }
@@ -483,21 +657,23 @@ struct initiate_region_copy<T, 3> {
 template <typename T>
 struct initiate_region_copy<any_vector_t<T, 1>, 1> {
   void operator()(grid::region_interval<1> const& interval,
-                  T* const (&inputDevice)[1], T* (&outputDevice)[1]) {
+                  len_type boundary_size, T* const (&inputDevice)[1],
+                  T* (&outputDevice)[1], const len_type (&outputDims)[1]) {
     len_type len = grid::length<1>(interval.dims);
     int numBlocks = (len + BLOCK_SIZE - 1) / BLOCK_SIZE;
     kernelCopyRegionVec1D CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
         outputDevice[0], inputDevice[0], interval.intervals[0][0],
-        interval.intervals[0][1], interval.dims[0]);
+        interval.intervals[0][1], interval.dims[0], outputDims[0]);
   }
   void operator()(grid::region_interval<1> const& interval,
-                  T* const (&inputDevice)[1],
-                  any_vector_t<T, 1>* outputDevice) {
+                  len_type boundary_size, T* const (&inputDevice)[1],
+                  any_vector_t<T, 1>* outputDevice,
+                  const len_type (&outputDims)[1]) {
     len_type len = grid::length<1>(interval.dims);
     int numBlocks = (len + BLOCK_SIZE - 1) / BLOCK_SIZE;
     kernelCopyRegionVec1D CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
         outputDevice, inputDevice[0], interval.intervals[0][0],
-        interval.intervals[0][1], interval.dims[0]);
+        interval.intervals[0][1], interval.dims[0], outputDims[0]);
     CHECK_CUDA_ERROR(cudaPeekAtLastError());
     CHECK_CUDA_ERROR(cudaDeviceSynchronize());
   }
@@ -506,27 +682,32 @@ struct initiate_region_copy<any_vector_t<T, 1>, 1> {
 template <typename T>
 struct initiate_region_copy<any_vector_t<T, 2>, 2> {
   void operator()(grid::region_interval<2> const& interval,
-                  T* const (&inputDevice)[2], T* (&outputDevice)[2]) {
+                  len_type boundary_size, T* const (&inputDevice)[2],
+                  T* (&outputDevice)[2], const len_type (&outputDims)[2]) {
     dim3 blockDim(32, 32);
     dim3 gridDim((interval.dims[0] + blockDim.x - 1) / blockDim.x,
                  (interval.dims[1] + blockDim.y - 1) / blockDim.y);
+
     kernelCopyRegionVec2D CUDA_KERNEL(gridDim, blockDim)(
         outputDevice[0], outputDevice[1], inputDevice[0], inputDevice[1],
         interval.intervals[0][0], interval.intervals[0][1],
-        interval.intervals[1][0], interval.intervals[1][1], interval.dims[0]);
+        interval.intervals[1][0], interval.intervals[1][1], interval.dims[0],
+        interval.dims[1], outputDims[0], outputDims[1]);
     CHECK_CUDA_ERROR(cudaPeekAtLastError());
     CHECK_CUDA_ERROR(cudaDeviceSynchronize());
   }
   void operator()(grid::region_interval<2> const& interval,
-                  T* const (&inputDevice)[2],
-                  any_vector_t<T, 2>* outputDevice) {
+                  len_type boundary_size, T* const (&inputDevice)[2],
+                  any_vector_t<T, 2>* outputDevice,
+                  const len_type (&outputDims)[2]) {
     dim3 blockDim(32, 32);
     dim3 gridDim((interval.dims[0] + blockDim.x - 1) / blockDim.x,
                  (interval.dims[1] + blockDim.y - 1) / blockDim.y);
     kernelCopyRegionVec2D CUDA_KERNEL(gridDim, blockDim)(
         outputDevice, inputDevice[0], inputDevice[1], interval.intervals[0][0],
         interval.intervals[0][1], interval.intervals[1][0],
-        interval.intervals[1][1], interval.dims[0]);
+        interval.intervals[1][1], interval.dims[0], interval.dims[1],
+        outputDims[0], outputDims[1]);
     CHECK_CUDA_ERROR(cudaPeekAtLastError());
     CHECK_CUDA_ERROR(cudaDeviceSynchronize());
   }
@@ -535,23 +716,27 @@ struct initiate_region_copy<any_vector_t<T, 2>, 2> {
 template <typename T>
 struct initiate_region_copy<any_vector_t<T, 3>, 3> {
   void operator()(grid::region_interval<3> const& interval,
-                  T* const (&inputDevice)[3], T* (&outputDevice)[3]) {
+                  len_type boundary_size, T* const (&inputDevice)[3],
+                  T* (&outputDevice)[3], const len_type (&outputDims)[3]) {
     dim3 blockDim(8, 8, 8);
     dim3 gridDim((interval.dims[0] + blockDim.x - 1) / blockDim.x,
                  (interval.dims[1] + blockDim.y - 1) / blockDim.y,
                  (interval.dims[2] + blockDim.z - 1) / blockDim.z);
+
     kernelCopyRegionVec3D CUDA_KERNEL(gridDim, blockDim)(
         outputDevice[0], outputDevice[1], outputDevice[2], inputDevice[0],
         inputDevice[1], inputDevice[2], interval.intervals[0][0],
         interval.intervals[0][1], interval.intervals[1][0],
         interval.intervals[1][1], interval.intervals[2][0],
-        interval.intervals[2][1], interval.dims[0], interval.dims[1]);
+        interval.intervals[2][1], interval.dims[0], interval.dims[1],
+        interval.dims[2], outputDims[0], outputDims[1], outputDims[2]);
     CHECK_CUDA_ERROR(cudaPeekAtLastError());
     CHECK_CUDA_ERROR(cudaDeviceSynchronize());
   }
   void operator()(grid::region_interval<3> const& interval,
-                  T* const (&inputDevice)[3],
-                  any_vector_t<T, 3>* outputDevice) {
+                  len_type boundary_size, T* const (&inputDevice)[3],
+                  any_vector_t<T, 3>* outputDevice,
+                  const len_type (&outputDims)[3]) {
     dim3 blockDim(8, 8, 8);
     dim3 gridDim((interval.dims[0] + blockDim.x - 1) / blockDim.x,
                  (interval.dims[1] + blockDim.y - 1) / blockDim.y,
@@ -561,7 +746,8 @@ struct initiate_region_copy<any_vector_t<T, 3>, 3> {
         interval.intervals[0][0], interval.intervals[0][1],
         interval.intervals[1][0], interval.intervals[1][1],
         interval.intervals[2][0], interval.intervals[2][1], interval.dims[0],
-        interval.dims[1]);
+        interval.dims[1], interval.dims[2], outputDims[0], outputDims[1],
+        outputDims[2]);
     CHECK_CUDA_ERROR(cudaPeekAtLastError());
     CHECK_CUDA_ERROR(cudaDeviceSynchronize());
   }
@@ -572,11 +758,19 @@ template <typename T, size_t D>
 void copy_region(RegionalGridCUDA<T, D> const& input, T* output) {
   auto interval = get_iterable_domain(input);
   T* outputDevice;
-  CHECK_CUDA_ERROR(
-      cudaMalloc(&outputDevice, grid::length<D>(interval) * sizeof(T)));
-  initiate_region_copy<T, D>{}(interval, input.values, outputDevice);
-  CHECK_CUDA_ERROR(cudaMemcpy(output, outputDevice,
-                              grid::length<D>(interval) * sizeof(T),
+
+  len_type len = grid::length_interior<D>(interval.dims);
+  CHECK_CUDA_ERROR(cudaMalloc(&outputDevice, len * sizeof(T)));
+
+  int numBlocks = (len + BLOCK_SIZE - 1) / BLOCK_SIZE;
+  symphas::cuda::initializeArray CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
+      outputDevice, input.empty, len);
+  CHECK_CUDA_ERROR(cudaPeekAtLastError());
+  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+
+  initiate_region_copy<T, D>{}(interval, input.region.boundary_size,
+                               input.values, outputDevice, input.dims);
+  CHECK_CUDA_ERROR(cudaMemcpy(output, outputDevice, len * sizeof(T),
                               cudaMemcpyDeviceToHost));
   CHECK_CUDA_ERROR(cudaFree(outputDevice));
 }
@@ -586,15 +780,16 @@ void copy_region(RegionalGridCUDA<any_vector_t<T, D>, D> const& input,
                  T* (&output)[D]) {
   auto interval = get_iterable_domain(input);
   T* outputDevice[D];
+  len_type len = grid::length_interior<D>(interval.dims);
+
   for (iter_type i = 0; i < D; ++i) {
-    CHECK_CUDA_ERROR(
-        cudaMalloc(&outputDevice[i], grid::length<D>(input.dims) * sizeof(T)));
+    CHECK_CUDA_ERROR(cudaMalloc(&outputDevice[i], len * sizeof(T)));
   }
-  initiate_region_copy<any_vector_t<T, D>, D>{}(interval, input.values,
-                                                outputDevice);
+  initiate_region_copy<any_vector_t<T, D>, D>{}(
+      interval, input.region.boundary_size, input.values, outputDevice,
+      input.dims);
   for (iter_type i = 0; i < D; ++i) {
-    CHECK_CUDA_ERROR(cudaMemcpy(output[i], outputDevice[i],
-                                grid::length<D>(interval) * sizeof(T),
+    CHECK_CUDA_ERROR(cudaMemcpy(output[i], outputDevice[i], len * sizeof(T),
                                 cudaMemcpyDeviceToHost));
     CHECK_CUDA_ERROR(cudaFree(outputDevice[i]));
   }
@@ -605,12 +800,13 @@ void copy_region(RegionalGridCUDA<any_vector_t<T, D>, D> const& input,
                  any_vector_t<T, D>* output) {
   auto interval = get_iterable_domain(input);
   any_vector_t<T, D>* outputDevice;
-  CHECK_CUDA_ERROR(cudaMalloc(
-      &outputDevice, grid::length<D>(input.dims) * sizeof(any_vector_t<T, D>)));
-  initiate_region_copy<any_vector_t<T, D>, D>{}(interval, input.values,
-                                                outputDevice);
-  CHECK_CUDA_ERROR(cudaMemcpy(output, outputDevice,
-                              grid::length<D>(interval) * sizeof(T) * D,
+  len_type len = grid::length_interior<D>(interval.dims);
+
+  CHECK_CUDA_ERROR(cudaMalloc(&outputDevice, len * sizeof(any_vector_t<T, D>)));
+  initiate_region_copy<any_vector_t<T, D>, D>{}(
+      interval, input.region.boundary_size, input.values, outputDevice,
+      input.dims);
+  CHECK_CUDA_ERROR(cudaMemcpy(output, outputDevice, len * sizeof(T) * D,
                               cudaMemcpyDeviceToHost));
   CHECK_CUDA_ERROR(cudaFree(outputDevice));
 }
@@ -819,300 +1015,57 @@ __global__ void computeEnclosingInterval1d(
     atomicMax(&intervals_1[0], shared_intervals[1]);
   }
 }
-
 template <typename T>
 __global__ void computeEnclosingInterval2d(
     const T* values, iter_type* intervals_0, iter_type* intervals_1,
     T cutoff_value, iter_type total_length, iter_type posx, iter_type posy,
     len_type dimx, len_type dimy, iter_type startx, iter_type starty,
     len_type stride) {
-  extern __shared__ iter_type shared_intervals[];
-  iter_type* shared_intervals_x = &shared_intervals[0];
-  iter_type* shared_intervals_y = &shared_intervals_x[blockDim.x * 2];
-
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  int idy = blockIdx.y * blockDim.y + threadIdx.y;
-  int tidx = threadIdx.x;
-  int tidy = threadIdx.y;
-  // Initialize shared memory
-  if (tidy == 0) {
-    shared_intervals_x[tidx * 2] = grid::getMaxValue<iter_type>();
-    shared_intervals_x[tidx * 2 + 1] = grid::getMinValue<iter_type>();
-  }
-  if (tidx == 0) {
-    shared_intervals_y[tidy * 2] = grid::getMaxValue<iter_type>();
-    shared_intervals_y[tidy * 2 + 1] = grid::getMinValue<iter_type>();
-  }
-  __syncthreads();
-
-  if (idx < dimx && idy < dimy) {
-    iter_type idxn = posx + idx;
-    iter_type idyn = posy + idy;
-
-    iter_type xn = ((idxn >= dimx) ? idxn - dimx : idxn) + startx;
-    iter_type yn = ((idyn >= dimy) ? idyn - dimy : idyn) + starty;
-    iter_type n = xn + yn * stride;
-    if (values[n] > cutoff_value) {
-      atomicMin(&shared_intervals_x[tidx * 2], idxn);
-      atomicMax(&shared_intervals_x[tidx * 2 + 1], idxn);
-      atomicMin(&shared_intervals_y[tidy * 2], idyn);
-      atomicMax(&shared_intervals_y[tidy * 2 + 1], idyn);
-    }
-  }
-  __syncthreads();
-
-  iter_type* start_interval_x = intervals_0;
-  iter_type* start_interval_y = intervals_0 + dimx;
-  iter_type* end_interval_x = intervals_1;
-  iter_type* end_interval_y = intervals_1 + dimx;
-
-  // Write local minimums to global memory
-  if (idx < dimx && idy < dimy) {
-    if (tidy == 0) {
-      atomicMin(&start_interval_x[idx], shared_intervals_x[tidx * 2]);
-      atomicMax(&end_interval_x[idx], shared_intervals_x[tidx * 2 + 1]);
-    }
-    if (tidx == 0) {
-      atomicMin(&start_interval_y[idy], shared_intervals_y[tidy * 2]);
-      atomicMax(&end_interval_y[idy], shared_intervals_y[tidy * 2 + 1]);
-    }
-  }
-}
-
-template <typename T>
-__global__ void computeEnclosingInterval2d(
-    const T* values0, const T* values1, iter_type* intervals_0,
-    iter_type* intervals_1, any_vector_t<T, 2> cutoff_value,
-    iter_type total_length, iter_type posx, iter_type posy, len_type dimx,
-    len_type dimy, iter_type startx, iter_type starty, len_type stride) {
-  extern __shared__ iter_type shared_intervals[];
-  iter_type* shared_intervals_x = &shared_intervals[0];
-  iter_type* shared_intervals_y = &shared_intervals_x[blockDim.x * 2];
-
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  int idy = blockIdx.y * blockDim.y + threadIdx.y;
-  int tidx = threadIdx.x;
-  int tidy = threadIdx.y;
-  // Initialize shared memory
-  if (tidy == 0) {
-    shared_intervals_x[tidx * 2] = grid::getMaxValue<iter_type>();
-    shared_intervals_x[tidx * 2 + 1] = grid::getMinValue<iter_type>();
-  }
-  if (tidx == 0) {
-    shared_intervals_y[tidy * 2] = grid::getMaxValue<iter_type>();
-    shared_intervals_y[tidy * 2 + 1] = grid::getMinValue<iter_type>();
-  }
-  __syncthreads();
-
-  if (idx < dimx && idy < dimy) {
-    iter_type idxn = posx + idx;
-    iter_type idyn = posy + idy;
-
-    iter_type xn = ((idxn >= dimx) ? idxn - dimx : idxn) + startx;
-    iter_type yn = ((idyn >= dimy) ? idyn - dimy : idyn) + starty;
-    iter_type n = xn + yn * stride;
-    T value[]{values0[n], values1[n]};
-    if (grid::compare_cutoff(value, cutoff_value)) {
-      atomicMin(&shared_intervals_x[tidx * 2], idxn);
-      atomicMax(&shared_intervals_x[tidx * 2 + 1], idxn);
-      atomicMin(&shared_intervals_y[tidy * 2], idyn);
-      atomicMax(&shared_intervals_y[tidy * 2 + 1], idyn);
-    }
-  }
-  __syncthreads();
-
-  iter_type* start_interval_x = intervals_0;
-  iter_type* start_interval_y = intervals_0 + dimx;
-  iter_type* end_interval_x = intervals_1;
-  iter_type* end_interval_y = intervals_1 + dimx;
-
-  // Write local minimums to global memory
-  if (idx < dimx && idy < dimy) {
-    if (tidy == 0) {
-      atomicMin(&start_interval_x[idx], shared_intervals_x[tidx * 2]);
-      atomicMax(&end_interval_x[idx], shared_intervals_x[tidx * 2 + 1]);
-    }
-    if (tidx == 0) {
-      atomicMin(&start_interval_y[idy], shared_intervals_y[tidy * 2]);
-      atomicMax(&end_interval_y[idy], shared_intervals_y[tidy * 2 + 1]);
-    }
-  }
-}
-
-template <typename T>
-__global__ void computeEnclosingInterval3d(
-    const T* values, iter_type* intervals_0, iter_type* intervals_1,
-    T cutoff_value, iter_type total_length, iter_type posx, iter_type posy,
-    iter_type posz, len_type dimx, len_type dimy, len_type dimz,
-    iter_type startx, iter_type starty, iter_type startz, len_type stridey,
-    len_type stridez) {
-  extern __shared__ iter_type shared_intervals[];
-  iter_type* shared_intervals_x = &shared_intervals[0];
-  iter_type* shared_intervals_y = &shared_intervals_x[0] + blockDim.x * 2;
-  iter_type* shared_intervals_z = &shared_intervals_y[0] + blockDim.y * 2;
-
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  int idy = blockIdx.y * blockDim.y + threadIdx.y;
-  int idz = blockIdx.z * blockDim.z + threadIdx.z;
-  int tidx = threadIdx.x;
-  int tidy = threadIdx.y;
-  int tidz = threadIdx.z;
-
-  // Initialize shared memory
-  shared_intervals_x[tidx * 2] = grid::getMaxValue<iter_type>();
-  shared_intervals_x[tidx * 2 + 1] = grid::getMinValue<iter_type>();
-  shared_intervals_y[tidy * 2] = grid::getMaxValue<iter_type>();
-  shared_intervals_y[tidy * 2 + 1] = grid::getMinValue<iter_type>();
-  shared_intervals_z[tidy * 2] = grid::getMaxValue<iter_type>();
-  shared_intervals_z[tidy * 2 + 1] = grid::getMinValue<iter_type>();
-  __syncthreads();
-
-  if (idx < dimx && idy < dimy) {
-    iter_type idxn = posx + idx;
-    iter_type idyn = posy + idy;
-    iter_type idzn = posz + idz;
-
-    iter_type xn = ((idxn > dimx) ? idxn - dimx : idxn) + startx;
-    iter_type yn = ((idyn > dimy) ? idyn - dimy : idyn) + starty;
-    iter_type zn = ((idzn > dimz) ? idzn - dimz : idzn) + startz;
-    iter_type n = xn + yn * stridey + zn * stridez;
-    if (values[n] > cutoff_value) {
-      atomicMin(&shared_intervals_x[tidx * 2], idxn);
-      atomicMax(&shared_intervals_x[tidx * 2 + 1], idxn);
-      atomicMin(&shared_intervals_y[tidy * 2], idyn);
-      atomicMax(&shared_intervals_y[tidy * 2 + 1], idyn);
-      atomicMin(&shared_intervals_z[tidz * 2], idzn);
-      atomicMax(&shared_intervals_z[tidz * 2 + 1], idzn);
-    }
-  }
-  __syncthreads();
-
-  iter_type* start_interval_x = &intervals_0[0];
-  iter_type* start_interval_y = &start_interval_x[0] + dimx;
-  iter_type* start_interval_z = &start_interval_y[0] + dimy;
-  iter_type* end_interval_x = &intervals_1[0];
-  iter_type* end_interval_y = &end_interval_x[0] + dimx;
-  iter_type* end_interval_z = &end_interval_y[0] + dimy;
-
-  // Write local minimums to global memory
-  if (tidy == 0 && tidz == 0) {
-    atomicMin(&start_interval_x[idx], shared_intervals_x[tidx * 2]);
-    atomicMax(&end_interval_x[idx], shared_intervals_x[tidx * 2 + 1]);
-  }
-  if (tidx == 0 && tidz == 0) {
-    atomicMin(&start_interval_y[idy], shared_intervals_y[tidy * 2]);
-    atomicMax(&end_interval_y[idy], shared_intervals_y[tidy * 2 + 1]);
-  }
-  if (tidx == 0 && tidy == 0) {
-    atomicMin(&start_interval_z[idz], shared_intervals_z[tidz * 2]);
-    atomicMax(&end_interval_z[idz], shared_intervals_z[tidz * 2 + 1]);
-  }
-}
-
-template <typename T>
-__global__ void computeEnclosingInterval3d(
-    const T* values0, const T* values1, const T* values2,
-    iter_type* intervals_0, iter_type* intervals_1,
-    any_vector_t<T, 3> cutoff_value, iter_type total_length, iter_type posx,
-    iter_type posy, iter_type posz, len_type dimx, len_type dimy, len_type dimz,
-    iter_type startx, iter_type starty, iter_type startz, len_type stridey,
-    len_type stridez) {
-  extern __shared__ iter_type shared_intervals[];
-  iter_type* shared_intervals_x = &shared_intervals[0];
-  iter_type* shared_intervals_y = &shared_intervals_x[0] + blockDim.x * 2;
-  iter_type* shared_intervals_z = &shared_intervals_y[0] + blockDim.y * 2;
-
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  int idy = blockIdx.y * blockDim.y + threadIdx.y;
-  int idz = blockIdx.z * blockDim.z + threadIdx.z;
-  int tidx = threadIdx.x;
-  int tidy = threadIdx.y;
-  int tidz = threadIdx.z;
-
-  // Initialize shared memory
-  shared_intervals_x[tidx * 2] = grid::getMaxValue<iter_type>();
-  shared_intervals_x[tidx * 2 + 1] = grid::getMinValue<iter_type>();
-  shared_intervals_y[tidy * 2] = grid::getMaxValue<iter_type>();
-  shared_intervals_y[tidy * 2 + 1] = grid::getMinValue<iter_type>();
-  shared_intervals_z[tidy * 2] = grid::getMaxValue<iter_type>();
-  shared_intervals_z[tidy * 2 + 1] = grid::getMinValue<iter_type>();
-  __syncthreads();
-
-  if (idx < dimx && idy < dimy) {
-    iter_type idxn = posx + idx;
-    iter_type idyn = posy + idy;
-    iter_type idzn = posz + idz;
-
-    iter_type xn = ((idxn > dimx) ? idxn - dimx : idxn) + startx;
-    iter_type yn = ((idyn > dimy) ? idyn - dimy : idyn) + starty;
-    iter_type zn = ((idzn > dimz) ? idzn - dimz : idzn) + startz;
-    iter_type n = xn + yn * stridey + zn * stridez;
-    T value[]{values0[n], values1[n], values2[n]};
-    if (grid::compare_cutoff(value, cutoff_value)) {
-      atomicMin(&shared_intervals_x[tidx * 2], idxn);
-      atomicMax(&shared_intervals_x[tidx * 2 + 1], idxn);
-      atomicMin(&shared_intervals_y[tidy * 2], idyn);
-      atomicMax(&shared_intervals_y[tidy * 2 + 1], idyn);
-      atomicMin(&shared_intervals_z[tidz * 2], idzn);
-      atomicMax(&shared_intervals_z[tidz * 2 + 1], idzn);
-    }
-  }
-  __syncthreads();
-
-  iter_type* start_interval_x = &intervals_0[0];
-  iter_type* start_interval_y = &start_interval_x[0] + dimx;
-  iter_type* start_interval_z = &start_interval_y[0] + dimy;
-  iter_type* end_interval_x = &intervals_1[0];
-  iter_type* end_interval_y = &end_interval_x[0] + dimx;
-  iter_type* end_interval_z = &end_interval_y[0] + dimy;
-
-  // Write local minimums to global memory
-  if (tidy == 0 && tidz == 0) {
-    atomicMin(&start_interval_x[idx], shared_intervals_x[tidx * 2]);
-    atomicMax(&end_interval_x[idx], shared_intervals_x[tidx * 2 + 1]);
-  }
-  if (tidx == 0 && tidz == 0) {
-    atomicMin(&start_interval_y[idy], shared_intervals_y[tidy * 2]);
-    atomicMax(&end_interval_y[idy], shared_intervals_y[tidy * 2 + 1]);
-  }
-  if (tidx == 0 && tidy == 0) {
-    atomicMin(&start_interval_z[idz], shared_intervals_z[tidz * 2]);
-    atomicMax(&end_interval_z[idz], shared_intervals_z[tidz * 2 + 1]);
-  }
-}
-
-template <typename T>
-__global__ void reduceIntervals2d(iter_type* intervals_0,
-                                  iter_type* intervals_1, len_type dimx,
-                                  len_type dimy) {
   extern __shared__ iter_type sdata[];
 
-  iter_type* shared_intervals_x_start = &sdata[0];
-  iter_type* shared_intervals_y_start = &shared_intervals_x_start[blockDim.x];
-  iter_type* shared_intervals_x_end = &shared_intervals_y_start[blockDim.x];
-  iter_type* shared_intervals_y_end = &shared_intervals_x_end[blockDim.x];
-
   iter_type* intervals_x_start = &intervals_0[0];
-  iter_type* intervals_y_start = &intervals_0[dimx];
+  iter_type* intervals_y_start = &intervals_0[1];
   iter_type* intervals_x_end = &intervals_1[0];
-  iter_type* intervals_y_end = &intervals_1[dimx];
+  iter_type* intervals_y_end = &intervals_1[1];
 
-  int tid = threadIdx.x;
+  iter_type* shared_intervals_x_start = &sdata[0];
+  iter_type* shared_intervals_y_start =
+      &shared_intervals_x_start[blockDim.x * blockDim.y];
+  iter_type* shared_intervals_x_end =
+      &shared_intervals_y_start[blockDim.x * blockDim.y];
+  iter_type* shared_intervals_y_end =
+      &shared_intervals_x_end[blockDim.x * blockDim.y];
+
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  int idy = blockIdx.y * blockDim.y + threadIdx.y;
+  int tidx = threadIdx.x;
+  int tidy = threadIdx.y;
+  int tid = tidx + tidy * blockDim.x;
 
-  // Load data into shared memory
-  shared_intervals_x_start[tid] =
-      (idx < dimx) ? intervals_x_start[idx] : grid::getMaxValue<iter_type>();
-  shared_intervals_y_start[tid] =
-      (idx < dimy) ? intervals_y_start[idx] : grid::getMaxValue<iter_type>();
-  shared_intervals_x_end[tid] =
-      (idx < dimx) ? intervals_x_end[idx] : grid::getMinValue<iter_type>();
-  shared_intervals_y_end[tid] =
-      (idx < dimy) ? intervals_y_end[idx] : grid::getMinValue<iter_type>();
+  shared_intervals_x_start[tid] = grid::getMaxValue<iter_type>();
+  shared_intervals_y_start[tid] = grid::getMaxValue<iter_type>();
+  shared_intervals_x_end[tid] = grid::getMinValue<iter_type>();
+  shared_intervals_y_end[tid] = grid::getMinValue<iter_type>();
+
+  if (idx < dimx && idy < dimy) {
+    iter_type idxn = posx + idx;
+    iter_type idyn = posy + idy;
+
+    iter_type xn = ((idxn >= dimx) ? idxn - dimx : idxn) + startx;
+    iter_type yn = ((idyn >= dimy) ? idyn - dimy : idyn) + starty;
+    iter_type n = xn + yn * stride;
+    if (grid::compare_cutoff(values, n, cutoff_value)) {
+      shared_intervals_x_start[tid] = xn;
+      shared_intervals_y_start[tid] = yn;
+      shared_intervals_x_end[tid] = xn;
+      shared_intervals_y_end[tid] = yn;
+    }
+  }
   __syncthreads();
 
   // Perform reduction to find max
-  for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {
+  int len = blockDim.x * blockDim.y;
+  for (unsigned int s = len / 2; s > 0; s >>= 1) {
     if (tid < s) {
       shared_intervals_x_start[tid] =
           min(shared_intervals_x_start[tid], shared_intervals_x_start[tid + s]);
@@ -1123,8 +1076,8 @@ __global__ void reduceIntervals2d(iter_type* intervals_0,
       shared_intervals_y_end[tid] =
           max(shared_intervals_y_end[tid], shared_intervals_y_end[tid + s]);
     }
-    __syncthreads();
   }
+  __syncthreads();
 
   // Write the result for this block to global memory
   if (tid == 0) {
@@ -1136,52 +1089,151 @@ __global__ void reduceIntervals2d(iter_type* intervals_0,
 }
 
 template <typename T>
-__global__ void reduceIntervals3d(iter_type* intervals_0,
-                                  iter_type* intervals_1, len_type dimx,
-                                  len_type dimy, len_type dimz) {
+__global__ void computeEnclosingInterval2d(
+    const T* values0, const T* values1, iter_type* intervals_0,
+    iter_type* intervals_1, any_vector_t<T, 2> cutoff_value,
+    iter_type total_length, iter_type posx, iter_type posy, len_type dimx,
+    len_type dimy, iter_type startx, iter_type starty, len_type stride) {
   extern __shared__ iter_type sdata[];
+  iter_type* intervals_x_start = &intervals_0[0];
+  iter_type* intervals_y_start = &intervals_0[1];
+  iter_type* intervals_x_end = &intervals_1[0];
+  iter_type* intervals_y_end = &intervals_1[1];
 
   iter_type* shared_intervals_x_start = &sdata[0];
-  iter_type* shared_intervals_y_start = &shared_intervals_x_start[blockDim.x];
-  iter_type* shared_intervals_z_start = &shared_intervals_y_start[blockDim.x];
-  iter_type* shared_intervals_x_end = &shared_intervals_z_start[blockDim.x];
-  iter_type* shared_intervals_y_end = &shared_intervals_x_end[blockDim.x];
-  iter_type* shared_intervals_z_end = &shared_intervals_y_end[blockDim.x];
+  iter_type* shared_intervals_y_start =
+      &shared_intervals_x_start[blockDim.x * blockDim.y];
+  iter_type* shared_intervals_x_end =
+      &shared_intervals_y_start[blockDim.x * blockDim.y];
+  iter_type* shared_intervals_y_end =
+      &shared_intervals_x_end[blockDim.x * blockDim.y];
 
-  iter_type* intervals_x_start = &intervals_0[0];
-  iter_type* intervals_y_start = &intervals_x_start[dimx];
-  iter_type* intervals_z_start = &intervals_y_start[dimy];
-  iter_type* intervals_x_end = &intervals_1[0];
-  iter_type* intervals_y_end = &intervals_x_end[dimx];
-  iter_type* intervals_z_end = &intervals_y_end[dimy];
-
-  int tid = threadIdx.x;
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  int idy = blockIdx.y * blockDim.y + threadIdx.y;
+  int tidx = threadIdx.x;
+  int tidy = threadIdx.y;
+  int tid = tidx + tidy * blockDim.x;
 
-  // Load data into shared memory
-  shared_intervals_x_start[tid] =
-      (idx < dimx) ? intervals_x_start[idx] : grid::getMaxValue<iter_type>();
-  shared_intervals_y_start[tid] =
-      (idx < dimy) ? intervals_y_start[idx] : grid::getMaxValue<iter_type>();
-  shared_intervals_z_start[tid] =
-      (idx < dimz) ? intervals_z_start[idx] : grid::getMaxValue<iter_type>();
-  shared_intervals_x_end[tid] =
-      (idx < dimx) ? intervals_x_end[idx] : grid::getMinValue<iter_type>();
-  shared_intervals_y_end[tid] =
-      (idx < dimy) ? intervals_y_end[idx] : grid::getMinValue<iter_type>();
-  shared_intervals_z_end[tid] =
-      (idx < dimz) ? intervals_z_end[idx] : grid::getMinValue<iter_type>();
+  shared_intervals_x_start[tid] = grid::getMaxValue<iter_type>();
+  shared_intervals_y_start[tid] = grid::getMaxValue<iter_type>();
+  shared_intervals_x_end[tid] = grid::getMinValue<iter_type>();
+  shared_intervals_y_end[tid] = grid::getMinValue<iter_type>();
+
+  if (idx < dimx && idy < dimy) {
+    iter_type idxn = posx + idx;
+    iter_type idyn = posy + idy;
+
+    iter_type xn = ((idxn >= dimx) ? idxn - dimx : idxn) + startx;
+    iter_type yn = ((idyn >= dimy) ? idyn - dimy : idyn) + starty;
+    iter_type n = xn + yn * stride;
+    T value[]{values0[n], values1[n]};
+    if (grid::compare_cutoff(value, cutoff_value)) {
+      shared_intervals_x_start[tid] = xn;
+      shared_intervals_y_start[tid] = yn;
+      shared_intervals_x_end[tid] = xn;
+      shared_intervals_y_end[tid] = yn;
+    }
+  }
   __syncthreads();
 
   // Perform reduction to find max
-  for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {
+  int len = blockDim.x * blockDim.y;
+  for (unsigned int s = len / 2; s > 0; s >>= 1) {
     if (tid < s) {
       shared_intervals_x_start[tid] =
           min(shared_intervals_x_start[tid], shared_intervals_x_start[tid + s]);
-      shared_intervals_z_start[tid] =
-          min(shared_intervals_z_start[tid], shared_intervals_z_start[tid + s]);
       shared_intervals_y_start[tid] =
           min(shared_intervals_y_start[tid], shared_intervals_y_start[tid + s]);
+      shared_intervals_x_end[tid] =
+          max(shared_intervals_x_end[tid], shared_intervals_x_end[tid + s]);
+      shared_intervals_y_end[tid] =
+          max(shared_intervals_y_end[tid], shared_intervals_y_end[tid + s]);
+    }
+  }
+  __syncthreads();
+
+  // Write the result for this block to global memory
+  if (tid == 0) {
+    atomicMin(&intervals_x_start[0], shared_intervals_x_start[0]);
+    atomicMin(&intervals_y_start[0], shared_intervals_y_start[0]);
+    atomicMax(&intervals_x_end[0], shared_intervals_x_end[0]);
+    atomicMax(&intervals_y_end[0], shared_intervals_y_end[0]);
+  }
+}
+
+template <typename T>
+__global__ void computeEnclosingInterval3d(
+    const T* values, iter_type* intervals_0, iter_type* intervals_1,
+    T cutoff_value, iter_type total_length, iter_type posx, iter_type posy,
+    iter_type posz, len_type dimx, len_type dimy, len_type dimz,
+    iter_type startx, iter_type starty, iter_type startz, len_type stridey,
+    len_type stridez) {
+  extern __shared__ iter_type sdata[];
+
+  iter_type* intervals_x_start = &intervals_0[0];
+  iter_type* intervals_y_start = &intervals_0[1];
+  iter_type* intervals_z_start = &intervals_0[2];
+  iter_type* intervals_x_end = &intervals_1[0];
+  iter_type* intervals_y_end = &intervals_1[1];
+  iter_type* intervals_z_end = &intervals_1[2];
+
+  iter_type* shared_intervals_x_start = &sdata[0];
+  iter_type* shared_intervals_y_start =
+      &shared_intervals_x_start[blockDim.x * blockDim.y * blockDim.z];
+  iter_type* shared_intervals_z_start =
+      &shared_intervals_y_start[blockDim.x * blockDim.y * blockDim.z];
+  iter_type* shared_intervals_x_end =
+      &shared_intervals_z_start[blockDim.x * blockDim.y * blockDim.z];
+  iter_type* shared_intervals_y_end =
+      &shared_intervals_x_end[blockDim.x * blockDim.y * blockDim.z];
+  iter_type* shared_intervals_z_end =
+      &shared_intervals_y_end[blockDim.x * blockDim.y * blockDim.z];
+
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  int idy = blockIdx.y * blockDim.y + threadIdx.y;
+  int idz = blockIdx.z * blockDim.z + threadIdx.z;
+  int tidx = threadIdx.x;
+  int tidy = threadIdx.y;
+  int tidz = threadIdx.y;
+  int tid = tidx + tidy * blockDim.x + tidz * blockDim.x * blockDim.y;
+
+  shared_intervals_x_start[tid] = grid::getMaxValue<iter_type>();
+  shared_intervals_y_start[tid] = grid::getMaxValue<iter_type>();
+  shared_intervals_z_start[tid] = grid::getMaxValue<iter_type>();
+  shared_intervals_x_end[tid] = grid::getMinValue<iter_type>();
+  shared_intervals_y_end[tid] = grid::getMinValue<iter_type>();
+  shared_intervals_z_end[tid] = grid::getMinValue<iter_type>();
+
+  if (idx < dimx && idy < dimy && idz < dimz) {
+    iter_type idxn = posx + idx;
+    iter_type idyn = posy + idy;
+    iter_type idzn = posz + idz;
+
+    iter_type xn = ((idxn > dimx) ? idxn - dimx : idxn) + startx;
+    iter_type yn = ((idyn > dimy) ? idyn - dimy : idyn) + starty;
+    iter_type zn = ((idzn > dimz) ? idzn - dimz : idzn) + startz;
+    iter_type n = xn + yn * stridey + zn * stridez;
+    if (grid::compare_cutoff(values, n, cutoff_value)) {
+      shared_intervals_x_start[tid] = xn;
+      shared_intervals_y_start[tid] = yn;
+      shared_intervals_z_start[tid] = zn;
+      shared_intervals_x_end[tid] = xn;
+      shared_intervals_y_end[tid] = yn;
+      shared_intervals_z_end[tid] = zn;
+    }
+  }
+  __syncthreads();
+
+  // Perform reduction to find max
+  int len = blockDim.x * blockDim.y;
+  for (unsigned int s = len / 2; s > 0; s >>= 1) {
+    if (tid < s) {
+      shared_intervals_x_start[tid] =
+          min(shared_intervals_x_start[tid], shared_intervals_x_start[tid + s]);
+      shared_intervals_y_start[tid] =
+          min(shared_intervals_y_start[tid], shared_intervals_y_start[tid + s]);
+      shared_intervals_z_start[tid] =
+          min(shared_intervals_z_start[tid], shared_intervals_z_start[tid + s]);
       shared_intervals_x_end[tid] =
           max(shared_intervals_x_end[tid], shared_intervals_x_end[tid + s]);
       shared_intervals_y_end[tid] =
@@ -1189,8 +1241,105 @@ __global__ void reduceIntervals3d(iter_type* intervals_0,
       shared_intervals_z_end[tid] =
           max(shared_intervals_z_end[tid], shared_intervals_z_end[tid + s]);
     }
-    __syncthreads();
   }
+  __syncthreads();
+
+  // Write the result for this block to global memory
+  if (tid == 0) {
+    atomicMin(&intervals_x_start[0], shared_intervals_x_start[0]);
+    atomicMin(&intervals_y_start[0], shared_intervals_y_start[0]);
+    atomicMin(&intervals_z_start[0], shared_intervals_z_start[0]);
+    atomicMax(&intervals_x_end[0], shared_intervals_x_end[0]);
+    atomicMax(&intervals_y_end[0], shared_intervals_y_end[0]);
+    atomicMax(&intervals_z_end[0], shared_intervals_z_end[0]);
+  }
+}
+
+template <typename T>
+__global__ void computeEnclosingInterval3d(
+    const T* values0, const T* values1, const T* values2,
+    iter_type* intervals_0, iter_type* intervals_1,
+    any_vector_t<T, 3> cutoff_value, iter_type total_length, iter_type posx,
+    iter_type posy, iter_type posz, len_type dimx, len_type dimy, len_type dimz,
+    iter_type startx, iter_type starty, iter_type startz, len_type stridey,
+    len_type stridez) {
+  extern __shared__ iter_type sdata[];
+
+  iter_type* intervals_x_start = &intervals_0[0];
+  iter_type* intervals_y_start = &intervals_0[1];
+  iter_type* intervals_z_start = &intervals_0[2];
+  iter_type* intervals_x_end = &intervals_1[0];
+  iter_type* intervals_y_end = &intervals_1[1];
+  iter_type* intervals_z_end = &intervals_1[2];
+
+  iter_type* shared_intervals_x_start = &sdata[0];
+  iter_type* shared_intervals_y_start =
+      &shared_intervals_x_start[blockDim.x * blockDim.y * blockDim.z];
+  iter_type* shared_intervals_z_start =
+      &shared_intervals_y_start[blockDim.x * blockDim.y * blockDim.z];
+  iter_type* shared_intervals_x_end =
+      &shared_intervals_z_start[blockDim.x * blockDim.y * blockDim.z];
+  iter_type* shared_intervals_y_end =
+      &shared_intervals_x_end[blockDim.x * blockDim.y * blockDim.z];
+  iter_type* shared_intervals_z_end =
+      &shared_intervals_y_end[blockDim.x * blockDim.y * blockDim.z];
+
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  int idy = blockIdx.y * blockDim.y + threadIdx.y;
+  int idz = blockIdx.z * blockDim.z + threadIdx.z;
+  int tidx = threadIdx.x;
+  int tidy = threadIdx.y;
+  int tidz = threadIdx.y;
+  int tid = tidx + tidy * blockDim.x + tidz * blockDim.x * blockDim.y;
+
+  shared_intervals_x_start[tid] = grid::getMaxValue<iter_type>();
+  shared_intervals_y_start[tid] = grid::getMaxValue<iter_type>();
+  shared_intervals_z_start[tid] = grid::getMaxValue<iter_type>();
+  shared_intervals_x_end[tid] = grid::getMinValue<iter_type>();
+  shared_intervals_y_end[tid] = grid::getMinValue<iter_type>();
+  shared_intervals_z_end[tid] = grid::getMinValue<iter_type>();
+
+  if (idx < dimx && idy < dimy && idz < dimz) {
+    iter_type idxn = posx + idx;
+    iter_type idyn = posy + idy;
+    iter_type idzn = posz + idz;
+
+    iter_type xn = ((idxn > dimx) ? idxn - dimx : idxn) + startx;
+    iter_type yn = ((idyn > dimy) ? idyn - dimy : idyn) + starty;
+    iter_type zn = ((idzn > dimz) ? idzn - dimz : idzn) + startz;
+    iter_type n = xn + yn * stridey + zn * stridez;
+
+    T value[]{values0[n], values1[n], values2[n]};
+    if (grid::compare_cutoff(value, cutoff_value)) {
+      shared_intervals_x_start[tid] = xn;
+      shared_intervals_y_start[tid] = yn;
+      shared_intervals_z_start[tid] = zn;
+      shared_intervals_x_end[tid] = xn;
+      shared_intervals_y_end[tid] = yn;
+      shared_intervals_z_end[tid] = zn;
+    }
+  }
+  __syncthreads();
+
+  // Perform reduction to find max
+  int len = blockDim.x * blockDim.y;
+  for (unsigned int s = len / 2; s > 0; s >>= 1) {
+    if (tid < s) {
+      shared_intervals_x_start[tid] =
+          min(shared_intervals_x_start[tid], shared_intervals_x_start[tid + s]);
+      shared_intervals_y_start[tid] =
+          min(shared_intervals_y_start[tid], shared_intervals_y_start[tid + s]);
+      shared_intervals_z_start[tid] =
+          min(shared_intervals_z_start[tid], shared_intervals_z_start[tid + s]);
+      shared_intervals_x_end[tid] =
+          max(shared_intervals_x_end[tid], shared_intervals_x_end[tid + s]);
+      shared_intervals_y_end[tid] =
+          max(shared_intervals_y_end[tid], shared_intervals_y_end[tid + s]);
+      shared_intervals_z_end[tid] =
+          max(shared_intervals_z_end[tid], shared_intervals_z_end[tid + s]);
+    }
+  }
+  __syncthreads();
 
   // Write the result for this block to global memory
   if (tid == 0) {
@@ -1270,8 +1419,7 @@ struct run_find_enclosing_intervals<2> {
     dim3 gridDim((dims[0] + blockDim.x - 1) / blockDim.x,
                  (dims[1] + blockDim.y - 1) / blockDim.y);
 
-    size_t sharedMemSize =
-        (2 * blockDim.x + 2 * blockDim.y) * sizeof(iter_type);
+    size_t sharedMemSize = (4 * blockDim.x * blockDim.y) * sizeof(iter_type);
     computeEnclosingInterval2d CUDA_KERNEL(gridDim, blockDim, sharedMemSize)(
         values, d_intervals_0, d_intervals_1, cutoff_value, total_length,
         start_pos[0], start_pos[1], dims[0], dims[1], offset[0], offset[1],
@@ -1289,8 +1437,7 @@ struct run_find_enclosing_intervals<2> {
     dim3 gridDim((dims[0] + blockDim.x - 1) / blockDim.x,
                  (dims[1] + blockDim.y - 1) / blockDim.y);
 
-    size_t sharedMemSize =
-        (2 * blockDim.x + 2 * blockDim.y) * sizeof(iter_type);
+    size_t sharedMemSize = (4 * blockDim.x * blockDim.y) * sizeof(iter_type);
     computeEnclosingInterval2d CUDA_KERNEL(gridDim, blockDim, sharedMemSize)(
         values[0], values[1], d_intervals_0, d_intervals_1, cutoff_value,
         total_length, start_pos[0], start_pos[1], dims[0], dims[1], offset[0],
@@ -1304,39 +1451,32 @@ struct run_find_enclosing_intervals<2> {
                   const iter_type (&dims)[2], const iter_type (&stride)[2],
                   const iter_type (&offset)[2], const iter_type (&start_pos)[2],
                   iter_type (&intervals)[2][2]) {
-    iter_type* d_intervals_0;
-    iter_type* d_intervals_1;
-    CHECK_CUDA_ERROR(
-        cudaMalloc(&d_intervals_0, (dims[0] + dims[1]) * sizeof(iter_type)));
-    CHECK_CUDA_ERROR(
-        cudaMalloc(&d_intervals_1, (dims[0] + dims[1]) * sizeof(iter_type)));
+    iter_type* d_intervals;
+    CHECK_CUDA_ERROR(cudaMalloc(&d_intervals, 4 * sizeof(iter_type)));
+    iter_type* d_intervals_0 = &d_intervals[0];
+    iter_type* d_intervals_1 = &d_intervals[2];
+
     int numBlocks = (dims[0] + dims[1] + BLOCK_SIZE - 1) / BLOCK_SIZE;
     symphas::cuda::initializeArray CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
-        d_intervals_0, std::numeric_limits<iter_type>::max(),
-        dims[0] + dims[1]);
+        d_intervals_0, std::numeric_limits<iter_type>::max(), 2);
     symphas::cuda::initializeArray CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
-        d_intervals_1, 0, dims[0] + dims[1]);
+        d_intervals_1, std::numeric_limits<iter_type>::min(), 2);
+
+    iter_type* h_intervals_0 = new iter_type[dims[0] + dims[1]];
+    iter_type* h_intervals_1 = new iter_type[dims[0] + dims[1]];
 
     call_kernel(d_intervals_0, d_intervals_1, std::forward<S>(values),
                 cutoff_value, total_length, dims, stride, offset, start_pos);
-
-    numBlocks = (total_length + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    reduceIntervals2d<T> CUDA_KERNEL(numBlocks, BLOCK_SIZE,
-                                     4 * BLOCK_SIZE * sizeof(iter_type))(
-        d_intervals_0, d_intervals_1, dims[0], dims[1]);
-    CHECK_CUDA_ERROR(cudaPeekAtLastError());
-    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 
     CHECK_CUDA_ERROR(cudaMemcpy(&intervals[0][0], &d_intervals_0[0],
                                 sizeof(iter_type), cudaMemcpyDeviceToHost));
     CHECK_CUDA_ERROR(cudaMemcpy(&intervals[0][1], &d_intervals_1[0],
                                 sizeof(iter_type), cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERROR(cudaMemcpy(&intervals[1][0], &d_intervals_0[dims[0]],
+    CHECK_CUDA_ERROR(cudaMemcpy(&intervals[1][0], &d_intervals_0[1],
                                 sizeof(iter_type), cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERROR(cudaMemcpy(&intervals[1][1], &d_intervals_1[dims[0]],
+    CHECK_CUDA_ERROR(cudaMemcpy(&intervals[1][1], &d_intervals_1[1],
                                 sizeof(iter_type), cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERROR(cudaFree(d_intervals_0));
-    CHECK_CUDA_ERROR(cudaFree(d_intervals_1));
+    CHECK_CUDA_ERROR(cudaFree(d_intervals));
   }
 };
 
@@ -1354,7 +1494,7 @@ struct run_find_enclosing_intervals<3> {
                  (dims[2] + blockDim.z - 1) / blockDim.z);
 
     size_t sharedMemSize =
-        (2 * blockDim.x + 2 * blockDim.y + 2 * blockDim.z) * sizeof(iter_type);
+        (6 * blockDim.x * blockDim.y * blockDim.z) * sizeof(iter_type);
 
     computeEnclosingInterval3d CUDA_KERNEL(gridDim, blockDim, sharedMemSize)(
         values, d_intervals_0, d_intervals_1, cutoff_value, total_length,
@@ -1375,7 +1515,7 @@ struct run_find_enclosing_intervals<3> {
                  (dims[2] + blockDim.z - 1) / blockDim.z);
 
     size_t sharedMemSize =
-        (2 * blockDim.x + 2 * blockDim.y + 2 * blockDim.z) * sizeof(iter_type);
+        (6 * blockDim.x * blockDim.y * blockDim.z) * sizeof(iter_type);
 
     computeEnclosingInterval3d CUDA_KERNEL(gridDim, blockDim, sharedMemSize)(
         values[0], values[1], values[2], d_intervals_0, d_intervals_1,
@@ -1391,44 +1531,34 @@ struct run_find_enclosing_intervals<3> {
                   const iter_type (&dims)[3], const iter_type (&stride)[3],
                   const iter_type (&offset)[3], const iter_type (&start_pos)[3],
                   iter_type (&intervals)[3][2]) {
-    iter_type* d_intervals_0;
-    iter_type* d_intervals_1;
-    CHECK_CUDA_ERROR(cudaMalloc(
-        &d_intervals_0, (dims[0] + dims[1] + dims[2]) * sizeof(iter_type)));
-    CHECK_CUDA_ERROR(cudaMalloc(
-        &d_intervals_1, (dims[0] + dims[1] + dims[2]) * sizeof(iter_type)));
-    CHECK_CUDA_ERROR(
-        cudaMemset(d_intervals_0, std::numeric_limits<iter_type>::max(),
-                   (dims[0] + dims[1] + dims[2]) * sizeof(iter_type)));
-    CHECK_CUDA_ERROR(cudaMemset(
-        d_intervals_1, 0, (dims[0] + dims[1] + dims[2]) * sizeof(iter_type)));
+    iter_type* d_intervals;
+    CHECK_CUDA_ERROR(cudaMalloc(&d_intervals, 6 * sizeof(iter_type)));
+    iter_type* d_intervals_0 = &d_intervals[0];
+    iter_type* d_intervals_1 = &d_intervals[3];
+
+    CHECK_CUDA_ERROR(cudaMemset(d_intervals_0,
+                                std::numeric_limits<iter_type>::max(),
+                                3 * sizeof(iter_type)));
+    CHECK_CUDA_ERROR(cudaMemset(d_intervals_1,
+                                std::numeric_limits<iter_type>::min(),
+                                3 * sizeof(iter_type)));
 
     call_kernel(d_intervals_0, d_intervals_1, std::forward<S>(values),
                 cutoff_value, total_length, dims, stride, offset, start_pos);
-
-    int numBlocks = (total_length + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    reduceIntervals3d<T> CUDA_KERNEL(numBlocks, BLOCK_SIZE,
-                                     6 * BLOCK_SIZE * sizeof(iter_type))(
-        d_intervals_0, d_intervals_1, dims[0], dims[1], dims[2]);
-    CHECK_CUDA_ERROR(cudaPeekAtLastError());
-    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 
     CHECK_CUDA_ERROR(cudaMemcpy(&intervals[0][0], &d_intervals_0[0],
                                 sizeof(iter_type), cudaMemcpyDeviceToHost));
     CHECK_CUDA_ERROR(cudaMemcpy(&intervals[0][1], &d_intervals_1[0],
                                 sizeof(iter_type), cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERROR(cudaMemcpy(&intervals[1][0], &d_intervals_0[dims[0]],
+    CHECK_CUDA_ERROR(cudaMemcpy(&intervals[1][0], &d_intervals_0[1],
                                 sizeof(iter_type), cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERROR(cudaMemcpy(&intervals[1][1], &d_intervals_1[dims[0]],
+    CHECK_CUDA_ERROR(cudaMemcpy(&intervals[1][1], &d_intervals_1[1],
                                 sizeof(iter_type), cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERROR(cudaMemcpy(&intervals[2][0],
-                                &d_intervals_0[dims[0] + dims[1]],
+    CHECK_CUDA_ERROR(cudaMemcpy(&intervals[2][0], &d_intervals_0[2],
                                 sizeof(iter_type), cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERROR(cudaMemcpy(&intervals[2][1],
-                                &d_intervals_1[dims[0] + dims[1]],
+    CHECK_CUDA_ERROR(cudaMemcpy(&intervals[2][1], &d_intervals_1[2],
                                 sizeof(iter_type), cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERROR(cudaFree(d_intervals_0));
-    CHECK_CUDA_ERROR(cudaFree(d_intervals_1));
+    CHECK_CUDA_ERROR(cudaFree(d_intervals));
   }
 };
 
@@ -1484,8 +1614,8 @@ __global__ void computeStartingPosKernel2d(
     iter_type startx, iter_type starty, len_type stride) {
   extern __shared__ iter_type shared_min_pos[];
 
-  iter_type* shared_min_pos_x = &shared_min_pos[0];
-  iter_type* shared_min_pos_y = &shared_min_pos_x[blockDim.x];
+  iter_type* shared_min_pos_y = &shared_min_pos[0];
+  iter_type* shared_min_pos_x = &shared_min_pos_y[blockDim.x];
 
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
   int idy = blockIdx.y * blockDim.y + threadIdx.y;
@@ -1498,19 +1628,20 @@ __global__ void computeStartingPosKernel2d(
   __syncthreads();
 
   iter_type n = (startx + idx) + (starty + idy) * stride;
-  if (idx < dimx && idy < dimy && values[n] <= cutoff_value) {
-    atomicMin(&local_min_pos_x[idx], idy);
-    atomicMin(&local_min_pos_y[idy], idx);
+  if (idx < dimx && idy < dimy &&
+      !grid::compare_cutoff(values, n, cutoff_value)) {
+    atomicMin(&shared_min_pos_x[tidy], idx);
+    atomicMin(&shared_min_pos_y[tidx], idy);
   }
-  //__syncthreads();
+  __syncthreads();
 
-  //// Write local minimums to global memory
-  // if (tidy == 0) {
-  //   atomicMin(&local_min_pos_x[idx], shared_min_pos_x[tidx]);
-  // }
-  // if (tidx == 0) {
-  //   atomicMin(&local_min_pos_y[idy], shared_min_pos_y[tidy]);
-  // }
+  // Write local minimums to global memory
+  if (tidy == 0) {
+    atomicMin(&local_min_pos_y[idx], shared_min_pos_y[tidx]);
+  }
+  if (tidx == 0) {
+    atomicMin(&local_min_pos_x[idy], shared_min_pos_x[tidy]);
+  }
 }
 
 template <typename T>
@@ -1536,19 +1667,19 @@ __global__ void computeStartingPosKernel2d(
 
   iter_type n = (startx + idx) + (starty + idy) * stride;
   T value[]{values0[n], values1[n]};
-  if (idx < dimx && idy < dimy && grid::compare_cutoff(value, cutoff_value)) {
-    atomicMin(&local_min_pos_x[idx], idy);
-    atomicMin(&local_min_pos_y[idy], idx);
+  if (idx < dimx && idy < dimy && !grid::compare_cutoff(value, cutoff_value)) {
+    atomicMin(&shared_min_pos_x[tidy], idy);
+    atomicMin(&shared_min_pos_y[tidx], idx);
   }
-  //__syncthreads();
+  __syncthreads();
 
-  //// Write local minimums to global memory
-  // if (tidy == 0) {
-  //   atomicMin(&local_min_pos_x[idx], shared_min_pos_x[tidx]);
-  // }
-  // if (tidx == 0) {
-  //   atomicMin(&local_min_pos_y[idy], shared_min_pos_y[tidy]);
-  // }
+  // Write local minimums to global memory
+  if (tidy == 0) {
+    atomicMin(&local_min_pos_y[idx], shared_min_pos_y[tidx]);
+  }
+  if (tidx == 0) {
+    atomicMin(&local_min_pos_x[idy], shared_min_pos_x[tidy]);
+  }
 }
 
 template <typename T>
@@ -1578,7 +1709,8 @@ __global__ void computeStartingPosKernel3d(
 
   iter_type n =
       (startx + idx) + (starty + idy) * stridey + (startz + idz) * stridez;
-  if (idx < dimx && idy < dimy && idz < dimz && values[n] <= cutoff_value) {
+  if (idx < dimx && idy < dimy && idz < dimz &&
+      !grid::compare_cutoff(values, n, cutoff_value)) {
     atomicMin(&local_min_pos_xy[idx + idy * dimx], idz);
     atomicMin(&local_min_pos_xz[idx + idz * dimx], idy);
     atomicMin(&local_min_pos_yz[idy + idz * dimy], idx);
@@ -1631,7 +1763,7 @@ __global__ void computeStartingPosKernel3d(
       (startx + idx) + (starty + idy) * stridey + (startz + idz) * stridez;
   T value[]{values0[n], values1[n], values2[n]};
   if (idx < dimx && idy < dimy && idz < dimz &&
-      grid::compare_cutoff(value, n, cutoff_value)) {
+      !grid::compare_cutoff(value, n, cutoff_value)) {
     atomicMin(&local_min_pos_xy[idx + idy * dimx], idz);
     atomicMin(&local_min_pos_xz[idx + idz * dimx], idy);
     atomicMin(&local_min_pos_yz[idy + idz * dimy], idx);
@@ -1652,9 +1784,10 @@ __global__ void findMaxStartingPos2d(iter_type* starting_pos_x,
   int tid = threadIdx.x;
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
+  constexpr iter_type min_value = grid::getMinValue<iter_type>();
   // Load data into shared memory
-  sdata_x[tid] = (idx < dimx) ? starting_pos_x[idx] : -FLT_MAX;
-  sdata_y[tid] = (idx < dimy) ? starting_pos_y[idx] : -FLT_MAX;
+  sdata_x[tid] = (idx < dimx) ? starting_pos_x[idx] : min_value;
+  sdata_y[tid] = (idx < dimy) ? starting_pos_y[idx] : min_value;
   __syncthreads();
 
   // Perform reduction to find max
@@ -1687,10 +1820,11 @@ __global__ void findMaxStartingPos3d(iter_type* starting_pos_xy,
   int tid = threadIdx.x;
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
+  constexpr iter_type min_value = grid::getMinValue<iter_type>();
   // Load data into shared memory
-  sdata_xy[tid] = (idx < dimx) ? starting_pos_xy[idx] : -FLT_MAX;
-  sdata_xz[tid] = (idx < dimy) ? starting_pos_xz[idx] : -FLT_MAX;
-  sdata_yz[tid] = (idx < dimz) ? starting_pos_yz[idx] : -FLT_MAX;
+  sdata_xy[tid] = (idx < dimx) ? starting_pos_xy[idx] : min_value;
+  sdata_xz[tid] = (idx < dimy) ? starting_pos_xz[idx] : min_value;
+  sdata_yz[tid] = (idx < dimz) ? starting_pos_yz[idx] : min_value;
   __syncthreads();
 
   // Perform reduction to find max
@@ -1806,14 +1940,8 @@ struct run_compute_starting_pos<2> {
     symphas::cuda::initializeArray CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
         starting_pos, std::numeric_limits<iter_type>::max(), dims[0] + dims[1]);
 
-    iter_type* starting_pos_host = new iter_type[dims[0] + dims[1]];
-
-    iter_type* starting_pos_x = &starting_pos[0];
-    iter_type* starting_pos_y = &starting_pos[dims[0]];
-
-    CHECK_CUDA_ERROR(cudaMemcpy(starting_pos_host, starting_pos,
-                                (dims[0] + dims[1]) * sizeof(iter_type),
-                                cudaMemcpyDeviceToHost));
+    iter_type* starting_pos_y = &starting_pos[0];
+    iter_type* starting_pos_x = &starting_pos[dims[0]];
 
     call_kernel(starting_pos_x, starting_pos_y, std::forward<S>(values),
                 cutoff_value, total_length, dims, stride, offset);
@@ -1821,22 +1949,23 @@ struct run_compute_starting_pos<2> {
     len_type max_dim = std::max(dims[0], dims[1]);
     int num_blocks = (max_dim + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
-    CHECK_CUDA_ERROR(cudaMemcpy(starting_pos_host, starting_pos,
-                                (dims[0] + dims[1]) * sizeof(iter_type),
-                                cudaMemcpyDeviceToHost));
-
     findMaxStartingPos2d<T> CUDA_KERNEL(num_blocks, BLOCK_SIZE,
                                         2 * BLOCK_SIZE * sizeof(iter_type))(
         starting_pos_x, starting_pos_y, dims[0], dims[1]);
 
     // Copy results to host
-    CHECK_CUDA_ERROR(cudaMemcpy(&pos[1], &starting_pos_x[0], sizeof(iter_type),
+    CHECK_CUDA_ERROR(cudaMemcpy(&pos[0], &starting_pos_x[0], sizeof(iter_type),
                                 cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERROR(cudaMemcpy(&pos[0], &starting_pos_y[0], sizeof(iter_type),
+    CHECK_CUDA_ERROR(cudaMemcpy(&pos[1], &starting_pos_y[0], sizeof(iter_type),
                                 cudaMemcpyDeviceToHost));
 
-    // Free allocated memory
-    delete[] starting_pos_host;
+    if (pos[0] >= dims[0]) {
+      pos[0] = 0;
+    }
+    if (pos[1] >= dims[1]) {
+      pos[1] = 0;
+    }
+
     CHECK_CUDA_ERROR(cudaFree(starting_pos));
   }
 };
@@ -1854,7 +1983,7 @@ struct run_compute_starting_pos<3> {
                  (dims[2] + blockDim.z - 1) / blockDim.z);
 
     computeStartingPosKernel3d<T> CUDA_KERNEL(
-        num_blocks, BLOCK_SIZE,
+        gridDim, blockDim,
         (blockDim.x * blockDim.y + blockDim.x * blockDim.z +
          blockDim.y * blockDim.z) *
             sizeof(iter_type))(values, starting_pos_xy, starting_pos_xz,
@@ -1877,7 +2006,7 @@ struct run_compute_starting_pos<3> {
                  (dims[2] + blockDim.z - 1) / blockDim.z);
 
     computeStartingPosKernel3d<T> CUDA_KERNEL(
-        num_blocks, BLOCK_SIZE,
+        gridDim, blockDim,
         (blockDim.x * blockDim.y + blockDim.x * blockDim.z +
          blockDim.y * blockDim.z) *
             sizeof(iter_type))(
@@ -1931,6 +2060,16 @@ struct run_compute_starting_pos<3> {
                                 cudaMemcpyDeviceToHost));
     CHECK_CUDA_ERROR(cudaMemcpy(&pos[0], starting_pos_yz, sizeof(iter_type),
                                 cudaMemcpyDeviceToHost));
+
+    if (pos[0] >= dims[0]) {
+      pos[0] = 0;
+    }
+    if (pos[1] >= dims[1]) {
+      pos[1] = 0;
+    }
+    if (pos[2] >= dims[2]) {
+      pos[2] = 0;
+    }
 
     // Free allocated memory
     CHECK_CUDA_ERROR(cudaFree(starting_pos));

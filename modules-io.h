@@ -27,7 +27,7 @@
 
 #pragma once
 
-#include "boundarysystemcuda.cuh"
+#include "boundarysystem.h"
 #include "read.h"
 #include "savedefines.h"
 

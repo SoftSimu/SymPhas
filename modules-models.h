@@ -27,13 +27,24 @@
 
 #pragma once
 
-#include "modeldefs.h"
-
 #ifdef USING_CONF
 #include "modules-conf.h"
 #endif
 
 #include "prereq-defs.h"
+
+#ifdef MODULES_EXPORT
+#define DLLMOD DLLEXPORT
+#else
+#define DLLMOD DLLIMPORT
+#endif
+
+// include all the models
+#ifdef MODEL_TESTS
+#include "testdefs.h"
+#endif
+
+#include "timer.h"
 
 namespace symphas {
 //! Construct a map of all the parameter keys and initialization strategies.
@@ -178,7 +189,7 @@ void print_stencil_message(const char* (&deriv_names)[D],
   }
 
   fprintf(SYMPHAS_LOG,
-          "the finite difference stencils of the solver use the "
+          "The finite difference stencils of the solver use the "
           "following point values:\n");
 
   for (iter_type i = 0; i < D; ++i) {
@@ -198,6 +209,8 @@ template <template <typename> typename model_apply_type,
           template <typename, size_t = 0> typename Solver, size_t N, size_t D,
           size_t O, size_t... Ps, typename... Ts>
 auto run_model_call(std::index_sequence<N, D, O, Ps...>, Ts&&... args) {
+  fprintf(SYMPHAS_LOG, "The simulation is using solver variation %ld\n", N);
+
   const char* names[]{"laplacian", "gradlaplacian", "bilaplacian"};
   size_t values[]{Ps...};
   print_stencil_message(names, values);
@@ -365,29 +378,6 @@ bool run_model(ModelVirtual<D, Sp, S...>& model) {
 }
 }  // namespace symphas
 
-// free energy parameters
-
-// #undef ii_
-// #undef ii
-// #undef jj_
-// #undef jj
-// #undef kk_
-// #undef kk
-//
-// #undef op_ii_
-// #undef op_ii
-// #undef op_jj_
-// #undef op_jj
-
-// functions
-
-#undef Gaussian
-#undef smoothing
-#undef cross
-
-// #undef CONSERVED
-// #undef NONCONSERVED
-
 template <size_t D>
 struct init_expr_select {
   /* returns false if there is no model with the given name
@@ -400,7 +390,7 @@ struct init_expr_select {
     using namespace symphas::internal;
     constexpr int last_index =
         decltype(init_expr_counter(init_expr_count_index<128>{}))::value;
-    return init_expr_call_wrapper<D, last_index - 1>::template call(
+    return init_expr_call_wrapper<D, last_index - 1>::call(
         name, ax, values, interval, vdata, coeff, num_coeff);
   }
 };
@@ -420,21 +410,127 @@ bool match_init_expr(const char* initname, Axis ax, T* values,
   return true;
 }
 
-// undefine all the parameters
+namespace symphas {
 
-// order parameter names
+#ifdef PRINT_TIMINGS
+DLLMOD extern double init_time;
+DLLMOD extern double model_update_time;
+DLLMOD extern double model_equation_time;
+DLLMOD extern double model_step_time;
+DLLMOD extern double iteration_time;
 
-// #undef op
-// #undef dop
-// #undef var
+DLLMOD extern int iteration_count;
 
-// #undef lap
-// #undef bilap
-// #undef gradlap
-// #undef grad
-// #undef param
+void print_timings(FILE* out);
+#endif
 
-#undef x
-#undef y
-#undef z
-#undef t
+//! One iteration of the solution loop.
+/*!
+ * The phase field problem represented by the given model is iterated
+ * through one solution step.
+ *
+ * \param model The phase field problem.
+ * \param dt The time step of this iteration.
+ * \param time The current solution time.
+ */
+template <typename M>
+void model_iteration(M& model, double dt, double time) {
+#ifdef PRINT_TIMINGS
+  symphas::Time t;
+
+  {
+    symphas::Time tt;
+    model.equation();
+    model_equation_time += tt.current_duration();
+  }
+
+  {
+    symphas::Time tt;
+    model.step(dt);
+    model_step_time += tt.current_duration();
+  }
+
+  {
+    symphas::Time tt;
+    model.update(time + dt);
+    model_update_time += tt.current_duration();
+  }
+
+  iteration_time += t.current_duration();
+  iteration_count += 1;
+#else
+
+  model.update(time);
+  model.equation();
+  model.step(dt);
+
+#endif
+}
+
+//! Determine the solution of a phase field problem.
+/*!
+ * The phase field problem in the given model is run through the solver
+ * to compute the solution after the specified number of iterations.
+ * The function will always return true.
+ *
+ * \param model The phase field problem data.
+ * \param n The number of iterations of the solution to compute.
+ * \param starttime The begin time of this solution.
+ * \param dt The time step between solution iterations.
+ */
+template <typename M>
+bool run_model(M& model, iter_type n, symphas::time_step_list const& dts,
+               double starttime = 0) {
+  double time = starttime;
+  iter_type end = model.get_index() + n;
+
+  for (iter_type i = model.get_index(); i < end; i = model.get_index()) {
+    double dt = dts.get_time_step(time);
+    model_iteration(model, dt, time);
+    time += dt * (model.get_index() - i);
+  }
+  return true;
+}
+
+//! Initialize the program parameters.
+/*!
+ * Initialize the program parameters and the command line parameters.
+ *
+ * \param config The name of the configuration file, or name of the title
+ * if there no configuration.
+ * \param param_list The list of strings containing the key value pairs
+ * in the format: "key=value" from which command line parameters
+ * are extracted.
+ * \param num_params The number of command line arguments in the list.
+ */
+void init(const char* config, const char* const* param_list, int num_params);
+inline void init(const char* param) { init(param, nullptr, 0); }
+inline void init() { init("--" ARGUMENT_HELP_STRING); }
+
+void finalize();
+
+}  // namespace symphas
+
+namespace params {
+
+enum program_params_value { PARAMS };
+
+inline void operator+=(program_params_value, const char* arg) {
+  params::parse_params(symphas::build_params(), arg);
+}
+
+inline void operator+=(program_params_value, std::string const& str) {
+  params::parse_params(symphas::build_params(), str.c_str());
+}
+
+template <typename T>
+void operator+=(program_params_value, T arg) {
+  params::set_param(arg);
+}
+
+template <typename T>
+void operator,(program_params_value, T arg) {
+  params::set_param(arg);
+}
+
+}  // namespace params

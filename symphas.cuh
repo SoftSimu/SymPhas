@@ -17,36 +17,49 @@
  *
  * ***************************************************************************
  *
- * MODULE:  sol
- * PURPOSE: Used to generate a VTK visualization of the simulated phase-field
- * model.
+ * This file is part of the SymPhas API. This is the main header file that is
+ * configured by the CMake build process.
  *
  * ***************************************************************************
  */
 
 #pragma once
 
-#include <utility>
-
 #include "definitions.h"
-#include "gridfunctions.h"
 
-struct ColourPlotUpdater {
-  virtual void update() {}
-  virtual ~ColourPlotUpdater() {}
-};
+#ifdef USING_CONF
+#include "modules-conf.h"
+#elif defined(USING_IO)
+#include "modules-io.h"
+#else
+#include "modules-none.h"
+#endif
 
-struct ColourPlot2d {
-  void init(scalar_t*(&values), len_type* dims, iter_type& index,
-            ColourPlotUpdater*(&updater));
+// import sol and sym headers
+#include "modeldefs.h"
 
-  template <size_t D>
-  void init(scalar_t*(&values), grid::region_interval<D> const& interval,
-            iter_type& index, ColourPlotUpdater*(&updater)) {
-    len_type dims[D]{};
-    for (iter_type i = 0; i < D; ++i) {
-      dims[i] = interval[i][1] - interval[i][0];
-    }
-    init(values, &dims[0], index, updater);
-  }
-};
+// cuda implementations
+#include "expressioncuda.cuh"
+#include "modelarray.cuh"
+
+// import implementation files
+#include "modules-models.h"
+
+// model and solver definitions
+// #include "prereq-defs.h"
+
+#undef BUFFER_LENGTH_R4
+#undef BUFFER_LENGTH_R2
+#undef BUFFER_LENGTH_R1
+#undef BUFFER_LENGTH
+#undef BUFFER_LENGTH_L2
+#undef BUFFER_LENGTH_L3
+#undef BUFFER_LENGTH_L4
+#undef BUFFER_LENGTH_L5
+#undef BUFFER_LENGTH_R
+#undef BUFFER_LENGTH_L
+#undef LINE_READ_BUFFER
+#undef FILECHUNK_READ_BUFFER
+
+#undef ERR_CODE_FILE_OPEN
+#undef ERR_MSG_FILE_OPEN

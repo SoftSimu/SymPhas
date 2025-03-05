@@ -1681,16 +1681,19 @@ auto make_symbolic_eval_impl(V const& value,
 //	return value * (*static_cast<E const*>(&e));
 // }
 
-template <typename V, expr::NoiseType nt, typename T, size_t D, typename E,
+template <typename V, expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type, typename E,
           size_t... Ns, typename... Ts>
 auto make_symbolic_eval_impl(
-    V const& value, NoiseData<nt, T, D> const& noise,
+    V const& value, NoiseData<nt, T, D, grid_type> const& noise,
     SymbolicFunction<E, Variable<Ns, Ts>...> const& f) {
   return OpSymbolicEval(value, noise, f);
 }
 
-template <typename V, expr::NoiseType nt, typename T, size_t D, typename E>
-auto make_symbolic_eval_impl(V const& value, NoiseData<nt, T, D> const& noise,
+template <typename V, expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type, typename E>
+auto make_symbolic_eval_impl(V const& value,
+                             NoiseData<nt, T, D, grid_type> const& noise,
                              OpExpression<E> const& e) {
   return make_symbolic_eval_impl(
       value, noise, expr::function_of() = *static_cast<E const*>(&e));

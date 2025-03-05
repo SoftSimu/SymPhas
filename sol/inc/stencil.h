@@ -38,6 +38,7 @@
 #pragma once
 
 #include "expressionstencils.h"
+#include "gridcudaincludes.h"
 #include "gridinfo.h"
 
 #define DEFAULT_STENCIL_ACCURACY 2
@@ -254,135 +255,59 @@ struct Stencil {
 #ifdef USING_CUDA
   template <Axis ax, size_t O, typename T, size_t D>
   __host__ __device__ auto applied_generalized_directional_derivative(
-      RegionalGridCUDA<T, D> const &grid, iter_type n) const {
-    auto v = grid[n];
-    if (v.is_valid()) {
-      return cast().template apply_directional<ax, O>(v.value,
-                                                      grid.region.dims);
-    } else {
-      return *v.value;
-    }
-  }
+      RegionalGridCUDA<T, D> const &grid, iter_type n) const;
 
   template <size_t... Os, typename T, size_t D>
   __host__ __device__ auto applied_generalized_mixed_derivative(
-      RegionalGridCUDA<T, D> const &grid, iter_type n) const {
-    auto v = grid[n];
-    if (v.is_valid()) {
-      return cast().template apply_mixed<Os...>(v.value, grid.region.dims);
-    } else {
-      return *v.value;
-    }
-  }
+      RegionalGridCUDA<T, D> const &grid, iter_type n) const;
 
   template <Axis ax, size_t O, typename T, size_t D>
   __host__ __device__ auto applied_generalized_derivative(
-      RegionalGridCUDA<T, D> const &grid, iter_type n) const {
-    auto v = grid[n];
-    if (v.is_valid()) {
-      len_type stride[D];
-      grid::get_stride<ax>(stride, grid.region.dims);
-      return cast().template apply<O>(v.value, stride);
-    } else {
-      return *v.value;
-    }
-  }
+      RegionalGridCUDA<T, D> const &grid, iter_type n) const;
 
   template <typename T, size_t D>
   __host__ __device__ auto applied_laplacian(RegionalGridCUDA<T, D> const &grid,
-                                             iter_type n) const {
-    auto v = grid[n];
-    if (v.is_valid()) {
-      return laplacian(v.value, grid.region.stride);
-    } else {
-      return *v.value;
-    }
-  }
+                                             iter_type n) const;
 
   template <typename T, size_t D>
   __host__ __device__ auto applied_bilaplacian(
-      RegionalGridCUDA<T, D> const &grid, iter_type n) const {
-    auto v = grid[n];
-    if (v.is_valid()) {
-      return bilaplacian(v.value, grid.region.stride);
-    } else {
-      return *v.value;
-    }
-  }
+      RegionalGridCUDA<T, D> const &grid, iter_type n) const;
 
   template <Axis ax, typename T, size_t D>
   __host__ __device__ auto applied_gradlaplacian(
-      RegionalGridCUDA<T, D> const &grid, iter_type n) const {
-    auto v = grid[n];
-    if (v.is_valid()) {
-      len_type stride[D];
-      grid::get_stride<ax>(stride, grid.region.dims);
-      return gradlaplacian(v.value, stride);
-    } else {
-      return *v.value;
-    }
-  }
+      RegionalGridCUDA<T, D> const &grid, iter_type n) const;
 
   template <Axis ax, typename T, size_t D>
   __host__ __device__ auto applied_gradient(RegionalGridCUDA<T, D> const &grid,
-                                            iter_type n) const {
-    auto v = grid[n];
-    if (v.is_valid()) {
-      len_type stride[D];
-      grid::get_stride<ax>(stride, grid.region.dims);
-      return gradient(v.value, stride);
-    } else {
-      return *v.value;
-    }
-  }
+                                            iter_type n) const;
 
   template <Axis ax, size_t O, typename T, size_t D>
   __host__ __device__ auto applied_generalized_directional_derivative(
-      RegionGridDataCUDA<T, D> const &grid, iter_type n) const {
-    return cast().template apply_directional<ax, O>(&grid[n], grid.region.dims);
-  }
+      RegionGridDataCUDA<T, D> const &grid, iter_type n) const;
 
   template <size_t... Os, typename T, size_t D>
   __host__ __device__ auto applied_generalized_mixed_derivative(
-      RegionGridDataCUDA<T, D> const &grid, iter_type n) const {
-    return cast().template apply_mixed<Os...>(&grid[n], grid.region.dims);
-  }
+      RegionGridDataCUDA<T, D> const &grid, iter_type n) const;
 
   template <Axis ax, size_t O, typename T, size_t D>
   __host__ __device__ auto applied_generalized_derivative(
-      RegionGridDataCUDA<T, D> const &grid, iter_type n) const {
-    len_type stride[D];
-    grid::get_stride<ax>(stride, grid.dims);
-    return cast().template apply<O>(&grid[n], stride);
-  }
+      RegionGridDataCUDA<T, D> const &grid, iter_type n) const;
 
   template <typename T, size_t D>
   __host__ __device__ auto applied_laplacian(
-      RegionGridDataCUDA<T, D> const &grid, iter_type n) const {
-    return laplacian(&grid[n], grid.stride);
-  }
+      RegionGridDataCUDA<T, D> const &grid, iter_type n) const;
 
   template <typename T, size_t D>
   __host__ __device__ auto applied_bilaplacian(
-      RegionGridDataCUDA<T, D> const &grid, iter_type n) const {
-    return bilaplacian(&grid[n], grid.stride);
-  }
+      RegionGridDataCUDA<T, D> const &grid, iter_type n) const;
 
   template <Axis ax, typename T, size_t D>
   __host__ __device__ auto applied_gradlaplacian(
-      RegionGridDataCUDA<T, D> const &grid, iter_type n) const {
-    len_type stride[D];
-    grid::get_stride<ax>(stride, grid.dims);
-    return gradlaplacian(&grid[n], stride);
-  }
+      RegionGridDataCUDA<T, D> const &grid, iter_type n) const;
 
   template <Axis ax, typename T, size_t D>
   __host__ __device__ auto applied_gradient(
-      RegionGridDataCUDA<T, D> const &grid, iter_type n) const {
-    len_type stride[D];
-    grid::get_stride<ax>(stride, grid.dims);
-    return gradient(&grid[n], stride);
-  }
+      RegionGridDataCUDA<T, D> const &grid, iter_type n) const;
 #endif
 
 #ifdef USING_MPI

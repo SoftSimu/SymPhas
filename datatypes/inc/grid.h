@@ -1826,8 +1826,8 @@ struct Grid : Block<T> {
                  std::conjunction_v<std::is_convertible<Ts, iter_type>...>),
                 int> = 0>
   decltype(auto) operator()(Ts&&... indices) const {
-    return grid::select_grid_index(dims)(Block<T>::values,
-                                         std::forward<Ts>(indices)...);
+    grid::select_grid_index select(dims);
+    return select(Block<T>::values, std::forward<Ts>(indices)...);
   }
 
  protected:
@@ -1896,8 +1896,8 @@ struct Grid<any_vector_t<T, D>, D> : MultiBlock<D, T> {
                  std::conjunction_v<std::is_convertible<Ts, iter_type>...>),
                 int> = 0>
   decltype(auto) operator()(Ts&&... rest) const {
-    return grid::select_grid_index(dims)(MultiBlock<D, T>::values,
-                                         std::forward<Ts>(rest)...);
+    grid::select_grid_index select(dims);
+    return select(MultiBlock<D, T>::values, std::forward<Ts>(rest)...);
   }
 
  protected:
@@ -1936,8 +1936,9 @@ struct BoundaryGrid : Grid<T, D> {
 
   template <typename... Ts, std::enable_if_t<(sizeof...(Ts) == D), int> = 0>
   decltype(auto) operator()(Ts&&... rest) const {
-    return grid::select_grid_index(dims)(
-        Block<T>::values, (std::forward<Ts>(rest) + BOUNDARY_DEPTH)...);
+    grid::select_grid_index select(dims);
+    return select(Block<T>::values,
+                  (std::forward<Ts>(rest) + BOUNDARY_DEPTH)...);
   }
 
  protected:
@@ -1960,9 +1961,9 @@ struct BoundaryGrid<T, 3> : Grid<T, 3> {
   BoundaryGrid<T, 3>& as_grid() { return *this; }
 
   decltype(auto) operator()(iter_type x, iter_type y, iter_type z) const {
-    return grid::select_grid_index(dims)(parent_type::values,
-                                         x + BOUNDARY_DEPTH, y + BOUNDARY_DEPTH,
-                                         z + BOUNDARY_DEPTH);
+    grid::select_grid_index select(dims);
+    return select(parent_type::values, x + BOUNDARY_DEPTH, y + BOUNDARY_DEPTH,
+                  z + BOUNDARY_DEPTH);
   }
 
  protected:
@@ -1984,8 +1985,8 @@ struct BoundaryGrid<T, 2> : Grid<T, 2> {
   BoundaryGrid<T, 2>& as_grid() { return *this; }
 
   decltype(auto) operator()(iter_type x, iter_type y) const {
-    return grid::select_grid_index(dims)(
-        parent_type::values, x + BOUNDARY_DEPTH, y + BOUNDARY_DEPTH);
+    grid::select_grid_index select(dims);
+    return select(parent_type::values, x + BOUNDARY_DEPTH, y + BOUNDARY_DEPTH);
   }
 
  protected:
@@ -2008,8 +2009,8 @@ struct BoundaryGrid<T, 1> : Grid<T, 1> {
   BoundaryGrid<T, 1>& as_grid() { return *this; }
 
   decltype(auto) operator()(iter_type x) const {
-    return grid::select_grid_index(dims)(parent_type::values,
-                                         x + BOUNDARY_DEPTH);
+    grid::select_grid_index select(dims);
+    return select(parent_type::values, x + BOUNDARY_DEPTH);
   }
 
  protected:

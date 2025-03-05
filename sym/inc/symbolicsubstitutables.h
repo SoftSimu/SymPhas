@@ -1099,10 +1099,10 @@ SymbolicTemplateDef<Ns...> template_of_apply(Variable<Ns, Gs> const&...) {
  * substituted.
  */
 template <size_t... Ns, typename... symbol_ts,
-          typename std::enable_if_t<(all_different<symbol_ts...> &&
-                                     ((is_symbol<symbol_ts> &&
-                                       !is_id_variable<symbol_ts>)&&...)),
-                                    int> = 0>
+          typename std::enable_if_t<
+              (all_different<symbol_ts...> &&
+               ((is_symbol<symbol_ts> && !is_id_variable<symbol_ts>) && ...)),
+              int> = 0>
 SymbolicTemplateDefSwap<symbol_ts...> template_of_apply(symbol_ts const&...) {
   return {};
 }
@@ -1284,6 +1284,7 @@ template <typename... Ts>
 decltype(auto) function_of(Ts&&... ts) {
   return function_of_apply(std::forward<Ts>(ts)...);
 }
+
 }  // namespace expr
 
 namespace expr {
@@ -1364,5 +1365,124 @@ auto D(SymbolicFunction<E, Variable<Z0, G0>, Variable<Z1, G1>,
               std::make_index_sequence<sizeof...(Zs) + 2>{});
 }
 }  // namespace expr::symbols
+
+template <typename V, typename F, typename... Args>
+struct OpCallable : OpExpression<OpCallable<V, F, Args...>> {
+ protected:
+  template <size_t... Is>
+  auto _eval(iter_type n, std::index_sequence<Is...>) const {
+    return expr::eval(value) * f(std::get<Is>(args)...);
+  }
+
+ public:
+  OpCallable(V const& value, F const& f, Args const&... args)
+      : value(value), f(f), args(args...) {}
+
+  auto eval(iter_type n) const {
+    return _eval(n, std::make_index_sequence<sizeof...(Args)>{});
+  }
+
+  auto operator-() const;
+
+  V value;
+  F f;
+  std::tuple<Args...> args;
+};
+
+template <typename V, typename F, typename... Args>
+struct OpCallable<V, F*, Args...> : OpExpression<OpCallable<V, F*, Args...>> {
+ protected:
+  template <size_t... Is>
+  auto _eval(iter_type n, std::index_sequence<Is...>) const {
+    return expr::eval(value) * f->operator()(std::get<Is>(args)...);
+  }
+
+ public:
+  OpCallable(V const& value, F* f, Args const&... args)
+      : value(value), f(f), args(args...) {}
+
+  auto eval(iter_type n) const {
+    return _eval(n, std::make_index_sequence<sizeof...(Args)>{});
+  }
+
+  auto operator-() const;
+
+  V value;
+  F* f;
+  std::tuple<Args...> args;
+};
+
+template <typename V, typename F, typename... Args>
+OpCallable(V, F, Args...) -> OpCallable<V, F, Args...>;
+
+template <typename V, typename F, typename... Args>
+OpCallable(V, F*, Args...) -> OpCallable<V, F*, Args...>;
+
+template <typename F>
+struct SymbolicCallable {
+  SymbolicCallable(F const& f) : f(f) {}
+  template <typename... Args>
+  auto operator()(Args&&... args) const {
+    return OpCallable(OpIdentity{}, f, std::forward<Args>(args)...);
+  }
+  F f;
+};
+
+template <typename F>
+struct SymbolicCallable<F*> {
+  SymbolicCallable(F* f) : f(f) {}
+  template <typename... Args>
+  auto operator()(Args&&... args) const {
+    return OpCallable(OpIdentity{}, f, std::forward<Args>(args)...);
+  }
+  F* f;
+};
+
+/* multiplication of a derivative object by a literal
+ */
+
+namespace expr {
+template <typename F>
+auto callable_of(F const& f) {
+  return SymbolicCallable<F>(f);
+}
+
+template <typename F>
+auto callable_of(F* f) {
+  return SymbolicCallable<F*>(f);
+}
+
+template <typename V, typename F, typename... Args, size_t... Is>
+auto make_callable_of(V&& coeff, F&& f, std::tuple<Args...> const& args,
+                      std::index_sequence<Is...>) {
+  return OpCallable(std::forward<V>(coeff), std::forward<F>(f),
+                    std::get<Is>(args)...);
+}
+template <typename V, typename F, typename... Args>
+auto make_callable_of(V&& coeff, F&& f, std::tuple<Args...> const& args) {
+  return make_callable_of(std::forward<V>(coeff), std::forward<F>(f), args,
+                          std::make_index_sequence<sizeof...(Args)>{});
+}
+}  // namespace expr
+
+template <typename V, typename F, typename... Args>
+auto OpCallable<V, F, Args...>::operator-() const {
+  return expr::make_callable_of(-value, f, args);
+}
+
+template <typename coeff_t, typename V, typename F, typename... Args,
+          typename std::enable_if_t<
+              (expr::is_coeff<coeff_t> && !expr::is_tensor<V>), int> = 0>
+auto operator*(coeff_t const& value, OpCallable<V, F, Args...> const& b) {
+  return expr::make_callable_of(value * b.value, b.f, b.args);
+}
+
+template <typename coeff_t, typename tensor_t, typename F, typename... Args,
+          typename std::enable_if_t<
+              (expr::is_coeff<coeff_t> && expr::is_tensor<tensor_t>), int> = 0>
+auto operator*(coeff_t const& value,
+               OpCallable<tensor_t, F, Args...> const& b) {
+  return (value * b.value) * expr::make_callable_of(OpIdentity{}, b.f, b.args);
+}
 
 //! @}

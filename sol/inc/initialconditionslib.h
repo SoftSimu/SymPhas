@@ -28,14 +28,8 @@
 
 #include <random>
 
-#include "params.h"
-//
-// #ifdef USING_CUDA
-// #include "gridfunctions.cuh"
-// #else
-// #include "gridfunctions.h"
-// #endif
 #include "dataiterator.h"
+#include "params.h"
 
 //! The width of a distribution when using randomness.
 #define IC_RND_STRENGTH params::init_rand_val

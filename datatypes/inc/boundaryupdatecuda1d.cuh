@@ -26,7 +26,7 @@
 
 #pragma once
 
-#include "boundaryupdate.h"
+#include "boundaryupdatecuda.cuh"
 
 #ifdef USING_CUDA
 
@@ -57,7 +57,7 @@ template <typename T>
 void symphas::internal::update_boundary<BoundaryType::PERIODIC, Side::LEFT, 0>::
 operator()(const grid::Boundary<T, 0>*, GridCUDA<T, 1>& grid) {
   int numBlocks = (BOUNDARY_DEPTH + BLOCK_SIZE - 1) / BLOCK_SIZE;
-  applyPeriodicBoundaryLeft CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
+  applyPeriodicBoundaryLeft1d CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
       grid.values, grid.len, BOUNDARY_DEPTH);
   CHECK_CUDA_ERROR(cudaPeekAtLastError());
   CHECK_CUDA_ERROR(cudaDeviceSynchronize());
@@ -70,7 +70,7 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC, Side::RIGHT,
                                                                             0>*,
                                                        GridCUDA<T, 1>& grid) {
   int numBlocks = (BOUNDARY_DEPTH + BLOCK_SIZE - 1) / BLOCK_SIZE;
-  applyPeriodicBoundaryRight CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
+  applyPeriodicBoundaryRight1d CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
       grid.values, grid.len, BOUNDARY_DEPTH);
   CHECK_CUDA_ERROR(cudaPeekAtLastError());
   CHECK_CUDA_ERROR(cudaDeviceSynchronize());

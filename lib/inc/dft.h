@@ -27,7 +27,6 @@
 
 #include <vector>
 
-#include "dft.cuh"
 #include "spslib.h"
 
 namespace symphas {

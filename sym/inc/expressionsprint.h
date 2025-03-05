@@ -2371,10 +2371,12 @@ struct noise_name_print<expr::NoiseType::WHITE> {
   auto operator()() { return STR_ARR_LEN(SYEX_NOISE_TOKEN_WHITE); }
 };
 
-template <expr::NoiseType nt, typename T, size_t D>
-struct symbolic_eval_print<NoiseData<nt, T, D>> {
+template <expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type>
+struct symbolic_eval_print<NoiseData<nt, T, D, grid_type>> {
   template <typename E>
-  size_t operator()(FILE* out, NoiseData<nt, T, D> const&, E const& e) {
+  size_t operator()(FILE* out, NoiseData<nt, T, D, grid_type> const&,
+                    E const& e) {
     size_t n = 0;
     n += noise_name_print<nt>{}(out);
     n += fprintf(out, "%s", SYEX_NOISE_A);
@@ -2384,7 +2386,8 @@ struct symbolic_eval_print<NoiseData<nt, T, D>> {
   }
 
   template <typename E>
-  size_t operator()(char* out, NoiseData<nt, T, D> const&, E const& e) {
+  size_t operator()(char* out, NoiseData<nt, T, D, grid_type> const&,
+                    E const& e) {
     size_t n = 0;
     n += noise_name_print<nt>{}(out + n);
     n += sprintf(out + n, "%s", SYEX_NOISE_A);
@@ -2394,7 +2397,7 @@ struct symbolic_eval_print<NoiseData<nt, T, D>> {
   }
 
   template <typename E>
-  size_t operator()(NoiseData<nt, T, D> const&, E const& e) {
+  size_t operator()(NoiseData<nt, T, D, grid_type> const&, E const& e) {
     return noise_name_print<nt>{}() + STR_ARR_LEN(SYEX_NOISE_A SYEX_NOISE_B) +
            e.print_length();
   }

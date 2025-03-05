@@ -29,6 +29,7 @@
 #ifdef USING_CUDA
 
 #include <cuda_runtime.h>
+#include <curand_kernel.h>
 
 namespace symphas::internal {
 
@@ -106,10 +107,10 @@ struct CuTerm : CuEvaluable<CuTerm<T, X>> {
   }
 
   template <size_t D>
-  __host__ __device__ T eval(position_type<D> const &n) const {
+  __device__ T eval(position_type<D> const &n) const {
     return result(values[n.index]);
   }
-  __host__ __device__ T eval(iter_type n) const { return result(values[n]); }
+  __device__ T eval(iter_type n) const { return result(values[n]); }
 };
 
 template <typename T, size_t D, expr::exp_key_t X>
@@ -185,11 +186,11 @@ struct CuTermRegion : CuEvaluable<CuTermRegion<D, T, X>> {
       : CuTermRegion(data, region, dims, empty, std::make_index_sequence<D>{}) {
   }
 
-  __host__ __device__ T eval(position_type<D> const &n) const {
+  __device__ T eval(position_type<D> const &n) const {
     return term.result(region(n.pos, term.values, dims, empty).dev());
   }
 
-  __host__ __device__ T eval(iter_type n) const {
+  __device__ T eval(iter_type n) const {
     iter_type pos[D]{};
     grid::get_grid_position(pos, dims, n);
     return term.result(region(pos, term.values, dims, empty).dev());
@@ -242,12 +243,12 @@ struct CuTermRegionHost : CuEvaluable<CuTermRegionHost<D, T, X>> {
       : CuTermRegionHost(data, region, dims, empty,
                          std::make_index_sequence<D>{}) {}
 
-  __host__ __device__ T eval(position_type<D> const &n) const {
+  __device__ T eval(position_type<D> const &n) const {
     return T{};
     // return term.result(region(n.pos, term.values, dims, empty));
   }
 
-  __host__ __device__ T eval(iter_type n) const {
+  __device__ T eval(iter_type n) const {
     return T{};
     // iter_type pos[D]{};
     // grid::get_grid_position(pos, dims, n);
@@ -323,7 +324,7 @@ struct CuTermList<E1> {
 // struct CuTensor {
 //  explicit CuTensor(T const& entry) : value{entry} {}
 //
-//  __host__ __device__ auto eval(iter_type n = 0) const {
+//  __device__ auto eval(iter_type n = 0) const {
 //    return symphas::internal::tensor_as_coeff<Ns...>(value);
 //  }
 //
@@ -332,21 +333,21 @@ struct CuTermList<E1> {
 
 struct CuIdentity : CuEvaluable<CuIdentity> {
   template <typename index_type>
-  __host__ __device__ scalar_t eval(index_type &&) const {
+  __device__ scalar_t eval(index_type &&) const {
     return 1;
   }
 };
 
 struct CuNegIdentity : CuIdentity {
   template <typename index_type>
-  __host__ __device__ scalar_t eval(index_type &&) const {
+  __device__ scalar_t eval(index_type &&) const {
     return -1;
   }
 };
 
 struct CuVoid : CuEvaluable<CuVoid> {
   template <typename index_type>
-  __host__ __device__ CuVoid eval(index_type &&) const {
+  __device__ CuVoid eval(index_type &&) const {
     return {};
   }
   __host__ __device__ operator scalar_t() const { return 0; }
@@ -364,62 +365,32 @@ struct CuLiteral : CuEvaluable<CuLiteral<T>> {
   T value;
   CuLiteral(T const &value) : value{value} {}
   template <typename index_type>
-  __host__ __device__ T eval(index_type &&) const {
+  __device__ T eval(index_type &&) const {
     return value;
   }
 };
 
-// template <typename T, typename I = void>
-// struct CuCoeff;
-//
-// template <typename T>
-// struct CuCoeff<T, void>;
-//
-// template <typename T, typename I>
-// struct CuCoeff : CuEvaluable<CuCoeff<T, I>> {
-//   CuCoeff(symphas::internal::coeff_data<T> const &data) : data{data} {}
-//
-//   template <typename index_type>
-//   __host__ __device__ auto eval(index_type &&) const {
-//     if (data.len > 0) {
-//       return data[0];
-//     } else {
-//       return T{};
-//     }
-//   }
-//
-//   symphas::internal::coeff_data_cuda<T> data;
-// };
-//
-// template <typename T>
-// struct CuCoeff<T, DynamicIndex> : CuEvaluable<CuCoeff<T, DynamicIndex>> {
-//   CuCoeff(DynamicIndex const &index,
-//           symphas::internal::coeff_data<T> const &data)
-//       : data{data}, index{index} {}
-//
-//   template <typename index_type>
-//   __host__ __device__ auto eval(index_type &&) const {
-//     if ((int)index < data.len) {
-//       return data[(int)index];
-//     } else {
-//       return T{};
-//     }
-//   }
-//
-//   symphas::internal::coeff_data<T> data;
-//   DynamicIndex index;
-// };
-//
-// template <typename I>
-// struct CuCoeff<void, I>;
-//
-// template <>
-// struct CuCoeff<void, DynamicIndex>;
+template <typename E>
+auto operator*(CuVoid, E &&) {
+  return CuVoid{};
+}
+template <typename E>
+auto operator*(E &&, CuVoid) {
+  return CuVoid{};
+}
+template <typename E>
+auto operator+(CuVoid, E &&e) {
+  return std::forward<E>(e);
+}
+template <typename E>
+auto operator+(E &&e, CuVoid) {
+  return std::forward<E>(e);
+}
 
 template <size_t N, size_t D>
 struct CuFractionLiteral : CuEvaluable<CuFractionLiteral<N, D>> {
   template <typename index_type>
-  __host__ __device__ scalar_t eval(index_type &&) const {
+  __device__ scalar_t eval(index_type &&) const {
     return scalar_t(N) / scalar_t(D);
   }
 };
@@ -427,7 +398,7 @@ struct CuFractionLiteral : CuEvaluable<CuFractionLiteral<N, D>> {
 template <size_t N, size_t D>
 struct CuNegFractionLiteral : CuEvaluable<CuNegFractionLiteral<N, D>> {
   template <typename index_type>
-  __host__ __device__ scalar_t eval(index_type &&n) const {
+  __device__ scalar_t eval(index_type &&n) const {
     return -CuFractionLiteral<N, D>().eval(std::forward<index_type>(n));
   }
 };
@@ -470,10 +441,120 @@ struct CuFunctionApply : CuEvaluable<CuFunctionApply<f, E>> {
   E e;
   CuFunctionApply(E const &e) : e{e} {}
   template <typename index_type>
-  __host__ __device__ scalar_t eval(index_type &&n) const {
+  __device__ scalar_t eval(index_type &&n) const {
     return f(e.eval(std::forward<index_type>(n)));
   }
 };
+
+template <typename F, typename... Args>
+struct CuCallable : CuEvaluable<CuCallable<F, Args...>> {
+ protected:
+  template <size_t... Is>
+  auto make_arg_list(std::tuple<Args...> const &args,
+                     std::index_sequence<Is...>) {
+    return CuTermList<std::tuple_element_t<Is, std::tuple<Args...>>...>{
+        std::get<Is>(args)...};
+  }
+
+ public:
+  CuCallable(F const &f, std::tuple<Args...> const &args)
+      : f(f),
+        args(make_arg_list(args, std::make_index_sequence<sizeof...(Args)>{})) {
+  }
+
+  template <size_t... Is>
+  __device__ auto _eval(iter_type n, std::index_sequence<Is...>) const {
+    return f.operator()(args.template get<Is>()...);
+  }
+
+  __device__ auto eval(iter_type n) const {
+    return _eval(n, std::make_index_sequence<sizeof...(Args)>{});
+  }
+
+  template <size_t D>
+  __device__ auto eval(position_type<D> const &n) const {
+    return _eval(n.index, std::make_index_sequence<sizeof...(Args)>{});
+  }
+
+  F f;
+  CuTermList<Args...> args;
+};
+
+template <typename F, typename... Args>
+struct CuCallable<F *, Args...> : CuEvaluable<CuCallable<F *, Args...>> {
+ protected:
+  template <size_t... Is>
+  auto make_arg_list(std::tuple<Args...> const &args,
+                     std::index_sequence<Is...>) {
+    return CuTermList<std::tuple_element_t<Is, std::tuple<Args...>>...>{
+        std::get<Is>(args)...};
+  }
+
+ public:
+  CuCallable(F *f, std::tuple<Args...> const &args)
+      : f(f),
+        args(make_arg_list(args, std::make_index_sequence<sizeof...(Args)>{})) {
+  }
+
+  template <size_t... Is>
+  __device__ auto _eval(iter_type n, std::index_sequence<Is...>) const {
+    return f->operator()(args.template get<Is>()...);
+  }
+
+  __device__ auto eval(iter_type n) const {
+    return _eval(n, std::make_index_sequence<sizeof...(Args)>{});
+  }
+
+  template <size_t D>
+  __device__ auto eval(position_type<D> const &n) const {
+    return _eval(n.index, std::make_index_sequence<sizeof...(Args)>{});
+  }
+
+  F *f;
+  CuTermList<Args...> args;
+};
+
+template <size_t D, template <typename, size_t> typename grid_type>
+struct CuCallable<expr::noise_data<expr::NoiseType::WHITE, D, grid_type> *,
+                  double, double>
+    : CuEvaluable<
+          CuCallable<expr::noise_data<expr::NoiseType::WHITE, D, grid_type> *,
+                     double, double>> {
+  CuCallable(expr::noise_data<expr::NoiseType::WHITE, D, grid_type> const *f,
+             std::tuple<double, double> const &args)
+      : states(f->states),
+        mean(std::get<0>(args)),
+        std_dev(std::get<1>(args)) {}
+
+  __device__ auto _eval(iter_type n) const {
+    curandState localState = states[n];
+    auto x = curand_normal(&localState);
+    states[n] = localState;
+    return std_dev * x + mean;
+  }
+
+  __device__ auto eval(iter_type n) const { return _eval(n); }
+
+  __device__ auto eval(position_type<D> const &n) const {
+    return _eval(n.index);
+  }
+
+  curandState *states;
+  double mean;
+  double std_dev;
+};
+
+template <typename F, typename... Args>
+CuCallable(F const *, std::tuple<Args...>) -> CuCallable<F *, Args...>;
+
+template <typename F, typename... Args>
+CuCallable(F, std::tuple<Args...>) -> CuCallable<F, Args...>;
+
+template <size_t D, template <typename, size_t> typename grid_type>
+CuCallable(expr::noise_data<expr::NoiseType::WHITE, D, grid_type> const *,
+           std::tuple<double, double>)
+    -> CuCallable<expr::noise_data<expr::NoiseType::WHITE, D, grid_type> *,
+                  double, double>;
 
 template <typename... Es>
 struct CuAdd : CuEvaluable<CuAdd<Es...>> {
@@ -481,15 +562,14 @@ struct CuAdd : CuEvaluable<CuAdd<Es...>> {
   CuAdd(Es const &...es) : terms{es...} {}
 
   template <typename index_type, size_t... Is>
-  __host__ __device__ auto eval(index_type &&i,
-                                std::index_sequence<Is...>) const {
+  __device__ auto eval(index_type &&i, std::index_sequence<Is...>) const {
     // print_value_next("add", terms, std::forward<index_type>(i),
     //                  int(sizeof...(Is)), std::index_sequence<Is...>{});
     return (terms.template get<Is>().eval(std::forward<index_type>(i)) + ...);
   }
 
   template <typename index_type>
-  __host__ __device__ auto eval(index_type &&i) const {
+  __device__ auto eval(index_type &&i) const {
     return this->eval(std::forward<index_type>(i),
                       std::make_index_sequence<sizeof...(Es)>{});
   }
@@ -500,15 +580,14 @@ struct CuMul : CuEvaluable<CuMul<Es...>> {
   CuTermList<Es...> terms;
   CuMul(Es const &...es) : terms{es...} {}
   template <typename index_type, size_t... Is>
-  __host__ __device__ auto eval(index_type &&i,
-                                std::index_sequence<Is...>) const {
+  __device__ auto eval(index_type &&i, std::index_sequence<Is...>) const {
     // print_value_next("mul", terms, std::forward<index_type>(i),
     //                  int(sizeof...(Is)), std::index_sequence<Is...>{});
     return (terms.template get<Is>().eval(std::forward<index_type>(i)) * ...);
   }
 
   template <typename index_type>
-  __host__ __device__ auto eval(index_type &&i) const {
+  __device__ auto eval(index_type &&i) const {
     return this->eval(std::forward<index_type>(i),
                       std::make_index_sequence<sizeof...(Es)>{});
   }
@@ -556,16 +635,15 @@ struct CuDerivative : CuEvaluable<CuDerivative<Dd, T, D, Sp>> {
   }
 
   template <typename value_type>
-  __host__ __device__ auto eval(value_type &&value, iter_type i) const {
+  __device__ auto eval(value_type &&value, iter_type i) const {
     return Dd{}(*solver, std::forward<value_type>(value), i);
   }
 
-  __host__ __device__ auto eval(iter_type i) const {
+  __device__ auto eval(iter_type i) const {
     return eval(GridDataCUDA<T, D>(values), i);
   }
 
-  template <size_t D>
-  __host__ __device__ auto eval(position_type<D> const &n) const {
+  __device__ auto eval(position_type<D> const &n) const {
     return eval(n.index);
   }
 
@@ -600,7 +678,7 @@ struct CuDerivativeRegion : CuEvaluable<CuDerivativeRegion<Dd, T, D, Sp>> {
   CuDerivativeRegion(T *values, grid::select_region_cuda<D> const &region,
                      len_type (&dims)[D], T const &empty, Sp *solver,
                      std::index_sequence<Is...>)
-      : deriv{values, hostSolver},
+      : deriv{values, solver},
         region{region},
         dims{dims[Is]...},
         empty{empty} {}
@@ -634,14 +712,13 @@ struct CuDerivativeRegion : CuEvaluable<CuDerivativeRegion<Dd, T, D, Sp>> {
     swap(first.empty, second.empty);
   }
 
-  __host__ __device__ auto eval(iter_type n) const {
+  __device__ auto eval(iter_type n) const {
     iter_type pos[D]{};
     grid::get_grid_position(pos, dims, n);
     return eval(position_type<D>(dims, pos));
   }
 
-  template <size_t D>
-  __host__ __device__ auto eval(position_type<D> const &n) const {
+  __device__ auto eval(position_type<D> const &n) const {
     auto value = region(n.pos, deriv.values, dims, empty);
     if (value.is_valid()) {
       auto r = deriv.eval(
@@ -662,7 +739,7 @@ struct CuDerivativeHost : CuEvaluable<CuDerivativeHost<Dd, T, D, Sp>> {
   T *copyValuesToDevice(const T *hostValues, len_type len) const {
     T *deviceValues;
     CHECK_CUDA_ERROR(cudaMalloc(&deviceValues, len * sizeof(T)));
-    CHECK_CUDA_ERROR(cudaMemcpy(deviceValues, &hostValues, len * sizeof(T),
+    CHECK_CUDA_ERROR(cudaMemcpy(deviceValues, hostValues, len * sizeof(T),
                                 cudaMemcpyHostToDevice));
     return deviceValues;
   }
@@ -697,12 +774,9 @@ struct CuDerivativeHost : CuEvaluable<CuDerivativeHost<Dd, T, D, Sp>> {
     swap(first.len, second.len);
   }
 
-  __host__ __device__ auto eval(iter_type i) const {
-    return derivative.eval(i);
-  }
+  __device__ auto eval(iter_type i) const { return derivative.eval(i); }
 
-  template <size_t D>
-  __host__ __device__ auto eval(position_type<D> const &i) const {
+  __device__ auto eval(position_type<D> const &i) const {
     return eval(i.index);
   }
 
@@ -735,7 +809,7 @@ struct CuSeries : CuEvaluable<CuSeries<T, E>> {
   }
 
   template <typename index_type>
-  __host__ __device__ auto eval(index_type &&n) const {
+  __device__ auto eval(index_type &&n) const {
     using namespace symphas::internal;
 
     if (len > 0) {
@@ -851,19 +925,19 @@ auto operator*(CuEvaluable<E1> const &a, CuEvaluable<E2> const &b) {
 template <typename... As, typename E2, size_t... Is>
 auto to_cu_mul(CuMul<As...> const &a, CuEvaluable<E2> const &b,
                std::index_sequence<Is...>) {
-  return CuMul{a.terms.get<Is>()..., *static_cast<E2 const *>(&b)};
+  return CuMul{a.terms.template get<Is>()..., *static_cast<E2 const *>(&b)};
 }
 
 template <typename E1, typename... Bs, size_t... Is>
 auto to_cu_mul(CuEvaluable<E1> const &a, CuMul<Bs...> const &b,
                std::index_sequence<Is...>) {
-  return CuMul{*static_cast<E1 const *>(&a), b.terms.get<Is>()...};
+  return CuMul{*static_cast<E1 const *>(&a), b.terms.template get<Is>()...};
 }
 
 template <typename... As, typename... Bs, size_t... Is, size_t... Js>
 auto to_cu_mul(CuMul<As...> const &a, CuMul<Bs...> const &b,
                std::index_sequence<Is...>, std::index_sequence<Js...>) {
-  return CuMul{a.terms.get<Is>()..., b.terms.get<Js>()...};
+  return CuMul{a.terms.template get<Is>()..., b.terms.template get<Js>()...};
 }
 
 template <typename... As, typename E2>
@@ -924,6 +998,177 @@ template <typename G, expr::exp_key_t X>
 auto to_cuda_expr(Term<G, X> const &e) {
   return to_cuda_expr<X>(BaseData<G>::get(e));
 }
+
+auto to_cuda_expr(OpIdentity const &e) { return CuIdentity(); }
+
+auto to_cuda_expr(OpNegIdentity const &e) { return CuNegIdentity(); }
+
+auto to_cuda_expr(OpVoid const &e) { return CuVoid(); }
+
+inline auto to_cuda_expr(scalar_t const &value) {
+  return CuLiteral<scalar_t>{value};
+}
+
+inline auto to_cuda_expr(complex_t const &value) {
+  return CuLiteral<complex_t>{value};
+}
+
+template <typename T, size_t D>
+auto to_cuda_expr(any_vector_t<T, D> const &value) {
+  return CuLiteral<any_vector_t<T, D>>{value};
+}
+
+template <typename T>
+auto to_cuda_expr(OpLiteral<T> const &e) {
+  return to_cuda_expr(e.eval(0));
+}
+
+template <typename T, typename I>
+auto to_cuda_expr(OpCoeff<T, I> const &e) {
+  return to_cuda_expr(e.eval(0));
+}
+
+template <typename T>
+auto to_cuda_expr(OpCoeff<T, DynamicIndex> const &e) {
+  return to_cuda_expr(e.eval(0));
+}
+
+template <typename T, size_t... Ns>
+auto to_cuda_expr(OpTensor<T, Ns...> const &e) {
+  return to_cuda_expr(e.eval(0));
+}
+
+template <size_t N, size_t D>
+auto to_cuda_expr(OpNegFractionLiteral<N, D> const &e) {
+  return to_cuda_expr(e.eval(0));
+}
+
+template <size_t N, size_t D>
+auto to_cuda_expr(OpFractionLiteral<N, D> const &e) {
+  return to_cuda_expr(e.eval(0));
+}
+
+template <typename A, typename B>
+auto to_cuda_expr(OpBinaryMul<A, B> const &e);
+
+template <typename V, typename T0, size_t I0>
+auto to_cuda_expr(OpTerms<V, T0> const &e, std::index_sequence<I0>);
+
+template <typename T0, size_t I0>
+auto to_cuda_expr(OpTerms<OpIdentity, T0> const &e, std::index_sequence<I0>);
+
+template <typename V, typename... Ts, size_t I0, size_t I1, size_t... Is>
+auto to_cuda_expr(OpTerms<V, Ts...> const &e,
+                  std::index_sequence<I0, I1, Is...>);
+
+template <typename... Ts, size_t I0, size_t I1, size_t... Is>
+auto to_cuda_expr(OpTerms<OpIdentity, Ts...> const &e,
+                  std::index_sequence<I0, I1, Is...>);
+
+template <typename V, typename... Ts>
+auto to_cuda_expr(OpTerms<V, Ts...> const &e);
+
+template <typename Dd, typename T, size_t D, typename Sp>
+auto to_cuda_expr_deriv(GridCUDA<T, D> const &data, Sp const &solver);
+
+template <typename Dd, typename T, size_t D, typename Sp>
+auto to_cuda_expr_deriv(RegionalGridCUDA<T, D> const &data, Sp const &solver);
+
+template <typename Dd, Axis ax, typename T, size_t D, typename Sp>
+auto to_cuda_expr_deriv(VectorComponentData<ax, T *, D> const &data,
+                        Sp const &solver);
+
+template <typename Dd, Axis ax, typename T, size_t D, typename Sp>
+auto to_cuda_expr_deriv(
+    VectorComponentRegionData<ax, CUDADataType<T> *, D> const &data,
+    Sp const &solver);
+
+template <typename Dd, typename T, size_t D, typename Sp>
+auto to_cuda_expr_deriv(Grid<T, D> const &data, Sp const &solver);
+
+template <typename Dd, typename G, typename Sp>
+auto to_cuda_expr(
+    OpDerivative<Dd, OpIdentity, OpTerm<OpIdentity, G>, Sp> const &e);
+
+template <typename Dd, typename E, typename Sp>
+auto to_cuda_expr(OpDerivative<Dd, OpIdentity, E, Sp> const &e);
+
+template <typename Dd, typename V, typename G, typename Sp>
+auto to_cuda_expr(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> const &e);
+
+template <typename Dd, typename V, typename E, typename Sp>
+auto to_cuda_expr(OpDerivative<Dd, V, E, Sp> const &e);
+
+template <typename V, typename E, typename Sp>
+auto to_cuda_expr(OpIntegral<V, E, Sp> const &e);
+
+template <typename E>
+auto to_cuda_expr(OpOperatorChain<OpIdentity, E> const &e);
+
+template <typename V, typename E, typename I, typename F, size_t... Ns,
+          typename... Ts>
+auto to_cuda_expr(SymbolicListIndex<E, I> const &list_index,
+                  SymbolicFunction<F, Variable<Ns, Ts>...> const &func);
+
+template <typename V, typename E, typename I, typename F, size_t... Ns,
+          typename... Ts>
+auto to_cuda_expr(
+    OpSymbolicEval<V, SymbolicListIndex<E, I>,
+                   SymbolicFunction<F, Variable<Ns, Ts>...>> const &e);
+
+template <expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type>
+auto to_cuda_expr(NoiseData<nt, T, D, grid_type> const &noise_data);
+
+template <expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type, size_t... Is>
+auto to_cuda_expr(
+    NoiseData<nt, any_vector_t<T, D>, D, grid_type> const &noise_data,
+    std::index_sequence<Is...>);
+
+template <expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type>
+auto to_cuda_expr(
+    NoiseData<nt, any_vector_t<T, D>, D, grid_type> const &noise_data);
+
+template <typename V, expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type, typename E,
+          typename... Ts>
+auto to_cuda_expr(OpSymbolicEval<V, NoiseData<nt, T, D, grid_type>,
+                                 SymbolicFunction<E, Ts...>> const &e);
+
+template <expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type, typename E,
+          typename... Ts>
+auto to_cuda_expr(OpSymbolicEval<OpIdentity, NoiseData<nt, T, D, grid_type>,
+                                 SymbolicFunction<E, Ts...>> const &e);
+
+template <typename F, typename... Args>
+auto to_cuda_expr(OpCallable<OpIdentity, F, Args...> const &e);
+
+template <typename V, typename F, typename... Args>
+auto to_cuda_expr(OpCallable<V, F, Args...> const &e);
+
+template <auto f, typename E>
+auto to_cuda_expr(OpFunctionApply<f, OpIdentity, E> const &e);
+
+template <auto f, typename V, typename E>
+auto to_cuda_expr(OpFunctionApply<f, V, E> const &e);
+
+template <typename E>
+auto to_cuda_expr(OpOptimized<E> const &e);
+
+template <typename A1, typename A2, typename E>
+auto to_cuda_expr(OpChain<A1, A2, E> const &e);
+
+template <typename... Es, size_t... Is>
+auto to_cuda_expr(OpAdd<Es...> const &e, std::index_sequence<Is...>);
+
+template <typename... Es>
+auto to_cuda_expr(OpAdd<Es...> const &e);
+
+template <typename V, typename... Ss, typename F>
+auto to_cuda_expr(OpSymbolicEval<V, SymbolicSeries<Ss...>, F> const &e);
 
 template <typename A, typename B>
 auto to_cuda_expr(OpBinaryMul<A, B> const &e) {
@@ -1049,55 +1294,6 @@ auto to_cuda_expr(OpOperatorChain<OpIdentity, E> const &e) {
   return to_cuda_expr(e.g);
 }
 
-inline auto to_cuda_expr(scalar_t const &value) {
-  return CuLiteral<scalar_t>{value};
-}
-
-inline auto to_cuda_expr(complex_t const &value) {
-  return CuLiteral<complex_t>{value};
-}
-
-template <typename T, size_t D>
-auto to_cuda_expr(any_vector_t<T, D> const &value) {
-  return CuLiteral<any_vector_t<T, D>>{value};
-}
-
-auto to_cuda_expr(OpIdentity const &e) { return CuIdentity(); }
-
-auto to_cuda_expr(OpNegIdentity const &e) { return CuNegIdentity(); }
-
-auto to_cuda_expr(OpVoid const &e) { return CuVoid(); }
-
-template <typename T>
-auto to_cuda_expr(OpLiteral<T> const &e) {
-  return to_cuda_expr(e.eval(0));
-}
-
-template <typename T, typename I>
-auto to_cuda_expr(OpCoeff<T, I> const &e) {
-  return to_cuda_expr(e.eval(0));
-}
-
-template <typename T>
-auto to_cuda_expr(OpCoeff<T, DynamicIndex> const &e) {
-  return to_cuda_expr(e.eval(0));
-}
-
-template <typename T, size_t... Ns>
-auto to_cuda_expr(OpTensor<T, Ns...> const &e) {
-  return to_cuda_expr(e.eval(0));
-}
-
-template <size_t N, size_t D>
-auto to_cuda_expr(OpNegFractionLiteral<N, D> const &e) {
-  return to_cuda_expr(e.eval(0));
-}
-
-template <size_t N, size_t D>
-auto to_cuda_expr(OpFractionLiteral<N, D> const &e) {
-  return to_cuda_expr(e.eval(0));
-}
-
 template <typename V, typename E, typename I, typename F, size_t... Ns,
           typename... Ts>
 auto to_cuda_expr(SymbolicListIndex<E, I> const &list_index,
@@ -1115,24 +1311,72 @@ auto to_cuda_expr(
   return to_cuda_expr(expr::coeff(e)) * to_cuda_expr(e.data, e.f);
 }
 
-template <expr::NoiseType nt, typename T, size_t D, typename E, typename... Ts>
-auto to_cuda_expr(NoiseData<nt, T, D> const &noise_data,
-                  SymbolicFunction<E, Ts...> const &func) {
-  return CuVoid{};
+template <expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type>
+auto to_cuda_expr(NoiseData<nt, T, D, grid_type> const &noise_data) {
+  return to_cuda_expr<1>(noise_data.as_grid());
 }
 
-template <typename V, expr::NoiseType nt, typename T, size_t D, typename E,
+template <expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type, size_t... Is>
+auto to_cuda_expr(
+    NoiseData<nt, any_vector_t<T, D>, D, grid_type> const &noise_data,
+    std::index_sequence<Is...>) {
+  return CuAdd(
+      (to_cuda_expr(expr::make_column_vector<D - Is - 1, D>()) *
+       to_cuda_expr<1>(
+           static_cast<expr::noise_data_axis<D - Is, nt, D, grid_type> const *>(
+               &noise_data)
+               ->as_grid()))...);
+}
+
+template <expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type>
+auto to_cuda_expr(
+    NoiseData<nt, any_vector_t<T, D>, D, grid_type> const &noise_data) {
+  return to_cuda_expr(noise_data, std::make_index_sequence<D>{});
+}
+
+template <typename V, expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type, typename E,
           typename... Ts>
-auto to_cuda_expr(OpSymbolicEval<V, NoiseData<nt, T, D>,
+auto to_cuda_expr(OpSymbolicEval<V, NoiseData<nt, T, D, grid_type>,
                                  SymbolicFunction<E, Ts...>> const &e) {
-  return to_cuda_expr(expr::coeff(e)) * to_cuda_expr(e.data, e.f);
+  return to_cuda_expr(expr::coeff(e)) * to_cuda_expr(e.data);
+}
+
+template <expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type, typename E,
+          typename... Ts>
+auto to_cuda_expr(OpSymbolicEval<OpIdentity, NoiseData<nt, T, D, grid_type>,
+                                 SymbolicFunction<E, Ts...>> const &e) {
+  return to_cuda_expr(e.data);
+}
+
+template <typename F, typename... Args>
+auto to_cuda_callable(F const &f, std::tuple<Args...> const &args) {
+  return CuCallable<F, Args...>{f, args};
+}
+
+template <typename F, typename... Args>
+auto to_cuda_callable(F *f, std::tuple<Args...> const &args) {
+  return CuCallable<F *, Args...>{f, args};
+}
+
+template <typename F, typename... Args>
+auto to_cuda_expr(OpCallable<OpIdentity, F, Args...> const &e) {
+  return to_cuda_callable(e.f, e.args);
+}
+
+template <typename V, typename F, typename... Args>
+auto to_cuda_expr(OpCallable<V, F, Args...> const &e) {
+  return to_cuda_expr(expr::coeff(e)) * to_cuda_callable(e.f, e.args);
 }
 
 template <auto f, typename E>
 auto to_cuda_fn_expr(CuEvaluable<E> const &e) {
   return CuFunctionApply<f, E>{*static_cast<E const *>(&e)};
 }
-
 template <auto f, typename E>
 auto to_cuda_expr(OpFunctionApply<f, OpIdentity, E> const &e) {
   return to_cuda_fn_expr<f>(to_cuda_expr(e.e));

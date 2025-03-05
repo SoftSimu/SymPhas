@@ -11,16 +11,23 @@
 # your choice.
 # 
 # SymPhas is distributed with the faith that it will be helpful and
-# practical but WITHOUT ANY WARRANTY; without even the implied warranty of
+# practical but WITHOUT ANY WARRANTY;\nz without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
 # General Public License for more details.
 # 
 # ***************************************************************************
 
-file(GLOB_RECURSE SOURCES_DATATYPES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cu")
+file(GLOB_RECURSE SOURCES_DATATYPES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 
+if (USING_CUDA)
+	file(GLOB_RECURSE SOURCES_CUDA_DATATYPES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cu")
+	message(STATUS "CUDA source files for datatypes: ${SOURCES_CUDA_DATATYPES}")
+else()
+	set(SOURCES_CUDA_DATATYPES "")
+endif()
 
-add_library(symphas_datatypes_o OBJECT ${SOURCES_DATATYPES})
+add_library(symphas_datatypes_o OBJECT ${SOURCES_DATATYPES} ${SOURCES_CUDA_DATATYPES})
+
 target_include_directories(symphas_datatypes_o PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
 	$<INSTALL_INTERFACE:include>)
@@ -30,5 +37,4 @@ target_compile_definitions(symphas_datatypes_o PRIVATE DATATYPES_EXPORTS)
 
 add_library(symphas_datatypes SHARED)
 target_link_libraries(symphas_datatypes PUBLIC symphas_datatypes_o)
-
 

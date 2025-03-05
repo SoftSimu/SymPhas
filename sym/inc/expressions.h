@@ -798,13 +798,15 @@ struct OpFractionLiteral;
 
 template <size_t N, size_t D>
 struct OpFractionLiteral : OpExpression<OpFractionLiteral<N, D>> {
-  constexpr inline scalar_t eval(iter_type = 0) const {
+  __host__ __device__ constexpr inline scalar_t eval(iter_type = 0) const {
     return static_cast<scalar_t>(N) / D;
   }
 
-  constexpr operator scalar_t() const { return eval(); }
+  __host__ __device__ constexpr operator scalar_t() const { return eval(); }
 
-  constexpr auto operator-() const { return OpNegFractionLiteral<N, D>{}; }
+  __host__ __device__ constexpr auto operator-() const {
+    return OpNegFractionLiteral<N, D>{};
+  }
 
   constexpr auto operator--(int) const {
     return expr::numeric_range(OpFractionLiteral<N, D>{});
@@ -827,13 +829,15 @@ struct OpFractionLiteral : OpExpression<OpFractionLiteral<N, D>> {
 
 template <size_t N>
 struct OpFractionLiteral<N, 1> : OpExpression<OpFractionLiteral<N, 1>> {
-  constexpr inline scalar_t eval(iter_type = 0) const {
+  __host__ __device__ constexpr inline scalar_t eval(iter_type = 0) const {
     return static_cast<scalar_t>(N);
   }
 
-  constexpr operator scalar_t() const { return eval(); }
+  __host__ __device__ constexpr operator scalar_t() const { return eval(); }
 
-  constexpr auto operator-() const { return OpNegFractionLiteral<N, 1>{}; }
+  __host__ __device__ constexpr auto operator-() const {
+    return OpNegFractionLiteral<N, 1>{};
+  }
 
   constexpr auto operator--(int) const {
     return expr::numeric_range(OpFractionLiteral<N, 1>{});
@@ -852,13 +856,15 @@ struct OpFractionLiteral<N, 1> : OpExpression<OpFractionLiteral<N, 1>> {
 
 template <size_t N, size_t D>
 struct OpNegFractionLiteral : OpExpression<OpNegFractionLiteral<N, D>> {
-  constexpr inline scalar_t eval(iter_type = 0) const {
+  __host__ __device__ constexpr inline scalar_t eval(iter_type = 0) const {
     return -static_cast<scalar_t>(N) / D;
   }
 
-  constexpr operator scalar_t() const { return eval(); }
+  __host__ __device__ constexpr operator scalar_t() const { return eval(); }
 
-  constexpr auto operator-() const { return OpFractionLiteral<N, D>{}; }
+  __host__ __device__ constexpr auto operator-() const {
+    return OpFractionLiteral<N, D>{};
+  }
 
   constexpr auto operator--(int) const {
     return expr::numeric_range(OpNegFractionLiteral<N, D>{});
@@ -1048,7 +1054,7 @@ constexpr decltype(auto) expr::make_literal(T const& v) {
 }
 
 template <size_t N, size_t D>
-constexpr auto expr::make_fraction() {
+__host__ __device__ constexpr auto expr::make_fraction() {
   static_assert(D != 0, "dividing by zero");
   if constexpr (N == 0) {
     return OpVoid{};
@@ -1061,7 +1067,7 @@ constexpr auto expr::make_fraction() {
 }
 
 template <int I>
-constexpr auto expr::make_integer() {
+__host__ __device__ constexpr auto expr::make_integer() {
   if constexpr (I < 0) {
     return -expr::make_fraction<static_cast<size_t>(-I), 1>();
   } else {

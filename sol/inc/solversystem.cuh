@@ -30,6 +30,9 @@
 
 #ifdef USING_CUDA
 
+#include "boundarysystem.cuh"
+#include "systemlib.cuh"
+
 //! The default phase field system.
 /*!
  * The representation of a phase field system, storing the values of the

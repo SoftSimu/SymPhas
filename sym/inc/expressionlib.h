@@ -34,12 +34,6 @@
 #include "indexseqhelpers.h"
 #include "symbolicprototypes.h"
 
-// #ifdef USING_CUDA
-// #include "gridfunctions.cuh"
-// #else
-// #include "gridfunctions.h"
-// #endif
-
 #ifdef EXECUTION_HEADER_AVAILABLE
 #include <execution>
 #endif
@@ -455,34 +449,7 @@ struct VectorComponentRegionData<ax, T *, D> {
 #ifdef USING_CUDA
 
 template <Axis ax, typename T, size_t D>
-struct VectorComponentRegionData<ax, CUDADataType<T> *, D> {
-  T *values;
-  grid::select_region_cuda<D> region;
-  len_type dims[D];
-  T empty;
-
-  template <size_t... Is>
-  VectorComponentRegionData(T *data, grid::select_region_cuda<D> const &region,
-                            const len_type (&dims)[D], T const &empty,
-                            std::index_sequence<Is...>)
-      : values{data}, region{region}, dims{dims[Is]...}, empty{empty} {}
-  VectorComponentRegionData(T *data, grid::select_region_cuda<D> const &region,
-                            const len_type (&dims)[D], T const &empty)
-      : VectorComponentRegionData(data, region, dims, empty,
-                                  std::make_index_sequence<D>{}) {}
-
-  __host__ __device__ auto operator[](iter_type n) const {
-    iter_type pos[D]{};
-    grid::get_grid_position(pos, dims, n);
-    return region(pos, values, dims, empty);
-  }
-
-  __host__ __device__ auto operator[](iter_type n) {
-    iter_type pos[D]{};
-    grid::get_grid_position(pos, dims, n);
-    return region(pos, values, dims, empty);
-  }
-};
+struct VectorComponentRegionData<ax, CUDADataType<T> *, D>;
 
 #endif
 
@@ -586,38 +553,9 @@ struct GridData<MultiBlock<N, T>, N> {
 #ifdef USING_CUDA
 
 template <typename T, size_t D>
-struct GridDataCUDA {
-  T *values;
-  __host__ __device__ GridDataCUDA(T *values) : values{values} {}
-
-  __host__ __device__ const auto &operator[](iter_type i) const {
-    return values[i];
-  }
-  __host__ __device__ auto &operator[](iter_type i) { return values[i]; }
-};
-
+struct GridDataCUDA;
 template <typename T, size_t D>
-struct RegionGridDataCUDA {
-  T *values;
-  len_type dims[D];
-  len_type stride[D];
-
-  template <size_t... Is>
-  __host__ __device__ RegionGridDataCUDA(T *values, len_type const (&dims)[D],
-                                         len_type const (&stride)[D],
-                                         std::index_sequence<Is...>)
-      : values{values}, dims{dims[Is]...}, stride{stride[Is]...} {}
-  __host__ __device__ RegionGridDataCUDA(T *values, len_type const (&dims)[D],
-                                         len_type const (&stride)[D])
-      : RegionGridDataCUDA(values, dims, stride,
-                           std::make_index_sequence<D>{}) {}
-
-  __host__ __device__ const auto &operator[](iter_type i) const {
-    return values[i];
-  }
-  __host__ __device__ auto &operator[](iter_type i) { return values[i]; }
-};
-
+struct RegionGridDataCUDA;
 #endif
 
 // **************************************************************************************
@@ -671,29 +609,20 @@ VectorComponentData<ax, T, D> resolve_axis_component(any_vector_t<T, D> &data) {
 
 template <Axis ax, size_t N, typename T>
 VectorComponentRegionData<ax, CUDADataType<T> *, N> resolve_axis_component(
-    RegionalGridCUDA<any_vector_t<T, N>, N> const &data) {
-  return {data.values[symphas::axis_to_index(ax)], data.region, data.dims,
-          data.empty[symphas::axis_to_index(ax)]};
-}
+    RegionalGridCUDA<any_vector_t<T, N>, N> const &data);
 
 template <Axis ax, size_t N, typename T>
 VectorComponentRegionData<ax, CUDADataType<T> *, N> resolve_axis_component(
-    RegionalGridCUDA<any_vector_t<T, N>, N> &data) {
-  return {data.values[symphas::axis_to_index(ax)], data.region, data.dims,
-          data.empty[symphas::axis_to_index(ax)]};
-}
+    RegionalGridCUDA<any_vector_t<T, N>, N> &data);
 
 template <Axis ax, size_t N, typename T>
 VectorComponentData<ax, T *, N> resolve_axis_component(
-    MultiBlockCUDA<N, T> const &data) {
-  return {data.values[symphas::axis_to_index(ax)]};
-}
+    MultiBlockCUDA<N, T> const &data);
 
 template <Axis ax, size_t N, typename T>
 VectorComponentData<ax, T *, N> resolve_axis_component(
-    MultiBlockCUDA<N, T> &data) {
-  return {data.values[symphas::axis_to_index(ax)]};
-}
+    MultiBlockCUDA<N, T> &data);
+
 #endif
 
 //! Constructs a constant of the given value.
@@ -713,7 +642,7 @@ constexpr decltype(auto) make_literal(T const &v);
  * \tparam D The value of the denominator, a positive whole number.
  */
 template <size_t N, size_t D>
-constexpr auto make_fraction();
+__host__ __device__ constexpr auto make_fraction();
 
 template <size_t N, size_t D>
 constexpr auto frac = make_fraction<N, D>();
@@ -725,7 +654,7 @@ constexpr auto frac = make_fraction<N, D>();
  * given integer should be negative.
  */
 template <int I>
-constexpr auto make_integer();
+__host__ __device__ constexpr auto make_integer();
 
 template <int I>
 constexpr auto val = make_integer<I>();
@@ -1961,8 +1890,11 @@ using storage_type_t = typename storage_type<E>::type;
 
 template <typename G>
 struct parent_storage_type;
-template <typename E>
-using parent_storage_t = typename parent_storage_type<E>::type;
+template <typename G>
+using parent_storage_t = typename parent_storage_type<G>::type;
+template <typename G>
+using enclosing_parent_storage_t =
+    typename parent_storage_type<G>::enclosing_type;
 
 //! Checks whether the expression manages data to be updated.
 /*!
@@ -2445,6 +2377,22 @@ struct expr::grid_dim<OpFunctionApply<f, V, E>> {
   static const size_t value = dimension;
 };
 
+//! Specialization based on expr::grid_dim.
+template <typename V, typename F, typename... Args>
+struct expr::grid_dim<OpCallable<V, F, Args...>> {
+  static const size_t dimension = fixed_max<expr::grid_dim<F>::dimension,
+                                            expr::grid_dim<Args>::dimension...>;
+  static const size_t value = dimension;
+};
+
+//! Specialization based on expr::grid_dim.
+template <typename V, typename F, typename... Args>
+struct expr::grid_dim<OpCallable<V, F *, Args...>> {
+  static const size_t dimension =
+      expr::grid_dim<OpCallable<V, F, Args...>>::dimension;
+  static const size_t value = dimension;
+};
+
 //! Get the expression that the OpConvolution applies to.
 template <typename V, typename sub_t, typename E, typename... Ts>
 struct expr::grid_dim<OpSymbolicEval<V, sub_t, SymbolicFunction<E, Ts...>>> {
@@ -2502,8 +2450,9 @@ struct expr::grid_dim<OpOptimized<E>> {
   static const size_t value = dimension;
 };
 
-template <expr::NoiseType nt, typename T, size_t D>
-struct expr::grid_dim<NoiseData<nt, T, D>> {
+template <expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type>
+struct expr::grid_dim<NoiseData<nt, T, D, grid_type>> {
   static const size_t dimension = D;
   static const size_t value = dimension;
 };
@@ -2560,9 +2509,10 @@ struct expr::op_types<Substitution<Ts...>> {
 };
 
 //! Get the expression that the OpConvolution applies to.
-template <expr::NoiseType nt, typename T, size_t D>
-struct expr::op_types<NoiseData<nt, T, D>> {
-  using type = NoiseData<nt, T, D>;
+template <expr::NoiseType nt, typename T, size_t D,
+          template <typename, size_t> typename grid_type>
+struct expr::op_types<NoiseData<nt, T, D, grid_type>> {
+  using type = NoiseData<nt, T, D, grid_type>;
 };
 
 //! Specialization based on expr::op_types.
@@ -2640,6 +2590,27 @@ struct expr::op_types<OpFunction<V, E, F, Arg0, Args...>> {
 template <auto f, typename V, typename E>
 struct expr::op_types<OpFunctionApply<f, V, E>> {
   using type = typename expr::op_types<E>::type;
+};
+
+//! Specialization based on expr::grid_dim.
+template <expr::NoiseType nt, size_t D,
+          template <typename, size_t> typename grid_type>
+struct expr::op_types<expr::noise_data<nt, D, grid_type>> {
+  using type = grid_type<scalar_t, D>;
+};
+
+//! Specialization based on expr::grid_dim.
+template <typename V, typename F, typename... Args>
+struct expr::op_types<OpCallable<V, F, Args...>> {
+  using type = typename symphas::lib::combine_types_unique<
+      typename expr::op_types<F>::type,
+      typename expr::op_types<Args>::type...>::type;
+};
+
+//! Specialization based on expr::grid_dim.
+template <typename V, typename F, typename... Args>
+struct expr::op_types<OpCallable<V, F *, Args...>> {
+  using type = typename expr::op_types<OpCallable<V, F, Args...>>::type;
 };
 
 //! Get the expression that the OpConvolution applies to.
@@ -2911,6 +2882,27 @@ struct expr::storage_type<SymbolicFunction<E, Ts...>> {
   using type = typename storage_type<E>::type;
 };
 
+template <template <typename, size_t> typename enc_type>
+struct enclosing_class_wrap {
+  template <typename T, size_t D>
+  using type = enc_type<T, D>;
+};
+
+template <>
+struct enclosing_class_wrap<Grid> {
+  template <typename T, size_t D>
+  using type = Grid<T, D>;
+};
+
+#ifdef USING_CUDA
+
+template <>
+struct enclosing_class_wrap<GridCUDA> {
+  template <typename T, size_t D>
+  using type = GridCUDA<T, D>;
+};
+#endif
+
 template <typename G>
 struct expr::parent_storage_type {
  protected:
@@ -2919,10 +2911,34 @@ struct expr::parent_storage_type {
     return {};
   }
 
+  template <typename T, size_t N>
+  static MultiBlock<N, T> _cast_grid(MultiBlock<N, T>) {
+    return {};
+  }
+
   template <typename T, size_t D>
   static Grid<T, D> _cast_grid(Grid<T, D>) {
     return {};
   }
+
+#ifdef USING_CUDA
+
+  template <typename T>
+  static BlockCUDA<T> _cast_grid(BlockCUDA<T>) {
+    return {};
+  }
+
+  template <typename T, size_t N>
+  static MultiBlockCUDA<N, T> _cast_grid(MultiBlockCUDA<N, T>) {
+    return {};
+  }
+
+  template <typename T, size_t D>
+  static GridCUDA<T, D> _cast_grid(GridCUDA<T, D>) {
+    return {};
+  }
+
+#endif
 
   static auto cast_grid() -> decltype(_cast_grid(std::declval<G>())) {
     return {};
@@ -2931,6 +2947,34 @@ struct expr::parent_storage_type {
  public:
   using type =
       std::invoke_result_t<decltype(&expr::parent_storage_type<G>::cast_grid)>;
+
+ protected:
+  template <typename T, size_t D>
+  static enclosing_class_wrap<Grid> _cast_enclosing(Grid<T, D>) {
+    return {};
+  }
+
+#ifdef USING_CUDA
+
+  template <typename T, size_t D>
+  static enclosing_class_wrap<GridCUDA> _cast_enclosing(GridCUDA<T, D>) {
+    return {};
+  }
+#endif
+
+  static auto cast_enclosing()
+      -> decltype(_cast_enclosing(std::declval<type>())) {
+    return {};
+  }
+
+ public:
+  using enclosing_wrapped_type = std::invoke_result_t<
+      decltype(&expr::parent_storage_type<G>::cast_enclosing)>;
+
+  template <typename T, size_t D>
+  using enclosing_type = typename std::invoke_result_t<
+      decltype(&expr::parent_storage_type<G>::cast_enclosing)>::
+      template type<T, D>;
 };
 
 //! Specialization based on expr::has_state.
@@ -3603,6 +3647,30 @@ struct expr::vars<OpFunctionApply<f, V, E>> {
 };
 
 //! Specialization based on expr::vars.
+template <typename V, typename F, typename... Args>
+struct expr::vars<OpCallable<V, F, Args...>> {
+  static constexpr auto get_ids() {
+    return symphas::lib::fold_unique_ids(
+        symphas::lib::seq_join(expr::vars<Args>::get_ids()...));
+  }
+
+  template <size_t Y>
+  static constexpr bool has_id() {
+    return ((expr::vars<Args>::template has_id<Y>() || ...));
+  }
+
+  template <size_t Y>
+  static constexpr auto only_id() {
+    return ((expr::vars<Args>::template has_id<Y>() && ...));
+  }
+
+  template <size_t Y>
+  static constexpr auto each_id() {
+    return has_id<Y>();
+  }
+};
+
+//! Specialization based on expr::vars.
 template <typename V, typename E, typename F, typename Arg0, typename... Args>
 struct expr::vars<OpFunction<V, E, F, Arg0, Args...>> {
   static constexpr auto get_ids() { return expr::vars<E>::get_ids(); }
@@ -4055,15 +4123,16 @@ struct expr::derivative_index<L, OpBinaryMul<A, B>> {
  * used primarily in the simplification of expressions.
  */
 struct OpVoid : OpExpression<OpVoid> {
-  constexpr scalar_t eval(iter_type = 0) const { return 0; }
+  __host__ __device__ constexpr scalar_t eval(iter_type = 0) const { return 0; }
 
+#ifdef PRINTABLE_EQUATIONS
   size_t print(FILE *out) const { return fprintf(out, "0"); }
 
   size_t print(char *out) const { return sprintf(out, "0"); }
 
-  auto operator-() const { return OpVoid{}; }
-
   size_t print_length() const { return 1; }
+#endif
+  __host__ __device__ auto operator-() const { return OpVoid{}; }
 
   constexpr operator scalar_t() const { return eval(); }
 
@@ -4078,25 +4147,23 @@ struct OpVoid : OpExpression<OpVoid> {
  * as a value.
  */
 struct OpIdentity : OpExpression<OpIdentity> {
-  constexpr auto eval(iter_type = 0) const {
+  __host__ __device__ constexpr auto eval(iter_type = 0) const {
     return symphas::lib::get_identity<scalar_t>();
   }
 
 #ifdef PRINTABLE_EQUATIONS
-
   size_t print(FILE *out) const { return fprintf(out, "1"); }
 
   size_t print(char *out) const { return sprintf(out, "1"); }
 
   size_t print_length() const { return 1; }
-
 #endif
 
   constexpr auto operator--(int) const;
 
-  constexpr auto operator-() const;
+  __host__ __device__ constexpr auto operator-() const;
 
-  operator int() const { return int(eval()); }
+  __host__ __device__ operator int() const { return int(eval()); }
 };
 
 //! Negative of the multiplicative identity.
@@ -4107,24 +4174,32 @@ struct OpIdentity : OpExpression<OpIdentity> {
  * be substituted directly as a value.
  */
 struct OpNegIdentity : OpExpression<OpNegIdentity> {
-  constexpr auto eval(iter_type = 0) const { return -OpIdentity{}.eval(); }
+  __host__ __device__ constexpr auto eval(iter_type = 0) const {
+    return -OpIdentity{}.eval();
+  }
 
+#ifdef PRINTABLE_EQUATIONS
   size_t print(FILE *out) const { return fprintf(out, "-1"); }
 
   size_t print(char *out) const { return sprintf(out, "-1"); }
 
   size_t print_length() const { return 2; }
+#endif
 
-  constexpr auto operator-() const;
+  __host__ __device__ constexpr auto operator-() const;
 
   constexpr auto operator--(int) const;
 
-  operator int() const { return int(eval()); }
+  __host__ __device__ operator int() const { return int(eval()); }
 };
 
-inline constexpr auto OpIdentity::operator-() const { return OpNegIdentity{}; }
+__host__ __device__ constexpr auto OpIdentity::operator-() const {
+  return OpNegIdentity{};
+}
 
-inline constexpr auto OpNegIdentity::operator-() const { return OpIdentity{}; }
+__host__ __device__ constexpr auto OpNegIdentity::operator-() const {
+  return OpIdentity{};
+}
 
 namespace expr {
 namespace symbols {
