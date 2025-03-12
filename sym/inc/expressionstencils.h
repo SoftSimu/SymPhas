@@ -3112,7 +3112,7 @@ struct StencilCoeff<
            expr::symbols::internal::S1<N>{}.print_length();
   }
 
-  auto get_coeff() const { return (Nt{} / Dt{}).eval(); }
+  __host__ __device__ auto get_coeff() const { return (Nt{} / Dt{}).eval(); }
 
   using this_type = StencilCoeff<std::pair<
       expr::symbols::internal::S1_symbol<N>,

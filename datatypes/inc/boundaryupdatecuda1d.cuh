@@ -26,11 +26,9 @@
 
 #pragma once
 
-#include "boundaryupdatecuda.cuh"
-
-#ifdef USING_CUDA
-
 #include <cuda_runtime.h>
+
+#include "boundaryupdatecuda.cuh"
 
 // one dimensional boundaries
 
@@ -137,5 +135,3 @@ operator()(const grid::Boundary<T, 0>* b, RegionalGridCUDA<T, 1>& grid,
   regional_update_boundary(symphas::lib::side_list<Side::RIGHT>{}, b, grid,
                            time);
 }
-
-#endif

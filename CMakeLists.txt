@@ -17,7 +17,7 @@
 # 
 # ***************************************************************************
 
-cmake_minimum_required(VERSION 3.18)
+cmake_minimum_required(VERSION 3.22)
 
 
 project(SymPhas
@@ -31,11 +31,16 @@ set(USING_MPI OFF CACHE BOOL "use MPI (must be installed)")
 
 if(USING_CUDA)
 	message(STATUS "CUDA is enabled")
-	enable_language(CUDA)	
-	set(SYMPHAS_CUDA_ARCHITECTURES "75" CACHE STRING "CUDA architectures to target")
+	set(SYMPHAS_CUDA_ARCHITECTURES "" CACHE STRING "CUDA architectures to target")
+	if (NOT SYMPHAS_CUDA_ARCHITECTURES)
+		# exit with error code
+		message(FATAL_ERROR "CUDA architectures must be set")
+		#set(USING_CUDA OFF)
+	endif()
 	set(CMAKE_CUDA_ARCHITECTURES "${SYMPHAS_CUDA_ARCHITECTURES}")
 	set(CMAKE_CUDA_STANDARD 17)
 	set(CMAKE_CUDA_STANDARD_REQUIRED True)
+	enable_language(CUDA)	
 else()
 	message(STATUS "CUDA is not enabled ${CMAKE_CUDA_COMPILER}")
 	

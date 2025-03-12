@@ -40,6 +40,7 @@
 #include "expressionstencils.h"
 #include "gridcudaincludes.h"
 #include "gridinfo.h"
+#include "stencildefs.h"
 
 #define DEFAULT_STENCIL_ACCURACY 2
 

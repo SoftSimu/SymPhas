@@ -1275,10 +1275,7 @@ auto to_cuda_expr(OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp> const &e) {
 template <typename Dd, typename V, typename E, typename Sp>
 auto to_cuda_expr(OpDerivative<Dd, V, E, Sp> const &e) {
   using T = expr::eval_type_t<E>;
-  static const size_t D = expr::grid_dim<E>::value;
-
   auto &result_data = expr::get_result_data(e);
-  auto dimensions = expr::data_dimensions(result_data);
 
   return CuMul{to_cuda_expr(e.value),
                to_cuda_expr_deriv<Dd>(result_data, e.solver)};

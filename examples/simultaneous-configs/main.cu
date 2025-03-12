@@ -1,10 +1,6 @@
 
 #include "symphas.cuh"
 
-#ifndef _MSC_VER
-#include <unistd.h>
-#endif
-
 using namespace symphas;
 
 template <typename M>

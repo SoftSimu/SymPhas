@@ -295,9 +295,13 @@ struct array_container {
 
   __host__ __device__ friend void swap(array_container<T>& first,
                                        array_container<T>& second) {
-    using std::swap;
-    swap(first.data, second.data);
-    swap(first.n, second.n);
+    auto data = first.data;
+    first.data = second.data;
+    second.data = data;
+
+    auto n = first.n;
+    first.n = second.n;
+    second.n = n;
   }
 
   __host__ __device__ const T* begin() const { return data; }

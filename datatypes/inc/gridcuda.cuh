@@ -958,12 +958,6 @@ struct GridCUDA : BlockCUDA<T> {
         BlockCUDA<T>::values, std::forward<Ts>(indices)...);
   }
 
-  template <typename... Ts, std::enable_if_t<(sizeof...(Ts) == D), int> = 0>
-  decltype(auto) operator()(Ts&&... indices) {
-    return grid::select_grid_index_cuda(dims).entry(
-        BlockCUDA<T>::values, std::forward<Ts>(indices)...);
-  }
-
  protected:
   constexpr GridCUDA() : GridCUDA(nullptr) {}
 };
@@ -1408,7 +1402,11 @@ struct RegionalGridCUDA<any_vector_t<T, D>, D>
     return parent_type::values[symphas::axis_to_index(ax)];
   }
 
-  template <typename... Ts, std::enable_if_t<(sizeof...(Ts) == D), int> = 0>
+  template <typename... Ts,
+            std::enable_if_t<
+                (sizeof...(Ts) == D &&
+                 std::conjunction_v<std::is_convertible<Ts, iter_type>...>),
+                int> = 0>
   __device__ __host__ decltype(auto) operator()(Ts&&... rest) const {
     return region(MultiBlockCUDA<D, T>::values, parent_type::dims, empty,
                   (std::forward<Ts>(rest) + region.boundary_size)...);

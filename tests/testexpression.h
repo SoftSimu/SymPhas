@@ -339,7 +339,7 @@ template <>
 struct eta_identity<Eta_dmk, Eta_dk> {
   template <typename N1, typename N2>
   static auto apply(N1 a, N2 b) {
-    return -eta_identity<Eta_dk, Eta_dmk>::template apply(a, b);
+    return -eta_identity<Eta_dk, Eta_dmk>::apply(a, b);
   }
 };
 
@@ -355,7 +355,7 @@ template <>
 struct eta_identity<Eta_k, Eta_dk> {
   template <typename N1, typename N2>
   static auto apply(N1 a, N2 b) {
-    return OpIdentity{} - eta_identity<Eta_dk, Eta_k>::template apply(a, b);
+    return OpIdentity{} - eta_identity<Eta_dk, Eta_k>::apply(a, b);
   }
 };
 
@@ -371,7 +371,7 @@ template <>
 struct eta_identity<Eta_dmk, Eta_mk> {
   template <typename N1, typename N2>
   static auto apply(N1 a, N2 b) {
-    return OpIdentity{} - eta_identity<Eta_mk, Eta_dmk>::template apply(a, b);
+    return OpIdentity{} - eta_identity<Eta_mk, Eta_dmk>::apply(a, b);
   }
 };
 
@@ -387,7 +387,7 @@ template <>
 struct eta_identity<Eta_k, Eta_mk> {
   template <typename N1, typename N2>
   static auto apply(N1 a, N2 b) {
-    return -eta_identity<Eta_mk, Eta_k>::template apply(a, b);
+    return -eta_identity<Eta_mk, Eta_k>::apply(a, b);
   }
 };
 
@@ -399,7 +399,7 @@ using etai = eta_identity<typename expr::original_data_type<A>::type,
 
 template <typename A, typename B>
 inline auto eta_identity_apply(A const& a, B const& b) {
-  return etai<A, B>::template apply(a, b);
+  return etai<A, B>::apply(a, b);
 }
 
 //

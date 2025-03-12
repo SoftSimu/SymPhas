@@ -435,7 +435,7 @@ char* symphas::lib::get_parent_directory(const char* path) {
   char drive[_MAX_DRIVE];
   char parent[_MAX_DIR];
   _splitpath(path, drive, parent, NULL, NULL);
-  basepath = new char[std::strlen(drive) + std::strlen(parent) + 1]{};
+  char* basepath = new char[std::strlen(drive) + std::strlen(parent) + 1]{};
   sprintf(basepath, "%s%s", drive, parent);
   return basepath;
 

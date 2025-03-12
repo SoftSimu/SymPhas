@@ -26,11 +26,9 @@
 
 #pragma once
 
-#include "boundaryupdatecuda.cuh"
-
-#ifdef USING_CUDA
-
 #include <cuda_runtime.h>
+
+#include "boundaryupdatecuda.cuh"
 
 // *********************************************************************
 /* an implementation of all BOUNDARY ITERATION ALGORITHMS
@@ -314,5 +312,3 @@ void symphas::internal::update_boundary<
     2>::operator()(const grid::Boundary<T, 2>*, RegionalGridCUDA<T, 3>& grid) {
   regional_update_boundary(symphas::lib::side_list<Side::BOTTOM>{}, grid);
 }
-
-#endif

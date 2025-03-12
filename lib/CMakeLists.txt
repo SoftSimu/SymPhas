@@ -159,7 +159,7 @@ endif()
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 	message(STATUS "compiling with GNU")
     target_compile_options(symphas_lib_o PUBLIC
-        $<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:-ftemplate-backtrace-limit=0>
+        -ftemplate-backtrace-limit=0
     )
 endif()
 

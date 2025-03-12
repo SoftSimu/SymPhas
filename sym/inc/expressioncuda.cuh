@@ -1043,8 +1043,6 @@ struct eval_submit {
             grid::region_interval<3> const &interval,
             grid::region_interval<3> const &region_interval,
             len_type boundary_size) {
-    auto numBlocks = (len + BLOCK_SIZE - 1) / BLOCK_SIZE;
-
     dim3 blockDim(8, 8, 8);
     dim3 gridDim(
         (interval.intervals[0][1] - interval.intervals[0][0] + blockDim.x - 1) /
@@ -1288,8 +1286,6 @@ struct eval_submit<any_vector_t<grid_type, dimension>> {
             grid::region_interval<3> const &interval,
             grid::region_interval<3> const &region_interval,
             len_type boundary_size) {
-    auto numBlocks = (len + BLOCK_SIZE - 1) / BLOCK_SIZE;
-
     dim3 blockDim(8, 8, 8);
     dim3 gridDim(
         (interval.intervals[0][1] - interval.intervals[0][0] + blockDim.x - 1) /

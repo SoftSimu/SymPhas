@@ -200,9 +200,8 @@ struct ModelSelectStencil {
   template <size_t N, size_t... Ns, typename... Ts>
   auto search_type(std::index_sequence<N, Ns...>, Ts&&... args) const {
     if (parameters[0] == N) {
-      return search_dim<N>(
-          symphas::internal::dim_ord_list_t<AVAILABLE_DIMENSIONS>{},
-          std::forward<Ts>(args)...);
+      auto dim_list = symphas::internal::dim_ord_list_t<AVAILABLE_DIMENSIONS>{};
+      return search_dim<N>(dim_list, std::forward<Ts>(args)...);
     }
     return search_type(std::index_sequence<Ns...>{}, std::forward<Ts>(args)...);
   }
@@ -268,9 +267,8 @@ struct ModelSelect {
   template <size_t N, size_t... Ns, typename... Ts>
   auto search_type(std::index_sequence<N, Ns...>, Ts&&... args) const {
     if (type == N) {
-      return search_dim<N>(
-          symphas::internal::dim_ord_list_t<AVAILABLE_DIMENSIONS>{},
-          std::forward<Ts>(args)...);
+      auto dim_list = symphas::internal::dim_ord_list_t<AVAILABLE_DIMENSIONS>{};
+      return search_dim<N>(dim_list, std::forward<Ts>(args)...);
     }
     return search_type(std::index_sequence<Ns...>{}, std::forward<Ts>(args)...);
   }

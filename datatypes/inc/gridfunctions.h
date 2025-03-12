@@ -1499,7 +1499,6 @@ __host__ __device__ bool compare_cutoff(const T (&left)[D],
   for (iter_type i = 0; i < D; ++i) {
     result += left[i] * left[i];
   }
-  using std::abs;
   using std::sqrt;
   using symphas::math::abs;
   using symphas::math::sqrt;
@@ -1513,7 +1512,6 @@ __host__ __device__ bool compare_cutoff(T* const (&left)[D], iter_type index,
   for (iter_type i = 0; i < D; ++i) {
     result += left[i][index] * left[i][index];
   }
-  using std::abs;
   using std::sqrt;
   using symphas::math::abs;
   using symphas::math::sqrt;

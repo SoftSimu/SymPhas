@@ -27,7 +27,6 @@
 
 #pragma once
 
-#include "stencildefs.h"
 #include "stencilh2.h"
 #include "stencilh4.h"
 
@@ -521,9 +520,7 @@ namespace symphas::internal {
  * \tparam O The order of accuracy of the derivative.
  */
 template <size_t N, size_t D, size_t O>
-struct StencilPointList {
-  using type = std::index_sequence<>;
-};
+struct StencilPointList;
 
 template <size_t D>
 struct OrderList {
@@ -649,17 +646,29 @@ MAKE_STENCIL_POINT_LIST(3, 2, 4, (14))
 
 #ifdef ORDER_LIST_3D
 #ifdef ORDER_LIST_3D_HAS_2H
-MAKE_STENCIL_POINT_LIST(2, 3, 2, (7))
-MAKE_STENCIL_POINT_LIST(4, 3, 2, (21))
+MAKE_STENCIL_POINT_LIST(2, 3, 2, (15))
+MAKE_STENCIL_POINT_LIST(4, 3, 2, (25))
 MAKE_STENCIL_POINT_LIST(3, 3, 2, (10))
 #endif
 #endif
 
 #endif
 
-#ifndef AVAILABLE_DIMENSIONS
-#define AVAILABLE_DIMENSIONS 2
-#endif
+template <size_t N, size_t D, size_t O>
+using point_list_t =
+    typename symphas::internal::StencilPointList<N, D, O>::type;
+
+template <template <size_t...> typename stencil_type, size_t D, size_t O>
+struct infer_default_points {
+  using type = stencil_type<
+      symphas::lib::seq_index_value<0, point_list_t<2, D, O>>::value,
+      symphas::lib::seq_index_value<0, point_list_t<3, D, O>>::value,
+      symphas::lib::seq_index_value<0, point_list_t<4, D, O>>::value>;
+};
+
+template <template <size_t...> typename stencil_type, size_t D, size_t O>
+using infer_default_points_t =
+    typename infer_default_points<stencil_type, D, O>::type;
 
 #if defined(GENERATE_UNDEFINED_STENCILS_ON) && defined(ALL_STENCILS)
 
@@ -732,24 +741,6 @@ struct Stencil3d2h : symphas::internal::StencilBase3d2h,
 };
 
 #else
-
-template <template <size_t...> typename stencil_type, size_t D, size_t O>
-struct infer_default_points {
-  using type = stencil_type<
-      symphas::lib::seq_index_value<
-          0,
-          typename symphas::internal::StencilPointList<2, D, O>::type>::value,
-      symphas::lib::seq_index_value<
-          0,
-          typename symphas::internal::StencilPointList<3, D, O>::type>::value,
-      symphas::lib::seq_index_value<
-          0,
-          typename symphas::internal::StencilPointList<4, D, O>::type>::value>;
-};
-
-template <template <size_t...> typename stencil_type, size_t D, size_t O>
-using infer_default_points_t =
-    typename infer_default_points<stencil_type, D, O>::type;
 
 #ifdef ORDER_LIST_1D
 #ifdef ORDER_LIST_1D_HAS_2H

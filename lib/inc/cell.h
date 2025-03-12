@@ -229,7 +229,7 @@ using RowVectorValue = VectorValue<VectorValue<T, D>, 1>;
  */
 
 template <typename T, size_t D>
-T abs(VectorValue<T, D> const& c) {
+__host__ __device__ T abs(VectorValue<T, D> const& c) {
   double sum = 0;
   for (int i = 0; i < D; ++i) {
     sum += c.v[i];
@@ -239,7 +239,8 @@ T abs(VectorValue<T, D> const& c) {
 }
 
 template <typename T, size_t D>
-T distance(VectorValue<T, D> const& c1, VectorValue<T, D> const& c2) {
+__host__ __device__ T distance(VectorValue<T, D> const& c1,
+                               VectorValue<T, D> const& c2) {
   using std::abs;
   return abs(c2 - c1);
 }

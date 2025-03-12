@@ -1763,7 +1763,7 @@ __global__ void computeStartingPosKernel3d(
       (startx + idx) + (starty + idy) * stridey + (startz + idz) * stridez;
   T value[]{values0[n], values1[n], values2[n]};
   if (idx < dimx && idy < dimy && idz < dimz &&
-      !grid::compare_cutoff(value, n, cutoff_value)) {
+      !grid::compare_cutoff(value, cutoff_value)) {
     atomicMin(&local_min_pos_xy[idx + idy * dimx], idz);
     atomicMin(&local_min_pos_xz[idx + idz * dimx], idy);
     atomicMin(&local_min_pos_yz[idy + idz * dimy], idx);

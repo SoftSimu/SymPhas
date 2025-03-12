@@ -30,9 +30,7 @@ void testvirtualmodel() {
   symphas::io::copy_data_file_name(
       test_directory, "", 0, 0, DataFileType::CHECKPOINT_DATA, dir_with_name);
   const char* name_it = std::strrchr(dir_with_name, '/') + 1;
-  char dir[256]{};
-  char* dir_ptr = &dir[0];
-  symphas::lib::get_parent_directory(dir_with_name, dir_ptr);
+  char* dir = symphas::lib::get_parent_directory(dir_with_name);
 
   for (auto& p : std::filesystem::directory_iterator(dir)) {
     char name[256]{};
@@ -40,6 +38,8 @@ void testvirtualmodel() {
     const char* it = std::strrchr(name, '/');
     printf("%s, %d\n", it + 1, std::strcmp(it + 1, name_it));
   }
+
+  delete[] dir;
 
   // symphas::problem_parameters_type pp(1);
 

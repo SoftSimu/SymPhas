@@ -63,6 +63,21 @@ struct BoundaryGroup {
   void update_boundaries(G<T, D>& grid, iter_type index, double time,
                          std::index_sequence<Is...>);
 
+#ifdef USING_CUDA
+
+  template <template <typename, size_t> typename G, size_t... Is>
+  void update_boundaries(GridCUDA<T, D>& grid, iter_type index, double time,
+                         std::index_sequence<Is...>);
+
+  template <template <typename, size_t> typename G, size_t... Is>
+  void update_boundaries(BoundaryGridCUDA<T, D>& grid, iter_type index,
+                         double time, std::index_sequence<Is...>);
+
+  template <template <typename, size_t> typename G, size_t... Is>
+  void update_boundaries(RegionalGridCUDA<T, D>& grid, iter_type index,
+                         double time, std::index_sequence<Is...>);
+#endif
+
   //! Update the boundaries of a grid.
   /*!
    * Iterate over the sides and update all the boundaries
@@ -364,3 +379,40 @@ void BoundaryGroup<T, D>::update_boundaries(G<T, D>& grid, iter_type index,
                                                  time),
    ...);
 }
+
+#ifdef USING_CUDA
+
+template <typename T, size_t D>
+template <template <typename, size_t> typename G, size_t... Is>
+void BoundaryGroup<T, D>::update_boundaries(GridCUDA<T, D>& grid,
+                                            iter_type index, double time,
+                                            std::index_sequence<Is...>) {
+  (symphas::internal::update_boundary_call<Is>{}(boundaries, types, grid, index,
+                                                 time),
+   ...);
+  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+}
+
+template <typename T, size_t D>
+template <template <typename, size_t> typename G, size_t... Is>
+void BoundaryGroup<T, D>::update_boundaries(BoundaryGridCUDA<T, D>& grid,
+                                            iter_type index, double time,
+                                            std::index_sequence<Is...>) {
+  (symphas::internal::update_boundary_call<Is>{}(boundaries, types, grid, index,
+                                                 time),
+   ...);
+  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+}
+
+template <typename T, size_t D>
+template <template <typename, size_t> typename G, size_t... Is>
+void BoundaryGroup<T, D>::update_boundaries(RegionalGridCUDA<T, D>& grid,
+                                            iter_type index, double time,
+                                            std::index_sequence<Is...>) {
+  (symphas::internal::update_boundary_call<Is>{}(boundaries, types, grid, index,
+                                                 time),
+   ...);
+  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+}
+
+#endif

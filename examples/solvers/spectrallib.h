@@ -164,7 +164,7 @@ auto hcts_apply_on_scalar(OpExpression<E> const& e) {
 
 template <typename V, expr::NoiseType nt, typename T, size_t D, typename E,
           typename... Ts>
-auto hcts_apply_on_scalar(OpSymbolicEval<V, NoiseData<nt, T, D>,
+auto hcts_apply_on_scalar(OpSymbolicEval<V, NoiseData<nt, T, D, Grid>,
                                          SymbolicFunction<E, Ts...>> const& e) {
   return e;
 }

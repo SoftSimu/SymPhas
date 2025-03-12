@@ -26,11 +26,9 @@
 
 #pragma once
 
-#include "boundaryupdatecuda.cuh"
-
-#ifdef USING_CUDA
-
 #include <cuda_runtime.h>
+
+#include "boundaryupdatecuda.cuh"
 
 /* 2 dimensional boundaries
  *
@@ -43,207 +41,6 @@ struct update_periodic_cuda {
   template <typename T>
   __device__ static void update(T* grid0, T* grid1, int N, int M);
 };
-
-// Kernel to update left ghost cells
-// template <typename T>
-//__device__ void update_periodic_cuda_left(T* grid, int N, int M) {
-//  int j = blockIdx.x * blockDim.x + threadIdx.x;
-//  if (j >= BOUNDARY_DEPTH && j < M - BOUNDARY_DEPTH) {
-//    for (int i = 0; i < BOUNDARY_DEPTH; ++i) {
-//      grid[j * N + i] = grid[j * N + (N - 2 * BOUNDARY_DEPTH + i)];
-//    }
-//  }
-//}
-//
-//// Kernel to update right ghost cells
-// template <typename T>
-//__device__ void update_periodic_cuda_right(T* grid, int N, int M) {
-//   int j = blockIdx.x * blockDim.x + threadIdx.x;
-//   if (j >= BOUNDARY_DEPTH && j < M - BOUNDARY_DEPTH) {
-//     for (int i = 0; i < BOUNDARY_DEPTH; ++i) {
-//       grid[j * N + (N - BOUNDARY_DEPTH + i)] =
-//           grid[j * N + (BOUNDARY_DEPTH + i)];
-//     }
-//   }
-// }
-//
-//// Kernel to update top ghost cells
-// template <typename T>
-//__device__ void update_periodic_cuda_top(T* grid, int N, int M) {
-//   int i = blockIdx.x * blockDim.x + threadIdx.x;
-//   if (i >= BOUNDARY_DEPTH && i < N - BOUNDARY_DEPTH) {
-//     for (int j = 0; j < BOUNDARY_DEPTH; ++j) {
-//       grid[j * N + i] = grid[(M - 2 * BOUNDARY_DEPTH + j) * N + i];
-//     }
-//   }
-// }
-//
-//// Kernel to update bottom ghost cells
-// template <typename T>
-//__device__ void update_periodic_cuda_bottom(T* grid, int N, int M) {
-//   int i = blockIdx.x * blockDim.x + threadIdx.x;
-//   if (i >= BOUNDARY_DEPTH && i < N - BOUNDARY_DEPTH) {
-//     for (int j = 0; j < BOUNDARY_DEPTH; ++j) {
-//       grid[(M - BOUNDARY_DEPTH + j) * N + i] =
-//           grid[(BOUNDARY_DEPTH + j) * N + i];
-//     }
-//   }
-// }
-//
-//// Kernel to update left ghost cells
-// template <typename T>
-//__device__ void update_periodic_cuda_top_left(T* grid, int N, int M) {
-//   int j = blockIdx.x * blockDim.x + threadIdx.x;
-//   if (j >= M - BOUNDARY_DEPTH && j < M) {
-//     for (int i = 0; i < BOUNDARY_DEPTH; ++i) {
-//       grid[j * N + i] = grid[j * N + (N - 2 * BOUNDARY_DEPTH + i)];
-//     }
-//   }
-// }
-//
-//// Kernel to update left ghost cells
-// template <typename T>
-//__device__ void update_periodic_cuda_bottom_left(T* grid, int N, int M) {
-//   int j = blockIdx.x * blockDim.x + threadIdx.x;
-//   if (j >= 0 && j < BOUNDARY_DEPTH) {
-//     for (int i = 0; i < BOUNDARY_DEPTH; ++i) {
-//       grid[j * N + i] = grid[j * N + (N - 2 * BOUNDARY_DEPTH + i)];
-//     }
-//   }
-// }
-//
-//// Kernel to update right ghost cells
-// template <typename T>
-//__device__ void update_periodic_cuda_top_right(T* grid, int N, int M) {
-//   int j = blockIdx.x * blockDim.x + threadIdx.x;
-//   if (j >= M - BOUNDARY_DEPTH && j < M) {
-//     for (int i = 0; i < BOUNDARY_DEPTH; ++i) {
-//       grid[j * N + (N - BOUNDARY_DEPTH + i)] =
-//           grid[j * N + (BOUNDARY_DEPTH + i)];
-//     }
-//   }
-// }
-//
-//// Kernel to update right ghost cells
-// template <typename T>
-//__device__ void update_periodic_cuda_bottom_right(T* grid, int N, int M) {
-//   int j = blockIdx.x * blockDim.x + threadIdx.x;
-//   if (j >= 0 && j < BOUNDARY_DEPTH) {
-//     for (int i = 0; i < BOUNDARY_DEPTH; ++i) {
-//       grid[j * N + (N - BOUNDARY_DEPTH + i)] =
-//           grid[j * N + (BOUNDARY_DEPTH + i)];
-//     }
-//   }
-// }
-//
-//// Kernel to update left ghost cells
-// template <typename T>
-//__device__ void update_periodic_cuda_left(T* grid0, T* grid1, int N,
-//                                                  int M) {
-//   int j = blockIdx.x * blockDim.x + threadIdx.x;
-//   if (j >= BOUNDARY_DEPTH && j < M - BOUNDARY_DEPTH) {
-//     for (int i = 0; i < BOUNDARY_DEPTH; ++i) {
-//       grid0[j * N + i] = grid0[j * N + (N - 2 * BOUNDARY_DEPTH + i)];
-//       grid1[j * N + i] = grid1[j * N + (N - 2 * BOUNDARY_DEPTH + i)];
-//     }
-//   }
-// }
-//
-//// Kernel to update right ghost cells
-// template <typename T>
-//__device__ void update_periodic_cuda_right(T* grid0, T* grid1, int N, int M) {
-//   int j = blockIdx.x * blockDim.x + threadIdx.x;
-//   if (j >= BOUNDARY_DEPTH && j < M - BOUNDARY_DEPTH) {
-//     for (int i = 0; i < BOUNDARY_DEPTH; ++i) {
-//       grid0[j * N + (N - BOUNDARY_DEPTH + i)] =
-//           grid0[j * N + (BOUNDARY_DEPTH + i)];
-//       grid1[j * N + (N - BOUNDARY_DEPTH + i)] =
-//           grid1[j * N + (BOUNDARY_DEPTH + i)];
-//     }
-//   }
-// }
-//
-//// Kernel to update top ghost cells
-// template <typename T>
-//__device__ void update_periodic_cuda_top(T* grid0, T* grid1, int N, int M) {
-//   int i = blockIdx.x * blockDim.x + threadIdx.x;
-//   if (i >= BOUNDARY_DEPTH && i < N - BOUNDARY_DEPTH) {
-//     for (int j = 0; j < BOUNDARY_DEPTH; ++j) {
-//       grid0[j * N + i] = grid0[(M - 2 * BOUNDARY_DEPTH + j) * N + i];
-//       grid1[j * N + i] = grid1[(M - 2 * BOUNDARY_DEPTH + j) * N + i];
-//     }
-//   }
-// }
-//
-//// Kernel to update bottom ghost cells
-// template <typename T>
-//__device__ void update_periodic_cuda_bottom(T* grid0, T* grid1, int N, int M)
-//{
-//   int i = blockIdx.x * blockDim.x + threadIdx.x;
-//   if (i >= BOUNDARY_DEPTH && i < N - BOUNDARY_DEPTH) {
-//     for (int j = 0; j < BOUNDARY_DEPTH; ++j) {
-//       grid0[(M - BOUNDARY_DEPTH + j) * N + i] =
-//           grid0[(BOUNDARY_DEPTH + j) * N + i];
-//       grid1[(M - BOUNDARY_DEPTH + j) * N + i] =
-//           grid1[(BOUNDARY_DEPTH + j) * N + i];
-//     }
-//   }
-// }
-//
-//// Kernel to update left ghost cells
-// template <typename T>
-//__device__ void update_periodic_cuda_top_left(T* grid0, T* grid1, int N,
-//                                               int M) {
-//   int j = blockIdx.x * blockDim.x + threadIdx.x;
-//   if (j >= M - BOUNDARY_DEPTH && j < M) {
-//     for (int i = 0; i < BOUNDARY_DEPTH; ++i) {
-//       grid0[j * N + i] = grid0[j * N + (N - 2 * BOUNDARY_DEPTH + i)];
-//       grid1[j * N + i] = grid1[j * N + (N - 2 * BOUNDARY_DEPTH + i)];
-//     }
-//   }
-// }
-//
-//// Kernel to update left ghost cells
-// template <typename T>
-//__device__ void update_periodic_cuda_bottom_left(T* grid0, T* grid1, int N,
-//                                                  int M) {
-//   int j = blockIdx.x * blockDim.x + threadIdx.x;
-//   if (j >= 0 && j < BOUNDARY_DEPTH) {
-//     for (int i = 0; i < BOUNDARY_DEPTH; ++i) {
-//       grid0[j * N + i] = grid0[j * N + (N - 2 * BOUNDARY_DEPTH + i)];
-//       grid1[j * N + i] = grid1[j * N + (N - 2 * BOUNDARY_DEPTH + i)];
-//     }
-//   }
-// }
-//
-// template <typename T>
-//__device__ void update_periodic_cuda_top_right(T* grid0, T* grid1, int N,
-//                                                int M) {
-//   int j = blockIdx.x * blockDim.x + threadIdx.x;
-//   if (j >= M - BOUNDARY_DEPTH && j < M) {
-//     for (int i = 0; i < BOUNDARY_DEPTH; ++i) {
-//       grid0[j * N + (N - BOUNDARY_DEPTH + i)] =
-//           grid0[j * N + (BOUNDARY_DEPTH + i)];
-//       grid1[j * N + (N - BOUNDARY_DEPTH + i)] =
-//           grid1[j * N + (BOUNDARY_DEPTH + i)];
-//     }
-//   }
-// }
-//
-//// Kernel to update right ghost cells
-// template <typename T>
-//__device__ void update_periodic_cuda_bottom_right(T* grid0, T* grid1, int N,
-//                                                   int M) {
-//   int j = blockIdx.x * blockDim.x + threadIdx.x;
-//   if (j >= 0 && j < BOUNDARY_DEPTH) {
-//     for (int i = 0; i < BOUNDARY_DEPTH; ++i) {
-//       grid0[j * N + (N - BOUNDARY_DEPTH + i)] =
-//           grid0[j * N + (BOUNDARY_DEPTH + i)];
-//       grid1[j * N + (N - BOUNDARY_DEPTH + i)] =
-//           grid1[j * N + (BOUNDARY_DEPTH + i)];
-//     }
-//   }
-// }
 
 // Kernel to update left ghost cells
 template <>
@@ -510,7 +307,8 @@ namespace grid {
 template <Side side0, Side side1, typename T>
 struct update_boundary_2d {
   static void update(T* grid, int N, int M) {
-    int numBlocks = (M + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    int nn = std::max(M, N);
+    int numBlocks = (nn + BLOCK_SIZE - 1) / BLOCK_SIZE;
     call_update_periodic_cuda<side0, side1> CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
         grid, N, M);
     CHECK_CUDA_ERROR(cudaPeekAtLastError());
@@ -521,7 +319,8 @@ struct update_boundary_2d {
 template <Side side0, Side side1, typename T>
 struct update_boundary_2d<side0, side1, any_vector_t<T, 2>> {
   static void update(T* (&grid)[2], int N, int M) {
-    int numBlocks = (M + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    int nn = std::max(M, N);
+    int numBlocks = (nn + BLOCK_SIZE - 1) / BLOCK_SIZE;
     call_update_periodic_cuda_vec<side0, side1> CUDA_KERNEL(
         numBlocks, BLOCK_SIZE)(grid[0], grid[1], N, M);
     CHECK_CUDA_ERROR(cudaPeekAtLastError());
@@ -540,7 +339,6 @@ operator()(const grid::Boundary<T, 1>*, GridCUDA<T, 2>& grid) {
       grid.values, grid.dims[0], grid.dims[1]);
   grid::update_boundary_2d<Side::BOTTOM, Side::LEFT, T>::update(
       grid.values, grid.dims[0], grid.dims[1]);
-  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 }
 
 template <>
@@ -555,7 +353,6 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC, Side::RIGHT,
       grid.values, grid.dims[0], grid.dims[1]);
   grid::update_boundary_2d<Side::BOTTOM, Side::RIGHT, T>::update(
       grid.values, grid.dims[0], grid.dims[1]);
-  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 }
 
 template <>
@@ -564,7 +361,6 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC, Side::TOP, 1>::
 operator()(const grid::Boundary<T, 1>*, GridCUDA<T, 2>& grid) {
   grid::update_boundary_2d<Side::TOP, Side::TOP, T>::update(
       grid.values, grid.dims[0], grid.dims[1]);
-  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 }
 
 template <>
@@ -575,7 +371,6 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC, Side::BOTTOM,
                                                        GridCUDA<T, 2>& grid) {
   grid::update_boundary_2d<Side::BOTTOM, Side::BOTTOM, T>::update(
       grid.values, grid.dims[0], grid.dims[1]);
-  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 }
 
 template <>
@@ -590,7 +385,6 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC0, Side::LEFT,
       grid.values, grid.dims[0], grid.dims[1]);
   grid::update_boundary_2d<Side::BOTTOM, Side::LEFT, T>::update(
       grid.values, grid.dims[0], grid.dims[1]);
-  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 }
 
 template <>
@@ -605,7 +399,6 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC0, Side::RIGHT,
       grid.values, grid.dims[0], grid.dims[1]);
   grid::update_boundary_2d<Side::BOTTOM, Side::RIGHT, T>::update(
       grid.values, grid.dims[0], grid.dims[1]);
-  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 }
 
 template <>
@@ -618,7 +411,6 @@ operator()(const grid::Boundary<T, 1>*, GridCUDA<T, 2>& grid) {
       grid.values, grid.dims[0], grid.dims[1]);
   grid::update_boundary_2d<Side::TOP, Side::RIGHT, T>::update(
       grid.values, grid.dims[0], grid.dims[1]);
-  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 }
 
 template <>
@@ -633,7 +425,6 @@ void symphas::internal::update_boundary<BoundaryType::PERIODIC0, Side::BOTTOM,
       grid.values, grid.dims[0], grid.dims[1]);
   grid::update_boundary_2d<Side::BOTTOM, Side::RIGHT, T>::update(
       grid.values, grid.dims[0], grid.dims[1]);
-  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 }
 
 // Regional Boundaries
@@ -808,82 +599,83 @@ __global__ void copyBottomBoundaryToGrid(const T* boundaryDevice, T* grid,
 }
 
 template <typename T>
-__global__ void copyLeftBoundaryFromGrid(T* (&grid)[2],
+__global__ void copyLeftBoundaryFromGrid(T* grid0, T* grid1,
                                          any_vector_t<T, 2>* boundaryDevice,
                                          int N, int M) {
   int j = blockIdx.x * blockDim.x + threadIdx.x;
   if (j < M) {
     for (int i = 0; i < BOUNDARY_DEPTH; ++i) {
-      boundaryDevice[j * BOUNDARY_DEPTH + i][0] = grid[0][j * N + i];
-      boundaryDevice[j * BOUNDARY_DEPTH + i][1] = grid[1][j * N + i];
+      boundaryDevice[j * BOUNDARY_DEPTH + i][0] = grid0[j * N + i];
+      boundaryDevice[j * BOUNDARY_DEPTH + i][1] = grid1[j * N + i];
     }
   }
 }
 
 template <typename T>
-__global__ void copyRightBoundaryFromGrid(T* (&grid)[2],
+__global__ void copyRightBoundaryFromGrid(T* grid0, T* grid1,
                                           any_vector_t<T, 2>* boundaryDevice,
                                           int N, int M) {
   int j = blockIdx.x * blockDim.x + threadIdx.x;
   if (j < M) {
     for (int i = 0; i < BOUNDARY_DEPTH; ++i) {
       boundaryDevice[j * BOUNDARY_DEPTH + i][0] =
-          grid[0][j * N + (N - BOUNDARY_DEPTH + i)];
+          grid0[j * N + (N - BOUNDARY_DEPTH + i)];
       boundaryDevice[j * BOUNDARY_DEPTH + i][1] =
-          grid[1][j * N + (N - BOUNDARY_DEPTH + i)];
+          grid1[j * N + (N - BOUNDARY_DEPTH + i)];
     }
   }
 }
 
 template <typename T>
-__global__ void copyTopBoundaryFromGrid(T* (&grid)[2],
+__global__ void copyTopBoundaryFromGrid(T* grid0, T* grid1,
                                         any_vector_t<T, 2>* boundaryDevice,
                                         int N, int M) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < N) {
     for (int j = 0; j < BOUNDARY_DEPTH; ++j) {
-      boundaryDevice[i * BOUNDARY_DEPTH + j][0] = grid[0][j * N + i];
-      boundaryDevice[i * BOUNDARY_DEPTH + j][1] = grid[1][j * N + i];
+      boundaryDevice[i * BOUNDARY_DEPTH + j][0] = grid0[j * N + i];
+      boundaryDevice[i * BOUNDARY_DEPTH + j][1] = grid1[j * N + i];
     }
   }
 }
 
 template <typename T>
-__global__ void copyBottomBoundaryFromGrid(T* (&grid)[2],
+__global__ void copyBottomBoundaryFromGrid(T* grid0, T* grid1,
                                            any_vector_t<T, 2>* boundaryDevice,
                                            int N, int M) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < N) {
     for (int j = 0; j < BOUNDARY_DEPTH; ++j) {
       boundaryDevice[i * BOUNDARY_DEPTH + j][0] =
-          grid[0][(M - BOUNDARY_DEPTH + j) * N + i];
+          grid0[(M - BOUNDARY_DEPTH + j) * N + i];
       boundaryDevice[i * BOUNDARY_DEPTH + j][1] =
-          grid[1][(M - BOUNDARY_DEPTH + j) * N + i];
+          grid1[(M - BOUNDARY_DEPTH + j) * N + i];
     }
   }
 }
 
 template <typename T>
 __global__ void copyLeftBoundaryToGrid(const any_vector_t<T, 2>* boundaryDevice,
-                                       T* (&grid)[2], int N, int M) {
+                                       T* grid0, T* grid1, int N, int M) {
   int j = blockIdx.x * blockDim.x + threadIdx.x;
   if (j < M) {
     for (int i = 0; i < BOUNDARY_DEPTH; ++i) {
-      grid[0][j * N + i] = boundaryDevice[j * BOUNDARY_DEPTH + i][0];
-      grid[1][j * N + i] = boundaryDevice[j * BOUNDARY_DEPTH + i][1];
+      grid0[j * N + i] = boundaryDevice[j * BOUNDARY_DEPTH + i][0];
+      grid1[j * N + i] = boundaryDevice[j * BOUNDARY_DEPTH + i][1];
     }
   }
 }
 
 template <typename T>
 __global__ void copyRightBoundaryToGrid(
-    const any_vector_t<T, 2>* boundaryDevice, T* (&grid)[2], int N, int M) {
+    const any_vector_t<T, 2>* boundaryDevice, T* grid0, T* grid1, int N,
+    int M) {
   int j = blockIdx.x * blockDim.x + threadIdx.x;
   if (j < M) {
     for (int i = 0; i < BOUNDARY_DEPTH; ++i) {
-      grid[0][j * N + (N - BOUNDARY_DEPTH + i)] =
+      grid0[j * N + (N - BOUNDARY_DEPTH + i)] =
           boundaryDevice[j * BOUNDARY_DEPTH + i][0];
-      grid[1][j * N + (N - BOUNDARY_DEPTH + i)] =
+      grid1[j * N + (N - BOUNDARY_DEPTH + i)] =
           boundaryDevice[j * BOUNDARY_DEPTH + i][1];
     }
   }
@@ -891,195 +683,314 @@ __global__ void copyRightBoundaryToGrid(
 
 template <typename T>
 __global__ void copyTopBoundaryToGrid(const any_vector_t<T, 2>* boundaryDevice,
-                                      T* (&grid)[2], int N, int M) {
+                                      T* grid0, T* grid1, int N, int M) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < N) {
     for (int j = 0; j < BOUNDARY_DEPTH; ++j) {
-      grid[0][j * N + i] = boundaryDevice[i * BOUNDARY_DEPTH + j][0];
-      grid[1][j * N + i] = boundaryDevice[i * BOUNDARY_DEPTH + j][1];
+      grid0[j * N + i] = boundaryDevice[i * BOUNDARY_DEPTH + j][0];
+      grid1[j * N + i] = boundaryDevice[i * BOUNDARY_DEPTH + j][1];
     }
   }
 }
 
 template <typename T>
 __global__ void copyBottomBoundaryToGrid(
-    const any_vector_t<T, 2>* boundaryDevice, T* (&grid)[2], int N, int M) {
+    const any_vector_t<T, 2>* boundaryDevice, T* grid0, T* grid1, int N,
+    int M) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < N) {
     for (int j = 0; j < BOUNDARY_DEPTH; ++j) {
-      grid[0][(M - BOUNDARY_DEPTH + j) * N + i] =
+      grid0[(M - BOUNDARY_DEPTH + j) * N + i] =
           boundaryDevice[i * BOUNDARY_DEPTH + j][0];
-      grid[1][(M - BOUNDARY_DEPTH + j) * N + i] =
+      grid1[(M - BOUNDARY_DEPTH + j) * N + i] =
           boundaryDevice[i * BOUNDARY_DEPTH + j][1];
     }
   }
 }
 
-// 2 dimension
+template <Side side>
+struct do_boundary_copy_to_grid {
+  template <typename T>
+  void operator()(const T* boundaryDevice, T* grid, int N, int M);
+  template <typename T>
+  void operator()(const any_vector_t<T, 2>* boundaryDevice, T* (&grid)[2],
+                  int N, int M);
+};
 
 template <>
 template <typename T>
-void symphas::internal::update_boundary<BoundaryType::DEFAULT, Side::LEFT, 1>::
-operator()(const grid::Boundary<T, 1>* b, GridCUDA<T, 2>& grid, double time) {
+void do_boundary_copy_to_grid<Side::LEFT>::operator()(const T* boundaryDevice,
+                                                      T* grid, int N, int M) {
+  int numBlocks = (M + BLOCK_SIZE - 1) / BLOCK_SIZE;
+  copyLeftBoundaryToGrid CUDA_KERNEL(numBlocks, BLOCK_SIZE)(boundaryDevice,
+                                                            grid, N, M);
+  CHECK_CUDA_ERROR(cudaPeekAtLastError());
+  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+}
+
+template <>
+template <typename T>
+void do_boundary_copy_to_grid<Side::LEFT>::operator()(
+    const any_vector_t<T, 2>* boundaryDevice, T* (&grid)[2], int N, int M) {
+  int numBlocks = (M + BLOCK_SIZE - 1) / BLOCK_SIZE;
+  copyLeftBoundaryToGrid CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
+      boundaryDevice, grid[0], grid[1], N, M);
+  CHECK_CUDA_ERROR(cudaPeekAtLastError());
+  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+}
+
+template <>
+template <typename T>
+void do_boundary_copy_to_grid<Side::RIGHT>::operator()(const T* boundaryDevice,
+                                                       T* grid, int N, int M) {
+  int numBlocks = (M + BLOCK_SIZE - 1) / BLOCK_SIZE;
+  copyRightBoundaryToGrid CUDA_KERNEL(numBlocks, BLOCK_SIZE)(boundaryDevice,
+                                                             grid, N, M);
+  CHECK_CUDA_ERROR(cudaPeekAtLastError());
+  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+}
+
+template <>
+template <typename T>
+void do_boundary_copy_to_grid<Side::RIGHT>::operator()(
+    const any_vector_t<T, 2>* boundaryDevice, T* (&grid)[2], int N, int M) {
+  int numBlocks = (M + BLOCK_SIZE - 1) / BLOCK_SIZE;
+  copyRightBoundaryToGrid CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
+      boundaryDevice, grid[0], grid[1], N, M);
+  CHECK_CUDA_ERROR(cudaPeekAtLastError());
+  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+}
+
+template <>
+template <typename T>
+void do_boundary_copy_to_grid<Side::TOP>::operator()(const T* boundaryDevice,
+                                                     T* grid, int N, int M) {
+  int numBlocks = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
+  copyTopBoundaryToGrid CUDA_KERNEL(numBlocks, BLOCK_SIZE)(boundaryDevice, grid,
+                                                           N, M);
+  CHECK_CUDA_ERROR(cudaPeekAtLastError());
+  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+}
+
+template <>
+template <typename T>
+void do_boundary_copy_to_grid<Side::TOP>::operator()(
+    const any_vector_t<T, 2>* boundaryDevice, T* (&grid)[2], int N, int M) {
+  int numBlocks = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
+  copyTopBoundaryToGrid CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
+      boundaryDevice, grid[0], grid[1], N, M);
+  CHECK_CUDA_ERROR(cudaPeekAtLastError());
+  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+}
+
+template <>
+template <typename T>
+void do_boundary_copy_to_grid<Side::BOTTOM>::operator()(const T* boundaryDevice,
+                                                        T* grid, int N, int M) {
+  int numBlocks = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
+  copyBottomBoundaryToGrid CUDA_KERNEL(numBlocks, BLOCK_SIZE)(boundaryDevice,
+                                                              grid, N, M);
+  CHECK_CUDA_ERROR(cudaPeekAtLastError());
+  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+}
+
+template <>
+template <typename T>
+void do_boundary_copy_to_grid<Side::BOTTOM>::operator()(
+    const any_vector_t<T, 2>* boundaryDevice, T* (&grid)[2], int N, int M) {
+  int numBlocks = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
+  copyBottomBoundaryToGrid CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
+      boundaryDevice, grid[0], grid[1], N, M);
+  CHECK_CUDA_ERROR(cudaPeekAtLastError());
+  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+}
+
+template <Side side>
+struct do_boundary_copy_from_grid {
+  template <typename T>
+  void operator()(const T* grid, T* boundaryDevice, int N, int M);
+  template <typename T>
+  void operator()(T* const (&grid)[2], any_vector_t<T, 2>* boundaryDevice,
+                  int N, int M);
+};
+
+template <>
+template <typename T>
+void do_boundary_copy_from_grid<Side::LEFT>::operator()(const T* grid,
+                                                        T* boundaryDevice,
+                                                        int N, int M) {
+  int numBlocks = (M + BLOCK_SIZE - 1) / BLOCK_SIZE;
+  copyLeftBoundaryFromGrid CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
+      grid, boundaryDevice, N, M);
+  CHECK_CUDA_ERROR(cudaPeekAtLastError());
+  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+}
+
+template <>
+template <typename T>
+void do_boundary_copy_from_grid<Side::LEFT>::operator()(
+    T* const (&grid)[2], any_vector_t<T, 2>* boundaryDevice, int N, int M) {
+  int numBlocks = (M + BLOCK_SIZE - 1) / BLOCK_SIZE;
+  copyLeftBoundaryFromGrid CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
+      grid[0], grid[1], boundaryDevice, N, M);
+  CHECK_CUDA_ERROR(cudaPeekAtLastError());
+  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+}
+
+template <>
+template <typename T>
+void do_boundary_copy_from_grid<Side::RIGHT>::operator()(const T* grid,
+                                                         T* boundaryDevice,
+                                                         int N, int M) {
+  int numBlocks = (M + BLOCK_SIZE - 1) / BLOCK_SIZE;
+  copyRightBoundaryFromGrid CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
+      grid, boundaryDevice, N, M);
+  CHECK_CUDA_ERROR(cudaPeekAtLastError());
+  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+}
+
+template <>
+template <typename T>
+void do_boundary_copy_from_grid<Side::RIGHT>::operator()(
+    T* const (&grid)[2], any_vector_t<T, 2>* boundaryDevice, int N, int M) {
+  int numBlocks = (M + BLOCK_SIZE - 1) / BLOCK_SIZE;
+  copyRightBoundaryFromGrid CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
+      grid[0], grid[1], boundaryDevice, N, M);
+  CHECK_CUDA_ERROR(cudaPeekAtLastError());
+  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+}
+
+template <>
+template <typename T>
+void do_boundary_copy_from_grid<Side::TOP>::operator()(const T* grid,
+                                                       T* boundaryDevice, int N,
+                                                       int M) {
+  int numBlocks = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
+  copyTopBoundaryFromGrid CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
+      grid, boundaryDevice, N, M);
+  CHECK_CUDA_ERROR(cudaPeekAtLastError());
+  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+}
+
+template <>
+template <typename T>
+void do_boundary_copy_from_grid<Side::TOP>::operator()(
+    T* const (&grid)[2], any_vector_t<T, 2>* boundaryDevice, int N, int M) {
+  int numBlocks = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
+  copyTopBoundaryFromGrid CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
+      grid[0], grid[1], boundaryDevice, N, M);
+  CHECK_CUDA_ERROR(cudaPeekAtLastError());
+  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+}
+
+template <>
+template <typename T>
+void do_boundary_copy_from_grid<Side::BOTTOM>::operator()(const T* grid,
+                                                          T* boundaryDevice,
+                                                          int N, int M) {
+  int numBlocks = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
+  copyBottomBoundaryFromGrid CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
+      grid, boundaryDevice, N, M);
+  CHECK_CUDA_ERROR(cudaPeekAtLastError());
+  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+}
+
+template <>
+template <typename T>
+void do_boundary_copy_from_grid<Side::BOTTOM>::operator()(
+    T* const (&grid)[2], any_vector_t<T, 2>* boundaryDevice, int N, int M) {
+  int numBlocks = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
+  copyBottomBoundaryFromGrid CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
+      grid[0], grid[1], boundaryDevice, N, M);
+  CHECK_CUDA_ERROR(cudaPeekAtLastError());
+  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+}
+
+// 2 dimension
+
+template <Side side, typename T>
+void update_default_boundary(const grid::Boundary<T, 1>* b,
+                             GridCUDA<T, 2>& grid, double time) {
   auto* bd =
       static_cast<grid::BoundaryApplied<T, 1, BoundaryType::DEFAULT> const*>(b);
 
   const double v0 = bd->v[0];
   const double v1 = bd->v[1];
-  double h;
+  double h[2];
 
   // go backwards or forwards in iteration depending on the interval
   int fx = (v0 < v1) ? 1 : -1;
-  h = bd->h * fx;
+  double delta_h = bd->h * fx;
 
-  iter_type L = grid.dims[0];
-  iter_type M = grid.dims[1];
+  const double x0 = (side == Side::LEFT || side == Side::RIGHT) ? 0 : v0;
+  const double x1 = (side == Side::LEFT || side == Side::RIGHT) ? 0 : v1;
+  const double y0 = (side == Side::TOP || side == Side::BOTTOM) ? 0 : v0;
+  const double y1 = (side == Side::TOP || side == Side::BOTTOM) ? 0 : v1;
 
-  T* boundaryHost = new T[BOUNDARY_DEPTH * grid.dims[1]]{};
+  h[0] = (side == Side::LEFT || side == Side::RIGHT) ? 0 : delta_h;
+  h[1] = (side == Side::TOP || side == Side::BOTTOM) ? 0 : delta_h;
+
+  iter_type L =
+      (side == Side::LEFT || side == Side::RIGHT) ? grid.dims[0] : grid.dims[1];
+  iter_type M =
+      (side == Side::TOP || side == Side::BOTTOM) ? grid.dims[0] : grid.dims[1];
+
+  T* boundaryHost = new T[BOUNDARY_DEPTH * M]{};
 
   T* boundaryDevice;
-  CHECK_CUDA_ERROR(
-      cudaMalloc(&boundaryDevice, BOUNDARY_DEPTH * grid.dims[1] * sizeof(T)));
+  CHECK_CUDA_ERROR(cudaMalloc(&boundaryDevice, BOUNDARY_DEPTH * M * sizeof(T)));
 
-  int numBlocks = (M + BLOCK_SIZE - 1) / BLOCK_SIZE;
-  copyLeftBoundaryFromGrid CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
-      grid.values, boundaryDevice, grid.dims[0], grid.dims[1]);
+  do_boundary_copy_from_grid<side>{}(grid.values, boundaryDevice, grid.dims[0],
+                                     grid.dims[1]);
 
   CHECK_CUDA_ERROR(cudaMemcpy(boundaryHost, boundaryDevice,
-                              BOUNDARY_DEPTH * grid.dims[1] * sizeof(T),
+                              BOUNDARY_DEPTH * M * sizeof(T),
                               cudaMemcpyDeviceToHost));
 
   for (iter_type i = 0; i < BOUNDARY_DEPTH; ++i) {
     for (iter_type j = 0; j < BOUNDARY_DEPTH; ++j) {
-      bd->update(boundaryHost[j * BOUNDARY_DEPTH + i], 0, v0, time);
+      bd->update(boundaryHost[j * BOUNDARY_DEPTH + i], x0, y0, time);
     }
-    for (iter_type j = BOUNDARY_DEPTH; j < grid.dims[1] - BOUNDARY_DEPTH; ++j) {
-      bd->update(boundaryHost[j * BOUNDARY_DEPTH + i], 0,
-                 v0 + (j - BOUNDARY_DEPTH) * h, time);
+    for (iter_type j = BOUNDARY_DEPTH; j < M - BOUNDARY_DEPTH; ++j) {
+      bd->update(boundaryHost[j * BOUNDARY_DEPTH + i],
+                 x0 + (j - BOUNDARY_DEPTH) * h[0],
+                 y0 + (j - BOUNDARY_DEPTH) * h[1], time);
     }
-    for (iter_type j = grid.dims[1] - BOUNDARY_DEPTH; j < grid.dims[1]; ++j) {
-      bd->update(boundaryHost[j * BOUNDARY_DEPTH + i], 0, v1, time);
+    for (iter_type j = M - BOUNDARY_DEPTH; j < M; ++j) {
+      bd->update(boundaryHost[j * BOUNDARY_DEPTH + i], x1, y1, time);
     }
   }
 
   CHECK_CUDA_ERROR(cudaMemcpy(boundaryDevice, boundaryHost,
-                              BOUNDARY_DEPTH * grid.dims[1] * sizeof(T),
+                              BOUNDARY_DEPTH * M * sizeof(T),
                               cudaMemcpyHostToDevice));
 
-  copyLeftBoundaryToGrid CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
-      boundaryDevice, grid.values, grid.dims[0], grid.dims[1]);
+  do_boundary_copy_to_grid<side>{}(boundaryDevice, grid.values, grid.dims[0],
+                                   grid.dims[1]);
 
   CHECK_CUDA_ERROR(cudaFree(boundaryDevice));
   delete[] boundaryHost;
+}
+
+template <>
+template <typename T>
+void symphas::internal::update_boundary<BoundaryType::DEFAULT, Side::LEFT, 1>::
+operator()(const grid::Boundary<T, 1>* b, GridCUDA<T, 2>& grid, double time) {
+  update_default_boundary<Side::LEFT>(b, grid, time);
 }
 
 template <>
 template <typename T>
 void symphas::internal::update_boundary<BoundaryType::DEFAULT, Side::RIGHT, 1>::
 operator()(const grid::Boundary<T, 1>* b, GridCUDA<T, 2>& grid, double time) {
-  auto* bd =
-      static_cast<grid::BoundaryApplied<T, 1, BoundaryType::DEFAULT> const*>(b);
-
-  const double v0 = bd->v[0];
-  const double v1 = bd->v[1];
-  double h;
-
-  // go backwards or forwards in iteration depending on the interval
-  int fx = (v0 < v1) ? 1 : -1;
-  h = bd->h * fx;
-
-  iter_type L = grid.dims[0];
-  iter_type M = grid.dims[1];
-
-  T* boundaryHost = new T[BOUNDARY_DEPTH * grid.dims[1]]{};
-
-  T* boundaryDevice;
-  CHECK_CUDA_ERROR(
-      cudaMalloc(&boundaryDevice, BOUNDARY_DEPTH * grid.dims[1] * sizeof(T)));
-
-  int numBlocks = (M + BLOCK_SIZE - 1) / BLOCK_SIZE;
-  copyRightBoundaryFromGrid CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
-      grid.values, boundaryDevice, grid.dims[0], grid.dims[1]);
-
-  CHECK_CUDA_ERROR(cudaMemcpy(boundaryHost, boundaryDevice,
-                              BOUNDARY_DEPTH * grid.dims[1] * sizeof(T),
-                              cudaMemcpyDeviceToHost));
-
-  for (iter_type i = 0; i < BOUNDARY_DEPTH; ++i) {
-    for (iter_type j = 0; j < BOUNDARY_DEPTH; ++j) {
-      bd->update(boundaryHost[j * BOUNDARY_DEPTH + i], 0, v0, time);
-    }
-    for (iter_type j = BOUNDARY_DEPTH; j < grid.dims[1] - BOUNDARY_DEPTH; ++j) {
-      bd->update(boundaryHost[j * BOUNDARY_DEPTH + i], 0,
-                 v0 + (j - BOUNDARY_DEPTH) * h, time);
-    }
-    for (iter_type j = grid.dims[1] - BOUNDARY_DEPTH; j < grid.dims[1]; ++j) {
-      bd->update(boundaryHost[j * BOUNDARY_DEPTH + i], 0, v1, time);
-    }
-  }
-
-  CHECK_CUDA_ERROR(cudaMemcpy(boundaryDevice, boundaryHost,
-                              BOUNDARY_DEPTH * grid.dims[1] * sizeof(T),
-                              cudaMemcpyHostToDevice));
-
-  copyRightBoundaryToGrid CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
-      boundaryDevice, grid.values, grid.dims[0], grid.dims[1]);
-
-  CHECK_CUDA_ERROR(cudaFree(boundaryDevice));
-  delete[] boundaryHost;
+  update_default_boundary<Side::RIGHT>(b, grid, time);
 }
 
 template <>
 template <typename T>
 void symphas::internal::update_boundary<BoundaryType::DEFAULT, Side::TOP, 1>::
 operator()(const grid::Boundary<T, 1>* b, GridCUDA<T, 2>& grid, double time) {
-  auto* bd =
-      static_cast<grid::BoundaryApplied<T, 1, BoundaryType::DEFAULT> const*>(b);
-
-  const double v0 = bd->v[0];
-  const double v1 = bd->v[1];
-  double h;
-
-  // go backwards or forwards in iteration depending on the interval
-  int fx = (v0 < v1) ? 1 : -1;
-  h = bd->h * fx;
-
-  T* boundaryHost = new T[BOUNDARY_DEPTH * grid.dims[0]]{};
-
-  T* boundaryDevice;
-  CHECK_CUDA_ERROR(
-      cudaMalloc(&boundaryDevice, BOUNDARY_DEPTH * grid.dims[0] * sizeof(T)));
-
-  int numBlocks = (grid.dims[0] + BLOCK_SIZE - 1) / BLOCK_SIZE;
-  copyTopBoundaryFromGrid CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
-      grid.values, boundaryDevice, grid.dims[0], grid.dims[1]);
-
-  CHECK_CUDA_ERROR(cudaMemcpy(boundaryHost, boundaryDevice,
-                              BOUNDARY_DEPTH * grid.dims[0] * sizeof(T),
-                              cudaMemcpyDeviceToHost));
-
-  for (iter_type i = 0; i < BOUNDARY_DEPTH; ++i) {
-    for (iter_type j = 0; j < BOUNDARY_DEPTH; ++j) {
-      bd->update(boundaryHost[j + i * grid.dims[0]], v0, 0, time);
-    }
-    for (iter_type j = BOUNDARY_DEPTH; j < grid.dims[0] - BOUNDARY_DEPTH; ++j) {
-      bd->update(boundaryHost[j + i * grid.dims[0]],
-                 v0 + (j - BOUNDARY_DEPTH) * h, 0, time);
-    }
-    for (iter_type j = grid.dims[0] - BOUNDARY_DEPTH; j < grid.dims[1]; ++j) {
-      bd->update(boundaryHost[j + i * grid.dims[0]], v1, 0, time);
-    }
-  }
-
-  CHECK_CUDA_ERROR(cudaMemcpy(boundaryDevice, boundaryHost,
-                              BOUNDARY_DEPTH * grid.dims[0] * sizeof(T),
-                              cudaMemcpyHostToDevice));
-
-  copyTopBoundaryToGrid CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
-      boundaryDevice, grid.values, grid.dims[0], grid.dims[1]);
-
-  CHECK_CUDA_ERROR(cudaFree(boundaryDevice));
-  delete[] boundaryHost;
+  update_default_boundary<Side::TOP>(b, grid, time);
 }
 
 template <>
@@ -1087,53 +998,7 @@ template <typename T>
 void symphas::internal::
     update_boundary<BoundaryType::DEFAULT, Side::BOTTOM, 1>::operator()(
         const grid::Boundary<T, 1>* b, GridCUDA<T, 2>& grid, double time) {
-  auto* bd =
-      static_cast<grid::BoundaryApplied<T, 1, BoundaryType::DEFAULT> const*>(b);
-
-  const double v0 = bd->v[0];
-  const double v1 = bd->v[1];
-  double h;
-
-  // go backwards or forwards in iteration depending on the interval
-  int fx = (v0 < v1) ? 1 : -1;
-  h = bd->h * fx;
-
-  T* boundaryHost = new T[BOUNDARY_DEPTH * grid.dims[0]]{};
-
-  T* boundaryDevice;
-  CHECK_CUDA_ERROR(
-      cudaMalloc(&boundaryDevice, BOUNDARY_DEPTH * grid.dims[0] * sizeof(T)));
-
-  int numBlocks = (grid.dims[0] + BLOCK_SIZE - 1) / BLOCK_SIZE;
-  copyBottomBoundaryFromGrid CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
-      grid.values, boundaryDevice, grid.dims[0], grid.dims[1]);
-
-  CHECK_CUDA_ERROR(cudaMemcpy(boundaryHost, boundaryDevice,
-                              BOUNDARY_DEPTH * grid.dims[0] * sizeof(T),
-                              cudaMemcpyDeviceToHost));
-
-  for (iter_type i = 0; i < BOUNDARY_DEPTH; ++i) {
-    for (iter_type j = 0; j < BOUNDARY_DEPTH; ++j) {
-      bd->update(boundaryHost[j + i * grid.dims[0]], v0, 0, time);
-    }
-    for (iter_type j = BOUNDARY_DEPTH; j < grid.dims[0] - BOUNDARY_DEPTH; ++j) {
-      bd->update(boundaryHost[j + i * grid.dims[0]],
-                 v0 + (j - BOUNDARY_DEPTH) * h, 0, time);
-    }
-    for (iter_type j = grid.dims[0] - BOUNDARY_DEPTH; j < grid.dims[1]; ++j) {
-      bd->update(boundaryHost[j + i * grid.dims[0]], v1, 0, time);
-    }
-  }
-
-  CHECK_CUDA_ERROR(cudaMemcpy(boundaryDevice, boundaryHost,
-                              BOUNDARY_DEPTH * grid.dims[0] * sizeof(T),
-                              cudaMemcpyHostToDevice));
-
-  copyBottomBoundaryToGrid CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
-      boundaryDevice, grid.values, grid.dims[0], grid.dims[1]);
-
-  CHECK_CUDA_ERROR(cudaFree(boundaryDevice));
-  delete[] boundaryHost;
+  update_default_boundary<Side::BOTTOM>(b, grid, time);
 }
 
 // 2 dimension
@@ -1174,5 +1039,3 @@ void symphas::internal::update_boundary<
   regional_update_boundary(
       symphas::lib::side_list<Side::BOTTOM, Side::BOTTOM>{}, b, grid, time);
 }
-
-#endif
