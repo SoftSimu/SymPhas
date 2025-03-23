@@ -1402,13 +1402,12 @@ auto terms_make_component(OpTerms<Term<Gs, Xs>...> const& b,
 }
 }  // namespace symphas::internal
 
-template <
-    typename coeff_t, typename V, typename... Gs, expr::exp_key_t... Xs,
-    size_t R = expr::eval_type<OpTerms<Term<Gs, Xs>...>>::rank,
-    typename std::enable_if_t<
-        (expr::is_coeff<coeff_t> && !expr::is_tensor<V> &&
-         ((R > 1) ? R != expr::eval_type<coeff_t>::template rank_<1> : true)),
-        int> = 0>
+template <typename coeff_t, typename V, typename... Gs, expr::exp_key_t... Xs,
+          size_t R = expr::eval_type<OpTerms<Term<Gs, Xs>...>>::rank,
+          typename std::enable_if_t<
+              (expr::is_coeff<coeff_t> && !expr::is_tensor<V> &&
+               ((R > 1) ? R != expr::expr_rank_index<coeff_t, 1> : true)),
+              int> = 0>
 auto operator*(coeff_t const& value, OpTerms<V, Term<Gs, Xs>...> const& b) {
   return OpTerms(value * expr::coeff(b), expr::terms_after_first(b));
 }

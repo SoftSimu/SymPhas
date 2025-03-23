@@ -59,7 +59,10 @@ struct WriteParallel {
       : snapshot{other.snapshot}, done{true}, thr{nullptr} {
     swap(*this, other);
   }
-  WriteParallel operator=(WriteParallel other) { swap(*this, other); }
+  WriteParallel operator=(WriteParallel other) {
+    swap(*this, other);
+    return *this;
+  }
 
   friend void swap(WriteParallel& first, WriteParallel& second) {
     using std::swap;

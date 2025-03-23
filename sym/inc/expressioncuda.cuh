@@ -232,7 +232,6 @@ __global__ void evaluateCudaExpr2d(
       stride *= region_dimensions[i];
     }
     auto r = e->eval(position_type<2>(dimensions, pos));
-    if (r != 0) printf("got %lf for %d %d\n", r, pos[0], pos[1]);
     values[n] = r;
   }
 }
@@ -1719,8 +1718,8 @@ __global__ void sumCudaExprVector3d(E *e, T *output0, T *output1, T *output2,
   iter_type dimensions[3]{dim0, dim1, dim2};
   auto n = threadIdx.x + blockIdx.x * blockDim.x;
 
-  extern __shared__ T sdata[];
-  T *sdatax = &sdata[0];
+  extern __shared__ T sdata1[];
+  T *sdatax = &sdata1[0];
   T *sdatay = &sdatax[blockDim.x];
   T *sdataz = &sdatay[blockDim.x];
 

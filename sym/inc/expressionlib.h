@@ -4483,6 +4483,11 @@ struct expr::eval_type {
                                              : 0;
 };
 
+namespace expr {
+template <typename E, size_t N>
+constexpr size_t expr_rank_index = expr::eval_type<E>::template rank_<N>;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////
 //
 //  library functions for symbolic expressions

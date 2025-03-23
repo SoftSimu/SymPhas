@@ -518,13 +518,13 @@ struct empty_iterable_domain_data {
   auto call_iterable_domain_data(T const& data) {
     return iterable_domain_data(data);
   }
-  using type = std::invoke_result_t<
-      decltype(&empty_iterable_domain_data<T>::call_iterable_domain_data),
-      empty_iterable_domain_data<T>, T>;
 };
 
 template <typename T>
-using empty_iterable_domain_t = typename empty_iterable_domain_data<T>::type;
+using empty_iterable_domain_t = std::invoke_result_t<
+    decltype(&empty_iterable_domain_data<T>::call_iterable_domain_data),
+    empty_iterable_domain_data<T>, T>;
+;
 
 //! Specialization based on expr::iterable_domain_data().
 template <typename T>

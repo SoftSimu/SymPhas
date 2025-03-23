@@ -1423,8 +1423,8 @@ auto to_cuda_expr(SymbolicFunctionArray<E0, Ts...> const &persistent) {
   return series;
 }
 
-template <typename... Ts, typename E, size_t I0, size_t P0, size_t I1,
-          size_t P1, size_t... Is, size_t... Ps, typename... Rest>
+template <typename... Ts, typename E, int I0, int P0, int I1, int P1, int... Is,
+          int... Ps, typename... Rest>
 auto to_cuda_expr(
     SymbolicSeries<expr::sum_op, Substitution<SymbolicDataArray<Ts>...>,
                    symphas::lib::types_list<
@@ -1436,7 +1436,7 @@ auto to_cuda_expr(
   return to_cuda_expr(series.persistent);
 }
 
-template <typename T, typename E, size_t I0, size_t P0, typename... Rest>
+template <typename T, typename E, int I0, int P0, typename... Rest>
 auto to_cuda_expr(
     SymbolicSeries<expr::sum_op, Substitution<SymbolicDataArray<T>>,
                    symphas::lib::types_list<

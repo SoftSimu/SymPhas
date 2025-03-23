@@ -440,11 +440,12 @@ char* symphas::lib::get_parent_directory(const char* path) {
   return basepath;
 
 #else
-
   char* path2 = strdup(path);
-  char* basepath = strdup(dirname(path2));
-  delete[] path2;
-  return basepath;
+  char* basepath = dirname(path2);
+  char* result = new char[std::strlen(basepath) + 1];
+  std::strcpy(result, basepath);
+  free(path2);
+  return result;
 #endif
 }
 

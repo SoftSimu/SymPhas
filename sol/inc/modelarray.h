@@ -615,6 +615,16 @@ struct modifier_save_apply : modifier_save<S> {
   size_t N;
 };
 
+#ifdef USING_CUDA
+template <typename T, size_t D, typename grid_type>
+void update_max_grid(const SolverSystemFDwSDCUDA<T, D> *_s,
+                     grid_type const &s_max, len_type len);
+
+template <typename T, size_t D, typename grid_type>
+void update_max_grid(const SolverSystemFDCUDA<T, D> *_s, grid_type const &s_max,
+                     len_type len);
+#endif
+
 template <typename S>
 struct modifier_save_apply<S, ModelModifiers::PLOT_MAX> : modifier_save<S> {
   modifier_save_apply(const S *_s, len_type len,
