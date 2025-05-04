@@ -883,7 +883,7 @@ struct find_index_lt;
 // find the largest index of the sequence that is smaller than N
 template <typename T, T N, T I0>
 struct find_index_lt<T, N, std::integer_sequence<T, I0>> {
-  static const size_t value = (I0 < N) ? 0 : -1;
+  static const size_t value = (I0 < N) ? 0 : ~0ull;
 };
 
 // find the largest index of the sequence that is smaller than N

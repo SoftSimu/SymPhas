@@ -109,14 +109,9 @@ struct ModelPFCEquation : Model<D, Sp, S...>,
         size_t offset_last = offset_group - ((SN - i) * (SN - (i + 1))) / 2;
         size_t offset_noninteraction = SN * 5;
         size_t offset_interaction =
-            offset_noninteraction  // offset from the noninteracting
-                                   // coefficients
-            +
-            (j -
-             (i +
-              1))  // offset from the previous coupling index for the current i
-            + offset_last;  // offset from the coupling index of the previous
-                            // fields
+            offset_noninteraction  // noninteracting coefficients offset
+            + (j - (i + 1))        // curr i offset from prev coupling index
+            + offset_last;         // prev field offset from coupling index
 
         alpha[i][j] = alpha[j][i] = coeff[offset_interaction];
         beta[i][j] = beta[j][i] = coeff[offset_interaction + offset_group];
@@ -178,6 +173,8 @@ struct ModelPFCEquation : Model<D, Sp, S...>,
   // convolution term eta, and hijack that grid to save time and space
   template <size_t N, size_t M>
   auto coupled_pfc_dynamic_NM() {
+    using namespace expr::symbols;
+
     auto n = get_field_op<N>();
     auto m = get_field_op<M>();
     auto dims = parent_type::template system<M>().dims;
@@ -186,14 +183,15 @@ struct ModelPFCEquation : Model<D, Sp, S...>,
     auto G = GaussianSmoothing<D>{dims, widths, 1.0};
     return expr::make_literal(alpha[N][M]) * m +
            expr::make_literal(beta[N][M]) * get_mode_NM<N, M>() * m +
-           expr::make_literal(0.5 * gamma[N][M]) *
-               (expr::make_literal(2.) * n * m + m * m) +
+           expr::make_literal(0.5 * gamma[N][M]) * (2 * n * m + m * m) +
            expr::make_literal(eps[N][M]) *
                expr::make_convolution(G, eta_N<M>());
   }
 
   template <size_t N, size_t M>
   auto coupled_pfc_fe_NM() {
+    using namespace expr::symbols;
+
     auto n = get_field_op<N>();
     auto m = get_field_op<M>();
 

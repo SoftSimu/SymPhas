@@ -189,11 +189,10 @@ void print_stencil_message(const char* (&deriv_names)[D],
   }
 
   fprintf(SYMPHAS_LOG,
-          "The finite difference stencils of the solver use the "
-          "following point values:\n");
+          "The finite difference solver implements the following stencils:\n");
 
   for (iter_type i = 0; i < D; ++i) {
-    fprintf(SYMPHAS_LOG, "\t%-*s : %zd\n", static_cast<int>(max_name_len),
+    fprintf(SYMPHAS_LOG, "\t%-*s : %zd-point\n", static_cast<int>(max_name_len),
             deriv_names[i], stencil_values[i]);
   }
 }
@@ -209,7 +208,7 @@ template <template <typename> typename model_apply_type,
           template <typename, size_t = 0> typename Solver, size_t N, size_t D,
           size_t O, size_t... Ps, typename... Ts>
 auto run_model_call(std::index_sequence<N, D, O, Ps...>, Ts&&... args) {
-  fprintf(SYMPHAS_LOG, "The simulation is using solver variation %ld\n", N);
+  fprintf(SYMPHAS_LOG, "The simulation is using solver variation %llu\n", N);
 
   const char* names[]{"laplacian", "gradlaplacian", "bilaplacian"};
   size_t values[]{Ps...};

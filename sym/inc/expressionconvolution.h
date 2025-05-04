@@ -175,7 +175,20 @@ struct OpConvolution : OpExpression<OpConvolution<V, E1, E2>> {
   using e2_T = typename expr::eval_type<E2>::type;
   using G_T = mul_result_t<e1_T, e2_T>;
 
-  OpConvolution() : data_a{0}, data_b{0}, g0{0}, value{V{}}, a{}, b{} {}
+  void allocate() {
+    b.allocate();
+    a.allocate();
+
+    if (g0.len == 0) {
+      g0 = Grid<G_T, D>(expr::data_dimensions(a, b));
+      data_a = Block<e1_T>(expr::data_length(a, b));
+      data_b = Block<e2_T>(expr::data_length(a, b));
+      compute = expr::ConvolutionDataPair<D>(data_a.values, data_b.values, g0);
+    }
+  }
+
+  OpConvolution()
+      : data_a{0}, data_b{0}, g0{0}, value{V{}}, a{}, b{}, compute{} {}
 
   //! Generate the convolution expression.
   /*!
@@ -188,22 +201,22 @@ struct OpConvolution : OpExpression<OpConvolution<V, E1, E2>> {
    * \param b The right hand side of the convolution operator.
    */
   OpConvolution(V value, E1 const& a, E2 const& b)
-      : data_a{expr::data_length(a, b)},
-        data_b{expr::data_length(a, b)},
-        g0{expr::data_dimensions(a, b)},
+      : data_a{0},
+        data_b{0},
+        g0{0},
         value{value},
         a{a},
         b{b},
-        compute{data_a.values, data_b.values, g0} { /*update();*/ }
+        compute{} { /*update();*/ }
 
   OpConvolution(OpConvolution<V, E1, E2> const& other)
-      : data_a{expr::data_length(other.a, other.b)},
-        data_b{expr::data_length(other.a, other.b)},
-        g0{expr::data_dimensions(other.a, other.b)},
+      : data_a{0},
+        data_b{0},
+        g0{0},
         value{other.value},
         a{other.a},
         b{other.b},
-        compute{data_a.values, data_b.values, g0} { /*update();*/
+        compute{} { /*update();*/
     ;
   }
 
@@ -313,8 +326,10 @@ struct OpConvolution : OpExpression<OpConvolution<V, E1, E2>> {
     eval_handler.result(a, data_a.values, data_a.len);
     eval_handler.result(b, data_b.values, data_b.len);
 
-    compute.transform_in_out_0(&expr::BaseData<Block<e1_T>>::get(data_a)[0]);
-    compute.transform_in_out_1(&expr::BaseData<Block<e2_T>>::get(data_b)[0]);
+    compute.transform_in_out_0(&expr::BaseData<Block<e1_T>>::get(data_a)[0],
+                               g0.dims);
+    compute.transform_in_out_1(&expr::BaseData<Block<e2_T>>::get(data_b)[0],
+                               g0.dims);
 
     len_type len = symphas::dft::length<G_T, D>(g0.dims);
     if constexpr (std::is_same<G_T, complex_t>::value) {
@@ -336,7 +351,7 @@ struct OpConvolution : OpExpression<OpConvolution<V, E1, E2>> {
               symphas::math::real(compute.out_1[i]);
     }
 
-    compute.transform_out_in(g0.values);
+    compute.transform_out_in(g0.values, g0.dims);
 
     if constexpr (std::is_same<G_T, scalar_t>::value) {
       grid::scale(g0);
@@ -412,8 +427,26 @@ struct OpConvolution<V, GaussianSmoothing<D>, E>
     : OpExpression<OpConvolution<V, GaussianSmoothing<D>, E>> {
   using G_T = typename expr::eval_type<E>::type;
 
+  void allocate() {
+    e.allocate();
+
+    if (g0.len == 0) {
+      smoother.allocate();
+      g0 = Grid<G_T, D>(expr::data_dimensions(smoother));
+      data = Block<G_T>(expr::data_length(smoother));
+
+      using std::swap;
+      expr::ConvolutionData<D> allocated_compute(data.values, g0);
+      swap(compute, allocated_compute);
+    }
+  }
+
   OpConvolution()
-      : g0{0}, data{0}, value{V{}}, smoother{GaussianSmoothing<D>()} {}
+      : g0{0},
+        data{0},
+        value{V{}},
+        smoother{GaussianSmoothing<D>()},
+        compute{} {}
 
   //! Generate the convolution expression.
   /*!
@@ -426,20 +459,20 @@ struct OpConvolution<V, GaussianSmoothing<D>, E>
    * \param e The expression that is smoothed with this expression.
    */
   OpConvolution(V value, GaussianSmoothing<D> const& smoother, E const& e)
-      : g0{expr::data_dimensions(smoother)},
-        data{expr::data_length(smoother)},
+      : g0{0},
+        data{0},
         value{value},
         e{e},
         smoother{smoother},
-        compute{data.values, g0} { /*update();*/ }
+        compute{} { /*update();*/ }
 
   OpConvolution(OpConvolution<V, GaussianSmoothing<D>, E> const& other)
-      : g0{expr::data_dimensions(other.smoother)},
-        data{expr::data_length(other.e)},
+      : g0{0},
+        data{0},
         value{other.value},
         e{other.e},
         smoother{other.smoother},
-        compute{data.values, g0} { /*update();*/ }
+        compute{} { /*update();*/ }
 
   OpConvolution(OpConvolution<V, GaussianSmoothing<D>, E>&& other) noexcept
       : OpConvolution() {
@@ -535,8 +568,9 @@ struct OpConvolution<V, GaussianSmoothing<D>, E>
   template <typename eval_handler_type, typename... condition_ts>
   void update(eval_handler_type const& eval_handler,
               symphas::lib::types_list<condition_ts...>) {
-    eval_handler.result(e, data.values, data.len);
-    compute.transform_in_out(&expr::BaseData<Block<G_T>>::get(data)[0]);
+    eval_handler.result(e, data, data.len);
+    compute.transform_in_out(&expr::BaseData<Block<G_T>>::get(data)[0],
+                             g0.dims);
 
     auto f = [&](iter_type i, iter_type ft_i) {
       symphas::math::real(compute.in_1[ft_i]) =
@@ -546,7 +580,7 @@ struct OpConvolution<V, GaussianSmoothing<D>, E>
     };
 
     symphas::dft::iterate_rc<G_T, D>(f, g0.dims);
-    compute.transform_out_in(g0.values);
+    compute.transform_out_in(g0.values, g0.dims);
     grid::scale(g0);
   }
 
@@ -620,8 +654,19 @@ struct OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>
   using G_T = typename expr::eval_type<E>::type;
   using G0 = Grid<G_T, D>;
 
-  OpConvolution()
-      : g0{0}, data{0}, value{V{}}, smoother{GaussianSmoothing<D>()} {}
+  void allocate() {
+    if (g0.len == 0) {
+      smoother.allocate();
+      g0 = Grid<G_T, D>(expr::data_dimensions(smoother));
+
+      using std::swap;
+      expr::ConvolutionData<D> allocated_compute(expr::BaseData<G>::get(data),
+                                                 g0);
+      swap(compute, allocated_compute);
+    }
+  }
+
+  OpConvolution() : g0{0}, data{0}, value{V{}}, smoother{} {}
 
   //! Generate the convolution expression.
   /*!
@@ -638,27 +683,27 @@ struct OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>
                 std::is_convertible<mul_result_t<V0, V1>, V>::value, int> = 0>
   OpConvolution(V0 value, GaussianSmoothing<D> const& smoother,
                 OpTerm<V1, G> const& a)
-      : g0{expr::data_dimensions(smoother)},
+      : g0{0},
         data{expr::data(a)},
         value{value * expr::coeff(a)},
         smoother{smoother},
-        compute{expr::BaseData<G>::get(data), g0} { /*update();*/
+        compute{} { /*update();*/
     ;
   }
   OpConvolution(V value, GaussianSmoothing<D> const& smoother, G grid)
-      : g0{expr::data_dimensions(smoother)},
+      : g0{0},
         data{grid},
         value{value},
         smoother{smoother},
-        compute{expr::BaseData<G>::get(data), g0} { /*update();*/ }
+        compute{} { /*update();*/ }
 
   OpConvolution(OpConvolution<V, GaussianSmoothing<D>,
                               OpTerm<OpIdentity, G>> const& other)
-      : g0{expr::data_dimensions(other.smoother)},
+      : g0{0},
         data{other.data},
         value{other.value},
         smoother{other.smoother},
-        compute{expr::BaseData<G>::get(data), g0} { /*update();*/ }
+        compute{} { /*update();*/ }
 
   OpConvolution(OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>&&
                     other) noexcept
@@ -750,7 +795,7 @@ struct OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>
   template <typename eval_handler_type, typename... condition_ts>
   void update(eval_handler_type const& eval_handler,
               symphas::lib::types_list<condition_ts...>) {
-    compute.transform_in_out(&expr::BaseData<G>::get(data)[0]);
+    compute.transform_in_out(&expr::BaseData<G>::get(data)[0], g0.dims);
 
     auto f = [&](iter_type ft_i, iter_type i) {
       symphas::math::real(compute.in_1[i]) =
@@ -760,7 +805,7 @@ struct OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>
     };
 
     symphas::dft::iterate_rc<G_T, D>(f, g0.dims);
-    compute.transform_out_in(g0.values);
+    compute.transform_out_in(g0.values, g0.dims);
     grid::scale(g0);
   }
 

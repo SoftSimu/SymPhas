@@ -611,6 +611,8 @@ struct initiate_region_copy<T, 1> {
     kernelCopyRegion1D CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
         inputDevice, outputDevice, interval.intervals[0][0],
         interval.intervals[0][1], interval.dims[0], outputDims[0]);
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
   }
 };
 
@@ -664,6 +666,8 @@ struct initiate_region_copy<any_vector_t<T, 1>, 1> {
     kernelCopyRegionVec1D CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
         outputDevice[0], inputDevice[0], interval.intervals[0][0],
         interval.intervals[0][1], interval.dims[0], outputDims[0]);
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
   }
   void operator()(grid::region_interval<1> const& interval,
                   len_type boundary_size, T* const (&inputDevice)[1],
@@ -931,6 +935,8 @@ struct run_find_minimal_region<1> {
     int numBlocks = (total_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
     findMinimalRegionVec1D CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
         values[0], cutoff_value, params, min_indices, max_indices, total_size);
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
   }
 
   template <typename T>
@@ -940,6 +946,8 @@ struct run_find_minimal_region<1> {
     int numBlocks = (total_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
     findMinimalRegion CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
         values, cutoff_value, params, min_indices, max_indices, total_size);
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
   }
 };
 
@@ -953,6 +961,8 @@ struct run_find_minimal_region<2> {
     findMinimalRegionVec2D CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
         values[0], values[1], cutoff_value, params, min_indices, max_indices,
         total_size);
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
   }
 
   template <typename T>
@@ -962,6 +972,8 @@ struct run_find_minimal_region<2> {
     int numBlocks = (total_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
     findMinimalRegion CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
         values, cutoff_value, params, min_indices, max_indices, total_size);
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
   }
 };
 
@@ -975,6 +987,8 @@ struct run_find_minimal_region<3> {
     findMinimalRegionVec3D CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
         values[0], values[1], values[2], cutoff_value, params, min_indices,
         max_indices, total_size);
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
   }
 
   template <typename T>
@@ -984,6 +998,8 @@ struct run_find_minimal_region<3> {
     int numBlocks = (total_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
     findMinimalRegion CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
         values, cutoff_value, params, min_indices, max_indices, total_size);
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
   }
 };
 template <typename T>
@@ -1396,6 +1412,9 @@ struct run_find_enclosing_intervals<1> {
         d_intervals_0, std::numeric_limits<iter_type>::max(), 1);
     symphas::cuda::initializeArray CUDA_KERNEL(1, BLOCK_SIZE)(d_intervals_1, 0,
                                                               1);
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+
     call_kernel(d_intervals_0, d_intervals_1, std::forward<S>(values),
                 cutoff_value, total_length, dims, stride, offset, start_pos);
     CHECK_CUDA_ERROR(cudaMemcpy(&intervals[0][0], &d_intervals_0[0],
@@ -1461,6 +1480,9 @@ struct run_find_enclosing_intervals<2> {
         d_intervals_0, std::numeric_limits<iter_type>::max(), 2);
     symphas::cuda::initializeArray CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
         d_intervals_1, std::numeric_limits<iter_type>::min(), 2);
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+
 
     iter_type* h_intervals_0 = new iter_type[dims[0] + dims[1]];
     iter_type* h_intervals_1 = new iter_type[dims[0] + dims[1]];
@@ -1939,6 +1961,8 @@ struct run_compute_starting_pos<2> {
     int numBlocks = (dims[0] + dims[1] + BLOCK_SIZE - 1) / BLOCK_SIZE;
     symphas::cuda::initializeArray CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
         starting_pos, std::numeric_limits<iter_type>::max(), dims[0] + dims[1]);
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 
     iter_type* starting_pos_y = &starting_pos[0];
     iter_type* starting_pos_x = &starting_pos[dims[0]];
@@ -1952,6 +1976,8 @@ struct run_compute_starting_pos<2> {
     findMaxStartingPos2d<T> CUDA_KERNEL(num_blocks, BLOCK_SIZE,
                                         2 * BLOCK_SIZE * sizeof(iter_type))(
         starting_pos_x, starting_pos_y, dims[0], dims[1]);
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 
     // Copy results to host
     CHECK_CUDA_ERROR(cudaMemcpy(&pos[0], &starting_pos_x[0], sizeof(iter_type),
@@ -2035,6 +2061,9 @@ struct run_compute_starting_pos<3> {
     symphas::cuda::initializeArray CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
         starting_pos, std::numeric_limits<iter_type>::max(),
         (dims[0] * dims[1] + dims[0] * dims[2] + dims[1] * dims[2]));
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+
 
     iter_type* starting_pos_xy = &starting_pos[0];
     iter_type* starting_pos_xz = &starting_pos[dims[0] * dims[1]];
@@ -2052,6 +2081,8 @@ struct run_compute_starting_pos<3> {
                                         3 * BLOCK_SIZE * sizeof(iter_type))(
         starting_pos_xy, starting_pos_xz, starting_pos_yz, dims[0] * dims[1],
         dims[0] * dims[2], dims[1] * dims[2]);
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 
     // Copy results to host
     CHECK_CUDA_ERROR(cudaMemcpy(&pos[2], starting_pos_xy, sizeof(iter_type),
@@ -2222,6 +2253,9 @@ void adjust_origin_to_from_replace_cuda(T*(&values_device),
 
   symphas::cuda::initializeArray CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
       newValuesDevice, empty, grid::length<D>(dims));
+  CHECK_CUDA_ERROR(cudaPeekAtLastError());
+  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+
   kernelAdjustRegionToFrom CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
       newValuesDevice, values_device, rpDev, boundary_size);
   CHECK_CUDA_ERROR(cudaPeekAtLastError());

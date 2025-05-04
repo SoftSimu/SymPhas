@@ -1307,6 +1307,8 @@ struct OpTerms<V, Term<Gs, Xs>...> : OpExpression<OpTerms<V, Term<Gs, Xs>...>>,
   auto operator-() const;
 
   auto eval(iter_type n = 0) const { return parent_type::_eval(n); }
+
+  void allocate() {}
 };
 
 template <>

@@ -339,6 +339,12 @@ struct OpExpression : OpEvaluable<E> {
     return cast() * (*static_cast<E0 const *>(&e));
   }
 
+  //! Perform all allocation for members with memory on the heap.
+  /*!
+   * Allocate all members of this expression which are on the heap.
+   */
+  void allocate() { cast().allocate(); }
+
 #ifdef PRINTABLE_EQUATIONS
 
   //! Print the string representation of this expression to the file.
@@ -4123,6 +4129,8 @@ struct expr::derivative_index<L, OpBinaryMul<A, B>> {
  * used primarily in the simplification of expressions.
  */
 struct OpVoid : OpExpression<OpVoid> {
+  void allocate() {}
+
   __host__ __device__ constexpr scalar_t eval(iter_type = 0) const { return 0; }
 
 #ifdef PRINTABLE_EQUATIONS
@@ -4147,6 +4155,8 @@ struct OpVoid : OpExpression<OpVoid> {
  * as a value.
  */
 struct OpIdentity : OpExpression<OpIdentity> {
+  void allocate() {}
+
   __host__ __device__ constexpr auto eval(iter_type = 0) const {
     return symphas::lib::get_identity<scalar_t>();
   }
@@ -4174,6 +4184,8 @@ struct OpIdentity : OpExpression<OpIdentity> {
  * be substituted directly as a value.
  */
 struct OpNegIdentity : OpExpression<OpNegIdentity> {
+  void allocate() {}
+
   __host__ __device__ constexpr auto eval(iter_type = 0) const {
     return -OpIdentity{}.eval();
   }

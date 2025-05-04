@@ -118,6 +118,7 @@ namespace expr {
 
 template <typename G>
 struct random_state {
+  void allocate() {}
   random_state(len_type = 0) {}
   void* states;
 };
@@ -156,14 +157,25 @@ struct noise_data_with_function : grid_type<complex_t, D>,
   using parent_type::len;
   using parent_type::values;
 
+  void allocate() {
+    if (parent_type::len == 0) {
+      parent_type grid(parent_type::dims);
+      using std::swap;
+      swap(*static_cast<parent_type*>(this), grid);
+    }
+
+    state_type::allocate();
+  }
+
   noise_data_with_function(F f, const len_type* dims, const double* h,
                            const double* dt)
-      : parent_type(dims),
+      : parent_type(nullptr),
         state_type(grid::length<D>(dims)),
         dt{dt},
         h{0},
         f{f} {
     std::copy(h, h + D, this->h);
+    std::copy(dims, dims + D, parent_type::dims);
   }
 
   scalar_t operator[](iter_type n) const { return values[n].real(); }
@@ -237,14 +249,24 @@ struct noise_data<NoiseType::WHITE, D, grid_type>
   using state_type = random_state<grid_type<scalar_t, D>>;
   using state_type::states;
 
+  void allocate() {
+    if (parent_type::len == 0) {
+      parent_type grid(parent_type::dims);
+      using std::swap;
+      swap(*static_cast<parent_type*>(this), grid);
+    }
+    state_type::allocate();
+  }
+
   noise_data(const len_type* dims, const double* h, const double* dt)
-      : parent_type(dims),
+      : parent_type(nullptr),
         seed_type(),
         state_type(grid::length<D>(dims)),
         H{1},
         dt{dt},
         gen{get_seed()} {
     for (iter_type i = 0; i < D; ++i) H *= h[i];
+    std::copy(dims, dims + D, parent_type::dims);
   }
 
   noise_data()
@@ -306,6 +328,8 @@ struct noise_data<NoiseType::DECAY_EXP, D, grid_type>
   using seed_type = random_seed<NoiseType::DECAY_EXP>;
   using parent_type::operator[];
 
+  void allocate() {}
+
   noise_data(const len_type* dims, const double* h, const double* dt)
       : parent_type(&eigen_exponential, dims, h, dt), seed_type() {}
 
@@ -335,6 +359,8 @@ struct noise_data<NoiseType::DECAY_POLY, D, grid_type>
       noise_data_with_function<decltype(&eigen_polynomial), D, grid_type>;
   using seed_type = random_seed<NoiseType::DECAY_POLY>;
   using parent_type::operator[];
+
+  void allocate() {}
 
   noise_data(const len_type* dims, const double* h, const double* dt)
       : parent_type(&eigen_polynomial, dims, h, dt), seed_type() {}
@@ -366,6 +392,8 @@ struct noise_data<NoiseType::NONE, D, grid_type>
   using seed_type = random_seed<NoiseType::NONE>;
   using parent_type::operator[];
 
+  void allocate() {}
+
   noise_data(const len_type* dims, const double* h, const double* dt)
       : parent_type(&eigen_one, dims, h, dt), seed_type() {}
 
@@ -391,6 +419,8 @@ struct noise_data<NoiseType::POISSON, D, grid_type>
     : random_seed<NoiseType::POISSON>, random_state<scalar_t> {
   using seed_type = random_seed<NoiseType::POISSON>;
   using state_type = random_state<scalar_t>;
+
+  void allocate() { state_type::allocate(); }
 
   noise_data(const len_type* dims, const double* h, const double* dt)
       : seed_type(), state_type(grid::length<D>(dims)), next{0}, value{0} {}
@@ -440,6 +470,11 @@ struct noise_data_axis<3, nt, D, grid_type>
   using parent_type = noise_data_axis<2, nt, D, grid_type>;
   using parent_type::parent_type;
 
+  void allocate() {
+    parent_type::allocate();
+    data.allocate();
+  }
+
   noise_data_axis(const len_type* dims, const double* h, const double* dt)
       : parent_type(dims, h, dt), data(dims, h, dt) {}
   noise_data_axis() : parent_type(), data() {}
@@ -465,6 +500,11 @@ struct noise_data_axis<2, nt, D, grid_type>
     : noise_data_axis<1, nt, D, grid_type> {
   using parent_type = noise_data_axis<1, nt, D, grid_type>;
 
+  void allocate() {
+    parent_type::allocate();
+    data.allocate();
+  }
+
   noise_data_axis(const len_type* dims, const double* h, const double* dt)
       : parent_type(dims, h, dt), data(dims, h, dt) {}
   noise_data_axis() : parent_type(), data() {}
@@ -487,6 +527,8 @@ template <NoiseType nt, size_t D,
           template <typename, size_t> typename grid_type>
 struct noise_data_axis<1, nt, D, grid_type> : noise_data<nt, D, grid_type> {
   using parent_type = noise_data<nt, D, grid_type>;
+
+  void allocate() { parent_type::allocate(); }
 
   noise_data_axis(const len_type* dims, const double* h, const double* dt)
       : parent_type(dims, h, dt) {}
@@ -539,6 +581,7 @@ template <expr::NoiseType nt, typename T, size_t D,
 struct NoiseData<nt, any_vector_t<T, D>, D, grid_type>
     : expr::noise_data_axis<D, nt, D, grid_type> {
   using parent_type = expr::noise_data_axis<D, nt, D, grid_type>;
+  using parent_type::allocate;
   using parent_type::parent_type;
   using parent_type::update;
   using parent_type::operator[];
@@ -581,6 +624,8 @@ struct OpSymbolicEval<V, NoiseData<nt, T, D, grid_type>,
   using sub_t = NoiseData<nt, T, D, grid_type>;
   using eval_t = SymbolicFunction<E, Variable<Ns, Ts>...>;
   using this_t = OpSymbolicEval<V, sub_t, eval_t>;
+
+  void allocate() { data.allocate(); }
 
   OpSymbolicEval() = default;
 

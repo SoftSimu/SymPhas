@@ -71,6 +71,7 @@ set(SOLVER_INCLUDE_HEADER_NAME "" CACHE STRING "the name of the header file with
 set(MODEL_INCLUDE_HEADER_DIR "." CACHE PATH "the location of the header file defining the model definitions")
 set(MODEL_INCLUDE_HEADER_NAME "" CACHE STRING "the name of the header file within MODEL_INCLUDE_HEADER_DIR")
 set(USE_TESTS OFF CACHE BOOL "include compilation of the tests")
+set(USE_FFTW3 OFF CACHE BOOL "pull fftw3 from available releases and build it with SymPhas")
 
 set(MAIN_FILE "" CACHE STRING "The main file that will be compiled into an executable")
 
@@ -94,10 +95,37 @@ if(USE_PROC)
 	list(APPEND GROUP_NAMES_0 proc)
 endif()
 
+
+set(NLOHMANN_JSON_VER 3.12.0 CACHE STRING "version of nlohmann_json to use")
+include(FetchContent)
+
+if(USE_FFTW3)
+	set(FFTW3_VER 3.3.10 CACHE STRING "version of fftw to use")
+	message(STATUS "getting 'FFTW' from Github with FetchContent")
+	set(FFTW_MD5_FILE "${CMAKE_CURRENT_SOURCE_DIR}/fftw3-${FFTW_VER}.md5sum")
+	set(FFTW_MD5_URL "https://fftw.org/fftw-${FFTW_VER}.tar.gz.md5sum")
+
+	file(DOWNLOAD ${FFTW_MD5_URL} ${FFTW_MD5_FILE} STATUS FFTW_DOWNLOAD_STATUS)
+	file(READ ${FFTW_MD5_FILE} FFTW_MD5_CONTENTS)
+	string(REGEX MATCH "^[a-fA-F0-9]+" FFTW_MD5_SUM ${FFTW_MD5_CONTENTS})
+	file(REMOVE ${FFTW_MD5_FILE})
+	
+	FetchContent_Declare(FFTW3 
+		URL "https://fftw.org/fftw-${FFTW_VER}.tar.gz"
+		URL_HASH MD5=${FFTW_MD5_SUM}
+		DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+		FIND_PACKAGE_ARGS
+	)
+	FetchContent_MakeAvailable(FFTW3)
+else()
+	unset(FFTW3_VER)
+endif()
+
 if(USE_CONF)
 	message(STATUS "getting 'nlohmann_json' from Github with FetchContent")
-	include(FetchContent)
-	FetchContent_Declare(nlohmann_json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
+	FetchContent_Declare(nlohmann_json 
+		URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
+	)
 	FetchContent_MakeAvailable(nlohmann_json)
 
 	list(APPEND GROUP_NAMES_0 conf)

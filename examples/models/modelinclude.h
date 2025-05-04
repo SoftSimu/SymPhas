@@ -35,11 +35,11 @@
 #define dpsi dop(1)
 #define psi op(1)
 
-MODEL(NOCHANGE, (SCALAR), EVOLUTION(dpsi = 0_c))
+MODEL(NOCHANGE, (SCALAR), EVOLUTION(dpsi = 0_n))
 LINK_WITH_NAME(NOCHANGE, NOCHANGE)
 
 MODEL(MA, (SCALAR),
-      EVOLUTION(dpsi = lap(psi) + (c(0) - 4_c * c(1) * psi * psi) * psi))
+      EVOLUTION(dpsi = lap(psi) + (c(0) - 4_n * c(1) * psi * psi) * psi))
 LINK_WITH_NAME(MA, MODELA)
 
 MODEL(CONV, (SCALAR), EVOLUTION(dpsi = -smoothing(psi)))

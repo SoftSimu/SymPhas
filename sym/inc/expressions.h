@@ -342,6 +342,8 @@ void set_vector(any_vector_t<any_vector_t<T, NB>, NA>& vector, S const& value) {
  */
 template <typename T, size_t... Ns>
 struct OpTensor : OpExpression<OpTensor<T, Ns...>> {
+  void allocate() {}
+
   explicit OpTensor(T const& entry) : value{entry} {}
   constexpr OpTensor() : value{T{}} {}
 
@@ -500,6 +502,8 @@ template <typename T>
 struct OpLiteral : OpExpression<OpLiteral<T>> {
   T value;
 
+  void allocate() {}
+
   OpLiteral(T value) : value{value} {}
   constexpr OpLiteral(OpIdentity);
   constexpr OpLiteral(OpNegIdentity);
@@ -575,6 +579,8 @@ template <typename T, size_t D>
 struct OpLiteral<any_vector_t<T, D>>
     : OpExpression<OpLiteral<any_vector_t<T, D>>> {
   any_vector_t<T, D> value;
+
+  void allocate() {}
 
   OpLiteral(any_vector_t<T, D> value) : value{value} {}
   constexpr OpLiteral() : value{any_vector_t<T, D>{}} {}
@@ -798,6 +804,8 @@ struct OpFractionLiteral;
 
 template <size_t N, size_t D>
 struct OpFractionLiteral : OpExpression<OpFractionLiteral<N, D>> {
+  void allocate() {}
+
   __host__ __device__ constexpr inline scalar_t eval(iter_type = 0) const {
     return static_cast<scalar_t>(N) / D;
   }
@@ -829,6 +837,8 @@ struct OpFractionLiteral : OpExpression<OpFractionLiteral<N, D>> {
 
 template <size_t N>
 struct OpFractionLiteral<N, 1> : OpExpression<OpFractionLiteral<N, 1>> {
+  void allocate() {}
+
   __host__ __device__ constexpr inline scalar_t eval(iter_type = 0) const {
     return static_cast<scalar_t>(N);
   }
@@ -856,6 +866,8 @@ struct OpFractionLiteral<N, 1> : OpExpression<OpFractionLiteral<N, 1>> {
 
 template <size_t N, size_t D>
 struct OpNegFractionLiteral : OpExpression<OpNegFractionLiteral<N, D>> {
+  void allocate() {}
+
   __host__ __device__ constexpr inline scalar_t eval(iter_type = 0) const {
     return -static_cast<scalar_t>(N) / D;
   }
@@ -1319,6 +1331,8 @@ struct OpCoeff;
 
 template <typename T>
 struct OpCoeff<T, void> : OpExpression<OpCoeff<T, void>> {
+  void allocate() {}
+
   OpCoeff(const T* data, len_type len, len_type stride = 1)
       : data{data, len, stride} {}
   OpCoeff(len_type len) : data{len} {}
@@ -1385,6 +1399,8 @@ struct OpCoeff<T, void> : OpExpression<OpCoeff<T, void>> {
 
 template <typename T, typename I>
 struct OpCoeff : OpExpression<OpCoeff<T, I>> {
+  void allocate() {}
+
   OpCoeff(const T* data, len_type len, len_type stride = 1)
       : data{data, len, stride} {}
   OpCoeff(len_type len) : data{len} {}
@@ -1442,6 +1458,8 @@ struct OpCoeff : OpExpression<OpCoeff<T, I>> {
 
 template <typename T>
 struct OpCoeff<T, DynamicIndex> : OpExpression<OpCoeff<T, DynamicIndex>> {
+  void allocate() {}
+
   OpCoeff(DynamicIndex const& index, len_type len) : data{len}, index{index} {}
   OpCoeff(DynamicIndex const& index,
           symphas::internal::coeff_data<T> const& data)
@@ -1670,6 +1688,8 @@ struct OpAddList;
 
 template <>
 struct OpAddList<> {
+  void allocate() {}
+
   inline auto _eval(iter_type) const { return OpVoid{}; }
 
   bool coeff_sign() const { return false; }
@@ -1961,6 +1981,11 @@ template <typename E0, typename... Es>
 struct OpAddList<E0, Es...> : OpAddList<Es...> {
   using parent_type = OpAddList<Es...>;
 
+  void allocate() {
+    term.allocate();
+    parent_type::allocate();
+  }
+
   OpAddList() : parent_type(), term{} {}
   OpAddList(E0 const& e, Es const&... es) : parent_type(es...), term{e} {}
   OpAddList(E0 const& e, OpAdd<Es...> const& rest)
@@ -2038,6 +2063,8 @@ struct OpAdd<E0, Es...> : OpExpression<OpAdd<E0, Es...>>, OpAddList<E0, Es...> {
   using parent_type::print;
   using parent_type::print_length;
 #endif
+
+  void allocate() { parent_type::allocate(); }
 
   //! Create the binary addition expression between two expressions.
   /*!
@@ -2612,6 +2639,11 @@ size_t mul_print(FILE* out, coeff_t const& a, DynamicIndex const& b) {
 //! Binary expression, the multiplication of two terms.
 template <typename E1, typename E2>
 struct OpBinaryMul : OpExpression<OpBinaryMul<E1, E2>> {
+  void allocate() {
+    a.allocate();
+    b.allocate();
+  }
+
   OpBinaryMul(E1 const& a, E2 const& b) : a{a}, b{b} {}
 
   OpBinaryMul() : a{E1{}}, b{E2{}} {}
@@ -2742,6 +2774,11 @@ auto operator*(OpBinaryDiv<A, B> const& a, OpOperator<E> const& b) {
 //! Binary expression, the division of two terms.
 template <typename E1, typename E2>
 struct OpBinaryDiv : OpExpression<OpBinaryDiv<E1, E2>> {
+  void allocate() {
+    a.allocate();
+    b.allocate();
+  }
+
   OpBinaryDiv(E1 const& a, E2 const& b) : a{a}, b{b} {}
 
   // template<typename AA = E1, typename BB = E2,

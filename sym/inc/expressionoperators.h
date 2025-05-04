@@ -223,6 +223,8 @@ struct OpOperator : OpEvaluable<E> {
     // b.combination)(expr::get_enclosed_expression(b));
   }
 
+  void allocate() { cast().allocate(); }
+
   E const& cast() const { return (*static_cast<E const*>(this)); }
 
   E& cast() { return (*static_cast<E*>(this)); }
@@ -852,6 +854,11 @@ struct OpOperatorCombination : OpOperator<OpOperatorCombination<A1, A2>> {
   using parent_type::operator-;
   using parent_type::operator+;
 
+  void allocate() {
+    f.allocate();
+    g.allocate();
+  }
+
   //! Create the combination of two operators.
   /*!
    * Create the combination of two operators.
@@ -1006,6 +1013,11 @@ struct OpOperatorCombination : OpOperator<OpOperatorCombination<A1, A2>> {
  */
 template <typename A1, typename A2, typename E>
 struct OpCombination : OpExpression<OpCombination<A1, A2, E>> {
+  void allocate() {
+    eval_expr_f.allocate();
+    eval_expr_g.allocate();
+  }
+
   OpOperatorCombination<A1, A2> combination;  //!< The combination operator.
 
  protected:
@@ -1147,6 +1159,11 @@ struct OpOperatorChain : OpOperator<OpOperatorChain<A1, A2>> {
   using parent_type::operator*;
   using parent_type::operator-;
   using parent_type::operator+;
+
+  void allocate() {
+    f.allocate();
+    g.allocate();
+  }
 
   //! Create the chain of two operators.
   /*!
@@ -1355,6 +1372,8 @@ struct OpChain : OpExpression<OpChain<A1, A2, E>> {
       OpOperatorChain<A1, A2>, E>;
 
  public:
+  void allocate() { eval_expr.allocate(); }
+
   expr_type
       eval_expr;  //!< The result of applying the outer operator to the inner.
 
@@ -1526,6 +1545,8 @@ size_t pow_print(char* out, OpExpression<E> const& e) {
 //! Binary expression, the multiplication of two terms.
 template <expr::exp_key_t X, typename V, typename E>
 struct OpPow : OpExpression<OpPow<X, V, E>> {
+  void allocate() { e.allocate(); }
+
   OpPow(V const& value, E const& e) : value{value}, e{e} {}
 
   OpPow() : value{V{}}, e{E{}} {}
@@ -1866,6 +1887,13 @@ template <typename G, typename V, typename E>
 struct OpMap : OpExpression<OpMap<G, V, E>> {
   using result_type = expr::eval_type_t<E>;
 
+  void allocate() {
+    e.allocate();
+    if (data.len == 0) {
+      data = G(expr::data_dimensions(e));
+    }
+  }
+
   OpMap() : value{V{}}, e{}, data{} {}
 
   //! Create a mapping expression.
@@ -1876,8 +1904,7 @@ struct OpMap : OpExpression<OpMap<G, V, E>> {
    * \param value The coefficient of the mapping expression.
    * \param e The expression which is evaluated and mapped.
    */
-  OpMap(V value, E const& e)
-      : value{value}, e{e}, data{G(expr::data_dimensions(e))} {}
+  OpMap(V value, E const& e) : value{value}, e{e}, data{0} {}
 
   inline auto eval(iter_type n) const { return expr::eval(value) * data[n]; }
 
@@ -1947,6 +1974,8 @@ struct OpMap : OpExpression<OpMap<G, V, E>> {
 template <typename V, typename E>
 struct OpMap<void, V, E> : OpExpression<OpMap<void, V, E>> {
   using result_type = expr::eval_type_t<E>;
+
+  void allocate() { e.allocate(); }
 
   OpMap() : value{V{}}, e{} {}
 
@@ -2268,6 +2297,8 @@ struct OpMap<symphas::internal::HCTS, OpIdentity, E>
   using result_type = expr::eval_type_t<E>;
   static const size_t D = expr::grid_dim<E>::value;
 
+  void allocate() { e.allocate(); }
+
   OpMap() : e{}, dims{} {}
 
   //! Create a mapping expression.
@@ -2377,6 +2408,8 @@ struct OpMap<symphas::internal::STHC, OpIdentity, E>
   using result_type = expr::eval_type_t<E>;
   static const size_t D = expr::grid_dim<E>::value;
 
+  void allocate() { e.allocate(); }
+
   OpMap() : e{}, dims{} {}
 
   //! Create a mapping expression.
@@ -2473,6 +2506,8 @@ auto operator*(coeff_t const& value,
 template <Axis ax, typename V, typename E>
 struct OpMap<VectorComponent<ax>, V, E>
     : OpExpression<OpMap<VectorComponent<ax>, V, E>> {
+  void allocate() { e.allocate(); }
+
   OpMap() : e{} {}
 
   //! Create a mapping expression to get the component of an N-d expression.

@@ -122,26 +122,29 @@ void real_gaussian_kernel(double* kernel, len_type const (&dims)[D],
  */
 template <size_t D>
 struct GaussianSmoothing : OpExpression<GaussianSmoothing<D>> {
+  void allocate() {
+    if (data.len == 0) {
+      data = Grid<scalar_t, D>(dims);
+      initialize_values(h, sigma);
+    }
+  }
+
   GaussianSmoothing() : data{0} {}
 
   GaussianSmoothing(symphas::interval_data_type const& intervals,
                     double sigma = 1.0, bool fourier_space = false)
-      : data{grid::dim_list(intervals)},
-        fourier_space{fourier_space},
-        sigma{sigma},
-        h{} {
+      : data{0}, fourier_space{fourier_space}, sigma{sigma}, h{}, dims{} {
     for (iter_type i = 0; i < D; ++i) {
       h[i] = intervals.at(symphas::index_to_axis(i)).width();
+      dims[i] = intervals.at(symphas::index_to_axis(i)).get_interval_count();
     }
-
-    initialize_values(h, sigma);
   }
 
   GaussianSmoothing(const len_type* dims, const double* h, double sigma = 1.0,
                     bool fourier_space = false)
-      : data{dims}, fourier_space{fourier_space}, sigma{sigma}, h{} {
+      : data{0}, fourier_space{fourier_space}, sigma{sigma}, h{}, dims{} {
     std::copy(h, h + D, this->h);
-    initialize_values(h, sigma);
+    std::copy(dims, dims + D, this->dims);
   }
 
   inline double eval(iter_type n) const { return data.values[n]; }
@@ -208,6 +211,7 @@ struct GaussianSmoothing : OpExpression<GaussianSmoothing<D>> {
   bool fourier_space;
   double sigma;
   double h[D];
+  len_type dims[D];
 
  protected:
   void scale(scalar_t value) {
@@ -742,13 +746,13 @@ struct ConvolutionData {
   }
 
   template <typename T_0>
-  void transform_in_out(T_0* in_0) const {
-    symphas::dft::dft<D>(in_0, out_0, nullptr, true);
+  void transform_in_out(T_0* in_0, const len_type* dims) const {
+    symphas::dft::dft<D>(in_0, out_0, dims, true);
   }
 
   template <typename T_0>
-  void transform_out_in(T_0* out_1) const {
-    symphas::dft::dft<D>(in_1, out_1, nullptr, true);
+  void transform_out_in(T_0* out_1, const len_type* dims) const {
+    symphas::dft::dft<D>(in_1, out_1, dims, true);
   }
 
   complex_t* out_0;  //!< Fourier transform of the given data.
@@ -801,18 +805,18 @@ struct ConvolutionDataPair {
   }
 
   template <typename T_0>
-  void transform_in_out_0(T_0* in_0) const {
-    symphas::dft::dft<D>(in_0, out_0, nullptr, true);
+  void transform_in_out_0(T_0* in_0, const len_type* dims) const {
+    symphas::dft::dft<D>(in_0, out_0, dims, true);
   }
 
   template <typename T_0>
-  void transform_in_out_1(T_0* in_1) const {
-    symphas::dft::dft<D>(in_1, out_1, nullptr, true);
+  void transform_in_out_1(T_0* in_1, const len_type* dims) const {
+    symphas::dft::dft<D>(in_1, out_1, dims, true);
   }
 
   template <typename T_0>
-  void transform_out_in(T_0* out_2) const {
-    symphas::dft::dft<D>(in_2, out_2, nullptr, true);
+  void transform_out_in(T_0* out_2, const len_type* dims) const {
+    symphas::dft::dft<D>(in_2, out_2, dims, true);
   }
 
   ~ConvolutionDataPair() {

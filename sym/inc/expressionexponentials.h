@@ -93,6 +93,8 @@ struct make_exponential {
  */
 template <typename V, typename E>
 struct OpExponential : OpExpression<OpExponential<V, E>> {
+  void allocate() { e.allocate(); }
+
   OpExponential() : value{V{}}, e{} {}
 
   //! Generate an exponential term with the given expression.

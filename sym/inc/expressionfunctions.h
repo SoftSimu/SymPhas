@@ -488,6 +488,8 @@ auto make_function(OpExpression<E> const& e, std::string name, F f) {
  */
 template <auto f, typename V, typename E>
 struct OpFunctionApply : OpExpression<OpFunctionApply<f, V, E>> {
+  void allocate() { e.allocate(); }
+
   OpFunctionApply() : value{V{}}, e{} {}
 
   //! Create a new function expression, applied to an expression.
@@ -855,6 +857,8 @@ auto expr::make_unit_vector(T0 const& direction0) {
  */
 template <typename V, typename E, typename F, typename Arg0, typename... Args>
 struct OpFunction : OpExpression<OpFunction<V, E, F, Arg0, Args...>> {
+  void allocate() { e.allocate(); }
+
   OpFunction() : name{""}, value{V{}}, e{}, f{}, tt{} {}
 
   //! Create a function of an expression.
@@ -991,6 +995,8 @@ struct OpFunction : OpExpression<OpFunction<V, E, F, Arg0, Args...>> {
  */
 template <typename V, typename E, typename F>
 struct OpFunction<V, E, F, void> : OpExpression<OpFunction<V, E, F, void>> {
+  void allocate() { e.allocate(); }
+
   OpFunction() : value{V{}}, e{}, f{}, name{""} {}
 
   //! Create a function of an expression.

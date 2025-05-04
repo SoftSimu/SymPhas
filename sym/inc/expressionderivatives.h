@@ -1531,12 +1531,23 @@ void update_temporary_grid(RegionalGridCUDA<T, D>& grid,
  */
 template <typename Dd, typename V, typename E, typename Sp>
 struct OpDerivative : OpExpression<OpDerivative<Dd, V, E, Sp>> {
-  using result_grid = expr::storage_type_t<E>;
+  using result_data_type = expr::storage_type_t<E>;
+  using result_grid = std::conditional_t<
+      std::is_same_v<result_data_type, expr::symbols::Symbol>, int,
+      result_data_type>;
 
   static const size_t order = Dd::order;  //!< The order of this derivative.
   static const Axis axis = Dd::axis;      //!< The axis of this derivative.
   static const bool is_directional =
       Dd::is_directional;  //!< Whether the derivative is directional.
+
+  void allocate() {
+    e.allocate();
+
+    grid = symphas::internal::setup_result_data<result_grid>{}(
+        expr::data_dimensions(e));
+    symphas::internal::update_temporary_grid(grid, e);
+  }
 
   OpDerivative() : grid{0}, value{V{}}, solver{}, e{} {}
 
@@ -1547,21 +1558,10 @@ struct OpDerivative : OpExpression<OpDerivative<Dd, V, E, Sp>> {
    * object.
    */
   OpDerivative(V value, E const& e, solver_op_type<Sp> solver)
-      : grid{symphas::internal::setup_result_data<result_grid>{}(
-            expr::data_dimensions(e))},
-        value{value},
-        solver{solver},
-        e{e} {
-    symphas::internal::update_temporary_grid(grid, e);
-  }
+      : grid{0}, value{value}, solver{solver}, e{e} {}
 
   OpDerivative(E const& e, solver_op_type<Sp> solver)
-      : grid{expr::data_dimensions(e)},
-        value{OpIdentity{}},
-        solver{solver},
-        e{e} {
-    symphas::internal::update_temporary_grid(grid, e);
-  }
+      : grid{0}, value{OpIdentity{}}, solver{solver}, e{e} {}
 
   inline auto eval(iter_type n) const {
     return expr::eval(value) * Dd{}(solver, grid, n);
@@ -1652,6 +1652,8 @@ struct OpDerivative<Dd, V, OpTerm<OpIdentity, G>, Sp>
   using Dd::is_directional;
   using Dd::order;
 
+  void allocate() {}
+
   template <typename V0, typename V1,
             typename std::enable_if_t<
                 std::is_convertible<mul_result_t<V0, V1>, V>::value, int> = 0>
@@ -1738,6 +1740,8 @@ struct OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G>>
     : OpExpression<
           OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G>>> {
   static const size_t order = O;  //!< The order of this derivative.
+
+  void allocate() { e.allocate(); }
 
   OpDerivative() : value{V{}}, solver{}, e{} {}
 
@@ -2194,6 +2198,8 @@ struct OpOperatorDerivative : OpOperator<OpOperatorDerivative<O, V, Sp>> {
   using parent_type::operator-;
   using parent_type::operator+;
 
+  void allocate() {}
+
   OpOperatorDerivative() : value{V{}}, solver{} {}
 
   static_assert(O <= DERIV_MAX_ORDER);
@@ -2320,6 +2326,8 @@ struct OpOperatorDirectionalDerivative
   using parent_type::operator*;
   using parent_type::operator-;
   using parent_type::operator+;
+
+  void allocate() {}
 
   OpOperatorDirectionalDerivative() : value{V{}}, solver{} {}
 
@@ -2453,6 +2461,8 @@ struct OpOperatorMixedDerivative
   using parent_type::operator*;
   using parent_type::operator-;
   using parent_type::operator+;
+
+  void allocate() {}
 
   OpOperatorMixedDerivative() : value{V{}}, solver{} {}
 

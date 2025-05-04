@@ -2616,7 +2616,7 @@ struct make<RegionalGridMPI> {
  */
 template <template <typename, size_t> typename G, typename T, size_t D,
           typename... Ts>
-G<T, D> construct(Ts&&... args) {
+decltype(auto) construct(Ts&&... args) {
   return make<G>::template apply<T, D>(std::forward<Ts>(args)...);
 }
 

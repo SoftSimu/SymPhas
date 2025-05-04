@@ -36,10 +36,6 @@ set(VECTOR_TYPE_NAME VectorValue)
 set(ENABLE_TIMINGS ON CACHE BOOL "enable collecting the elapsed time information of the simulation")
 set(ENABLE_INLINE_TIMINGS OFF CACHE BOOL "enable collecting the elapsed time of inline timings")
 
-# add_library(fftw3_imported SHARED IMPORTED)
-# set_target_properties(fftw3_imported PROPERTIES
-# IMPORTED_LOCATION "${FFTW_DIR}/bin/fftw3.dll"
-# IMPORTED_IMPLIB "${FFTW3_LIBRARY_DIRS}/fftw3.lib")
 if(NOT WIN32)
 	list(APPEND ADD_LINUX_LIBS m ${CMAKE_THREAD_LIBS_INIT})
 endif()
@@ -57,11 +53,13 @@ if(ENABLE_TIMINGS)
 	set(PRINT_TIMINGS ON)
 endif()
 
+
 if(FFTW3_FOUND)
 	set(USING_FFTW ON)
 else()
 	unset(USING_FFTW)
 endif()
+
 
 if(TBB_FOUND)
 	target_link_libraries(symphas_lib_o PUBLIC TBB::tbb)

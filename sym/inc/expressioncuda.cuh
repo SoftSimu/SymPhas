@@ -2351,7 +2351,6 @@ struct expr::result_sum_trait<GridCUDA<any_vector_t<T, D>, D>> {
     for (iter_type i = 0; i < D; ++i) {
       CHECK_CUDA_ERROR(cudaMalloc(&devPtrArr[i], sizeof(T) * numBlocks));
     }
-    CHECK_CUDA_ERROR(cudaMalloc(&devPtrArr, sizeof(T) * numBlocks));
     submit_expr(len, ec, devPtrArr, len);
     if (synchronize) CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 
@@ -2381,7 +2380,6 @@ struct expr::result_sum_trait<GridCUDA<any_vector_t<T, D>, D>> {
     for (iter_type i = 0; i < D; ++i) {
       CHECK_CUDA_ERROR(cudaMalloc(&devPtrArr[i], sizeof(T) * numBlocks));
     }
-    CHECK_CUDA_ERROR(cudaMalloc(&devPtrArr, sizeof(T) * numBlocks));
     submit_expr(len, ec, devPtrArr, len);
     if (synchronize) CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 
@@ -2418,7 +2416,6 @@ struct expr::result_sum_trait<GridCUDA<any_vector_t<T, D>, D>> {
     for (iter_type i = 0; i < D; ++i) {
       CHECK_CUDA_ERROR(cudaMalloc(&devPtrArr[i], sizeof(T) * numBlocks));
     }
-    CHECK_CUDA_ERROR(cudaMalloc(&devPtrArr, sizeof(T) * numBlocks));
     submit_expr(len, ec, devPtrArr, interval);
     if (synchronize) CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 
@@ -2464,7 +2461,6 @@ struct expr::result_sum_only_trait<GridCUDA<any_vector_t<T, D>, D>> {
     for (iter_type i = 0; i < D; ++i) {
       CHECK_CUDA_ERROR(cudaMalloc(&devPtrArr[i], sizeof(T) * numBlocks));
     }
-    CHECK_CUDA_ERROR(cudaMalloc(&devPtrArr, sizeof(T) * numBlocks));
     submit_expr(len, ec, devPtrArr, len);
     if (synchronize) CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 
@@ -2581,7 +2577,6 @@ struct expr::result_sum_only_trait<GridCUDA<T, D>> {
     for (iter_type i = 0; i < D; ++i) {
       CHECK_CUDA_ERROR(cudaMalloc(&devPtrArr[i], sizeof(T) * numBlocks));
     }
-    CHECK_CUDA_ERROR(cudaMalloc(&devPtrArr, sizeof(T) * numBlocks));
     submit_expr(len, ec, devPtrArr, interval);
     if (synchronize) CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 

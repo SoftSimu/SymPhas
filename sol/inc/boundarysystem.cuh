@@ -307,6 +307,8 @@ struct find_min_val_vec {
     int blocksPerGrid = (size + BLOCK_SIZE - 1) / BLOCK_SIZE;
     findMinKernel CUDA_KERNEL(blocksPerGrid, BLOCK_SIZE,
                               BLOCK_SIZE * sizeof(T))(d_array, d_min, size);
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
   }
 };
 
@@ -318,6 +320,8 @@ struct find_min_val_vec<1> {
     findMinKernel CUDA_KERNEL(blocksPerGrid, BLOCK_SIZE,
                               BLOCK_SIZE * sizeof(T))(d_array[0], d_min[0],
                                                       size);
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
   }
 };
 
@@ -329,6 +333,8 @@ struct find_min_val_vec<2> {
     findMinKernelVec CUDA_KERNEL(blocksPerGrid, BLOCK_SIZE,
                                  2 * BLOCK_SIZE * sizeof(T))(
         d_array[0], d_array[1], d_min[0], d_min[1], size);
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
   }
 };
 
@@ -340,6 +346,8 @@ struct find_min_val_vec<3> {
     findMinKernelVec CUDA_KERNEL(blocksPerGrid, BLOCK_SIZE,
                                  3 * BLOCK_SIZE * sizeof(T))(
         d_array[0], d_array[1], d_array[2], d_min[0], d_min[1], d_min[2], size);
+    CHECK_CUDA_ERROR(cudaPeekAtLastError());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
   }
 };
 

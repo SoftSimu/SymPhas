@@ -116,6 +116,8 @@ template <typename V, typename E, typename T>
 struct OpIntegral : OpExpression<OpIntegral<V, E, T>> {
   using result_t = expr::eval_type_t<E>;
 
+  void allocate() { e.allocate(); }
+
   OpIntegral() : value{V{}}, domain{T{}}, data{}, e{} {}
   OpIntegral(V value, E const &e, T const &domain)
       : value{value}, domain{domain}, data{result_t{}}, e{e} {}
@@ -185,6 +187,8 @@ template <typename V, typename E, typename T>
 struct OpIntegral<V, E, expr::variational_t<T>>
     : OpExpression<OpIntegral<V, E, expr::variational_t<T>>> {
   using result_t = expr::eval_type_t<E>;
+
+  void allocate() { e.allocate(); }
 
   OpIntegral()
       : value{V{}}, domain{symphas::grid_info{nullptr, 0}}, data{}, e{} {}

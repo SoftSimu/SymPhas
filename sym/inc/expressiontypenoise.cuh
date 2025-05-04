@@ -47,22 +47,26 @@ struct random_state<GridCUDA<T, D>> {
   len_type len;
   curandState *states;
 
+  void allocate() {
+    if (states == nullptr) {
+      CHECK_CUDA_ERROR(cudaMalloc(&states, len * sizeof(curandState)));
+      auto numBlocks = (len + BLOCK_SIZE - 1) / BLOCK_SIZE;
+      unsigned long long seed = static_cast<unsigned long long>(time(NULL));
+
+      generate_kernel CUDA_KERNEL(numBlocks, BLOCK_SIZE)(states, len, seed);
+      CHECK_CUDA_ERROR(cudaPeekAtLastError());
+      CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+    }
+  }
+
   random_state() : len{0}, states{nullptr} {}
 
-  random_state(iter_type len) : len{len}, states{nullptr} {
-    cudaMalloc(&states, len * sizeof(curandState));
-    auto numBlocks = (len + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    unsigned long long seed = static_cast<unsigned long long>(time(NULL));
-
-    generate_kernel CUDA_KERNEL(numBlocks, BLOCK_SIZE)(states, len, seed);
-    CHECK_CUDA_ERROR(cudaPeekAtLastError());
-    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
-  }
+  random_state(iter_type len) : len{len}, states{nullptr} {}
 
   random_state(random_state &&other) : states() { swap(*this, other); }
   random_state(random_state const &other) : random_state(other.len) {
-    cudaMemcpy(states, other.states, len * sizeof(curandState),
-               cudaMemcpyDeviceToDevice);
+    /*CHECK_CUDA_ERROR(cudaMemcpy(states, other.states, len *
+       sizeof(curandState), cudaMemcpyDeviceToDevice));*/
   }
 
   friend void swap(random_state &a, random_state &b) {
