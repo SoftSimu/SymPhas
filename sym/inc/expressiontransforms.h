@@ -2382,15 +2382,19 @@ struct OpOptimized<OpBinaryMul<OpIntegral<V, E, T>, G>>
       decltype(&symphas::internal::to_optimized<G, V, E, T, working_grid>),
       OpIntegral<V, E, T>, OpTerm<OpIdentity, working_grid*>>;
 
+  void allocate() {
+    term.allocate();
+    symphas::internal::update_temporary_grid(working, term);
+    e.allocate();
+    expr::prune::update(e);
+  }
+
   OpOptimized() : working{0}, e{}, term{} {}
 
   OpOptimized(OpBinaryMul<OpIntegral<V, E, T>, G> const& e)
       : working{expr::data_dimensions(e.b)},
         e{symphas::internal::to_optimized<G>(e.a, expr::make_term(&working))},
-        term{e.b} {
-    symphas::internal::update_temporary_grid(working, term);
-    expr::prune::update(this->e);
-  }
+        term{e.b} {}
 
   OpOptimized(OpOptimized const& other) : OpOptimized(other.get_expression()) {}
   OpOptimized(OpOptimized&& other) noexcept : OpOptimized() {

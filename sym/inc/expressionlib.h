@@ -343,7 +343,7 @@ struct OpExpression : OpEvaluable<E> {
   /*!
    * Allocate all members of this expression which are on the heap.
    */
-  void allocate() { cast().allocate(); }
+  void allocate() { (*static_cast<E *>(this)).allocate(); }
 
 #ifdef PRINTABLE_EQUATIONS
 

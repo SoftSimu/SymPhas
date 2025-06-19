@@ -299,16 +299,6 @@ struct ModelApplied<D, Sp>::OpTypes<S...>::Specialized : eq_type {
   Specialized(symphas::problem_parameters_type const& parameters)
       : Specialized(nullptr, 0, parameters) {}
 
-  /*ModelApplied<D, Sp>::template OpTypes<S...>::template Specialized<Eq,
-  eq_type>& operator=( ModelApplied<D, Sp>::template OpTypes<S...>::template
-  Specialized<Eq, eq_type> other)
-  {
-          using std::swap;
-
-          swap(*static_cast<parent_type*>(this),
-  *static_cast<parent_type*>(&other)); swap(equations, other.equations);
-  }*/
-
   void update(double time) { M::update_systems(time); }
 
   void equation() { equation(std::make_index_sequence<sizeof...(S)>{}); }
@@ -347,7 +337,6 @@ struct ModelApplied<D, Sp>::OpTypes<S...>::ProvTypes<P...>::Specialized
       SpecializedModel<Eq, Pr, pr_type_solver<Sp0>, eq_type_solver<Sp0>>;
 
   using parent_type = eq_type;
-  // using parent_type::parent_type;
   using parent_type::temp;
 
   using eqs =
@@ -384,7 +373,7 @@ struct ModelApplied<D, Sp>::OpTypes<S...>::ProvTypes<P...>::Specialized
   void update(double time) {
     M::update_systems(time);
     M::solver.evaluate(provisionals);
-    temp.update_systems(parent_type::lastindex, time);
+    temp.update_systems(parent_type::index, time);
   }
 
   void equation() { equation(std::make_index_sequence<sizeof...(S)>{}); }
@@ -786,6 +775,16 @@ struct dynamics_rule_compare<N, special_dynamics<N0, void, E>, R> {
   static const bool value = (N == N0);
 };
 
+template <size_t N, typename L, size_t N0, typename E>
+struct dynamics_rule_compare<N, L, special_dynamics<N0, void, E>> {
+  static const bool value = N != N0;
+};
+
+template <size_t N, size_t N0, typename E>
+struct dynamics_rule_compare<N, void, special_dynamics<N0, void, E>> {
+  static const bool value = N != N0;
+};
+
 template <size_t N, typename L, typename E>
 struct dynamics_rule_compare<N, L, special_dynamics<N, void, E>> {
   static const bool value = false;
@@ -897,6 +896,18 @@ struct dynamics_rule_search_impl<N, P, R, std::index_sequence<I0, Is...>,
       dynamics_rule_search_impl<N, P, R, std::integer_sequence<bool, flag>,
                                 std::index_sequence<I0, Is...>,
                                 symphas::lib::types_list<T, Rest...>>::value;
+};
+
+template <size_t N, size_t P, typename R, size_t... Is, DynamicType dynamic,
+          typename... Rest>
+struct dynamics_rule_search_impl<
+    N, P, R, std::index_sequence<N, Is...>,
+    symphas::lib::types_list<dynamics_list<dynamic>, Rest...>> {
+ public:
+  static const size_t value =
+      dynamics_rule_search_impl<N, N, dynamics_list<dynamic>,
+                                std::index_sequence<Is...>,
+                                symphas::lib::types_list<Rest...>>::value;
 };
 
 template <size_t N, typename T>
@@ -1574,7 +1585,7 @@ struct TraitProvisional : TraitEquation<enclosing_type, parent_model> {
    * equation.
    */
   template <size_t I>
-  auto var() {
+  auto var() const {
 #ifdef PRINTABLE_EQUATIONS
     std::ostringstream ss;
     ss << "var" << I;
@@ -1627,7 +1638,7 @@ struct TraitProvisional : TraitEquation<enclosing_type, parent_model> {
     using parent_type::parent_type;                                \
     using parent_type::c;                                          \
     auto make_provisionals() {                                     \
-      return parent_type::template make_provisionals(__VA_ARGS__); \
+      return parent_type::make_provisionals(__VA_ARGS__);          \
     }                                                              \
   };
 

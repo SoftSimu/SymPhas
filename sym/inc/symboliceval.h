@@ -101,6 +101,8 @@ struct OpSymbolicEval<V, SymbolicSeries<Ss...>,
   using this_t =
       OpSymbolicEval<V, sub_t, SymbolicFunction<E, Variable<Ns, Ts>...>>;
 
+  void allocate() { data.allocate(); }
+
   OpSymbolicEval() = default;
 
   OpSymbolicEval(V value, sub_t const& data, eval_t const& f)
@@ -170,6 +172,8 @@ struct OpSymbolicEval<V, expr::symbols::i_<N, P>,
   using eval_t = SymbolicFunction<E, Variable<Ns, Ts>...>;
   using this_t = OpSymbolicEval<V, sub_t, eval_t>;
 
+  auto allocate() {}
+
   OpSymbolicEval() = default;
 
   OpSymbolicEval(V value, sub_t const& data, eval_t const& f)
@@ -229,6 +233,12 @@ struct OpSymbolicEval<V, SymbolicListIndex<E0, K>,
   using sub_t = SymbolicListIndex<E0, K>;
   using eval_t = SymbolicFunction<E, Variable<Ns, Ts>...>;
   using this_t = OpSymbolicEval<V, sub_t, eval_t>;
+
+  auto allocate() {
+    for (iter_type i = 0; i < data.stop(); ++i) {
+      list[i].e.allocate();
+    }
+  }
 
   OpSymbolicEval() : OpSymbolicEval(V{}, sub_t{}, eval_t{}) {}
 

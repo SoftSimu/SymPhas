@@ -477,7 +477,7 @@ void find_solution(M* models, len_type num_models,
   }
 
   fprintf(SYMPHAS_LOG,
-          "Completed %d iterations in %.2lf seconds, simulation end time = "
+          "Completed %d iterations in %.6E seconds, simulation end time = "
           "%lf.\n",
           model.get_index(), run_time, models[0].get_time());
   fprintf(SYMPHAS_LOG, OUTPUT_BANNER);

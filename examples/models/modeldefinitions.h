@@ -31,9 +31,12 @@
 #define psi op(1)
 #define drho dop(2)
 #define rho op(2)
+#define j rho
+#define dj drho
 
 #ifndef BASIC_MODELS
 
+#ifdef MODEL_SET_1
 //! Model A with noise.
 MODEL(MAWN, (SCALAR),
       EVOLUTION(dpsi = lap(psi) + (c(1) - c(2) * psi * psi) * psi +
@@ -57,18 +60,24 @@ MODEL(MBWN, (SCALAR),
 LINK_WITH_NAME(MBWN, MODELB_WN)
 
 //! Model C.
-MODEL(MC, (SCALARS(2)),
+MODEL(MCWN, (SCALARS(2)),
       EVOLUTION(dpsi = -bilap(psi) -
                        lap((c(1) - c(2) * psi * psi + _nW(SCALAR)) * psi +
                            c(5) * rho * rho),
                 drho = lap(rho) +
                        (c(3) - c(4) * rho * rho + _nW(SCALAR)) * rho +
                        2_n * c(5) * psi * rho))
+LINK_WITH_NAME(MCWN, MODELC)
+DEFINE_MODEL_FIELD_NAMES(MCWN, ("psi", "m"))
+
+//! Model C.
+MODEL(MC, (SCALARS(2)),
+      EVOLUTION(dpsi = -bilap(psi) -
+                       lap((c(1) - c(2) * psi * psi) * psi + c(5) * rho * rho),
+                drho = lap(rho) + (c(3) - c(4) * rho * rho) * rho +
+                       2_n * c(5) * psi * rho))
 LINK_WITH_NAME(MC, MODELC)
 DEFINE_MODEL_FIELD_NAMES(MC, ("psi", "m"))
-
-#define j rho
-#define dj drho
 
 // Model H
 MODEL(MH, (SCALAR, VECTOR),
@@ -79,6 +88,10 @@ MODEL(MH, (SCALAR, VECTOR),
 LINK_WITH_NAME(MH, MODELH)
 DEFINE_MODEL_FIELD_NAMES(MH, ("m", "j"))
 
+#endif
+
+#ifdef MODEL_SET_2
+
 //! Example of coupling through the free energy using an iterated sum.
 MODEL(MH_FE, (SCALAR, VECTOR),
       FREE_ENERGY((EQUATION_OF(1)(-lap(-DF(1)) - grad(op(1)) * DF(2)),
@@ -86,9 +99,6 @@ MODEL(MH_FE, (SCALAR, VECTOR),
                   INT(LANDAU_FE(op(1)) + _2 * pow<2>(op(2)))))
 LINK_WITH_NAME(MH_FE, MODELH_FE)
 DEFINE_MODEL_FIELD_NAMES(MH_FE, ("m", "j"))
-
-#undef j
-#undef dj
 
 //! Model A defined by the free energy, where the free energy uses
 //! a general index for any number of fields that are defined.
@@ -98,20 +108,19 @@ LINK_WITH_NAME(MA_FE, MODELA_FE)
 
 //! Example of coupling through the free energy using an iterated sum.
 
-//
-////! Model B defined by the free energy.
-// MODEL(MB_FE, (SCALAR),
-//	FREE_ENERGY((CONSERVED),
-//		INT(SUM(ii)(LANDAU_FE(op_ii))))
-//)
-// LINK_WITH_NAME(MB_FE, MODELB_FE)
-//
-////! Model B defined by the free energy.
-// MODEL(MC_FE, (SCALAR, SCALAR),
-//	FREE_ENERGY((NONCONSERVED, CONSERVED),
-//		INT(SUM(ii)(LANDAU_FE(op_ii)) + psi * psi * rho))
-//)
-// LINK_WITH_NAME(MC_FE, MODELC_FE)
+//! Model B defined by the free energy.
+MODEL(MB_FE, (SCALAR), FREE_ENERGY((CONSERVED), INT(SUM(ii)(LANDAU_FE(op_ii)))))
+LINK_WITH_NAME(MB_FE, MODELB_FE)
+
+//! Model C defined by the free energy.
+MODEL(MC_FE, (SCALAR, SCALAR),
+      FREE_ENERGY((NONCONSERVED, CONSERVED),
+                  INT(LANDAU_FE(psi) + LANDAU_FE(rho) + psi * psi * rho)))
+LINK_WITH_NAME(MC_FE, MODELC_FE)
+
+#endif
+
+#ifdef MODEL_SET_3
 
 //! The Gray-Scott phase field model.
 MODEL(GRAYSCOTT, (SCALAR, SCALAR),
@@ -129,29 +138,31 @@ MODEL(Turing, (SCALAR, SCALAR),
                                           psi * rho * rho + c(4) * psi * rho)))
 LINK_WITH_NAME(Turing, TURING)
 
-/*
+#endif
+
+#ifdef MODEL_SET_4
 
 MODEL(COUPLING4, (SCALARS(4)),
-        FREE_ENERGY((ALL_NONCONSERVED(ii)),
-                INT(SUM(ii)(LANDAU_FE(op_ii)) + _4 * SUM(ii, jj != ii)(op_ii *
-op_jj * op_jj) + op(1)))
-)
+      FREE_ENERGY((ALL_NONCONSERVED(ii)),
+                  INT(SUM(ii)(LANDAU_FE(op_ii)) +
+                      _4 * SUM(ii, jj != ii)(op_ii * op_jj * op_jj) + op(1))))
 LINK_WITH_NAME(COUPLING4, MODEL_COUPLING4)
 DEFINE_MODEL_FIELD_NAMES(COUPLING4, ("A", "B", "C", "D"))
 
-
-//! Example of provisional variables, Model B.
+//! Example of provisional variables, Model B. Note the two equals signs when
+//! creating an expression for setting the provisional variable.
 MODEL(MBB, (SCALAR),
-        PROVISIONAL_DEF((SCALAR),
-                var(1) = -(c(1) - lit(4.) * c(2) * psi * psi) * psi)
-        EVOLUTION(
-                dpsi = -bilap(psi) + lap(var(1)))
-)
+      PROVISIONAL_DEF((SCALAR),
+                      var(1) == -(c(1) - lit(4.) * c(2) * psi * psi) * psi)
+          EVOLUTION(dpsi = -bilap(psi) + lap(var(1))))
 LINK_WITH_NAME(MBB, MODELBB)
-*/
 
 #endif
 
+#endif
+
+#undef j
+#undef dj
 #undef rho
 #undef psi
 #undef dpsi

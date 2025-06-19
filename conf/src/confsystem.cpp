@@ -1969,6 +1969,12 @@ void SymPhasSettings::write(const char* savedir, const char* name) const {
 
     fprintf(f, CONFIG_NAME_FMT, side_key_map[side]);
     for (iter_type i = 0; i < domain_settings.bdata_len; ++i) {
+      if (domain_settings.bdata[i].find(side) ==
+          domain_settings.bdata[i].end()) {
+        throw std::runtime_error(
+            "The dimension of the domain and the simulation settings do not "
+            "match.");
+      }
       fprintf(
           f, "%c %s ", open,
           symphas::str_from_boundary(domain_settings.bdata[i].at(side).type));

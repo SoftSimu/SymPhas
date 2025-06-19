@@ -683,6 +683,10 @@ auto make_lhs(RegionalGridCUDA<T, D> const& data) {
 #endif
 
 template <typename G>
+auto make_lhs(symphas::ref<G> const& e) {
+  return OpLHS<symphas::ref<G>>(e);
+}
+template <typename G>
 auto make_lhs(NamedData<G> const& e) {
   return make_lhs(*static_cast<G const*>(&e));
 }
@@ -1287,6 +1291,8 @@ struct OpTerms<V, Term<Gs, Xs>...> : OpExpression<OpTerms<V, Term<Gs, Xs>...>>,
   using parent_type::print_length;
 #endif
 
+  void allocate() {}
+
   constexpr OpTerms() : parent_type() {}
 
   OpTerms(V const& term0, Term<Gs, Xs> const&... terms)
@@ -1307,8 +1313,6 @@ struct OpTerms<V, Term<Gs, Xs>...> : OpExpression<OpTerms<V, Term<Gs, Xs>...>>,
   auto operator-() const;
 
   auto eval(iter_type n = 0) const { return parent_type::_eval(n); }
-
-  void allocate() {}
 };
 
 template <>
@@ -1329,6 +1333,11 @@ template <typename... Ts>
 OpTerms(OpTermsList<Ts...>) -> OpTerms<Ts...>;
 
 OpTerms() -> OpTerms<>;
+
+template <typename T, typename E>
+auto operator==(OpTerms<OpIdentity, T> const term, OpExpression<E> const& e) {
+  return expr::make_lhs(term) = *static_cast<E const*>(&e);
+}
 
 template <typename V, typename... Gs, expr::exp_key_t... Xs>
 auto OpTerms<V, Term<Gs, Xs>...>::operator-() const {

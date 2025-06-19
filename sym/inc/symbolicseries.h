@@ -4595,6 +4595,12 @@ struct SymbolicSeries<
           symphas::lib::types_list<expr::series_limits<T1s, T2s>...>,
           symphas::lib::types_list<expr::symbols::v_id_type<Is>...>>>;
 
+  void allocate() {
+    for (iter_type i = 0; i < persistent.len; ++i) {
+      persistent.data[i].e.allocate();
+    }
+  }
+
   SymbolicSeries() = default;
   SymbolicSeries(E const& e,
                  Substitution<SymbolicDataArray<Ts>...> const& substitution,
@@ -5040,6 +5046,11 @@ struct SymbolicSeries<
           symphas::lib::types_list<expr::series_limits<T1, T2>>,
           symphas::lib::types_list<expr::symbols::v_id_type<Is>...>>>;
 
+  void allocate() {
+    for (iter_type i = 0; i < persistent.len; ++i) {
+      persistent.data[i].e.allocate();
+    }
+  }
   SymbolicSeries() = default;
   SymbolicSeries(E const& e,
                  Substitution<SymbolicDataArray<T>> const& substitution,
@@ -5064,7 +5075,6 @@ struct SymbolicSeries<
   auto evaluate_function(func_entry_t f) { return f(); }
   auto evaluate_function_at(func_entry_t const& f, iter_type n) { return f[n]; }
 
-
   using func_t = std::invoke_result_t<
       decltype(&symphas::internal::get_function<
                series_t, limits_t, Substitution<SymbolicDataArray<T>>>),
@@ -5074,7 +5084,7 @@ struct SymbolicSeries<
   auto eval_series(iter_type n) const {
     using func_value_at_t =
         std::invoke_result_t<decltype(&this_type::evaluate_function_at),
-                            this_type, func_entry_t, iter_type>;
+                             this_type, func_entry_t, iter_type>;
 
     using namespace symphas::internal;
 
@@ -5093,7 +5103,7 @@ struct SymbolicSeries<
   auto eval_series() const {
     using func_value_t =
         std::invoke_result_t<decltype(&this_type::evaluate_function), this_type,
-                            func_entry_t>;
+                             func_entry_t>;
 
     using namespace symphas::internal;
     if (persistent.len > 0) {

@@ -1621,7 +1621,7 @@ struct MultiBlock {
    *
    * \param len The number of values to create.
    */
-  MultiBlock(len_type len) : values{0}, len{len} {
+  MultiBlock(len_type len) : values{}, len{len} {
     for (iter_type n = 0; n < N; ++n) {
       values[n] = (len > 0) ? new T[len] : nullptr;
       std::fill(values[n], values[n] + len, T{});
@@ -2289,7 +2289,6 @@ struct RegionalGrid<any_vector_t<T, D>, D> : Grid<any_vector_t<T, D>, D> {
 
       delete[] MultiBlock<D, T>::values[i];
       MultiBlock<D, T>::values[i] = new_values;
-      delete[] new_values;
     }
 
     region.update(new_origin, new_dims);
