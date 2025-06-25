@@ -1,0 +1,14 @@
+# PFC Coefficient File Example for 2-field model
+fields: 2
+
+[default]
+0.0
+
+[non_coupling]
+# alpha, beta, nu, gamma, delta for each field
+-0.3, 1.0, 1.0, 1.0, 0.0
+-0.3, 1.0, 1.0, 1.0, 0.0
+
+[coupling]
+# alpha, beta, nu, gamma, delta, eps for each unique field pair (i<j)
+-0.1, 0.04, 0.04, 0.04, 0.0, 0.0

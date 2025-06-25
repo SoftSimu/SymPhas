@@ -115,7 +115,7 @@ struct k_field<1> {
     len_type L = dims[0];
     scalar_t dk_i = 2 * symphas::PI / (*h * L);
 
-    std::complex Ii(0.0, 1.0);
+    complex_t Ii(0.0, 1.0);
 
     for (iter_type i = 0; i < L; ++i) {
       scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
@@ -147,7 +147,7 @@ struct k_field<1> {
   template <Axis ax, size_t O>
   static void fill(wave_vector_axis_grid<O, 1>& into, const len_type* dims,
                    const double* h) {
-    std::complex Ii(0.0, 1.0);
+    complex_t Ii(0.0, 1.0);
     len_type L = dims[0];
 
     scalar_t dk_i = 2 * symphas::PI / (h[0] * L);
@@ -184,7 +184,7 @@ struct k_field<1> {
   template <Axis ax, size_t O>
   static void fill_axis(wave_vector_axis_grid<O, 1>& into, const len_type* dims,
                         const double* h) {
-    std::complex Ii(0.0, 1.0);
+    complex_t Ii(0.0, 1.0);
     len_type L = dims[0];
 
     scalar_t dk_i = 2 * symphas::PI / (h[0] * L);
@@ -229,7 +229,7 @@ struct k_field<2> {
     scalar_t dk_i = 2 * symphas::PI / (h[0] * L);
     scalar_t dk_j = 2 * symphas::PI / (h[1] * M);
 
-    std::complex Ii(0.0, 1.0);
+    complex_t Ii(0.0, 1.0);
 
     iter_type ii = 0;
     for (iter_type j = 0; j < M; ++j) {
@@ -267,7 +267,7 @@ struct k_field<2> {
   template <Axis ax, size_t O>
   static void fill(wave_vector_axis_grid<O, 2>& into, const len_type* dims,
                    const double* h) {
-    std::complex Ii(0.0, 1.0);
+    complex_t Ii(0.0, 1.0);
 
     len_type L = dims[0];
     len_type M = dims[1];
@@ -314,7 +314,7 @@ struct k_field<2> {
   template <Axis ax, size_t O>
   static void fill_axis(wave_vector_axis_grid<O, 2>& into, const len_type* dims,
                         const double* h) {
-    std::complex Ii(0.0, 1.0);
+    complex_t Ii(0.0, 1.0);
 
     len_type L = dims[0];
     len_type M = dims[1];
@@ -372,7 +372,7 @@ struct k_field<3> {
              dk_j = 2 * symphas::PI / (h[1] * M),
              dk_k = 2 * symphas::PI / (h[2] * N);
 
-    std::complex Ii(0.0, 1.0);
+    complex_t Ii(0.0, 1.0);
 
     iter_type ii = 0;
     for (iter_type k = 0; k < N; ++k) {
@@ -419,7 +419,7 @@ struct k_field<3> {
   template <Axis ax, size_t O>
   static void fill(wave_vector_axis_grid<O, 3>& into, const len_type* dims,
                    const double* h) {
-    std::complex Ii(0.0, 1.0);
+    complex_t Ii(0.0, 1.0);
 
     len_type L = dims[0];
     len_type M = dims[1];
@@ -476,7 +476,7 @@ struct k_field<3> {
   template <Axis ax, size_t O>
   static void fill_axis(wave_vector_axis_grid<O, 3>& into, const len_type* dims,
                         const double* h) {
-    std::complex Ii(0.0, 1.0);
+    complex_t Ii(0.0, 1.0);
 
     len_type L = dims[0];
     len_type M = dims[1];
@@ -537,7 +537,7 @@ struct k_field_axis_entry<ax, O, 3> {
    * \tparam O The exponential order (power) of the wavenumber.
    */
   auto operator()(int n, const len_type* dims, const double* h) const {
-    std::complex Ii(0.0, 1.0);
+    complex_t Ii(0.0, 1.0);
 
     len_type L = dims[0];
     len_type M = dims[1];
@@ -592,7 +592,7 @@ struct k_field_axis_entry<ax, O, 2> {
    * \tparam O The exponential order (power) of the wavenumber.
    */
   auto operator()(int n, const len_type* dims, const double* h) const {
-    std::complex Ii(0.0, 1.0);
+    complex_t Ii(0.0, 1.0);
 
     len_type L = dims[0];
     len_type M = dims[1];
@@ -637,7 +637,7 @@ struct k_field_axis_entry<ax, O, 1> {
    * \tparam O The exponential order (power) of the wavenumber.
    */
   auto operator()(int n, const len_type* dims, const double* h) const {
-    std::complex Ii(0.0, 1.0);
+    complex_t Ii(0.0, 1.0);
 
     len_type L = dims[0];
 
@@ -678,7 +678,7 @@ struct k_field_entry<ax, O, 3> {
    * \tparam O The exponential order (power) of the wavenumber.
    */
   auto operator()(int n, const len_type* dims, const double* h) const {
-    std::complex Ii(0.0, 1.0);
+    complex_t Ii(0.0, 1.0);
 
     len_type L = dims[0];
     len_type M = dims[1];
@@ -734,7 +734,7 @@ struct k_field_entry<ax, O, 2> {
    * \tparam O The exponential order (power) of the wavenumber.
    */
   auto operator()(int n, const len_type* dims, const double* h) const {
-    std::complex Ii(0.0, 1.0);
+    complex_t Ii(0.0, 1.0);
 
     len_type L = dims[0];
     len_type M = dims[1];
@@ -780,7 +780,7 @@ struct k_field_entry<ax, O, 1> {
    * \tparam O The exponential order (power) of the wavenumber.
    */
   auto operator()(int n, const len_type* dims, const double* h) const {
-    std::complex Ii(0.0, 1.0);
+    complex_t Ii(0.0, 1.0);
 
     len_type L = dims[0];
 
@@ -819,7 +819,7 @@ struct k_field_entry<Axis::NONE, O, 3> {
    * \tparam O The exponential order (power) of the wavenumber.
    */
   auto operator()(int n, const len_type* dims, const double* h) const {
-    std::complex Ii(0.0, 1.0);
+    complex_t Ii(0.0, 1.0);
 
     len_type L = dims[0];
     len_type M = dims[1];
@@ -871,7 +871,7 @@ struct k_field_entry<Axis::NONE, O, 2> {
    * \tparam O The exponential order (power) of the wavenumber.
    */
   auto operator()(int n, const len_type* dims, const double* h) const {
-    std::complex Ii(0.0, 1.0);
+    complex_t Ii(0.0, 1.0);
 
     len_type L = dims[0];
     len_type M = dims[1];
@@ -916,7 +916,7 @@ struct k_field_entry<Axis::NONE, O, 1> {
    * \tparam O The exponential order (power) of the wavenumber.
    */
   auto operator()(int n, const len_type* dims, const double* h) const {
-    std::complex Ii(0.0, 1.0);
+    complex_t Ii(0.0, 1.0);
 
     len_type L = dims[0];
 

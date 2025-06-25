@@ -1,4 +1,3 @@
-
 /* ***************************************************************************
  * This file is part of the SymPhas library, a framework for implementing
  * solvers for phase-field problems with compile-time symbolic algebra.
@@ -304,7 +303,7 @@ struct OpOperatorMixedDerivative;
 
 template <typename V, typename E1, typename E2>
 struct OpConvolution;
-template <size_t D>
+template <size_t D, template <typename, size_t> typename grid_type>
 struct GaussianSmoothing;
 
 template <typename A1, typename A2, typename E>

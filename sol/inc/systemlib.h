@@ -884,7 +884,7 @@ struct PersistentSystemData<G<T, D>> : SystemData<G<T, D>> {
 
 namespace symphas {
 
-enum ModelModifiers { PLOT_DEFAULT, PLOT_MAX, PLOT_MIN, PLOT_CONTOURS };
+enum ModelModifiers { PLOT_DEFAULT, PLOT_MAX, PLOT_MIN, PLOT_CONTOURS, REAL_PART, COMPLEX_PART };
 
 //! Manages a list of time steps and times they are applied at.
 struct time_step_list {

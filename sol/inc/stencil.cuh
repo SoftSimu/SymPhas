@@ -136,23 +136,21 @@ template <Axis ax, size_t O, typename T, size_t D>
 __host__ __device__ auto
 Stencil<Sp>::applied_generalized_directional_derivative(
     RegionGridDataCUDA<T, D> const &grid, iter_type n) const {
-  return cast().template apply_directional<ax, O>(&grid[n], grid.region.dims);
+  return cast().template apply_directional<ax, O>(&grid[n], grid.dims);
 }
 
 template <typename Sp>
 template <size_t... Os, typename T, size_t D>
 __host__ __device__ auto Stencil<Sp>::applied_generalized_mixed_derivative(
     RegionGridDataCUDA<T, D> const &grid, iter_type n) const {
-  return cast().template apply_mixed<Os...>(&grid[n], grid.region.dims);
+  return cast().template apply_mixed<Os...>(&grid[n], grid.dims);
 }
 
 template <typename Sp>
 template <Axis ax, size_t O, typename T, size_t D>
 __host__ __device__ auto Stencil<Sp>::applied_generalized_derivative(
     RegionGridDataCUDA<T, D> const &grid, iter_type n) const {
-  len_type stride[D];
-  grid::get_stride<ax>(stride, grid.dims);
-  return cast().template apply<O>(&grid[n], stride);
+  return cast().template apply<O>(&grid[n], grid.stride);
 }
 
 template <typename Sp>

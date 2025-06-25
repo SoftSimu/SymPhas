@@ -58,6 +58,11 @@ inline __device__ constexpr int getMaxValue<int>() {
   return INT_MAX;
 }
 
+template <>
+inline __device__ constexpr complex_t getMaxValue<complex_t>() {
+  return complex_t(getMaxValue<scalar_t>(), getMaxValue<scalar_t>());
+}
+
 template <typename T>
 __device__ constexpr T getMinValue();
 
@@ -74,6 +79,11 @@ inline __device__ constexpr double getMinValue<double>() {
 template <>
 inline __device__ constexpr int getMinValue<int>() {
   return INT_MIN;
+}
+
+template <>
+inline __device__ constexpr complex_t getMinValue<complex_t>() {
+  return complex_t(getMinValue<scalar_t>(), getMinValue<scalar_t>());
 }
 //! Copy the interior values of the grid into an array.
 /*!
@@ -839,6 +849,28 @@ __global__ void kernelAdjustRegionToFrom(scalar_t* newValuesDevice,
   }
 }
 
+template <size_t D>
+__global__ void kernelAdjustRegionToFrom(complex_t* newValuesDevice,
+                                         const complex_t* oldValuesDevice,
+                                         const grid::RegionAdjustParams<D>* rp,
+                                         len_type boundarySize) {
+  for (iter_type n = 0; n < grid::length<D>(rp->new_interior_dims); ++n) {
+    iter_type pos[D];
+
+    grid::get_grid_position(pos, rp->new_interior_dims, n);
+    iter_type new_index =
+        grid::index_from_position(pos, rp->new_stride, boundarySize);
+    rp->compute_old_position(pos, n);
+
+    bool is_in_old = grid::is_in_region(pos, rp->old_interior_dims);
+    if (is_in_old) {
+      iter_type old_index =
+          grid::index_from_position(pos, rp->old_stride, boundarySize);
+      newValuesDevice[new_index] = oldValuesDevice[old_index];
+    }
+  }
+}
+
 // Kernel to find the minimal region with values greater than the cutoff
 template <typename T, size_t D>
 __global__ void findMinimalRegion(const T* values, T cutoff_value,
@@ -1483,7 +1515,6 @@ struct run_find_enclosing_intervals<2> {
     CHECK_CUDA_ERROR(cudaPeekAtLastError());
     CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 
-
     iter_type* h_intervals_0 = new iter_type[dims[0] + dims[1]];
     iter_type* h_intervals_1 = new iter_type[dims[0] + dims[1]];
 
@@ -2064,7 +2095,6 @@ struct run_compute_starting_pos<3> {
     CHECK_CUDA_ERROR(cudaPeekAtLastError());
     CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 
-
     iter_type* starting_pos_xy = &starting_pos[0];
     iter_type* starting_pos_xz = &starting_pos[dims[0] * dims[1]];
     iter_type* starting_pos_yz =
@@ -2206,6 +2236,30 @@ void adjust_region_to_from_cuda(
   CHECK_CUDA_ERROR(cudaFree(rpDev));
 }
 
+template <size_t D>
+void adjust_region_to_from_cuda(complex_t* new_values_device,
+                                const iter_type (&new_origin)[D],
+                                const len_type (&new_dims)[D],
+                                const complex_t* old_values_device,
+                                const iter_type (&old_origin)[D],
+                                const len_type (&old_dims)[D],
+                                const len_type (&global_dims)[D],
+                                const complex_t empty, len_type boundary_size) {
+  RegionAdjustParams<D> rp{new_origin, new_dims,    old_origin,
+                           old_dims,   global_dims, boundary_size};
+  RegionAdjustParams<D>* rpDev;
+  CHECK_CUDA_ERROR(cudaMalloc(&rpDev, sizeof(RegionAdjustParams<D>)));
+  CHECK_CUDA_ERROR(cudaMemcpy(rpDev, &rp, sizeof(RegionAdjustParams<D>),
+                              cudaMemcpyHostToDevice));
+  int numBlocks =
+      (grid::length<D>(rp.new_interior_dims) + BLOCK_SIZE - 1) / BLOCK_SIZE;
+
+  kernelAdjustRegionToFrom CUDA_KERNEL(numBlocks, BLOCK_SIZE)(
+      new_values_device, old_values_device, rpDev, boundary_size);
+  CHECK_CUDA_ERROR(cudaPeekAtLastError());
+  CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+  CHECK_CUDA_ERROR(cudaFree(rpDev));
+}
 //! Adjust the floating region inside the grid to a new position and
 //! dimensions
 /*!

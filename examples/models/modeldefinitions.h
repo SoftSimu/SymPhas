@@ -34,6 +34,9 @@
 #define j rho
 #define dj drho
 
+
+#define MODEL_SET_2
+
 #ifndef BASIC_MODELS
 
 #ifdef MODEL_SET_1
@@ -149,11 +152,11 @@ MODEL(COUPLING4, (SCALARS(4)),
 LINK_WITH_NAME(COUPLING4, MODEL_COUPLING4)
 DEFINE_MODEL_FIELD_NAMES(COUPLING4, ("A", "B", "C", "D"))
 
-//! Example of provisional variables, Model B. Note the two equals signs when
+//! Example of provisional variables, Model B. Note the <= sign when
 //! creating an expression for setting the provisional variable.
 MODEL(MBB, (SCALAR),
       PROVISIONAL_DEF((SCALAR),
-                      var(1) == -(c(1) - lit(4.) * c(2) * psi * psi) * psi)
+                      var(1) <= -(c(1) - lit(4.) * c(2) * psi * psi) * psi)
           EVOLUTION(dpsi = -bilap(psi) + lap(var(1))))
 LINK_WITH_NAME(MBB, MODELBB)
 

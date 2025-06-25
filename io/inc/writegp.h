@@ -159,7 +159,7 @@ set rmargin at screen %.3lf;)~";
 #define PLOT_MULTI_DIMENSION_LATEX "%.2lf,%.2lf"
 
 #define PLOT_SQUARE_DIMENSION_WIN STR(WIDTH_WIN) ",450"
-#define PLOT_MULTI_DIMENSION_WIN STR(MULTI_WIDTH_WIN) ",450"
+#define PLOT_MULTI_DIMENSION_WIN STR(MULTI_WIDTH_WIN) ",%lld"
 
 #define MULTI_PLOT_KEY_VPOS (1.07 + 0.01 * (7 - MULTI_OUTPUT_WIDTH))
 
@@ -684,7 +684,8 @@ void write_plot_config(Model<D, Sp, S...> const& model, const char* directory,
 //! Arrange the grid in either single or multiplot arrangement.
 template <size_t N>
 void print_plot_arrangement(char* gnuplot, size_t print_length) {
-  snprintf(gnuplot, print_length, gnu_multi, N / 2, params::title);
+  snprintf(gnuplot, print_length, gnu_multi, 450 * (N + 1) / 2, (N + 1) / 2,
+           params::title);
 }
 
 //! Specialization of print_plot_arrangement(char*, size_t).

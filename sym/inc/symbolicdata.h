@@ -62,7 +62,8 @@ constexpr bool is_index<i_op_type<N, P>> = true;
 
 template <int N, int P>
 struct i_ : Symbol {
-  explicit constexpr operator int() const { return 0; }
+  explicit constexpr operator int() const { return N; }
+  explicit constexpr operator size_t() const { return N; }
 
   constexpr operator i_op_type<N, P>() const { return {}; }
 
@@ -774,12 +775,16 @@ using to_term_base = typename to_term_base_impl<T>::type;
 
 }  // namespace symphas::internal
 
-template <typename... Ts>
-struct SymbolicDataArray<std::tuple<Ts...>>
-    : SymbolicDataArray<SymbolicData<
-          expr::storage_type_t<OpAdd<OpTerm<OpIdentity, Ts>...>>>> {
-  using tuple_type = std::tuple<Ts...>;
-  using storage_type = expr::storage_type_t<OpAdd<OpTerm<OpIdentity, Ts>...>>;
+template <>
+struct SymbolicDataArray<std::tuple<>> {};
+
+template <typename T0, typename... Ts>
+struct SymbolicDataArray<std::tuple<T0, Ts...>>
+    : SymbolicDataArray<SymbolicData<expr::storage_type_t<
+          OpAdd<OpTerm<OpIdentity, T0>, OpTerm<OpIdentity, Ts>...>>>> {
+  using tuple_type = std::tuple<T0, Ts...>;
+  using storage_type = expr::storage_type_t<
+      OpAdd<OpTerm<OpIdentity, T0>, OpTerm<OpIdentity, Ts>...>>;
   using parent_type = SymbolicDataArray<SymbolicData<storage_type>>;
 
   using parent_type::data;
@@ -787,13 +792,13 @@ struct SymbolicDataArray<std::tuple<Ts...>>
   using parent_type::len;
   using parent_type::parent_type;
 
-  SymbolicDataArray(len_type len = sizeof...(Ts)) : parent_type(len) {}
+  SymbolicDataArray(len_type len = sizeof...(Ts) + 1) : parent_type(len) {}
 
   template <typename... T0s>
   SymbolicDataArray(std::tuple<T0s...> const& list,
-                    len_type len = sizeof...(Ts))
+                    len_type len = sizeof...(Ts) + 1)
       : parent_type(len) {
-    set_data(list, std::make_index_sequence<sizeof...(Ts)>{});
+    set_data(list, std::make_index_sequence<sizeof...(Ts) + 1>{});
   }
 
   template <size_t N, size_t Z>
@@ -801,20 +806,20 @@ struct SymbolicDataArray<std::tuple<Ts...>>
     data[N] = SymbolicData<storage_type>{};
   }
 
-  template <size_t N, typename T0>
-  auto set_data_1(T0 const& term) {
-    using type_n = symphas::lib::type_at_index<N, Ts...>;
+  template <size_t N, typename T00>
+  auto set_data_1(T00 const& term) {
+    using type_n = symphas::lib::type_at_index<N, T0, Ts...>;
     data[N] = SymbolicData<storage_type>(
-        &expr::BaseData<T0>::get(static_cast<type_n&>(const_cast<T0&>(term))),
+        &expr::BaseData<T00>::get(static_cast<type_n&>(const_cast<T00&>(term))),
         false);
   }
 
-  template <size_t N, typename T0>
-  auto set_data_1(Term<T0> const& term) {
-    using type_n = symphas::lib::type_at_index<N, Ts...>;
+  template <size_t N, typename T00>
+  auto set_data_1(Term<T00> const& term) {
+    using type_n = symphas::lib::type_at_index<N, T0, Ts...>;
     data[N] = SymbolicData<storage_type>(
-        &expr::BaseData<T0>::get(
-            static_cast<type_n&>(const_cast<T0&>(term.data()))),
+        &expr::BaseData<T00>::get(
+            static_cast<type_n&>(const_cast<T00&>(term.data()))),
         false);
   }
 
@@ -825,7 +830,7 @@ struct SymbolicDataArray<std::tuple<Ts...>>
 
   template <typename... T0s>
   auto set_data(std::tuple<T0s...> const& list) {
-    set_data(list, std::make_index_sequence<sizeof...(Ts)>{});
+    set_data(list, std::make_index_sequence<sizeof...(Ts) + 1>{});
   }
 
   auto operator-() const {
@@ -842,9 +847,9 @@ struct SymbolicDataArray<std::tuple<Ts...>>
     return result;
   }
 
-  template <typename E, typename T0>
-  auto result(SymbolicDataArray<T0> const& other,
-              SymbolicData<storage_type> lhs, SymbolicData<T0> rhs,
+  template <typename E, typename T00>
+  auto result(SymbolicDataArray<T00> const& other,
+              SymbolicData<storage_type> lhs, SymbolicData<T00> rhs,
               OpExpression<E> const& e) const {
     auto len0 = std::min(other.len, len);
     SymbolicDataArray<expr::eval_type_t<E>> result(len0);
@@ -857,22 +862,23 @@ struct SymbolicDataArray<std::tuple<Ts...>>
     return result;
   }
 
-  template <size_t... Is>
-  auto get_data_tuple(std::index_sequence<Is...>) const {
-    return std::make_tuple(Ts(*data[Is].data)...);
+  template <size_t I0, size_t... Is>
+  auto get_data_tuple(std::index_sequence<I0, Is...>) const {
+    return std::make_tuple(T0(*data[I0].data), Ts(*data[Is].data)...);
   }
 
   auto get_data_tuple() const {
-    return get_data_tuple(std::make_index_sequence<sizeof...(Ts)>{});
+    return get_data_tuple(std::make_index_sequence<sizeof...(Ts) + 1>{});
   }
 };
 
-template <typename... Ts>
-struct SymbolicDataArray<std::tuple<NamedData<Ts>...>>
-    : SymbolicDataArray<NamedData<SymbolicData<
-          expr::storage_type_t<OpAdd<OpTerm<OpIdentity, Ts>...>>>>> {
-  using tuple_type = std::tuple<Ts...>;
-  using storage_type = expr::storage_type_t<OpAdd<OpTerm<OpIdentity, Ts>...>>;
+template <typename T0, typename... Ts>
+struct SymbolicDataArray<std::tuple<NamedData<T0>, NamedData<Ts>...>>
+    : SymbolicDataArray<NamedData<SymbolicData<expr::storage_type_t<
+          OpAdd<OpTerm<OpIdentity, T0>, OpTerm<OpIdentity, Ts>...>>>>> {
+  using tuple_type = std::tuple<T0, Ts...>;
+  using storage_type = expr::storage_type_t<
+      OpAdd<OpTerm<OpIdentity, T0>, OpTerm<OpIdentity, Ts>...>>;
   using parent_type = SymbolicDataArray<NamedData<SymbolicData<storage_type>>>;
 
   using parent_type::data;
@@ -880,21 +886,22 @@ struct SymbolicDataArray<std::tuple<NamedData<Ts>...>>
   using parent_type::len;
   using parent_type::parent_type;
 
-  SymbolicDataArray(len_type len = sizeof...(Ts))
+  SymbolicDataArray(len_type len = sizeof...(Ts) + 1)
       : parent_type(len)  //, names{}
   {}
 
   template <typename... T0s>
   SymbolicDataArray(std::tuple<T0s...> const& list,
-                    len_type len = sizeof...(Ts))
+                    len_type len = sizeof...(Ts) + 1)
       : parent_type(len)  //, names{}
   {
     // set_names(list, std::make_index_sequence<sizeof...(T0s)>{});
-    set_data(list, std::make_index_sequence<sizeof...(Ts)>{});
+    set_data(list, std::make_index_sequence<sizeof...(Ts) + 1>{});
   }
 
   SymbolicDataArray(
-      SymbolicDataArray<std::tuple<NamedData<Ts>...>> const& other)
+      SymbolicDataArray<std::tuple<NamedData<T0>, NamedData<Ts>...>> const&
+          other)
       : parent_type(other.len)  //, names{}
   {
     for (iter_type i = 0; i < len; ++i) {
@@ -905,56 +912,58 @@ struct SymbolicDataArray<std::tuple<NamedData<Ts>...>>
   }
 
   SymbolicDataArray(
-      SymbolicDataArray<std::tuple<NamedData<Ts>...>>&& other) noexcept
+      SymbolicDataArray<std::tuple<NamedData<T0>, NamedData<Ts>...>>&&
+          other) noexcept
       : SymbolicDataArray() {
     swap(*this, other);
   }
 
-  SymbolicDataArray<std::tuple<NamedData<Ts>...>> operator=(
-      SymbolicDataArray<std::tuple<NamedData<Ts>...>> other) {
+  SymbolicDataArray<std::tuple<NamedData<T0>, NamedData<Ts>...>> operator=(
+      SymbolicDataArray<std::tuple<NamedData<T0>, NamedData<Ts>...>> other) {
     swap(*this, other);
     return *this;
   }
 
-  friend void swap(SymbolicDataArray<std::tuple<NamedData<Ts>...>>& first,
-                   SymbolicDataArray<std::tuple<NamedData<Ts>...>>& second) {
+  friend void swap(
+      SymbolicDataArray<std::tuple<NamedData<T0>, NamedData<Ts>...>>& first,
+      SymbolicDataArray<std::tuple<NamedData<T0>, NamedData<Ts>...>>& second) {
     using std::swap;
     swap(static_cast<parent_type&>(first), static_cast<parent_type&>(second));
     // swap(first.names, second.names);
   }
 
-  template <size_t N, typename T0>
-  auto set_data_1(T0 const& term) {
+  template <size_t N, typename T00>
+  auto set_data_1(T00 const& term) {
 #ifdef PRINTABLE_EQUATIONS
-    if constexpr (expr::clear_named_data<T0>::value) {
+    if constexpr (expr::clear_named_data<T00>::value) {
       data[N] = NamedData<SymbolicData<storage_type>>(
           SymbolicData<storage_type>(
-              &expr::BaseData<T0>::get(const_cast<T0&>(term)), false),
+              &expr::BaseData<T00>::get(const_cast<T00&>(term)), false),
           term.name);
     } else
 #endif
     {
       data[N] = NamedData<SymbolicData<storage_type>>(
           SymbolicData<storage_type>(
-              &expr::BaseData<T0>::get(const_cast<T0&>(term)), false),
+              &expr::BaseData<T00>::get(const_cast<T00&>(term)), false),
           "");
     }
   }
 
-  template <size_t N, typename T0>
-  auto set_data_1(Term<T0> const& term) {
+  template <size_t N, typename T00>
+  auto set_data_1(Term<T00> const& term) {
 #ifdef PRINTABLE_EQUATIONS
-    if constexpr (expr::clear_named_data<T0>::value) {
+    if constexpr (expr::clear_named_data<T00>::value) {
       data[N] = NamedData<SymbolicData<storage_type>>(
           SymbolicData<storage_type>(
-              &expr::BaseData<T0>::get(const_cast<T0&>(term.data())), false),
+              &expr::BaseData<T00>::get(const_cast<T00&>(term.data())), false),
           term.name);
     } else
 #endif
     {
       data[N] = NamedData<SymbolicData<storage_type>>(
           SymbolicData<storage_type>(
-              &expr::BaseData<T0>::get(const_cast<T0&>(term.data())), false),
+              &expr::BaseData<T00>::get(const_cast<T00&>(term.data())), false),
           "");
     }
   }
@@ -966,7 +975,7 @@ struct SymbolicDataArray<std::tuple<NamedData<Ts>...>>
 
   template <typename... T0s>
   auto set_data(std::tuple<T0s...> const& list) {
-    set_data(list, std::make_index_sequence<sizeof...(Ts)>{});
+    set_data(list, std::make_index_sequence<sizeof...(Ts) + 1>{});
   }
 
   auto operator-() const {
@@ -983,9 +992,9 @@ struct SymbolicDataArray<std::tuple<NamedData<Ts>...>>
     return result;
   }
 
-  template <typename E, typename T0>
-  auto result(SymbolicDataArray<T0> const& other,
-              SymbolicData<storage_type> lhs, SymbolicData<T0> rhs,
+  template <typename E, typename T00>
+  auto result(SymbolicDataArray<T00> const& other,
+              SymbolicData<storage_type> lhs, SymbolicData<T00> rhs,
               OpExpression<E> const& e) const {
     auto len0 = std::min(other.len, len);
     SymbolicDataArray<expr::eval_type_t<E>> result(len0);
@@ -998,22 +1007,27 @@ struct SymbolicDataArray<std::tuple<NamedData<Ts>...>>
     return result;
   }
 
-  template <size_t... Is>
-  auto get_data_tuple(std::index_sequence<Is...>) const {
-    return std::make_tuple(Ts(*data[Is].data)...);
+  template <size_t I0, size_t... Is>
+  auto get_data_tuple(std::index_sequence<I0, Is...>) const {
+    return std::make_tuple(T0(*data[I0].data), Ts(*data[Is].data)...);
   }
 
   auto get_data_tuple() const {
-    return get_data_tuple(std::make_index_sequence<sizeof...(Ts)>{});
+    return get_data_tuple(std::make_index_sequence<sizeof...(Ts) + 1>{});
   }
 };
 
-template <typename... T0s>
-SymbolicDataArray(std::tuple<T0s...>) -> SymbolicDataArray<
-    std::conditional_t<(!expr::clear_named_data<T0s>::value && ...),
-                       std::tuple<symphas::internal::to_term_base<T0s>...>,
-                       std::tuple<NamedData<symphas::internal::to_term_base<
-                           typename expr::clear_named_data<T0s>::type>>...>>>;
+template <typename T0, typename... T0s>
+SymbolicDataArray(std::tuple<T0, T0s...>)
+    -> SymbolicDataArray<std::conditional_t<
+        (!expr::clear_named_data<T0s>::value && ... &&
+         expr::clear_named_data<T0>::value),
+        std::tuple<symphas::internal::to_term_base<T0>,
+                   symphas::internal::to_term_base<T0s>...>,
+        std::tuple<NamedData<symphas::internal::to_term_base<
+                       typename expr::clear_named_data<T0>::type>>,
+                   NamedData<symphas::internal::to_term_base<
+                       typename expr::clear_named_data<T0s>::type>>...>>>;
 // template<size_t... zs, typename... ts>
 // symbolicdataarray(std::tuple<term<variable<zs, nameddata<ts>>>...>)
 //	-> symbolicdataarray<std::tuple<term<variable<zs, nameddata<ts>>>...>>;

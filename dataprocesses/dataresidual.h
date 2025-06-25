@@ -13,7 +13,7 @@
  * for the numerical results unless finite difference approximations are
  * applied extensively to the provisional variables. This is not recommended.
  */
-NEW_SOLVER_WITH_STENCIL(SolverRS)
+START_NEW_SOLVER_WITH_STENCIL(SolverRS)
 
 
 public:
@@ -88,8 +88,7 @@ public:
 
 		expr::result_interior(equation, expr::BaseData<G>::get(grid));
 	}
-};
-
+END_SOLVER
 
 ASSOCIATE_SOLVER_SYSTEM_TYPE(SolverRS, SolverSystemFD)
 ASSOCIATE_PROVISIONAL_SYSTEM_TYPE(SolverRS, ProvisionalSystemFD)
@@ -123,7 +122,7 @@ MODEL(RES_BILAP, (SCALAR),
 //! Diffusion only.
 MODEL(RES_QULAP, (SCALAR),
 	EVOLUTION(
-		dop(1) = Diff(6) * op(1))
+		dop(1) = diff(6) * op(1))
 )
 
 ALGORITHM_POINT_1D_DECLARATION(Residual)

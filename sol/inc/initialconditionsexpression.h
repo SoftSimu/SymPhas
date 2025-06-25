@@ -73,7 +73,7 @@
 #define NEXT_INIT_EXPR_INDEX(PREFIX_NAME)                            \
   constexpr int INIT_EXPR_INDEX_NAME(PREFIX_NAME) =                  \
       decltype(symphas::internal::init_expr_counter(                 \
-          symphas::internal::init_expr_count_index<255>{}))::value;  \
+          symphas::internal::init_expr_count_index<128>{}))::value;  \
   namespace symphas::internal {                                      \
   constexpr init_expr_count_index<INIT_EXPR_INDEX_NAME(PREFIX_NAME)> \
       init_expr_counter(                                             \
@@ -146,7 +146,7 @@ struct InitExpression {
     return data;
   }
 
-  auto param(size_t I) {
+  auto param(size_t I) const {
     if (I < num_coeff) {
       return expr::make_literal(coeff[I]);
     } else {

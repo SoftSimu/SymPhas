@@ -410,6 +410,7 @@ struct Model {
    */
   void save_systems(const char* dir) const {
     save_systems(dir, std::make_index_sequence<SN>{});
+    save_provisional_systems(dir);
   }
 
   //! Persists all the systems managed by the model.
@@ -422,7 +423,10 @@ struct Model {
    */
   void save_systems(const char* dir, const char* name) const {
     save_systems(dir, name, std::make_index_sequence<SN>{});
+    save_provisional_systems(dir);
   }
+
+  virtual void save_provisional_systems(const char* dir) const {}
 
   //! Updates each of the phase field systems.
   /*!

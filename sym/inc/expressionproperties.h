@@ -35,18 +35,18 @@ namespace {
 template <size_t D>
 struct data_length_type {
   len_type len;
+  data_length_type(len_type l) : len(l) {}
 
   operator len_type() const { return len; }
 };
 
-template <>
-struct data_length_type<0> {
+struct data_point {
   operator len_type() const { return 1; }
 };
 
 //! Obtains the data_len from the Block compatible instance.
 template <typename T>
-data_length_type<1> data_len_cast(Block<T> const* data) {
+data_length_type<0> data_len_cast(Block<T> const* data) {
   return {data->len};
 }
 
@@ -57,7 +57,7 @@ data_length_type<D> data_len_cast(GridData<T, D> const* data) {
 }
 
 //! The data_len of a typical data object is 1.
-inline data_length_type<0> data_len_cast(...) { return {}; }
+inline data_point data_len_cast(...) { return {}; }
 
 //! Specialization based on expr::data_len_data().
 template <typename G>
@@ -630,11 +630,12 @@ auto data_list(OpSum<V, E, Substitution<SymbolicDataArray<Ts>...>,
 template <typename V, typename E1, typename E2>
 auto data_list(OpConvolution<V, E1, E2> const& e);
 //! Specialization based on expr::data_list(E const&).
-template <size_t D>
-auto data_list(GaussianSmoothing<D> const& e);
+template <size_t D, template <typename, size_t> typename grid_type>
+auto data_list(GaussianSmoothing<D, grid_type> const& e);
 //! Specialization based on expr::data_list(E const&).
-template <typename V, size_t D, typename E>
-auto data_list(OpConvolution<V, GaussianSmoothing<D>, E> const& e);
+template <typename V, size_t D, template <typename, size_t> typename grid_type,
+          typename E>
+auto data_list(OpConvolution<V, GaussianSmoothing<D, grid_type>, E> const& e);
 //! Specialization based on expr::data_list(E const&).
 template <typename G, typename V, typename E>
 auto data_list(OpMap<G, V, E> const& e);
@@ -837,8 +838,9 @@ auto data_list(OpConvolution<V, E1, E2> const& e) {
   return data_list(e.a, e.b);
 }
 
-template <typename V, size_t D, typename E>
-auto data_list(OpConvolution<V, GaussianSmoothing<D>, E> const& e) {
+template <typename V, size_t D, template <typename, size_t> typename grid_type,
+          typename E>
+auto data_list(OpConvolution<V, GaussianSmoothing<D, grid_type>, E> const& e) {
   return data_list(expr::get_enclosed_expression(e), e.smoother);
 }
 
@@ -847,8 +849,8 @@ auto data_list(OpMap<G, V, E> const& e) {
   return data_list(expr::get_enclosed_expression(e));
 }
 
-template <size_t D>
-auto data_list(GaussianSmoothing<D> const& e) {
+template <size_t D, template <typename, size_t> typename grid_type>
+auto data_list(GaussianSmoothing<D, grid_type> const& e) {
   return std::make_tuple(e.data);
 }
 
@@ -931,6 +933,12 @@ auto get_variable_apply(std::tuple<D0, Ds...> const& datas) {
  */
 template <size_t Z, typename E>
 auto get_variable(OpExpression<E> const& e) {
+  auto datas = data_list(*static_cast<E const*>(&e));
+  return get_variable_apply<Z>(datas);
+}
+
+template <size_t Z, typename E>
+auto get_variable(Variable<Z>, OpExpression<E> const& e) {
   auto datas = data_list(*static_cast<E const*>(&e));
   return get_variable_apply<Z>(datas);
 }
@@ -1024,15 +1032,16 @@ grid::dim_list data_dimensions(
 template <typename V, typename E1, typename E2>
 grid::dim_list data_dimensions(OpConvolution<V, E1, E2> const& e);
 //! Specialization based on expr::data_dimensions(E const&).
-template <typename V, size_t D, typename E>
+template <typename V, size_t D, template <typename, size_t> typename grid_type,
+          typename E>
 grid::dim_list data_dimensions(
-    OpConvolution<V, GaussianSmoothing<D>, E> const& e);
+    OpConvolution<V, GaussianSmoothing<D, grid_type>, E> const& e);
 //! Specialization based on expr::data_dimensions(E const&).
 template <typename G, typename V, typename E>
 grid::dim_list data_dimensions(OpMap<G, V, E> const& e);
 //! Specialization based on expr::data_dimensions(E const&).
-template <size_t D>
-grid::dim_list data_dimensions(GaussianSmoothing<D> const& e);
+template <size_t D, template <typename, size_t> typename grid_type>
+grid::dim_list data_dimensions(GaussianSmoothing<D, grid_type> const& e);
 //! Specialization based on expr::data_dimensions(E const&).
 template <typename E0, typename... Es>
 grid::dim_list data_dimensions(OpAdd<E0, Es...> const& e);
@@ -1229,9 +1238,10 @@ grid::dim_list data_dimensions(OpConvolution<V, E1, E2> const& e) {
   return data_dimensions(e.a, e.b);
 }
 
-template <typename V, size_t D, typename E>
+template <typename V, size_t D, template <typename, size_t> typename grid_type,
+          typename E>
 grid::dim_list data_dimensions(
-    OpConvolution<V, GaussianSmoothing<D>, E> const& e) {
+    OpConvolution<V, GaussianSmoothing<D, grid_type>, E> const& e) {
   return data_dimensions(expr::get_enclosed_expression(e), e.smoother);
 }
 
@@ -1240,8 +1250,8 @@ grid::dim_list data_dimensions(OpMap<G, V, E> const& e) {
   return data_dimensions(expr::get_enclosed_expression(e));
 }
 
-template <size_t D>
-grid::dim_list data_dimensions(GaussianSmoothing<D> const& e) {
+template <size_t D, template <typename, size_t> typename grid_type>
+grid::dim_list data_dimensions(GaussianSmoothing<D, grid_type> const& e) {
   return data_dimensions_data(e.data);
 }
 
@@ -1364,11 +1374,13 @@ len_type data_length(
 template <typename V, typename E1, typename E2>
 len_type data_length(OpConvolution<V, E1, E2> const& e);
 //! Specialization based on expr::data_length(E const&).
-template <size_t D>
-len_type data_length(GaussianSmoothing<D> const& e);
+template <size_t D, template <typename, size_t> typename grid_type>
+len_type data_length(GaussianSmoothing<D, grid_type> const& e);
 //! Specialization based on expr::data_length(E const&).
-template <typename V, size_t D, typename E>
-len_type data_length(OpConvolution<V, GaussianSmoothing<D>, E> const& e);
+template <typename V, size_t D, template <typename, size_t> typename grid_type,
+          typename E>
+len_type data_length(
+    OpConvolution<V, GaussianSmoothing<D, grid_type>, E> const& e);
 //! Specialization based on expr::data_length(E const&).
 template <typename G, typename V, typename E>
 len_type data_length(OpMap<G, V, E> const& e);
@@ -1573,8 +1585,10 @@ len_type data_length(OpConvolution<V, E1, E2> const& e) {
   return data_length(e.a, e.b);
 }
 
-template <typename V, size_t D, typename E>
-len_type data_length(OpConvolution<V, GaussianSmoothing<D>, E> const& e) {
+template <typename V, size_t D, template <typename, size_t> typename grid_type,
+          typename E>
+len_type data_length(
+    OpConvolution<V, GaussianSmoothing<D, grid_type>, E> const& e) {
   return data_length(expr::get_enclosed_expression(e), e.smoother);
 }
 
@@ -1583,8 +1597,8 @@ len_type data_length(OpMap<G, V, E> const& e) {
   return data_length(expr::get_enclosed_expression(e));
 }
 
-template <size_t D>
-len_type data_length(GaussianSmoothing<D> const& e) {
+template <size_t D, template <typename, size_t> typename grid_type>
+len_type data_length(GaussianSmoothing<D, grid_type> const& e) {
   return data_len_data(e.data);
 }
 
@@ -1704,11 +1718,13 @@ auto iterable_domain(
 template <typename V, typename E1, typename E2>
 auto iterable_domain(OpConvolution<V, E1, E2> const& e);
 //! Specialization based on expr::iterable_domain(E const&).
-template <size_t D>
-auto iterable_domain(GaussianSmoothing<D> const& e);
+template <size_t D, template <typename, size_t> typename grid_type>
+auto iterable_domain(GaussianSmoothing<D, grid_type> const& e);
 //! Specialization based on expr::iterable_domain(E const&).
-template <typename V, size_t D, typename E>
-auto iterable_domain(OpConvolution<V, GaussianSmoothing<D>, E> const& e);
+template <typename V, size_t D, template <typename, size_t> typename grid_type,
+          typename E>
+auto iterable_domain(
+    OpConvolution<V, GaussianSmoothing<D, grid_type>, E> const& e);
 //! Specialization based on expr::iterable_domain(E const&).
 template <typename G, typename V, typename E>
 auto iterable_domain(OpMap<G, V, E> const& e);
@@ -1923,8 +1939,10 @@ auto iterable_domain(OpConvolution<V, E1, E2> const& e) {
   return iterable_domain(e.a, e.b);
 }
 
-template <typename V, size_t D, typename E>
-auto iterable_domain(OpConvolution<V, GaussianSmoothing<D>, E> const& e) {
+template <typename V, size_t D, template <typename, size_t> typename grid_type,
+          typename E>
+auto iterable_domain(
+    OpConvolution<V, GaussianSmoothing<D, grid_type>, E> const& e) {
   return iterable_domain(expr::get_enclosed_expression(e), e.smoother);
 }
 
@@ -1933,8 +1951,8 @@ auto iterable_domain(OpMap<G, V, E> const& e) {
   return iterable_domain(expr::get_enclosed_expression(e));
 }
 
-template <size_t D>
-auto iterable_domain(GaussianSmoothing<D> const& e) {
+template <size_t D, template <typename, size_t> typename grid_type>
+auto iterable_domain(GaussianSmoothing<D, grid_type> const& e) {
   return iterable_domain_data(e.data);
 }
 

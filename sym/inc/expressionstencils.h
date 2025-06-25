@@ -357,32 +357,28 @@ struct pack_dictionary<types_list<OpVoid, Es...>,
                                std::integer_sequence<int, Js...>>::type;
 };
 
-template <typename E0, typename... Es, int I0, int... Is, int J0, int... Js,
-          int K0, int... Ks>
-struct pack_dictionary<types_list<E0, Es...>,
-                       std::integer_sequence<int, I0, Is...>,
-                       std::integer_sequence<int, J0, Js...>,
-                       std::integer_sequence<int, K0, Ks...>> {
-  using type = expand_types_list<
-      std::pair<expr::symbols::internal::S3_symbol<I0, J0, K0>, E0>,
-      typename pack_dictionary<types_list<Es...>,
-                               std::integer_sequence<int, Is...>,
-                               std::integer_sequence<int, Js...>,
-                               std::integer_sequence<int, Ks...>>::type>;
+template <typename... Es, int... Is, int... Js, int... Ks>
+struct pack_dictionary<types_list<Es...>, std::integer_sequence<int, Is...>,
+                       std::integer_sequence<int, Js...>,
+                       std::integer_sequence<int, Ks...>> {
+  using type = remove_from_types_list<void, std::conditional_t<
+      std::is_same_v<Es, OpVoid>, void,
+      std::pair<expr::symbols::internal::S3_symbol<Is, Js, Ks>, Es>>...>;
 };
 
-template <typename... Es, int I0, int... Is, int J0, int... Js, int K0,
-          int... Ks>
-struct pack_dictionary<types_list<OpVoid, Es...>,
-                       std::integer_sequence<int, I0, Is...>,
-                       std::integer_sequence<int, J0, Js...>,
-                       std::integer_sequence<int, K0, Ks...>> {
-  using type =
-      typename pack_dictionary<types_list<Es...>,
-                               std::integer_sequence<int, Is...>,
-                               std::integer_sequence<int, Js...>,
-                               std::integer_sequence<int, Ks...>>::type;
-};
+//
+//template <typename... Es, int I0, int... Is, int J0, int... Js, int K0,
+//          int... Ks>
+//struct pack_dictionary<types_list<OpVoid, Es...>,
+//                       std::integer_sequence<int, I0, Is...>,
+//                       std::integer_sequence<int, J0, Js...>,
+//                       std::integer_sequence<int, K0, Ks...>> {
+//  using type =
+//      typename pack_dictionary<types_list<Es...>,
+//                               std::integer_sequence<int, Is...>,
+//                               std::integer_sequence<int, Js...>,
+//                               std::integer_sequence<int, Ks...>>::type;
+//};
 
 // template<int I0, int J0, typename E0>
 // constexpr auto

@@ -423,10 +423,11 @@ void expand_append_array(T in, T*& out, size_t in_len, size_t out_len = 0) {
 
 template <typename array_type>
 void clear_array(array_type*& arr, size_t const& len) {
-  for (iter_type i = 0; i < len; ++i) {
-    arr[i].~array_type();
-  }
-  operator delete[](arr);
+  delete[] arr;
+  //for (iter_type i = 0; i < len; ++i) {
+  //  arr[i].~array_type();
+  //}
+  //operator delete[](arr);
 }
 
 template <typename array_type>
@@ -468,8 +469,9 @@ template <typename array_type>
 void resize_array_impl(size_t new_len, array_type*& arr, size_t const& len,
                        array_type const& copy = array_type{}) {
   if (new_len != len) {
-    void* extend = operator new[](new_len * sizeof(array_type));
-    array_type* ptr = static_cast<array_type*>(extend);
+    array_type* ptr = new array_type[new_len]{};
+    //void* extend = operator new[](new_len * sizeof(array_type));
+    //array_type* ptr = static_cast<array_type*>(extend);
 
     for (iter_type i = 0; i < std::min(len, new_len); ++i) {
       using std::swap;
@@ -477,7 +479,8 @@ void resize_array_impl(size_t new_len, array_type*& arr, size_t const& len,
     }
 
     for (iter_type i = (iter_type)len; i < new_len; ++i) {
-      new (&ptr[i]) array_type(copy);
+      array_type copy2(copy);
+      swap(ptr[i], copy2);
     }
 
     std::swap(ptr, arr);
@@ -646,7 +649,7 @@ inline void resize_array(size_t new_len, char**& arr, size_t& len) {
 template <typename value_type, typename array_type>
 void set_array_value(value_type const& value, size_t n, array_type*& arr,
                      size_t& len) {
-  if (n > len) {
+  if (n >= len) {
     resize_array(n + 1, arr, len);
   }
 
@@ -656,7 +659,7 @@ void set_array_value(value_type const& value, size_t n, array_type*& arr,
 template <>
 inline void set_array_value<>(const char* const& value, size_t n, char**& arr,
                               size_t& len) {
-  if (n > len) {
+  if (n >= len) {
     resize_array(n + 1, arr, len);
   }
 

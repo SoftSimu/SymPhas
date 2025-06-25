@@ -1129,6 +1129,10 @@ void DomainSettings::parse_initial_condition_expression(
         ax = Axis::T;
       } else if (std::strcmp(ax_str, "S") == 0) {
         ax = Axis::S;
+      } else if (std::strcmp(ax_str, "I") == 0) {
+        ax = Axis::I;
+      } else if (std::strcmp(ax_str, "C") == 0) {
+        ax = Axis::C;
       } else {
         fprintf(SYMPHAS_ERR,
                 "incorrect axis specification for initial condition, '%s'",

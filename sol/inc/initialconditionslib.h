@@ -144,18 +144,21 @@ struct value_fill<complex_t> {
         scalar_t a = th(gen), r = std::abs(value);
         return {r * cos(a), r * sin(a)};
       }
-      case Axis::X: {
+      case Axis::C: {
         return {value, current.imag()};
       }
-      case Axis::Y: {
+      case Axis::I: {
         return {current.real(), value};
       }
       case Axis::T: {
-        scalar_t m = abs(current);
+        scalar_t m = symphas::math::abs(current);
+        if (m == 0) {
+          m = 1;  // Avoid division by zero
+        }
         return {m * cos(PI * value), m * sin(PI * value)};
       }
       case Axis::R: {
-        scalar_t r = abs(current) / value;
+        scalar_t r = symphas::math::abs(current) / value;
         return {current.real() / r, current.imag() / r};
       }
       default: {
@@ -182,9 +185,32 @@ struct value_fill<vector_t<2>> : value_fill<complex_t> {
 
   vector_t<2> operator()(Axis ax, vector_t<2> const& current,
                          scalar_t value) const {
-    auto c = value_fill<complex_t>::operator()(
-        ax, complex_t(current[0], current[1]), value);
-    return {c.real(), c.imag()};
+    switch (ax) {
+      case Axis::NONE: {
+        scalar_t a = th(gen), r = std::abs(value);
+        return {r * cos(a), r * sin(a)};
+      }
+      case Axis::X: {
+        return {value, current[1]};
+      }
+      case Axis::Y: {
+        return {current[0], value};
+      }
+      case Axis::T: {
+        scalar_t m = abs(current);
+        if (m == 0) {
+          m = 1;  // Avoid division by zero
+        }
+        return {m * cos(PI * value), m * sin(PI * value)};
+      }
+      case Axis::R: {
+        scalar_t r = abs(current) / value;
+        return {current[0] / r, current[1] / r};
+      }
+      default: {
+        return current;
+      }
+    }
   }
 };
 
@@ -213,12 +239,18 @@ struct value_fill<vector_t<3>> : value_fill<complex_t> {
         scalar_t m = abs(current);
         scalar_t th = PI * value;
         scalar_t phi = acos(current[2] / m);
+        if (m == 0) {
+          m = 1;  // Avoid division by zero
+        }
         return {m * sin(phi) * cos(th), m * sin(phi) * sin(th), m * cos(phi)};
       }
       case Axis::S: {
         scalar_t m = abs(current);
         scalar_t th = atan(current[1] / current[0]);
         scalar_t phi = PI * value;
+        if (m == 0) {
+          m = 1;  // Avoid division by zero
+        }
         return {m * sin(phi) * cos(th), m * sin(phi) * sin(th), m * cos(phi)};
       }
       case Axis::R: {
@@ -369,6 +401,11 @@ struct init_data_parameters {
   init_data_parameters(double param0, Ts... params)
       : gp{new double[sizeof...(Ts) + 1]{param0, (double)params...}},
         N{sizeof...(Ts) + 1} {}
+
+  init_data_parameters(const double* params, size_t N)
+      : gp{new double[N]{}}, N{N} {
+    std::copy(params, params + N, gp);
+  }
 
   init_data_parameters(size_t N = NUM_INIT_CONSTANTS)
       : gp{(N > 0) ? new double[N]{0} : nullptr}, N{N} {}

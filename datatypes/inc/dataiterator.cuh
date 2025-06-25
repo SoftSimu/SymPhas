@@ -90,7 +90,8 @@ namespace grid {
 //! Obtains the iterable_domain from the Block compatible instance.
 template <typename T, size_t D>
 auto get_iterable_domain(GridCUDA<T, D> const& data) {
-  return region_size(data.len);
+  region_interval<D> region(data.dims);
+  return region;
 }
 
 //! Obtains the iterable_domain from the Block compatible instance.

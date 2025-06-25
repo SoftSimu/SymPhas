@@ -539,7 +539,18 @@ struct DomainSettings {
   void parse_width(const char* str, size_t dimension);
 
   void set_interval(symphas::interval_data_type const& value, size_t n) {
+    if (n >= intervals_len) {
+      for (iter_type i = 0; i < intervals_len; ++i) {
+        delete[] dims[i];
+      }
+      delete[] dims;
+      dims = new len_type* [n + 1] {};
+      for (iter_type i = 0; i < intervals_len; ++i) {
+        set_dimensions(i);
+      }
+    }
     symphas::lib::set_array_value(value, n, intervals, intervals_len);
+    set_dimensions(n);
   }
   void set_boundary(symphas::b_data_type const& value, size_t n) {
     symphas::lib::set_array_value(value, n, bdata, bdata_len);
@@ -556,11 +567,19 @@ struct DomainSettings {
 
   void set_interval_array(symphas::interval_data_type const* arr,
                           size_t len = 0) {
+    for (iter_type i = 0; i < intervals_len; ++i) {
+      delete[] dims[i];
+    }
+    delete[] dims;
     if (len == 0) {
       len = intervals_len;
     }
     std::copy(arr, arr + len, intervals);
     intervals_len = len;
+    dims = new len_type* [len] {};
+    for (iter_type i = 0; i < len; ++i) {
+      set_dimensions(i);
+    }
   }
 
   void set_boundary_array(symphas::b_data_type const* arr, size_t len = 0) {
@@ -615,6 +634,7 @@ struct SymPhasSettings {
   DomainSettings domain_settings;
 
   size_t runs;
+  symphas::lib::string conf_file;
 
   SymPhasSettings(settings_spec_type const& settings_list, const char* title,
                   const char* dir = "");
@@ -624,7 +644,8 @@ struct SymPhasSettings {
         simulation_settings{},
         model_settings{},
         domain_settings{},
-        runs{1} {}
+        runs{1},
+        conf_file{} {}
 
   symphas::problem_parameters_type get_problem_parameters() const;
 

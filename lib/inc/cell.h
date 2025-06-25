@@ -232,7 +232,7 @@ template <typename T, size_t D>
 __host__ __device__ T abs(VectorValue<T, D> const& c) {
   double sum = 0;
   for (int i = 0; i < D; ++i) {
-    sum += c.v[i];
+    sum += c.v[i] * c.v[i];
   }
   using std::sqrt;
   return sqrt(sum);

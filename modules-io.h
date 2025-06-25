@@ -411,7 +411,7 @@ void find_solution(M* models, len_type num_models,
     if (plotting_output) {
       if (save.current_save(model.get_index())) {
         fprintf(SYMPHAS_LOG, "%25s", "phase field output...");
-        model.save_systems(dir);
+        model.save_systems(dir); // Save phase fields and provisional variables
         fprintf(SYMPHAS_LOG, "done\n");
       }
 

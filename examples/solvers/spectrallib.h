@@ -758,10 +758,10 @@ auto construct_nonlinear(std::tuple<S...> const& systems,
 }
 
 template <size_t Z0, size_t D, typename... S, typename B, typename V,
-          typename E>
+          template <typename, size_t> typename grid_type, typename E>
 auto construct_nonlinear(std::tuple<S...> const& systems,
                          OpExpression<B> const& bop,
-                         OpConvolution<V, GaussianSmoothing<D>, E> const& e,
+                         OpConvolution<V, GaussianSmoothing<D, grid_type>, E> const& e,
                          double const* h, const len_type* dims) {
   return expr::coeff(e) * expr::transform::to_ft<D>(e.smoother, h, dims) *
          construct_nonlinear<Z0, D>(systems, *static_cast<B const*>(&bop),

@@ -1,4 +1,3 @@
-
 /* ***************************************************************************
  * This file is part of the SymPhas library, a framework for implementing
  * solvers for phase-field problems with compile-time symbolic algebra.
@@ -29,6 +28,7 @@
 
 #include "stencilh2.h"
 #include "stencilh4.h"
+#include "stencildefs.h"
 
 /*!
  * \addtogroup stencil
@@ -584,6 +584,143 @@ MAKE_AVAILABLE_ORDER_LIST(3, (2))
 
 #endif
 
+// Stencil point list generation with override support
+// ===================================================
+
+#ifdef STENCIL_OVERRIDE_ENABLED
+// User has enabled stencil override system - use custom selections
+
+// 1D Second-order stencils
+#ifdef ORDER_LIST_1D
+#ifdef ORDER_LIST_1D_HAS_2H
+#ifdef OVERRIDE_LAP_1D_2H_POINTS
+MAKE_STENCIL_POINT_LIST(2, 1, 2, OVERRIDE_LAP_1D_2H_POINTS)
+#else
+MAKE_STENCIL_POINT_LIST(2, 1, 2, (3))  // Default fallback
+#endif
+
+#ifdef OVERRIDE_BILAP_1D_2H_POINTS
+MAKE_STENCIL_POINT_LIST(4, 1, 2, OVERRIDE_BILAP_1D_2H_POINTS)
+#else
+MAKE_STENCIL_POINT_LIST(4, 1, 2, (5))  // Default fallback
+#endif
+
+#ifdef OVERRIDE_GRADLAP_1D_2H_POINTS
+MAKE_STENCIL_POINT_LIST(3, 1, 2, OVERRIDE_GRADLAP_1D_2H_POINTS)
+#else
+MAKE_STENCIL_POINT_LIST(3, 1, 2, (4))  // Default fallback
+#endif
+#endif
+#endif
+
+// 2D Second-order stencils
+#ifdef ORDER_LIST_2D
+#ifdef ORDER_LIST_2D_HAS_2H
+#ifdef OVERRIDE_LAP_2D_2H_POINTS
+MAKE_STENCIL_POINT_LIST(2, 2, 2, OVERRIDE_LAP_2D_2H_POINTS)
+#else
+#if defined(ALL_STENCILS)
+MAKE_STENCIL_POINT_LIST(2, 2, 2, (5, 9))  // All stencils
+#else
+MAKE_STENCIL_POINT_LIST(2, 2, 2, (9))     // Default single stencil
+#endif
+#endif
+
+#ifdef OVERRIDE_BILAP_2D_2H_POINTS
+MAKE_STENCIL_POINT_LIST(4, 2, 2, OVERRIDE_BILAP_2D_2H_POINTS)
+#else
+#if defined(ALL_STENCILS)
+MAKE_STENCIL_POINT_LIST(4, 2, 2, (13, 17, 21))  // All stencils
+#else
+MAKE_STENCIL_POINT_LIST(4, 2, 2, (13))          // Default single stencil
+#endif
+#endif
+
+#ifdef OVERRIDE_GRADLAP_2D_2H_POINTS
+MAKE_STENCIL_POINT_LIST(3, 2, 2, OVERRIDE_GRADLAP_2D_2H_POINTS)
+#else
+#if defined(ALL_STENCILS)
+MAKE_STENCIL_POINT_LIST(3, 2, 2, (6, 8, 12, 16))  // All stencils
+#else
+MAKE_STENCIL_POINT_LIST(3, 2, 2, (6))             // Default single stencil
+#endif
+#endif
+#endif
+#endif
+
+// 2D Fourth-order stencils
+#ifdef ORDER_LIST_2D
+#ifdef ORDER_LIST_2D_HAS_4H
+#ifdef OVERRIDE_LAP_2D_4H_POINTS
+MAKE_STENCIL_POINT_LIST(2, 2, 4, OVERRIDE_LAP_2D_4H_POINTS)
+#else
+#if defined(ALL_STENCILS)
+MAKE_STENCIL_POINT_LIST(2, 2, 4, (9, 17, 21))  // All stencils
+#else
+MAKE_STENCIL_POINT_LIST(2, 2, 4, (9))          // Default single stencil
+#endif
+#endif
+
+#ifdef OVERRIDE_BILAP_2D_4H_POINTS
+MAKE_STENCIL_POINT_LIST(4, 2, 4, OVERRIDE_BILAP_2D_4H_POINTS)
+#else
+#if defined(ALL_STENCILS)
+MAKE_STENCIL_POINT_LIST(4, 2, 4, (21, 25, 33, 37))  // All stencils
+#else
+MAKE_STENCIL_POINT_LIST(4, 2, 4, (21))              // Default single stencil
+#endif
+#endif
+
+#ifdef OVERRIDE_GRADLAP_2D_4H_POINTS
+MAKE_STENCIL_POINT_LIST(3, 2, 4, OVERRIDE_GRADLAP_2D_4H_POINTS)
+#else
+#if defined(ALL_STENCILS)
+MAKE_STENCIL_POINT_LIST(3, 2, 4, (14, 18, 26, 30))  // All stencils
+#else
+MAKE_STENCIL_POINT_LIST(3, 2, 4, (14))              // Default single stencil
+#endif
+#endif
+#endif
+#endif
+
+// 3D Second-order stencils
+#ifdef ORDER_LIST_3D
+#ifdef ORDER_LIST_3D_HAS_2H
+#ifdef OVERRIDE_LAP_3D_2H_POINTS
+MAKE_STENCIL_POINT_LIST(2, 3, 2, OVERRIDE_LAP_3D_2H_POINTS)
+#else
+#if defined(ALL_STENCILS)
+MAKE_STENCIL_POINT_LIST(2, 3, 2, (7, 15, 19, 21, 27))  // All stencils
+#else
+MAKE_STENCIL_POINT_LIST(2, 3, 2, (15))                 // Default single stencil
+#endif
+#endif
+
+#ifdef OVERRIDE_BILAP_3D_2H_POINTS
+MAKE_STENCIL_POINT_LIST(4, 3, 2, OVERRIDE_BILAP_3D_2H_POINTS)
+#else
+#if defined(ALL_STENCILS)
+MAKE_STENCIL_POINT_LIST(4, 3, 2, (21, 25, 41, 52, 57))  // All stencils
+#else
+MAKE_STENCIL_POINT_LIST(4, 3, 2, (25))                  // Default single stencil
+#endif
+#endif
+
+#ifdef OVERRIDE_GRADLAP_3D_2H_POINTS
+MAKE_STENCIL_POINT_LIST(3, 3, 2, OVERRIDE_GRADLAP_3D_2H_POINTS)
+#else
+#if defined(ALL_STENCILS)
+MAKE_STENCIL_POINT_LIST(3, 3, 2, (10, 12, 28, 36, 40))  // All stencils
+#else
+MAKE_STENCIL_POINT_LIST(3, 3, 2, (10))                  // Default single stencil
+#endif
+#endif
+#endif
+#endif
+
+#else
+// Standard behavior - use existing ALL_STENCILS logic
+
 #if defined(ALL_STENCILS)
 
 #ifdef ORDER_LIST_1D
@@ -653,6 +790,8 @@ MAKE_STENCIL_POINT_LIST(3, 3, 2, (10))
 #endif
 
 #endif
+
+#endif  // STENCIL_OVERRIDE_ENABLED
 
 template <size_t N, size_t D, size_t O>
 using point_list_t =

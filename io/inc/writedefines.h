@@ -167,7 +167,7 @@ void write_data_entry(FILE* out, std::tuple<Ts...> const& data);
 struct write_info {
   write_info(const char* dir_str_ptr, iter_type index, size_t id,
              DataFileType type)
-      : dir_str_ptr{dir_str_ptr},
+      : dir{dir_str_ptr},
         index{index},
         id{id},
         type{type},
@@ -186,10 +186,9 @@ struct write_info {
 
   auto domain_right(Axis ax) const { return intervals.at(ax)[1]; }
 
-  const char* dir_str_ptr;  //!< Pointer (unowned) to the string specifying
-                            //!< directory name.
-  iter_type index;          //!< The solution index at which the data is saved.
-  size_t id;                //!< The ID of the grid being written.
+  symphas::lib::string dir;  //!< String specifying directory name.
+  iter_type index;           //!< The solution index at which the data is saved.
+  size_t id;                 //!< The ID of the grid being written.
   DataFileType type;     //!< The type of data that is written, typically this
                          //!< should be phase field data.
   interval_t intervals;  //!< Extent of the global domain in the spatial axes.

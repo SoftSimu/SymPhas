@@ -87,26 +87,21 @@ DEFINE_MODEL_FIELD_NAMES_FORMAT(CELL_MIGRATION_NO_MOTILITY, "\\phi_{%d}")
 #undef tau
 
 
-//
 //MODEL(MBM, (SCALARS(4)),
 //	FREE_ENERGY((ALL_CONSERVED(ii)),
-//		integral(SUM(ii)(LANDAU_FE(op_ii))))
+//		INT(SUM(ii)(LANDAU_FE(op_ii))))
 //)
 //LINK_WITH_NAME(MBM, MODELB_MANY)
 //DEFINE_MODEL_FIELD_NAMES(MBM, ("A", "B", "C", "D"))
-//
 
-
-//
 //MODEL(CELL_MIGRATION, (MANY(CANCER_CELL, 1), MANY(NORMAL_CELL, CONFIGURATION)),
-//	FREE_ENERGY((EQUATION_OF(ii)(-_2 * DF_(ii) - val<60> * kappa / (xi * lambda2_(ii)) * integral(op_ii * grad(op_ii) * SUM(jj != ii)(op_jj * op_jj)) * grad(op_ii))),
-//		SUM(ii)(gamma_n_(ii) * integral(CELLULAR_FE(op_ii, lambda_(ii))) + mu / (Pi * R2) * pow<2>(Pi * R2 - integral(op_ii * op_ii)))
-//		+ integral(SUM(ii, jj != ii)(integer(30) * kappa / lambda2_(ii) * op_ii * op_ii * op_jj * op_jj)))
+//	FREE_ENERGY((EQUATION_OF(ii)(-_2 * DF_(ii) - val<60> * kappa / (xi * lambda2_(ii)) * INT(op_ii * grad(op_ii) * SUM(jj != ii)(op_jj * op_jj)) * grad(op_ii))),
+//		SUM(ii)(gamma_n_(ii) * INT(CELLULAR_FE(op_ii, lambda_(ii))) + mu / (Pi * R2) * pow<2>(Pi * R2 - INT(op_ii * op_ii)))
+//		+ INT(SUM(ii, jj != ii)(integer(30) * kappa / lambda2_(ii) * op_ii * op_ii * op_jj * op_jj)))
 //)
 //LINK_WITH_NAME(CELL_MIGRATION, CELL_MODEL)
 //DEFINE_MODEL_FIELD_NAMES_FORMAT(CELL_MIGRATION, "\\phi_{%d}")
 
-//
 //MODEL(FLOCK, (VECTOR, SCALAR),
 //	EVOLUTION(
 //		dpsi = c(1) * psi - c(2) * psi * psi * psi - grad(c(6) * (rho - STATS.mean(rho)) + c(7) * pow<2>(rho - STATS.mean(rho))) + c(3) * grad(grad * psi) + c(4) * lap(psi) + c(5) * pow<2>(psi * grad) * psi - (psi * grad) * psi + _nW(VECTOR),
@@ -146,7 +141,7 @@ DEFINE_MODEL_FIELD_NAMES_FORMAT(CELL_MIGRATION_NO_MOTILITY, "\\phi_{%d}")
 //			auto d0 = one;
 //
 //			auto nu = v02 * frac<1, 4> / (lam * (1 - exp(-2 * sig2_0)) + frac<16, 3> / Pi * d0 * v0 * rho * (frac<7, 5> + exp(-2 * sig2)));
-//			auto dnu = diff(nu, rho);
+//			auto dnu = symDiff(nu, rho, 1);
 //			auto gg = val<16> / Pi * nu * (d0 / v0) * (frac<16, 15> + 2 * exp(-2 * sig2) - exp(-sig2 / 2));
 //			auto pp = val<16> / Pi * nu * (d0 / v0) * (frac<4, 15> + val<2> * exp(-2 * sig2) - exp(-sig2 / 2));
 //			auto mu = val<8> / Pi * d0 * v0 * rho * (exp(-sig2/2) - frac<2, 3>) - lam * (1 - exp(-sig2_0 / 2));

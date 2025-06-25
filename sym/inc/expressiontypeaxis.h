@@ -79,6 +79,9 @@ struct GridAxis {
 
 namespace expr {
 
+template <Axis ax>
+using axis_var_t = OpTerms<OpIdentity, Term<GridAxis<1, ax>, 1>>;
+
 //! Specialization based on expr::BaseData.
 template <>
 struct BaseData<TimeValue> {

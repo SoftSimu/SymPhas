@@ -299,8 +299,8 @@ auto to_ft(OpConvolution<V, E1, E2> const& e, double const* h,
  *
  * \tparam D The real space dimension.
  */
-template <size_t D, typename V, typename E>
-auto to_ft(OpConvolution<V, GaussianSmoothing<D>, E> const& e, double const* h,
+template <size_t D, template <typename, size_t> typename grid_type, typename V, typename E>
+auto to_ft(OpConvolution<V, GaussianSmoothing<D, grid_type>, E> const& e, double const* h,
            const len_type* dims);
 
 //! Converts the expression to Fourier space.
@@ -407,8 +407,8 @@ auto to_ft(OpDerivative<Dd, V, E, Sp> const& e, double const* h,
  *
  * \tparam D The real space dimension.
  */
-template <size_t D>
-auto to_ft(GaussianSmoothing<D> const& e, double const*, const len_type* dims);
+template <size_t D, template <typename, size_t> typename grid_type>
+auto to_ft(GaussianSmoothing<D, grid_type> const& e, double const*, const len_type* dims);
 
 //! Converts the expression to Fourier space.
 /*!
@@ -601,10 +601,10 @@ auto to_ft(OpConvolution<V, E1, E2> const& e, double const* h,
   return expr::coeff(e) * to_ft<D>(e.a, h, dims) * to_ft<D>(e.b, h, dims);
 }
 
-template <size_t D>
-auto to_ft(GaussianSmoothing<D> const& e, double const* h,
+template <size_t D, template <typename, size_t> typename grid_type>
+auto to_ft(GaussianSmoothing<D, grid_type> const& e, double const* h,
            const len_type* dims) {
-  return GaussianSmoothing<D>(e.data.dims, e.h, e.sigma, !e.fourier_space);
+  return GaussianSmoothing<D, grid_type>(e.data.dims, e.h, e.sigma, !e.fourier_space);
 }
 
 template <size_t D, typename V, typename sub_t, typename E, typename... Ts>
@@ -626,8 +626,8 @@ auto to_ft(OpSum<V, E, Substitution<SymbolicDataArray<Ts>...>,
   return expr::coeff(series) * expr::recreate_series(ft, series.data);
 }
 
-template <size_t D, typename V, typename E>
-auto to_ft(OpConvolution<V, GaussianSmoothing<D>, E> const& e, double const* h,
+template <size_t D, template <typename, size_t> typename grid_type, typename V, typename E>
+auto to_ft(OpConvolution<V, GaussianSmoothing<D, grid_type>, E> const& e, double const* h,
            const len_type* dims) {
   return expr::coeff(e) * to_ft<D>(e.smoother, h, dims) *
          to_ft<D>(expr::get_enclosed_expression(e), h, dims);
@@ -1761,7 +1761,7 @@ template <typename E1, typename E2, size_t R1 = expr::eval_type<E1>::rank,
           size_t R2 = expr::eval_type<E2>::rank,
           size_t Q1 = expr::eval_type<E1>::template rank_<1>,
           size_t Q2 = expr::eval_type<E2>::template rank_<1>>
-auto dot(OpExpression<E1> const& a, OpExpression<E2> const& b) {
+auto apply_dot(OpExpression<E1> const& a, OpExpression<E2> const& b) {
   // in the case when the expressions don't have tensors, but are simply scalar
   if constexpr (R1 == 0 && R2 == 0 && Q1 == 0 && Q2 == 0) {
     return (*static_cast<E1 const*>(&a)) * (*static_cast<E2 const*>(&b));
@@ -1805,65 +1805,66 @@ auto dot(OpExpression<E1> const& a, OpExpression<E2> const& b) {
 }
 
 template <typename E1, typename E2>
-auto dot(OpExpression<E1> const& a, OpOperator<E2> const& b) {
+auto apply_dot(OpExpression<E1> const& a, OpOperator<E2> const& b) {
   return expr::make_mul(*static_cast<E1 const*>(&a),
                         *static_cast<E2 const*>(&b));
 }
 
 template <typename E1, typename E2>
-auto dot(OpOperator<E1> const& a, OpExpression<E2> const& b) {
+auto apply_dot(OpOperator<E1> const& a, OpExpression<E2> const& b) {
   return expr::make_mul(*static_cast<E1 const*>(&a),
                         *static_cast<E2 const*>(&b));
 }
 
 template <typename E1, typename E2>
-auto dot(OpOperator<E1> const& a, OpOperator<E2> const& b) {
+auto apply_dot(OpOperator<E1> const& a, OpOperator<E2> const& b) {
   return expr::make_mul(*static_cast<E1 const*>(&a),
                         *static_cast<E2 const*>(&b));
 }
 
 template <typename E1, typename E2>
-auto dot(OpOperatorChain<OpIdentity, E1> const& a,
-         OpOperatorChain<OpIdentity, E2> const& b) {
-  return dot(a.g, b.g);
+auto apply_dot(OpOperatorChain<OpIdentity, E1> const& a,
+               OpOperatorChain<OpIdentity, E2> const& b) {
+  auto chain = OpOperatorChain(OpIdentity{}, OpIdentity{});
+  return OpChain(chain, apply_dot(a.g, b.g));
 }
 
 template <typename E1>
-auto dot(OpExpression<E1> const& a, OpVoid) {
+auto apply_dot(OpExpression<E1> const& a, OpVoid) {
   return OpVoid{};
 }
 
 template <typename E2>
-auto dot(OpVoid, OpExpression<E2> const& b) {
+auto apply_dot(OpVoid, OpExpression<E2> const& b) {
   return OpVoid{};
 }
 
-inline auto dot(OpVoid, OpVoid) { return OpVoid{}; }
+inline auto apply_dot(OpVoid, OpVoid) { return OpVoid{}; }
 }  // namespace symphas::internal
 
 namespace expr {
 template <typename E1, typename E2>
 auto dot(OpExpression<E1> const& a, OpExpression<E2> const& b) {
-  return symphas::internal::dot(*static_cast<E1 const*>(&a),
-                                *static_cast<E2 const*>(&b));
+  return symphas::internal::apply_dot(*static_cast<E1 const*>(&a),
+                                      *static_cast<E2 const*>(&b));
 }
 
 template <typename E1, typename E2>
 auto dot(OpExpression<E1> const& a, OpOperator<E2> const& b) {
-  return symphas::internal::dot(*static_cast<E1 const*>(&a),
-                                *static_cast<E2 const*>(&b));
+  return symphas::internal::apply_dot(*static_cast<E1 const*>(&a),
+                                      *static_cast<E2 const*>(&b));
 }
 
 template <typename E1, typename E2>
 auto dot(OpOperator<E1> const& a, OpExpression<E2> const& b) {
-  return symphas::internal::dot(*static_cast<E1 const*>(&a),
-                                *static_cast<E2 const*>(&b));
+  return symphas::internal::apply_dot(*static_cast<E1 const*>(&a),
+                                      *static_cast<E2 const*>(&b));
 }
 
 template <typename E1, typename E2>
 auto dot(OpOperator<E1> const& a, OpOperator<E2> const& b) {
-  return symphas::internal::dot(*static_cast<E1 const*>(&a),
-                                *static_cast<E2 const*>(&b));
+  return symphas::internal::apply_dot(*static_cast<E1 const*>(&a),
+                                      *static_cast<E2 const*>(&b));
 }
 
 template <typename T, size_t N, size_t D>

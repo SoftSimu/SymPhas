@@ -152,6 +152,18 @@ constexpr int CONFIGURATION = -1;
  */
 inline OpLiteral<complex_t> Ii = expr::make_literal(complex_t(0, 1));
 
+//! Pi value for an expression.
+/*!
+ * Pi value literal that can be used in an expression.
+ */
+inline OpLiteral<double> pi_n = expr::make_literal(symphas::PI);
+
+//! Euler's number for an expression.
+/*!
+ * An Euler's number literal that can be used in an expression.
+ */
+inline OpLiteral<double> e_n = expr::make_literal(symphas::E);
+
 //! Access statistics about the system, such as the mean.
 /*!
  * Included statistics are: mean, max, min and sum.
@@ -250,6 +262,17 @@ decltype(auto) NOISE(symphas::grid_info const &info,
                      grid::region_size const &region, const double *dt,
                      enclosing_class_wrap<grid_type>) {
   return NoiseData<nt, T, D, grid_type>(info.get_dims(), info.get_widths(), dt);
+}
+
+template <size_t D, template <typename, size_t> typename grid_type>
+decltype(auto) GAUSSIAN_KERNEL(symphas::grid_info const &info,
+                               grid::region_interval<D> const &region,
+                               double sigma, enclosing_class_wrap<grid_type>) {
+  len_type dims[D]{};
+  for (iter_type i = 0; i < D; ++i) {
+    dims[i] = region[i][1] - region[i][0];
+  }
+  return GaussianSmoothing<D, grid_type>(dims, info.get_widths(), sigma);
 }
 
 template <size_t D, typename T>
@@ -572,6 +595,51 @@ struct modifier_save {
 
 template <typename S, ModelModifiers modifier = ModelModifiers::PLOT_DEFAULT>
 struct modifier_save_apply : modifier_save<S> {
+  modifier_save_apply(const S *_s, len_type len,
+                      const symphas::interval_data_type *vdata, size_t N)
+      : N{N} {}
+
+  virtual void update(const S *_s, len_type len) override {}
+
+  virtual void operator()(const S *_s, len_type len, iter_type index,
+                          const char *dir) const override {
+    if (len > 0) {
+      for (iter_type i = 0; i < len; ++i) {
+        _s[i].save(dir, index);
+      }
+    }
+  }
+
+  virtual void operator()(const S *_s, len_type len, iter_type index,
+                          const char *dir, const char *name) const override {
+    if (len > 0) {
+      char **names = new char *[len];
+      for (iter_type i = 0; i < len; ++i) {
+        names[i] =
+            new char[std::strlen(name) + symphas::lib::num_digits(i) + 1];
+        snprintf(names[i], BUFFER_LENGTH, "#%zd-%d-%s", N, i, name);
+      }
+
+      for (iter_type i = 0; i < len; ++i) {
+        _s[i].save(dir, names[i], index);
+      }
+
+      for (iter_type i = 0; i < len; ++i) {
+        delete[] names[i];
+      }
+      delete[] names;
+    }
+  }
+
+  virtual const S *get_first(const S *_s) const override { return _s; }
+
+  virtual S *get_first(S *_s) override { return _s; }
+
+  size_t N;
+};
+
+template <typename S>
+struct modifier_save_apply<S, ModelModifiers::REAL_PART> : modifier_save<S> {
   modifier_save_apply(const S *_s, len_type len,
                       const symphas::interval_data_type *vdata, size_t N)
       : N{N} {}

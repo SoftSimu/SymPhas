@@ -1080,7 +1080,7 @@ inline void fill_random(Block<complex_t>& grid, scalar_t min = 0,
       std::execution::par_unseq,
 #endif
       grid.values, grid.values + grid.len,
-      [&](auto& e) { e = {dist(gen), dist(gen)}; });
+      [&](auto& e) { e = complex_t{dist(gen), dist(gen)}; });
 }
 
 //! Copies the system data into the given array.
@@ -1516,6 +1516,13 @@ __host__ __device__ bool compare_cutoff(T* const (&left)[D], iter_type index,
   using symphas::math::abs;
   using symphas::math::sqrt;
   return compare_cutoff(sqrt(result), abs(right));
+}
+
+
+__host__ __device__ inline bool compare_cutoff(complex_t const& left,
+                                               complex_t const& right) {
+  return left.real() * left.real() + left.imag() * left.imag() >=
+         right.real() * right.real() + right.imag() * right.imag();
 }
 
 template <size_t D>

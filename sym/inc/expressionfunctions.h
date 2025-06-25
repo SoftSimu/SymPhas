@@ -28,6 +28,7 @@
 #include <tuple>
 
 #include "expressionaggregates.h"
+#include "expressiontypeaxis.h"
 
 namespace expr {
 namespace {
@@ -703,6 +704,10 @@ template <typename E>
 auto constexpr func_sqrt =
     &symphas::math::sqrt<typename expr::eval_type<E>::type>;
 
+//! Alias to construct the function to compute the sine function.
+template <typename E>
+auto constexpr func_abs =
+    &symphas::math::abs<typename expr::eval_type<E>::type>;
 }  // namespace
 
 template <typename E>
@@ -812,6 +817,12 @@ auto sqrt(OpExpression<E> const& e) {
   return symphas::internal::make_function<func_sqrt<E>>::get(
       *static_cast<E const*>(&e));
 }
+
+template <typename E>
+auto abs(OpExpression<E> const& e) {
+  return symphas::internal::make_function<func_abs<E>>::get(
+      *static_cast<E const*>(&e));
+}
 }  // namespace expr
 
 template <size_t D, typename T0, typename T1>
@@ -834,10 +845,60 @@ auto expr::make_unit_vector(T0 const& direction0, T1 const& direction1) {
   }
 }
 
+template <size_t D, typename T0, typename T1>
+auto expr::make_unit_row_vector(T0 const& direction0, T1 const& direction1) {
+  if constexpr (D == 1) {
+    return OpIdentity{};
+  } else if constexpr (D == 2) {
+    auto s = expr::sin(direction0);
+    auto c = expr::cos(direction0);
+    return (expr::make_row_vector<0, D>() * c +
+            expr::make_row_vector<1, D>() * s);
+  } else {
+    auto s0 = expr::sin(direction0);
+    auto c0 = expr::cos(direction0);
+    auto s1 = expr::sin(direction1);
+    auto c1 = expr::cos(direction1);
+    return (expr::make_row_vector<0, D>() * c0 * s1 +
+            expr::make_row_vector<1, D>() * s0 * s1 +
+            expr::make_row_vector<2, D>() * c1);
+  }
+}
+
 template <size_t D, typename T0>
 auto expr::make_unit_vector(T0 const& direction0) {
   return expr::make_unit_vector<D>(direction0, OpVoid{});
 }
+
+template <size_t D, typename T0>
+auto expr::make_unit_row_vector(T0 const& direction0) {
+  return expr::make_unit_row_vector<D>(direction0, OpVoid{});
+}
+
+namespace expr {
+
+template <size_t D, Axis ax>
+auto make_unit_vector(axis_var_t<ax>) {
+  if constexpr (ax == Axis::X) {
+    return make_unit_vector<D, scalar_t>(0.0, 0.0);
+  } else if constexpr (ax == Axis::Y) {
+    return make_unit_vector<D, scalar_t>(symphas::PI / 2, 1.0);
+  } else if constexpr (ax == Axis::Z) {
+    return make_unit_vector<D, scalar_t>(0.0, symphas::PI / 2);
+  }
+}
+
+template <size_t D, Axis ax>
+auto make_unit_row_vector(axis_var_t<ax>) {
+  if constexpr (ax == Axis::X) {
+    return make_unit_row_vector<D, scalar_t>(0.0, 0.0);
+  } else if constexpr (ax == Axis::Y) {
+    return make_unit_row_vector<D, scalar_t>(symphas::PI / 2, 1.0);
+  } else if constexpr (ax == Axis::Z) {
+    return make_unit_row_vector<D, scalar_t>(0.0, symphas::PI / 2);
+  }
+}
+}  // namespace expr
 
 // ***************************************************************************************
 

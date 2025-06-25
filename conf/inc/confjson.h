@@ -56,17 +56,41 @@ struct JsonConfManager : SymPhasSettings {
 
   JsonConfManager(const char* config_file);
 
-  //! Generate the configuration from the given options.
+  //! Write a JSON backup of the current configuration.
   /*!
-   * Generate the configuration from the given options. The name of the
-   * configuration is also provided.
+   * Write a JSON backup file of the current configuration to the specified
+   * directory with the given name. This reconstructs the JSON from the current
+   * settings and saves it as a .json file.
    *
-   * \param options The list of key-value pairs for all the options used
-   * in the configuration.
-   * \param title The title of the configuration.
-   * \param dir The absolute parent directory of the configuration, which is
-   * optional.
+   * \param savedir The directory where the backup should be saved.
+   * \param name The base name for the backup file (without extension).
    */
-  JsonConfManager(std::vector<std::pair<std::string, std::string>> const& options,
-                  const char* title, const char* dir = "") {}
+  void write(const char* savedir, const char* name = BACKUP_CONFIG_NAME) const;
+
+  std::string config_dir;
+ private:
+  void parse_simulation_settings(
+      const json& config_json, std::map<std::string, json> const& definitions);
+  void parse_model_settings(const json& config_json,
+                            std::map<std::string, json> const& definitions);
+  void parse_domain_settings(const json& config_json,
+                             std::map<std::string, json> const& definitions);
+  void parse_name_settings(const json& config_json,
+                           std::map<std::string, json> const& definitions);
+  void parse_directory_settings(const json& config_json,
+                                std::map<std::string, json> const& definitions);
+
+  void parse_single_initial_condition(
+      const json& init_config, std::map<std::string, json> const& definitions,
+      int field_idx);
+
+  std::string build_save_spec_from_json(
+      const json& save, std::map<std::string, json> const& definitions);
+
+  template <typename T>
+  T parse_value_or_definition(const json& entry,
+                              std::map<std::string, json> const& definitions);
+  template <typename T>
+  T parse_value_or_definition(const json& entry, T const& fallback,
+                              std::map<std::string, json> const& definitions);
 };

@@ -675,10 +675,32 @@ inline size_t OpLiteral<double>::print(FILE* out) const {
 
 template <>
 inline size_t OpLiteral<complex_t>::print(FILE* out) const {
-  return fprintf(out,
-                 "%." STR(EXPR_VALUE_DISPLAY_PRECISION) "lf + %." STR(
-                     EXPR_VALUE_DISPLAY_PRECISION) "lfi",
-                 real(value), imag(value));
+  if (value.real() == 0) {
+    if (value.imag() < 0) {
+      return fprintf(out, "-%." STR(EXPR_VALUE_DISPLAY_PRECISION) "lfi",
+                     std::abs(value.imag()));
+    } else if (value.imag() == 0) {
+      return fprintf(out, "0");
+    } else {
+      return fprintf(out, "%." STR(EXPR_VALUE_DISPLAY_PRECISION) "lfi",
+                     value.imag());
+    }
+  } else {
+    if (value.imag() < 0) {
+      return fprintf(out,
+                     "(%." STR(EXPR_VALUE_DISPLAY_PRECISION) "lf - %." STR(
+                         EXPR_VALUE_DISPLAY_PRECISION) "lfi)",
+                     value.real(), std::abs(value.imag()));
+    } else if (value.imag() == 0) {
+      return fprintf(out, "%." STR(EXPR_VALUE_DISPLAY_PRECISION) "lf",
+                     value.real());  // 1
+    } else {
+      return fprintf(out,
+                     "(%." STR(EXPR_VALUE_DISPLAY_PRECISION) "lf + %." STR(
+                         EXPR_VALUE_DISPLAY_PRECISION) "lfi)",
+                     value.real(), value.imag());
+    }
+  }
 }
 
 template <>
@@ -709,30 +731,30 @@ inline size_t OpLiteral<double>::print(char* out) const {
 
 template <>
 inline size_t OpLiteral<complex_t>::print(char* out) const {
-  if (real(value) == 0) {
-    if (imag(value) < 0) {
+  if (value.real() == 0) {
+    if (value.imag() < 0) {
       return sprintf(out, "-%." STR(EXPR_VALUE_DISPLAY_PRECISION) "lfi",
-                     std::abs(imag(value)));
-    } else if (imag(value) == 0) {
+                     std::abs(value.imag()));
+    } else if (value.imag() == 0) {
       return sprintf(out, "0");
     } else {
       return sprintf(out, "%." STR(EXPR_VALUE_DISPLAY_PRECISION) "lfi",
-                     imag(value));
+                     value.imag());
     }
   } else {
-    if (imag(value) < 0) {
+    if (value.imag() < 0) {
       return sprintf(out,
-                     "%." STR(EXPR_VALUE_DISPLAY_PRECISION) "lf - %." STR(
-                         EXPR_VALUE_DISPLAY_PRECISION) "lfi",
-                     real(value), std::abs(imag(value)));
-    } else if (imag(value) == 0) {
+                     "(%." STR(EXPR_VALUE_DISPLAY_PRECISION) "lf - %." STR(
+                         EXPR_VALUE_DISPLAY_PRECISION) "lfi)",
+                     value.real(), std::abs(value.imag()));
+    } else if (value.imag() == 0) {
       return sprintf(out, "%." STR(EXPR_VALUE_DISPLAY_PRECISION) "lf",
-                     real(value));  // 1
+                     value.real());  // 1
     } else {
       return sprintf(out,
-                     "%." STR(EXPR_VALUE_DISPLAY_PRECISION) "lf + %." STR(
+                     "(%." STR(EXPR_VALUE_DISPLAY_PRECISION) "lf + %." STR(
                          EXPR_VALUE_DISPLAY_PRECISION) "lfi",
-                     real(value), imag(value));
+                     value.real(), value.imag());
     }
   }
 }
@@ -769,26 +791,26 @@ inline size_t OpLiteral<double>::print_length() const {
 template <>
 inline size_t OpLiteral<complex_t>::print_length() const {
   size_t len = 0;
-  len += symphas::lib::num_digits(static_cast<int>(std::abs(real(value))));
-  len += symphas::lib::num_digits(static_cast<int>(std::abs(imag(value))));
+  len += symphas::lib::num_digits(static_cast<int>(std::abs(value.real())));
+  len += symphas::lib::num_digits(static_cast<int>(std::abs(value.imag())));
 
-  if (real(value) == 0) {
-    if (imag(value) < 0) {
+  if (value.real() == 0) {
+    if (value.imag() < 0) {
       len += 3 + EXPR_VALUE_DISPLAY_PRECISION;
-    } else if (imag(value) == 0) {
+    } else if (value.imag() == 0) {
       len += 1;
     } else {
       len += 2 + EXPR_VALUE_DISPLAY_PRECISION;
     }
   } else {
-    if (imag(value) == 0) {
+    if (value.imag() == 0) {
       len += 1 + EXPR_VALUE_DISPLAY_PRECISION;
     } else {
       len += 6 + EXPR_VALUE_DISPLAY_PRECISION * 2;
     }
   }
 
-  if (real(value) < 0) {
+  if (value.real() < 0) {
     return len + 1;
   } else {
     return len;
@@ -1683,6 +1705,16 @@ bool operator<(any_vector_t<T, D> const& value, S&&) {
   return false;
 }
 
+template <typename S>
+bool operator>(complex_t const& value, S&&) {
+  return true;
+}
+
+template <typename S>
+bool operator<(complex_t const& value, S&&) {
+  return false;
+}
+
 template <typename... Es>
 struct OpAddList;
 
@@ -2182,6 +2214,14 @@ inline size_t mul_print_left(FILE* out, bool neg) {
   }
 }
 
+inline size_t mul_print_length_left(bool neg) {
+  if (neg) {
+    return STR_ARR_LEN(SYEX_MUL_FMT_A);
+  } else {
+    return STR_ARR_LEN(SYEX_MUL_FMT_AA);
+  }
+}
+
 inline size_t mul_print_sep(FILE* out, bool neg1, bool neg2) {
   if (neg1 && neg2) {
     return fprintf(out, SYEX_MUL_SEP);
@@ -2194,11 +2234,31 @@ inline size_t mul_print_sep(FILE* out, bool neg1, bool neg2) {
   }
 }
 
+inline size_t mul_print_length_sep(bool neg1, bool neg2) {
+  if (neg1 && neg2) {
+    return STR_ARR_LEN(SYEX_MUL_SEP);
+  } else if (neg1) {
+    return STR_ARR_LEN(SYEX_MUL_SEP_A);
+  } else if (neg2) {
+    return STR_ARR_LEN(SYEX_MUL_SEP_B);
+  } else {
+    return STR_ARR_LEN(SYEX_MUL_SEP_AB);
+  }
+}
+
 inline size_t mul_print_right(FILE* out, bool neg) {
   if (neg) {
     return fprintf(out, "%s", SYEX_MUL_FMT_B);
   } else {
     return fprintf(out, "%s", SYEX_MUL_FMT_BB);
+  }
+}
+
+inline size_t mul_print_length_right(bool neg) {
+  if (neg) {
+    return STR_ARR_LEN(SYEX_MUL_FMT_B);
+  } else {
+    return STR_ARR_LEN(SYEX_MUL_FMT_BB);
   }
 }
 
@@ -2248,6 +2308,21 @@ size_t mul_print(FILE* out, OpExpression<E1> const& a,
 }
 
 template <typename E1, typename E2>
+size_t mul_print_length(OpExpression<E1> const& a, OpExpression<E2> const& b) {
+  size_t n = 0;
+  bool neg1 = expr::eval(expr::coeff(*static_cast<E1 const*>(&a))) < 0 ||
+              expr::is_add<E1>;
+  bool neg2 = expr::eval(expr::coeff(*static_cast<E2 const*>(&b))) < 0 ||
+              expr::is_add<E2>;
+  n += mul_print_length_left(neg1);
+  n += static_cast<E1 const*>(&a)->print_length();
+  n += mul_print_length_sep(neg1, neg2);
+  n += static_cast<E2 const*>(&b)->print_length();
+  n += mul_print_length_right(neg2);
+  return n;
+}
+
+template <typename E1, typename E2>
 size_t mul_print(FILE* out, OpOperator<E1> const& a,
                  OpExpression<E2> const& b) {
   size_t n = 0;
@@ -2260,6 +2335,20 @@ size_t mul_print(FILE* out, OpOperator<E1> const& a,
   n += mul_print_sep(out, neg1, neg2);
   n += static_cast<E2 const*>(&b)->print(out);
   n += mul_print_right(out, neg2);
+  return n;
+}
+
+template <typename E1, typename E2>
+size_t mul_print_length(OpOperator<E1> const& a, OpExpression<E2> const& b) {
+  size_t n = 0;
+  bool neg1 = false;
+  bool neg2 = expr::eval(expr::coeff(*static_cast<E2 const*>(&b))) < 0 ||
+              expr::is_add<E2>;
+  n += mul_print_length_left(neg1);
+  n += static_cast<E1 const*>(&a)->print_length();
+  n += mul_print_length_sep(neg1, neg2);
+  n += static_cast<E2 const*>(&b)->print_length();
+  n += mul_print_length_right(neg2);
   return n;
 }
 
@@ -2280,6 +2369,20 @@ size_t mul_print(FILE* out, OpExpression<E1> const& a,
 }
 
 template <typename E1, typename E2>
+size_t mul_print_length(OpExpression<E1> const& a, OpOperator<E2> const& b) {
+  size_t n = 0;
+  bool neg1 = expr::eval(expr::coeff(*static_cast<E1 const*>(&a))) < 0 ||
+              expr::is_add<E1>;
+  bool neg2 = false;
+  n += mul_print_length_left(neg1);
+  n += static_cast<E1 const*>(&a)->print_length();
+  n += mul_print_length_sep(neg1, neg2);
+  n += static_cast<E2 const*>(&b)->print_length();
+  n += mul_print_length_right(neg2);
+  return n;
+}
+
+template <typename E1, typename E2>
 size_t mul_print(FILE* out, OpOperator<E1> const& a, OpOperator<E2> const& b) {
   size_t n = 0;
   bool neg1 = false;
@@ -2290,6 +2393,19 @@ size_t mul_print(FILE* out, OpOperator<E1> const& a, OpOperator<E2> const& b) {
   n += mul_print_sep(out, neg1, neg2);
   n += static_cast<E2 const*>(&b)->print(out);
   n += mul_print_right(out, neg2);
+  return n;
+}
+
+template <typename E1, typename E2>
+size_t mul_print_length(OpOperator<E1> const& a, OpOperator<E2> const& b) {
+  size_t n = 0;
+  bool neg1 = false;
+  bool neg2 = false;
+  n += mul_print_length_left(neg1);
+  n += static_cast<E1 const*>(&a)->print_length();
+  n += mul_print_length_sep(neg1, neg2);
+  n += static_cast<E2 const*>(&b)->print_length();
+  n += mul_print_length_right(neg2);
   return n;
 }
 
@@ -2372,6 +2488,20 @@ size_t mul_print(FILE* out, OpIntegral<V, E1, T> const& a,
 }
 
 template <typename V, typename E1, typename T, typename E2>
+size_t mul_print_length(OpIntegral<V, E1, T> const& a,
+                        OpExpression<E2> const& b) {
+  size_t n = 0;
+  bool neg1 = expr::eval(expr::coeff(a)) < 0;
+  bool neg2 = true;
+  n += mul_print_length_left(neg1);
+  n += a.print_length();
+  n += mul_print_length_sep(neg1, neg2);
+  n += static_cast<E2 const*>(&b)->print_length();
+  n += mul_print_length_right(neg2);
+  return n;
+}
+
+template <typename V, typename E1, typename T, typename E2>
 size_t mul_print(FILE* out, OpIntegral<V, E1, T> const& a,
                  OpOperator<E2> const& b) {
   size_t n = 0;
@@ -2386,12 +2516,35 @@ size_t mul_print(FILE* out, OpIntegral<V, E1, T> const& a,
   return n;
 }
 
+template <typename V, typename E1, typename T, typename E2>
+size_t mul_print_length(OpIntegral<V, E1, T> const& a,
+                        OpOperator<E2> const& b) {
+  size_t n = 0;
+  bool neg1 = expr::eval(expr::coeff(a)) < 0;
+  bool neg2 = false;
+  n += mul_print_length_left(neg1);
+  n += a.print_length();
+  n += mul_print_length_sep(neg1, neg2);
+  n += static_cast<E2 const*>(&b)->print_length();
+  n += mul_print_length_right(neg2);
+  return n;
+}
+
 template <typename E>
 size_t mul_print(FILE* out, OpIdentity, OpExpression<E> const& b) {
   size_t n = 0;
   n += mul_print_left(out, true);
   n += static_cast<E const*>(&b)->print(out);
   n += mul_print_right(out, true);
+  return n;
+}
+
+template <typename E>
+size_t mul_print_length(OpIdentity, OpExpression<E> const& b) {
+  size_t n = 0;
+  n += mul_print_length_left(true);
+  n += static_cast<E const*>(&b)->print_length();
+  n += mul_print_length_right(true);
   return n;
 }
 
@@ -2405,11 +2558,29 @@ size_t mul_print(FILE* out, OpIdentity, OpOperator<E> const& b) {
 }
 
 template <typename E>
+size_t mul_print_length(OpIdentity, OpOperator<E> const& b) {
+  size_t n = 0;
+  n += mul_print_length_left(true);
+  n += static_cast<E const*>(&b)->print_length();
+  n += mul_print_length_right(true);
+  return n;
+}
+
+template <typename E>
 size_t mul_print(FILE* out, OpNegIdentity, OpExpression<E> const& b) {
   size_t n = 0;
   n += mul_print_left(out, true);
   n += (-*static_cast<E const*>(&b)).print(out);
   n += mul_print_right(out, true);
+  return n;
+}
+
+template <typename E>
+size_t mul_print_length(OpNegIdentity, OpExpression<E> const& b) {
+  size_t n = 0;
+  n += mul_print_length_left(true);
+  n += (-*static_cast<E const*>(&b)).print_length();
+  n += mul_print_length_right(true);
   return n;
 }
 
@@ -2423,6 +2594,15 @@ size_t mul_print(FILE* out, OpNegIdentity, OpOperator<E> const& b) {
 }
 
 template <typename E>
+size_t mul_print_length(OpNegIdentity, OpOperator<E> const& b) {
+  size_t n = 0;
+  n += mul_print_length_left(true);
+  n += (-*static_cast<E const*>(&b)).print_length();
+  n += mul_print_length_right(true);
+  return n;
+}
+
+template <typename E>
 size_t mul_print(FILE* out, OpOperator<E> const& a, OpIdentity) {
   size_t n = 0;
   n += mul_print_left(out, true);
@@ -2432,11 +2612,29 @@ size_t mul_print(FILE* out, OpOperator<E> const& a, OpIdentity) {
 }
 
 template <typename E>
+size_t mul_print_length(OpOperator<E> const& a, OpIdentity) {
+  size_t n = 0;
+  n += mul_print_length_left(true);
+  n += static_cast<E const*>(&a)->print_length();
+  n += mul_print_length_right(true);
+  return n;
+}
+
+template <typename E>
 size_t mul_print(FILE* out, OpExpression<E> const& a, OpIdentity) {
   size_t n = 0;
   n += mul_print_left(out, true);
   n += static_cast<E const*>(&a)->print(out);
   n += mul_print_right(out, true);
+  return n;
+}
+
+template <typename E>
+size_t mul_print_length(OpExpression<E> const& a, OpIdentity) {
+  size_t n = 0;
+  n += mul_print_length_left(true);
+  n += static_cast<E const*>(&a)->print_length();
+  n += mul_print_length_right(true);
   return n;
 }
 
@@ -2486,6 +2684,20 @@ size_t mul_print(FILE* out, OpExpression<E1> const& a,
 }
 
 template <typename V, typename E1, typename T, typename E2>
+size_t mul_print_length(OpExpression<E1> const& a,
+                        OpIntegral<V, E2, T> const& b) {
+  bool neg1 = expr::eval(expr::coeff(*static_cast<E1 const*>(&a))) < 0;
+  bool neg2 = false;
+  size_t n = 0;
+  n += STR_ARR_LEN(SYEX_MUL_FMT_AA);
+  n += static_cast<E1 const*>(&a)->print_length();
+  n += STR_ARR_LEN(SYEX_MUL_SEP_OP);
+  n += b.print_length();
+  n += STR_ARR_LEN(SYEX_MUL_FMT_BB);
+  return n;
+}
+
+template <typename V, typename E1, typename T, typename E2>
 size_t mul_print(FILE* out, OpOperator<E1> const& a,
                  OpIntegral<V, E2, T> const& b) {
   bool neg1 = false;
@@ -2497,6 +2709,20 @@ size_t mul_print(FILE* out, OpOperator<E1> const& a,
   n += fprintf(out, "%s", SYEX_MUL_SEP_OP);
   n += b.print(out);
   n += fprintf(out, "%s", SYEX_MUL_FMT_BB);
+  return n;
+}
+
+template <typename V, typename E1, typename T, typename E2>
+size_t mul_print_length(OpOperator<E1> const& a,
+                        OpIntegral<V, E2, T> const& b) {
+  bool neg1 = false;
+  bool neg2 = false;
+  size_t n = 0;
+  n += STR_ARR_LEN(SYEX_MUL_FMT_AA);
+  n += static_cast<E1 const*>(&a)->print_length();
+  n += STR_ARR_LEN(SYEX_MUL_SEP_OP);
+  n += b.print_length();
+  n += STR_ARR_LEN(SYEX_MUL_FMT_BB);
   return n;
 }
 
@@ -2543,6 +2769,21 @@ size_t mul_print(FILE* out, OpIntegral<V1, E1, T1> const& a,
   n += fprintf(out, "%s", SYEX_MUL_SEP_OP);
   n += b.print(out);
   n += fprintf(out, "%s", SYEX_MUL_FMT_BB);
+  return n;
+}
+
+template <typename V1, typename E1, typename T1, typename V2, typename E2,
+          typename T2>
+size_t mul_print_length(OpIntegral<V1, E1, T1> const& a,
+                        OpIntegral<V2, E2, T2> const& b) {
+  bool neg1 = false;
+  bool neg2 = false;
+  size_t n = 0;
+  n += STR_ARR_LEN(SYEX_MUL_FMT_AA);
+  n += a.print_length();
+  n += STR_ARR_LEN(SYEX_MUL_SEP_OP);
+  n += b.print_length();
+  n += STR_ARR_LEN(SYEX_MUL_FMT_BB);
   return n;
 }
 
@@ -2632,6 +2873,14 @@ size_t mul_print(FILE* out, coeff_t const& a, DynamicIndex const& b) {
   return n;
 }
 
+template <typename coeff_t, std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
+size_t mul_print_length(coeff_t const& a, DynamicIndex const& b) {
+  size_t n = 0;
+  n += expr::coeff_print_length(a);
+  n += b.print_length();
+  return n;
+}
+
 #endif
 
 }  // namespace symphas::internal
@@ -2662,9 +2911,7 @@ struct OpBinaryMul : OpExpression<OpBinaryMul<E1, E2>> {
     return symphas::internal::mul_print(out, a, b);
   }
 
-  size_t print_length() const {
-    return a.print_length() + b.print_length() + SYEX_MUL_FMT_LEN;
-  }
+  size_t print_length() const { return mul_print_length(a, b); }
 
 #endif
 

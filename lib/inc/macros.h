@@ -46,7 +46,7 @@
 #define UNUSED(...) do { (void)(__VA_ARGS__); } while (0);
 #define STR_ARR_LEN(STR) (sizeof(STR) / sizeof(char))
 
-#define __SYMPHAS_STR(x) #x
+#define __SYMPHAS_STR(...) #__VA_ARGS__
 #define __SYMPHAS_CONCAT(A, B) A ## B
 
 
@@ -58,7 +58,7 @@
 #define SINGLE_ARG(...) __VA_ARGS__
 
 //! Stringify the argument.
-#define STR(x) __SYMPHAS_STR(x)
+#define STR(...) __SYMPHAS_STR(__VA_ARGS__)
 
 //! Concatenate the two arguments.
 #define CONCAT(A, B) __SYMPHAS_CONCAT(A, B)

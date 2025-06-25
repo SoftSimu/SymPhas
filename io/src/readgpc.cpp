@@ -35,7 +35,10 @@ void symphas::io::gp::col::read_block(scalar_t* grid,
           }
         }
         scalar_t value;
-        fscanf(f, "%lf", &value);
+        if (fscanf(f, "%lf", &value) != 1) {
+          fprintf(SYMPHAS_ERR, SYMPHAS_MSG_ERR_FILE_READ, "scalar_t");
+          exit(ERR_CODE_FILE_READ);
+        }
         if (grid != nullptr && helper->in_bounds({i, j, k})) {
           iter_type ii = GP_HELPER_INDEX({i, j, k});
           grid[ii] = value;

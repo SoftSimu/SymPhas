@@ -233,6 +233,11 @@ struct make_derivative {
   template <typename V, typename S, typename G, typename Sp>
   static auto get(V const& v, OpTerm<S, G> const& e, solver_op_type<Sp> solver);
 
+  //! Constructs the derivative applied to a variable.
+  template <typename V, typename V0, typename E, typename Sp>
+  static auto get(V const& v, OpChain<V0, OpIdentity, E> const& e,
+                  solver_op_type<Sp> solver);
+
   //! Constructs the derivative applied to a constant.
   template <
       typename V, typename coeff_t, typename Sp,
@@ -250,6 +255,10 @@ struct make_derivative {
 
   template <typename V, typename E, typename G0>
   static auto get(V const& v, OpOperator<E> const& e,
+                  SymbolicDerivative<G0> const& solver);
+
+  template <typename V, typename V0, typename E, typename G0>
+  static auto get(V const& v, OpChain<V0, OpIdentity, E> const& e,
                   SymbolicDerivative<G0> const& solver);
 
   //! Constructs the derivative using a grid instead of an expression.
@@ -1772,7 +1781,8 @@ struct OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G>>
 
   size_t print(FILE* out) const {
     size_t n = expr::print_with_coeff(out, value);
-    n += print_type::print(out, G{});
+    auto v = expr::get_variable(G{}, e);
+    n += print_type::print(out, v);
     n += fprintf(out, SYEX_DERIV_APPLIED_EXPR_FMT_A);
     n += e.print(out);
     n += fprintf(out, SYEX_DERIV_APPLIED_EXPR_FMT_B);
@@ -1781,7 +1791,8 @@ struct OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G>>
 
   size_t print(char* out) const {
     size_t n = expr::print_with_coeff(out, value);
-    n += print_type::print(out + n, G{});
+    auto v = expr::get_variable(G{}, e);
+    n += print_type::print(out + n, v);
     n += sprintf(out + n, SYEX_DERIV_APPLIED_EXPR_FMT_A);
     n += e.print(out + n);
     n += sprintf(out + n, SYEX_DERIV_APPLIED_EXPR_FMT_B);
@@ -1789,10 +1800,11 @@ struct OpDerivative<std::index_sequence<O>, V, E, SymbolicDerivative<G>>
   }
 
   size_t print_length() const {
+    auto v = expr::get_variable(G{}, e);
     return expr::coeff_print_length(value) +
            STR_ARR_LEN(
                SYEX_DERIV_APPLIED_EXPR_FMT_A SYEX_DERIV_APPLIED_EXPR_FMT_B) -
-           1 + print_type::print_length(G{}) + e.print_length();
+           1 + print_type::print_length(v) + e.print_length();
   }
 
 #endif
@@ -3256,10 +3268,30 @@ inline auto make_derivative<Dd>::get(V const& v, OpOperator<E> const& e,
 }
 
 template <typename Dd>
+template <typename V, typename V0, typename E, typename G0>
+inline auto make_derivative<Dd>::get(V const& v,
+                                     OpChain<V0, OpIdentity, E> const& e,
+                                     SymbolicDerivative<G0> const& solver) {
+  return OpChain(
+      e.combination,
+      make_derivative<Dd>::get(v, expr::get_enclosed_expression(e), solver));
+}
+
+template <typename Dd>
 template <typename V, typename S, typename G, typename Sp>
 inline auto make_derivative<Dd>::get(V const& v, OpTerm<S, G> const& e,
                                      solver_op_type<Sp> solver) {
   return make_derivative<Dd>::get_g(v * expr::coeff(e), expr::data(e), solver);
+}
+
+template <typename Dd>
+template <typename V, typename V0, typename E, typename Sp>
+inline auto make_derivative<Dd>::get(V const& v,
+                                     OpChain<V0, OpIdentity, E> const& e,
+                                     solver_op_type<Sp> solver) {
+  return OpChain(
+      e.combination,
+      make_derivative<Dd>::get(v, expr::get_enclosed_expression(e), solver));
 }
 
 template <typename Dd>
@@ -3474,13 +3506,10 @@ auto make_gradient(E&& e, solver_op_type<Sp> solver) {
   // return symphas::internal::gradient_apply<ax, Sp>::template
   // get(OpIdentity{}, std::forward<E>(e), solver);
 }
-}  // namespace expr
 
-namespace symphas::math {
 //! Apply the curl of a vector.
 /*!
- * Compound assignment operator to calculate the conventional cross product and
- * assign it to the calling instance.
+ * Calculate the conventional cross product.
  *
  * Assignment operator to compute the cross product, which is only applicable to
  * the 3-dimensional VectorValue template specialization. Operator is called by
@@ -3490,29 +3519,30 @@ namespace symphas::math {
  * \param rhs The VectorValue instance where data is taken from to compute the
  * cross product the data from the left hand instance.
  */
-template <
-    size_t O, typename V, typename Sp, typename E,
-    typename = std::enable_if_t<(expr::eval_type<E>::dimension == 3), int>>
-auto cross(OpOperatorDerivative<O, V, Sp> const& d_op,
-           OpExpression<E> const& e) {
-  any_vector_t<scalar_t, 3> result;
-  auto lhs0 =
-      expr::make_operator_directional_derivative<Axis::X, 1>(d_op.solver);
-  auto lhs1 =
-      expr::make_operator_directional_derivative<Axis::X, 1>(d_op.solver);
-  auto lhs2 =
-      expr::make_operator_directional_derivative<Axis::X, 1>(d_op.solver);
+template <typename E1, typename E2,
+          typename = std::enable_if_t<((expr::eval_type<E1>::rank == 3) &&
+                                       (expr::eval_type<E1>::rank == 3)),
+                                      int>>
+auto cross(OpExpression<E1> const& a, OpExpression<E2> const& b) {
+  auto&& r1 = expr::make_row_vector<0, 3>();
+  auto&& r2 = expr::make_row_vector<1, 3>();
+  auto&& r3 = expr::make_row_vector<2, 3>();
 
-  // result[0] = (lhs[1] * rhs[2] - lhs[2] * rhs[1]);
-  // result[1] = (lhs[2] * rhs[0] - lhs[0] * rhs[2]);
-  // result[2] = (lhs[0] * rhs[1] - lhs[1] * rhs[0]);
+  auto&& a1 = r1 * (*static_cast<E1 const*>(&a));
+  auto&& a2 = r2 * (*static_cast<E1 const*>(&a));
+  auto&& a3 = r3 * (*static_cast<E1 const*>(&a));
+  auto&& b1 = r1 * (*static_cast<E2 const*>(&b));
+  auto&& b2 = r2 * (*static_cast<E2 const*>(&b));
+  auto&& b3 = r3 * (*static_cast<E2 const*>(&b));
 
-  return result;
+  auto&& s1 = a2 * b3 - a3 * b2;
+  auto&& s2 = a3 * b1 - a1 * b3;
+  auto&& s3 = a1 * b2 - a2 * b1;
+
+  return expr::make_column_vector<0, 3>(s1) +
+         expr::make_column_vector<1, 3>(s2) +
+         expr::make_column_vector<2, 3>(s3);
 }
-
-}  // namespace symphas::math
-
-namespace expr {
 
 template <typename E>
 int _get_solver(OpExpression<E> const& e);

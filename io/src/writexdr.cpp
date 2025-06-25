@@ -26,7 +26,7 @@
 XDRFILE* open_xdrgridf(symphas::io::write_info winfo, bool is_checkpoint)
 {
 	char name[BUFFER_LENGTH];
-	symphas::io::copy_data_file_name(winfo.dir_str_ptr, winfo.index, winfo.id, (is_checkpoint ? DataFileType::CHECKPOINT_DATA : winfo.type), name);
+	symphas::io::copy_data_file_name(winfo.dir, winfo.index, winfo.id, (is_checkpoint ? DataFileType::CHECKPOINT_DATA : winfo.type), name);
 
 	char mode[2];
 	if (params::single_output_file)
@@ -47,7 +47,7 @@ void print_xdr_header(int index, size_t id, symphas::grid_info const& ginfo, sym
 	static std::vector<std::tuple<std::string, size_t>> idlist;
 	
 	int dim = static_cast<int>(ginfo.dimension());
-	if (!params::single_output_file || (std::find(idlist.begin(), idlist.end(), std::make_tuple(winfo.dir_str_ptr, id)) == idlist.end()))
+	if (!params::single_output_file || (std::find(idlist.begin(), idlist.end(), std::make_tuple(winfo.dir, id)) == idlist.end()))
 	{
 		xdrfile_write_int(&dim, 1, f);
 
@@ -69,9 +69,9 @@ void print_xdr_header(int index, size_t id, symphas::grid_info const& ginfo, sym
 			xdrfile_write_double(&domain[0], 2, f);
 		}
 
-		if (std::find(idlist.begin(), idlist.end(), std::make_tuple(winfo.dir_str_ptr, id)) == idlist.end())
+		if (std::find(idlist.begin(), idlist.end(), std::make_tuple(winfo.dir, id)) == idlist.end())
 		{
-			idlist.emplace_back(winfo.dir_str_ptr, id);
+			idlist.emplace_back(winfo.dir, id);
 		}
 	}
 	xdrfile_write_int(&index, 1, f);

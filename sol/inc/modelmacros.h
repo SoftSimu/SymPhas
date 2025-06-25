@@ -28,6 +28,218 @@
 
 #include "modeldefs.h"
 
+/* ***************************************************************************
+ * LINK_WITH_NAME Technical Implementation Guide
+ *
+ * This file documents the technical implementation of the LINK_WITH_NAME
+ * model selection system in SymPhas. This is an internal documentation
+ * file for developers who need to understand how runtime string-based
+ * model selection works under the hood.
+ *
+ * ***************************************************************************
+ */
+
+#pragma once
+
+/*
+ * ===========================================================================
+ * LINK_WITH_NAME IMPLEMENTATION OVERVIEW
+ * ===========================================================================
+ *
+ * The LINK_WITH_NAME macro creates a sophisticated compile-time
+ * metaprogramming framework that enables string-based model selection
+ * while maintaining full type safety and performance.
+ *
+ * HIGH-LEVEL EXECUTION FLOW:
+ *
+ * 1. User Code:
+ *    MODEL(MyModel, (SCALAR), EVOLUTION(...))
+ *    LINK_WITH_NAME(MyModel, ALIAS)
+ *
+ * 2. Compile-time Generation:
+ *    Creates template specializations of model_call_wrapper with unique indices
+ *
+ * 3. Runtime Selection:
+ *    model_select<Simulation>{dimension, stp}.call<SolverFT>("ALIAS", args...)
+ *    → model_call_wrapper chain traversal with string matching
+ *    → Model instantiation with correct template parameters
+ *
+ * ===========================================================================
+ * MACRO EXPANSION DETAILS
+ * ===========================================================================
+ */
+
+// When you write:
+// LINK_WITH_NAME(MyModel, ALIAS)
+//
+// It expands to:
+// NEXT_MODEL_INDEX(MyModel, ALIAS)
+// MODEL_WRAPPER_FUNC(MyModel, ALIAS, model_MyModel::SpecializedModel)
+
+/*
+ * ---------------------------------------------------------------------------
+ * NEXT_MODEL_INDEX Expansion
+ * ---------------------------------------------------------------------------
+ *
+ * NEXT_MODEL_INDEX(MyModel, ALIAS) generates:
+ *
+ * namespace symphas::internal {
+ *     // Creates unique compile-time constant
+ *     constexpr int __MyModel_ALIAS_index = // auto-incremented value ;
+ *
+ *     // Template counter mechanism for unique indices
+ *     constexpr model_count_index<__MyModel_ALIAS_index> model_counter(
+ *         model_count_index<__MyModel_ALIAS_index>);
+ * }
+ */
+
+/*
+ * ===========================================================================
+ * RUNTIME EXECUTION CHAIN
+ * ===========================================================================
+ *
+ * Step 1: User calls model selection
+ * -----------------------------------
+ *
+ * void example_usage() {
+ *     // Create model selector with dimension and stencil parameters
+ *     model_select<Simulation> selector{2, StencilParams{2, 9, 6, 13}};
+ *
+ *     // Trigger model selection by name
+ *     selector.call<SolverFT>("ALIAS", model_args...);
+ * }
+ */
+
+/*
+ * Step 2: model_select::call implementation
+ * -----------------------------------------
+ * Located in modules-models.h:
+ */
+
+/*
+ * Step 3: model_call_wrapper chain traversal
+ * -------------------------------------------
+ *
+ * The system creates a compile-time linked list of template specializations.
+ * Each LINK_WITH_NAME creates one node in this chain.
+ *
+ * Traversal order (assuming indices 100, 99, 98...):
+ *
+ * model_call_wrapper<..., 100>::call("ALIAS", ...)
+ *   - strcmp("ALIAS", "SOME_OTHER_MODEL") != 0
+ *   - model_call_wrapper<..., 99>::call("ALIAS", ...)
+ *     - strcmp("ALIAS", "ANOTHER_MODEL") != 0
+ *     - model_call_wrapper<..., 98>::call("ALIAS", ...)
+ *       - strcmp("ALIAS", "ALIAS") == 0
+ *       - MATCH FOUND! Instantiate MyModel
+ */
+
+/*
+ * Step 4: Model instantiation via ModelSelectStencil
+ * ---------------------------------------------------
+ *
+ * When a string match is found, ModelSelectStencil handles the final
+ * template parameter resolution:
+ */
+
+/*
+ * ===========================================================================
+ * INTEGRATION WITH SYMPHAS COMPONENTS
+ * ===========================================================================
+ */
+
+/*
+ * Configuration System Integration:
+ * --------------------------------
+ *
+ * JSON/Legacy config files specify model name as string:
+ * {"model": {"name": "ALIAS"}} or MODEL_NAME ALIAS
+ *
+ * The configuration parser extracts this string and passes it to
+ * model_select::call(), which triggers the LINK_WITH_NAME lookup chain.
+ */
+
+/*
+ * Solver Integration:
+ * ------------------
+ *
+ * The AppliedSolver template parameter (e.g., SolverFT) is passed through
+ * the entire chain and used during final model instantiation:
+ *
+ * ModelSelectStencil<..., MyModel, SolverFT> creates:
+ * Model<D, SolverFT<StencilType, N>>
+ */
+
+/*
+ * Stencil System Integration:
+ * ---------------------------
+ *
+ * StencilParams from model_select are used by ModelSelectStencil to:
+ * 1. Select appropriate stencil type based on dimension and order
+ * 2. Validate stencil point counts against available implementations
+ * 3. Create SolverFT<StencilType, N> with correct template parameters
+ */
+
+/*
+ * Application Integration:
+ * -----------------------
+ *
+ * The model_apply_type template parameter specifies what happens to
+ * the instantiated model. Common examples:
+ *
+ * - Simulation: Runs the model with find_solution()
+ * - Validation: Checks model parameters and setup
+ * - Analysis: Extracts model information without running
+ */
+
+/*
+ * ===========================================================================
+ * DEBUGGING AND TROUBLESHOOTING
+ * ===========================================================================
+ *
+ * Common Issues:
+ *
+ * 1. "Unknown model" error:
+ *    - String name doesn't match any LINK_WITH_NAME declaration
+ *    - Check spelling and case sensitivity
+ *    - Verify LINK_WITH_NAME is in included headers
+ *
+ * 2. Template instantiation errors:
+ *    - Model type incompatible with solver
+ *    - Dimension mismatch between model and configuration
+ *    - Missing template specializations for specific parameter combinations
+ *
+ * 3. Compilation errors in model_call_wrapper:
+ *    - Duplicate LINK_WITH_NAME entries with same name
+ *    - Missing model definition for linked name
+ *    - MAX_DEFINED_MODELS limit exceeded
+ *
+ * Debugging Techniques:
+ *
+ * 1. Add fprintf debugging to model_call_wrapper::call to trace lookup
+ * 2. Use compiler error messages to identify template parameter mismatches
+ * 3. Check MODEL_INDEX_NAME generation with static_assert
+ * 4. Verify model counter values with constexpr debugging
+ */
+
+/*
+ * ===========================================================================
+ * EXTENDING THE SYSTEM
+ * ===========================================================================
+ *
+ * Adding New Model Types:
+ * 1. Define model with MODEL(...) macro
+ * 2. Add LINK_WITH_NAME(...) declarations
+ * 3. Ensure model is compatible with target solvers
+ * 4. Test with model_select::call()
+ *
+ * Adding New Solvers:
+ * 1. Create solver class following SolverFT/SolverSP pattern
+ * 2. Ensure compatibility with ModelSelectStencil template resolution
+ * 3. Test integration with existing models via LINK_WITH_NAME
+ *
+ */
+
 // Calls a desired function with the model.
 /*!
  * Sets up being able to call models with the ::model_select class. See this
@@ -51,34 +263,37 @@
  * ternary tree in order to run the model on the correct solver type based on
  * the stencil and dimension.
  */
-#define MODEL_WRAPPER_FUNC(NAME, GIVEN_NAME, MODEL)                          \
-  template <template <typename> typename model_apply_type>                   \
-  struct model_call_wrapper<model_apply_type,                                \
-                            symphas::internal::MODEL_INDEX_NAME(NAME)> {     \
-    template <template <typename, size_t> typename AppliedSolver,            \
-              typename... Ts>                                                \
-    static int call(size_t dimension, StencilParams stp, const char* name,   \
-                    Ts&&... args) {                                          \
-      if (std::strcmp(name, #GIVEN_NAME) == 0) {                             \
-        return ModelSelectStencil<model_apply_type, MODEL, AppliedSolver>{   \
-            name, dimension, stp}(std::forward<Ts>(args)...);                \
-      }                                                                      \
-      return model_call_wrapper<                                             \
-          model_apply_type, symphas::internal::MODEL_INDEX_NAME(NAME) - 1>:: \
-          template call<AppliedSolver>(dimension, stp, name,                 \
-                                       std::forward<Ts>(args)...);           \
-    }                                                                        \
-    template <template <size_t> typename AppliedSolver, typename... Ts>      \
-    static int call(size_t dimension, const char* name, Ts&&... args) {      \
-      if (std::strcmp(name, #GIVEN_NAME) == 0) {                             \
-        return ModelSelect<model_apply_type, MODEL, AppliedSolver>{          \
-            name, dimension}(std::forward<Ts>(args)...);                     \
-      }                                                                      \
-      return model_call_wrapper<                                             \
-          model_apply_type, symphas::internal::MODEL_INDEX_NAME(NAME) - 1>:: \
-          template call<AppliedSolver>(dimension, name,                      \
-                                       std::forward<Ts>(args)...);           \
-    }                                                                        \
+#define MODEL_WRAPPER_FUNC(NAME, GIVEN_NAME, MODEL)                            \
+  template <template <typename> typename model_apply_type>                     \
+  struct model_call_wrapper<model_apply_type,                                  \
+                            symphas::internal::MODEL_INDEX_NAME(NAME,          \
+                                                                GIVEN_NAME)> { \
+    template <template <typename, size_t> typename AppliedSolver,              \
+              typename... Ts>                                                  \
+    static int call(size_t dimension, StencilParams stp, const char* name,     \
+                    Ts&&... args) {                                            \
+      if (std::strcmp(name, #GIVEN_NAME) == 0) {                               \
+        return ModelSelectStencil<model_apply_type, MODEL, AppliedSolver>{     \
+            name, dimension, stp}(std::forward<Ts>(args)...);                  \
+      }                                                                        \
+      return model_call_wrapper<                                               \
+          model_apply_type,                                                    \
+          symphas::internal::MODEL_INDEX_NAME(NAME, GIVEN_NAME) -              \
+              1>::template call<AppliedSolver>(dimension, stp, name,           \
+                                               std::forward<Ts>(args)...);     \
+    }                                                                          \
+    template <template <size_t> typename AppliedSolver, typename... Ts>        \
+    static int call(size_t dimension, const char* name, Ts&&... args) {        \
+      if (std::strcmp(name, #GIVEN_NAME) == 0) {                               \
+        return ModelSelect<model_apply_type, MODEL, AppliedSolver>{            \
+            name, dimension}(std::forward<Ts>(args)...);                       \
+      }                                                                        \
+      return model_call_wrapper<                                               \
+          model_apply_type,                                                    \
+          symphas::internal::MODEL_INDEX_NAME(NAME, GIVEN_NAME) -              \
+              1>::template call<AppliedSolver>(dimension, name,                \
+                                               std::forward<Ts>(args)...);     \
+    }                                                                          \
   };
 
 // **************************************************************************************
@@ -394,6 +609,9 @@ struct ModelSelect {
       template <size_t Dm, typename Sp>                                       \
       using type =                                                            \
           typename OpTypes<Dm, Sp>::template Specialized<TraitEquationModel>; \
+      template <typename parent_trait>                                        \
+      using equation_inherit_type =                                           \
+          TraitEquation<TraitEquationModel, parent_trait>;                    \
     };                                                                        \
     __VA_ARGS__                                                               \
   }                                                                           \
@@ -459,15 +677,29 @@ struct ModelSelect {
  * ... The equations defining computation of the intermediate variables. The
  * order of these equations is determined by the order the types are provided.
  */
-#define PROVISIONAL_DEF(TYPES, ...)                                          \
-  PROVISIONAL_TRAIT_FORWARD_DECL                                             \
-  template <>                                                                \
-  struct using_provisional<void> {                                           \
-    template <size_t Dm, typename Sp>                                        \
-    using type =                                                             \
-        typename OpTypes<Dm, Sp>::template ProvTypes<SINGLE_ARG TYPES>::     \
-            template Specialized<TraitEquationModel, TraitProvisionalModel>; \
-  };                                                                         \
+#define PROVISIONAL_DEF(TYPES, ...)                                           \
+  PROVISIONAL_TRAIT_FORWARD_DECL                                              \
+  template <>                                                                 \
+  struct using_provisional<void> {                                            \
+    template <size_t Dm>                                                      \
+    using expanded_prov_types =                                               \
+        typename symphas::internal::expand_field_types_t<Dm,                  \
+                                                         SINGLE_ARG TYPES>;   \
+    template <typename T>                                                     \
+    struct model_prov_type;                                                   \
+    template <typename... Ts>                                                 \
+    struct model_prov_type<symphas::lib::types_list<Ts...>> {                 \
+      template <size_t Dm, typename Sp>                                       \
+      using type = typename OpTypes<Dm, Sp>::template ProvTypes<              \
+          Ts...>::template Specialized<TraitEquationModel>;                   \
+    };                                                                        \
+    template <size_t Dm, typename Sp>                                         \
+    using type =                                                              \
+        typename model_prov_type<expanded_prov_types<Dm>>::template type<Dm,  \
+                                                                         Sp>; \
+    template <typename parent_trait>                                          \
+    using equation_inherit_type = TraitProvisionalModel<parent_trait>;        \
+  };                                                                          \
   PROVISIONAL_TRAIT_DEFINITION(__VA_ARGS__)
 
 //! Definition for providing phase field equations of motion.
@@ -598,7 +830,7 @@ struct ModelSelect {
  * parameter is not passed as a string because it is stringified by the macro.
  */
 #define LINK_WITH_NAME(NAME, GIVEN_NAME) \
-  NEXT_MODEL_INDEX(NAME)                 \
+  NEXT_MODEL_INDEX(NAME, GIVEN_NAME)     \
   MODEL_WRAPPER_FUNC(NAME, GIVEN_NAME, model_##NAME::SpecializedModel)
 
 // **************************************************************************************
@@ -778,7 +1010,7 @@ struct ModelSelect {
  * See #LINK_WITH_NAME.
  */
 #define LINK_PFC_WITH_NAME(NAME, GIVEN_NAME) \
-  NEXT_MODEL_INDEX(NAME)                     \
+  NEXT_MODEL_INDEX(NAME, GIVEN_NAME)         \
   MODEL_WRAPPER_FUNC(NAME, GIVEN_NAME, modelpfc_##NAME::ModelPFCSpecialized)
 
 // **************************************************************************************
@@ -874,7 +1106,19 @@ using model_repeating_type_t = typename model_repeating_type<N, T>::type;
  *
  * \param ORDER The order of the derivative.
  */
-#define Diff(ORDER) expr::make_operator_derivative<ORDER>(solver)
+#define diff(ORDER) expr::make_operator_derivative<ORDER>(solver)
+
+//! The divergence of an expression.
+/*!
+ * Constructs the divergence of the given expression.
+ */
+#define div(E) expr::divergence_of(E, solver)
+
+//! The curl of an expression.
+/*!
+ * Constructs the curl of the given expression.
+ */
+#define curl(E) expr::curl_of(E, solver)
 
 //! The directional derivative along x of first order.
 /*!
@@ -904,7 +1148,7 @@ using model_repeating_type_t = typename model_repeating_type<N, T>::type;
  *
  * \param EXPR The expression which is differentiated.
  */
-#define lap Diff(2)
+#define lap diff(2)
 
 //! The laplacian of an expression.
 /*!
@@ -913,7 +1157,7 @@ using model_repeating_type_t = typename model_repeating_type<N, T>::type;
  *
  * \param EXPR The expression which is differentiated.
  */
-#define bilap Diff(4)
+#define bilap diff(4)
 
 //! The gradient of an expression.
 /*!
@@ -922,7 +1166,7 @@ using model_repeating_type_t = typename model_repeating_type<N, T>::type;
  *
  * \param EXPR The expression which is differentiated.
  */
-#define grad Diff(1)
+#define grad diff(1)
 
 //! The laplacian of an expression.
 /*!
@@ -931,7 +1175,7 @@ using model_repeating_type_t = typename model_repeating_type<N, T>::type;
  *
  * \param EXPR The expression which is differentiated.
  */
-#define gradlap Diff(3)
+#define gradlap diff(3)
 
 //! Imposes a matrix shape with `N` columns to the coefficient array.
 /*!
@@ -944,8 +1188,7 @@ using model_repeating_type_t = typename model_repeating_type<N, T>::type;
  */
 #define param_matrix(N) parent_type::template param_matrix<N>()
 
-#define diff_N(E, VAR, N) expr::make_symbolic_derivative<N>(E, VAR)
-#define diff(E, VAR) diff_N(E, VAR, 1)
+#define symDiff(E, VAR, N) expr::make_symbolic_derivative<N>(E, VAR)
 
 #define NOISE(VARIETY, TYPE, ...) \
   parent_type::template make_noise<expr::NoiseType::VARIETY, TYPE>(__VA_ARGS__)
@@ -984,16 +1227,7 @@ using model_repeating_type_t = typename model_repeating_type<N, T>::type;
 // **************************************************************************************
 
 //! Standard Gaussian with spatial distance equal to unity.
-#define Gaussian                                           \
-  GaussianSmoothing<Dm> {                                  \
-    parent_type::template system<0>().get_info().intervals \
-  }
-
-//! Gaussian with spatial width based on the i-th field.
-#define Gaussian_n(i)                                      \
-  GaussianSmoothing<Dm> {                                  \
-    parent_type::template system<i>().get_info().intervals \
-  }
+#define Gaussian parent_type::make_gaussian_kernel()
 
 //! Apply smoothing to the expression `Z`.
 #define smoothing(Z) expr::make_convolution(Gaussian, Z)
@@ -1010,12 +1244,21 @@ using model_repeating_type_t = typename model_repeating_type<N, T>::type;
  */
 #define e(...) expr::make_unit_vector<Dm>(__VA_ARGS__)
 
+//! The unit row vector, which can be defined with one or two (for 3D) angles.
+/*!
+ * The correct unit vector will be chosen according to the dimension. In two
+ * dimensions, only the first direction will be used, and in three, the second
+ * direction will be used. If only one direction is provided, then in 3D, the
+ * second direction is assumed to be 0.
+ */
+#define e_(...) expr::make_unit_row_vector<Dm>(__VA_ARGS__)
+
 //! Apply the power N to an expression E.
 /*!
  * Construct an expression representing an expression E to the power of the
  * given value, N.
  */
-#define POWER(E, N) expr::pow<N>(E)
+#define power(E, N) expr::pow<N>(E)
 
 // free energy parameters
 
@@ -1052,10 +1295,9 @@ using model_repeating_type_t = typename model_repeating_type<N, T>::type;
 // #define op_kk_(P) op_(kk_(P), P)
 // #define op_kk op_kk_(0)
 
-#define DF(N) symphas::internal::dFE_var<N - 1>()
-#define DF_(In) symphas::internal::dFE_var(In)
-#define DF_ii DF_(ii_(0))
-#define DF_jj DF_(jj_(0))
+#define DF(N) symphas::internal::dFE_var<size_t(N) - 1>(N)
+#define DF_ii DF(ii_(0))
+#define DF_jj DF(jj_(0))
 
 // **************************************************************************************
 

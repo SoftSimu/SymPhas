@@ -35,7 +35,7 @@ inline void long_dft(T* data, complex_t* out, len_type len,
   for (iter_type ii = 0; ii < len; ++ii) {
     double ti = 0, p_ti = (2.0 * symphas::PI / len) * (ii);
     for (iter_type i = 0; i < len; ++i, ti += p_ti) {
-      out[ii] += data[i] * std::complex{cos(ti), -sin(ti)};
+      out[ii] += data[i] * complex_t{cos(ti), -sin(ti)};
     }
   }
 }
@@ -59,15 +59,15 @@ inline void long_dft(T* data, complex_t* out, iter_type L, iter_type M,
     iter_type index = start_i;
     for (; jj < M; ++jj) {
       for (; ii < L; ++ii) {
-        std::complex yy(0.0);
+        complex_t yy;
         double tj = 0, p_tj = (2.0 * symphas::PI / M) * (jj);
         for (iter_type j = 0; j < M; ++j, tj += p_tj) {
-          std::complex xx(0.0);
+          complex_t xx;
           double ti = 0, p_ti = (2.0 * symphas::PI / L) * (ii);
           for (iter_type i = 0; i < L; ++i, ti += p_ti) {
-            xx += data[i + j * L] * std::complex{cos(ti), sign * sin(ti)};
+            xx += data[i + j * L] * complex_t{cos(ti), sign * sin(ti)};
           }
-          yy += xx * std::complex{cos(tj), sign * sin(tj)};
+          yy += xx * complex_t{cos(tj), sign * sin(tj)};
         }
         out[ii + jj * L] = yy;
         if (++index == end_i) return;
@@ -99,23 +99,23 @@ inline void long_dft(T* data, complex_t* out, iter_type L, iter_type M,
     for (; kk < N; ++kk) {
       for (; jj < M; ++jj) {
         for (; ii < L; ++ii) {
-          std::complex zz(0.0);
+          complex_t zz;
           double p_tk = (2.0 * symphas::PI / N) * (kk), tk = 0;
           for (iter_type k = 0; k < N; ++k, tk += p_tk) {
-            std::complex yy(0.0);
+            complex_t yy;
             double p_tj = (2.0 * symphas::PI / M) * (jj), tj = 0;
 
             for (iter_type j = 0; j < M; ++j, tj += p_tj) {
-              std::complex xx(0.0);
+              complex_t xx;
               double p_ti = (2.0 * symphas::PI / L) * (ii), ti = 0;
 
               for (iter_type i = 0; i < L; ++i, ti += p_ti) {
                 xx += data[i + j * L + k * L * M] *
-                      std::complex(cos(ti), sign * sin(ti));
+                      complex_t(cos(ti), sign * sin(ti));
               }
-              yy += xx * std::complex(cos(tj), sign * sin(tj));
+              yy += xx * complex_t(cos(tj), sign * sin(tj));
             }
-            zz += yy * std::complex(cos(tk), sign * sin(tk));
+            zz += yy * complex_t(cos(tk), sign * sin(tk));
           }
           out[ii + jj * L + kk * L * M] = zz;
           if (++index == end_i) return;

@@ -88,11 +88,14 @@ endif()
 
 if(CMAKE_CUDA_COMPILER)
 	if(USING_CUDA)
-		find_package(CUDA REQUIRED)
-		target_include_directories(symphas_lib_o PUBLIC ${CUDA_INCLUDE_DIRS})
-
+		# Use modern CMake CUDA support
+		find_package(CUDAToolkit REQUIRED)
+		
+		# Link CUDA runtime and cuFFT libraries
+		target_link_libraries(symphas_lib_o PUBLIC CUDA::cudart CUDA::cufft)
+		
 		message(STATUS "using CUDA architectures: '${CMAKE_CUDA_ARCHITECTURES}'")
-		message(STATUS "using CUDA v${CUDA_VERSION}")
+		message(STATUS "using CUDA Toolkit version: ${CUDAToolkit_VERSION}")
 	else()
 		message(STATUS "CUDA found but not enabled")
 	endif()

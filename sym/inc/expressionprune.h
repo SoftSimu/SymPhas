@@ -1,4 +1,3 @@
-
 /* ***************************************************************************
  * This file is part of the SymPhas library, a framework for implementing
  * solvers for phase-field problems with compile-time symbolic algebra.
@@ -185,23 +184,23 @@ inline void _update(OpFunctionApply<f, V, E>& e,
                     eval_handler_type const& eval_handler,
                     symphas::lib::types_list<condition_ts...>);
 template <
-    typename V, size_t D, typename E, typename eval_handler_type,
+    typename V, size_t D, template <typename, size_t> typename grid_type, typename E, typename eval_handler_type,
     typename... condition_ts,
-    std::enable_if_t<expr::satisfies<OpConvolution<V, GaussianSmoothing<D>, E>,
+    std::enable_if_t<expr::satisfies<OpConvolution<V, GaussianSmoothing<D, grid_type>, E>,
                                      expr::or_<condition_ts...>>,
                      int> = 0>
-inline void _update(OpConvolution<V, GaussianSmoothing<D>, E>& e,
+inline void _update(OpConvolution<V, GaussianSmoothing<D, grid_type>, E>& e,
                     eval_handler_type const& eval_handler,
                     symphas::lib::types_list<condition_ts...>);
 template <
-    typename V, size_t D, typename G, typename eval_handler_type,
+    typename V, size_t D, template <typename, size_t> typename grid_type, typename G, typename eval_handler_type,
     typename... condition_ts,
-    std::enable_if_t<expr::satisfies<OpConvolution<V, GaussianSmoothing<D>,
+    std::enable_if_t<expr::satisfies<OpConvolution<V, GaussianSmoothing<D, grid_type>,
                                                    OpTerm<OpIdentity, G>>,
                                      expr::or_<condition_ts...>>,
                      int> = 0>
 inline void _update(
-    OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>& e,
+    OpConvolution<V, GaussianSmoothing<D, grid_type>, OpTerm<OpIdentity, G>>& e,
     eval_handler_type const& eval_handler,
     symphas::lib::types_list<condition_ts...>);
 template <size_t O, typename V, typename E, typename G,
@@ -443,12 +442,12 @@ inline void _update(OpFunctionApply<f, V, E>& e,
 }
 
 template <
-    typename V, size_t D, typename E, typename eval_handler_type,
+    typename V, size_t D, template <typename, size_t> typename grid_type, typename E, typename eval_handler_type,
     typename... condition_ts,
-    std::enable_if_t<expr::satisfies<OpConvolution<V, GaussianSmoothing<D>, E>,
+    std::enable_if_t<expr::satisfies<OpConvolution<V, GaussianSmoothing<D, grid_type>, E>,
                                      expr::or_<condition_ts...>>,
                      int>>
-inline void _update(OpConvolution<V, GaussianSmoothing<D>, E>& e,
+inline void _update(OpConvolution<V, GaussianSmoothing<D, grid_type>, E>& e,
                     eval_handler_type const& eval_handler,
                     symphas::lib::types_list<condition_ts...>) {
   _update(expr::get_enclosed_expression(e), eval_handler,
@@ -457,14 +456,14 @@ inline void _update(OpConvolution<V, GaussianSmoothing<D>, E>& e,
 }
 
 template <
-    typename V, size_t D, typename G, typename eval_handler_type,
+    typename V, size_t D, template <typename, size_t> typename grid_type, typename G, typename eval_handler_type,
     typename... condition_ts,
-    std::enable_if_t<expr::satisfies<OpConvolution<V, GaussianSmoothing<D>,
+    std::enable_if_t<expr::satisfies<OpConvolution<V, GaussianSmoothing<D, grid_type>,
                                                    OpTerm<OpIdentity, G>>,
                                      expr::or_<condition_ts...>>,
                      int>>
 inline void _update(
-    OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>& e,
+    OpConvolution<V, GaussianSmoothing<D, grid_type>, OpTerm<OpIdentity, G>>& e,
     eval_handler_type const& eval_handler,
     symphas::lib::types_list<condition_ts...>) {
   e.update(eval_handler, symphas::lib::types_list<condition_ts...>{});

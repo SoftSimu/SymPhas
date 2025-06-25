@@ -707,7 +707,7 @@ inline auto inverse(int e) {
 }
 
 //! Apply an inverse to a complex value.
-inline auto inverse(complex_t const& e) { return e / std::norm(e); }
+inline auto inverse(complex_t const& e) { return e / symphas::math::modulus(e); }
 
 //! Apply an inverse to an expression.
 template <typename E>
@@ -892,13 +892,13 @@ auto operator/(E&&, OpTensor<T, Ns...> const& tensor) = delete;
  ******************************************************************************/
 
 //! Addition between integer and complex types.
-inline auto operator+(int const a, complex_t const& b) {
-  return static_cast<scalar_t>(a) + b;
+inline complex_t operator+(int const a, complex_t const& b) {
+  return complex_t{a + b.real(), b.imag()};
 }
 
 //! Addition between complex and integer types.
-inline auto operator+(complex_t const& a, int const b) {
-  return a + static_cast<scalar_t>(b);
+inline complex_t operator+(complex_t const& a, int const b) {
+  return complex_t{a.real() + b, a.imag()};
 }
 
 //! Addition between anything and the 0 identity.
@@ -1047,13 +1047,13 @@ inline auto operator+(OpNegIdentity, complex_t const b) {
  ******************************************************************************/
 
 //! Subtraction between anything and the 0 identity.
-inline auto operator-(int const a, complex_t const& b) {
-  return static_cast<scalar_t>(a) - b;
+inline complex_t operator-(int const a, complex_t const& b) {
+  return complex_t{static_cast<scalar_t>(a) - b.real(), -b.imag()};
 }
 
 //! Subtraction between complex and integer types.
-inline auto operator-(complex_t const& a, int const b) {
-  return a - static_cast<scalar_t>(b);
+inline complex_t operator-(complex_t const& a, int const b) {
+  return complex_t{a.real() - static_cast<scalar_t>(b), a.imag()};
 }
 
 //! Subtraction between anything and the 0 identity.

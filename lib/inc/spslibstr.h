@@ -266,9 +266,14 @@ struct char_to_number {
 
 struct string : array_container<char> {
   using array_container<char>::array_container;
+  string() : string("") {}  // Default constructor initializes to empty string
   string(const char* str) : array_container(std::strlen(str) + 1) {
     std::strcpy(array_container<char>::data, str);
   }
+  bool operator==(string const& other) const {
+    return std::strcmp(array_container<char>::data, other.data) == 0;
+  }
+  bool empty() const { return array_container<char>::data[0] == '\0'; }
 };
 
 inline bool operator<(string const& a, string const& b) {

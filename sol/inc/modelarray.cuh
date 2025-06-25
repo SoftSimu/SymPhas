@@ -35,6 +35,7 @@
 #include "solver.h"
 #include "solversystem.cuh"
 #include "stencil.cuh"
+#include "provisionalsystem.cuh"
 
 namespace symphas::internal {
 

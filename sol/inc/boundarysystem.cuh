@@ -186,7 +186,8 @@ namespace grid {
 // CUDA kernel to find the minimum value in a device array
 template <typename T>
 __global__ void findMinKernel(const T *d_array, T *d_min, int size) {
-  extern __shared__ T sdata[];
+  extern __shared__ __align__(sizeof(T)) unsigned char sdata_raw[];
+  T *sdata = reinterpret_cast<T *>(sdata_raw);
 
   // Each thread loads one element from global to shared memory
   unsigned int tid = threadIdx.x;
@@ -201,7 +202,10 @@ __global__ void findMinKernel(const T *d_array, T *d_min, int size) {
   // Do reduction in shared memory
   for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {
     if (tid < s) {
-      sdata[tid] = (sdata[tid] < sdata[tid + s]) ? sdata[tid] : sdata[tid + s];
+      sdata[tid] =
+          (!compare_cutoff(sdata[tid], sdata[tid + s]))
+              ? sdata[tid]
+              : sdata[tid + s];
     }
     __syncthreads();
   }
@@ -216,8 +220,10 @@ __global__ void findMinKernel(const T *d_array, T *d_min, int size) {
 template <typename T>
 __global__ void findMinKernelVec(const T *d_array0, const T *d_array1,
                                  T *d_min0, T *d_min1, int size) {
-  extern __shared__ T sdata0[];
-  extern __shared__ T sdata1[];
+  extern __shared__ __align__(sizeof(T)) unsigned char sdata0_raw[];
+  T *sdata0 = reinterpret_cast<T *>(sdata0_raw);
+  extern __shared__ __align__(sizeof(T)) unsigned char sdata1_raw[];
+  T *sdata1 = reinterpret_cast<T *>(sdata1_raw);
 
   // Each thread loads one element from global to shared memory
   unsigned int tid = threadIdx.x;
@@ -257,9 +263,12 @@ template <typename T>
 __global__ void findMinKernelVec(const T *d_array0, const T *d_array1,
                                  const T *d_array2, T *d_min0, T *d_min1,
                                  T *d_min2, int size) {
-  extern __shared__ T sdata0[];
-  extern __shared__ T sdata1[];
-  extern __shared__ T sdata2[];
+  extern __shared__ __align__(sizeof(T)) unsigned char sdata0_raw[];
+  T *sdata0 = reinterpret_cast<T *>(sdata0_raw);
+  extern __shared__ __align__(sizeof(T)) unsigned char sdata1_raw[];
+  T *sdata1 = reinterpret_cast<T *>(sdata1_raw);
+  extern __shared__ __align__(sizeof(T)) unsigned char sdata2_raw[];
+  T *sdata2 = reinterpret_cast<T *>(sdata2_raw);
 
   // Each thread loads one element from global to shared memory
   unsigned int tid = threadIdx.x;

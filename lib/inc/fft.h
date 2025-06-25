@@ -94,10 +94,10 @@
 
 namespace symphas::dft {
 
-void fft(double* data_real, double* data_imag, std::complex<double>* out,
-         size_t LL, size_t MM);
-void fft(double* data_real, double* data_imag, std::complex<double>* out,
-         size_t LL, size_t MM, size_t NN);
+void fft(double* data_real, double* data_imag, complex_t* out, size_t LL,
+         size_t MM);
+void fft(double* data_real, double* data_imag, complex_t* out, size_t LL,
+         size_t MM, size_t NN);
 
 template <size_t LL, size_t MM, typename T>
 void fft(T* data, complex_t* out);
@@ -140,7 +140,7 @@ inline void fft_alg(double* const(&r), double* const(&c), size_t N) {
   for (size_t l = 0; l < M; ++l) {
     size_t const le = 1ull << (M - static_cast<size_t>(l)), le2 = le >> 1;
 
-    std::complex<double> u{1.0, 0.0}, s{cos(symphas::PI / le2), -sin(PI / le2)};
+    complex_t u{1.0, 0.0}, s{cos(symphas::PI / le2), -sin(PI / le2)};
 
     for (size_t j = 0; j < le2; ++j) {
       for (size_t i = j; i < N; i += le) {
@@ -149,7 +149,7 @@ inline void fft_alg(double* const(&r), double* const(&c), size_t N) {
         double tr = r[i] + r[ip];
         double tc = c[i] + c[ip];
 
-        auto w = u * std::complex<double>{r[i] - r[ip], c[i] - c[ip]};
+        auto w = u * complex_t{r[i] - r[ip], c[i] - c[ip]};
         r[ip] = w.real();
         c[ip] = w.imag();
 
@@ -246,8 +246,8 @@ inline void fft_thr_loop(double* const(&r), double* const(&c), size_t A,
  * full fourier transform
  */
 inline void fft_thr_job_3(double*((&r)[2]), double*((&c)[2]), ThreadPool& thr,
-                          std::complex<double>* out, size_t LL, size_t MM,
-                          size_t NN, iter_type i) {
+                          complex_t* out, size_t LL, size_t MM, size_t NN,
+                          iter_type i) {
   for (iter_type a = 0; a < NN; ++a) {
     fft_thr_loop(r[0] + MM * LL * a, c[0] + MM * LL * a, MM, LL, a);
   }
@@ -279,15 +279,15 @@ inline void fft_thr_job_3(double*((&r)[2]), double*((&c)[2]), ThreadPool& thr,
   for (; nn < e && it < last + offset_x + offset_y; ++nn) {
     if (jj >= offset_y) {
       if (ii++ >= offset_x) {
-        *(it - LL * MM - LL) = std::complex<double>{(r[1])[nn], (c[1])[nn]};
+        *(it - LL * MM - LL) = complex_t{(r[1])[nn], (c[1])[nn]};
       } else {
-        *(it - LL * MM) = std::complex<double>{(r[1])[nn], (c[1])[nn]};
+        *(it - LL * MM) = complex_t{(r[1])[nn], (c[1])[nn]};
       }
     } else {
       if (ii++ >= offset_x) {
-        *(it - LL) = std::complex<double>{(r[1])[nn], (c[1])[nn]};
+        *(it - LL) = complex_t{(r[1])[nn], (c[1])[nn]};
       } else {
-        *(it) = std::complex<double>{(r[1])[nn], (c[1])[nn]};
+        *(it) = complex_t{(r[1])[nn], (c[1])[nn]};
       }
     }
 
@@ -303,15 +303,15 @@ inline void fft_thr_job_3(double*((&r)[2]), double*((&c)[2]), ThreadPool& thr,
   for (; nn < e; ++nn) {
     if (jj >= offset_y) {
       if (ii++ >= offset_x) {
-        *(it - LL * MM - LL) = std::complex<double>{(r[1])[nn], (c[1])[nn]};
+        *(it - LL * MM - LL) = complex_t{(r[1])[nn], (c[1])[nn]};
       } else {
-        *(it - LL * MM) = std::complex<double>{(r[1])[nn], (c[1])[nn]};
+        *(it - LL * MM) = complex_t{(r[1])[nn], (c[1])[nn]};
       }
     } else {
       if (ii++ >= offset_x) {
-        *(it - LL) = std::complex<double>{(r[1])[nn], (c[1])[nn]};
+        *(it - LL) = complex_t{(r[1])[nn], (c[1])[nn]};
       } else {
-        *(it) = std::complex<double>{(r[1])[nn], (c[1])[nn]};
+        *(it) = complex_t{(r[1])[nn], (c[1])[nn]};
       }
     }
 
@@ -329,8 +329,7 @@ inline void fft_thr_job_3(double*((&r)[2]), double*((&c)[2]), ThreadPool& thr,
  * (originally columns) slice
  */
 inline void fft_thr_job_2(double*((&r)[2]), double*((&c)[2]), ThreadPool& thr_p,
-                          std::complex<double>* out, size_t LL, size_t MM,
-                          iter_type i) {
+                          complex_t* out, size_t LL, size_t MM, iter_type i) {
   fft_thr_loop(r[0], c[0], MM, LL, i);
   thr_p.sync(i, 1);
   fft_thr_loop(r[1], c[1], LL, MM, i);
@@ -349,9 +348,9 @@ inline void fft_thr_job_2(double*((&r)[2]), double*((&c)[2]), ThreadPool& thr_p,
             ii = static_cast<iter_type>(n) % static_cast<iter_type>(LL);
   for (; nn < e && it < last + offset_x; ++nn) {
     if (ii++ >= offset_x) {
-      *(it - LL) = std::complex<double>{(r[1])[nn], (c[1])[nn]};
+      *(it - LL) = complex_t{(r[1])[nn], (c[1])[nn]};
     } else {
-      *it = std::complex<double>{(r[1])[nn], (c[1])[nn]};
+      *it = complex_t{(r[1])[nn], (c[1])[nn]};
     }
 
     ++it;
@@ -363,9 +362,9 @@ inline void fft_thr_job_2(double*((&r)[2]), double*((&c)[2]), ThreadPool& thr_p,
   }
   for (; nn < e; ++nn) {
     if (ii++ >= offset_x) {
-      *(it - LL) = std::complex<double>{(r[1])[nn], (c[1])[nn]};
+      *(it - LL) = complex_t{(r[1])[nn], (c[1])[nn]};
     } else {
-      *it = std::complex<double>{(r[1])[nn], (c[1])[nn]};
+      *it = complex_t{(r[1])[nn], (c[1])[nn]};
     }
 
     ++it;
@@ -396,7 +395,7 @@ inline void copy_in(const complex_t* data, scalar_t real_out[LEN],
 }  // namespace symphas::internal
 
 inline void symphas::dft::fft(double* data_real, double* data_imag,
-                              std::complex<double>* out, size_t LL, size_t MM) {
+                              complex_t* out, size_t LL, size_t MM) {
   symphas::Time t("time for FFT (2d)");
   ThreadPool thr_p;
 
@@ -423,8 +422,7 @@ inline void symphas::dft::fft(double* data_real, double* data_imag,
 }
 
 inline void symphas::dft::fft(double* data_real, double* data_imag,
-                              std::complex<double>* out, size_t LL, size_t MM,
-                              size_t NN) {
+                              complex_t* out, size_t LL, size_t MM, size_t NN) {
   symphas::Time t("time for FFT (3d)");
   ThreadPool thr_p;
 

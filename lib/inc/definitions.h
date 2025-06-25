@@ -49,6 +49,16 @@
     }                                                                       \
   }
 
+#define CHECK_CUFFT_ERROR(call)                                     \
+  do {                                                              \
+    cufftResult error = call;                                       \
+    if (error != CUFFT_SUCCESS) {                                   \
+      std::cerr << "cuFFT error at " << __FILE__ << ":" << __LINE__ \
+                << " - code: " << error << std::endl;               \
+      exit(EXIT_FAILURE);                                           \
+    }                                                               \
+  } while (0)
+
 #endif
 #ifdef USING_CUDA
 #include <cuda_runtime.h>
@@ -112,6 +122,13 @@ namespace symphas {
  */
 constexpr double PI = 3.141592653589793238463;
 
+//! Mathematical constant \f$e\f$.
+/*! 
+ * Constant value equal to the mathematical constant \f$e\f$, used
+ * throughout SymPhas.
+ */
+constexpr double E = 2.718281828459045235360;
+
 //! Constant \f$\epsilon\f$, near zero.
 /*!
  * Constant which represents a value which is almost but not equal to
@@ -165,11 +182,85 @@ using len_type = int;
  */
 using scalar_t = double;
 
-//! Alias type representing a complex-valued quantity.
+//! Type representing a complex-valued quantity.
 /*!
  * Same as ::scalar_t, except for complex types for order parameters.
  */
-using complex_t = std::complex<scalar_t>;
+struct complex_t {
+ protected:
+  double _real;
+  double _imag;
+
+ public:
+  __device__ __host__ constexpr complex_t(scalar_t real, scalar_t imag)
+      : _real{real}, _imag{imag} {}
+  __device__ __host__ constexpr complex_t() : complex_t(0, 0) {}
+  __device__ __host__ constexpr complex_t(scalar_t real) : complex_t(real, 0) {}
+  
+  complex_t(std::complex<scalar_t> const& other)
+      : _real{other.real()}, _imag{other.imag()} {}
+  complex_t(std::complex<scalar_t>&& other)
+      : _real{other.real()}, _imag{other.imag()} {}
+
+  complex_t& operator=(
+      const std::complex<scalar_t>& other) {
+    _real = other.real();
+    _imag = other.imag();
+    return *this;
+  }
+
+  __device__ __host__ scalar_t imag() const { return _imag; }
+  __device__ __host__ scalar_t real() const { return _real; }
+
+  __device__ __host__ complex_t operator*(const complex_t& other) const {
+    return complex_t{_real * other._real - _imag * other._imag,
+                     _real * other._imag + _imag * other._real};
+  }
+
+  __device__ __host__ complex_t operator/(const scalar_t& other) const {
+    return complex_t{_real / other, _imag / other};
+  }
+
+  __device__ __host__ complex_t operator/(const complex_t& other) const {
+    scalar_t denom = other._real * other._real + other._imag * other._imag;
+    return complex_t{(_real * other._real + _imag * other._imag) / denom,
+                     (_imag * other._real - _real * other._imag) / denom};
+  }
+
+  __device__ __host__ complex_t operator+(const complex_t& other) const {
+    return complex_t{_real + other._real, _imag + other._imag};
+  }
+  __device__ __host__ complex_t operator-(const complex_t& other) const {
+    return complex_t{_real - other._real, _imag - other._imag};
+  }
+  __device__ __host__ complex_t& operator+=(const complex_t& other) {
+    _real += other._real;
+    _imag += other._imag;
+    return *this;
+  }
+  __device__ __host__ complex_t& operator-=(const complex_t& other) {
+    _real -= other._real;
+    _imag -= other._imag;
+    return *this;
+  }
+  __device__ __host__ complex_t operator-() const {
+    return complex_t{-_real, -_imag};
+  }
+};
+
+__device__ __host__ inline complex_t operator*(complex_t const& a,
+                                               scalar_t const& b) {
+  return complex_t{a.real() * b, a.imag() * b};
+}
+__device__ __host__ inline complex_t operator*(scalar_t const& a,
+                                               complex_t const& b) {
+  return complex_t{b.real() * a, b.imag() * a};
+}
+
+__device__ __host__ inline bool operator==(const complex_t& a,
+                                           const complex_t& b) {
+  return (a.real() == b.real()) && (a.imag() == b.imag());
+}
 
 template <typename T, size_t D>
 using any_vector_t = VECTOR_TYPE_NAME(T, D);
@@ -470,6 +561,8 @@ enum class Axis {
   T,    //!< The angle of polar coordinates.
   S,    //!< The angle of spherical coordinates.
   R,    //!< The radius of polar or spherical coordinates.
+  C,    //!< The real part of a complex number.
+  I,    //!< The imaginary part of a complex number.
   NONE  //!< No axis is specified.
 };
 

@@ -802,6 +802,7 @@ struct GeneralizedStencil {
                                         : 1;
     return symphas::internal::stencil_apply_type<OD, OA, 1>{}(v, stride, divh);
   }
+
   //! Determine the finite difference approximation to the mixed derivative.
   /*!
    * Determine the finite difference approximation to the mixed derivative of
@@ -810,12 +811,11 @@ struct GeneralizedStencil {
    * \tparam OD Order of the derivative.
    * \tparam ax Axis of the directional derivative.
    */
-  template<size_t OD1, size_t OD2, size_t OD3, typename T/*,
-		typename Stt = std::invoke_result_t<decltype(&expr::get_central_space_mixed_stencil<OA, OD1, OD2, OD3>), std::index_sequence<OD1, OD2, OD3>>*/>
-	__host__ __device__ auto apply_mixed(T* const v, len_type const (&override_dims)[DD]) const
+  template<size_t OD1, size_t OD2, size_t OD3, typename T>
+	__host__ __device__ auto apply_mixed(T* const v) const
 	{
     len_type stride[DD];
-    grid::get_stride<Axis::X>(stride, override_dims);
+    grid::get_stride<Axis::X>(stride, dims);
     return symphas::internal::mixed_stencil_apply_type<
         OA, std::index_sequence<OD1, OD2, OD3>>{}(v, stride, divh);
   }
@@ -828,8 +828,7 @@ struct GeneralizedStencil {
    * \tparam OD Order of the derivative.
    * \tparam ax Axis of the directional derivative.
    */
-  template<size_t OD1, size_t OD2, typename T/*,
-		typename Stt = std::invoke_result_t<decltype(&expr::get_central_space_mixed_stencil<OA, OD1, OD2>), std::index_sequence<OD1, OD2>>*/>
+  template<size_t OD1, size_t OD2, typename T>
 	__host__ __device__ auto apply_mixed(T* const v) const
 	{
     len_type stride[DD];
@@ -846,11 +845,65 @@ struct GeneralizedStencil {
    * \tparam OD Order of the derivative.
    * \tparam ax Axis of the directional derivative.
    */
-  template<size_t OD1, typename T/*, typename Stt = std::invoke_result_t<decltype(&expr::get_central_space_stencil<OD1, OA, 1>)>*/>
+  template<size_t OD1, typename T>
 	__host__ __device__ auto apply_mixed(T* const v) const
 	{
     len_type stride[DD];
     grid::get_stride<Axis::X>(stride, dims);
+    static symphas::internal::GeneratedStencilApply stencil(
+        expr::get_central_space_stencil<OD1, OA, 1>());
+
+    return stencil(v, stride, divh);
+    // return symphas::internal::GeneratedStencilApply<Stt>{ stride, divh }(v);
+  }
+
+  //! Determine the finite difference approximation to the mixed derivative.
+  /*!
+   * Determine the finite difference approximation to the mixed derivative of
+   * the given order.
+   *
+   * \tparam OD Order of the derivative.
+   * \tparam ax Axis of the directional derivative.
+   */
+  template <size_t OD1, size_t OD2, size_t OD3, typename T>
+  __host__ __device__ auto apply_mixed(
+      T *const v, len_type const (&override_dims)[DD]) const {
+    len_type stride[DD];
+    grid::get_stride<Axis::X>(stride, override_dims);
+    return symphas::internal::mixed_stencil_apply_type<
+        OA, std::index_sequence<OD1, OD2, OD3>>{}(v, stride, divh);
+  }
+
+  //! Determine the finite difference approximation to the mixed derivative.
+  /*!
+   * Determine the finite difference approximation to the mixed derivative of
+   * the given order.
+   *
+   * \tparam OD Order of the derivative.
+   * \tparam ax Axis of the directional derivative.
+   */
+  template <size_t OD1, size_t OD2, typename T>
+  __host__ __device__ auto apply_mixed(
+      T *const v, len_type const (&override_dims)[DD]) const {
+    len_type stride[DD];
+    grid::get_stride<Axis::X>(stride, override_dims);
+    return symphas::internal::mixed_stencil_apply_type<
+        OA, std::index_sequence<OD1, OD2>>{}(v, stride, divh);
+  }
+
+  //! Determine the finite difference approximation to the mixed derivative.
+  /*!
+   * Determine the finite difference approximation to the mixed derivative of
+   * the given order.
+   *
+   * \tparam OD Order of the derivative.
+   * \tparam ax Axis of the directional derivative.
+   */
+  template <size_t OD1, typename T>
+  __host__ __device__ auto apply_mixed(
+      T *const v, len_type const (&override_dims)[DD]) const {
+    len_type stride[DD];
+    grid::get_stride<Axis::X>(stride, override_dims);
     static symphas::internal::GeneratedStencilApply stencil(
         expr::get_central_space_stencil<OD1, OA, 1>());
 

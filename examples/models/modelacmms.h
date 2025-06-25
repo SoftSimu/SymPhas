@@ -30,12 +30,12 @@
 #define eta op(1)
 #define deta dop(1)
 
-#define kappa c1
-#define A1 c2
-#define B1 c3
-#define A2 c4
-#define B2 c5
-#define C2 c6
+#define kappa c(1)
+#define A1 c(2)
+#define B1 c(3)
+#define A2 c(4)
+#define B2 c(5)
+#define C2 c(6)
 
 MODEL(AC_MMS, (SCALAR),
 	EVOLUTION_PREAMBLE(

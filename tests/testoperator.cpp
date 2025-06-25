@@ -6,7 +6,7 @@
 #include "solver.h"
 #include "stencilincludes.h"
 
-NEW_SOLVER_WITH_STENCIL(SolverFT)
+START_NEW_SOLVER_WITH_STENCIL(SolverFT)
 
 /*
  * the parameter is a tuple with the first parameter being a Variable object
@@ -26,8 +26,7 @@ static auto make_solver() {
   double h = 1.0;
   return this_type{&dims[0], h};
 }
-}
-;
+END_SOLVER
 
 void testoperator() {
   // auto term = Variable<0,

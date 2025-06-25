@@ -1,4 +1,3 @@
-
 /* ***************************************************************************
  * This file is part of the SymPhas library, a framework for implementing
  * solvers for phase-field problems with compile-time symbolic algebra.
@@ -31,11 +30,10 @@ const Conf &symphas::conf::config() {
 }
 
 /*!
- * Read the configuration and update the indices if they are included.
+ * Read the configuration.
  */
-std::tuple<std::vector<std::pair<std::string, std::string>>, std::string, bool>
-parse_conf_option_list(const char *file, param_map_type const &param_map,
-                       std::vector<iter_type> &indices) {
+std::tuple<std::vector<std::pair<std::string, std::string>>, std::string>
+parse_conf_option_list(const char *file, param_map_type const &param_map) {
   FILE *f;
   if ((f = fopen(file, "r")) == nullptr) {
     fprintf(SYMPHAS_ERR, "error opening configuration file '%s'\n", file);
@@ -45,7 +43,6 @@ parse_conf_option_list(const char *file, param_map_type const &param_map,
   char line[BUFFER_LENGTH_L3]{}, title[BUFFER_LENGTH]{};
 
   std::vector<std::pair<std::string, std::string>> options;
-  bool sim_done;
 
   while (fgets(line, BUFFER_LENGTH_L3, f) != nullptr) {
     symphas::lib::str_trim(line);
@@ -70,22 +67,6 @@ parse_conf_option_list(const char *file, param_map_type const &param_map,
 
         params::parse_params(param_map, param, 1);
       }
-    } else if ((pos = symphas::lib::pos_after_token(line,
-                                                    CONFIG_INDEX_PREFIX)) > 0) {
-      char *endptr;
-      int index = strtol(line + pos, &endptr, 10);
-
-      if (!*endptr) {
-        indices.emplace_back(index);
-      } else if (std::strcmp(line + pos, SIMULATION_DONE_KEY) == 0) {
-        sim_done = true;
-      } else {
-        fprintf(SYMPHAS_WARN,
-                "the written completion index '%s' is not "
-                "in the correct format\n",
-                line);
-      }
-
     } else if ((pos = symphas::lib::pos_after_token(
                     line, CONFIG_COMMENT_PREFIX)) > 0) {
       // comment line
@@ -131,7 +112,50 @@ parse_conf_option_list(const char *file, param_map_type const &param_map,
   }
   fclose(f);
 
-  return {options, title, sim_done};
+  return {options, title};
+}
+
+std::pair<std::vector<iter_type>, bool> get_completed_indices(
+    const char *parent_dir) {
+  std::vector<iter_type> indices;
+  bool sim_done = false;
+
+  const char file_name[] = "progress.txt ";
+  size_t out_len = std::strlen(parent_dir) + std::strlen(file_name) + 2;
+  char *indices_file_name = new char[out_len];
+  snprintf(indices_file_name, out_len, "%s/%s", parent_dir, file_name);
+
+  FILE *indices_file;
+  if ((indices_file = fopen(indices_file_name, "r")) != nullptr) {
+    char indices_line[BUFFER_LENGTH_L3]{};
+
+    while (fgets(indices_line, BUFFER_LENGTH_L3, indices_file) != nullptr) {
+      symphas::lib::str_trim(indices_line);
+      int pos = 0;
+
+      if ((pos = symphas::lib::pos_after_token(indices_line,
+                                               CONFIG_INDEX_PREFIX)) > 0) {
+        char *endptr;
+        int index = strtol(indices_line + pos, &endptr, 10);
+
+        if (!*endptr) {
+          indices.emplace_back(index);
+        } else if (std::strcmp(indices_line + pos, SIMULATION_DONE_KEY) == 0) {
+          sim_done = true;
+        } else {
+          fprintf(SYMPHAS_WARN,
+                  "the written completion index '%s' is not "
+                  "in the correct format\n",
+                  indices_line + pos);
+        }
+      }
+    }
+    fclose(indices_file);
+  }
+
+  delete[] indices_file_name;
+
+  return {indices, sim_done};
 }
 
 Conf symphas::conf::make_config(const char *file,
@@ -149,25 +173,38 @@ Conf symphas::conf::make_config(const char *file,
     std::strcpy(ext, ext_pos);
     for (int i = 0; ext[i]; ++i) ext[i] = std::tolower(ext[i]);
 
-    bool is_json = (std::strcmp(ext, "json") == 0);
+    bool is_json = (std::strcmp(ext, ".json") == 0);
     delete[] ext;
+
+    symphas::lib::string parent_dir(symphas::lib::get_parent_directory(file));
+    auto [indices, sim_done] = get_completed_indices(parent_dir);
 
     if (is_json) {
       JsonConfManager json_conf(file);
-      return json_conf;
-    } else {
-      std::vector<iter_type> indices;
+      char savedir[BUFFER_LENGTH];
+      snprintf(savedir, BUFFER_LENGTH, "%s/" CHECKPOINT_DIR,
+               json_conf.directory_settings.result_dir);
 
-      auto [options, title, is_done] =
-          parse_conf_option_list(file, param_map, indices);
-
-      char *parent_dir = symphas::lib::get_parent_directory(file);
-
-      Conf c{options, title.c_str(), parent_dir};
-      delete[] parent_dir;
+      json_conf.write(savedir);
+      Conf c{json_conf};
 
       c.append_computed_index(indices);
-      if (c.sim_done) {
+      if (sim_done) {
+        c.set_done();
+      }
+
+      fprintf(SYMPHAS_LOG, "configuration loaded from '%s'\n", file);
+      fprintf(SYMPHAS_LOG, OUTPUT_BANNER);
+
+      return c;
+    } else {
+      auto [options, title] = parse_conf_option_list(file, param_map);
+
+      Conf c{options, title.c_str(), parent_dir};
+      c.conf_file = file;
+
+      c.append_computed_index(indices);
+      if (sim_done) {
         c.set_done();
       }
 
@@ -314,10 +351,7 @@ Conf symphas::conf::restore_checkpoint(param_map_type param_map) {
 
 Conf symphas::conf::restore_checkpoint(param_map_type const &param_map,
                                        const char *dir, int index) {
-  char name[BUFFER_LENGTH_L4];
-  sprintf(name, BACKUP_CONFIG_LOC_FMT, dir);
-
-  Conf configuration = symphas::conf::make_config(name, param_map);
+  Conf configuration = symphas::conf::make_config_auto(dir, param_map);
   if (configuration.is_done()) {
     fprintf(SYMPHAS_LOG,
             "the provided backup configuration refers to a solution "
@@ -329,7 +363,7 @@ Conf symphas::conf::restore_checkpoint(param_map_type const &param_map,
   } else {
     auto indices = configuration.get_computed_indices();
     auto lower = std::lower_bound(indices.begin(), indices.end(), index);
-    if (*lower > index) {
+    if (lower != indices.end() && *lower > index) {
       fprintf(SYMPHAS_LOG,
               "the provided index does not match any candidates "
               "in the list of completed indices, so using index '%d' instead\n",
@@ -359,4 +393,68 @@ Conf symphas::conf::restore_checkpoint(param_map_type const &param_map,
 
 Conf symphas::conf::restore_checkpoint(const char *dir, int index) {
   return restore_checkpoint({}, dir, index);
+}
+
+/*!
+ * Find and return the path to either configuration.json or configuration.in
+ * file. Returns the first file found, preferring .json over .in.
+ *
+ * \param base_dir The directory to search in (optional, defaults to current
+ * directory).
+ * \return A string containing the path to the found configuration file, or
+ * empty string if none found.
+ */
+symphas::lib::string symphas::conf::find_configuration_file(
+    const char *base_dir) {
+  char json_path[BUFFER_LENGTH];
+  char in_path[BUFFER_LENGTH];
+
+  // Construct paths for both configuration files
+  snprintf(json_path, BUFFER_LENGTH, "%s/%s/%s.json", base_dir,
+           CHECKPOINT_DIR, BACKUP_CONFIG_NAME);
+  snprintf(in_path, BUFFER_LENGTH, "%s/%s/%s.in", base_dir,
+           CHECKPOINT_DIR, BACKUP_CONFIG_NAME);
+
+  // Check for configuration.json first (preferred)
+  FILE *json_file = fopen(json_path, "r");
+  if (json_file != nullptr) {
+    fclose(json_file);
+    return symphas::lib::string(json_path);
+  }
+
+  // Check for configuration.in as fallback
+  FILE *in_file = fopen(in_path, "r");
+  if (in_file != nullptr) {
+    fclose(in_file);
+    return symphas::lib::string(in_path);
+  }
+
+  // Neither file found
+  return symphas::lib::string();
+}
+
+/*!
+ * Create configuration using auto-detected configuration file.
+ * Searches for either configuration.json or configuration.in in the specified
+ * directory.
+ *
+ * \param base_dir The directory to search for configuration files (optional,
+ * defaults to current directory).
+ * \param param_map The parameter keys which may be set by this configuration.
+ * \return A Conf object created from the found configuration file.
+ */
+Conf symphas::conf::make_config_auto(const char *base_dir,
+                                     param_map_type const &param_map) {
+  symphas::lib::string config_file = find_configuration_file(base_dir);
+
+  if (config_file.empty()) {
+    fprintf(SYMPHAS_ERR,
+            "No configuration file found. Looking for '%s.json' or '%s.in' in "
+            "'%s'\n",
+            BACKUP_CONFIG_NAME, BACKUP_CONFIG_NAME, base_dir);
+    exit(447);
+  }
+
+  fprintf(SYMPHAS_LOG, "Found configuration file: '%s'\n", config_file.data);
+  return make_config(config_file, param_map);
 }

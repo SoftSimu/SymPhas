@@ -107,7 +107,7 @@ void symphas::time_step_list::set_time_steps(const double* dts,
                                              const double* t_dts,
                                              size_t dts_len) {
   if (dts_len > 0) {
-    delete[] t_dts;
+    delete[] this->t_dts;
     this->dts_len = dts_len;
 
     this->t_dts = new double[this->dts_len * 2]{};

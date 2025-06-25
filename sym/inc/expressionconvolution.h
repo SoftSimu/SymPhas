@@ -1,4 +1,3 @@
-
 /* ***************************************************************************
  * This file is part of the SymPhas library, a framework for implementing
  * solvers for phase-field problems with compile-time symbolic algebra.
@@ -27,8 +26,24 @@
 
 #pragma once
 
-// #include "expressionaggregates.h"
 #include "convolutionlib.h"
+
+// Forward declarations for CUDA implementations
+#ifdef USING_CUDA
+namespace symphas::internal {
+
+template <typename V, typename E1, typename E2, size_t D0, typename G_T>
+void update_impl_cuda(expr::ConvolutionDataPairCUDA<D0>& compute_data, 
+                      Grid<G_T, D0>& result_grid);
+
+template <typename V, size_t D, template <typename, size_t> typename grid_type, 
+          typename E, size_t D0, typename G_T>
+void update_impl_cuda(expr::ConvolutionDataCUDA<D0>& compute_data, 
+                      grid_type<G_T, D>& result_grid,
+                      const GaussianSmoothing<D, grid_type>& smoother);
+
+} // namespace symphas::internal
+#endif
 
 //! \cond
 
@@ -81,29 +96,37 @@ struct make_convolution {
   static auto get(V const&, OpExpression<E1> const&, OpExpression<E2> const&);
 
   //! Constructs the convolution applied to the given expression.
-  template <typename V, size_t D, typename E>
-  static auto get(V const&, GaussianSmoothing<D> const&,
+  template <typename V, size_t D,
+            template <typename, size_t> typename grid_type, typename E>
+  static auto get(V const&, GaussianSmoothing<D, grid_type> const&,
                   OpExpression<E> const&);
 
   //! Constructs the convolution applied to the given expression.
-  template <typename V, size_t D>
-  static auto get(V const&, GaussianSmoothing<D> const&, OpVoid);
+  template <typename V, size_t D,
+            template <typename, size_t> typename grid_type>
+  static auto get(V const&, GaussianSmoothing<D, grid_type> const&, OpVoid);
 
   //! Constructs the convolution applied to the given expression.
-  template <typename V, size_t D, typename E>
+  template <typename V, size_t D,
+            template <typename, size_t> typename grid_type, typename E>
   static auto get(V const& value, OpExpression<E> const& e,
-                  GaussianSmoothing<D> const& smoother) {
+                  GaussianSmoothing<D, grid_type> const& smoother) {
     return get(value, smoother, *static_cast<E const*>(&e));
   }
 
   //! Constructs the convolution between a variable and Gaussian kernel.
-  template <typename V, size_t D, typename S, typename G>
-  static auto get(V const&, GaussianSmoothing<D> const&, OpTerm<S, G> const&);
+  template <typename V, size_t D,
+            template <typename, size_t> typename grid_type, typename S,
+            typename G>
+  static auto get(V const&, GaussianSmoothing<D, grid_type> const&,
+                  OpTerm<S, G> const&);
 
   //! Constructs the convolution between a variable and Gaussian kernel.
-  template <typename V, size_t D, typename S, typename G>
+  template <typename V, size_t D,
+            template <typename, size_t> typename grid_type, typename S,
+            typename G>
   static auto get(V const& value, OpTerm<S, G> const& e,
-                  GaussianSmoothing<D> const& smoother) {
+                  GaussianSmoothing<D, grid_type> const& smoother) {
     return get(value, smoother, e);
   }
 
@@ -111,8 +134,9 @@ struct make_convolution {
   /*!
    * Used for the convolution specialization for the OpTerm.
    */
-  template <typename V, size_t D, typename G>
-  static auto get_g(V const&, GaussianSmoothing<D> const&, G g);
+  template <typename V, size_t D,
+            template <typename, size_t> typename grid_type, typename G>
+  static auto get_g(V const&, GaussianSmoothing<D, grid_type> const&, G g);
 };
 }  // namespace symphas::internal
 
@@ -146,6 +170,89 @@ auto make_convolution(V&& v, A&& a, B&& b) {
 
 }  // namespace expr
 
+namespace expr::internal {
+template <typename G>
+struct select_convolution_data_type {
+ protected:
+  template <typename T>
+  struct wrap_type {
+    using type = T;
+  };
+
+  template <typename T, size_t D>
+  auto _get(Grid<T, D>) {
+    return wrap_type<ConvolutionData<D>>{};
+  }
+
+#ifdef USING_CUDA
+  template <typename T, size_t D>
+  auto _get(GridCUDA<T, D>) {
+    return wrap_type<ConvolutionDataCUDA<D>>{};
+  }
+#endif
+
+  auto get(G const& g) { return _get(g); }
+
+ public:
+  using type = typename std::invoke_result_t<
+      decltype(&select_convolution_data_type::get),
+      select_convolution_data_type, G>::type;
+};
+
+template <typename G>
+using convolution_data_type = typename select_convolution_data_type<G>::type;
+
+template <typename G>
+struct select_convolution_data_pair_type {
+ protected:
+  template <typename T>
+  struct wrap_type {
+    using type = T;
+  };
+
+  template <typename T, size_t D>
+  auto _get(Grid<T, D>) {
+    return wrap_type<ConvolutionDataPair<D>>{};
+  }
+
+#ifdef USING_CUDA
+  template <typename T, size_t D>
+  auto _get(GridCUDA<T, D>) {
+    return wrap_type<ConvolutionDataPairCUDA<D>>{};
+  }
+#endif
+
+  auto get(G const& g) { return _get(g); }
+
+ public:
+  using type = typename std::invoke_result_t<
+      decltype(&select_convolution_data_pair_type::get),
+      select_convolution_data_pair_type, G>::type;
+};
+
+template <typename G>
+using convolution_data_pair_type =
+    typename select_convolution_data_pair_type<G>::type;
+
+template <typename G>
+struct select_block_type;
+
+template <typename T, size_t D>
+struct select_block_type<Grid<T, D>> {
+  using type = Block<T>;
+};
+
+#ifdef USING_CUDA
+template <typename T, size_t D>
+struct select_block_type<GridCUDA<T, D>> {
+  using type = BlockCUDA<T>;
+};
+#endif
+
+template <typename G>
+using block_type = typename select_block_type<G>::type;
+}  // namespace expr::internal
+
 //! Convolution of two arbitrary expressions.
 /*!
  * An implementation of the convolution operator; the convolution takes two
@@ -175,15 +282,28 @@ struct OpConvolution : OpExpression<OpConvolution<V, E1, E2>> {
   using e2_T = typename expr::eval_type<E2>::type;
   using G_T = mul_result_t<e1_T, e2_T>;
 
+  using storage_type_1 = expr::storage_type_t<E1>;
+  using storage_type_2 = expr::storage_type_t<E2>;
+
+  template <typename T, size_t D0>
+  using grid_type = typename expr::enclosing_parent_storage_t<
+      storage_type_1>::template type<T, D0>;
+  using result_type = grid_type<G_T, D>;
+  using convolution_type =
+      typename expr::internal::convolution_data_pair_type<result_type>;
+
+  using data_a_t = storage_type_1;
+  using data_b_t = storage_type_2;
+
   void allocate() {
     b.allocate();
     a.allocate();
 
     if (g0.len == 0) {
-      g0 = Grid<G_T, D>(expr::data_dimensions(a, b));
-      data_a = Block<e1_T>(expr::data_length(a, b));
-      data_b = Block<e2_T>(expr::data_length(a, b));
-      compute = expr::ConvolutionDataPair<D>(data_a.values, data_b.values, g0);
+      g0 = result_type(expr::data_dimensions(a, b));
+      data_a = data_a_t(expr::data_dimensions(a, b));
+      data_b = data_b_t(expr::data_dimensions(a, b));
+      compute = convolution_type(data_a.values, data_b.values, g0);
     }
   }
 
@@ -301,9 +421,9 @@ struct OpConvolution : OpExpression<OpConvolution<V, E1, E2>> {
 #endif
 
  protected:
-  Block<e1_T> data_a;  //!< Data of the result of the first expression.
-  Block<e2_T> data_b;  //!< Data of the result of the second expression.
-  Grid<G_T, D> g0;     //!< Grid storing the final result of the convolution.
+  data_a_t data_a;  //!< Data of the result of the first expression.
+  data_b_t data_b;  //!< Data of the result of the second expression.
+  result_type g0;   //!< Grid storing the final result of the convolution.
 
  public:
   V value;  //!< Coefficient of this convolution expression.
@@ -326,37 +446,55 @@ struct OpConvolution : OpExpression<OpConvolution<V, E1, E2>> {
     eval_handler.result(a, data_a.values, data_a.len);
     eval_handler.result(b, data_b.values, data_b.len);
 
-    compute.transform_in_out_0(&expr::BaseData<Block<e1_T>>::get(data_a)[0],
+    compute.transform_in_out_0(&expr::BaseData<data_a_t>::get(data_a)[0],
                                g0.dims);
-    compute.transform_in_out_1(&expr::BaseData<Block<e2_T>>::get(data_b)[0],
+    compute.transform_in_out_1(&expr::BaseData<data_a_t>::get(data_b)[0],
                                g0.dims);
 
-    len_type len = symphas::dft::length<G_T, D>(g0.dims);
+    // Dispatch to CPU or CUDA implementation based on convolution type
+    update_impl(compute, g0);
+  }
+
+ private:
+  //! CPU implementation of convolution update
+  template <size_t D0>
+  void update_impl(expr::ConvolutionDataPair<D0>& compute_data, result_type& result_grid) {
+    len_type len = symphas::dft::length<G_T, D>(result_grid.dims);
     if constexpr (std::is_same<G_T, complex_t>::value) {
-      grid::scale(compute.out_0, len);
-      grid::scale(compute.out_1, len);
+      grid::scale(compute_data.out_0, len);
+      grid::scale(compute_data.out_1, len);
     }
 
 #pragma omp parallel for
     for (iter_type i = 0; i < len; ++i) {
-      symphas::math::real(compute.in_2[i]) =
-          symphas::math::real(compute.out_0[i]) *
-              symphas::math::real(compute.out_1[i]) -
-          symphas::math::imag(compute.out_0[i]) *
-              symphas::math::real(compute.out_1[i]);
-      symphas::math::imag(compute.in_2[i]) =
-          symphas::math::real(compute.out_0[i]) *
-              symphas::math::imag(compute.out_1[i]) +
-          symphas::math::imag(compute.out_0[i]) *
-              symphas::math::real(compute.out_1[i]);
+      symphas::math::real(compute_data.in_2[i]) =
+          symphas::math::real(compute_data.out_0[i]) *
+              symphas::math::real(compute_data.out_1[i]) -
+          symphas::math::imag(compute_data.out_0[i]) *
+              symphas::math::imag(compute_data.out_1[i]);
+      symphas::math::imag(compute_data.in_2[i]) =
+          symphas::math::real(compute_data.out_0[i]) *
+              symphas::math::imag(compute_data.out_1[i]) +
+          symphas::math::imag(compute_data.out_0[i]) *
+              symphas::math::real(compute_data.out_1[i]);
     }
 
-    compute.transform_out_in(g0.values, g0.dims);
+    compute_data.transform_out_in(result_grid.values, result_grid.dims);
 
     if constexpr (std::is_same<G_T, scalar_t>::value) {
-      grid::scale(g0);
+      grid::scale(result_grid);
     }
   }
+
+#ifdef USING_CUDA
+  //! CUDA implementation of convolution update
+  template <size_t D0>
+  void update_impl(expr::ConvolutionDataPairCUDA<D0>& compute_data, result_type& result_grid) {
+    symphas::internal::update_impl_cuda<V, E1, E2, D0, G_T>(compute_data, result_grid);
+  }
+#endif
+
+ public:
 
   template <typename eval_handler_type>
   void update(eval_handler_type const& eval_handler) {
@@ -364,7 +502,7 @@ struct OpConvolution : OpExpression<OpConvolution<V, E1, E2>> {
   }
 
  protected:
-  expr::ConvolutionDataPair<D> compute;
+  convolution_type compute;
 };
 
 template <typename coeff_t, typename V2, typename E1, typename E2,
@@ -422,21 +560,25 @@ auto operator*(tensor_t const& tensor, OpConvolution<V, E1, E2> const& b) {
  * \tparam D the dimension of the Gaussian smoothing kernel.
  * \tparam E The type of the expression convoluted with the Gaussian smoother.
  */
-template <typename V, size_t D, typename E>
-struct OpConvolution<V, GaussianSmoothing<D>, E>
-    : OpExpression<OpConvolution<V, GaussianSmoothing<D>, E>> {
+template <typename V, size_t D, template <typename, size_t> typename grid_type,
+          typename E>
+struct OpConvolution<V, GaussianSmoothing<D, grid_type>, E>
+    : OpExpression<OpConvolution<V, GaussianSmoothing<D, grid_type>, E>> {
   using G_T = typename expr::eval_type<E>::type;
+  using result_type = grid_type<G_T, D>;
+  using convolution_type = expr::internal::convolution_data_type<result_type>;
+  using data_type = result_type;
 
   void allocate() {
     e.allocate();
 
     if (g0.len == 0) {
       smoother.allocate();
-      g0 = Grid<G_T, D>(expr::data_dimensions(smoother));
-      data = Block<G_T>(expr::data_length(smoother));
+      g0 = result_type(expr::data_dimensions(smoother));
+      data = data_type(expr::data_dimensions(smoother));
 
       using std::swap;
-      expr::ConvolutionData<D> allocated_compute(data.values, g0);
+      convolution_type allocated_compute(data.values, g0);
       swap(compute, allocated_compute);
     }
   }
@@ -445,7 +587,7 @@ struct OpConvolution<V, GaussianSmoothing<D>, E>
       : g0{0},
         data{0},
         value{V{}},
-        smoother{GaussianSmoothing<D>()},
+        smoother{GaussianSmoothing<D, grid_type>()},
         compute{} {}
 
   //! Generate the convolution expression.
@@ -458,7 +600,8 @@ struct OpConvolution<V, GaussianSmoothing<D>, E>
    * \param smoother The Gaussian smoothing kernel.
    * \param e The expression that is smoothed with this expression.
    */
-  OpConvolution(V value, GaussianSmoothing<D> const& smoother, E const& e)
+  OpConvolution(V value, GaussianSmoothing<D, grid_type> const& smoother,
+                E const& e)
       : g0{0},
         data{0},
         value{value},
@@ -466,7 +609,8 @@ struct OpConvolution<V, GaussianSmoothing<D>, E>
         smoother{smoother},
         compute{} { /*update();*/ }
 
-  OpConvolution(OpConvolution<V, GaussianSmoothing<D>, E> const& other)
+  OpConvolution(
+      OpConvolution<V, GaussianSmoothing<D, grid_type>, E> const& other)
       : g0{0},
         data{0},
         value{other.value},
@@ -474,13 +618,15 @@ struct OpConvolution<V, GaussianSmoothing<D>, E>
         smoother{other.smoother},
         compute{} { /*update();*/ }
 
-  OpConvolution(OpConvolution<V, GaussianSmoothing<D>, E>&& other) noexcept
+  OpConvolution(
+      OpConvolution<V, GaussianSmoothing<D, grid_type>, E>&& other) noexcept
       : OpConvolution() {
     swap(*this, other);
   }
 
-  friend void swap(OpConvolution<V, GaussianSmoothing<D>, E>& first,
-                   OpConvolution<V, GaussianSmoothing<D>, E>& second) {
+  friend void swap(
+      OpConvolution<V, GaussianSmoothing<D, grid_type>, E>& first,
+      OpConvolution<V, GaussianSmoothing<D, grid_type>, E>& second) {
     using std::swap;
     swap(first.g0, second.g0);
     swap(first.data, second.data);
@@ -497,15 +643,15 @@ struct OpConvolution<V, GaussianSmoothing<D>, E>
   }
 
   template <typename V1>
-  auto operator+(
-      OpConvolution<V1, GaussianSmoothing<D>, E> const& other) const {
+  auto operator+(OpConvolution<V1, GaussianSmoothing<D, grid_type>, E> const&
+                     other) const {
     return symphas::internal::make_convolution::get(value + other.value,
                                                     smoother, e);
   }
 
   template <typename V1>
-  auto operator-(
-      OpConvolution<V1, GaussianSmoothing<D>, E> const& other) const {
+  auto operator-(OpConvolution<V1, GaussianSmoothing<D, grid_type>, E> const&
+                     other) const {
     return symphas::internal::make_convolution::get(value - other.value,
                                                     smoother, e);
   }
@@ -540,26 +686,30 @@ struct OpConvolution<V, GaussianSmoothing<D>, E>
 #endif
 
  protected:
-  Grid<G_T, D> g0;  //!< The grid storing the result of this convolution.
-  Block<G_T> data;  //!< Grid storing the result of the second expression.
+  result_type g0;  //!< The grid storing the result of this convolution.
+  data_type data;  //!< Grid storing the result of the second expression.
 
  public:
   V value;  //!< Value multiplying the result of this convolution.
   E e;      //!< The expression to populate the first grid.
-  GaussianSmoothing<D> smoother;  //!< The smoothing kernel.
+  GaussianSmoothing<D, grid_type> smoother;  //!< The smoothing kernel.
 
-  template <typename V0, size_t D0, typename E0>
+  template <typename V0, size_t D0,
+            template <typename, size_t> typename grid_type0, typename E0>
   friend auto const& expr::get_enclosed_expression(
-      OpConvolution<V0, GaussianSmoothing<D0>, E0> const&);
-  template <typename V0, size_t D0, typename E0>
+      OpConvolution<V0, GaussianSmoothing<D0, grid_type0>, E0> const&);
+  template <typename V0, size_t D0,
+            template <typename, size_t> typename grid_type0, typename E0>
   friend auto& expr::get_enclosed_expression(
-      OpConvolution<V0, GaussianSmoothing<D0>, E0>&);
-  template <typename V0, size_t D0, typename E0>
+      OpConvolution<V0, GaussianSmoothing<D0, grid_type0>, E0>&);
+  template <typename V0, size_t D0,
+            template <typename, size_t> typename grid_type0, typename E0>
   friend auto const& expr::get_result_data(
-      OpConvolution<V0, GaussianSmoothing<D0>, E0> const&);
-  template <typename V0, size_t D0, typename E0>
+      OpConvolution<V0, GaussianSmoothing<D0, grid_type0>, E0> const&);
+  template <typename V0, size_t D0,
+            template <typename, size_t> typename grid_type0, typename E0>
   friend auto& expr::get_result_data(
-      OpConvolution<V0, GaussianSmoothing<D0>, E0>&);
+      OpConvolution<V0, GaussianSmoothing<D0, grid_type0>, E0>&);
 
   //! Update the convolution by computing the result into the stored grid.
   /*!
@@ -569,20 +719,38 @@ struct OpConvolution<V, GaussianSmoothing<D>, E>
   void update(eval_handler_type const& eval_handler,
               symphas::lib::types_list<condition_ts...>) {
     eval_handler.result(e, data, data.len);
-    compute.transform_in_out(&expr::BaseData<Block<G_T>>::get(data)[0],
+    compute.transform_in_out(&expr::BaseData<data_type>::get(data)[0],
                              g0.dims);
 
+    // Dispatch to CPU or CUDA implementation
+    update_impl(compute, g0);
+  }
+
+ private:
+  //! CPU implementation of Gaussian smoothing convolution
+  template <size_t D0>
+  void update_impl(expr::ConvolutionData<D0>& compute_data, result_type& result_grid) {
     auto f = [&](iter_type i, iter_type ft_i) {
-      symphas::math::real(compute.in_1[ft_i]) =
-          smoother.eval(i) * symphas::math::real(compute.out_0[ft_i]);
-      symphas::math::imag(compute.in_1[ft_i]) =
-          smoother.eval(i) * symphas::math::imag(compute.out_0[ft_i]);
+      symphas::math::real(compute_data.in_1[ft_i]) =
+          smoother.eval(i) * symphas::math::real(compute_data.out_0[ft_i]);
+      symphas::math::imag(compute_data.in_1[ft_i]) =
+          smoother.eval(i) * symphas::math::imag(compute_data.out_0[ft_i]);
     };
 
-    symphas::dft::iterate_rc<G_T, D>(f, g0.dims);
-    compute.transform_out_in(g0.values, g0.dims);
-    grid::scale(g0);
+    symphas::dft::iterate_rc<G_T, D>(f, result_grid.dims);
+    compute_data.transform_out_in(result_grid.values, result_grid.dims);
+    grid::scale(result_grid);
   }
+
+#ifdef USING_CUDA
+  //! CUDA implementation of Gaussian smoothing convolution
+  template <size_t D0>
+  void update_impl(expr::ConvolutionDataCUDA<D0>& compute_data, result_type& result_grid) {
+    symphas::internal::update_impl_cuda<V, D, grid_type, E, D0, G_T>(compute_data, result_grid, smoother);
+  }
+#endif
+
+ public:
 
   template <typename eval_handler_type>
   void update(eval_handler_type const& eval_handler) {
@@ -590,48 +758,54 @@ struct OpConvolution<V, GaussianSmoothing<D>, E>
   }
 
  protected:
-  expr::ConvolutionData<D> compute;
+  convolution_type compute;
+  // expr::ConvolutionData<D> compute;
 };
 
-template <typename coeff_t, typename V, size_t D, typename E,
+template <typename coeff_t, typename V, size_t D,
+          template <typename, size_t> typename grid_type, typename E,
           typename std::enable_if_t<(expr::is_coeff<coeff_t> &&
                                      !expr::is_tensor<coeff_t> &&
                                      !expr::is_tensor<V>),
                                     int> = 0>
 auto operator*(coeff_t const& value,
-               OpConvolution<V, GaussianSmoothing<D>, E> const& b) {
+               OpConvolution<V, GaussianSmoothing<D, grid_type>, E> const& b) {
   return symphas::internal::make_convolution::get(
       value * b.value, b.smoother, expr::get_enclosed_expression(b));
 }
 
-template <typename coeff_t, typename tensor_t, size_t D, typename E,
+template <typename coeff_t, typename tensor_t, size_t D,
+          template <typename, size_t> typename grid_type, typename E,
           typename std::enable_if_t<
               (expr::is_coeff<coeff_t> && expr::is_tensor<tensor_t>), int> = 0>
-auto operator*(coeff_t const& value,
-               OpConvolution<tensor_t, GaussianSmoothing<D>, E> const& b) {
+auto operator*(
+    coeff_t const& value,
+    OpConvolution<tensor_t, GaussianSmoothing<D, grid_type>, E> const& b) {
   return (value * b.value) *
          symphas::internal::make_convolution::get(
              OpIdentity{}, b.smoother, expr::get_enclosed_expression(b));
 }
 
-template <typename tensor_t, typename V, size_t D, typename E,
+template <typename tensor_t, typename V, size_t D,
+          template <typename, size_t> typename grid_type, typename E,
           typename std::enable_if_t<(expr::is_tensor<tensor_t> &&
                                      !expr::is_tensor<V> &&
                                      expr::eval_type<E>::rank == 0),
                                     int> = 0>
 auto operator*(tensor_t const& tensor,
-               OpConvolution<V, GaussianSmoothing<D>, E> const& b) {
+               OpConvolution<V, GaussianSmoothing<D, grid_type>, E> const& b) {
   return symphas::internal::make_convolution::get(
       tensor * b.value, b.smoother, expr::get_enclosed_expression(b));
 }
 
-template <typename tensor_t, typename V, size_t D, typename E,
+template <typename tensor_t, typename V, size_t D,
+          template <typename, size_t> typename grid_type, typename E,
           typename std::enable_if_t<(expr::is_tensor<tensor_t> &&
                                      !expr::is_tensor<V> &&
                                      expr::eval_type<E>::rank > 0),
                                     int> = 0>
 auto operator*(tensor_t const& tensor,
-               OpConvolution<V, GaussianSmoothing<D>, E> const& b) {
+               OpConvolution<V, GaussianSmoothing<D, grid_type>, E> const& b) {
   return symphas::internal::make_convolution::get(
       b.value, b.smoother, tensor * expr::get_enclosed_expression(b));
 }
@@ -644,24 +818,26 @@ auto operator*(tensor_t const& tensor,
  *
  * \tparam V Type of the coefficient.
  * \tparam D the dimension of the Gaussian smoothing kernel.
+ * \tparam grid_type The grid type template used by the Gaussian kernel.
  * \tparam G The type of variable data.
  */
-template <typename V, size_t D, typename G>
-struct OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>
-    : OpExpression<
-          OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>> {
+template <typename V, size_t D, template <typename, size_t> typename grid_type,
+          typename G>
+struct OpConvolution<V, GaussianSmoothing<D, grid_type>, OpTerm<OpIdentity, G>>
+    : OpExpression<OpConvolution<V, GaussianSmoothing<D, grid_type>,
+                                 OpTerm<OpIdentity, G>>> {
   using E = OpTerm<V, G>;
-  using G_T = typename expr::eval_type<E>::type;
-  using G0 = Grid<G_T, D>;
+  using G_T = expr::eval_type_t<E>;
+  using result_type = grid_type<G_T, D>;
+  using convolution_type = typename expr::internal::convolution_data_type<result_type>;
 
   void allocate() {
     if (g0.len == 0) {
       smoother.allocate();
-      g0 = Grid<G_T, D>(expr::data_dimensions(smoother));
+      g0 = result_type(expr::data_dimensions(smoother));
 
       using std::swap;
-      expr::ConvolutionData<D> allocated_compute(expr::BaseData<G>::get(data),
-                                                 g0);
+      convolution_type allocated_compute(expr::BaseData<G>::get(data), g0);
       swap(compute, allocated_compute);
     }
   }
@@ -681,7 +857,7 @@ struct OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>
   template <typename V0, typename V1,
             typename std::enable_if_t<
                 std::is_convertible<mul_result_t<V0, V1>, V>::value, int> = 0>
-  OpConvolution(V0 value, GaussianSmoothing<D> const& smoother,
+  OpConvolution(V0 value, GaussianSmoothing<D, grid_type> const& smoother,
                 OpTerm<V1, G> const& a)
       : g0{0},
         data{expr::data(a)},
@@ -690,14 +866,15 @@ struct OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>
         compute{} { /*update();*/
     ;
   }
-  OpConvolution(V value, GaussianSmoothing<D> const& smoother, G grid)
+  OpConvolution(V value, GaussianSmoothing<D, grid_type> const& smoother,
+                G grid)
       : g0{0},
         data{grid},
         value{value},
         smoother{smoother},
         compute{} { /*update();*/ }
 
-  OpConvolution(OpConvolution<V, GaussianSmoothing<D>,
+  OpConvolution(OpConvolution<V, GaussianSmoothing<D, grid_type>,
                               OpTerm<OpIdentity, G>> const& other)
       : g0{0},
         data{other.data},
@@ -705,15 +882,16 @@ struct OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>
         smoother{other.smoother},
         compute{} { /*update();*/ }
 
-  OpConvolution(OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>&&
-                    other) noexcept
+  OpConvolution(OpConvolution<V, GaussianSmoothing<D, grid_type>,
+                              OpTerm<OpIdentity, G>>&& other) noexcept
       : OpConvolution() {
     swap(*this, other);
   }
 
-  friend void swap(
-      OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>& first,
-      OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>& second) {
+  friend void swap(OpConvolution<V, GaussianSmoothing<D, grid_type>,
+                                 OpTerm<OpIdentity, G>>& first,
+                   OpConvolution<V, GaussianSmoothing<D, grid_type>,
+                                 OpTerm<OpIdentity, G>>& second) {
     using std::swap;
     swap(first.g0, second.g0);
     swap(first.data, second.data);
@@ -729,15 +907,15 @@ struct OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>
   }
 
   template <typename V1>
-  auto operator+(
-      OpConvolution<V1, GaussianSmoothing<D>, E> const& other) const {
+  auto operator+(OpConvolution<V1, GaussianSmoothing<D, grid_type>, E> const&
+                     other) const {
     return symphas::internal::make_convolution::get_g(value + other.value,
                                                       smoother, data);
   }
 
   template <typename V1>
-  auto operator-(
-      OpConvolution<V1, GaussianSmoothing<D>, E> const& other) const {
+  auto operator-(OpConvolution<V1, GaussianSmoothing<D, grid_type>, E> const&
+                     other) const {
     return symphas::internal::make_convolution::get_g(value - other.value,
                                                       smoother, data);
   }
@@ -772,42 +950,69 @@ struct OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>
 #endif
 
  protected:
-  G0 g0;   //!< Grid storing the result of the convolution.
+  result_type g0;  //!< Grid storing the result of the convolution.
   G data;  //!< The data from the OpTerm.
 
  public:
   V value;  //!< Value multiplying the result of this convolution.
-  GaussianSmoothing<D> smoother;  //!< The smoothing kernel.
+  GaussianSmoothing<D, grid_type> smoother;  //!< The smoothing kernel.
 
-  template <typename V0, size_t D0, typename G0>
+  template <typename V0, size_t D0,
+            template <typename, size_t> typename grid_type0, typename G0>
   friend auto expr::get_enclosed_expression(
-      OpConvolution<V0, GaussianSmoothing<D0>, OpTerm<OpIdentity, G0>> const&);
-  template <typename V0, size_t D0, typename G0>
+      OpConvolution<V0, GaussianSmoothing<D0, grid_type0>,
+                    OpTerm<OpIdentity, G0>> const&);
+  template <typename V0, size_t D0,
+            template <typename, size_t> typename grid_type0, typename G0>
   friend auto expr::get_enclosed_expression(
-      OpConvolution<V0, GaussianSmoothing<D0>, OpTerm<OpIdentity, G0>>&);
-  template <typename V0, size_t D0, typename G0>
+      OpConvolution<V0, GaussianSmoothing<D0, grid_type0>,
+                    OpTerm<OpIdentity, G0>>&);
+  template <typename V0, size_t D0,
+            template <typename, size_t> typename grid_type0, typename G0>
   friend auto const& expr::get_result_data(
-      OpConvolution<V0, GaussianSmoothing<D0>, OpTerm<OpIdentity, G0>> const&);
-  template <typename V0, size_t D0, typename G0>
+      OpConvolution<V0, GaussianSmoothing<D0, grid_type0>,
+                    OpTerm<OpIdentity, G0>> const&);
+  template <typename V0, size_t D0,
+            template <typename, size_t> typename grid_type0, typename G0>
   friend auto& expr::get_result_data(
-      OpConvolution<V0, GaussianSmoothing<D0>, OpTerm<OpIdentity, G0>>&);
+      OpConvolution<V0, GaussianSmoothing<D0, grid_type0>,
+                    OpTerm<OpIdentity, G0>>&);
 
   template <typename eval_handler_type, typename... condition_ts>
   void update(eval_handler_type const& eval_handler,
               symphas::lib::types_list<condition_ts...>) {
     compute.transform_in_out(&expr::BaseData<G>::get(data)[0], g0.dims);
 
+    // Dispatch to CPU or CUDA implementation
+    update_impl(compute, g0);
+  }
+
+ private:
+  //! CPU implementation of OpTerm Gaussian smoothing convolution
+  template <size_t D0>
+  void update_impl(expr::ConvolutionData<D0>& compute_data, result_type& result_grid) {
+    using G_T = typename expr::eval_type<OpTerm<OpIdentity, G>>::type;
     auto f = [&](iter_type ft_i, iter_type i) {
-      symphas::math::real(compute.in_1[i]) =
-          smoother.eval(ft_i) * symphas::math::real(compute.out_0[i]);
-      symphas::math::imag(compute.in_1[i]) =
-          smoother.eval(ft_i) * symphas::math::imag(compute.out_0[i]);
+      symphas::math::real(compute_data.in_1[i]) =
+          smoother.eval(ft_i) * symphas::math::real(compute_data.out_0[i]);
+      symphas::math::imag(compute_data.in_1[i]) =
+          smoother.eval(ft_i) * symphas::math::imag(compute_data.out_0[i]);
     };
 
-    symphas::dft::iterate_rc<G_T, D>(f, g0.dims);
-    compute.transform_out_in(g0.values, g0.dims);
-    grid::scale(g0);
+    symphas::dft::iterate_rc<G_T, D>(f, result_grid.dims);
+    compute_data.transform_out_in(result_grid.values, result_grid.dims);
+    grid::scale(result_grid);
   }
+
+#ifdef USING_CUDA
+  //! CUDA implementation of OpTerm Gaussian smoothing convolution
+  template <size_t D0>
+  void update_impl(expr::ConvolutionDataCUDA<D0>& compute_data, result_type& result_grid) {
+    symphas::internal::update_impl_cuda<V, D, grid_type, G, D0>(compute_data, result_grid, smoother);
+  }
+#endif
+
+ public:
 
   template <typename eval_handler_type>
   void update(eval_handler_type const& eval_handler) {
@@ -815,62 +1020,68 @@ struct OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>
   }
 
  protected:
-  expr::ConvolutionData<D> compute;
+  convolution_type compute;
 };
 
-template <typename V0, size_t D, typename T, typename G>
-OpConvolution(V0, GaussianSmoothing<D>, OpTerm<T, G>)
-    -> OpConvolution<mul_result_t<V0, T>, GaussianSmoothing<D>,
+template <typename V0, size_t D, template <typename, size_t> typename grid_type,
+          typename T, typename G>
+OpConvolution(V0, GaussianSmoothing<D, grid_type>, OpTerm<T, G>)
+    -> OpConvolution<mul_result_t<V0, T>, GaussianSmoothing<D, grid_type>,
                      OpTerm<OpIdentity, G>>;
-template <typename V, size_t D, typename E>
-OpConvolution(V, GaussianSmoothing<D>, OpExpression<E>)
-    -> OpConvolution<V, GaussianSmoothing<D>, E>;
+template <typename V, size_t D, template <typename, size_t> typename grid_type,
+          typename E>
+OpConvolution(V, GaussianSmoothing<D, grid_type>, OpExpression<E>)
+    -> OpConvolution<V, GaussianSmoothing<D, grid_type>, E>;
 template <typename V, typename E1, typename E2>
 OpConvolution(V, OpExpression<E1>, OpExpression<E2>)
     -> OpConvolution<V, E1, E2>;
 
-template <typename coeff_t, typename V2, size_t D, typename G2,
+template <typename coeff_t, typename V2, size_t D,
+          template <typename, size_t> typename grid_type, typename G2,
           typename std::enable_if_t<(expr::is_coeff<coeff_t> &&
                                      !expr::is_tensor<coeff_t> &&
                                      !expr::is_tensor<V2>),
                                     int> = 0>
-auto operator*(
-    coeff_t const& value,
-    OpConvolution<V2, GaussianSmoothing<D>, OpTerm<OpIdentity, G2>> const& b) {
+auto operator*(coeff_t const& value,
+               OpConvolution<V2, GaussianSmoothing<D, grid_type>,
+                             OpTerm<OpIdentity, G2>> const& b) {
   return symphas::internal::make_convolution::get_g(value * b.value, b.smoother,
                                                     b.op_g);
 }
 
-template <typename coeff_t, typename tensor_t, size_t D, typename G2,
+template <typename coeff_t, typename tensor_t, size_t D,
+          template <typename, size_t> typename grid_type, typename G2,
           typename std::enable_if_t<
               (expr::is_coeff<coeff_t> && expr::is_tensor<tensor_t>), int> = 0>
 auto operator*(coeff_t const& value,
-               OpConvolution<tensor_t, GaussianSmoothing<D>,
+               OpConvolution<tensor_t, GaussianSmoothing<D, grid_type>,
                              OpTerm<OpIdentity, G2>> const& b) {
   return (value * b.value) * symphas::internal::make_convolution::get_g(
                                  OpIdentity{}, b.smoother, b.op_g);
 }
 
-template <typename tensor_t, typename V, size_t D, typename G2,
+template <typename tensor_t, typename V, size_t D,
+          template <typename, size_t> typename grid_type, typename G2,
           typename std::enable_if_t<
               (expr::is_tensor<tensor_t> && !expr::is_tensor<V> &&
                expr::eval_type<OpTerm<OpIdentity, G2>>::rank == 0),
               int> = 0>
-auto operator*(
-    tensor_t const& tensor,
-    OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G2>> const& b) {
+auto operator*(tensor_t const& tensor,
+               OpConvolution<V, GaussianSmoothing<D, grid_type>,
+                             OpTerm<OpIdentity, G2>> const& b) {
   return symphas::internal::make_convolution::get(tensor * b.value, b.smoother,
                                                   b.op_g);
 }
 
-template <typename tensor_t, typename V, size_t D, typename G2,
+template <typename tensor_t, typename V, size_t D,
+          template <typename, size_t> typename grid_type, typename G2,
           typename std::enable_if_t<
               (expr::is_tensor<tensor_t> && !expr::is_tensor<V> &&
                expr::eval_type<OpTerm<OpIdentity, G2>>::rank > 0),
               int> = 0>
-auto operator*(
-    tensor_t const& tensor,
-    OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G2>> const& b) {
+auto operator*(tensor_t const& tensor,
+               OpConvolution<V, GaussianSmoothing<D, grid_type>,
+                             OpTerm<OpIdentity, G2>> const& b) {
   return symphas::internal::make_convolution::get(b.value, b.smoother,
                                                   tensor * b.op_g);
 }
@@ -946,43 +1157,49 @@ auto make_convolution::get(V const& value, OpExpression<E1> const& e1,
   }
 }
 
-template <typename V, size_t D, typename E>
-auto make_convolution::get(V const& value, GaussianSmoothing<D> const& smoother,
+template <typename V, size_t D, template <typename, size_t> typename grid_type,
+          typename E>
+auto make_convolution::get(V const& value,
+                           GaussianSmoothing<D, grid_type> const& smoother,
                            OpExpression<E> const& e) {
   constexpr size_t R = expr::eval_type<E>::rank;
   if constexpr (R > 0) {
     return make_convolution_tensor(value, smoother, *static_cast<E const*>(&e),
                                    std::make_index_sequence<R>{});
   } else {
-    return OpConvolution<V, GaussianSmoothing<D>, E>(
+    return OpConvolution<V, GaussianSmoothing<D, grid_type>, E>(
         value, smoother, *static_cast<E const*>(&e));
   }
 }
 
-template <typename V, size_t D, typename T, typename G>
-auto make_convolution::get(V const& value, GaussianSmoothing<D> const& smoother,
+template <typename V, size_t D, template <typename, size_t> typename grid_type,
+          typename T, typename G>
+auto make_convolution::get(V const& value,
+                           GaussianSmoothing<D, grid_type> const& smoother,
                            OpTerm<T, G> const& e) {
   constexpr size_t R = expr::eval_type<OpTerm<T, G>>::rank;
   if constexpr (R > 0) {
     return make_convolution_tensor(value, smoother, e,
                                    std::make_index_sequence<R>{});
   } else {
-    return OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>(
-        value, smoother, e);
+    return OpConvolution<V, GaussianSmoothing<D, grid_type>,
+                         OpTerm<OpIdentity, G>>(value, smoother, e);
   }
 }
 
-template <typename V, size_t D>
-auto make_convolution::get(V const& value, GaussianSmoothing<D> const& smoother,
+template <typename V, size_t D, template <typename, size_t> typename grid_type>
+auto make_convolution::get(V const& value,
+                           GaussianSmoothing<D, grid_type> const& smoother,
                            OpVoid) {
   return OpVoid{};
 }
 
-template <typename V, size_t D, typename G>
+template <typename V, size_t D, template <typename, size_t> typename grid_type,
+          typename G>
 auto make_convolution::get_g(V const& value,
-                             GaussianSmoothing<D> const& smoother, G grid) {
-  return OpConvolution<V, GaussianSmoothing<D>, OpTerm<OpIdentity, G>>(
-      value, smoother, grid);
+                             GaussianSmoothing<D, grid_type> const& smoother,
+                             G grid) {
+  return OpConvolution<V, GaussianSmoothing<D, grid_type>,
+                       OpTerm<OpIdentity, G>>(value, smoother, grid);
 }
-
 }  // namespace symphas::internal

@@ -67,24 +67,27 @@ namespace math {}
  * For a value of generic type which is not accepted by any overloads,
  * it is explicitly cast to the type `complex_t` to compute the result.
  */
-#define MATH_FUNCTION_OVERLOADS_IMPL(NAME, RETURN)  \
-  inline scalar_t _##NAME(int vv) {                 \
-    auto v = static_cast<scalar_t>(vv);             \
-    RETURN;                                         \
-  }                                                 \
-  inline scalar_t _##NAME(scalar_t v) { RETURN; }   \
-  inline complex_t _##NAME(complex_t v) { RETURN; } \
-  template <typename T>                             \
-  auto _##NAME(T v) {                               \
-    return _##NAME(static_cast<complex_t>(v));      \
-  }                                                 \
-  template <typename T>                             \
-  T NAME(T v) {                                     \
-    return _##NAME(v);                              \
+#define MATH_FUNCTION_OVERLOADS_IMPL(NAME, EVAL)   \
+  inline auto _##NAME(int vv) {                    \
+    auto v = static_cast<scalar_t>(vv);            \
+    return EVAL;                                   \
+  }                                                \
+  inline auto _##NAME(scalar_t v) { return EVAL; } \
+  inline auto _##NAME(complex_t c) {               \
+    std::complex<scalar_t> v(c.real(), c.imag());  \
+    return EVAL;                                   \
+  }                                                \
+  template <typename T>                            \
+  auto _##NAME(T v) {                              \
+    return _##NAME(static_cast<complex_t>(v));     \
+  }                                                \
+  template <typename T>                            \
+  auto NAME(T v) {                                 \
+    return _##NAME(v);                             \
   }
 
 #define MATH_FUNCTION_OVERLOADS(NAME, FUNC) \
-  MATH_FUNCTION_OVERLOADS_IMPL(NAME, return FUNC(v))
+  MATH_FUNCTION_OVERLOADS_IMPL(NAME, FUNC(v))
 
 namespace symphas::math {
 
@@ -99,7 +102,19 @@ namespace symphas::math {
  */
 template <typename T>
 complex_t conj(T const& v) {
-  return std::conj(v);
+  std::complex<scalar_t> c = std::conj(v);
+  return complex_t(c.real(), c.imag());
+}
+
+//! Returns conjugate complex number for a internal complex type.
+/*!
+ * Since additional types are introduced in the SymPhas library, an
+ * extension of the standard library `conj` function is implemented to
+ * apply to complex_t type.
+ */
+template<>
+inline complex_t conj<>(complex_t const& v) {
+  return complex_t(v.real(), -v.imag());
 }
 
 //! Returns conjugate complex number for a generic type.
@@ -137,6 +152,23 @@ auto conj(any_vector_t<T, D> const& v) {
 template <typename T>
 scalar_t modulus(T const& v) {
   return std::abs(v);
+}
+
+//! Returns modulus of a value of a generic type.
+/*!
+ * The generic type has some relationship with a complex number, to allow
+ * taking the modulus to be a logically accepted result.
+ *
+ * Since additional types are introduced in the SymPhas library, an
+ * extension of the standard library `abs` function is implemented to
+ * apply to additional types.
+ *
+ * This implementation simply forwards its argument to the standard library
+ * `abs` function.
+ */
+template <>
+inline scalar_t modulus<>(complex_t const& v) {
+  return std::sqrt(v.real() * v.real() + v.imag() * v.imag());
 }
 
 //! Returns the real part of a value of a generic type.
@@ -200,10 +232,11 @@ MATH_FUNCTION_OVERLOADS(asinh, std::asinh);
 MATH_FUNCTION_OVERLOADS(atanh, std::atanh);
 MATH_FUNCTION_OVERLOADS(sqrt, std::sqrt);
 MATH_FUNCTION_OVERLOADS(log, std::log);
+MATH_FUNCTION_OVERLOADS(abs, std::abs);
 
-MATH_FUNCTION_OVERLOADS_IMPL(sec, return 1. / std::cos(v));
-MATH_FUNCTION_OVERLOADS_IMPL(csc, return 1. / std::sin(v));
-MATH_FUNCTION_OVERLOADS_IMPL(cot, return 1. / std::tan(v));
+MATH_FUNCTION_OVERLOADS_IMPL(sec, 1. / std::cos(v));
+MATH_FUNCTION_OVERLOADS_IMPL(csc, 1. / std::sin(v));
+MATH_FUNCTION_OVERLOADS_IMPL(cot, 1. / std::tan(v));
 
 template <size_t N, size_t E>
 constexpr size_t fixed_pow = N * fixed_pow<N, E - 1>;
@@ -799,8 +832,8 @@ constexpr auto max_value(T0 val0) {
  * \tparam Ts List of types of the additional compared value list.
  */
 template <typename T0, typename T1, typename... Ts>
-constexpr auto max_value(T0 val0, T1 val1,
-                         Ts... vals) -> add_result_t<T0, T1, Ts...> {
+constexpr auto max_value(T0 val0, T1 val1, Ts... vals)
+    -> add_result_t<T0, T1, Ts...> {
   auto amin = max_value(val1, vals...);
   return (val0 > amin) ? val0 : amin;
 }
@@ -841,8 +874,8 @@ constexpr auto min_value(T0 val0) {
  * \tparam Ts List of types of the additional compared value list.
  */
 template <typename T0, typename T1, typename... Ts>
-constexpr auto min_value(T0 val0, T1 val1,
-                         Ts... vals) -> add_result_t<T0, T1, Ts...> {
+constexpr auto min_value(T0 val0, T1 val1, Ts... vals)
+    -> add_result_t<T0, T1, Ts...> {
   auto amin = min_value(val1, vals...);
   return (val0 < amin) ? val0 : amin;
 }
@@ -865,7 +898,7 @@ struct identity<scalar_t> {
 //! Identity for the complex type, always equal to `1.0 + 0.0*i`.
 template <>
 struct identity<complex_t> {
-  __host__ constexpr complex_t operator()() { return {1.0, 0.0}; }
+  __host__ __device__ constexpr complex_t operator()() { return {1.0, 0.0}; }
 };
 
 //! The identity specialization for VectorValue.

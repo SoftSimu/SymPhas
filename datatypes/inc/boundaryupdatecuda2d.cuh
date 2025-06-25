@@ -930,8 +930,6 @@ void update_default_boundary(const grid::Boundary<T, 1>* b,
   h[0] = (side == Side::LEFT || side == Side::RIGHT) ? 0 : delta_h;
   h[1] = (side == Side::TOP || side == Side::BOTTOM) ? 0 : delta_h;
 
-  iter_type L =
-      (side == Side::LEFT || side == Side::RIGHT) ? grid.dims[0] : grid.dims[1];
   iter_type M =
       (side == Side::TOP || side == Side::BOTTOM) ? grid.dims[0] : grid.dims[1];
 

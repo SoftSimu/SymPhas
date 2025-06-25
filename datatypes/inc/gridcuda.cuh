@@ -31,6 +31,7 @@
 #ifdef USING_CUDA
 
 #include <cuda_runtime.h>
+#include <cuda/std/complex>
 
 namespace symphas {
 namespace cuda {}
@@ -699,7 +700,7 @@ __host__ auto operator-(multi_value_cuda<N, T> const& a,
  */
 template <typename T>
 struct BlockCUDA {
-  T* values;     //!< The list of values managed by this object.
+  T* values;  //!< The list of values managed by this object.
   len_type len;  //!< The number of values in the list.
 
   //! Create this object with \p len values.

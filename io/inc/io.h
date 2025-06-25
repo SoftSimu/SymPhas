@@ -89,7 +89,7 @@ struct plotting_helper {
   virtual bool in_bounds(const len_type (&coords)[2]) const = 0;
   virtual bool in_bounds(const len_type (&coords)[1]) const = 0;
   virtual bool in_bounds(std::initializer_list<len_type> const&) const = 0;
-  virtual ~plotting_helper(){};
+  virtual ~plotting_helper() {};
 
   len_type get_interval_len(Axis ax) const {
     int n = int(this->get_dim());
@@ -724,6 +724,27 @@ struct SaveParams {
       return indices[count - 1];
     } else {
       return stop;
+    }
+  }
+
+  //! Return the type of the save method.
+  /*!
+   * Return the type of the save method. The type determines how the save
+   * indices are calculated, and how the save method behaves.
+   */
+  SaveType get_type() const { return type; }
+
+  //! Return the base value used in the save method.
+  /*!
+   * Return the base value used in the save method. The base value is used
+   * to calculate the next save index, and is only relevant for the
+   * SaveType::MULTIPLICATIVE, SaveType::EXP, and SaveType::SPLIT types.
+   */
+  double get_base() const {
+    if (type == SaveType::LIST) {
+      return static_cast<double>(count);
+    } else {
+      return base;
     }
   }
 

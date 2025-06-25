@@ -67,6 +67,10 @@ struct ProvisionalSystemGroup {
     update_systems(index, time, std::make_index_sequence<sizeof...(P)>{});
   }
 
+  void save_systems(iter_type index, const char* dir) const {
+    save_systems(index, dir, std::make_index_sequence<sizeof...(P)>{});
+  }
+
   //! Container of the provisional data.
   std::tuple<ProvisionalSystemApplied<P, D>...> _s;
 
@@ -80,6 +84,18 @@ struct ProvisionalSystemGroup {
   std::tuple<ProvisionalSystemApplied<P, D>...> construct_systems(
       const symphas::interval_data_type vdata,
       const symphas::b_data_type bdata) {
-    return std::make_tuple((ProvisionalSystemApplied<P, D>(vdata, bdata))...);
+    return std::make_tuple(
+        (ProvisionalSystemApplied<P, D>(vdata, bdata))...);
+  }
+
+  template <size_t... Is>
+  void save_systems(iter_type index, const char* dir,
+                                std::index_sequence<Is...>) const {
+    char buffer[BUFFER_LENGTH];
+    auto get_dir = [&](size_t I) {
+      sprintf(buffer, "provisional/data%zd_%d.txt", I, index);
+      return symphas::lib::string(buffer);
+    };
+    ((..., std::get<Is>(_s).save(dir, get_dir(Is), index)));
   }
 };

@@ -788,6 +788,8 @@ struct print_f_op<E> {
                              "atanh" SYEX_DERIV_APPLIED_EXPR_FMT);
   SYEX_PRINT_FUNCTION_STRUCT(sqrt, "\\sqrt" SYEX_DERIV_APPLIED_EXPR_FMT,
                              "sqrt" SYEX_DERIV_APPLIED_EXPR_FMT);
+  SYEX_PRINT_FUNCTION_STRUCT(abs, "|" SYEX_DERIV_APPLIED_EXPR_FMT "|",
+                             "|" SYEX_DERIV_APPLIED_EXPR_FMT "|");
 
  public:
   template <auto f>

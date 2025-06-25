@@ -1141,6 +1141,54 @@ auto operator*(coeff_t const& value, OpCombination<A1, A2, E> const& b) {
 
 // ******************************************************************************************
 
+namespace symphas::internal {
+template <typename E1, typename E2>
+size_t chain_operator_print(FILE* out, OpEvaluable<E1> const& a,
+                            OpEvaluable<E2> const& b) {
+  return mul_print(out, *static_cast<E1 const*>(&a),
+                   *static_cast<E2 const*>(&b));
+}
+
+template <typename E1, typename E2>
+size_t chain_operator_print(char* out, OpEvaluable<E1> const& a,
+                            OpEvaluable<E2> const& b) {
+  return mul_print(out, *static_cast<E1 const*>(&a),
+                   *static_cast<E2 const*>(&b));
+}
+
+template <typename E1, typename E2>
+size_t chain_operator_print_length(OpEvaluable<E1> const& a,
+                                   OpEvaluable<E2> const& b) {
+  return mul_print_length(*static_cast<E1 const*>(&a),
+                   *static_cast<E2 const*>(&b));
+}
+
+inline size_t chain_operator_print(char* out, OpIdentity, OpIdentity) {
+  return 0;
+}
+
+inline size_t chain_operator_print(FILE* out, OpIdentity, OpIdentity) {
+  return 0;
+}
+
+inline size_t chain_operator_print_length(OpIdentity, OpIdentity) { return 0; }
+
+template <typename V, std::enable_if_t<expr::is_coeff<V>, int> = 0>
+inline size_t chain_operator_print(char* out, V const& coeff, OpIdentity) {
+  return expr::print_with_coeff(out, coeff);
+}
+
+template <typename V, std::enable_if_t<expr::is_coeff<V>, int> = 0>
+inline size_t chain_operator_print(FILE* out, V const& coeff, OpIdentity) {
+  return expr::print_with_coeff(out, coeff);
+}
+
+template <typename V, std::enable_if_t<expr::is_coeff<V>, int> = 0>
+inline size_t chain_operator_print_length(V const& coeff, OpIdentity) {
+  return expr::coeff_print_length(coeff);
+}
+}  // namespace symphas::internal
+
 //! An expression representing an operator applied to another operator.
 /*!
  * Represents the result of applying one operator to another.
@@ -1198,29 +1246,18 @@ struct OpOperatorChain : OpOperator<OpOperatorChain<A1, A2>> {
 
   size_t print(FILE* out) const {
     size_t n = 0;
-    n += symphas::internal::mul_print(out, f, g);
-    // n += fprintf(out, SYEX_CHAIN_FMT_A);
-    // n += f.print(out);
-    // n += fprintf(out, SYEX_CHAIN_FMT_SEP);
-    // n += g.print(out);
-    // n += fprintf(out, SYEX_CHAIN_FMT_B);
+    n += symphas::internal::chain_operator_print(out, f, g);
     return n;
   }
 
   size_t print(char* out) const {
     size_t n = 0;
-    n += symphas::internal::mul_print(out, f, g);
-    // n += sprintf(out + n, SYEX_CHAIN_FMT_A);
-    // n += f.print(out + n);
-    // n += sprintf(out + n, SYEX_CHAIN_FMT_SEP);
-    // n += g.print(out + n);
-    // n += sprintf(out + n, SYEX_CHAIN_FMT_B);
+    n += symphas::internal::chain_operator_print(out, f, g);
     return n;
   }
 
   size_t print_length() const {
-    return f.print_length() + g.print_length() +
-           /*SYEX_CHAIN_FMT_LEN*/ SYEX_MUL_FMT_LEN;
+    return symphas::internal::chain_operator_print_length(f, g);
   }
 
 #endif

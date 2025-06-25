@@ -151,6 +151,19 @@ __host__ __device__ inline constexpr Axis index_to_axis(iter_type i) {
 __host__ __device__ inline constexpr Axis axis_of_side(Side side) {
   return static_cast<Axis>(static_cast<iter_type>(side) / 2);
 }
+
+//! Convert string to Side enum.
+Side side_from_str(const char* str);
+
+//! Convert Side enum to string.
+const char* str_from_side(Side side);
+
+//! Convert string to Axis enum.
+Axis axis_from_str(const char* str);
+
+//! Convert Axis enum to string.
+const char* str_from_axis(Axis axis);
+
 //! Representation of an interval along a grid edge.
 /*!
  * Contains an array representing the left and right endpoints of an interval,

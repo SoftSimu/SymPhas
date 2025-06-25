@@ -46,8 +46,8 @@ struct model_swap_solver {
     return M<D, Sp>(model.get_coeff(), model.get_num_coeff(), parameters);
   }
 
-  template <template <template <typename> typename, typename>
-            typename SpecializedModel,
+  template <template <template <typename> typename,
+                      typename> typename SpecializedModel,
             template <typename> typename Eq, size_t D, typename Sp0,
             typename... S>
   static constexpr auto with_new_solver(
@@ -60,8 +60,8 @@ struct model_swap_solver {
     return model_Sp(model.get_coeff(), model.get_num_coeff(), parameters);
   }
 
-  template <template <template <typename> typename, typename>
-            typename SpecializedModel,
+  template <template <template <typename> typename,
+                      typename> typename SpecializedModel,
             template <size_t, typename> typename PFC, size_t D, typename Sp0,
             typename... S>
   static constexpr auto with_new_solver(
@@ -75,18 +75,14 @@ struct model_swap_solver {
   }
 
   template <
-      template <template <typename> typename,
-                template <typename, typename...> typename, typename, typename>
-      typename Specialized,
-      template <typename> typename Eq,
-      template <typename, typename...> typename Pr, size_t D, typename Sp0,
-      typename... S, typename... P>
+      template <template <typename> typename, typename> typename Specialized,
+      template <typename> typename Pr, size_t D, typename Sp0, typename... S,
+      typename... P>
   static constexpr auto with_new_solver(
-      Specialized<Eq, Pr, Pr<Model<D, Sp0, S...>, P...>,
-                  Eq<symphas::internal::MakeEquationProvisional<
-                      Pr<Model<D, Sp0, S...>, P...>>>> const& model) {
+      Specialized<Pr, Pr<symphas::internal::MakeEquationProvisional<
+                          Model<D, Sp0, S...>, P...>>> const& model) {
     using model_Sp = typename ModelApplied<D, Sp>::template OpTypes<
-        S...>::template ProvTypes<P...>::template Specialized<Eq, Pr>;
+        S...>::template ProvTypes<P...>::template Specialized<Pr>;
     auto parameters = model.generate_parameters();
     return model_Sp(model.get_coeff(), model.get_num_coeff(), parameters);
   }
@@ -145,7 +141,8 @@ constexpr model_count_index<0> model_counter(model_count_index<0>);
  * The naming format of a model index is defined. Each index name has
  * to be different and requires a prefix.
  */
-#define MODEL_INDEX_NAME(PREFIX_NAME) __##PREFIX_NAME##_index
+#define MODEL_INDEX_NAME(PREFIX_NAME, GIVEN_NAME) \
+  __##PREFIX_NAME##_##GIVEN_NAME##_index
 
 //! Iterates to the next model index for compile-time constant model indexing.
 /*!
@@ -154,12 +151,13 @@ constexpr model_count_index<0> model_counter(model_count_index<0>);
  * Importantly, there cannot be more than #MAX_DEFINED_MODELS models defined
  * because after that, the counter will no longer increment.
  */
-#define NEXT_MODEL_INDEX(PREFIX_NAME)                                          \
+#define NEXT_MODEL_INDEX(PREFIX_NAME, GIVEN_NAME)                              \
   namespace symphas::internal {                                                \
-  constexpr int MODEL_INDEX_NAME(PREFIX_NAME) =                                \
+  constexpr int MODEL_INDEX_NAME(PREFIX_NAME, GIVEN_NAME) =                    \
       decltype(model_counter(model_count_index<MAX_DEFINED_MODELS>{}))::value; \
-  constexpr model_count_index<MODEL_INDEX_NAME(PREFIX_NAME)> model_counter(    \
-      model_count_index<MODEL_INDEX_NAME(PREFIX_NAME)>);                       \
+  constexpr model_count_index<MODEL_INDEX_NAME(PREFIX_NAME, GIVEN_NAME)>       \
+      model_counter(                                                           \
+          model_count_index<MODEL_INDEX_NAME(PREFIX_NAME, GIVEN_NAME)>);       \
   }
 
 //! \endcond

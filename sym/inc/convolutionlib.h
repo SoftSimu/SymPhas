@@ -1,4 +1,3 @@
-
 /* ***************************************************************************
  * This file is part of the SymPhas library, a framework for implementing
  * solvers for phase-field problems with compile-time symbolic algebra.
@@ -111,6 +110,37 @@ void real_gaussian_kernel(double* kernel, len_type const (&dims)[D],
   // std::transform(kernel, kernel + grid::length<D>(dims), kernel,
   //                [sum](double val) { return val / sum; });
 }
+
+// Overloaded functions for Grid (CPU) types
+template <typename T, size_t D>
+void complex_gaussian_kernel(Grid<T, D>& grid,
+                             grid::region_interval<D> const& domain,
+                             const double* h, double sigma) {
+  complex_gaussian_kernel<D>(grid.values, grid.dims, h, sigma);
+}
+
+template <typename T, size_t D>
+void real_gaussian_kernel(Grid<T, D>& grid,
+                          grid::region_interval<D> const& domain,
+                          const double* h, double sigma) {
+  real_gaussian_kernel<D>(grid.values, grid.dims, h, sigma);
+}
+
+#ifdef USING_CUDA
+
+// Forward declarations for CUDA grid overloads
+template <typename T, size_t D>
+void complex_gaussian_kernel(GridCUDA<T, D>& grid,
+                             grid::region_interval<D> const& domain,
+                             const double* h, double sigma);
+
+template <typename T, size_t D>
+void real_gaussian_kernel(GridCUDA<T, D>& grid,
+                          grid::region_interval<D> const& domain,
+                          const double* h, double sigma);
+
+#endif
+
 }  // namespace symphas::internal
 
 //! Gaussian smoothing kernel.
@@ -120,11 +150,11 @@ void real_gaussian_kernel(double* kernel, len_type const (&dims)[D],
  * class k_field, which computes the wavenumber for each point in the grid
  * according to its position.
  */
-template <size_t D>
-struct GaussianSmoothing : OpExpression<GaussianSmoothing<D>> {
+template <size_t D, template <typename, size_t> typename grid_type>
+struct GaussianSmoothing : OpExpression<GaussianSmoothing<D, grid_type>> {
   void allocate() {
     if (data.len == 0) {
-      data = Grid<scalar_t, D>(dims);
+      data = grid_type<scalar_t, D>(dims);
       initialize_values(h, sigma);
     }
   }
@@ -181,8 +211,8 @@ struct GaussianSmoothing : OpExpression<GaussianSmoothing<D>> {
   }
 #endif
 
-  auto operator*(GaussianSmoothing<D> const& other) const {
-    GaussianSmoothing<D> g2(*this);
+  auto operator*(GaussianSmoothing<D, grid_type> const& other) const {
+    GaussianSmoothing<D, grid_type> g2(*this);
     std::transform(
 #ifdef EXECUTION_HEADER_AVAILABLE
         std::execution::par,
@@ -205,9 +235,10 @@ struct GaussianSmoothing : OpExpression<GaussianSmoothing<D>> {
 
   template <typename coeff_t, typename T, size_t U1,
             std::enable_if_t<expr::is_coeff<coeff_t>, int>>
-  friend auto operator*(coeff_t const& a, GaussianSmoothing<U1> const& b);
+  friend auto operator*(coeff_t const& a,
+                        GaussianSmoothing<U1, grid_type> const& b);
 
-  Grid<scalar_t, D> data;
+  grid_type<scalar_t, D> data;
   bool fourier_space;
   double sigma;
   double h[D];
@@ -221,18 +252,20 @@ struct GaussianSmoothing : OpExpression<GaussianSmoothing<D>> {
   }
 
   void initialize_values(const double* h, double sigma) {
+    auto domain = grid::get_iterable_domain(data);
     if (fourier_space) {
-      symphas::internal::complex_gaussian_kernel<D>(data, data.dims, h, sigma);
+      symphas::internal::complex_gaussian_kernel(data, domain, h, sigma);
     } else {
-      symphas::internal::real_gaussian_kernel<D>(data, data.dims, h, sigma);
+      symphas::internal::real_gaussian_kernel(data, domain, h, sigma);
     }
   }
 };
 
 template <typename coeff_t, typename T, size_t U1,
+          template <typename, size_t> typename grid_type,
           std::enable_if_t<expr::is_coeff<coeff_t>, int> = 0>
-auto operator*(coeff_t const& a, GaussianSmoothing<U1> const& b) {
-  GaussianSmoothing<U1> scaled(b);
+auto operator*(coeff_t const& a, GaussianSmoothing<U1, grid_type> const& b) {
+  GaussianSmoothing<U1, grid_type> scaled(b);
   scaled.scale(expr::eval(a));
   return scaled;
 }
@@ -836,3 +869,34 @@ struct ConvolutionDataPair {
 }  // namespace expr
 
 #endif
+
+namespace expr {
+
+#ifdef USING_CUDA
+template <size_t D>
+struct ConvolutionDataCUDA;
+template <size_t D>
+struct ConvolutionDataPairCUDA;
+#endif
+
+template <typename T1, size_t D, typename T2>
+auto make_convolution_data(const Grid<T1, D>& in_0, T2* out_1) {
+  return ConvolutionData<D>(in_0, out_1);
+}
+
+template <typename T1, typename T2, size_t D, typename T3>
+auto make_convolution_data(const Grid<T1, D>& in_0, const Grid<T2, D>& in_1,
+                           T3* out_1) {
+  return ConvolutionDataPair<D>(in_0, in_1, out_1);
+}
+
+#ifdef USING_CUDA
+template <typename T1, size_t D, typename T2>
+auto make_convolution_data(const GridCUDA<T1, D>& in_0, T2* out_1);
+
+template <typename T1, typename T2, size_t D, typename T3>
+auto make_convolution_data(const GridCUDA<T1, D>& in_0,
+                           const GridCUDA<T2, D>& in_1, T3* out_1);
+#endif
+
+}  // namespace expr

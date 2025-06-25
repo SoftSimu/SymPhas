@@ -289,8 +289,8 @@ auto swap_grid(OpConvolution<V, E1, E2> const& e, G_F&& g);
  *
  * \tparam Z The index of the variable to change.
  */
-template <size_t Z, typename V, size_t D, typename E, typename G_F>
-auto swap_grid(OpConvolution<V, GaussianSmoothing<D>, E> const& e, G_F&& g);
+template <size_t Z, typename V, size_t D, template <typename, size_t> typename grid_type, typename E, typename G_F>
+auto swap_grid(OpConvolution<V, GaussianSmoothing<D, grid_type>, E> const& e, G_F&& g);
 
 //! Swap a data term in the expression.
 /*!
@@ -641,8 +641,8 @@ auto swap_grid(OpConvolution<V, E1, E2> const& e, G_F&& g) {
                                 swap_grid<Z>(e.b, std::forward<G_F>(g)));
 }
 
-template <size_t Z, typename V, size_t D, typename E, typename G_F>
-auto swap_grid(OpConvolution<V, GaussianSmoothing<D>, E> const& e, G_F&& g) {
+template <size_t Z, typename V, size_t D, template <typename, size_t> typename grid_type, typename E, typename G_F>
+auto swap_grid(OpConvolution<V, GaussianSmoothing<D, grid_type>, E> const& e, G_F&& g) {
   return expr::make_convolution(
       e.value,
       swap_grid<Z>(expr::get_enclosed_expression(e), std::forward<G_F>(g)),
@@ -1156,8 +1156,8 @@ auto swap_grid(OpConvolution<V, E1, E2> const& e, G_F&& g);
  *
  * \param Sg The type of the grid to match for the swap.
  */
-template <typename Sg, typename V, size_t D, typename E, typename G_F>
-auto swap_grid(OpConvolution<V, GaussianSmoothing<D>, E> const& e, G_F&& g);
+template <typename Sg, typename V, size_t D, template <typename, size_t> typename grid_type, typename E, typename G_F>
+auto swap_grid(OpConvolution<V, GaussianSmoothing<D, grid_type>, E> const& e, G_F&& g);
 
 //! Swap a data term in the expression.
 /*!
@@ -1637,8 +1637,8 @@ auto swap_grid(OpConvolution<V, E1, E2> const& e, G_F&& g) {
                                     swap_grid<Sg>(e.b, std::forward<G_F>(g)));
 }
 
-template <typename Sg, typename V, size_t D, typename E, typename G_F>
-auto swap_grid(OpConvolution<V, GaussianSmoothing<D>, E> const& e, G_F&& g) {
+template <typename Sg, typename V, size_t D, template <typename, size_t> typename grid_type, typename E, typename G_F>
+auto swap_grid(OpConvolution<V, GaussianSmoothing<D, grid_type>, E> const& e, G_F&& g) {
   auto c = swap_grid<Sg>(expr::coeff(e), std::forward<G_F>(g));
   return c *
          expr::make_convolution(swap_grid<Sg>(expr::get_enclosed_expression(e),

@@ -93,18 +93,33 @@ struct MakeEquation : parent_model {
             parent_model::systems_tuple(), as...);
   }
 };
+template <typename parent_model, typename... P>
+struct MakeEquationProvisional : parent_model {
+  using parent_model::parent_model;
+  using parent_model::solver;
 
-template <typename parent_trait>
-struct MakeEquationProvisional : parent_trait {
-  using parent_trait::parent_trait;
-  using parent_trait::solver;
-  using parent_trait::temp;
+  using solver_type = typename model_solver<parent_model>::type;
+  static const size_t dimension = model_dimension<parent_model>::value;
+
+  template <typename Ty, size_t D>
+  using ProvisionalSystemApplied =
+      typename symphas::provisional_system_type<solver_type>::template type<Ty,
+                                                                            D>;
+
+  ProvisionalSystemGroup<ProvisionalSystemApplied, dimension, P...> temp;
+
+  //! Creates the provisional equation container.
+  MakeEquationProvisional(double const* coeff, size_t num_coeff,
+                          symphas::problem_parameters_type const& parameters)
+      : parent_model(coeff, num_coeff, parameters),
+        temp{parameters.get_interval_data()[0],
+             parameters.get_boundary_data()[0]} {}
 
   template <typename... As>
   auto make_equations(As const&... as) const {
     ((..., expr::printe(as.second, "given equation")));
     return solver
-        .template form_expr_all<model_num_parameters<parent_trait>::value>(
+        .template form_expr_all<model_num_parameters<parent_model>::value>(
             forward_systems(), as...);
   }
 
@@ -125,7 +140,7 @@ struct MakeEquationProvisional : parent_trait {
   }
 
   decltype(auto) forward_systems() const {
-    return forward_systems(parent_trait::systems_tuple(), temp._s);
+    return forward_systems(parent_model::systems_tuple(), temp._s);
   }
 };
 
@@ -172,11 +187,10 @@ struct ModelApplied {
        * Both equation and provisional expression objects are created on object
        * initialization, and the model implements update and equation functions.
        */
-      template <template <typename> typename Eq,
-                template <typename, typename...> typename Pr,
-                typename pr_type = Pr<Model<D, Sp, S...>, P...>,
-                typename eq_type =
-                    Eq<symphas::internal::MakeEquationProvisional<pr_type>>>
+      template <template <typename> typename Pr,
+                typename pr_type =
+                    Pr<symphas::internal::MakeEquationProvisional<
+                        Model<D, Sp, S...>, P...>>>
       struct Specialized;
     };
   };
@@ -262,8 +276,69 @@ template <size_t Dm, typename Sp, typename... Ts>
 using expand_types_to_model_t =
     typename expand_types_to_model<symphas::lib::types_list<>, Dm, Sp,
                                    Ts...>::type;
-}
 
+template <typename T, size_t Dm, typename... Ts>
+struct expand_field_types;
+
+template <typename... field_types, size_t Dm>
+struct expand_field_types<symphas::lib::types_list<field_types...>, Dm> {
+  using type = symphas::lib::types_list<field_types...>;
+};
+
+template <typename... field_types, size_t Dm>
+struct expand_field_types<
+    symphas::lib::types_list<field_array_t<void>, field_types...>, Dm> {
+  using type = symphas::lib::types_list<field_array_t<void>, field_types...>;
+};
+
+template <typename... field_types, size_t Dm, typename... Ts>
+struct expand_field_types<symphas::lib::types_list<field_types...>, Dm,
+                          symphas::internal::parameterized::VECTOR, Ts...> {
+  using type = typename expand_field_types<
+      symphas::lib::types_list<field_types...,
+                               symphas::internal::parameterized::VECTOR_D<Dm>>,
+      Dm, Ts...>::type;
+};
+
+template <typename... field_types, size_t Dm, typename T0, typename... Ts>
+struct expand_field_types<symphas::lib::types_list<field_types...>, Dm, T0,
+                          Ts...> {
+  using type =
+      typename expand_field_types<symphas::lib::types_list<field_types..., T0>,
+                                  Dm, Ts...>::type;
+};
+
+template <typename... field_types, size_t Dm, typename T0, typename... Ts>
+struct expand_field_types<symphas::lib::types_list<field_types...>, Dm,
+                          field_array_t<T0>, Ts...> {
+  using type = typename expand_field_types<
+      symphas::lib::types_list<field_array_t<void>, field_types...,
+                               field_array_t<T0>>,
+      Dm, Ts...>::type;
+};
+
+template <typename... field_types, size_t Dm, typename T0, typename... Ts>
+struct expand_field_types<
+    symphas::lib::types_list<field_array_t<void>, field_types...>, Dm,
+    field_array_t<T0>, Ts...> {
+  using type = typename expand_field_types<
+      symphas::lib::types_list<field_array_t<void>, field_types...,
+                               field_array_t<T0>>,
+      Dm, Ts...>::type;
+};
+
+template <typename... field_types, size_t Dm, typename... Ts, typename... Rest>
+struct expand_field_types<symphas::lib::types_list<field_types...>, Dm,
+                          symphas::lib::types_list<Ts...>, Rest...> {
+  using type =
+      typename expand_field_types<symphas::lib::types_list<field_types...>, Dm,
+                                  Ts..., Rest...>::type;
+};
+
+template <size_t Dm, typename... Ts>
+using expand_field_types_t =
+    typename expand_field_types<symphas::lib::types_list<>, Dm, Ts...>::type;
+}
 // ****************************************************************************************
 
 template <size_t D, typename Sp>
@@ -315,28 +390,23 @@ struct ModelApplied<D, Sp>::OpTypes<S...>::Specialized : eq_type {
 template <size_t D, typename Sp>
 template <typename... S>
 template <typename... P>
-template <template <typename> typename Eq,
-          template <typename, typename...> typename Pr, typename pr_type,
-          typename eq_type>
+template <template <typename> typename Pr, typename pr_type>
 struct ModelApplied<D, Sp>::OpTypes<S...>::ProvTypes<P...>::Specialized
-    : eq_type {
+    : pr_type {
   using M = Model<D, Sp, S...>;
+  using M::index;
   using M::solver;
 
   template <typename Sp0>
-  using pr_type_solver = Pr<Model<D, Sp0, S...>, P...>;
-  template <typename Sp0>
-  using eq_type_solver =
-      Eq<symphas::internal::MakeEquationProvisional<pr_type_solver<Sp0>>>;
+  using pr_type_solver =
+      Pr<symphas::internal::MakeEquationProvisional<Model<D, Sp0, S...>, P...>>;
 
   template <template <template <typename> typename,
-                      template <typename, typename...> typename, typename,
                       typename> typename SpecializedModel,
             typename Sp0>
-  using impl_type =
-      SpecializedModel<Eq, Pr, pr_type_solver<Sp0>, eq_type_solver<Sp0>>;
+  using impl_type = SpecializedModel<Pr, pr_type_solver<Sp0>>;
 
-  using parent_type = eq_type;
+  using parent_type = pr_type;
   using parent_type::temp;
 
   using eqs =
@@ -346,9 +416,8 @@ struct ModelApplied<D, Sp>::OpTypes<S...>::ProvTypes<P...>::Specialized
       typename std::invoke_result_t<decltype(&parent_type::make_provisionals),
                                     parent_type>;
 
-  using this_type =
-      typename ModelApplied<D, Sp>::template OpTypes<S...>::template ProvTypes<
-          P...>::template Specialized<Eq, Pr, pr_type, eq_type>;
+  using this_type = typename ModelApplied<D, Sp>::template OpTypes<
+      S...>::template ProvTypes<P...>::template Specialized<Pr, pr_type>;
 
   prs provisionals;
   eqs equations;
@@ -360,15 +429,6 @@ struct ModelApplied<D, Sp>::OpTypes<S...>::ProvTypes<P...>::Specialized
         equations{parent_type::make_equations()} {}
   Specialized(symphas::problem_parameters_type const& parameters)
       : Specialized(nullptr, 0, parameters) {}
-
-  /*this_type& operator=(this_type other)
-  {
-          using std::swap;
-
-          swap(*static_cast<parent_type*>(this),
-  *static_cast<parent_type*>(&other)); swap(equations, other.equations);
-          swap(provisionals, other.provisionals);
-  }*/
 
   void update(double time) {
     M::update_systems(time);
@@ -400,6 +460,18 @@ struct ModelApplied<D, Sp>::OpTypes<S...>::ProvTypes<P...>::Specialized
   template <size_t I>
   const auto& provisional() const {
     return temp.template grid<I>();
+  }
+
+  //! Override to save provisional variable systems to disk.
+  /*!
+   * Overrides the base Model virtual method to save provisional variables.
+   * This implementation delegates to the TraitProvisional save methods.
+   * This function has no effect without the **io** module.
+   *
+   * \param dir The directory into which to store the resulting data files.
+   */
+  void save_provisional_systems(const char* dir) const override {
+    temp.save_systems(index, dir);
   }
 
  protected:
@@ -490,13 +562,13 @@ ADD_EXPR_TYPE_SYMBOL_TEMPLATE(diff_F_i, (typename I), (I))
 
 namespace symphas::internal {
 
-template <int N, int P>
+template <size_t, int N, int P>
 constexpr auto dFE_var(expr::symbols::i_<N, P>) {
   return expr::make_term(expr::symbols::diff_F_i<expr::symbols::i_<N, P>>{});
 }
 
 template <size_t N>
-constexpr auto dFE_var() {
+constexpr auto dFE_var(size_t) {
   return expr::make_term<N>(expr::symbols::diff_F_symbol{});
 }
 
@@ -810,6 +882,12 @@ struct dynamics_rule_compare<N, special_dynamics<N0, I, E>, R> {
   static const bool value = dynamics_index_compare<N, I>::value;
 };
 
+template <size_t N, size_t N0, size_t N1, typename I, typename E0, typename E1>
+struct dynamics_rule_compare<N, special_dynamics<N0, I, E0>,
+                             special_dynamics<N1, void, E1>> {
+  static const bool value = (N1 != N);
+};
+
 template <size_t N, size_t N0, typename I, typename E0, typename E1>
 struct dynamics_rule_compare<N, special_dynamics<N0, I, E0>,
                              special_dynamics<N, void, E1>> {
@@ -822,10 +900,22 @@ struct dynamics_rule_compare<N, special_dynamics<N0, void, E0>,
   static const bool value = (N0 != N);
 };
 
+template <size_t N, size_t N1, typename I, typename E0, typename E1>
+struct dynamics_rule_compare<N, special_dynamics<N, void, E0>,
+                             special_dynamics<N1, I, E1>> {
+  static const bool value = true;
+};
+
 template <size_t N, size_t N0, size_t N1, typename E0, typename E1>
 struct dynamics_rule_compare<N, special_dynamics<N0, void, E0>,
                              special_dynamics<N1, void, E1>> {
   static const bool value = (N0 == N);
+};
+
+template <size_t N, size_t N1, typename E0, typename E1>
+struct dynamics_rule_compare<N, special_dynamics<N, void, E0>,
+                             special_dynamics<N1, void, E1>> {
+  static const bool value = true;
 };
 
 template <size_t N, size_t N0, typename E0, typename E1>
@@ -1276,9 +1366,8 @@ struct TraitEquation : parent_trait {
 
   template <expr::NoiseType nt, typename T, typename... T0s>
   auto make_noise(T0s&&... args) const {
-    using enclosing_grid_type = typename expr::parent_storage_type<
-        decltype(parent_trait::template system<0>()
-                     .as_grid())>::enclosing_wrapped_type;
+    using enclosing_grid_type = expr::enclosing_parent_storage_t<
+        decltype(parent_trait::template system<0>().as_grid())>;
 
     return symphas::internal::parameterized::NOISE<
         nt, symphas::internal::parameterized::dimensionalized_t<Dm, T>, Dm>(
@@ -1289,9 +1378,8 @@ struct TraitEquation : parent_trait {
 
   template <expr::NoiseType nt, size_t Z, typename G, typename... T0s>
   auto make_noise(OpTerm<OpIdentity, Variable<Z, G>>, T0s&&... args) const {
-    using enclosing_grid_type = typename expr::parent_storage_type<
-        decltype(parent_trait::template system<Z>()
-                     .as_grid())>::enclosing_wrapped_type;
+    using enclosing_grid_type = expr::enclosing_parent_storage_t<
+        decltype(parent_trait::template system<Z>().as_grid())>;
 
     using T = model_field_t<parent_trait, Z>;
     return symphas::internal::parameterized::NOISE<
@@ -1299,6 +1387,16 @@ struct TraitEquation : parent_trait {
         parent_trait::template system<Z>().info,
         grid::get_data_domain(parent_trait::template system<Z>().as_grid()),
         &solver.dt, enclosing_grid_type{})(std::forward<T0s>(args)...);
+  }
+
+  auto make_gaussian_kernel(double sigma = 1.0) const {
+    using enclosing_grid_type = expr::enclosing_parent_storage_t<
+        decltype(parent_trait::template system<0>().as_grid())>;
+
+    return symphas::internal::parameterized::GAUSSIAN_KERNEL(
+        parent_trait::template system<0>().info,
+        grid::get_data_domain(parent_trait::template system<0>().as_grid()),
+        sigma, enclosing_grid_type{});
   }
 
   template <template <typename> typename other_enclosing_type,
@@ -1456,8 +1554,6 @@ struct TraitEquation<enclosing_type,
     using namespace symphas::internal;
 
     expr::printe(*static_cast<E const*>(&e), "free energy");
-
-    apply_special_dynamics special_dynamics(std::get<0>(dynamics));
     return make_equations(
         special_dynamics(dop(), *this, *static_cast<E const*>(&e), solver));
   }
@@ -1550,30 +1646,13 @@ struct TraitEquation<enclosing_type,
  * \tparam enclosing_type The specialized TraitEquation object (hence the CRTP
  * pattern).
  * \tparam parent_model This is the base Model.
- * \tparam P... The types of the provisional variables.
  */
-template <template <typename> typename enclosing_type, typename parent_model,
-          typename... P>
-struct TraitProvisional : TraitEquation<enclosing_type, parent_model> {
-  using parent_trait = TraitEquation<enclosing_type, parent_model>;
 
-  //! Creates the provisional equation container.
-  TraitProvisional(double const* coeff, size_t num_coeff,
-                   symphas::problem_parameters_type const& parameters)
-      : parent_trait(coeff, num_coeff, parameters),
-        temp{parameters.get_interval_data()[0],
-             parameters.get_boundary_data()[0]} {}
-
-  using solver_type = typename model_solver<parent_model>::type;
-
-  template <typename Ty, size_t D>
-  using ProvisionalSystemApplied =
-      typename symphas::provisional_system_type<solver_type>::template type<Ty,
-                                                                            D>;
-
-  ProvisionalSystemGroup<ProvisionalSystemApplied,
-                         model_dimension<parent_model>::value, P...>
-      temp;
+template <template <typename> typename enclosing_type, typename parent_trait>
+struct TraitProvisional : TraitEquation<enclosing_type, parent_trait> {
+  using parent_type = TraitEquation<enclosing_type, parent_trait>;
+  using parent_type::parent_type;
+  using parent_type::temp;
 
   //! Method for using the provisional variable.
   /*!
@@ -1589,18 +1668,24 @@ struct TraitProvisional : TraitEquation<enclosing_type, parent_model> {
 #ifdef PRINTABLE_EQUATIONS
     std::ostringstream ss;
     ss << "var" << I;
-    return expr::make_term<model_num_parameters<parent_model>::value + I>(
+    return expr::make_term<model_num_parameters<parent_trait>::value + I>(
         NamedData(temp.template grid<I>(), ss.str()));
 #else
-    return expr::make_term<model_num_parameters<parent_model>::value + I>(
+    return expr::make_term<model_num_parameters<parent_trait>::value + I>(
         temp.template grid<I>());
 #endif
   }
 
  protected:
+  template <typename L, typename R>
+  auto apply_operators(std::pair<L, R> const& equation) const {
+    return std::make_pair(equation.first,
+                          expr::apply_operators(equation.second));
+  }
+
   template <typename... A>
   auto make_provisionals(A&&... a) const {
-    return std::make_tuple(std::forward<A>(a)...);
+    return std::make_tuple(apply_operators(std::forward<A>(a))...);
   }
 };
 
@@ -1612,8 +1697,8 @@ struct TraitProvisional : TraitEquation<enclosing_type, parent_model> {
  */
 
 //! \cond
-#define PROVISIONAL_TRAIT_FORWARD_DECL            \
-  template <typename parent_trait, typename... P> \
+#define PROVISIONAL_TRAIT_FORWARD_DECL \
+  template <typename parent_trait>     \
   struct TraitProvisionalModel;
 #define EQUATION_TRAIT_FORWARD_DECL \
   template <typename parent_trait>  \
@@ -1628,18 +1713,17 @@ struct TraitProvisional : TraitEquation<enclosing_type, parent_model> {
  *
  * \param ... The equations of the provisional variables.
  */
-#define PROVISIONAL_TRAIT_DEFINITION(...)                          \
-  template <typename parent_model, typename... P>                  \
-  struct TraitProvisionalModel                                     \
-      : TraitProvisional<TraitEquationModel, parent_model, P...> { \
-    using parent_type =                                            \
-        TraitProvisional<TraitEquationModel, parent_model, P...>;  \
-    using parent_type::solver;                                     \
-    using parent_type::parent_type;                                \
-    using parent_type::c;                                          \
-    auto make_provisionals() {                                     \
-      return parent_type::make_provisionals(__VA_ARGS__);          \
-    }                                                              \
+#define PROVISIONAL_TRAIT_DEFINITION(...)                                   \
+  template <typename parent_trait>                                          \
+  struct TraitProvisionalModel                                              \
+      : TraitProvisional<TraitEquationModel, parent_trait> {                \
+    using parent_type = TraitProvisional<TraitEquationModel, parent_trait>; \
+    using parent_type::parent_type;                                         \
+    using parent_type::solver;                                              \
+    using parent_type::c;                                                   \
+    auto make_provisionals() {                                              \
+      return parent_type::make_provisionals(__VA_ARGS__);                   \
+    }                                                                       \
   };
 
 //! Defines a TraitEquation child class used to define dynamical equations.
@@ -1656,9 +1740,11 @@ struct TraitProvisional : TraitEquation<enclosing_type, parent_model> {
 #define EQUATION_TRAIT_PREAMBLE(...)                                          \
   using namespace expr;                                                       \
   template <typename parent_trait>                                            \
-  struct TraitEquationModel                                                   \
-      : TraitEquation<TraitEquationModel, parent_trait> {                     \
-    using parent_type = TraitEquation<TraitEquationModel, parent_trait>;      \
+  using trait_model_parent = typename using_provisional<                      \
+      void>::template equation_inherit_type<parent_trait>;                    \
+  template <typename parent_trait>                                            \
+  struct TraitEquationModel : trait_model_parent<parent_trait> {              \
+    using parent_type = trait_model_parent<parent_trait>;                     \
     using parent_type::solver;                                                \
     using parent_type::parent_type;                                           \
     using parent_type::generate_equations;                                    \
@@ -1668,6 +1754,8 @@ struct TraitProvisional : TraitEquation<enclosing_type, parent_model> {
     auto make_equations() const {                                             \
       using namespace std;                                                    \
       using namespace expr;                                                   \
+      using expr::modulus;                                                    \
+      using expr::dot;                                                        \
       using namespace expr::symbols;                                          \
       using namespace std::complex_literals;                                  \
       auto [x, y, z] = expr::make_coords<Dm>(DIMENSIONS_OF(0), INTERVALS(0)); \

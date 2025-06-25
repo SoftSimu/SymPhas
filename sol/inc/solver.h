@@ -54,7 +54,7 @@ struct solver_supported_systems;
 template <typename T, size_t N = 0>
 struct solver_system_type_match;
 
-template <typename T>
+template <typename solver_system_type, typename T>
 struct provisional_system_type_match;
 
 /*!
@@ -83,7 +83,7 @@ struct solver_count_index<Sp, 0> {
 template <typename Sp>
 constexpr solver_count_index<Sp, 0> solver_counter(solver_count_index<Sp, 0>);
 
-}
+}  // namespace symphas::internal
 
 namespace symphas {
 namespace internal {
@@ -106,7 +106,7 @@ struct solver_id;
 
 template <typename T>
 using solver_id_t = typename solver_id<T>::type;
-}
+}  // namespace internal
 
 //! Allows a type to be used by the solver.
 /*!
@@ -154,9 +154,10 @@ template <typename T>
 struct provisional_system_type {
   template <typename Ty, size_t D>
   using type = typename symphas::internal::provisional_system_type_match<
+      typename symphas::solver_system_type<T>::template type<Ty, D>,
       typename T::id_type>::template type<Ty, D>;
 };
-}
+}  // namespace symphas
 
 /*!
  * \defgroup solver Solver Definition
@@ -324,11 +325,25 @@ struct provisional_system_type {
  * implementation may be desired which supports the solver in some way.
  */
 #define ASSOCIATE_PROVISIONAL_SYSTEM_TYPE(SOLVER_NAME, SYSTEM_TYPE) \
-  template <>                                                       \
+  template <typename solver_system_type>                            \
   struct symphas::internal::provisional_system_type_match<          \
-      solver_id_type_##SOLVER_NAME> {                               \
+      solver_system_type, solver_id_type_##SOLVER_NAME> {           \
     template <typename Ty, size_t D>                                \
     using type = SYSTEM_TYPE<Ty, D>;                                \
+  };
+
+//! Associate the provisional system type to a specific solver implementation.
+/*!
+ * The provisional system is used to store variables, and a particular
+ * implementation may be desired which supports the solver in some way.
+ */
+#define ASSOCIATE_PROVISIONAL_SYSTEM_TYPE_FOR_SPECIFIC(      \
+    SOLVER_NAME, SOLVER_SYSTEM, SYSTEM_TYPE)                 \
+  template <typename TT, size_t DD>                          \
+  struct symphas::internal::provisional_system_type_match<   \
+      SOLVER_SYSTEM<TT, DD>, solver_id_type_##SOLVER_NAME> { \
+    template <typename Ty, size_t D>                         \
+    using type = SYSTEM_TYPE<Ty, D>;                         \
   };
 
 //! Adds one type to the type of solvable phase field variable.
@@ -367,7 +382,7 @@ struct provisional_system_type {
  *
  * \param NAME The name of the new solver.
  */
-#define NEW_SOLVER_WITH_STENCIL(NAME)                                      \
+#define START_NEW_SOLVER_WITH_STENCIL(NAME, ...)                           \
   struct solver_id_type_##NAME;                                            \
   template <typename stencil_t, size_t N = 0>                              \
   struct NAME;                                                             \
@@ -400,9 +415,10 @@ struct provisional_system_type {
     stencil_t const& stencil() const {                                     \
       return (*static_cast<stencil_t const*>(this));                       \
     }                                                                      \
-    stencil_t& stencil() { return (*static_cast<stencil_t*>(this)); }
+    stencil_t& stencil() { return (*static_cast<stencil_t*>(this)); }      \
+    __VA_ARGS__
 
-#define NEW_SOLVER(NAME, ...)                                                \
+#define START_NEW_SOLVER(NAME, ...)                                          \
   struct solver_id_type_##NAME;                                              \
   template <size_t N = 0>                                                    \
   struct NAME;                                                               \
@@ -427,7 +443,12 @@ struct provisional_system_type {
     using NoStencil::applied_gradlaplacian;                                  \
     using NoStencil::applied_gradient;                                       \
     using parent_type::make_solver;                                          \
-    using id_type = solver_id_type_##NAME;
+    using id_type = solver_id_type_##NAME;                                   \
+    __VA_ARGS__
+
+#define END_SOLVER \
+  }                \
+  ;
 
 struct NoStencil {
   template <Axis ax, size_t O, typename G>
@@ -906,7 +927,7 @@ __host__ __device__ auto apply_directional_derivative(Sp const& sp, G&& e,
       std::forward<G>(e), n);
 }
 
-}
+}  // namespace symphas::internal
 
 //
 // template<Axis ax, size_t O, typename Sp, typename G, typename
@@ -994,7 +1015,7 @@ struct max_order_axis<symphas::lib::axis_list<ax1, ax2, ax3>,
                             : (O2 >= O1 && O2 >= O3) ? ax2
                                                      : ax3;
 };
-}
+}  // namespace symphas::internal
 
 template <typename Sp, size_t N>
 template <size_t... Os>
@@ -1083,7 +1104,7 @@ struct symphas::internal::solver_system_type_match<Solver<void>, N> {
       void, N>::template type<Ty, D>;
 };
 
-template <typename T>
+template <typename solver_system_type, typename T>
 struct symphas::internal::provisional_system_type_match {
   template <typename Ty, size_t D>
   using type = ProvisionalSystem<Ty, D>;
@@ -1096,9 +1117,11 @@ struct symphas::solver_system_type<void> {
       void, internal::solver_system_type_index<void>>::template type<Ty, D>;
 };
 
-NEW_SOLVER(GenericSolver)
+START_NEW_SOLVER(GenericSolver)
+static auto make_solver(symphas::problem_parameters_type const& parameters) {
+  return GenericSolver();
 }
-;
+END_SOLVER
 
 //
 //// \cond

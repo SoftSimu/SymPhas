@@ -59,6 +59,11 @@ struct ModelPFCEquation : Model<D, Sp, S...>,
   using parent_type::num_coeff;
   using parent_type::solver;
 
+  template <typename Ty>
+  using SolverSystemApplied = typename parent_type::template SolverSystemApplied<Ty>;
+  template<typename T, size_t D0>
+  using grid_type = typename expr::enclosing_parent_storage_t<SolverSystemApplied<scalar_t>>::template type<T, D0>;
+
   ModelPFCEquation(double const* coeff, size_t num_coeff,
                    symphas::problem_parameters_type const& parameters)
       : Model<D, Sp, S...>(coeff, num_coeff, parameters) {
@@ -180,7 +185,7 @@ struct ModelPFCEquation : Model<D, Sp, S...>,
     auto dims = parent_type::template system<M>().dims;
     auto widths = parent_type::template system<M>().get_info().get_widths();
 
-    auto G = GaussianSmoothing<D>{dims, widths, 1.0};
+    auto G = GaussianSmoothing<D, grid_type>{dims, widths, 1.0};
     return expr::make_literal(alpha[N][M]) * m +
            expr::make_literal(beta[N][M]) * get_mode_NM<N, M>() * m +
            expr::make_literal(0.5 * gamma[N][M]) * (2 * n * m + m * m) +
@@ -206,7 +211,7 @@ struct ModelPFCEquation : Model<D, Sp, S...>,
     auto dims = parent_type::template system<N>().dims;
     auto widths = parent_type::template system<N>().get_info().get_widths();
 
-    auto G = GaussianSmoothing<D>{dims, widths, 1.0};
+    auto G = GaussianSmoothing<D, grid_type>{dims, widths, 1.0};
     return expr::make_convolution(G, get_field_op<N>());
   }
 

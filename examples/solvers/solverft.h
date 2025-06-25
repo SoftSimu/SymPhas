@@ -38,7 +38,7 @@
  * for the numerical results unless finite difference approximations are
  * applied extensively to the provisional variables. This is not recommended.
  */
-NEW_SOLVER_WITH_STENCIL(SolverFT)
+START_NEW_SOLVER_WITH_STENCIL(SolverFT)
 
 /*
  * forward euler method for actually updating the grid
@@ -181,8 +181,7 @@ void evaluate_one(std::pair<G, E>&& r) const {
 
   expr::result(equation, expr::BaseData<G>::get(grid));
 }
-}
-;
+END_SOLVER
 
 template <size_t D>
 bool check_overlapping_domain(grid::region_interval<D> const& region0,
@@ -229,5 +228,12 @@ ASSOCIATE_SELECTABLE_SOLVER_SYSTEM_TYPE(SolverFT, SolverSystemFDwSDCUDA)
 ASSOCIATE_SELECTABLE_SOLVER_SYSTEM_TYPE(SolverFT, SolverSystemFDwSDMPI)
 #endif
 
+#ifdef USING_CUDA
 ASSOCIATE_PROVISIONAL_SYSTEM_TYPE(SolverFT, ProvisionalSystemFD)
+ASSOCIATE_PROVISIONAL_SYSTEM_TYPE_FOR_SPECIFIC(SolverFT, SolverSystemFDCUDA,
+                                               ProvisionalSystemFDCUDA)
+ASSOCIATE_PROVISIONAL_SYSTEM_TYPE_FOR_SPECIFIC(SolverFT, SolverSystemFDwSDCUDA,
+                                               ProvisionalSystemFDCUDA)
+#endif
+
 SYMPHAS_SOLVER_ALL_SUPPORTED(SolverFT)

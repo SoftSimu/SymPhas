@@ -45,7 +45,7 @@ inline len_type SP_DIMS[] = {BOUNDARY_DEPTH * 2 + 1, BOUNDARY_DEPTH * 2 + 1};
  *
  * This solver does not support a changing `dt` (time step) value.
  */
-NEW_SOLVER(SolverSP)
+START_NEW_SOLVER(SolverSP)
 
 double h[3];
 
@@ -215,8 +215,8 @@ void evaluate_one(std::pair<G, E>&& r) const {
   }
   parent_type::evaluate_one(r);
 }
-}
-;
+
+END_SOLVER
 
 ASSOCIATE_SOLVER_SYSTEM_TYPE(SolverSP, SolverSystemSpectral)
 ASSOCIATE_PROVISIONAL_SYSTEM_TYPE(SolverSP, ProvisionalSystemSpectral)

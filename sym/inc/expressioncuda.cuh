@@ -30,6 +30,8 @@
 #include "expressionsymbolscuda.cuh"
 #include "expressiontypeincludes.h"
 #include "expressiontypenoise.cuh"
+#include "expressionconvolution.cuh"
+#include "convolutionlib.cuh"
 
 #ifdef USING_CUDA
 
@@ -1455,7 +1457,9 @@ __global__ void sumCudaExpr(E *e, T *output) {
 
 template <typename T, typename E>
 __global__ void sumCudaExpr(E *e, T *output, len_type len) {
-  extern __shared__ T sdata[];
+  extern __shared__ __align__(sizeof(T)) unsigned char sdata_raw[];
+  T *sdata = reinterpret_cast<T *>(sdata_raw);
+
   auto n = threadIdx.x + blockIdx.x * blockDim.x;
 
   // Each thread loads one element from global to shared memory
@@ -1480,7 +1484,9 @@ __global__ void sumCudaExpr(E *e, T *output, len_type len) {
 template <typename T, typename E>
 __global__ void sumCudaExpr1d(E *e, T *output, len_type dim0,
                               iter_type interval00, iter_type interval01) {
-  extern __shared__ T sdata[];
+  extern __shared__ __align__(sizeof(T)) unsigned char sdata_raw[];
+  T *sdata = reinterpret_cast<T *>(sdata_raw);
+
   iter_type intervals[1][2]{{interval00, interval01}};
   iter_type dimensions[1]{dim0};
   auto n = threadIdx.x + blockIdx.x * blockDim.x;
@@ -1508,7 +1514,8 @@ template <typename T, typename E>
 __global__ void sumCudaExpr2d(E *e, T *output, len_type dim0, len_type dim1,
                               iter_type interval00, iter_type interval01,
                               iter_type interval10, iter_type interval11) {
-  extern __shared__ T sdata0[];
+  extern __shared__ __align__(sizeof(T)) unsigned char sdata_raw[];
+  T *sdata = reinterpret_cast<T *>(sdata_raw);
 
   iter_type intervals[2][2]{{interval00, interval01}, {interval10, interval11}};
   iter_type dimensions[2]{dim0, dim1};
@@ -1517,20 +1524,20 @@ __global__ void sumCudaExpr2d(E *e, T *output, len_type dim0, len_type dim1,
 
   // Each thread loads one element from global to shared memory
   unsigned int tid = threadIdx.x;
-  sdata0[tid] = (is_in_region(intervals, dimensions, n)) ? e->eval(n) : T{};
+  sdata[tid] = (is_in_region(intervals, dimensions, n)) ? e->eval(n) : T{};
   __syncthreads();
 
   // Do reduction in shared memory
   for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {
     if (tid < s) {
-      sdata0[tid] += sdata0[tid + s];
+      sdata[tid] += sdata[tid + s];
     }
     __syncthreads();
   }
 
   // Write the result for this block to global memory
   if (tid == 0) {
-    output[blockIdx.x] = sdata0[0];
+    output[blockIdx.x] = sdata[0];
   }
 }
 
@@ -1540,7 +1547,9 @@ __global__ void sumCudaExpr3d(E *e, T *output, len_type dim0, len_type dim1,
                               iter_type interval01, iter_type interval10,
                               iter_type interval11, iter_type interval20,
                               iter_type interval21) {
-  extern __shared__ T sdata0[];
+  extern __shared__ __align__(sizeof(T)) unsigned char sdata_raw[];
+  T *sdata = reinterpret_cast<T *>(sdata_raw);
+
   iter_type intervals[3][2]{{interval00, interval01},
                             {interval10, interval11},
                             {interval20, interval21}};
@@ -1549,20 +1558,20 @@ __global__ void sumCudaExpr3d(E *e, T *output, len_type dim0, len_type dim1,
 
   // Each thread loads one element from global to shared memory
   unsigned int tid = threadIdx.x;
-  sdata0[tid] = (is_in_region(intervals, dimensions, n)) ? e->eval(n) : T{};
+  sdata[tid] = (is_in_region(intervals, dimensions, n)) ? e->eval(n) : T{};
   __syncthreads();
 
   // Do reduction in shared memory
   for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {
     if (tid < s) {
-      sdata0[tid] += sdata0[tid + s];
+      sdata[tid] += sdata[tid + s];
     }
     __syncthreads();
   }
 
   // Write the result for this block to global memory
   if (tid == 0) {
-    output[blockIdx.x] = sdata0[0];
+    output[blockIdx.x] = sdata[0];
   }
 }
 
@@ -1636,7 +1645,9 @@ __global__ void sumCudaExprVector1d(E *e, T *output0, len_type dim0,
 
   auto n = threadIdx.x + blockIdx.x * blockDim.x;
 
-  extern __shared__ T sdata[];
+  extern __shared__ __align__(sizeof(T)) unsigned char sdata_raw[];
+  T *sdata = reinterpret_cast<T *>(sdata_raw);
+
   T *sdatax = &sdata[0];
 
   // Each thread loads one element from global to shared memory
@@ -1673,8 +1684,10 @@ __global__ void sumCudaExprVector2d(E *e, T *output0, T *output1, len_type dim0,
 
   auto n = threadIdx.x + blockIdx.x * blockDim.x;
 
-  extern __shared__ T sdata0[];
-  T *sdatax = &sdata0[0];
+  extern __shared__ __align__(sizeof(T)) unsigned char sdata_raw[];
+  T *sdata = reinterpret_cast<T *>(sdata_raw);
+
+  T *sdatax = &sdata[0];
   T *sdatay = &sdatax[blockDim.x];
 
   // Each thread loads one element from global to shared memory
@@ -1718,8 +1731,10 @@ __global__ void sumCudaExprVector3d(E *e, T *output0, T *output1, T *output2,
   iter_type dimensions[3]{dim0, dim1, dim2};
   auto n = threadIdx.x + blockIdx.x * blockDim.x;
 
-  extern __shared__ T sdata1[];
-  T *sdatax = &sdata1[0];
+  extern __shared__ __align__(sizeof(T)) unsigned char sdata_raw[];
+  T *sdata = reinterpret_cast<T *>(sdata_raw);
+
+  T *sdatax = &sdata[0];
   T *sdatay = &sdatax[blockDim.x];
   T *sdataz = &sdatay[blockDim.x];
 

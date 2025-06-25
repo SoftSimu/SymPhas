@@ -319,17 +319,104 @@ struct CuTermList<E1> {
     }
   }
 };
-//
-// template <typename T, size_t... Ns>
-// struct CuTensor {
-//  explicit CuTensor(T const& entry) : value{entry} {}
-//
-//  __device__ auto eval(iter_type n = 0) const {
-//    return symphas::internal::tensor_as_coeff<Ns...>(value);
-//  }
-//
-//  T value;
-//};
+
+template <size_t D, Axis ax>
+__host__ __device__ double grid_axis_value(len_type const (&dims)[D],
+                                           len_type boundary_width,
+                                           scalar_t left, scalar_t h,
+                                           iter_type n);
+
+//! Specialization based on expr::BaseData.
+template <>
+__host__ __device__ inline double grid_axis_value<1, Axis::X>(
+    len_type const (&dims)[1], len_type boundary_width, scalar_t left,
+    scalar_t h, iter_type n) {
+  return left + (n - boundary_width) * h;
+}
+
+//! Specialization based on expr::BaseData.
+template <>
+__host__ __device__ inline double grid_axis_value<2, Axis::X>(
+    len_type const (&dims)[2], len_type boundary_width, scalar_t left,
+    scalar_t h, iter_type n) {
+  iter_type x = (n % dims[0]) - boundary_width;
+  return left + x * h;
+}
+
+//! Specialization based on expr::BaseData.
+template <>
+__host__ __device__ inline double grid_axis_value<3, Axis::X>(
+    len_type const (&dims)[3], len_type boundary_width, scalar_t left,
+    scalar_t h, iter_type n) {
+  iter_type x = (n % dims[0]) - boundary_width;
+  return left + x * h;
+}
+
+//! Specialization based on expr::BaseData.
+template <>
+__host__ __device__ inline double grid_axis_value<2, Axis::Y>(
+    len_type const (&dims)[2], len_type boundary_width, scalar_t left,
+    scalar_t h, iter_type n) {
+  iter_type y = (n / dims[0]) - boundary_width;
+  return left + y * h;
+}
+
+//! Specialization based on expr::BaseData.
+template <>
+__host__ __device__ inline double grid_axis_value<3, Axis::Y>(
+    len_type const (&dims)[3], len_type boundary_width, scalar_t left,
+    scalar_t h, iter_type n) {
+  iter_type y = ((n / dims[0]) % dims[1]) - boundary_width;
+  return left + y * h;
+}
+
+//! Specialization based on expr::BaseData.
+template <>
+__host__ __device__ inline double grid_axis_value<3, Axis::Z>(
+    len_type const (&dims)[3], len_type boundary_width, scalar_t left,
+    scalar_t h, iter_type n) {
+  iter_type z = (n / (dims[0] * dims[1])) - boundary_width;
+  return left + z * h;
+}
+
+template <size_t D, Axis ax, expr::exp_key_t X>
+struct CuGridAxisTerm : CuEvaluable<CuGridAxisTerm<D, ax, X>> {
+  len_type dims[D];
+  len_type boundary_width;
+  double left;
+  double h;
+
+  //! Construct data for computing the axis position in a grid.
+  /*!
+   * Construct data for computing the axis position in a grid. Based on using
+   * the spatial discretization and the system dimensions to determine
+   * the position in the grid from a flattened index.
+   *
+   * \param dims0 The interior dimensions which are computed by the
+   * expression evaluation.
+   * \param dims The whole system dimensions.
+   * \param left The first endpoint of the axis.
+   * \param right The last endpoint of the axis.
+   */
+  CuGridAxisTerm(len_type const (&dims)[D], len_type boundary_width,
+                 double left, double h)
+      : dims{}, boundary_width{boundary_width}, left{left}, h{h} {
+    std::copy(dims, dims + D, this->dims);
+  }
+
+  __host__ __device__ scalar_t eval(position_type<D> const &n) const {
+    return eval(n.index);
+  }
+
+  __host__ __device__ scalar_t eval(iter_type n) const {
+    scalar_t axis_value =
+        grid_axis_value<D, ax>(dims, boundary_width, left, h, n);
+    return pow(axis_value, expr::_Xk<X>);
+  }
+
+ protected:
+  CuGridAxisTerm() : dims{}, boundary_width{}, left{}, h{} {}
+};
 
 struct CuIdentity : CuEvaluable<CuIdentity> {
   template <typename index_type>
@@ -371,19 +458,19 @@ struct CuLiteral : CuEvaluable<CuLiteral<T>> {
 };
 
 template <typename E>
-auto operator*(CuVoid, E &&) {
+__device__ __host__ auto operator*(CuVoid, E &&) {
   return CuVoid{};
 }
 template <typename E>
-auto operator*(E &&, CuVoid) {
+__device__ __host__ auto operator*(E &&, CuVoid) {
   return CuVoid{};
 }
 template <typename E>
-auto operator+(CuVoid, E &&e) {
+__device__ __host__ auto operator+(CuVoid, E &&e) {
   return std::forward<E>(e);
 }
 template <typename E>
-auto operator+(E &&e, CuVoid) {
+__device__ __host__ auto operator+(E &&e, CuVoid) {
   return std::forward<E>(e);
 }
 
@@ -436,13 +523,317 @@ __device__ void print_value_next(const char *str,
                    std::index_sequence<Is...>{});
 }
 
-template <auto f, typename E>
-struct CuFunctionApply : CuEvaluable<CuFunctionApply<f, E>> {
+namespace cuda_math {
+
+__device__ inline complex_t log(const complex_t &z) {
+  double a = z.real();
+  double b = z.imag();
+  return complex_t(0.5 * ::log(a * a + b * b), ::atan2(b, a));
+}
+
+__device__ inline complex_t sqrt(const complex_t &z) {
+  double a = z.real();
+  double b = z.imag();
+  double r = hypot(a, b);
+  double theta = ::atan2(b, a) / 2.0;
+  return complex_t(::sqrt(r) * ::cos(theta), ::sqrt(r) * ::sin(theta));
+}
+
+// CUDA device implementations for complex transcendental functions
+__device__ inline complex_t sin(const complex_t &z) {
+  double a = z.real();
+  double b = z.imag();
+  return complex_t(::sin(a) * ::cosh(b), ::cos(a) * ::sinh(b));
+}
+
+__device__ inline complex_t cos(const complex_t &z) {
+  double a = z.real();
+  double b = z.imag();
+  return complex_t(::cos(a) * ::cosh(b), -::sin(a) * ::sinh(b));
+}
+
+__device__ inline complex_t tan(const complex_t &z) {
+  complex_t s = sin(z);
+  complex_t c = cos(z);
+  double denom = c.real() * c.real() + c.imag() * c.imag();
+  return complex_t((s.real() * c.real() + s.imag() * c.imag()) / denom,
+                   (s.imag() * c.real() - s.real() * c.imag()) / denom);
+}
+
+// Inverse hyperbolic cosine
+__device__ inline complex_t acosh(const complex_t &z) {
+  // acosh(z) = log(z + sqrt(z*z - 1))
+  complex_t zz = z * z;
+  complex_t w = sqrt(zz - complex_t(1.0, 0.0));
+  return log(z + w);
+}
+
+// Inverse hyperbolic sine
+__device__ inline complex_t asinh(const complex_t &z) {
+  // asinh(z) = log(z + sqrt(z*z + 1))
+  complex_t zz = z * z;
+  complex_t w = sqrt(zz + complex_t(1.0, 0.0));
+  return log(z + w);
+}
+
+__device__ inline complex_t atanh(const complex_t &z) {
+  // atanh(z) = 0.5 * log((1 + z) / (1 - z))
+  complex_t one(1.0, 0.0);
+  return complex_t(0.5, 0.0) * log((one + z) / (one - z));
+}
+
+__device__ inline complex_t acos(const complex_t &z) {
+  // acos(z) = -i * log(z + i*sqrt(1 - z*z))
+  const complex_t I(0.0, 1.0);
+  complex_t w = sqrt(complex_t(1.0, 0.0) - z * z);
+  return -I * log(z + I * w);
+}
+
+__device__ inline complex_t asin(const complex_t &z) {
+  // asin(z) = -i * log(i*z + sqrt(1 - z*z))
+  const complex_t I(0.0, 1.0);
+  complex_t w = sqrt(complex_t(1.0, 0.0) - z * z);
+  return -I * log(I * z + w);
+}
+
+__device__ inline complex_t atan(const complex_t &z) {
+  // atan(z) = (i/2) * [log(1 - i*z) - log(1 + i*z)]
+  const complex_t I(0.0, 1.0);
+  complex_t one(1.0, 0.0);
+  return (I * complex_t(0.5, 0.0)) * (log(one - I * z) - log(one + I * z));
+}
+
+__device__ inline complex_t sec(const complex_t &z) {
+  complex_t c = cos(z);
+  double denom = c.real() * c.real() + c.imag() * c.imag();
+  return complex_t(c.real() / denom, -c.imag() / denom);
+}
+
+__device__ inline complex_t csc(const complex_t &z) {
+  complex_t s = sin(z);
+  double denom = s.real() * s.real() + s.imag() * s.imag();
+  return complex_t(s.real() / denom, -s.imag() / denom);
+}
+
+__device__ inline complex_t cot(const complex_t &z) {
+  complex_t t = tan(z);
+  double denom = t.real() * t.real() + t.imag() * t.imag();
+  return complex_t(t.real() / denom, -t.imag() / denom);
+}
+
+__device__ inline complex_t cosh(const complex_t &z) {
+  double a = z.real();
+  double b = z.imag();
+  return complex_t(::cosh(a) * ::cos(b), ::sinh(a) * ::sin(b));
+}
+
+__device__ inline complex_t sinh(const complex_t &z) {
+  double a = z.real();
+  double b = z.imag();
+  return complex_t(::sinh(a) * ::cos(b), ::cosh(a) * ::sin(b));
+}
+
+__device__ inline complex_t tanh(const complex_t &z) {
+  complex_t s = sinh(z);
+  complex_t c = cosh(z);
+  double denom = c.real() * c.real() + c.imag() * c.imag();
+  return complex_t((s.real() * c.real() + s.imag() * c.imag()) / denom,
+                   (s.imag() * c.real() - s.real() * c.imag()) / denom);
+}
+
+__device__ inline scalar_t abs(const complex_t &z) {
+  double a = z.real();
+  double b = z.imag();
+  return a * a + b * b;
+}
+
+__device__ inline scalar_t modulus(const complex_t &z) {
+  double a = z.real();
+  double b = z.imag();
+  return ::sqrt(a * a + b * b);
+}
+}  // namespace cuda_math
+
+template <typename T>
+struct cuda_function_wrapper {
+  template <auto f>
+  struct function_impl;
+
+  // Specializations for common math functions
+  template <>
+  struct function_impl<&symphas::math::sin<T>> {
+    __device__ static auto apply(T x) {
+      using namespace cuda_math;
+      return sin(x);
+    }
+  };
+
+  template <>
+  struct function_impl<&symphas::math::cos<T>> {
+    __device__ static auto apply(T x) {
+      using namespace cuda_math;
+      return cos(x);
+    }
+  };
+
+  template <>
+  struct function_impl<&symphas::math::tan<T>> {
+    __device__ static auto apply(T x) {
+      using namespace cuda_math;
+      return tan(x);
+    }
+  };
+
+  template <>
+  struct function_impl<&symphas::math::cosh<T>> {
+    __device__ static auto apply(T x) {
+      using namespace cuda_math;
+      return cosh(x);
+    }
+  };
+
+  template <>
+  struct function_impl<&symphas::math::sinh<T>> {
+    __device__ static auto apply(T x) {
+      using namespace cuda_math;
+      return sinh(x);
+    }
+  };
+
+  template <>
+  struct function_impl<&symphas::math::tanh<T>> {
+    __device__ static auto apply(T x) {
+      using namespace cuda_math;
+      return tanh(x);
+    }
+  };
+
+  template <>
+  struct function_impl<&symphas::math::acosh<T>> {
+    __device__ static auto apply(T x) {
+      using namespace cuda_math;
+      return acosh(x);
+    }
+  };
+
+  template <>
+  struct function_impl<&symphas::math::asinh<T>> {
+    __device__ static auto apply(T x) {
+      using namespace cuda_math;
+      return asinh(x);
+    }
+  };
+
+  template <>
+  struct function_impl<&symphas::math::atanh<T>> {
+    __device__ static auto apply(T x) {
+      using namespace cuda_math;
+      return atanh(x);
+    }
+  };
+
+  template <>
+  struct function_impl<&symphas::math::acos<T>> {
+    __device__ static auto apply(T x) {
+      using namespace cuda_math;
+      return acos(x);
+    }
+  };
+
+  template <>
+  struct function_impl<&symphas::math::asin<T>> {
+    __device__ static auto apply(T x) {
+      using namespace cuda_math;
+      return asin(x);
+    }
+  };
+
+  template <>
+  struct function_impl<&symphas::math::atan<T>> {
+    __device__ static auto apply(T x) {
+      using namespace cuda_math;
+      return atan(x);
+    }
+  };
+
+  template <>
+  struct function_impl<&symphas::math::sec<T>> {
+    __device__ static auto apply(T x) {
+      using namespace cuda_math;
+      return sec(x);
+    }
+  };
+
+  template <>
+  struct function_impl<&symphas::math::csc<T>> {
+    __device__ static auto apply(T x) {
+      using namespace cuda_math;
+      return csc(x);
+    }
+  };
+
+  template <>
+  struct function_impl<&symphas::math::cot<T>> {
+    __device__ static auto apply(T x) {
+      using namespace cuda_math;
+      return cot(x);
+    }
+  };
+
+  template <>
+  struct function_impl<&symphas::math::log<T>> {
+    __device__ static auto apply(T x) {
+      using namespace cuda_math;
+      return log(x);
+    }
+  };
+
+  template <>
+  struct function_impl<&symphas::math::sqrt<T>> {
+    __device__ static auto apply(T x) {
+      using namespace cuda_math;
+      return sqrt(x);
+    }
+  };
+
+  template <>
+  struct function_impl<&symphas::math::abs<T>> {
+    __device__ static auto apply(T x) {
+      using namespace cuda_math;
+      return abs(x);
+    }
+  };
+
+  template <>
+  struct function_impl<&symphas::math::modulus<T>> {
+    __device__ static auto apply(T x) {
+      using namespace cuda_math;
+      return modulus(x);
+    }
+  };
+
+  template <>
+  struct function_impl<&symphas::math::real<T>> {
+    __device__ static auto apply(complex_t x) { return x.real(); }
+  };
+
+  template <>
+  struct function_impl<&symphas::math::imag<T>> {
+    __device__ static auto apply(complex_t x) { return x.imag(); }
+  };
+};
+
+// Modify CuFunctionApply to use cuda_math
+template <auto f, typename Ee, typename E>
+struct CuFunctionApply : CuEvaluable<CuFunctionApply<f, Ee, E>> {
   E e;
   CuFunctionApply(E const &e) : e{e} {}
   template <typename index_type>
-  __device__ scalar_t eval(index_type &&n) const {
-    return f(e.eval(std::forward<index_type>(n)));
+  __device__ auto eval(index_type &&n) const {
+    using eval_type = typename expr::eval_type<Ee>::type;
+    using cuda_function_type =
+        typename cuda_function_wrapper<eval_type>::template function_impl<f>;
+    return cuda_function_type::apply(e.eval(std::forward<index_type>(n)));
   }
 };
 
@@ -581,8 +972,6 @@ struct CuMul : CuEvaluable<CuMul<Es...>> {
   CuMul(Es const &...es) : terms{es...} {}
   template <typename index_type, size_t... Is>
   __device__ auto eval(index_type &&i, std::index_sequence<Is...>) const {
-    // print_value_next("mul", terms, std::forward<index_type>(i),
-    //                  int(sizeof...(Is)), std::index_sequence<Is...>{});
     return (terms.template get<Is>().eval(std::forward<index_type>(i)) * ...);
   }
 
@@ -590,6 +979,28 @@ struct CuMul : CuEvaluable<CuMul<Es...>> {
   __device__ auto eval(index_type &&i) const {
     return this->eval(std::forward<index_type>(i),
                       std::make_index_sequence<sizeof...(Es)>{});
+  }
+};
+
+template <typename A, typename B>
+struct CuBinaryDiv : CuEvaluable<CuBinaryDiv<A, B>> {
+  A numerator;
+  B denominator;
+  CuBinaryDiv(A const &a, B const &b) : numerator{a}, denominator{b} {}
+  template <typename index_type>
+  __device__ auto eval(index_type &&i) const {
+    return numerator.eval(std::forward<index_type>(i)) /
+           denominator.eval(std::forward<index_type>(i));
+  }
+};
+
+template <expr::exp_key_t X, typename E>
+struct CuPow : CuEvaluable<CuPow<X, E>> {
+  E base;
+  CuPow(E const &a) : base{a} {}
+  template <typename index_type>
+  __device__ auto eval(index_type &&i) const {
+    return pow(base.eval(std::forward<index_type>(i)), expr::_Xk<X>);
   }
 };
 
@@ -783,6 +1194,7 @@ struct CuDerivativeHost : CuEvaluable<CuDerivativeHost<Dd, T, D, Sp>> {
   ~CuDerivativeHost() { CHECK_CUDA_ERROR(cudaFree(derivative.values)); }
 };
 
+
 template <typename T, typename E>
 struct CuSeries : CuEvaluable<CuSeries<T, E>> {
   CuSeries(E *persistent, len_type len) : persistent{}, len{len} {
@@ -922,6 +1334,12 @@ auto operator*(CuEvaluable<E1> const &a, CuEvaluable<E2> const &b) {
   return CuMul{*static_cast<E1 const *>(&a), *static_cast<E2 const *>(&b)};
 }
 
+template <typename E1, typename E2>
+auto operator/(CuEvaluable<E1> const &a, CuEvaluable<E2> const &b) {
+  return CuBinaryDiv{*static_cast<E1 const *>(&a),
+                     *static_cast<E2 const *>(&b)};
+}
+
 template <typename... As, typename E2, size_t... Is>
 auto to_cu_mul(CuMul<As...> const &a, CuEvaluable<E2> const &b,
                std::index_sequence<Is...>) {
@@ -951,6 +1369,7 @@ auto operator*(CuEvaluable<E1> const &a, CuMul<Bs...> const &b) {
   return to_cu_mul(*static_cast<E1 const *>(&a), b,
                    std::make_index_sequence<sizeof...(Bs)>{});
 }
+
 template <typename... As, typename... Bs>
 auto operator*(CuMul<As...> const &a, CuMul<Bs...> const &b) {
   return to_cu_mul(a, b, std::make_index_sequence<sizeof...(As)>{},
@@ -994,16 +1413,32 @@ auto to_cuda_expr(
   return CuTermRegion<D, T, X>(data.values, data.region, data.dims, data.empty);
 }
 
+template <expr::exp_key_t X, size_t D, Axis ax>
+auto to_cuda_expr(GridAxis<D, ax> const &e) {
+  scalar_t left = e.v.left();
+  scalar_t h = e.v.width();
+  len_type boundary_width = e.dims0[symphas::axis_to_index(ax)];
+  return CuGridAxisTerm<D, ax, X>(e.dims, boundary_width, left, h);
+}
+
 template <typename G, expr::exp_key_t X>
 auto to_cuda_expr(Term<G, X> const &e) {
   return to_cuda_expr<X>(BaseData<G>::get(e));
 }
 
-auto to_cuda_expr(OpIdentity const &e) { return CuIdentity(); }
+template <expr::exp_key_t X>
+auto to_cuda_expr(TimeValue const &e) {
+  using expr::pow;
+  using symphas::math::pow;
+  auto time_value = pow(e.get_time(), expr::_Xk<X>);
+  return CuLiteral<double>(time_value);
+}
 
-auto to_cuda_expr(OpNegIdentity const &e) { return CuNegIdentity(); }
+inline auto to_cuda_expr(OpIdentity const &e) { return CuIdentity{}; }
 
-auto to_cuda_expr(OpVoid const &e) { return CuVoid(); }
+inline auto to_cuda_expr(OpNegIdentity const &e) { return CuNegIdentity{}; }
+
+inline auto to_cuda_expr(OpVoid const &e) { return CuVoid{}; }
 
 inline auto to_cuda_expr(scalar_t const &value) {
   return CuLiteral<scalar_t>{value};
@@ -1050,6 +1485,9 @@ auto to_cuda_expr(OpFractionLiteral<N, D> const &e) {
 
 template <typename A, typename B>
 auto to_cuda_expr(OpBinaryMul<A, B> const &e);
+
+template <typename A, typename B>
+auto to_cuda_expr(OpBinaryDiv<A, B> const &e);
 
 template <typename V, typename T0, size_t I0>
 auto to_cuda_expr(OpTerms<V, T0> const &e, std::index_sequence<I0>);
@@ -1170,9 +1608,33 @@ auto to_cuda_expr(OpAdd<Es...> const &e);
 template <typename V, typename... Ss, typename F>
 auto to_cuda_expr(OpSymbolicEval<V, SymbolicSeries<Ss...>, F> const &e);
 
+template <typename V, typename E1, typename E2>
+auto to_cuda_expr(OpConvolution<V, E1, E2> const &e);
+
+template <expr::exp_key_t X, typename E>
+auto to_cuda_pow(CuEvaluable<E> const &e) {
+  return CuPow<X, E>(*static_cast<E const *>(&e));
+}
+
+template <expr::exp_key_t X, typename V, typename E>
+auto to_cuda_expr(OpPow<X, V, E> const &e) {
+  return to_cuda_expr(expr::coeff(e)) *
+         to_cuda_pow<X>(to_cuda_expr(expr::get_enclosed_expression(e)));
+}
+
+template <expr::exp_key_t X, typename E>
+auto to_cuda_expr(OpPow<X, OpIdentity, E> const &e) {
+  return to_cuda_pow<X>(to_cuda_expr(expr::get_enclosed_expression(e)));
+}
+
 template <typename A, typename B>
 auto to_cuda_expr(OpBinaryMul<A, B> const &e) {
   return to_cuda_expr(e.a) * to_cuda_expr(e.b);
+}
+
+template <typename A, typename B>
+auto to_cuda_expr(OpBinaryDiv<A, B> const &e) {
+  return to_cuda_expr(e.a) / to_cuda_expr(e.b);
 }
 
 template <typename V, typename T0, size_t I0>
@@ -1350,6 +1812,21 @@ auto to_cuda_expr(OpSymbolicEval<OpIdentity, NoiseData<nt, T, D, grid_type>,
   return to_cuda_expr(e.data);
 }
 
+template <typename E1, typename E2>
+auto to_cuda_convolution(OpConvolution<OpIdentity, E1, E2> const &e) {
+  return to_cuda_expr<1>(expr::get_result_data(e));
+}
+
+template <typename V, typename E1, typename E2>
+auto to_cuda_convolution(OpConvolution<V, E1, E2> const &e) {
+  return to_cuda_expr(expr::coeff(e)) * to_cuda_expr<1>(expr::get_result_data(e));
+}
+
+template <typename V, typename E1, typename E2>
+auto to_cuda_expr(OpConvolution<V, E1, E2> const &e) {
+  return to_cuda_convolution(e);
+}
+
 template <typename F, typename... Args>
 auto to_cuda_callable(F const &f, std::tuple<Args...> const &args) {
   return CuCallable<F, Args...>{f, args};
@@ -1370,18 +1847,20 @@ auto to_cuda_expr(OpCallable<V, F, Args...> const &e) {
   return to_cuda_expr(expr::coeff(e)) * to_cuda_callable(e.f, e.args);
 }
 
-template <auto f, typename E>
+template <auto f, typename Ee, typename E>
 auto to_cuda_fn_expr(CuEvaluable<E> const &e) {
-  return CuFunctionApply<f, E>{*static_cast<E const *>(&e)};
+  return CuFunctionApply<f, Ee, E>{*static_cast<E const *>(&e)};
 }
+
 template <auto f, typename E>
 auto to_cuda_expr(OpFunctionApply<f, OpIdentity, E> const &e) {
-  return to_cuda_fn_expr<f>(to_cuda_expr(e.e));
+  return to_cuda_fn_expr<f, E>(to_cuda_expr(e.e));
 }
 
 template <auto f, typename V, typename E>
 auto to_cuda_expr(OpFunctionApply<f, V, E> const &e) {
-  return to_cuda_expr(expr::coeff(e)) * to_cuda_fn_expr<f>(to_cuda_expr(e.e));
+  return to_cuda_expr(expr::coeff(e)) *
+         to_cuda_fn_expr<f, E>(to_cuda_expr(e.e));
 }
 
 template <typename E>

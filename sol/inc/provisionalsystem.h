@@ -32,20 +32,6 @@
 #include "boundarysystem.h"
 #include "spslibfftw.h"
 
-//! The default provisional system.
-/*!
- * The representation of a provisional system, storing the values of the
- * provisional variable that is defined in a phase field problem.
- *
- * Unless explicitly specified, this provisional system type will be
- * used by the solver. It does not manage boundaries or other data.
- *
- * \tparam T The provisional system type.
- * \tparam D The provisional system dimension.
- */
-template <typename T, size_t D>
-using ProvisionalSystem = System<T, D>;
-
 //! The initial conditions of a provisional system.
 /*!
  * Initial conditions for provisional variables are required with solvers
@@ -60,6 +46,28 @@ using ProvisionalSystem = System<T, D>;
 inline symphas::init_entry_type provisional_init{
     Inside::NONE, symphas::build_intag(InsideTag::NONE),
     symphas::init_data_parameters{}};
+
+//! The default provisional system.
+/*!
+ * The representation of a provisional system, storing the values of the
+ * provisional variable that is defined in a phase field problem.
+ *
+ * Unless explicitly specified, this provisional system type will be
+ * used by the solver. It does not manage boundaries or other data.
+ *
+ * \tparam T The provisional system type.
+ * \tparam D The provisional system dimension.
+ */
+template <typename T, size_t D>
+struct ProvisionalSystem : System<T, D> {
+  //! Create a provisional system.
+  /*!
+   * Create a provisional system using the given intervals and boundary data.
+   */
+  ProvisionalSystem(const symphas::interval_data_type vdata,
+                      const symphas::b_data_type bdata)
+      : System<T, D>(provisional_init, vdata, bdata) {}
+};
 
 //! The representation of a provisional system.
 /*!
@@ -89,6 +97,11 @@ struct ProvisionalSystemFD : BoundarySystem<T, D> {
                       const symphas::b_data_type bdata)
       : BoundarySystem<T, D>(provisional_init, vdata, bdata) {}
 };
+
+#ifdef USING_CUDA
+template <typename T, size_t D>
+struct ProvisionalSystemFDCUDA;
+#endif
 
 #ifdef USING_FFTW
 

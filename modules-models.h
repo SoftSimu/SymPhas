@@ -503,7 +503,7 @@ bool run_model(M& model, iter_type n, symphas::time_step_list const& dts,
  * \param num_params The number of command line arguments in the list.
  */
 void init(const char* config, const char* const* param_list, int num_params);
-inline void init(const char* param) { init(param, nullptr, 0); }
+inline void init(const char* config) { init(config, nullptr, 0); }
 inline void init() { init("--" ARGUMENT_HELP_STRING); }
 
 void finalize();

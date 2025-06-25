@@ -57,6 +57,32 @@ Conf make_config(const char* file, param_map_type const& param_map);
  */
 Conf make_config(const char* file);
 
+//! Find and return the path to either configuration.json or configuration.in
+//! file.
+/*!
+ * Searches for configuration files in the specified directory, preferring
+ * .json over .in format. Returns the first file found.
+ *
+ * \param base_dir The directory to search in (optional, defaults to current
+ * directory).
+ * \return A string containing the path to the found configuration file, or
+ * empty string if none found.
+ */
+symphas::lib::string find_configuration_file(const char* base_dir = ".");
+
+//! Create configuration using auto-detected configuration file.
+/*!
+ * Searches for either configuration.json or configuration.in in the specified
+ * directory and creates a Conf object from the first one found.
+ *
+ * \param base_dir The directory to search for configuration files (optional,
+ * defaults to current directory).
+ * \param param_map The parameter keys which may be set by this configuration.
+ * \return A Conf object created from the found configuration file.
+ */
+Conf make_config_auto(const char* base_dir = ".",
+                      param_map_type const& param_map = {});
+
 //! Access the global configuration.
 /*!
  * The global configuration first needs to be initialized using the function

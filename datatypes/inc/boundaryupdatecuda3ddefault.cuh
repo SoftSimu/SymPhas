@@ -51,9 +51,9 @@ void update_default_boundary(symphas::lib::side_list<side0, side1>,
   h[0] = bd->h[0] * fx;
   h[1] = bd->h[1] * fy;
 
-  iter_type L = grid.dims[0];
+  //iter_type L = grid.dims[0];
   iter_type M = grid.dims[1];
-  iter_type N = grid.dims[2];
+  //iter_type N = grid.dims[2];
 
   ///////////////////////////////////////////////////////////////////////////////////////////
   // TODO

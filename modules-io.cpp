@@ -26,58 +26,39 @@
 #include "modules-io.h"
 #endif
 
-const char* symphas::get_record_name(const char* dir)
-{
-
-#ifdef USING_CONF
-	size_t out_len = std::strlen(dir) + sizeof(BACKUP_CONFIG_LOC_FMT) / sizeof(char) - 1;
-	char* out = new char[out_len];
-	snprintf(out, out_len, BACKUP_CONFIG_LOC_FMT, dir);
-	return out;
-
-#else
-	char* out = new char[BUFFER_LENGTH];
-	snprintf(out, BUFFER_LENGTH, "%s/computed_indices.txt", dir);
-	return out;
-
-#endif
+const char* symphas::get_record_name(const char* dir) {
+  const char file_name[] = CHECKPOINT_DIR "/progress.txt";
+  size_t out_len = std::strlen(dir) + std::strlen(file_name) + 2;
+  char* out = new char[out_len];
+  snprintf(out, out_len, "%s/%s", dir, file_name);
+  return out;
 }
 
-FILE* symphas::open_record(const char* name)
-{
-	FILE* f;
-	if ((f = fopen(name, "a")) == 0)
-	{
-		fprintf(SYMPHAS_ERR, "error opening backup configuration file '%s'\n", name);
-		exit(1001);
-	}
-	return f;
+FILE* symphas::open_record(const char* name) {
+  FILE* f;
+  if ((f = fopen(name, "a")) == 0) {
+    fprintf(SYMPHAS_ERR, "error opening backup configuration file '%s'\n",
+            name);
+    exit(1001);
+  }
+  return f;
 }
 
-
-void symphas::record_index(const char* dir, SaveParams const& save, int index)
-{
+void symphas::record_index(const char* dir, SaveParams const& save, int index) {
 #ifdef USING_MPI
-	if (symphas::parallel::is_host_node())
-	{
+  if (symphas::parallel::is_host_node()) {
 #endif
-		const char* name = get_record_name(dir);
-		FILE* f = open_record(name);
-#ifdef USING_CONF
-		fprintf(f, CONFIG_INDEX_PREFIX "%d\n", index);
-		if (index == save.get_stop())
-		{
-			fprintf(f, CONFIG_INDEX_PREFIX SIMULATION_DONE_KEY "\n");
-		}
-#else
-		fprintf(f, "%d\n", index);
-#endif
-		fclose(f);
+    const char* name = get_record_name(dir);
+    FILE* f = open_record(name);
+    fprintf(f, CONFIG_INDEX_PREFIX "%d\n", index);
+    if (index == save.get_stop()) {
+      fprintf(f, CONFIG_INDEX_PREFIX SIMULATION_DONE_KEY "\n");
+    }
+    fclose(f);
 
-		delete[] name;
+    delete[] name;
 
 #ifdef USING_MPI
-	}
+  }
 #endif
 }
-

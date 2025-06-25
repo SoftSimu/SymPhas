@@ -396,13 +396,13 @@ auto min_value(RegionalGrid<any_vector_t<T, D>, D> const& grid) {
 namespace symphas::internal {
 
 template <typename T>
-void set_value_for_resize(T& cutoff, T min, T eps = T()) {
+void set_value_for_resize(T& cutoff, T min, double eps = 0) {
   cutoff = min + eps;
 }
 
 template <typename T, size_t D>
 void set_value_for_resize(any_vector_t<T, D>& cutoff,
-                          any_vector_t<T, D> const& min, T eps = T()) {
+                          any_vector_t<T, D> const& min, double eps = 0) {
   for (iter_type i = 0; i < D; ++i) {
     cutoff[i] = min[i] + eps;
   }
@@ -410,7 +410,7 @@ void set_value_for_resize(any_vector_t<T, D>& cutoff,
 
 template <typename T, size_t D>
 void set_value_for_resize(any_vector_t<T, D>& value,
-                          multi_value<D, T> const& min, T eps = T()) {
+                          multi_value<D, T> const& min, double eps = 0) {
   for (iter_type i = 0; i < D; ++i) {
     value[i] = min[i] + eps;
   }
@@ -421,7 +421,7 @@ using generic_arr_type = T (&)[D];
 
 template <typename T, size_t D>
 void set_value_for_resize(generic_arr_type<T, D> value,
-                          multi_value<D, T> const& min, T eps = T()) {
+                          multi_value<D, T> const& min, double eps = 0) {
   for (iter_type i = 0; i < D; ++i) {
     value[i] = min[i] + eps;
   }
@@ -429,7 +429,7 @@ void set_value_for_resize(generic_arr_type<T, D> value,
 
 template <typename T, size_t D>
 void set_value_for_resize(generic_arr_type<T, D> cutoff,
-                          any_vector_t<T, D> const& min, T eps = T()) {
+                          any_vector_t<T, D> const& min, double eps = 0) {
   for (iter_type i = 0; i < D; ++i) {
     cutoff[i] = min[i] + eps;
   }

@@ -32,6 +32,7 @@
 #pragma once
 
 #include <memory>
+#include <cfloat>
 
 #include "grid.h"
 #include "spslibfftw.h"
@@ -2234,13 +2235,13 @@ inline void fill_ranges(axis_3d_type const* data_x, len_type len,
   // initialize infinite of opposite sign on ranges
   // so that the checks with data_x can work.
 
-  ranges[0] = +INFINITY;
-  ranges[2] = +INFINITY;
-  ranges[4] = +INFINITY;
+  ranges[0] = +FLT_MAX;
+  ranges[2] = +FLT_MAX;
+  ranges[4] = +FLT_MAX;
 
-  ranges[1] = -INFINITY;
-  ranges[3] = -INFINITY;
-  ranges[5] = -INFINITY;
+  ranges[1] = -FLT_MAX;
+  ranges[3] = -FLT_MAX;
+  ranges[5] = -FLT_MAX;
 
   for (iter_type i = 0; i < len; ++i) {
     if (data_x[i][0] < ranges[0]) {
@@ -2269,11 +2270,11 @@ inline void fill_ranges(axis_2d_type const* data_x, len_type len,
   // initialize infinite of opposite sign on ranges
   // so that the checks with data_x can work.
 
-  ranges[0] = +INFINITY;
-  ranges[2] = +INFINITY;
+  ranges[0] = +FLT_MAX;
+  ranges[2] = +FLT_MAX;
 
-  ranges[1] = -INFINITY;
-  ranges[3] = -INFINITY;
+  ranges[1] = -FLT_MAX;
+  ranges[3] = -FLT_MAX;
 
   for (iter_type i = 0; i < len; ++i) {
     if (data_x[i][0] < ranges[0]) {
@@ -2296,8 +2297,8 @@ inline void fill_ranges(axis_1d_type const* data_x, len_type len,
   // initialize infinite of opposite sign on ranges
   // so that the checks with data_x can work.
 
-  ranges[0] = +INFINITY;
-  ranges[1] = -INFINITY;
+  ranges[0] = +FLT_MAX;
+  ranges[1] = -FLT_MAX;
 
   for (iter_type i = 0; i < len; ++i) {
     if (data_x[i] < ranges[0]) {

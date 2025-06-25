@@ -420,12 +420,12 @@ void testexpressionconvolution() {
 
   // testing the correct behaviour of convolution
   auto cc1 =
-      expr::make_convolution::get(GaussianSmoothing<2>{grid0.dims, h, 1}, op);
+      expr::make_convolution::get(GaussianSmoothing<2, Grid>{grid0.dims, h, 1}, op);
   auto cc2 =
       expr::make_literal(1.0) *
-      expr::make_convolution::get(GaussianSmoothing<2>{grid0.dims, h, 1}, cc1);
+      expr::make_convolution::get(GaussianSmoothing<2, Grid>{grid0.dims, h, 1}, cc1);
   auto cc3 =
-      expr::make_convolution::get(GaussianSmoothing<2>{grid0.dims, h, 1}, op) -
+      expr::make_convolution::get(GaussianSmoothing<2, Grid>{grid0.dims, h, 1}, op) -
       op;
 }
 

@@ -744,8 +744,9 @@ inline void symphas::io::save_abs_default(std::vector<std::pair<axis_1d_type, co
 	scalar_t* it = rdata;
 	for (auto const& [x, y] : data)
 	{
-		fprintf(def, "%.6f %.6E %.6E %.6E\n", x, std::real(y), std::imag(y), std::abs(y));
-		*it++ = std::abs(y);
+          fprintf(def, "%.6f %.6E %.6E %.6E\n", x, y.real(), y.imag(),
+                  symphas::math::abs(y));
+		*it++ = symphas::math::abs(y);
 	}
 	fclose(def);
 

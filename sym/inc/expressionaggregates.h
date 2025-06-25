@@ -670,15 +670,15 @@ auto make_lhs(RegionalGridMPI<T, D> const& data) {
 
 template <typename T, size_t D>
 auto make_lhs(GridCUDA<T, D> const& data) {
-  return OpLHS<Grid<T, D>>(data);
+  return OpLHS<GridCUDA<T, D>>(data);
 }
 template <typename T, size_t D>
 auto make_lhs(BoundaryGridCUDA<T, D> const& data) {
-  return OpLHS<BoundaryGrid<T, D>>(data);
+  return OpLHS<BoundaryGridCUDA<T, D>>(data);
 }
 template <typename T, size_t D>
 auto make_lhs(RegionalGridCUDA<T, D> const& data) {
-  return OpLHS<RegionalGrid<T, D>>(data);
+  return OpLHS<RegionalGridCUDA<T, D>>(data);
 }
 #endif
 
@@ -918,11 +918,11 @@ struct cast_term<symphas::lib::types_list<Term<Gs, Xs>...>> {
 };
 
 #ifdef PRINTABLE_EQUATIONS
-
-template <typename estream, typename E>
-size_t print_one_term(estream* out, E const& e) {
-  return expr::print_with_coeff(out, "", e);
-}
+//
+// template <typename estream, typename E>
+// size_t print_one_term(estream* out, E const& e) {
+//  return expr::print_with_coeff(out, "", e);
+//}
 
 template <typename estream, typename E>
 size_t print_one_term(estream* out, OpExpression<E> const& e) {
@@ -1245,12 +1245,28 @@ struct OpTermsList<V, Term<Gs, Xs>...> : OpTermsList<Term<Gs, Xs>...> {
 #ifdef PRINTABLE_EQUATIONS
 
   size_t print(FILE* out) const {
-    size_t n = symphas::internal::print_one_term(out, term);
+    size_t n = 0;
+    if constexpr (expr::is_term<V>) {
+      n += symphas::internal::print_one_term(out, term);
+      if constexpr (sizeof...(Gs) != 0) {
+        n += fprintf(out, "%s", SYEX_MUL_SEP_OP);
+      }
+    } else {
+      n += expr::print_with_coeff(out, term);
+    }
     return n + parent_type::print(out);
   }
 
   size_t print(char* out) const {
-    size_t n = symphas::internal::print_one_term(out, term);
+    size_t n = 0;
+    if constexpr (expr::is_term<V>) {
+      n += symphas::internal::print_one_term(out, term);
+      if constexpr (sizeof...(Gs) != 0) {
+        n += sprintf(out + n, "%s", SYEX_MUL_SEP_OP);
+      }
+    } else {
+      n += expr::print_with_coeff(out, term);
+    }
     return n + parent_type::print(out + n);
   }
 
@@ -1258,8 +1274,11 @@ struct OpTermsList<V, Term<Gs, Xs>...> : OpTermsList<Term<Gs, Xs>...> {
     size_t n = 0;
     if constexpr (expr::is_term<V>) {
       n += symphas::internal::print_length_one_term(term);
+      if constexpr (sizeof...(Gs) == 0) {
+        n += STR_ARR_LEN(SYEX_MUL_SEP_OP);
+      }
     } else {
-      n += symphas::internal::print_length_one_term(expr::make_literal(term));
+      n += expr::coeff_print_length(term);
     }
     return n + parent_type::print_length();
   }
@@ -1335,7 +1354,7 @@ OpTerms(OpTermsList<Ts...>) -> OpTerms<Ts...>;
 OpTerms() -> OpTerms<>;
 
 template <typename T, typename E>
-auto operator==(OpTerms<OpIdentity, T> const term, OpExpression<E> const& e) {
+auto operator<=(OpTerms<OpIdentity, T> const term, OpExpression<E> const& e) {
   return expr::make_lhs(term) = *static_cast<E const*>(&e);
 }
 

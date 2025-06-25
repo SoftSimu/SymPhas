@@ -797,8 +797,8 @@ auto separate_var(OpConvolution<V, E1, E2> const& e);
  *
  * \tparam Z The index of the variable to separate.
  */
-template <size_t Z, typename V, size_t D, typename E>
-auto separate_var(OpConvolution<V, GaussianSmoothing<D>, E> const& e);
+template <size_t Z, typename V, size_t D, template <typename, size_t> typename grid_type, typename E>
+auto separate_var(OpConvolution<V, GaussianSmoothing<D, grid_type>, E> const& e);
 
 //! Separates the expressions based on existence of the variable index.
 /*!
@@ -917,23 +917,23 @@ auto separate_var(OpConvolution<V, E1, E2> const& e) {
 }
 
 namespace {
-template <size_t Z, typename V, size_t D, typename E,
+template <size_t Z, typename V, size_t D, template <typename, size_t> typename grid_type, typename E,
           typename std::enable_if_t<svcg_pred<Z, E>, int> = 0>
 auto separate_var_convolution_g(
-    OpConvolution<V, GaussianSmoothing<D>, E> const& e) {
+    OpConvolution<V, GaussianSmoothing<D, grid_type>, E> const& e) {
   return pack_left(e);
 }
 
-template <size_t Z, typename V, size_t D, typename E,
+template <size_t Z, typename V, size_t D, template <typename, size_t> typename grid_type, typename E,
           typename std::enable_if_t<!svcg_pred<Z, E>, int> = 0>
 auto separate_var_convolution_g(
-    OpConvolution<V, GaussianSmoothing<D>, E> const& e) {
+    OpConvolution<V, GaussianSmoothing<D, grid_type>, E> const& e) {
   return pack_right(e);
 }
 }  // namespace
 
-template <size_t Z, typename V, size_t D, typename E>
-auto separate_var(OpConvolution<V, GaussianSmoothing<D>, E> const& e) {
+template <size_t Z, typename V, size_t D, template <typename, size_t> typename grid_type, typename E>
+auto separate_var(OpConvolution<V, GaussianSmoothing<D, grid_type>, E> const& e) {
   return separate_var_convolution_g<Z>(e);
 }
 
