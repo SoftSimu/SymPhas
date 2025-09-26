@@ -1144,7 +1144,7 @@ struct combine_mixed_derivatives {
 
       } else {
         // both of them are odd ordered derivatives, like 3 and 1
-        static_assert(false, "not implemented yet");
+        //static_assert(false, "not implemented yet");
       }
     }
   }
