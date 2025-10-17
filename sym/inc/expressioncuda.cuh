@@ -2614,6 +2614,30 @@ struct expr::result_sum_only_trait<GridCUDA<T, D>> {
 };
 
 template <typename T, size_t D>
+struct expr::result_only_trait<GridCUDA<T, D>> {
+  template <typename... Es, typename assign_type, typename interval_type,
+            size_t... Is>
+  result_only_trait(OpAdd<Es...> const &e, assign_type &&data,
+                    interval_type &&interval, std::index_sequence<Is...>) {
+    // if constexpr (expr::satisfies<E, expr::or_<condition_t,
+    // condition_ts...>>) {
+    evaluate_expression_trait<GridCUDA<T, D>>(
+        (expr::get<Is>(e) + ...), std::forward<assign_type>(data), interval);
+    //}
+  }
+
+  template <typename... Es, typename assign_type, size_t... Is>
+  result_only_trait(OpAdd<Es...> const &e, assign_type &&data, len_type len,
+                    std::index_sequence<Is...>) {
+    // if constexpr (expr::satisfies<E, expr::or_<condition_t,
+    // condition_ts...>>) {
+    evaluate_expression_trait<GridCUDA<T, D>>(
+        (expr::get<Is>(e) + ...), std::forward<assign_type>(data), len);
+    //}
+  }
+};
+
+template <typename T, size_t D>
 struct expr::result_sum_only_trait<BoundaryGridCUDA<T, D>>
     : expr::result_sum_only_trait<GridCUDA<T, D>> {};
 template <typename T, size_t D>
@@ -2651,21 +2675,14 @@ struct expr::accumulate_expression_trait<RegionalGridCUDA<T, D>>
 };
 
 template <typename T, size_t D>
-struct expr::result_only_trait<GridCUDA<T, D>> {
-  template <typename... Es, typename assign_type, size_t... Is>
-  result_only_trait(OpAdd<Es...> const &e, assign_type &&data,
-                    grid::region_interval<D> const &interval,
-                    std::index_sequence<Is...>) {
-    evaluate_expression_trait<GridCUDA<T, D>>(
-        (expr::get<Is>(e) + ...), std::forward<assign_type>(data), interval);
-  }
-
-  template <typename... Es, typename assign_type, size_t... Is>
-  result_only_trait(OpAdd<Es...> const &e, assign_type &&data, len_type len,
-                    std::index_sequence<Is...>) {
-    evaluate_expression_trait<GridCUDA<T, D>>(
-        (expr::get<Is>(e) + ...), std::forward<assign_type>(data), len);
-  }
+struct expr::result_only_trait<BoundaryGridCUDA<T, D>>
+    : expr::result_only_trait<GridCUDA<T, D>> {
+  using result_only_trait<GridCUDA<T, D>>::result_only_trait;
+};
+template <typename T, size_t D>
+struct expr::result_only_trait<RegionalGridCUDA<T, D>>
+    : expr::result_only_trait<GridCUDA<T, D>> {
+  using result_only_trait<GridCUDA<T, D>>::result_only_trait;
 };
 
 #endif

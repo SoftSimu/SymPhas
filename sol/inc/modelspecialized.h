@@ -1554,8 +1554,22 @@ struct TraitEquation<enclosing_type,
     using namespace symphas::internal;
 
     expr::printe(*static_cast<E const*>(&e), "free energy");
-    return make_equations(
-        special_dynamics(dop(), *this, *static_cast<E const*>(&e), solver));
+    //return parent_trait::make_equations(
+    //    apply_special_dynamics(
+    //        std::get<
+    //            dynamics_rule_N<Is, symphas::lib::types_list<dynamics_ts...>>>(
+    //            dynamics))
+    //        .template select<Is>()(dop<Is>(), *this, *static_cast<E const*>(&e),
+    //                               solver)...);
+     //return make_equations(apply_special_dynamics().template select<0>()(
+     //   dop(), *this, *static_cast<E const*>(&e), solver));
+
+      return make_equations(apply_special_dynamics(std::get<0>(dynamics))(
+          dop(), *this, *static_cast<E const*>(&e), solver));
+
+    //return make_equations(apply_special_dynamics(dynamics_t{})
+    //                          .template select<0>()(
+    //    dop(), *this, *static_cast<E const*>(&e), solver));
   }
 
   template <typename Dd, typename Ee>

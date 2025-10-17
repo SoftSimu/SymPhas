@@ -3087,9 +3087,9 @@ A comprehensive JSON configuration consists of these main sections:
     "name": "PHASE_FIELD_CRYSTAL_MODEL",
     "domain": "main_domain",
     "coefficients": {
-      "alpha": -0.5,
-      "beta": 1.0,
-      "gamma": 1.0
+      "c1": -0.5,
+      "c2": 1.0,
+      "c3": 1.0
     },
     "fields": [
       {

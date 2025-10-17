@@ -90,6 +90,31 @@ struct KernelEvalHandler : BaseEvalHandler<KernelEvalHandler> {
         *static_cast<E const*>(&e), std::forward<assign_type>(assign),
         expr::iterable_domain(*static_cast<E const*>(&e)), false);
   }
+
+  // template <typename condition_t, typename... condition_ts, typename E,
+  //           typename assign_type>
+  // void result_by_term(OpEvaluable<E> const& e, assign_type&& assign) const {
+  //   result(*static_cast<E const*>(&e), std::forward<assign_type>(assign));
+  // }
+
+  // template <typename condition_t, typename... condition_ts, typename... Es,
+  //           typename assign_type>
+  // void result_by_term(OpAdd<Es...> const& e, assign_type&& assign) const {
+  //   if constexpr ((expr::satisfies<Es,
+  //                                  expr::or_<condition_t, condition_ts...>>
+  //                                  ||
+  //                  ...)) {
+  //     result_only<expr::not_<expr::or_<condition_t, condition_ts...>>>(
+  //         e, std::forward<assign_type>(assign));
+  //     result_by_term(e, std::forward<assign_type>(assign),
+  //                    symphas::lib::types_list<condition_t,
+  //                    condition_ts...>{},
+  //                    std::make_index_sequence<sizeof...(Es)>{});
+  //   } else {
+  //     result(e, std::forward<assign_type>(assign));
+  //   }
+  // }
+
   ~KernelEvalHandler() { CHECK_CUDA_ERROR(cudaDeviceSynchronize()); }
 };
 #endif
