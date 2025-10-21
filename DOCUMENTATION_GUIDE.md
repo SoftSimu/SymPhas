@@ -358,7 +358,7 @@ brew install open-mpi    # Optional
 brew install vtk         # Optional
 ```
 
-### Installation Process
+### Installation Process (With Exising Models)
 
 #### 1. Download SymPhas
 
@@ -377,9 +377,15 @@ cd build
 
 #### 3. CMake Configuration
 
-**SymPhas relies on a driver file to execute specific models with chosen solvers**. The driver file is specified with the cmake configuration option `MAIN_FILE`. It is also possible to install SymPhas with only the core header and library files (in order to be linked to from a separate directory).
+**SymPhas relies on a driver file to execute specific models with chosen solvers**. The driver file is specified with the cmake configuration option `MAIN_FILE`. 
+> It is also possible to install SymPhas as header and library files so that it can be linked from a separate directory, but directly building your project as explained in this guide is the best method.
 
-The installation process varies depending on your intended use case:
+The installation process depends on your use case:
+1. Driver file only &rarr; The driver file contains implementations of the solver and model used for the simulation.
+2. Driver file with separate solver &rarr; The driver file contians the implementation of the model to be used, but the solver is defined elsewhere.
+3. Driver file with separate solver and models &rarr; The driver file contains only the execution, and solver and models are implemented separately.
+
+The best approach is #3, because there are a number of existing models and there are two solvers already included, and almost any user case will not involve writing a solver from scratch. Therefore, we need to specify the directory of the model definitions and the file that brings them in, and then the solver directory and the file that brings in the solver implementations.
 
 **Simulation Installation (With Examples):**
 ```bash

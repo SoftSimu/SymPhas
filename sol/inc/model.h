@@ -1162,9 +1162,7 @@ template <typename M>
 using model_types_t = typename model_types<model_dimension<M>::value, M>::type;
 
 template <typename M, size_t N>
-struct model_system_type {
-  using type = typename model_system_type<model_base_t<M>, N>::type;
-};
+struct model_system_type;
 
 template <size_t D, typename Sp, typename... S, size_t N>
 struct model_system_type<Model<D, Sp, S...>, N> {
@@ -1227,6 +1225,21 @@ struct model_system_type<ArrayModel<D, Sp, S...>, N> {
       typename std::invoke_result_t<call_t, solver_system_t>::template type<T,
                                                                             D0>;
 };
+
+template <typename M, size_t N>
+struct model_system_type {
+  template <typename T, size_t D>
+  using type = typename model_system_type<model_base_t<M>, N>::template type<T, D>;
+};
+
+template <typename M, size_t N>
+struct model_system_grid_type {
+  using type =
+      typename model_system_type<M, N>::template type<model_field_t<M, N>, model_dimension<M>::value>;
+};
+
+template <typename M, size_t N>
+using model_system_grid_t = typename model_system_grid_type<M, N>::type;
 
 template <typename M>
 struct is_model_array_type_impl {
