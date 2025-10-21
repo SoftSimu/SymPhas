@@ -605,6 +605,8 @@ struct NoiseData<nt, any_vector_t<T, D>, D, grid_type>
         expr::make_literal(arg0), std::forward<Ts>(args)...);
     return expr::make_noise(*this, f);
   }
+
+  auto operator()() const { return expr::make_noise(*this, OpIdentity{}); }
 };
 
 //

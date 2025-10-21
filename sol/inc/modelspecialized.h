@@ -1366,11 +1366,11 @@ struct TraitEquation : parent_trait {
 
   template <expr::NoiseType nt, typename T, typename... T0s>
   auto make_noise(T0s&&... args) const {
-    using enclosing_grid_type = expr::enclosing_parent_storage_t<
-        decltype(parent_trait::template system<0>().as_grid())>;
+    using system_grid_type = model_system_grid_t<parent_trait, 0>;
+    using enclosing_grid_type = expr::enclosing_parent_storage_t<system_grid_type>;
+    using dimensionalized_t = symphas::internal::parameterized::dimensionalized_t<Dm, T>;
 
-    return symphas::internal::parameterized::NOISE<
-        nt, symphas::internal::parameterized::dimensionalized_t<Dm, T>, Dm>(
+    return symphas::internal::parameterized::NOISE<nt, dimensionalized_t, Dm>(
         parent_trait::template system<0>().info,
         grid::get_data_domain(parent_trait::template system<0>().as_grid()),
         &solver.dt, enclosing_grid_type{})(std::forward<T0s>(args)...);

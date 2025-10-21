@@ -1207,7 +1207,7 @@ struct SymbolicFunctionDef<> {
  * There are no arguments passed to the function, and it is just a way to call
  * the expression evaluation.
  */
-SymbolicFunctionDef<> function_of_apply() { return {}; }
+inline SymbolicFunctionDef<> function_of_apply() { return {}; }
 
 //! Create a symbolic template where parameters are ::Variable types of given
 //! indices.
@@ -1215,12 +1215,14 @@ SymbolicFunctionDef<> function_of_apply() { return {}; }
  * The linear variables (with OpIdentity coefficients) are given as arguments of
  * the function, and they must be defined in terms of a ::Variable.
  */
-template <size_t... Ns, typename... Gs,
-          typename std::enable_if_t<(all_ne<Ns...> && !(is_symbol<Gs> || ...)),
+template <size_t N0, typename G0, size_t... Ns, typename... Gs,
+          typename std::enable_if_t<(all_ne<N0, Ns...> &&
+                                     !(is_symbol<G0> || ... || is_symbol<Gs>)),
                                     int> = 0>
-SymbolicFunctionDef<Variable<Ns, Gs>...> function_of_apply(
+SymbolicFunctionDef<Variable<N0, G0>, Variable<Ns, Gs>...> function_of_apply(
+    OpTerm<OpIdentity, Variable<N0, G0>> const& arg0,
     OpTerm<OpIdentity, Variable<Ns, Gs>> const&... args) {
-  return {expr::get<1>(args).data()...};
+  return {expr::get<1>(arg0).data(), expr::get<1>(args).data()...};
 }
 
 //! Create a function such that the parameters are expr::symbols::Symbol types.
@@ -1229,19 +1231,24 @@ SymbolicFunctionDef<Variable<Ns, Gs>...> function_of_apply(
  * as one of the symbols defined in the function argument list will be
  * substituted.
  */
-template <size_t... Ns, typename... Gs,
+template <size_t N0, typename G0, size_t... Ns, typename... Gs,
           typename std::enable_if_t<
-              (all_ne<Ns...> /* && !(is_symbol<Gs> || ...)*/), int> = 0>
-SymbolicFunctionDef<Variable<Ns, Gs>...> function_of_apply(
-    Variable<Ns, Gs> const&... args) {
-  return {args...};
+              (all_ne<N0, Ns...> /* && !(is_symbol<Gs> || ...)*/), int> = 0>
+SymbolicFunctionDef<Variable<N0, G0>, Variable<Ns, Gs>...> function_of_apply(
+    Variable<N0, G0> const arg0, Variable<Ns, Gs> const&... args) {
+  return {arg0, args...};
 }
 
-template <size_t... Ns, typename... Gs,
-          typename std::enable_if_t<(all_ne<Ns...> && !(is_symbol<Gs> || ...)),
+inline SymbolicFunctionDef<> function_of_apply(symphas::lib::types_list<>) {
+  return function_of_apply();
+}
+
+template <size_t N0, typename G0, size_t... Ns, typename... Gs,
+          typename std::enable_if_t<(all_ne<N0, Ns...> &&
+                                     !(is_symbol<G0> || ... || is_symbol<Gs>)),
                                     int> = 0>
-SymbolicFunctionDef<Variable<Ns, Gs>...> function_of_apply(
-    symphas::lib::types_list<Variable<Ns, Gs>...>) {
+SymbolicFunctionDef<Variable<N0, G0>, Variable<Ns, Gs>...> function_of_apply(
+    symphas::lib::types_list<Variable<N0, G0>, Variable<Ns, Gs>...>) {
   return {};
 }
 
@@ -1251,25 +1258,29 @@ SymbolicFunctionDef<Variable<Ns, Gs>...> function_of_apply(
  * as one of the symbols defined in the function argument list will be
  * substituted.
  */
-template <typename... symbol_ts,
-          typename std::enable_if_t<(all_different<symbol_ts...> &&
-                                     (is_symbol<symbol_ts> && ...)),
-                                    int> = 0>
-SymbolicFunctionDef<symbol_ts...> function_of_apply(symbol_ts const&...) {
-  return {};
-}
-
-//! Create a function such that the parameters are expr::symbols::Symbol types.
-/*!
- * Linear variables of the associated function expression which have their data
- * as one of the symbols defined in the function argument list will be
- * substituted.
- */
-template <typename... symbol_ts,
-          typename std::enable_if_t<(all_different<symbol_ts...> &&
-                                     (is_symbol<symbol_ts> && ...)),
+template <typename symbol_t, typename... symbol_ts,
+          typename std::enable_if_t<(all_different<symbol_t, symbol_ts...> &&
+                                     (is_symbol<symbol_t> && ... &&
+                                      is_symbol<symbol_ts>)),
                                     int> = 0>
 SymbolicFunctionDef<symbol_ts...> function_of_apply(
+    symbol_t const, symbol_ts const&...) {
+  return {};
+}
+
+//! Create a function such that the parameters are expr::symbols::Symbol types.
+/*!
+ * Linear variables of the associated function expression which have their data
+ * as one of the symbols defined in the function argument list will be
+ * substituted.
+ */
+template <typename symbol_t, typename... symbol_ts,
+          typename std::enable_if_t<(all_different<symbol_t, symbol_ts...> &&
+                                     (is_symbol<symbol_t> && ... &&
+                                      is_symbol<symbol_ts>)),
+                                    int> = 0>
+SymbolicFunctionDef<symbol_ts...> function_of_apply(
+    OpTerms<OpIdentity, Term<symbol_t, 1>> const,
     OpTerms<OpIdentity, Term<symbol_ts, 1>> const&...) {
   return {};
 }

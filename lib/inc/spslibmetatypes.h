@@ -310,6 +310,9 @@ struct inner_type {
 
 template <size_t I, typename... Ts>
 struct type_at_index_impl {
+  static_assert(sizeof...(Ts) > 0, "type_at_index_impl: empty parameter pack");
+  static_assert(I < sizeof...(Ts), "type_at_index_impl: index out of range");
+
   template <size_t... Is>
   static auto repeat_void(std::index_sequence<Is...>) {
     return types_list<typename inner_type<Is, void>::type...>{};
@@ -371,13 +374,33 @@ struct type_at_index_impl {
   using cut_list =
       decltype(type_at_index_impl<I, Ts...>::cutoff_list(reversed_list{}));
 
-  using type = typename decltype(type_at_index_impl<I, Ts...>::template with_voids<
+  using type =
+      typename decltype(type_at_index_impl<I, Ts...>::template with_voids<
                         void_list>::get_first_one(cut_list{}))::type;
 };
 
 template <size_t I, typename... Ts>
-struct type_at_index_impl<I, unroll_types_list<types_list<Ts...>>> {
-  using type = typename type_at_index_impl<I, Ts...>::type;
+struct type_at_index_impl_selector;
+
+template <size_t I, typename T0, typename... Ts>
+struct type_at_index_impl_selector<I, T0, Ts...> {
+  using type = typename type_at_index_impl<I, T0, Ts...>::type;
+};
+
+template <size_t I>
+struct type_at_index_impl_selector<I> {
+  using type = void;
+};
+
+template <size_t I, typename T0, typename... Ts>
+struct type_at_index_impl_selector<I,
+                                   unroll_types_list<types_list<T0, Ts...>>> {
+  using type = typename type_at_index_impl<I, T0, Ts...>::type;
+};
+
+template <size_t I>
+struct type_at_index_impl_selector<I, unroll_types_list<types_list<>>> {
+  using type = void;
 };
 
 using indexed_list =
@@ -389,9 +412,8 @@ using reversed_list =
         indexed_list{}));
 
 template <size_t I, typename... Ts>
-using type_at_index = typename type_at_index_impl<I, Ts...>::type;
+using type_at_index = typename type_at_index_impl_selector<I, Ts...>::type;
 
-// Primary template for type_at_index_impl
 template <size_t I, typename... Ts>
 struct direct_type_at_index_impl;
 
@@ -508,8 +530,7 @@ auto operator+(reversed_wrapped_type<T0>, reversed_wrapped_type<T1>) {
   return types_list<T1, T0>{};
 }
 template <typename... T0s, typename T1>
-auto operator+(reversed_wrapped_type<T1>,
-               types_list<T0s...>) {
+auto operator+(reversed_wrapped_type<T1>, types_list<T0s...>) {
   return types_list<T0s..., T1>{};
 }
 
@@ -534,7 +555,7 @@ struct reverse_types_list_impl<types_list<Ts...>> {
     return types_list<T0>{};
   }
 
-  template<typename T>
+  template <typename T>
   static auto reverse_list(T t) {
     return _reverse_list(t);
   }
