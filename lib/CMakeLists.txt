@@ -17,10 +17,17 @@
 # ***************************************************************************
 
 find_package(Threads REQUIRED)
-find_package(FFTW3)
 find_package(TBB)
 
-include_directories(SYSTEM ${FFTW_INCLUDE_PATH})
+if (USE_FFTW3)
+	set(USING_FFTW ON)
+	set(ADD_FFTW3_LIB fftw3)
+	set(ADD_FFTW3_INC ${fftw3_SOURCE_DIR}/api)
+else()
+	unset(USING_FFTW)
+endif()
+
+
 
 file(GLOB_RECURSE SOURCES_LIB "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 
@@ -41,24 +48,18 @@ if(NOT WIN32)
 endif()
 
 add_library(symphas_lib_o OBJECT ${SOURCES_LIB})
-target_include_directories(symphas_lib_o PRIVATE ${FFTW3_INCLUDE_DIRS} PUBLIC
+target_include_directories(symphas_lib_o PRIVATE ${ADD_FFTW3_INC} PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
 	$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/inc>
 	$<INSTALL_INTERFACE:include>)
-target_link_directories(symphas_lib_o PUBLIC ${FFTW3_LIBRARY_DIRS})
-target_link_libraries(symphas_lib_o PUBLIC ${ADD_LINUX_LIBS} PRIVATE ${FFTW3_LIBRARIES})
+target_link_libraries(symphas_lib_o PUBLIC ${ADD_LINUX_LIBS} ${ADD_FFTW3_LIB})
 target_compile_definitions(symphas_lib_o PRIVATE LIB_EXPORTS)
+
 
 if(ENABLE_TIMINGS)
 	set(PRINT_TIMINGS ON)
 endif()
 
-
-if(FFTW3_FOUND)
-	set(USING_FFTW ON)
-else()
-	unset(USING_FFTW)
-endif()
 
 
 if(TBB_FOUND)
@@ -179,6 +180,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 	if(MSVC)
 		target_compile_options(symphas_lib_o PUBLIC
 			$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler /bigobj>
+			$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler -ftrace-time> # Increase heap size to 1024MB
 			$<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:-Xclang -ftemplate-backtrace-limit=0>
 		)
 	else()

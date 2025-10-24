@@ -1,4 +1,3 @@
-
 # ***************************************************************************
 # This file is part of the SymPhas library, a framework for implementing
 # solvers for phase-field problems with compile-time symbolic algebra.
@@ -100,23 +99,49 @@ set(NLOHMANN_JSON_VER 3.12.0 CACHE STRING "version of nlohmann_json to use")
 include(FetchContent)
 
 if(USE_FFTW3)
-	set(FFTW3_VER 3.3.10 CACHE STRING "version of fftw to use")
-	message(STATUS "getting 'FFTW' from Github with FetchContent")
-	set(FFTW_MD5_FILE "${CMAKE_CURRENT_SOURCE_DIR}/fftw3-${FFTW_VER}.md5sum")
-	set(FFTW_MD5_URL "https://fftw.org/fftw-${FFTW_VER}.tar.gz.md5sum")
-
-	file(DOWNLOAD ${FFTW_MD5_URL} ${FFTW_MD5_FILE} STATUS FFTW_DOWNLOAD_STATUS)
-	file(READ ${FFTW_MD5_FILE} FFTW_MD5_CONTENTS)
-	string(REGEX MATCH "^[a-fA-F0-9]+" FFTW_MD5_SUM ${FFTW_MD5_CONTENTS})
-	file(REMOVE ${FFTW_MD5_FILE})
+	set(FFTW3_BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
+	set(FFTW3_ENABLE_OPENMP OFF CACHE BOOL "" FORCE)
+	set(FFTW3_ENABLE_SSE2 ON CACHE BOOL "" FORCE)
+	set(FFTW3_ENABLE_AVX OFF CACHE BOOL "" FORCE)
 	
-	FetchContent_Declare(FFTW3 
-		URL "https://fftw.org/fftw-${FFTW_VER}.tar.gz"
-		URL_HASH MD5=${FFTW_MD5_SUM}
-		DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-		FIND_PACKAGE_ARGS
+	set(FFTW3_VER 3.3.10 CACHE STRING "version of fftw to use")
+	FetchContent_Declare(
+		FFTW3
+		URL "https://fftw.org/fftw-${FFTW3_VER}.tar.gz"
+		URL_HASH SHA256=56c932549852cddcfafdab3820b0200c7742675be92179e59e6215b340e26467
 	)
+
+	cmake_policy(SET CMP0077 NEW)
+
+	set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+	set(BUILD_SHARED_LIBS		${FFTW3_BUILD_SHARED_LIBS} CACHE BOOL "" FORCE)
+	set(BUILD_TESTS				OFF CACHE BOOL "" FORCE)
+	set(DISABLE_FORTRAN			ON CACHE BOOL "" FORCE)
+	
+	set(ENABLE_OPENMP			${FFTW3_ENABLE_OPENMP} CACHE BOOL "" FORCE)
+	set(ENABLE_THREADS			ON CACHE BOOL "" FORCE)
+	set(ENABLE_SSE2				${FFTW3_ENABLE_SSE2} CACHE BOOL "" FORCE)
+	set(ENABLE_AVX				${FFTW3_ENABLE_AVX} CACHE BOOL "" FORCE)
+	
+	set(CMAKE_BUILD_TYPE		${CMAKE_BUILD_TYPE} CACHE BOOL "" FORCE)
+	set(CMAKE_INSTALL_PREFIX	${CMAKE_BINARY_DIR}/fftw3_install)
+	set(CMAKE_POSITION_INDEPENDENT_CODE ${CMAKE_POSITION_INDEPENDENT_CODE})
+
+	set(BUILD_BENCH OFF)
+
 	FetchContent_MakeAvailable(FFTW3)
+	
+	# Clean up cache variables that users shouldn't see
+	unset(BUILD_SHARED_LIBS CACHE)
+	unset(BUILD_TESTS CACHE)
+	unset(DISABLE_FORTRAN CACHE)
+	unset(ENABLE_OPENMP CACHE)
+	unset(ENABLE_THREADS CACHE)
+	unset(ENABLE_SSE2 CACHE)
+	unset(ENABLE_AVX CACHE)
+	unset(BUILD_BENCH CACHE)
+
+	list(APPEND SYMPHAS_LIBS fftw3)
 else()
 	unset(FFTW3_VER)
 endif()
