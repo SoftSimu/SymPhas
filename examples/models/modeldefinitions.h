@@ -35,8 +35,6 @@
 #define dj drho
 
 
-#define MODEL_SET_2
-
 #ifndef BASIC_MODELS
 
 #ifdef MODEL_SET_1
