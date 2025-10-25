@@ -385,7 +385,9 @@ The installation process depends on your use case:
 2. Driver file with separate solver &rarr; The driver file contians the implementation of the model to be used, but the solver is defined elsewhere.
 3. Driver file with separate solver and models &rarr; The driver file contains only the execution, and solver and models are implemented separately.
 
-The best approach is #3, because there are a number of existing models and there are two solvers already included, and almost any user case will not involve writing a solver from scratch. Therefore, we need to specify the directory of the model definitions and the file that brings them in, and then the solver directory and the file that brings in the solver implementations.
+The **recommended configuration is option 3**. SymPhas already ships with multiple production-ready models and two solver implementations, so most users will simply reference those assets rather than write new solvers. When using this approach, point CMake to the directories containing your model definitions (and the aggregation header that includes them) as well as the solver directory and its include header.
+
+The included model file in `examples/models/modeldefinitions.h` has an include guard for specific model groups. These include guards can be disabled by passing the appropriate preprocessor definition to cmake, demonstrated below.
 
 **Simulation Installation (With Examples):**
 ```bash
@@ -396,8 +398,17 @@ cmake -DCMAKE_INSTALL_PREFIX=/path/to/install \
       -DSOLVER_INCLUDE_HEADER_NAME=solverinclude.h \
       -DMODEL_INCLUDE_HEADER_NAME=modelinclude.h \
       -DMAIN_FILE=../examples/simultaneous-configs/main.cpp \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_CXX_FLAGS="-DMODEL_SET_1" \
       ..
 ```
+**Model definitions are organized into four include-guarded sets**; define the matching preprocessor symbol to lift a guard:
+- `MODEL_SET_1` Models A, B, C and H, defined directly from the equations of motion.
+- `MODEL_SET_2` Models A, B, C and H, defined directly from the free energy equation.
+- `MODEL_SET_3` Gray-Scott and Turing models.
+- `MODEL_SET_4` Additional models as a capability demo of SymPhas.
+
+
 > ℹ️ The driver file is `examples/simultaneous-configs/main.cpp`, which only needs to include the `symphas.h` header as the models and solvers are automatically included from there.
 
 **Basic Installation (Headers and Core Library):**
