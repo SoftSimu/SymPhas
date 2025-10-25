@@ -209,6 +209,12 @@ struct complex_t {
     return *this;
   }
 
+  complex_t& operator=(const scalar_t& other) {
+    _real = other;
+    _imag = 0;
+    return *this;
+  }
+
   __device__ __host__ scalar_t imag() const { return _imag; }
   __device__ __host__ scalar_t real() const { return _real; }
 

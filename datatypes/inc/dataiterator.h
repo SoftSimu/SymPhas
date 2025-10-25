@@ -1304,6 +1304,42 @@ struct data_value_type {
   ref operator()(T* data, iter_type n) { return data[n]; }
 };
 
+template <>
+struct data_value_type<complex_t*> {
+  using type = complex_t;
+  using ref = type&;
+
+  ref operator()(complex_t** data, iter_type n) { return (*data)[n]; }
+};
+
+template <>
+struct data_value_type<scalar_t*> {
+  using type = scalar_t;
+  using ref = type&;
+
+  ref operator()(scalar_t** data, iter_type n) { return (*data)[n]; }
+};
+
+template <size_t D>
+struct data_value_type<any_vector_t<complex_t, D>*> {
+  using type = any_vector_t<complex_t, D>;
+  using ref = type&;
+
+  ref operator()(any_vector_t<complex_t, D>** data, iter_type n) {
+    return (*data)[n];
+  }
+};
+
+template <size_t D>
+struct data_value_type<any_vector_t<scalar_t, D>*> {
+  using type = any_vector_t<scalar_t, D>;
+  using ref = type&;
+
+  ref operator()(any_vector_t<scalar_t, D>** data, iter_type n) {
+    return (*data)[n];
+  }
+};
+
 template <template <typename, size_t> typename G, typename T, size_t D>
 struct data_value_type<G<T, D>> {
   using type = T;

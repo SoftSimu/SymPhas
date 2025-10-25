@@ -1941,7 +1941,7 @@ struct OpMap : OpExpression<OpMap<G, V, E>> {
    * \param value The coefficient of the mapping expression.
    * \param e The expression which is evaluated and mapped.
    */
-  OpMap(V value, E const& e) : value{value}, e{e}, data{0} {}
+  OpMap(V value, E const& e) : value{value}, e{e}, data{} {}
 
   inline auto eval(iter_type n) const { return expr::eval(value) * data[n]; }
 
