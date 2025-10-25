@@ -492,8 +492,10 @@ struct ModelSelect {
   size_t type;
 
  public:
-  ModelSelect(size_t dimension, size_t type = 0)
-      : dimension{dimension}, type{type} {}
+  ModelSelect(const char* name, size_t dimension, size_t type = 0)
+      : dimension{dimension}, type{type} {
+    fprintf(SYMPHAS_LOG, "The selected model name is %s\n", name);
+  }
 
   template <typename... Ts>
   auto operator()(Ts&&... args) const {

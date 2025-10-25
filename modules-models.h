@@ -208,7 +208,7 @@ template <template <typename> typename model_apply_type,
           template <typename, size_t = 0> typename Solver, size_t N, size_t D,
           size_t O, size_t... Ps, typename... Ts>
 auto run_model_call(std::index_sequence<N, D, O, Ps...>, Ts&&... args) {
-  fprintf(SYMPHAS_LOG, "The simulation is using solver variation %llu\n", N);
+  fprintf(SYMPHAS_LOG, "The simulation is using solver variation %zd\n", N);
 
   const char* names[]{"laplacian", "gradlaplacian", "bilaplacian"};
   size_t values[]{Ps...};

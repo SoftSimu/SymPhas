@@ -58,7 +58,7 @@ struct construct_grid_of_dimension {
   auto operator()(OpExpression<E> const& e) {
     expr::prune::update(*const_cast<E*>(static_cast<E const*>(&e)));
     Grid<T, D> result(expr::data_dimensions(*static_cast<E const*>(&e)));
-    expr::result(*static_cast<E const*>(&e), result.values, result.len);
+    expr::result(*static_cast<E const*>(&e), result);
     return result;
   }
 };
@@ -84,7 +84,7 @@ struct construct_grid_of_dimension<0> {
   auto operator()(OpExpression<E> const& e) {
     expr::prune::update(*const_cast<E*>(static_cast<E const*>(&e)));
     Block<T> result(expr::data_length(*static_cast<E const*>(&e)));
-    expr::result(*static_cast<E const*>(&e), result.values, result.len);
+    expr::result(*static_cast<E const*>(&e), result);
     return result;
   }
 };

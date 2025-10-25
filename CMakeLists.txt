@@ -99,7 +99,7 @@ set(NLOHMANN_JSON_VER 3.12.0 CACHE STRING "version of nlohmann_json to use")
 include(FetchContent)
 
 if(USE_FFTW3)
-	set(FFTW3_BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
+	set(FFTW3_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 	set(FFTW3_ENABLE_OPENMP OFF CACHE BOOL "" FORCE)
 	set(FFTW3_ENABLE_SSE2 ON CACHE BOOL "" FORCE)
 	set(FFTW3_ENABLE_AVX OFF CACHE BOOL "" FORCE)
@@ -112,31 +112,54 @@ if(USE_FFTW3)
 	)
 
 	cmake_policy(SET CMP0077 NEW)
+	FetchContent_GetProperties(FFTW3)
+	if(NOT fftw3_POPULATED)
+		FetchContent_Populate(FFTW3)
+		
+		# Patch the FFTW3 CMakeLists.txt to fix /bigobj bug
+		file(READ "${fftw3_SOURCE_DIR}/CMakeLists.txt" FFTW3_CMAKE_CONTENT)
+		string(REPLACE 
+			"target_compile_definitions (\${fftw3_lib} PRIVATE /bigobj)"
+			"target_compile_options (\${fftw3_lib} PRIVATE /bigobj)"
+			FFTW3_CMAKE_CONTENT
+			"${FFTW3_CMAKE_CONTENT}"
+		)
+		string(REPLACE 
+			"if (HAVE_LIBM)\n  target_link_libraries (\${fftw3_lib} m)\nendif ()"
+			"if (HAVE_LIBM AND UNIX)\n  target_link_libraries (\${fftw3_lib} m)\nendif ()"
+			FFTW3_CMAKE_CONTENT
+			"${FFTW3_CMAKE_CONTENT}"
+		)
 
-	set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
-	set(BUILD_SHARED_LIBS		${FFTW3_BUILD_SHARED_LIBS} CACHE BOOL "" FORCE)
-	set(BUILD_TESTS				OFF CACHE BOOL "" FORCE)
-	set(DISABLE_FORTRAN			ON CACHE BOOL "" FORCE)
-	
-	set(ENABLE_OPENMP			${FFTW3_ENABLE_OPENMP} CACHE BOOL "" FORCE)
-	set(ENABLE_THREADS			ON CACHE BOOL "" FORCE)
-	set(ENABLE_SSE2				${FFTW3_ENABLE_SSE2} CACHE BOOL "" FORCE)
-	set(ENABLE_AVX				${FFTW3_ENABLE_AVX} CACHE BOOL "" FORCE)
-	
-	set(CMAKE_BUILD_TYPE		${CMAKE_BUILD_TYPE} CACHE BOOL "" FORCE)
-	set(CMAKE_INSTALL_PREFIX	${CMAKE_BINARY_DIR}/fftw3_install)
-	set(CMAKE_POSITION_INDEPENDENT_CODE ${CMAKE_POSITION_INDEPENDENT_CODE})
+		file(WRITE "${fftw3_SOURCE_DIR}/CMakeLists.txt" "${FFTW3_CMAKE_CONTENT}")
+		message(STATUS "Patched FFTW3 CMakeLists.txt")
 
-	set(BUILD_BENCH OFF)
-
-	FetchContent_MakeAvailable(FFTW3)
+		set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+		set(BUILD_SHARED_LIBS		${FFTW3_BUILD_SHARED_LIBS} CACHE BOOL "" FORCE)
+		set(BUILD_TESTS				OFF CACHE BOOL "" FORCE)
+		set(DISABLE_FORTRAN			ON CACHE BOOL "" FORCE)
 	
-	# Clean up cache variables that users shouldn't see
+		set(ENABLE_OPENMP			${FFTW3_ENABLE_OPENMP} CACHE BOOL "" FORCE)
+		set(ENABLE_THREADS			ON CACHE BOOL "" FORCE)
+		set(WITH_COMBINED_THREADS	ON CACHE BOOL "" FORCE)  
+		set(ENABLE_SSE2				${FFTW3_ENABLE_SSE2} CACHE BOOL "" FORCE)
+		set(ENABLE_AVX				${FFTW3_ENABLE_AVX} CACHE BOOL "" FORCE)
+	
+		set(CMAKE_BUILD_TYPE		${CMAKE_BUILD_TYPE} CACHE BOOL "" FORCE)
+		set(CMAKE_INSTALL_PREFIX	${CMAKE_BINARY_DIR}/fftw3_install)
+		set(CMAKE_POSITION_INDEPENDENT_CODE ${CMAKE_POSITION_INDEPENDENT_CODE})
+
+		set(BUILD_BENCH OFF)
+		add_subdirectory(${fftw3_SOURCE_DIR} ${fftw3_BINARY_DIR})
+	endif()
+
+	# Clean up cache variables 
 	unset(BUILD_SHARED_LIBS CACHE)
 	unset(BUILD_TESTS CACHE)
 	unset(DISABLE_FORTRAN CACHE)
 	unset(ENABLE_OPENMP CACHE)
 	unset(ENABLE_THREADS CACHE)
+	unset(WITH_COMBINED_THREADS CACHE)
 	unset(ENABLE_SSE2 CACHE)
 	unset(ENABLE_AVX CACHE)
 	unset(BUILD_BENCH CACHE)

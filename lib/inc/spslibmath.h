@@ -129,6 +129,7 @@ inline complex_t conj<>(complex_t const& v) {
 template <typename T, size_t D>
 auto conj(any_vector_t<T, D> const& v) {
   using std::conj;
+  using symphas::math::conj;
 
   any_vector_t<T, D> vc;
   for (iter_type i = 0; i < D; ++i) {
