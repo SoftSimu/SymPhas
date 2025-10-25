@@ -327,5 +327,6 @@ cpp.hint
 *.code-workspace
 *.json
 !examples/config/*.json
+!conf/schema.json
 *toolchain.*
 /inc

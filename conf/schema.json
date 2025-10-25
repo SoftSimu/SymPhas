@@ -1,0 +1,401 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SymPhas Configuration Schema",
+  "description": "Schema for SymPhas phase-field simulation configuration files",
+  "type": "object",
+  "properties": {
+    "definitions": {
+      "description": "Reusable definitions that can be referenced using ${key} syntax",
+      "type": "object",
+      "additionalProperties": true
+    },
+    "title": {
+      "description": "Title for the simulation",
+      "type": "string"
+    },
+    "simulation": {
+      "type": "object",
+      "properties": {
+        "dimension": {
+          "description": "Spatial dimension of the simulation (1, 2, or 3)",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3
+        },
+        "time_step": {
+          "description": "Single time step configuration",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "time": {
+          "description": "Total simulation time (used with time_step)",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "time_steps": {
+          "description": "Multiple time step configurations",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "dt": {
+                "description": "Time step size",
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "time": {
+                "description": "Duration for this time step",
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "iterations": {
+                "description": "Number of iterations for this time step",
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [ "dt" ],
+            "oneOf": [
+              { "required": [ "time" ] },
+              { "required": [ "iterations" ] }
+            ]
+          },
+          "minItems": 1
+        },
+        "stencil": {
+          "description": "Stencil configuration for numerical methods",
+          "type": "object",
+          "properties": {
+            "order": {
+              "description": "Accuracy order of the stencil",
+              "type": "integer",
+              "minimum": 1
+            },
+            "ptl": {
+              "description": "Number of points for Laplacian stencil",
+              "type": "integer",
+              "minimum": 1
+            },
+            "ptg": {
+              "description": "Number of points for gradient-Laplacian stencil",
+              "type": "integer",
+              "minimum": 1
+            },
+            "ptb": {
+              "description": "Number of points for bilaplacian stencil",
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "solver_variation": {
+          "description": "Solver type variation identifier",
+          "type": "integer"
+        },
+        "save": {
+          "description": "Output save configuration",
+          "type": "object",
+          "properties": {
+            "interval": {
+              "description": "Save interval (base value)",
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "indices": {
+              "description": "Specific iteration indices to save (LIST type)",
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "type": {
+              "description": "Save type",
+              "type": "string",
+              "enum": [ "DEFAULT", "COLUMN", "XDR", "GRID" ]
+            },
+            "save_initial": {
+              "description": "Whether to save initial conditions",
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "model": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Model name identifier",
+          "type": "string"
+        },
+        "coefficients": {
+          "description": "Model coefficients",
+          "oneOf": [
+            {
+              "description": "Array of coefficient values",
+              "type": "array",
+              "items": { "type": "number" }
+            },
+            {
+              "description": "Named coefficients (c1, c2, etc.)",
+              "type": "object",
+              "patternProperties": {
+                "^c\\d+$": { "type": "number" }
+              },
+              "additionalProperties": { "type": "number" }
+            }
+          ]
+        },
+        "coefficients_file": {
+          "description": "Path to external coefficients file",
+          "type": "string"
+        },
+        "fields": {
+          "description": "Field specifications",
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "description": "Simple field count",
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "description": "Field with modifiers",
+                "type": "object",
+                "properties": {
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "modifier": {
+                    "type": "string"
+                  }
+                },
+                "required": [ "count" ]
+              }
+            ]
+          }
+        },
+        "intervals": {
+          "description": "Domain intervals for each axis",
+          "type": "object",
+          "patternProperties": {
+            "^[xyzrtscXYZRTSC]$": {
+              "type": "object",
+              "properties": {
+                "start": {
+                  "description": "Start of the interval",
+                  "type": "number"
+                },
+                "end": {
+                  "description": "End of the interval",
+                  "type": "number"
+                },
+                "points": {
+                  "description": "Number of discrete points",
+                  "type": "integer",
+                  "minimum": 2
+                },
+                "width": {
+                  "description": "Spatial width between points",
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              },
+              "not": {
+                "description": "Cannot specify all four parameters",
+                "required": [ "start", "end", "points", "width" ]
+              }
+            }
+          }
+        },
+        "domains": {
+          "description": "Mapping of field indices to domain names",
+          "type": "object",
+          "patternProperties": {
+            "^\\d+$": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "domains": {
+      "description": "Domain configurations for each field",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "initial_conditions": {
+            "description": "Initial condition specifications",
+            "oneOf": [
+              { "$ref": "#/definitions/initial_condition" },
+              {
+                "type": "array",
+                "items": { "$ref": "#/definitions/initial_condition" }
+              }
+            ]
+          },
+          "boundaries": {
+            "description": "Boundary conditions by axis",
+            "type": "object",
+            "properties": {
+              "all": {
+                "$ref": "#/definitions/boundary_condition"
+              }
+            },
+            "patternProperties": {
+              "^[xyzXYZ]$": {
+                "type": "object",
+                "properties": {
+                  "left": {
+                    "$ref": "#/definitions/boundary_condition"
+                  },
+                  "right": {
+                    "$ref": "#/definitions/boundary_condition"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "names": {
+      "description": "Names for output fields",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "output": {
+      "description": "Output directory configuration",
+      "type": "object",
+      "properties": {
+        "directory": {
+          "description": "Root output directory",
+          "type": "string"
+        },
+        "title": {
+          "description": "Title for the output directory",
+          "type": "string"
+        }
+      }
+    },
+    "parameters": {
+      "description": "Raw parameters for the simulation",
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "definitions": {
+    "initial_condition": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "description": "Initial condition type",
+          "type": "string",
+          "enum": [
+            "CONSTANT",
+            "UNIFORM",
+            "GAUSSIAN",
+            "CAPPED",
+            "CIRCLE",
+            "HEXAGONAL",
+            "CUBIC",
+            "SQUARE",
+            "SEEDSSQUARE",
+            "VORONOI",
+            "FILE",
+            "EXPRESSION",
+            "CHECKPOINT"
+          ]
+        },
+        "axis": {
+          "description": "Axis to apply initial condition (default: NONE for all)",
+          "type": "string",
+          "enum": [ "X", "Y", "Z", "R", "T", "S", "C", "I", "NONE" ]
+        },
+        "parameters": {
+          "description": "Parameters for the initial condition",
+          "type": "array",
+          "items": { "type": "number" }
+        },
+        "file": {
+          "description": "File path for FILE type",
+          "type": "string"
+        },
+        "index": {
+          "description": "Index in file for FILE type",
+          "type": "integer",
+          "minimum": 0
+        },
+        "expression": {
+          "description": "Expression name for EXPRESSION type",
+          "type": "string"
+        },
+        "coefficients": {
+          "description": "Coefficients for EXPRESSION type",
+          "type": "array",
+          "items": { "type": "number" }
+        }
+      },
+      "required": [ "type" ],
+      "allOf": [
+        {
+          "if": {
+            "properties": { "type": { "const": "FILE" } }
+          },
+          "then": {
+            "required": [ "file" ]
+          }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "EXPRESSION" } }
+          },
+          "then": {
+            "required": [ "expression" ]
+          }
+        }
+      ]
+    },
+    "boundary_condition": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "description": "Boundary condition type",
+          "type": "string",
+          "enum": [
+            "PERIODIC",
+            "OPEN",
+            "DEFAULT",
+            "NONE"
+          ]
+        },
+        "tags": {
+          "description": "Boundary modifiers (up to 2)",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "GAUSSIAN",
+              "TRIGONOMETRIC",
+              "LINEAR",
+              "CONSTANT",
+              "NONE"
+            ]
+          },
+          "maxItems": 2
+        },
+        "parameters": {
+          "description": "Parameters for the boundary condition",
+          "type": "array",
+          "items": { "type": "number" }
+        }
+      }
+    }
+  }
+}
