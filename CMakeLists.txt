@@ -176,6 +176,13 @@ if(USE_CONF)
 	)
 	FetchContent_MakeAvailable(nlohmann_json)
 
+	message(STATUS "getting 'nlohmann_json_schema_validator' from Github with FetchContent")
+	FetchContent_Declare(nlohmann_json_schema_validator
+		GIT_REPOSITORY https://github.com/pboettch/json-schema-validator.git
+		GIT_TAG 2.3.0
+	)
+	FetchContent_MakeAvailable(nlohmann_json_schema_validator)
+
 	list(APPEND GROUP_NAMES_0 conf)
 endif()
 
@@ -420,7 +427,7 @@ configure_file("prereq-defs.h.in" "${CMAKE_SOURCE_DIR}/inc/prereq-defs.h")
 
 if (USE_CONF)
 	message(STATUS "exporting 'nlohmann_json' library")
-	list(APPEND SYMPHAS_LIBS nlohmann_json)
+	list(APPEND SYMPHAS_LIBS nlohmann_json nlohmann_json_schema_validator)
 endif()
 
 if(COMBINE_SHARED)

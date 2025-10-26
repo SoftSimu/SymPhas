@@ -241,7 +241,8 @@ SymPhas is a cross-platform C++ library that uses CMake for configuration and bu
 
 - **FFTW3** (version 3.3.7+)
   - **Purpose**: Fourier Transform solvers (`SolverFT`, spectral methods)
-  - **Note**: Can be disabled, but eliminates Fourier transform capabilities
+  - **Note**: Can be disabled, but prevents the spectral solver from being used.
+  - FFTW3 is automatically downloaded and setup by the SymPhas CMake configuration.
 
 #### Optional Dependencies
 
@@ -265,9 +266,6 @@ sudo apt install build-essential cmake git
 # GCC (if not using system default)
 sudo apt install gcc-10 g++-10
 
-# FFTW3 (required)
-sudo apt install libfftw3-dev
-
 # Optional dependencies
 sudo apt install libopenmpi-dev    # MPI support
 sudo apt install libvtk9-dev       # VTK for visualization
@@ -279,24 +277,8 @@ sudo apt install libvtk9-dev       # VTK for visualization
 sudo dnf groupinstall "Development Tools"
 sudo dnf install cmake git
 
-# FFTW3 (required)
-sudo dnf install fftw3-devel
-
 # Optional dependencies
 sudo dnf install openmpi-devel vtk-devel
-```
-
-**From Source (Advanced):**
-If system packages are outdated or unavailable:
-```bash
-# FFTW3 from source (recommended method)
-wget http://www.fftw.org/fftw-3.3.10.tar.gz
-tar -xzf fftw-3.3.10.tar.gz
-cd fftw-3.3.10
-mkdir build && cd build
-cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
-make -j$(nproc)
-sudo make install
 ```
 
 #### Windows Prerequisites
@@ -325,10 +307,10 @@ When running CMake, always add the following argument (replace the path with you
     -DCMAKE_TOOLCHAIN_FILE=C:/Users/<youruser>/vcpkg/scripts/buildsystems/vcpkg.cmake
     ```
 
-    This allows CMake to automatically find all libraries installed by vcpkg (FFTW, OpenMPI, VTK, etc.) without setting each `*_DIR` variable manually.
+    This allows CMake to automatically find all libraries installed by vcpkg (OpenMPI, VTK, etc.) without setting each `*_DIR` variable manually.
 
 2. *Ensure Windows can find DLLs at runtime*:
-Many libraries installed by vcpkg (like FFTW) are provided as DLLs. To avoid “DLL not found” errors:
+Many libraries installed by vcpkg are provided as DLLs. To avoid “DLL not found” errors:
 
     - Add the vcpkg `bin` directory to your system or user `PATH` environment variable:
 
@@ -477,17 +459,7 @@ Control which numerical stencils are compiled:
 
 #### Common Issues and Solutions
 
-**1. FFTW Not Found**
-```
-Error: Could NOT find FFTW3
-```
-**Solution:**
-```bash
-# Specify FFTW location manually
-cmake -DFFTW3_DIR=/path/to/fftw3/lib/cmake/fftw3/ ..
-```
-
-**2. Compiler Version Issues**
+**1. Compiler Version Issues**
 ```
 Error: C++17 features not supported
 ```
@@ -498,7 +470,7 @@ Error: C++17 features not supported
   cmake -DCMAKE_CXX_STANDARD=17 ..
   ```
 
-**3. Template Compilation Errors**
+**2. Template Compilation Errors**
 ```
 Error: Template instantiation depth exceeded
 ```
@@ -507,7 +479,7 @@ Error: Template instantiation depth exceeded
 - Limit dimensions with `AVAILABLE_DIMENSIONS`
 - Increase template depth: `-DCMAKE_CXX_FLAGS="-ftemplate-depth=1000"`
 
-**4. Windows vcpkg Integration**
+**3. Windows vcpkg Integration**
 ```
 Error: Package not found
 ```
@@ -516,7 +488,7 @@ Error: Package not found
 cmake -DCMAKE_TOOLCHAIN_FILE=C:\path\to\vcpkg\scripts\buildsystems\vcpkg.cmake ..
 ```
 
-**5. MPI Compilation Issues**
+**4. MPI Compilation Issues**
 **Solution:**
 ```bash
 # Use MPI compiler wrappers
@@ -532,8 +504,7 @@ cmake -DCMAKE_CXX_COMPILER=mpicxx ..
 
 **Runtime Performance:**
 - Use `CMAKE_BUILD_TYPE=Release` for production
-- Enable compiler optimizations: `-DCMAKE_CXX_FLAGS="-O3 -march=native"`
-- Link with optimized FFTW and MPI libraries
+- Ensure compiler optimizations are being used: `-DCMAKE_CXX_FLAGS="-O3 -march=native"`
 
 #### Debug Builds
 
@@ -1796,7 +1767,8 @@ Solvers implement numerical time-stepping schemes. The main solvers provided by 
 
 **Available Built-in Solvers:**
 - `SolverFT`: Forward-Time Central-Space (explicit Euler) finite difference solver. This is the standard explicit time-stepping method for phase-field models See `solverft.h`. 
-- `SolverSP`: Semi-implicit Fourier Spectral solver (requires FFTW). This solver uses spectral methods for high accuracy and efficiency on periodic domains. See `solversp.h` and `spectrallib.h`.
+- `SolverSP`: Semi-implicit Fourier Spectral solver. This solver uses spectral methods for high accuracy and efficiency on periodic domains. See `solversp.h` and `spectrallib.h`. 
+  > ⚠️ **IMPORTANT**: The specral solver requires enabling FFTW by passing `USE_FFTW3=ON` to the cmake configuration
 
 New solvers can also be defined, which is explained in [Defining Your Own Solver](#defining-your-own-solver).
 
@@ -3063,25 +3035,26 @@ The JSON configuration system is implemented through the `JsonConfManager` class
 - **Multi-Phase Time Stepping**: Support for different time steps in simulation phases
 - **Comprehensive Stencil Control**: Integration with the stencil override system
 
-- 
+The structure of the json configuration is enforced by the json schema at `conf/schema.json`. This schema serves as the best place to understand how to write json configuration files.
+
 ### Complete JSON Structure
 
-A comprehensive JSON configuration consists of these main sections:
+An example of a comprehensive JSON configuration is shown below.
 
 ```json
 {
   "definitions": {
-    "DT": 0.01,
+    "DT": 0.1,
+    "WIDTH": 1.0,
     "GRID_SIZE": 128,
-    "SIMULATION_TIME": 100.0,
-    "SAVE_INTERVAL": 10.0
+    "SAVE_INTERVAL": 100
   },
   "simulation": {
     "dimension": 2,
     "time_steps": [
       {
         "dt": "${DT}",
-        "time": "${SIMULATION_TIME}"
+        "iterations": 1000
       }
     ],
     "save": {
@@ -3095,31 +3068,42 @@ A comprehensive JSON configuration consists of these main sections:
       "ptg": 6,
       "ptb": 13
     },
-    "checkpoint": {
-      "count": 5
-    },
     "solver_variation": 0
   },
   "model": {
-    "name": "PHASE_FIELD_CRYSTAL_MODEL",
-    "domain": "main_domain",
+    "name": "MODELA",
+    "domains": {
+      "1": {
+        "domain": "main_domain",
+        "initial_condition": [
+          {
+            "type": "UNIFORM",
+            "axis": "X"
+          },
+          {
+            "type": "CONSTANT",
+            "axis": "Y"
+          }
+        ]
+      },
+      "0": {
+        "domain": "main_domain",
+        "initial_condition": {
+          "type": "UNIFORM",
+          "parameters": [ -2, 1 ]
+        }
+      }
+    },
     "coefficients": {
       "c1": -0.5,
       "c2": 1.0,
       "c3": 1.0
-    },
-    "fields": [
-      {
-        "count": 1,
-        "modifiers": "NONE"
-      }
-    ]
+    }
   },
   "intervals": {
     "unit_interval": {
-      "start": 0.0,
-      "end": 1.0,
-      "points": "${GRID_SIZE}"
+      "points": "${GRID_SIZE}",
+      "width": "${WIDTH}"
     },
     "large_domain": {
       "start": -5.0,
@@ -3136,21 +3120,18 @@ A comprehensive JSON configuration consists of these main sections:
       },
       "boundaries": {
         "x": {
-          "left": {"type": "PERIODIC"},
-          "right": {"type": "PERIODIC"}
+          "left": { "type": "PERIODIC" },
+          "right": { "type": "PERIODIC" }
         },
         "y": {
-          "left": {"type": "PERIODIC"},
-          "right": {"type": "PERIODIC"}
+          "left": { "type": "PERIODIC" },
+          "right": { "type": "PERIODIC" }
         }
       }
     }
   },
-  "naming": {
-    "dir": "./results",
-    "data": "phase_field",
-    "solution": "solution",
-    "checkpoint": "checkpoint"
+  "output": {
+    "directory": "./simulations"
   }
 }
 ```
@@ -3210,6 +3191,8 @@ Core simulation settings with enhanced save parameter support:
 }
 ```
 
+> `interval` the number of iterations between writing the data to a file.
+
 #### Enhanced Save Parameter Types
 
 The `save` section supports multiple save types that map directly to the SymPhas `SaveParams` structure:
@@ -3218,7 +3201,7 @@ The `save` section supports multiple save types that map directly to the SymPhas
 ```json
 "save": {
   "type": "DEFAULT",
-  "interval": 10.0,
+  "interval": 100,
   "save_initial": true
 }
 ```
@@ -3311,12 +3294,10 @@ Support for multiple time stepping approaches with different phases:
       {
         "dt": "${DT_SMALL}",
         "iterations": "${BURN_IN_STEPS}",
-        "comment": "Fine time step for burn-in"
       },
       {
         "dt": "${DT_LARGE}", 
         "time": "${MAIN_SIM_TIME}",
-        "comment": "Larger time step for main simulation"
       }
     ]
   }
@@ -3331,7 +3312,15 @@ Model definition that references a named domain:
 {
   "model": {
     "name": "PHASE_FIELD_CRYSTAL_MODEL",
-    "domain": "main_domain",
+    "domains": {
+      "0": {
+        "domain": "main_domain",
+        "initial_condition": {
+          "type": "UNIFORM",
+          "parameters": [ -2, 1 ]
+        }
+      }
+    },
     "coefficients": {
       "alpha": -0.5,
       "beta": 1.0,
@@ -3346,6 +3335,8 @@ Model definition that references a named domain:
   }
 }
 ```
+
+> The `domains` property is used to specify the system domain for each field, where the key represents the field index, using the domain identifier and the initial conditions that will populate it.
 
 #### 4. Intervals
 
@@ -3375,13 +3366,12 @@ Named interval definitions that can be reused across domains:
 
 #### 5. Domains
 
-Named domain definitions that reference interval objects:
+Domains are created in the `domains` property at the root level. Named domain definitions that reference interval objects:
 
 ```json
 {
   "domains": {
     "main_domain": {
-      "dimension": 2,
       "intervals": {
         "x": "unit_interval",
         "y": "unit_interval"
@@ -3398,7 +3388,6 @@ Named domain definitions that reference interval objects:
       }
     },
     "custom_domain": {
-      "dimension": 2,
       "intervals": {
         "x": "large_domain",
         "y": "unit_interval"
@@ -3424,11 +3413,9 @@ Output file naming configuration:
 
 ```json
 {
-  "naming": {
-    "dir": "./results",
-    "data": "phase_field",
-    "solution": "solution",
-    "checkpoint": "checkpoint"
+  "namioutput": {
+    "directory": "./results",
+    "title": "phase_field",
   }
 }
 ```
@@ -3515,7 +3502,6 @@ Create a file named `simulation_config.json`:
     },
     "domains": {
         "main_domain": {
-            "dimension": 2,
             "intervals": {
                 "x": {"start": 0.0, "end": 1.0, "points": "${GRID_SIZE}"},
                 "y": {"start": 0.0, "end": 1.0, "points": "${GRID_SIZE}"}

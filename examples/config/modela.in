@@ -3,23 +3,25 @@
 DIM				dimensions of model			: 2
 ORDER			order of accuracy			: 2
 PTL				laplacian stencil			: @
-WIDTH			grid draw size				: .2
+WIDTH			grid draw size				: 1
+SOLVERVAR		variation of the solver		: 0
 
-RNGX			interval of x				: @ 2048
-RNGY			interval of y				: @ 2048
+RNGX			interval of x				: @ 128
+RNGY			interval of y				: @ 128
+#RNGZ			interval of y				: @ 64
 BNDLT			bound type on x1			: PERIODIC
 BNDRT			bound type on x2			: PERIODIC
 BNDTP			bound type on y1			: PERIODIC
 BNDBT			bound type on y2			: PERIODIC
-BNDFT			bound type on z1			: PERIODIC
-BNDBK			bound type on z2			: PERIODIC
+BNDFT			bound type on y2			: PERIODIC
+BNDBK			bound type on y2			: PERIODIC
 INSIDE			the conditions inside		: UNIFORM -1 1
 
-MODEL			type of the model			: MODELA
+MODEL			type of the model			: MODELA_WN
 
-DELTA			time increment				: 0.5
-FRAMES			total time steps			: 10000
-SAVE			frame save interval			: 10000
+DELTA			time increment				: 0.01
+FRAMES			total time steps			: 100
+SAVE			frame save interval			: 100
 SAVEINIT		save time index 0 data?		: YES
 
 DIR				save directory				: simulations

@@ -32,7 +32,17 @@ add_library(symphas_conf_o OBJECT ${SOURCES_CONF})
 target_include_directories(symphas_conf_o PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
 	$<INSTALL_INTERFACE:include>)
-target_link_libraries(symphas_conf_o PUBLIC symphas_sol ${ADD_PROC_LIB} nlohmann_json::nlohmann_json)
+target_link_libraries(symphas_conf_o PUBLIC symphas_sol ${ADD_PROC_LIB} nlohmann_json::nlohmann_json nlohmann_json_schema_validator)
+
+configure_file(
+	"${CMAKE_CURRENT_SOURCE_DIR}/schema.json"
+	"${CMAKE_BINARY_DIR}/schema.json"
+	COPYONLY
+)
+
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/schema.json"
+	DESTINATION ${INCLUDEDIR}
+)
 
 set(USING_CONF ON)
 configure_file("conf-defs.h.in" "${CMAKE_SOURCE_DIR}/inc/conf-defs.h")

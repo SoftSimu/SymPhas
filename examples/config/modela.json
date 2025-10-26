@@ -1,0 +1,92 @@
+{
+  "definitions": {
+    "DT": 0.1,
+    "WIDTH": 1.0,
+    "GRID_SIZE": 128,
+    "SAVE_INTERVAL": 100
+  },
+  "simulation": {
+    "dimension": 2,
+    "time_steps": [
+      {
+        "dt": "${DT}",
+        "iterations": 1000
+      }
+    ],
+    "save": {
+      "type": "DEFAULT",
+      "interval": "${SAVE_INTERVAL}",
+      "save_initial": true
+    },
+    "stencil": {
+      "order": 2,
+      "ptl": 5,
+      "ptg": 6,
+      "ptb": 13
+    },
+    "solver_variation": 0
+  },
+  "model": {
+    "name": "MODELA",
+    "domains": {
+      "1": {
+        "domain": "main_domain",
+        "initial_condition": [
+          {
+            "type": "UNIFORM",
+            "axis": "X"
+          },
+          {
+            "type": "CONSTANT",
+            "axis": "Y"
+          }
+        ]
+      },
+      "0": {
+        "domain": "main_domain",
+        "initial_condition": {
+          "type": "UNIFORM",
+          "parameters": [ -2, 1 ]
+        }
+      }
+    },
+    "coefficients": {
+      "c1": -0.5,
+      "c2": 1.0,
+      "c3": 1.0
+    }
+  },
+  "intervals": {
+    "unit_interval": {
+      "points": "${GRID_SIZE}",
+      "width": "${WIDTH}"
+    },
+    "large_domain": {
+      "start": -5.0,
+      "end": 5.0,
+      "points": 256
+    }
+  },
+  "domains": {
+    "main_domain": {
+      "dimension": 2,
+      "intervals": {
+        "x": "unit_interval",
+        "y": "unit_interval"
+      },
+      "boundaries": {
+        "x": {
+          "left": { "type": "PERIODIC" },
+          "right": { "type": "PERIODIC" }
+        },
+        "y": {
+          "left": { "type": "PERIODIC" },
+          "right": { "type": "PERIODIC" }
+        }
+      }
+    }
+  },
+  "output": {
+    "directory": "./simulations"
+  }
+}

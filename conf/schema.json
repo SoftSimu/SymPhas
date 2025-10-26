@@ -18,14 +18,11 @@
       "properties": {
         "dimension": {
           "description": "Spatial dimension of the simulation (1, 2, or 3)",
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 3
+          "$ref": "#/definitions/dimensionOrDefinitionRef"
         },
         "time_step": {
           "description": "Single time step configuration",
-          "type": "number",
-          "exclusiveMinimum": 0
+          "$ref": "#/definitions/PositiveNumberOrDefinitionRef"
         },
         "time": {
           "description": "Total simulation time (used with time_step)",
@@ -40,18 +37,15 @@
             "properties": {
               "dt": {
                 "description": "Time step size",
-                "type": "number",
-                "exclusiveMinimum": 0
+                "$ref": "#/definitions/PositiveNumberOrDefinitionRef"
               },
               "time": {
                 "description": "Duration for this time step",
-                "type": "number",
-                "exclusiveMinimum": 0
+                "$ref": "#/definitions/PositiveNumberOrDefinitionRef"
               },
               "iterations": {
                 "description": "Number of iterations for this time step",
-                "type": "integer",
-                "minimum": 1
+                "$ref": "#/definitions/PositiveIntegerOrDefinitionRef"
               }
             },
             "required": [ "dt" ],
@@ -98,8 +92,7 @@
           "properties": {
             "interval": {
               "description": "Save interval (base value)",
-              "type": "number",
-              "exclusiveMinimum": 0
+              "$ref": "#/definitions/PositiveNumberOrDefinitionRef"
             },
             "indices": {
               "description": "Specific iteration indices to save (LIST type)",
@@ -178,66 +171,65 @@
             ]
           }
         },
-        "intervals": {
-          "description": "Domain intervals for each axis",
-          "type": "object",
-          "patternProperties": {
-            "^[xyzrtscXYZRTSC]$": {
-              "type": "object",
-              "properties": {
-                "start": {
-                  "description": "Start of the interval",
-                  "type": "number"
-                },
-                "end": {
-                  "description": "End of the interval",
-                  "type": "number"
-                },
-                "points": {
-                  "description": "Number of discrete points",
-                  "type": "integer",
-                  "minimum": 2
-                },
-                "width": {
-                  "description": "Spatial width between points",
-                  "type": "number",
-                  "exclusiveMinimum": 0
-                }
-              },
-              "not": {
-                "description": "Cannot specify all four parameters",
-                "required": [ "start", "end", "points", "width" ]
-              }
-            }
-          }
-        },
         "domains": {
           "description": "Mapping of field indices to domain names",
           "type": "object",
           "patternProperties": {
             "^\\d+$": {
-              "type": "string"
+              "type": "object",
+              "properties": {
+                "domain": {
+                  "description": "The chosen domain for this field",
+                  "type": "string"
+                },
+                "initial_condition": {
+                  "description": "Initial condition specifications",
+                  "oneOf": [
+                    { "$ref": "#/definitions/initial_condition" },
+                    {
+                      "type": "array",
+                      "items": { "$ref": "#/definitions/initial_condition" }
+                    }
+                  ]
+                }
+              },
+              "required": [ "domain", "initial_condition" ],
+              "additionalProperties": false
             }
-          }
+          },
+          "additionalProperties": false
         }
+      }
+    },
+    "intervals": {
+      "additionalProperties": {
+        "properties": {
+          "start": {
+            "description": "Start of the interval",
+            "$ref": "#/definitions/numberOrDefinitionRef"
+          },
+          "end": {
+            "description": "End of the interval",
+            "$ref": "#/definitions/numberOrDefinitionRef"
+          },
+          "width": {
+            "description": "Width of the interval",
+            "$ref": "#/definitions/PositiveNumberOrDefinitionRef"
+          },
+          "points": {
+            "description": "Number of discrete points in the interval",
+            "$ref": "#/definitions/integerOrDefinitionRef"
+          }
+        },
+        "additionalProperties": false
       }
     },
     "domains": {
       "description": "Domain configurations for each field",
       "type": "object",
-      "additionalProperties": {
+      "additionalItems": {
         "type": "object",
         "properties": {
-          "initial_conditions": {
-            "description": "Initial condition specifications",
-            "oneOf": [
-              { "$ref": "#/definitions/initial_condition" },
-              {
-                "type": "array",
-                "items": { "$ref": "#/definitions/initial_condition" }
-              }
-            ]
-          },
           "boundaries": {
             "description": "Boundary conditions by axis",
             "type": "object",
@@ -259,8 +251,19 @@
                 }
               }
             }
+          },
+          "intervals": {
+            "description": "Intervals defining each axis",
+            "type": "object",
+            "patternProperties": {
+              "^[xyzXYZ]$": {
+                "type": "string"
+              }
+            }
           }
-        }
+        },
+        "additionalProperties": false,
+        "required": [ "boundaries", "intervals" ]
       }
     },
     "names": {
@@ -291,6 +294,61 @@
     }
   },
   "definitions": {
+    "numberOrDefinitionRef": {
+      "oneOf": [
+        { "type": "number" },
+        {
+          "type": "string",
+          "pattern": "^\\$\\{[^}]+\\}$"
+        }
+      ]
+    },
+    "PositiveNumberOrDefinitionRef": {
+      "oneOf": [
+        {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        {
+          "type": "string",
+          "pattern": "^\\$\\{[^}]+\\}$"
+        }
+      ]
+    },
+    "PositiveIntegerOrDefinitionRef": {
+      "oneOf": [
+        {
+          "type": "number",
+          "exclusiveMinimum": 1
+        },
+        {
+          "type": "string",
+          "pattern": "^\\$\\{[^}]+\\}$"
+        }
+      ]
+    },
+    "dimensionOrDefinitionRef": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3
+        },
+        {
+          "type": "string",
+          "pattern": "^\\$\\{[^}]+\\}$"
+        }
+      ]
+    },
+    "integerOrDefinitionRef": {
+      "oneOf": [
+        { "type": "integer" },
+        {
+          "type": "string",
+          "pattern": "^\\$\\{[^}]+\\}$"
+        }
+      ]
+    },
     "initial_condition": {
       "type": "object",
       "properties": {

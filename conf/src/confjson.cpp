@@ -33,12 +33,12 @@
 #include <vector>
 
 #include "boundary.h"
+#include "coeffparser.h"
 #include "definitions.h"
 #include "gridinfo.h"
 #include "initialconditionslib.h"
 #include "io.h"
 #include "macros.h"
-#include "coeffparser.h"
 #include "params.h"
 #include "stencildefs.h"
 
@@ -380,13 +380,14 @@ symphas::interval_element_type parse_interval_data(
     interval.set_domain(start, end, width);
     interval.set_domain_count_from_r(points, (!entry.contains("end")) ? 0 : 1);
   }
+  interval.interval_to_domain();
   return interval;
 }
 
 symphas::b_element_type parse_boundary_data(
     json const& entry, std::map<std::string, json> const& definitions) {
   BoundaryType type = BoundaryType::DEFAULT;
-  symphas::boundary_tag_list tags;
+  symphas::boundary_tag_list tags(BoundaryTag::NONE, BoundaryTag::NONE);
 
   // Parse boundary type - handle both explicit type and implicit DEFAULT
   if (entry.contains("type")) {
@@ -872,9 +873,12 @@ void JsonConfManager::parse_model_settings(
   // Parse coefficients: support 'coefficients_file' or inline 'coefficients'
   std::vector<double> coeffs;
   if (model.contains("coefficients_file")) {
-    std::string coeff_file = parse_value_or_definition<std::string>(model["coefficients_file"], definitions);
+    std::string coeff_file = parse_value_or_definition<std::string>(
+        model["coefficients_file"], definitions);
     // If not absolute, resolve relative to config_dir
-    if (!(coeff_file.size() > 0 && (coeff_file[0] == '/' || coeff_file[0] == '\\' || (coeff_file.size() > 1 && coeff_file[1] == ':')))) {
+    if (!(coeff_file.size() > 0 &&
+          (coeff_file[0] == '/' || coeff_file[0] == '\\' ||
+           (coeff_file.size() > 1 && coeff_file[1] == ':')))) {
       coeff_file = this->config_dir + "/" + coeff_file;
     }
     coeffs = parse_pfc_coeff_file(coeff_file);
@@ -888,7 +892,8 @@ void JsonConfManager::parse_model_settings(
       std::map<int, double> coefficient_map;
       int max_index = -1;
       for (auto const& [name, value] : model["coefficients"].items()) {
-        double coeff_value = parse_value_or_definition<double>(value, definitions);
+        double coeff_value =
+            parse_value_or_definition<double>(value, definitions);
         std::regex c_pattern("^c(\\d+)$");
         std::smatch match;
         if (std::regex_match(name, match, c_pattern)) {
@@ -902,7 +907,8 @@ void JsonConfManager::parse_model_settings(
         }
       }
       if (!coefficient_map.empty()) {
-        int array_size = std::max(max_index + 1, static_cast<int>(coeffs.size()));
+        int array_size =
+            std::max(max_index + 1, static_cast<int>(coeffs.size()));
         std::vector<double> indexed_coeffs(array_size, DEFAULT_COEFF_VALUE);
         for (size_t i = 0; i < coeffs.size(); ++i) {
           indexed_coeffs[i] = coeffs[i];
@@ -946,21 +952,6 @@ void JsonConfManager::parse_model_settings(
         }
       }
     }
-  }  
-
-  // Parse intervals (now part of model)
-  if (model.contains("intervals")) {
-    auto const& intervals = model["intervals"];
-    if (intervals.is_object()) {
-      symphas::interval_data_type domain_intervals;
-      for (auto const& [axis_str, interval_config] : intervals.items()) {
-        Axis axis = symphas::axis_from_str(axis_str.c_str());
-        auto interval_data = parse_interval_data(interval_config, definitions);
-        domain_intervals[axis] = interval_data;
-      }
-      // Set intervals for the first domain (index 0)
-      domain_settings.set_interval(domain_intervals, 0);
-    }
   }
 }
 
@@ -975,9 +966,26 @@ void JsonConfManager::parse_domain_settings(
       config_json["model"].contains("domains")) {
     auto const& model = config_json["model"];
     auto const& mappings = model["domains"];
-    for (auto const& [field_index, domain_name] : mappings.items()) {
+    for (auto const& [field_index, domain_config] : mappings.items()) {
+      auto domain_name = domain_config["domain"];
       domain_mappings[field_index] =
           parse_value_or_definition<std::string>(domain_name, definitions);
+
+      if (domain_config.contains("initial_condition")) {
+        auto const& init_condition = domain_config["initial_condition"];
+        int field_idx = std::stoi(field_index);
+
+        // Handle array of initial conditions for different axes
+        if (init_condition.is_array()) {
+          for (auto const& init_config : init_condition) {
+            parse_single_initial_condition(init_config, definitions, field_idx);
+          }
+        } else {
+          // Single initial condition (applies to all axes)
+          parse_single_initial_condition(init_condition, definitions,
+                                         field_idx);
+        }
+      }  // Parse boundaries (new axis-based structure)
     }
   }
 
@@ -990,20 +998,6 @@ void JsonConfManager::parse_domain_settings(
     auto const& domain =
         domains[domain_name];  // Parse initial conditions (enhanced with axis
                                // support, expressions, and files)
-    if (domain.contains("initial_conditions")) {
-      auto const& init_conditions = domain["initial_conditions"];
-      int field_idx = std::stoi(field_index);
-
-      // Handle array of initial conditions for different axes
-      if (init_conditions.is_array()) {
-        for (auto const& init_config : init_conditions) {
-          parse_single_initial_condition(init_config, definitions, field_idx);
-        }
-      } else {
-        // Single initial condition (applies to all axes)
-        parse_single_initial_condition(init_conditions, definitions, field_idx);
-      }
-    }  // Parse boundaries (new axis-based structure)
     if (domain.contains("boundaries")) {
       auto const& boundaries = domain["boundaries"];
 
@@ -1058,6 +1052,34 @@ void JsonConfManager::parse_domain_settings(
         domain_settings.set_boundary(bdata, field_idx);
       }
     }
+    if (domain.contains("intervals")) {
+      auto const& intervals = domain["intervals"];
+      if (intervals.is_object()) {
+        symphas::interval_data_type domain_intervals;
+        for (auto const& [axis_str, interval_config] : intervals.items()) {
+          Axis axis = symphas::axis_from_str(axis_str.c_str());
+          if (interval_config.is_string()) {
+            auto interval_name = interval_config.get<std::string>();
+            auto const& all_intervals = config_json["intervals"];
+            if (all_intervals.contains(interval_name)) {
+              auto interval_data = parse_interval_data(
+                  all_intervals[interval_name], definitions);
+              domain_intervals[axis] = interval_data;
+            } else {
+              throw std::runtime_error("Interval definition not found: " +
+                                       interval_name);
+            }
+          } else {
+            auto interval_data =
+                parse_interval_data(interval_config, definitions);
+            domain_intervals[axis] = interval_data;
+          }
+        }
+        // Set intervals for the first domain (index 0)
+        int field_idx = std::stoi(field_index);
+        domain_settings.set_interval(domain_intervals, field_idx);
+      }
+    }
   }
 }
 
@@ -1084,18 +1106,21 @@ void JsonConfManager::parse_directory_settings(
     const json& config_json, std::map<std::string, json> const& definitions) {
   if (config_json.contains("output")) {
     auto const& output = config_json["output"];
-    if (output.contains("directory")) {
-      std::string dir = parse_value_or_definition<std::string>(
-          output["directory"], definitions);
+    if (output.contains("title")) {
       std::string title = parse_value_or_definition<std::string>(
           output.value("title", config_json.value("title", json(""))),
           definitions);
-      directory_settings.set_directory(dir.c_str(),
-                                       title.empty() ? nullptr : title.c_str());
       name_settings.set_title(title.c_str());
+    } else {
+      name_settings.set_title(model_settings.model);
     }
-  } else {
-    directory_settings.set_directory("symphas_output", name_settings.title);
+    if (output.contains("directory")) {
+      std::string dir = parse_value_or_definition<std::string>(
+          output["directory"], definitions);
+      directory_settings.set_directory(dir.c_str(), name_settings.title);
+    } else {
+      directory_settings.set_directory("symphas_output", name_settings.title);
+    }
   }
 }
 
@@ -1113,9 +1138,21 @@ JsonConfManager::JsonConfManager(const char* config_file) : SymPhasSettings{} {
   }
   this->config_dir = config_dir;
 
-
   json config;
   file >> config;
+
+  std::ifstream schema_file("schema.json");
+  json schema;
+  schema_file >> schema;
+  try {
+    nlohmann::json_schema::json_validator validator;
+    validator.set_root_schema(schema);
+    validator.validate(config);
+    fprintf(SYMPHAS_LOG, "Configuration validated successfully against schema");
+  } catch (const std::exception& e) {
+    fprintf(SYMPHAS_ERR, "Configuration validation failed: %s\n", e.what());
+    throw std::runtime_error("Invalid configuration file");
+  }
 
   std::map<std::string, json> definitions;
   if (config.contains("definitions")) {
@@ -1196,7 +1233,7 @@ void JsonConfManager::write(const char* savedir, const char* name) const {
   json intervals;
   for (size_t d = 0; d < simulation_settings.dimension; ++d) {
     Axis axis = symphas::index_to_axis(d);
-    const char *axis_char = symphas::str_from_axis(axis);
+    const char* axis_char = symphas::str_from_axis(axis);
 
     if (axis_char) {
       char axis_key[]{*axis_char, '\0'};
@@ -1234,7 +1271,7 @@ void JsonConfManager::write(const char* savedir, const char* name) const {
     model["coefficients"] = coefficients;
   }
 
-    model["domains"] = json::object();
+  model["domains"] = json::object();
 
   // Add domains (simplified - creates a single domain for each field)
   json domains;
@@ -1383,7 +1420,9 @@ void JsonConfManager::write(const char* savedir, const char* name) const {
 
   json output;
   output["directory"] = directory_settings.root_dir;
-  output["title"] = name_settings.title;
+  if (name_settings.title) {
+    output["title"] = name_settings.title;
+  }
   config["output"] = output;
 
   json names;

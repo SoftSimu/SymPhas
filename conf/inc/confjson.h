@@ -28,6 +28,8 @@
 
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <nlohmann/json-schema.hpp>
+
 
 #include "confsystem.h"
 
