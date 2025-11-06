@@ -1818,7 +1818,8 @@ auto iterable_domain(OpCombination<A1, A2, E> const& e) {
 
 template <typename A1, typename A2>
 auto iterable_domain(OpOperatorCombination<A1, A2> const& e) {
-  return iterable_domain_union(iterable_domain(e.f), iterable_domain(e.g));
+  return iterable_domain_intersection(iterable_domain(e.f),
+                                      iterable_domain(e.g));
 }
 
 template <typename A1, typename A2, typename E>
@@ -1958,7 +1959,7 @@ auto iterable_domain(GaussianSmoothing<D, grid_type> const& e) {
 
 template <typename... Es, size_t... Is>
 auto iterable_domain(OpAdd<Es...> const& e, std::index_sequence<Is...>) {
-  return iterable_domain_union(iterable_domain(expr::get<Is>(e))...);
+  return iterable_domain_intersection(iterable_domain(expr::get<Is>(e))...);
 }
 
 template <typename... Es>
@@ -1983,7 +1984,8 @@ auto iterable_domain(OpBinaryDiv<E1, E2> const& e) {
 
 template <typename E1, typename E2>
 auto iterable_domain(OpEvaluable<E1> const& a, OpEvaluable<E2> const& b) {
-  return iterable_domain_union(iterable_domain(*static_cast<const E1*>(&a)),
+  return iterable_domain_intersection(
+      iterable_domain(*static_cast<const E1*>(&a)),
                                iterable_domain(*static_cast<const E2*>(&b)));
 }
 
