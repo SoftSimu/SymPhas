@@ -66,7 +66,7 @@ make
 
 3. **Run the simulation**:
 ```bash
-./symphas_impl
+./symphas_main
 ```
 
 ### Simple Example
