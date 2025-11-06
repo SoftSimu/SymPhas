@@ -61,7 +61,7 @@ cmake .. -DCMAKE_BUILD_TYPE=Release \
     -DMAIN_FILE="examples/tutorial/main.cpp" \
     -DSOLVER_INCLUDE_HEADER_DIR="../examples/solvers" \
     -DSOLVER_INCLUDE_HEADER_NAME="../solverinclude.h"
-make symphas_impl
+make 
 ```
 
 3. **Run the simulation**:
