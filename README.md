@@ -112,7 +112,7 @@ cd .. && mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release \
     -DMAIN_FILE="myproject/main.cpp" \
     -DSOLVER_INCLUDE_HEADER_DIR="../examples/solvers" \
-    -DSOLVER_INCLUDE_HEADER_NAME="../solverinclude.h"
+    -DSOLVER_INCLUDE_HEADER_NAME="solverinclude.h"
 make
 ```
 
