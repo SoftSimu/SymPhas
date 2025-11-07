@@ -1771,6 +1771,7 @@ struct TraitProvisional : TraitEquation<enclosing_type, parent_trait> {
       using expr::modulus;                                                    \
       using expr::dot;                                                        \
       using namespace expr::symbols;                                          \
+      using namespace symphas;                                                \
       using namespace std::complex_literals;                                  \
       auto [x, y, z] = expr::make_coords<Dm>(DIMENSIONS_OF(0), INTERVALS(0)); \
       auto t = parent_type::get_time_var();                                   \
