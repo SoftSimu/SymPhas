@@ -1,4 +1,3 @@
-#include "solverinclude.h"
 #include "symphas.h"
 
 // Various model definitions demonstrating different approaches
@@ -77,7 +76,7 @@ int main() {
     auto min1 = *std::min_element(field1.values, field1.values + field1.len);
     auto max1 = *std::max_element(field1.values, field1.values + field1.len);
     std::cout << "  Result: Field range [" << min1 << ", " << max1 << "]" << std::endl;
-    io::save_grid(field1, "data", "allencahn");
+    io::save_grid(field1, "allencahn");
     
     // Example 2: Free energy formulation with expression-based IC
     std::cout << "Running free energy model with expression IC..." << std::endl;
@@ -88,11 +87,11 @@ int main() {
     auto min2 = *std::min_element(field2.values, field2.values + field2.len);
     auto max2 = *std::max_element(field2.values, field2.values + field2.len);
     std::cout << "  Result: Field range [" << min2 << ", " << max2 << "]" << std::endl;
-    io::save_grid(field2, "data", "freeenergy");
+    io::save_grid(field2, "freeenergy");
     
     // Example 3: Multi-field system
     std::cout << "Running two-field system..." << std::endl;
-    auto multifield_params = grid1 << uniform_ic << uniform_ic;
+    auto multifield_params = grid1 << uniform_ic;
     model_TwoField_t<2, SolverFT<Stencil2d2h<>>> model3{multifield_params};
     find_solution(model3, 0.01, 1000);
     
@@ -108,8 +107,8 @@ int main() {
               << ", " 
               << *std::max_element(field3b.values, field3b.values + field3b.len)
               << "]" << std::endl;
-    io::save_grid(field3a, "data", "twofield_1");
-    io::save_grid(field3b, "data", "twofield_2");
+    io::save_grid(field3a, "twofield_1");
+    io::save_grid(field3b, "twofield_2");
     
     std::cout << std::endl << "=== Demo Complete ===" << std::endl;
     std::cout << "Check the 'data/' directory for output files." << std::endl;
