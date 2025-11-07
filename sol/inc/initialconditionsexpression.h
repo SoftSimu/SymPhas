@@ -43,6 +43,13 @@
     using parent_type = InitExpression<D>;                                     \
     using parent_type::parent_type;                                            \
     auto get_equation() {                                                      \
+      using namespace std;                                                     \
+      using namespace expr;                                                    \
+      using expr::dot;                                                         \
+      using expr::modulus;                                                     \
+      using namespace expr::symbols;                                           \
+      using namespace symphas;                                                 \
+      using namespace std::complex_literals;                                   \
       using namespace symphas::internal;                                       \
       using namespace symphas::internal::parameterized;                        \
       auto [x, y, z] = expr::make_coords<D>(parent_type::data.dims,            \
@@ -50,8 +57,6 @@
       UNUSED(x);                                                               \
       UNUSED(y);                                                               \
       UNUSED(z);                                                               \
-      using namespace expr;                                                    \
-      using namespace std;                                                     \
       return EQUATION;                                                         \
     }                                                                          \
   };

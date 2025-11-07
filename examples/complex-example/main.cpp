@@ -44,21 +44,23 @@ int main() {
     
     // Set up initial conditions for both fields
     auto params = grid << (
-        Inside::SPIRAL_PATTERN <<= {},      // Field 1: spiral pattern
-        Inside::WAVE_PATTERN <<= {}         // Field 2: wave pattern  
+        Inside::VORONOI <<= {6},
+        Inside::CIRCLE <<= {1}
     );
     
     // Set coupling parameters
     // c(1): coupling strength from field 2 to field 1
     // c(2): coupling strength from field 1 to field 2
-    auto param_values = (1.0, 0.5);  // Asymmetric coupling
+    double param_values[]{1.0, 0.5};  // Asymmetric coupling
     
     // Create the coupled model with basic solver (no FFT required)
-    model_CoupledFields_t<2, SolverFT<Stencil2d2h<>>> model{params, param_values};
+    model_CoupledFields_t<2, SolverFT<Stencil2d2h<>>> model{param_values, 2,
+                                                            params};
     
     std::cout << "Running coupled field simulation..." << std::endl;
     std::cout << "Grid: 32x32, Domain: 1x1, Time step: 0.001" << std::endl;
-    std::cout << "Coupling parameters: c1=" << param_values._1 << ", c2=" << param_values._2 << std::endl;
+    std::cout << "Coupling parameters: c1=" << param_values[0]
+              << ", c2=" << param_values[1] << std::endl;
     
     // Run simulation: 100 steps with dt=0.001
     find_solution(model, 0.001, 100);

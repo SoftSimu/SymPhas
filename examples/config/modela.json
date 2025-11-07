@@ -3,14 +3,14 @@
     "DT": 0.1,
     "WIDTH": 1.0,
     "GRID_SIZE": 128,
-    "SAVE_INTERVAL": 100
+    "SAVE_INTERVAL": 1000
   },
   "simulation": {
     "dimension": 2,
     "time_steps": [
       {
         "dt": "${DT}",
-        "iterations": 1000
+        "iterations": "${SAVE_INTERVAL}"
       }
     ],
     "save": {
@@ -20,38 +20,26 @@
     },
     "stencil": {
       "order": 2,
-      "ptl": 5,
+      "ptl": 9,
       "ptg": 6,
       "ptb": 13
     },
     "solver_variation": 0
   },
   "model": {
-    "name": "MODELA",
-    "domains": {
-      "1": {
-        "domain": "main_domain",
-        "initial_condition": [
-          {
-            "type": "UNIFORM",
-            "axis": "X"
-          },
-          {
-            "type": "CONSTANT",
-            "axis": "Y"
-          }
-        ]
-      },
-      "0": {
+    "name": "MODELA_WN",
+    "fields": [
+      {
+        "index": 0,
         "domain": "main_domain",
         "initial_condition": {
           "type": "UNIFORM",
-          "parameters": [ -2, 1 ]
+          "parameters": [ -1, 1 ]
         }
       }
-    },
+    ],
     "coefficients": {
-      "c1": -0.5,
+      "c1": 1.0,
       "c2": 1.0,
       "c3": 1.0
     }
