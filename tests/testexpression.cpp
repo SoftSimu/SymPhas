@@ -419,14 +419,14 @@ void testexpressionconvolution() {
   double h[2]{1, 1};
 
   // testing the correct behaviour of convolution
-  auto cc1 =
-      expr::make_convolution::get(GaussianSmoothing<2, Grid>{grid0.dims, h, 1}, op);
-  auto cc2 =
-      expr::make_literal(1.0) *
-      expr::make_convolution::get(GaussianSmoothing<2, Grid>{grid0.dims, h, 1}, cc1);
-  auto cc3 =
-      expr::make_convolution::get(GaussianSmoothing<2, Grid>{grid0.dims, h, 1}, op) -
-      op;
+  auto cc1 = expr::make_convolution::get(
+      GaussianSmoothing<2, Grid>{grid0.dims, h, 1}, op);
+  auto cc2 = expr::make_literal(1.0) *
+             expr::make_convolution::get(
+                 GaussianSmoothing<2, Grid>{grid0.dims, h, 1}, cc1);
+  auto cc3 = expr::make_convolution::get(
+                 GaussianSmoothing<2, Grid>{grid0.dims, h, 1}, op) -
+             op;
 }
 
 void testexpressionvariable() {
@@ -1081,6 +1081,7 @@ void test12varexpression() {
 
   using expr::cos;
   using expr::sin;
+  using namespace symphas::math;
 
   // auto fourth_moment = (sin(op_thetak) * dmk * dk) * (sin(op_thetak) * ddk *
   // ddmk); auto e_right = cos(op_thetak) + sin(op_thetak) * ddk * ddmk; auto
@@ -1111,13 +1112,13 @@ void test12varexpression() {
       product *= value;
     }
     printf("<E|E> = %.4lf + %.4lfi ~ %.24lf\n", real(product), imag(product),
-           std::abs(product) * std::abs(product));
+           abs(product) * abs(product));
   }
 }
 
 void testccliketypes() {
-  using vv = Variable<0, NamedData<std::complex<double>*>>;
-  using v1 = Variable<1, NamedData<std::complex<double>*>>;
+  using vv = Variable<0, NamedData<complex_t*>>;
+  using v1 = Variable<1, NamedData<complex_t*>>;
   using G = OpTerm<OpLiteral<double>, vv>;
   using Gg = OpTerm<OpLiteral<double>, v1>;
   using G2 = mul_result_t<G, G>;
@@ -1130,8 +1131,8 @@ void testccliketypes() {
 }
 
 void testcoefftype() {
-  using vv = Variable<0, NamedData<std::complex<double>*>>;
-  using v1 = Variable<1, NamedData<std::complex<double>*>>;
+  using vv = Variable<0, NamedData<complex_t*>>;
+  using v1 = Variable<1, NamedData<complex_t*>>;
   using Gneg = OpTerm<OpNegIdentity, vv>;
   using Gpos = OpTerm<OpIdentity, vv>;
 
@@ -1207,5 +1208,30 @@ void testorganizederivative() {
     auto ee0 = expr::apply_operators(fe_derv0);
     auto ee1 = expr::apply_operators(fe_derv1);
     auto ee2 = expr::apply_operators(fe_derv2);
+  }
+}
+
+void testdotandgradderivative() {
+  len_type dims[]{100, 100};
+  SolverFT<Stencil2d2h<5, 13, 6>> solver(dims, 1.);
+  //GenericSolver<> solver;
+  {
+    Grid<double, 2> grid0(dims);
+    Grid<any_vector_t<scalar_t, 2>, 2> grid1(dims);
+    grid::fill_random(grid0);
+    auto op0 = expr::make_term<1>(grid0);
+    auto op1 = expr::make_term<2>(grid1);
+
+    using namespace expr::symbols;
+
+    //lap(c(1) * dot(op(2), grad(dot(grad(op(1)), op(2)))))
+    using expr::dot;
+    auto grad = expr::make_operator_derivative<1>(solver);
+    auto lap = expr::make_operator_derivative<2>(solver);
+    auto expr1 = dot(grad(op0), op1);
+    auto expr2 = grad(dot(grad(op0), op1));
+    auto expr3 = lap(dot(op1, grad(dot(grad(op0), op1))));
+    auto expr4 = lap(dot(op1, grad(op0)));
+    auto eq = expr::apply_operators(expr4);
   }
 }

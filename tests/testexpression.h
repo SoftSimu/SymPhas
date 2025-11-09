@@ -28,6 +28,7 @@ void test12varexpression();
 void testccliketypes();
 void testcoefftype();
 void testorganizederivative();
+void testdotandgradderivative();
 
 inline void testexpression() {
   // printf("\n- test testexpressioneval ----------------------------------\n");
@@ -66,8 +67,10 @@ inline void testexpression() {
   // testccliketypes();
   // printf("\n- test testcoefftype ---------------------------------------\n");
   // testcoefftype();
-  printf("\n- test organizederivative ----------------------------------\n");
-  testorganizederivative();
+  // printf("\n- test organizederivative ----------------------------------\n");
+  // testorganizederivative();
+  printf("\n- test dotandgradderivative ----------------------------------\n");
+  testdotandgradderivative();
 
 #ifdef SPEED_TEST
   printf("\n- test expressionspeed -------------------------------------\n");
@@ -261,29 +264,37 @@ inline void fill_data(Number_vmk& data) {
 
 template <>
 inline void fill_data(Number_udk& data) {
+  using std::conj;
+  using symphas::math::conj;
   for (iter_type i = 0; i < k_len; ++i) {
-    data.values[i] = std::conj(u_data[i]);
+    data.values[i] = conj(u_data[i]);
   }
 }
 
 template <>
 inline void fill_data(Number_udmk& data) {
+  using std::conj;
+  using symphas::math::conj;
   for (iter_type i = 0; i < k_len; ++i) {
-    data.values[i] = std::conj(u_data[k_len - 1 - i]);
+    data.values[i] = conj(u_data[k_len - 1 - i]);
   }
 }
 
 template <>
 inline void fill_data(Number_vdk& data) {
+  using std::conj;
+  using symphas::math::conj;
   for (iter_type i = 0; i < k_len; ++i) {
-    data.values[i] = std::conj(v_data[i]);
+    data.values[i] = conj(v_data[i]);
   }
 }
 
 template <>
 inline void fill_data(Number_vdmk& data) {
+  using std::conj;
+  using symphas::math::conj;
   for (iter_type i = 0; i < k_len; ++i) {
-    data.values[i] = std::conj(v_data[k_len - 1 - i]);
+    data.values[i] = conj(v_data[k_len - 1 - i]);
   }
 }
 
@@ -303,15 +314,19 @@ inline void fill_data(Number_umk_0& data) {
 
 template <>
 inline void fill_data(Number_udmk_0& data) {
+  using std::conj;
+  using symphas::math::conj;
   for (iter_type i = 0; i < k_len; ++i) {
-    data.values[i] = std::conj(u_data[k_len - 1 - i]);
+    data.values[i] = conj(u_data[k_len - 1 - i]);
   }
 }
 
 template <>
 inline void fill_data(Number_vdk_0& data) {
+  using std::conj;
+  using symphas::math::conj;
   for (iter_type i = 0; i < k_len; ++i) {
-    data.values[i] = std::conj(v_data[i]);
+    data.values[i] = conj(v_data[i]);
   }
 }
 

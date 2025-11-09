@@ -229,6 +229,10 @@ struct make_derivative {
   static auto get(V const& v, OpOperator<E> const& e,
                   solver_op_type<Sp> solver);
 
+  template <typename V, typename E, typename Sp>
+  static auto get(V const& v, OpOperatorChain<OpIdentity, E> const& e,
+                  solver_op_type<Sp> solver);
+
   //! Constructs the derivative applied to a variable.
   template <typename V, typename S, typename G, typename Sp>
   static auto get(V const& v, OpTerm<S, G> const& e, solver_op_type<Sp> solver);
@@ -3218,19 +3222,28 @@ inline auto make_operator_mixed_derivative<Os...>::get(
   return OpOperatorMixedDerivative<OpIdentity, Sp, Os...>(OpIdentity{}, solver);
 }
 
+template <typename Dd, typename V, typename E, typename Sp, size_t... Is>
+auto make_derivative_per_component(V const& v, OpExpression<E> const& e,
+                                   solver_op_type<Sp> solver,
+                                   std::index_sequence<Is...>) {
+  constexpr size_t R = sizeof...(Is);
+  return (expr::make_derivative<Dd>(
+              expr::make_column_vector<Is, R>() * v,
+              expr::make_row_vector<Is, R>() *
+                                    (*static_cast<E const*>(&e)), solver) +
+          ...);
+}
+
 template <typename Dd>
 template <typename V, typename E, typename Sp>
 inline auto make_derivative<Dd>::get(V const& v, OpExpression<E> const& e,
                                      solver_op_type<Sp> solver) {
-  // if constexpr (expr::eval_type_t<E>::rank > 0)
-  //{
-  //	auto d = expr::make_derivative<Dd>(expr::symbols::Symbol{}, solver);
-  //	auto [op, _] = expr::split::separate_operator(d);
-  //	return op(*static_cast<E const*>(&e));
-  // }
-  // else
-  {
+  if constexpr (expr::eval_type<E>::rank == 0) {
     return OpDerivative<Dd, V, E, Sp>(v, *static_cast<const E*>(&e), solver);
+  } else {
+    constexpr size_t R = expr::eval_type<E>::rank;
+    return make_derivative_per_component<Dd>(
+        v, *static_cast<E const*>(&e), solver, std::make_index_sequence<R>{});
   }
 }
 
@@ -3239,6 +3252,15 @@ template <typename V, typename E, typename Sp>
 inline auto make_derivative<Dd>::get(V const& v, OpOperator<E> const& e,
                                      solver_op_type<Sp> solver) {
   return OpDerivative<Dd, V, E, Sp>(v, *static_cast<const E*>(&e), solver);
+}
+
+template <typename Dd>
+template <typename V, typename E, typename Sp>
+inline auto make_derivative<Dd>::get(V const& v, OpOperatorChain<OpIdentity, E> const& e,
+                                     solver_op_type<Sp> solver) {
+  return OpOperatorChain(OpIdentity{},
+                         make_derivative<Dd>::get(v, e.g, solver));
+  //return OpDerivative<Dd, V, E, Sp>(v, *static_cast<const E*>(&e), solver);
 }
 
 template <typename Dd>
@@ -3281,7 +3303,14 @@ template <typename Dd>
 template <typename V, typename S, typename G, typename Sp>
 inline auto make_derivative<Dd>::get(V const& v, OpTerm<S, G> const& e,
                                      solver_op_type<Sp> solver) {
-  return make_derivative<Dd>::get_g(v * expr::coeff(e), expr::data(e), solver);
+  if constexpr (expr::eval_type<OpTerm<S, G>>::rank == 0) {
+    return make_derivative<Dd>::get_g(v * expr::coeff(e), expr::data(e),
+                                      solver);
+  } else {
+    constexpr size_t R = expr::eval_type<OpTerm<S, G>>::rank;
+    return make_derivative_per_component<Dd>(v, e, solver,
+                                             std::make_index_sequence<R>{});
+  }
 }
 
 template <typename Dd>

@@ -1340,6 +1340,18 @@ auto D(SymbolicFunction<E, Variable<Z0, G0>> const& f) {
   return expr::apply_operators(expr::make_operator_derivative<1, Z0>()(f.e));
 }
 
+template <typename E, size_t Z0, typename G0, size_t O>
+auto D(SymbolicFunction<E, Variable<Z0, G0>> const& f,
+       OpFractionLiteral<O, 1>) {
+  return expr::apply_operators(expr::make_operator_derivative<O, Z0>()(f.e));
+}
+
+template <typename E, size_t Z0, typename G0>
+auto D(SymbolicFunction<E, Variable<Z0, G0>> const& f,
+       OpIdentity) {
+  return expr::apply_operators(expr::make_operator_derivative<1, Z0>()(f.e));
+}
+
 template <size_t O, typename E, size_t... Zs, size_t... Is,
           size_t N = sizeof...(Is)>
 auto D(OpExpression<E> const& e, std::index_sequence<Zs...>,
