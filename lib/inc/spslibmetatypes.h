@@ -574,15 +574,38 @@ struct remove_type_impl;
 
 template <typename T0, typename... Ts>
 struct remove_type_impl<T0, types_list<Ts...>> {
- private:
-  static constexpr bool matches[] = {std::is_same_v<T0, Ts>...};
+private:
+  static constexpr bool matches[sizeof...(Ts) + 1] = {true, std::is_same_v<T0, Ts>...};
   static constexpr size_t count = ((std::is_same_v<T0, Ts> ? 0 : 1) + ...);
 
-  template <size_t N, size_t... Is>
+  template <size_t N>
+  struct get_sum_matches {
+    template <size_t C>
+    struct wrap_value {
+      static constexpr size_t value = C;
+    };
+
+    template <size_t... Ns>
+    static constexpr auto _get_value_2(std::index_sequence<Ns...>) {
+      return wrap_value<(0 + ... + size_t(!matches[Ns]))>{};
+    }
+
+    template <size_t... Is>
+    static constexpr auto _get_value_1(std::index_sequence<Is...>) {
+      return _get_value_2(std::index_sequence<Is...>{});
+    }
+
+    static constexpr auto get_value() {
+      return _get_value_1(std::make_index_sequence<N + 1>{});
+    }
+
+    static constexpr size_t value = std::invoke_result_t<decltype(&get_sum_matches<N>::get_value)>::value;
+  };
+
+  template <size_t count, size_t... Is>
   static constexpr auto get_filtered_indices(std::index_sequence<Is...>) {
-    std::array<size_t, N> filtered_indices{};
-    size_t j = 0;
-    ((matches[Is] ? void() : void(filtered_indices[j++] = Is)), ...);
+    std::array<size_t, count + 1> filtered_indices{};
+    ((filtered_indices[get_sum_matches<Is>::value] = Is), ...);
     return filtered_indices;
   }
 

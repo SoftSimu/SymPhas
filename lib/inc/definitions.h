@@ -123,7 +123,7 @@ namespace symphas {
 constexpr double PI = 3.141592653589793238463;
 
 //! Mathematical constant \f$e\f$.
-/*! 
+/*!
  * Constant value equal to the mathematical constant \f$e\f$, used
  * throughout SymPhas.
  */
@@ -196,14 +196,13 @@ struct complex_t {
       : _real{real}, _imag{imag} {}
   __device__ __host__ constexpr complex_t() : complex_t(0, 0) {}
   __device__ __host__ constexpr complex_t(scalar_t real) : complex_t(real, 0) {}
-  
+
   complex_t(std::complex<scalar_t> const& other)
       : _real{other.real()}, _imag{other.imag()} {}
   complex_t(std::complex<scalar_t>&& other)
       : _real{other.real()}, _imag{other.imag()} {}
 
-  complex_t& operator=(
-      const std::complex<scalar_t>& other) {
+  complex_t& operator=(const std::complex<scalar_t>& other) {
     _real = other.real();
     _imag = other.imag();
     return *this;
@@ -238,6 +237,11 @@ struct complex_t {
   }
   __device__ __host__ complex_t operator-(const complex_t& other) const {
     return complex_t{_real - other._real, _imag - other._imag};
+  }
+  __device__ __host__ complex_t& operator*=(const complex_t& other) {
+    _real = _real * other._real - _imag * other._imag;
+    _imag = _real * other._imag + _imag * other._real;
+    return *this;
   }
   __device__ __host__ complex_t& operator+=(const complex_t& other) {
     _real += other._real;
