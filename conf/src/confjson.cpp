@@ -1375,8 +1375,10 @@ void JsonConfManager::write(const char* savedir, const char* name) const {
     domain["boundaries"] = boundaries;
     domains[domain_name] = domain;
     field["domain"] = domain_name;
+    field["index"] = field_idx;
     fields[field_idx] = field;
   }
+  model["fields"] = fields;
   config["domains"] = domains;
   config["model"] = model;
 

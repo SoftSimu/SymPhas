@@ -352,27 +352,13 @@
       "properties": {
         "type": {
           "description": "Initial condition type",
-          "type": "string",
-          "enum": [
-            "CONSTANT",
-            "UNIFORM",
-            "GAUSSIAN",
-            "CAPPED",
-            "CIRCLE",
-            "HEXAGONAL",
-            "CUBIC",
-            "SQUARE",
-            "SEEDSSQUARE",
-            "VORONOI",
-            "FILE",
-            "EXPRESSION",
-            "CHECKPOINT"
-          ]
+          "type": "string"
         },
         "tags": {
           "description": "Initial condition type",
           "type": "array",
           "items": {
+            "type": "string",
             "enum": [
               "RANDOM",
               "INVERT",
@@ -451,14 +437,7 @@
           "description": "Boundary modifiers (up to 2)",
           "type": "array",
           "items": {
-            "type": "string",
-            "enum": [
-              "GAUSSIAN",
-              "TRIGONOMETRIC",
-              "LINEAR",
-              "CONSTANT",
-              "NONE"
-            ]
+            "type": "string"
           },
           "maxItems": 2
         },
