@@ -1144,7 +1144,7 @@ struct combine_mixed_derivatives {
 
       } else {
         // both of them are odd ordered derivatives, like 3 and 1
-        //static_assert(false, "not implemented yet");
+        // static_assert(false, "not implemented yet");
       }
     }
   }
@@ -2104,24 +2104,31 @@ auto divergence_of(OpOperator<E> const& e, solver_op_type<Sp> solver) {
 template <typename Sp, typename E,
           typename = std::enable_if_t<(expr::eval_type<E>::rank > 0), int>>
 auto curl_of(OpExpression<E> const& e, solver_op_type<Sp> solver) {
-  if constexpr (expr::eval_type<E>::dimension == 3) {
-    auto x = expr::make_row_vector<0, 2>() * (*static_cast<E const*>(&e));
-    auto y = expr::make_row_vector<1, 2>() * (*static_cast<E const*>(&e));
-    auto opx = expr::make_operator_directional_derivative<Axis::X, 1>(solver);
-    auto opy = expr::make_operator_directional_derivative<Axis::Y, 1>(solver);
-    return opx(x) - opy(y);
+  if constexpr (expr::eval_type<E>::rank == 3) {
+    auto op = expr::make_operator_derivative<1>(solver);
+    auto result = cross(op, *static_cast<E const*>(&e));
+    return result;
   }
-  auto op = expr::make_operator_derivative<1>(solver);
-  auto result = cross(op, *static_cast<E const*>(&e));
-  return result;
+  auto x = expr::make_row_vector<0, 2>() * (*static_cast<E const*>(&e));
+  auto y = expr::make_row_vector<1, 2>() * (*static_cast<E const*>(&e));
+  auto opx = expr::make_operator_directional_derivative<Axis::X, 1>(solver);
+  auto opy = expr::make_operator_directional_derivative<Axis::Y, 1>(solver);
+  return opx(x) - opy(y);
 }
 
 template <typename Sp, typename E,
           typename = std::enable_if_t<(expr::eval_type<E>::rank > 0), int>>
 auto curl_of(OpOperator<E> const& e, solver_op_type<Sp> solver) {
-  auto op = expr::make_operator_derivative<1>(solver);
-  auto result = cross(op, *static_cast<E const*>(&e));
-  return apply_operators(result);
+  if constexpr (expr::eval_type<E>::rank == 3) {
+    auto op = expr::make_operator_derivative<1>(solver);
+    auto result = cross(op, *static_cast<E const*>(&e));
+    return result;
+  }
+  auto x = expr::make_row_vector<0, 2>() * (*static_cast<E const*>(&e));
+  auto y = expr::make_row_vector<1, 2>() * (*static_cast<E const*>(&e));
+  auto opx = expr::make_operator_directional_derivative<Axis::X, 1>(solver);
+  auto opy = expr::make_operator_directional_derivative<Axis::Y, 1>(solver);
+  return opx(x) - opy(y);
 }
 }  // namespace expr
 

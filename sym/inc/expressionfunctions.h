@@ -827,18 +827,22 @@ auto abs(OpExpression<E> const& e) {
 
 template <size_t D, typename T0, typename T1>
 auto expr::make_unit_vector(T0 const& direction0, T1 const& direction1) {
+  using expr::sin;
+  using expr::cos;
+  using std::sin;
+  using std::cos;
   if constexpr (D == 1) {
     return OpIdentity{};
   } else if constexpr (D == 2) {
-    auto s = expr::sin(direction0);
-    auto c = expr::cos(direction0);
+    auto s = sin(direction0);
+    auto c = cos(direction0);
     return (expr::make_column_vector<0, D>() * c +
             expr::make_column_vector<1, D>() * s);
   } else {
-    auto s0 = expr::sin(direction0);
-    auto c0 = expr::cos(direction0);
-    auto s1 = expr::sin(direction1);
-    auto c1 = expr::cos(direction1);
+    auto s0 = sin(direction0);
+    auto c0 = cos(direction0);
+    auto s1 = sin(direction1);
+    auto c1 = cos(direction1);
     return (expr::make_column_vector<0, D>() * c0 * s1 +
             expr::make_column_vector<1, D>() * s0 * s1 +
             expr::make_column_vector<2, D>() * c1);
@@ -847,18 +851,22 @@ auto expr::make_unit_vector(T0 const& direction0, T1 const& direction1) {
 
 template <size_t D, typename T0, typename T1>
 auto expr::make_unit_row_vector(T0 const& direction0, T1 const& direction1) {
+  using expr::cos;
+  using expr::sin;
+  using std::cos;
+  using std::sin;
   if constexpr (D == 1) {
     return OpIdentity{};
   } else if constexpr (D == 2) {
-    auto s = expr::sin(direction0);
-    auto c = expr::cos(direction0);
+    auto s = sin(direction0);
+    auto c = cos(direction0);
     return (expr::make_row_vector<0, D>() * c +
             expr::make_row_vector<1, D>() * s);
   } else {
-    auto s0 = expr::sin(direction0);
-    auto c0 = expr::cos(direction0);
-    auto s1 = expr::sin(direction1);
-    auto c1 = expr::cos(direction1);
+    auto s0 = sin(direction0);
+    auto c0 = cos(direction0);
+    auto s1 = sin(direction1);
+    auto c1 = cos(direction1);
     return (expr::make_row_vector<0, D>() * c0 * s1 +
             expr::make_row_vector<1, D>() * s0 * s1 +
             expr::make_row_vector<2, D>() * c1);
