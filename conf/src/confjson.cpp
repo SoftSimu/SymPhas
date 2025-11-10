@@ -927,77 +927,72 @@ void JsonConfManager::parse_model_settings(
     std::copy(coeffs.begin(), coeffs.end(), model_settings.coeff);
     model_settings.coeff_len = coeffs.size();
   }
-
-  // Parse field specifications
-  if (model.contains("fields")) {
-    auto const& fields = model["fields"];
-    if (fields.is_array()) {
-      model_settings.num_fields_len = fields.size();
-      model_settings.num_fields = new len_type[model_settings.num_fields_len];
-      model_settings.modifiers = new char*[model_settings.num_fields_len];
-
-      for (size_t i = 0; i < fields.size(); ++i) {
-        if (fields[i].is_number()) {
-          model_settings.num_fields[i] =
-              parse_value_or_definition<len_type>(fields[i], definitions);
-          model_settings.modifiers[i] = new char[1];
-          model_settings.modifiers[i][0] = '\0';
-        } else if (fields[i].is_object()) {
-          model_settings.num_fields[i] = parse_value_or_definition<len_type>(
-              fields[i]["count"], definitions);
-          std::string modifier = parse_value_or_definition<std::string>(
-              fields[i].value("modifier", json("")), definitions);
-          model_settings.modifiers[i] = new char[modifier.length() + 1];
-          std::strcpy(model_settings.modifiers[i], modifier.c_str());
-        }
-      }
-    }
-  }
 }
 
 void JsonConfManager::parse_domain_settings(
     const json& config_json, std::map<std::string, json> const& definitions) {
   if (!config_json.contains("domains")) return;
 
+  if (!config_json.contains("model") ||
+      !config_json["model"].contains("fields"))
+    return;
+
   auto const& domains = config_json["domains"];
-  // Get domain mappings from model
+  auto const& model = config_json["model"];
   std::map<std::string, std::string> domain_mappings;
-  if (config_json.contains("model") &&
-      config_json["model"].contains("domains")) {
-    auto const& model = config_json["model"];
-    auto const& mappings = model["domains"];
-    for (auto const& [field_index, domain_config] : mappings.items()) {
-      auto domain_name = domain_config["domain"];
-      domain_mappings[field_index] =
-          parse_value_or_definition<std::string>(domain_name, definitions);
 
-      if (domain_config.contains("initial_condition")) {
-        auto const& init_condition = domain_config["initial_condition"];
-        int field_idx = std::stoi(field_index);
-
-        // Handle array of initial conditions for different axes
-        if (init_condition.is_array()) {
-          for (auto const& init_config : init_condition) {
-            parse_single_initial_condition(init_config, definitions, field_idx);
-          }
-        } else {
-          // Single initial condition (applies to all axes)
-          parse_single_initial_condition(init_condition, definitions,
-                                         field_idx);
-        }
-      }  // Parse boundaries (new axis-based structure)
+  // Parse field specifications
+  auto const& fields_obj = model["fields"];
+  std::vector<json> fields;
+  if (fields_obj.is_array()) {
+    for (auto const& field_entry : fields_obj) {
+      fields.push_back(field_entry);
     }
+    model_settings.num_fields_len = fields.size();
+    model_settings.num_fields = new len_type[model_settings.num_fields_len];
+    model_settings.modifiers = new char*[model_settings.num_fields_len];
+    for (iter_type i = 0; i < fields.size(); ++i) {
+      model_settings.num_fields[i] = 1;  // Default count
+      model_settings.modifiers[i] = new char[1]{};
+    }
+
+  } else {
+    fields.push_back(fields_obj);
   }
+  for (auto const& field_config : fields) {
+    auto field_index = field_config["index"].template get<size_t>();
+    if (field_config.contains("count")) {
+      auto field_count = parse_value_or_definition<len_type>(
+          field_config["count"], definitions);
+      model_settings.num_fields[field_index] = field_count;
+      if (field_config.contains("modifier")) {
+        std::string modifier = parse_value_or_definition<std::string>(
+            field_config["modifier"], definitions);
+        model_settings.modifiers[field_index] = new char[modifier.length() + 1];
+        std::strcpy(model_settings.modifiers[field_index], modifier.c_str());
+      }
+    }
+    if (field_config.contains("initial_condition")) {
+      auto const& init_condition = field_config["initial_condition"];
 
-  // Parse each domain
-  for (auto const& [field_index, domain_name] : domain_mappings) {
+      // Handle array of initial conditions for different axes
+      if (init_condition.is_array()) {
+        for (auto const& init_config : init_condition) {
+          parse_single_initial_condition(init_config, definitions, field_index);
+        }
+      } else {
+        // Single initial condition (applies to all axes)
+        parse_single_initial_condition(init_condition, definitions,
+                                       field_index);
+      }
+    }  // Parse boundaries (new axis-based structure)
+
+    auto domain_name = field_config["domain"].template get<std::string>();
     if (!domains.contains(domain_name)) {
-      continue;  // Skip if domain not found
+      throw std::runtime_error("domain not found: " + domain_name);
     }
 
-    auto const& domain =
-        domains[domain_name];  // Parse initial conditions (enhanced with axis
-                               // support, expressions, and files)
+    auto const& domain = domains[domain_name];
     if (domain.contains("boundaries")) {
       auto const& boundaries = domain["boundaries"];
 
@@ -1046,10 +1041,7 @@ void JsonConfManager::parse_domain_settings(
             }
           }
         }
-
-        // Set boundaries for this field
-        int field_idx = std::stoi(field_index);
-        domain_settings.set_boundary(bdata, field_idx);
+        domain_settings.set_boundary(bdata, field_index);
       }
     }
     if (domain.contains("intervals")) {
@@ -1075,9 +1067,7 @@ void JsonConfManager::parse_domain_settings(
             domain_intervals[axis] = interval_data;
           }
         }
-        // Set intervals for the first domain (index 0)
-        int field_idx = std::stoi(field_index);
-        domain_settings.set_interval(domain_intervals, field_idx);
+        domain_settings.set_interval(domain_intervals, field_index);
       }
     }
   }
@@ -1223,12 +1213,6 @@ void JsonConfManager::write(const char* savedir, const char* name) const {
   simulation["solver_variation"] = simulation_settings.stp.type;
   config["simulation"] = simulation;
 
-  // Add model settings
-  json model;
-  if (model_settings.model) {
-    model["name"] = model_settings.model;
-  }
-
   // Add intervals
   json intervals;
   for (size_t d = 0; d < simulation_settings.dimension; ++d) {
@@ -1259,8 +1243,13 @@ void JsonConfManager::write(const char* savedir, const char* name) const {
       intervals[axis_key] = interval;
     }
   }
-  model["intervals"] = intervals;
+  config["intervals"] = intervals;
 
+  // Add model settings
+  json model;
+  if (model_settings.model) {
+    model["name"] = model_settings.model;
+  }
   // Add coefficients if present
   if (model_settings.coeff_len > 0 && model_settings.coeff) {
     json coefficients;
@@ -1271,25 +1260,23 @@ void JsonConfManager::write(const char* savedir, const char* name) const {
     model["coefficients"] = coefficients;
   }
 
-  model["domains"] = json::object();
-
-  // Add domains (simplified - creates a single domain for each field)
   json domains;
+  json fields = json::array();
   for (size_t field_idx = 0; field_idx < domain_settings.tdata_len;
        ++field_idx) {
     std::string domain_name = "field" + std::to_string(field_idx) + "_domain";
-    model["domains"][std::to_string(field_idx)] = domain_name;
-
+    json field = json::object();
     json domain;
 
     // Add initial conditions
     if (domain_settings.tdata && field_idx < domain_settings.tdata_len) {
       auto& tdata = domain_settings.tdata[field_idx];
+      json initial_conditions = json::array();
 
       // Find initial condition for this field
-      if (!tdata.empty()) {
+      int initial_conditions_idx = 0;
+      for (auto it = tdata.begin(); it != tdata.end(); ++it) {
         // Get the first initial condition (usually for Axis::NONE)
-        auto it = tdata.begin();
         json ic;
 
         if (it->second.in == Inside::FILE) {
@@ -1308,6 +1295,9 @@ void JsonConfManager::write(const char* savedir, const char* name) const {
           }
         } else {
           // Convert Inside enum to string
+          if (it->first != Axis::NONE) {
+            ic["axis"] = symphas::str_from_axis(it->first);
+          }
           const char* init_type_str = symphas::str_from_in(it->second.in);
           if (init_type_str) {
             ic["type"] = init_type_str;
@@ -1322,8 +1312,9 @@ void JsonConfManager::write(const char* savedir, const char* name) const {
             }
           }
         }
-        domain["initial_conditions"] = ic;
+        initial_conditions[initial_conditions_idx++] = ic;
       }
+      field["initial_condition"] = initial_conditions;
     }
 
     // Add boundaries
@@ -1380,11 +1371,14 @@ void JsonConfManager::write(const char* savedir, const char* name) const {
         }
       }
     }
+
     domain["boundaries"] = boundaries;
     domains[domain_name] = domain;
+    field["domain"] = domain_name;
+    fields[field_idx] = field;
   }
-  config["model"] = model;
   config["domains"] = domains;
+  config["model"] = model;
 
   // Add save settings if present
   json save;

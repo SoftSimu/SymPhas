@@ -145,59 +145,11 @@
           "type": "string"
         },
         "fields": {
-          "description": "Field specifications",
+          "description": "Mapping of field indices to domain names",
           "type": "array",
           "items": {
-            "oneOf": [
-              {
-                "description": "Simple field count",
-                "type": "integer",
-                "minimum": 1
-              },
-              {
-                "description": "Field with modifiers",
-                "type": "object",
-                "properties": {
-                  "count": {
-                    "type": "integer",
-                    "minimum": 1
-                  },
-                  "modifier": {
-                    "type": "string"
-                  }
-                },
-                "required": [ "count" ]
-              }
-            ]
+            "$ref": "#/definitions/field"
           }
-        },
-        "domains": {
-          "description": "Mapping of field indices to domain names",
-          "type": "object",
-          "patternProperties": {
-            "^\\d+$": {
-              "type": "object",
-              "properties": {
-                "domain": {
-                  "description": "The chosen domain for this field",
-                  "type": "string"
-                },
-                "initial_condition": {
-                  "description": "Initial condition specifications",
-                  "oneOf": [
-                    { "$ref": "#/definitions/initial_condition" },
-                    {
-                      "type": "array",
-                      "items": { "$ref": "#/definitions/initial_condition" }
-                    }
-                  ]
-                }
-              },
-              "required": [ "domain", "initial_condition" ],
-              "additionalProperties": false
-            }
-          },
-          "additionalProperties": false
         }
       }
     },
@@ -327,6 +279,18 @@
         }
       ]
     },
+    "ZeroPositiveIntegerOrDefinitionRef": {
+      "oneOf": [
+        {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        {
+          "type": "string",
+          "pattern": "^\\$\\{[^}]+\\}$"
+        }
+      ]
+    },
     "dimensionOrDefinitionRef": {
       "oneOf": [
         {
@@ -348,6 +312,40 @@
           "pattern": "^\\$\\{[^}]+\\}$"
         }
       ]
+    },
+    "field": {
+      "type": "object",
+      "properties": {
+        "domain": {
+          "description": "The chosen domain for this field",
+          "type": "string"
+        },
+        "initial_condition": {
+          "description": "Initial condition specifications",
+          "oneOf": [
+            { "$ref": "#/definitions/initial_condition" },
+            {
+              "type": "array",
+              "items": { "$ref": "#/definitions/initial_condition" }
+            }
+          ]
+        },
+        "index": {
+          "description": "Field index this domain applies to",
+          "type": "integer",
+          "minimum": 0
+        },
+        "count": {
+          "description": "Number of order parameter fields for the type chosen by the index",
+          "$ref": "#/definitions/ZeroPositiveIntegerOrDefinitionRef"
+        },
+        "modifier": {
+          "description": "Modifier instructing how the multiple fields are saved to a single file",
+          "type": "string"
+        }
+      },
+      "required": [ "domain", "initial_condition", "index" ],
+      "additionalProperties": false
     },
     "initial_condition": {
       "type": "object",
@@ -371,6 +369,20 @@
             "CHECKPOINT"
           ]
         },
+        "tags": {
+          "description": "Initial condition type",
+          "type": "array",
+          "items": {
+            "enum": [
+              "RANDOM",
+              "INVERT",
+              "A",
+              "B",
+              "C",
+              "FIXEDSEED"
+            ]
+          }
+        },
         "axis": {
           "description": "Axis to apply initial condition (default: NONE for all)",
           "type": "string",
@@ -379,7 +391,9 @@
         "parameters": {
           "description": "Parameters for the initial condition",
           "type": "array",
-          "items": { "type": "number" }
+          "items": {
+            "$ref": "#/definitions/numberOrDefinitionRef"
+          }
         },
         "file": {
           "description": "File path for FILE type",

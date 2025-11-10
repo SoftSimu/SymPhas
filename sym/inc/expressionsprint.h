@@ -1387,9 +1387,161 @@ struct print_deriv<O, Axis::NONE, true> {
 
 template <Axis ax, bool is_directional>
 struct print_deriv<0, ax, is_directional> {
-  static size_t print(...) { return 0; }
+  //! Print the derivative the given order to a file.
+  /*!
+   * Print the derivative of the given order, and formatted using the order.
+   *
+   * \param out The file to which the derivative is printed.
+   */
+  template <typename Sp = int>
+  static size_t print(FILE* out, Sp const& = 0) {
+    return 0;
+  }
 
-  static size_t print_length(...) { return 0; }
+  //! Print the derivative the given order to a string.
+  /*!
+   * Print the derivative of the given order, and formatted using the order. A
+   * name is also provided, which is the name of the variable to which the
+   * derivative is applied.
+   *
+   * \param out The string to which the derivative is printed.
+   * \param name A string that appears in the numerator after the partial
+   * symbol.
+   */
+  template <typename Sp = int>
+  static size_t print(FILE* out, const char* name, Sp const& = 0) {
+    size_t n = 0;
+    n += fprintf(out, SYEX_DERIV_APPLIED_EXPR_FMT, name);
+    return n;
+  }
+
+  //! Print the derivative the given order to a string.
+  /*!
+   * Print the derivative of the given order, and formatted using the order.
+   *
+   * \param out The string to which the derivative is printed.
+   */
+  template <typename Sp = int>
+  static size_t print(char* out, Sp const& = 0) {
+    return 0;
+  }
+
+  //! Print the derivative the given order to a string.
+  /*!
+   * Print the derivative of the given order, and formatted using the order. A
+   * name is also provided, which is the name of the variable to which the
+   * derivative is applied.
+   *
+   * \param out The string to which the derivative is printed.
+   * \param name A string that appears in the numerator after the partial
+   * symbol.
+   */
+  template <typename Sp = int>
+  static size_t print(char* out, const char* name, Sp const& = 0) {
+    size_t n = 0;
+    n += sprintf(out + n, SYEX_DERIV_APPLIED_EXPR_FMT, name);
+    return n;
+  }
+
+  //! Get the print length of the derivative output string.
+  /*!
+   * Returns the number of characters in the format string that is
+   * printed to display the derivative. Only includes characters that
+   * are printed as part of the format, and not substituted expression
+   * strings.
+   */
+  template <typename Sp = int>
+  static size_t print_length(Sp const& = 0) {
+    return 0;
+  }
+
+  //! Get the print length of the derivative output string.
+  /*!
+   * Returns the number of characters in the format string that is
+   * printed to display the derivative. Only includes characters that
+   * are printed as part of the format, and not substituted expression
+   * strings.
+   */
+  template <typename Sp = int>
+  static size_t print_length(const char* name, Sp const& = 0) {
+    return std::strlen(name) + SYEX_DERIV_APPLIED_EXPR_LEN;
+  }
+
+  //! Print the derivative the given order to a file.
+  /*!
+   * Print the derivative of the given order, and formatted using the order.
+   *
+   * \param out The file to which the derivative is printed.
+   */
+  template <typename G>
+  static size_t print(FILE* out, SymbolicDerivative<G>) {
+    return 0;
+  }
+
+  //! Print the derivative the given order to a file.
+  /*!
+   * Print the derivative of the given order, and formatted using the order. A
+   * name is also provided, which is the name of the variable to which the
+   * derivative is applied.
+   *
+   * \param out The file to which the derivative is printed.
+   * \param name A string that appears in the numerator after the partial
+   * symbol.
+   */
+  template <typename G>
+  static size_t print(FILE* out, const char* name, SymbolicDerivative<G>) {
+    return fprintf(out, SYEX_DERIV_APPLIED_EXPR_FMT, name);
+  }
+
+  //! Print the derivative the given order to a string.
+  /*!
+   * Print the derivative of the given order, and formatted using the order.
+   *
+   * \param out The string to which the derivative is printed.
+   */
+  template <typename G>
+  static size_t print(char* out, SymbolicDerivative<G>) {
+    return 0;
+  }
+
+  //! Print the derivative the given order to a string.
+  /*!
+   * Print the derivative of the given order, and formatted using the order. A
+   * name is also provided, which is the name of the variable to which the
+   * derivative is applied.
+   *
+   * \param out The string to which the derivative is printed.
+   * \param name A string that appears in the numerator after the partial
+   * symbol.
+   */
+  template <typename G>
+  static size_t print(char* out, const char* name, SymbolicDerivative<G>) {
+    return fprintf(out, SYEX_DERIV_APPLIED_EXPR_FMT, name);
+  }
+
+  //! Get the print length of the derivative output string.
+  /*!
+   * Returns the number of characters in the format string that is
+   * printed to display the derivative. Only includes characters that
+   * are printed as part of the format, and not substituted expression
+   * strings.
+   */
+  template <typename G>
+  static size_t print_length(SymbolicDerivative<G>) {
+    return 0;
+  }
+
+  //! Get the print length of the derivative output string.
+  /*!
+   * Returns the number of characters in the format string that is
+   * printed to display the derivative. Only includes characters that
+   * are printed as part of the format, and not substituted expression
+   * strings.
+   */
+  template <typename G>
+  static size_t print_length(const char* name, SymbolicDerivative<G>) {
+    return SYEX_DERIV_APPLIED_EXPR_FMT + std::strlen(expr::get_op_name(name));
+  }
 };
 
 template <Axis ax, size_t... Os>
