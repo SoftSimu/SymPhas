@@ -1516,7 +1516,7 @@ struct print_deriv<0, ax, is_directional> {
    */
   template <typename G>
   static size_t print(char* out, const char* name, SymbolicDerivative<G>) {
-    return fprintf(out, SYEX_DERIV_APPLIED_EXPR_FMT, name);
+    return sprintf(out, SYEX_DERIV_APPLIED_EXPR_FMT, name);
   }
 
   //! Get the print length of the derivative output string.
