@@ -1,5 +1,7 @@
 # SymPhas
 
+## Version 2.0 Released Nov 2025
+
 *A compile-time symbolic algebra framework for phase-field simulations.*
 
 **SymPhas** (Symbolic Phase Field Solver) is a comprehensive C++ framework for implementing high-performance solvers for phase-field problems. It provides a Domain Specific Language (DSL) that allows you to write mathematical equations in natural syntax, which is then compiled into optimized C++ code.

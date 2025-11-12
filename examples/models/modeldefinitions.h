@@ -82,10 +82,9 @@ DEFINE_MODEL_FIELD_NAMES(MC, ("psi", "m"))
 
 // Model H
 MODEL(MH, (SCALAR, VECTOR),
-      EVOLUTION_PREAMBLE(
-          (auto f = lap(psi) + (c(1) - c(2) * psi * psi) * psi;),
-          dpsi = -lap(f) - c(3) * grad(psi) * j + lap(_nW(SCALAR, -2)),
-          dj = lap(j) + c(3) * grad(psi) * f + lap(_nW(VECTOR, 2))))
+      EVOLUTION_PREAMBLE((auto f = lap(psi) + (c(1) - c(2) * psi * psi) * psi;),
+                         dpsi = -lap(f) - c(3) * grad * (psi * j),
+                         dj = lap(j) - c(3) * psi * grad(f)))
 LINK_WITH_NAME(MH, MODELH)
 DEFINE_MODEL_FIELD_NAMES(MH, ("m", "j"))
 
@@ -93,21 +92,11 @@ DEFINE_MODEL_FIELD_NAMES(MH, ("m", "j"))
 
 #ifdef MODEL_SET_2
 
-//! Example of coupling through the free energy using an iterated sum.
-MODEL(MH_FE, (SCALAR, VECTOR),
-      FREE_ENERGY((EQUATION_OF(1)(-lap(-DF(1)) - grad(op(1)) * DF(2)),
-                   EQUATION_OF(2)(lap(DF(2)) + grad(op(1)) * -DF(1))),
-                  INT(LANDAU_FE(op(1)) + _2 * pow<2>(op(2)))))
-LINK_WITH_NAME(MH_FE, MODELH_FE)
-DEFINE_MODEL_FIELD_NAMES(MH_FE, ("m", "j"))
-
 //! Model A defined by the free energy, where the free energy uses
 //! a general index for any number of fields that are defined.
 MODEL(MA_FE, (SCALAR),
       FREE_ENERGY((NONCONSERVED), INT(SUM(ii)(LANDAU_FE(op_ii, c(1), c(2))))))
 LINK_WITH_NAME(MA_FE, MODELA_FE)
-
-//! Example of coupling through the free energy using an iterated sum.
 
 //! Model B defined by the free energy.
 MODEL(MB_FE, (SCALAR), FREE_ENERGY((CONSERVED), INT(SUM(ii)(LANDAU_FE(op_ii)))))
@@ -116,8 +105,16 @@ LINK_WITH_NAME(MB_FE, MODELB_FE)
 //! Model C defined by the free energy.
 MODEL(MC_FE, (SCALAR, SCALAR),
       FREE_ENERGY((NONCONSERVED, CONSERVED),
-                  INT(LANDAU_FE(psi) + LANDAU_FE(rho) + psi * psi * rho)))
+                  INT(LANDAU_FE(psi, c(1), c(2)) + 0.5_n * rho * rho + c(3) * psi * psi * rho)))
 LINK_WITH_NAME(MC_FE, MODELC_FE)
+
+//! Example of coupling through the free energy using an iterated sum.
+MODEL(MH_FE, (SCALAR, VECTOR),
+      FREE_ENERGY((EQUATION_OF(1)(-lap(-DF(1)) - grad * (op(1) * DF(2))),
+                   EQUATION_OF(2)(lap(DF(2)) + op(1) * -grad(DF(1)))),
+                  INT(LANDAU_FE(op(1)) + _2 * pow<2>(op(2)))))
+LINK_WITH_NAME(MH_FE, MODELH_FE)
+DEFINE_MODEL_FIELD_NAMES(MH_FE, ("m", "j"))
 
 #endif
 
