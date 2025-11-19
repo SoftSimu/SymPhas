@@ -59,7 +59,7 @@ struct EvalHandler : BaseEvalHandler<EvalHandler> {
 };
 #ifdef USING_CUDA
 
-struct KernelEvalHandler : BaseEvalHandler<KernelEvalHandler> {
+struct KernelEvalHandler : BaseEvalHandler<Ke rnelEvalHandler> {
   template <typename E, typename assign_type, typename interval_type>
   void result(OpEvaluable<E> const& e, assign_type&& assign,
               interval_type&& interval) const {

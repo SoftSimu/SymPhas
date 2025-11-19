@@ -478,32 +478,6 @@ symphas::b_element_type parse_boundary_data(
   return {type, parameters.data(), argc};
 }
 
-symphas::init_data_type parse_initial_conditions(
-    json const& entry, std::map<std::string, json> const& definitions) {
-  symphas::init_data_type init_data;
-
-  for (auto const& [axis_str, init_config] : entry.items()) {
-    Axis axis = symphas::axis_from_str(axis_str.c_str());
-
-    Inside init_type =
-        symphas::in_from_str(init_config["type"].get<std::string>().c_str());
-
-    std::vector<double> parameters;
-    if (init_config.contains("parameters")) {
-      for (auto const& param : init_config["parameters"]) {
-        parameters.push_back(parse_definition<double>(param, definitions));
-      }
-    }
-
-    symphas::init_data_parameters params(parameters.data(), parameters.size());
-    symphas::init_entry_type init_entry(init_type, params);
-
-    init_data[axis] = init_entry;
-  }
-
-  return init_data;
-}
-
 void JsonConfManager::parse_single_initial_condition(
     const json& init_config, std::map<std::string, json> const& definitions,
     int field_idx) {
@@ -636,6 +610,22 @@ void JsonConfManager::parse_single_initial_condition(
       for (auto const& param : init_config["parameters"]) {
         init_entry.data.gp[param_idx++] =
             parse_value_or_definition<double>(param, definitions);
+      }
+    }
+
+    // Parse separate tags array (new format) - this takes precedence over type
+    // string tags
+    if (init_config.contains("tags")) {
+      // Reset tags if separate tags array is provided
+      auto const& tag_array = init_config["tags"];
+
+      for (auto const& tag_entry : tag_array) {
+        std::string tag_str = tag_entry.get<std::string>();
+        InsideTag tag = symphas::in_tag_from_str(tag_str.c_str());
+
+        if (tag != InsideTag::NONE) {
+          init_entry.intag = symphas::build_intag(init_entry.intag, tag);
+        }
       }
     }
   }
@@ -973,7 +963,14 @@ void JsonConfManager::parse_domain_settings(
       }
     }
     if (field_config.contains("initial_condition")) {
-      auto const& init_condition = field_config["initial_condition"];
+      auto init_condition = field_config["initial_condition"];
+      if (init_condition.is_string()) {
+        if (!config_json.contains("initial_conditions")) {
+          throw std::runtime_error(
+              "No 'initial_conditions' section found in configuration.");
+        }
+        init_condition = config_json["initial_conditions"][init_condition];
+      }
 
       // Handle array of initial conditions for different axes
       if (init_condition.is_array()) {

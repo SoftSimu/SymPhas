@@ -2077,6 +2077,7 @@ struct RegionalGrid : Grid<T, D> {
   RegionalGrid(RegionalGrid<T, D>&& other) noexcept : RegionalGrid() {
     swap(*this, other);
   }
+
   RegionalGrid& operator=(RegionalGrid<T, D> other) {
     swap(*this, other);
     return *this;
@@ -2198,7 +2199,7 @@ struct RegionalGrid<any_vector_t<T, D>, D> : Grid<any_vector_t<T, D>, D> {
   template <size_t... Is>
   RegionalGrid(Grid<any_vector_t<T, D>, D> const& other,
                std::index_sequence<Is...>)
-      : parent_type{other},
+      : parent_type{nullptr},
         region{parent_type::dims, BOUNDARY_DEPTH},
         empty{symphas::lib::repeat_value<Is>(REGIONAL_GRID_OUTER_VALUE)...} {}
   template <size_t... Is>
@@ -2227,6 +2228,24 @@ struct RegionalGrid<any_vector_t<T, D>, D> : Grid<any_vector_t<T, D>, D> {
                 tmp.values[i]);
     }
     swap(tmp.values, parent_type::values);
+  }
+
+  RegionalGrid(RegionalGrid<any_vector_t<T, D>, D>&& other) noexcept
+      : RegionalGrid(nullptr, other.empty, other.region.boundary_size) {
+    swap(*this, other);
+  }
+
+  RegionalGrid& operator=(RegionalGrid<any_vector_t<T, D>, D> other) {
+    swap(*this, other);
+    return *this;
+  }
+
+  friend void swap(RegionalGrid<any_vector_t<T, D>, D>& first,
+                   RegionalGrid<any_vector_t<T, D>, D>& second) {
+    using std::swap;
+    swap(static_cast<parent_type&>(first), static_cast<parent_type&>(second));
+    swap(first.empty, second.empty);
+    swap(first.region, second.region);
   }
 
   const RegionalGrid<any_vector_t<T, D>, D>& as_grid() const { return *this; }

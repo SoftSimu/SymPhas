@@ -176,8 +176,21 @@
         "additionalProperties": false
       }
     },
+    "initial_conditions": {
+      "description": "Initial conditions configurations that can be referenced in the model",
+      "type": "object",
+      "additionalItems": {
+        "oneOf": [
+          { "$ref": "#/definitions/initial_condition" },
+          {
+            "type": "array",
+            "items": { "$ref": "#/definitions/initial_condition" }
+          }
+        ]
+      }
+    },
     "domains": {
-      "description": "Domain configurations for each field",
+      "description": "Domain configurations that can be referenced in the model",
       "type": "object",
       "additionalItems": {
         "type": "object",
@@ -218,33 +231,33 @@
         "required": [ "boundaries", "intervals" ]
       }
     },
-    "names": {
-      "description": "Names for output fields",
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "output": {
-      "description": "Output directory configuration",
-      "type": "object",
-      "properties": {
-        "directory": {
-          "description": "Root output directory",
-          "type": "string"
-        },
-        "title": {
-          "description": "Title for the output directory",
+      "names": {
+        "description": "Names for output fields",
+        "type": "array",
+        "items": {
           "type": "string"
         }
+      },
+      "output": {
+        "description": "Output directory configuration",
+        "type": "object",
+        "properties": {
+          "directory": {
+            "description": "Root output directory",
+            "type": "string"
+          },
+          "title": {
+            "description": "Title for the output directory",
+            "type": "string"
+          }
+        }
+      },
+      "parameters": {
+        "description": "Raw parameters for the simulation",
+        "type": "object",
+        "additionalProperties": true
       }
     },
-    "parameters": {
-      "description": "Raw parameters for the simulation",
-      "type": "object",
-      "additionalProperties": true
-    }
-  },
   "definitions": {
     "numberOrDefinitionRef": {
       "oneOf": [
@@ -283,7 +296,7 @@
       "oneOf": [
         {
           "type": "number",
-          "exclusiveMinimum": 0
+          "minimum": 0
         },
         {
           "type": "string",
@@ -323,6 +336,7 @@
         "initial_condition": {
           "description": "Initial condition specifications",
           "oneOf": [
+            { "type": "string" },
             { "$ref": "#/definitions/initial_condition" },
             {
               "type": "array",
@@ -358,15 +372,7 @@
           "description": "Initial condition type",
           "type": "array",
           "items": {
-            "type": "string",
-            "enum": [
-              "RANDOM",
-              "INVERT",
-              "A",
-              "B",
-              "C",
-              "FIXEDSEED"
-            ]
+            "type": "string"
           }
         },
         "axis": {
