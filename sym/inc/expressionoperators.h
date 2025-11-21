@@ -2336,22 +2336,145 @@ struct eval_fftw_sthc<3> {
 //	E e;
 //};
 
+/*
+    Compile with the following arguments:
+    g++ -O3 spectralPoissonSolver.cpp -I$HOME/local/fftw3/include \
+    -L$HOME/local/fftw3/lib -lfftw3 -lm -o spectral_poisson_solver
+
+    //Use if it complains about not finding fftw3 library
+    export
+   LD_LIBRARY_PATH="$HOME/local/fftw3/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+ */
+
+inline std::vector<double> flatten(std::vector<std::vector<double>> matrix) {
+  std::vector<double> flat;
+  flat.reserve(matrix.size() * matrix[0].size());  // optional but efficient
+
+  for (const auto& row : matrix) {
+    for (double val : row) {
+      flat.push_back(val);
+    }
+  }
+
+  return flat;
+}
+
+inline std::vector<double> precompute_kx(int N, int L) {
+  std::vector<double> kx(N);
+
+  for (int n = 0; n <= (N / 2); n++) {
+    double kx_n = 2 * symphas::PI * n / L;
+    kx[n] = kx_n;
+  }
+  for (int n = (N / 2); n < N; n++) {
+    double negative_frequency = -(N / 2) + (n - N / 2);
+    double kx_n = 2 * symphas::PI * negative_frequency / L;
+    kx[n] = kx_n;
+  }
+  return kx;
+}
+
+std::tuple<fftw_plan, fftw_plan, double*, fftw_complex*, fftw_complex*, double*> inline createFFTWPlans(int N) {
+  int NX = N;
+  int NYc = N / 2 + 1;  // number of complex columns
+  size_t real_size = (size_t)NX * (size_t)NX;
+  size_t complex_size = (size_t)NX * (size_t)NYc;
+  len_type dims[]{NX, NX};
+
+  // allocate FFTW input/output using fftw_malloc (recommended alignment)
+  double* in =
+      (double*)symphas::dft::fftw_alloc_real(sizeof(double) * real_size);
+  fftw_complex* curl_m_fft = (fftw_complex*)symphas::dft::fftw_alloc_real(
+      sizeof(fftw_complex) * complex_size);
+  fftw_complex* A_fft = (fftw_complex*)symphas::dft::fftw_alloc_real(
+      sizeof(fftw_complex) * complex_size);
+  double* out = (double*)symphas::dft::fftw_alloc_real(
+      sizeof(double) * real_size);  // for inverse
+
+  // create plans (Can change FFTW_MEASURE to FFTW_PATIENT or even
+  // FFTW_EXHAUSTIVE for more efficient plans if poissonSolver is going to be
+  // used many times for the same system size)
+  fftw_plan plan_forward =
+      symphas::dft::new_fftw_plan<2, scalar_t, complex_t>{}(in,
+                                                            curl_m_fft, dims);
+  fftw_plan plan_backward =
+      symphas::dft::new_fftw_plan<2, complex_t, scalar_t>{}(A_fft, out, dims);
+
+  return {plan_forward, plan_backward, in, curl_m_fft, A_fft, out};
+}
+
+// Currently takes a 2D vector and flattens it. Returns flattened solution
+inline void poissonSolver(double* A_flat, double* curl_m_flat, int N, int L,
+                   fftw_plan plan_forward, fftw_plan plan_backward, double* in,
+                   fftw_complex* curl_m_fft, fftw_complex* A_fft, double* out) {
+  std::vector<double> kx_list =
+      precompute_kx(N, L);  // Precompute cosines for efficiency
+  double mu_0 = 0.001;      // 10^-3 (Used by Faghihi 2012)
+
+  // FFTW variables
+  int NX = N;
+  int NYc = N / 2 + 1;  // number of complex columns
+  size_t real_size = (size_t)NX * (size_t)NX;
+
+  // execute forward transform: curl_m -> curl_m_fft
+  symphas::dft::fftw_execute(plan_forward);
+
+  // Multiply each element of curl_m_fft by P[m][n] to get A_fft
+  for (int n = 0; n < N; n++) {
+    double kx = kx_list[n];
+    for (int m = 0; m < NYc; m++) {
+      double ky = kx_list[m];
+      double denominator = kx * kx + ky * ky;
+      double P_mn = (denominator == 0) ? 0.0 : -1 / denominator;
+
+      size_t idx = (size_t)n * (size_t)NYc + (size_t)m;
+
+      // Compute vector potential in fourier space
+      // Multiply by -mu_0 for actual results.
+      A_fft[idx][0] = P_mn * curl_m_fft[idx][0];  // real component
+      A_fft[idx][1] = P_mn * curl_m_fft[idx][1];  // imaginary component
+    }
+  }
+
+  // inverse transform: A_k -> out (real)
+  symphas::dft::fftw_execute(plan_backward);
+
+  // FFTW's inverse c2r returns unnormalized results: must divide by (N*N)
+  double scale = 1.0 / (double)(NX * NX);
+
+  for (size_t i = 0; i < real_size; ++i) {
+    A_flat[i] = out[i] * scale;
+  }
+}
+
 namespace symphas::internal {
-template <typename G, typename grid_type>
-void poisson_solver_2d(OpTerm<OpIdentity, G> const& e, grid_type& grid) {}
+template <typename E, typename grid_type>
+void poisson_solver_2d(OpExpression<E> const& e, grid_type& grid) {}
 
-template <typename G, typename grid_type>
-void poisson_solver_3d(OpTerm<OpIdentity, G> const& e, grid_type& grid) {}
+template <typename E, typename grid_type>
+void poisson_solver_3d(OpExpression<E> const& e, grid_type& grid) {}
 
-template <typename G, typename T>
-void poisson_solver_2d(OpTerm<OpIdentity, G> const& e,
-                       BoundaryGrid<T, 2>& grid) {
+template <typename E, typename T>
+void poisson_solver_2d(OpExpression<E> const& e, BoundaryGrid<T, 2>& grid) {
+
+
   // YOUR POISSON IMPLEMENTATION HERE
   // output data = grid
   // input data = e
   BoundaryGrid<T, 2> input(grid.dims);
   expr::result(e, input);
   len_type* dims = grid.dims;
+  len_type interior_dims[]{dims[0] - 6, dims[1] - 6};
+  // write function to copy interior cells
+  Grid<T, 2> input(interior_dims);
+  Grid<T, 2> output(interior_dims);
+
+
+  auto [plan_forward, plan_backward, in, curl_m_fft, A_fft, out] =
+      createFFTWPlans(dims[0]);
+  poissonSolver(grid.values, input.values, dims[0], dims[1], plan_forward,
+                plan_backward, in, curl_m_fft, A_fft, out);
 }
 
 template <typename G, typename T>
