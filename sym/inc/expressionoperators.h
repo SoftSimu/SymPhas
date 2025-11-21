@@ -2467,7 +2467,7 @@ void poisson_solver_2d(OpExpression<E> const& e, BoundaryGrid<T, 2>& grid) {
   len_type* dims = grid.dims;
   len_type interior_dims[]{dims[0] - 6, dims[1] - 6};
   // write function to copy interior cells
-  Grid<T, 2> input(interior_dims);
+  Grid<T, 2> input_interior(interior_dims);
   Grid<T, 2> output(interior_dims);
 
 
@@ -2493,6 +2493,12 @@ void poisson_solver(OpExpression<E> const& e, grid_type& grid) {
                   "Poisson solver only implemented for 2D and 3D.");
   }
 }
+
+
+template <typename E>
+struct setup_result_data {
+  E operator()(grid::dim_list const& dims) { return {dims}; }
+};
 
 //! Rearranges a complex-valued expression determined using FFTW algorithms.
 /*!
