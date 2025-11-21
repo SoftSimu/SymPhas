@@ -49,10 +49,10 @@ LINK_WITH_NAME(CONV, CONVOLUTION)
 
 #include "modelmacros.h"
 
-#define PoissonSolver(expr) expr::poisson_solver(expr)
+#define PoissonSolver(E) expr::poisson_solver(E)
 
 MODEL(MagneticPFC2013, (SCALAR, VECTOR),
-      PROVISIONAL_DEF((SCALAR, VECTOR), 
+      PROVISIONAL_DEF((VECTOR, SCALAR), 
         var(1) <= PoissonSolver(op(2)),
         var(2) <= curl(var(1)))
           EVOLUTION(
