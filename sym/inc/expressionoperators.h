@@ -2349,7 +2349,8 @@ void poisson_solver_2d(OpTerm<OpIdentity, G> const& e,
   // YOUR POISSON IMPLEMENTATION HERE
   // output data = grid
   // input data = e
-  auto input = expr::BaseData<G>::get(e);
+  BoundaryGrid<T, 2> input(grid.dims);
+  expr::result(e, input);
   len_type* dims = grid.dims;
 }
 
