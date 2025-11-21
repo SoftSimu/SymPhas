@@ -1160,7 +1160,7 @@ template <typename E1, typename E2>
 size_t chain_operator_print_length(OpEvaluable<E1> const& a,
                                    OpEvaluable<E2> const& b) {
   return mul_print_length(*static_cast<E1 const*>(&a),
-                   *static_cast<E2 const*>(&b));
+                          *static_cast<E2 const*>(&b));
 }
 
 inline size_t chain_operator_print(char* out, OpIdentity, OpIdentity) {
@@ -2071,6 +2071,21 @@ struct OpMap<void, V, E> : OpExpression<OpMap<void, V, E>> {
 };
 
 template <>
+struct symphas::internal::make_map<symphas::internal::PoissonSolver> {
+  //! Constructs the map with the identity coefficient.
+  template <typename E>
+  static auto get(OpExpression<E> const& a);
+
+  //! Constructs the map applied to an expression.
+  template <typename = void>
+  static auto get(OpVoid);
+
+  //! Constructs the map applied to an expression.
+  template <typename V, typename E>
+  static auto get(V v, OpExpression<E> const& e);
+};
+
+template <>
 struct symphas::internal::make_map<symphas::internal::HCTS> {
   //! Constructs the map with the identity coefficient.
   template <typename E>
@@ -2320,6 +2335,107 @@ struct eval_fftw_sthc<3> {
 //
 //	E e;
 //};
+
+namespace symphas::internal {
+template <typename G, typename T>
+void poisson_solver_2d(OpTerm<OpIdentity, G> const& e, BoundaryGrid<T, 2>& grid)   {
+  // YOUR POISSON IMPLEMENTATION HERE
+  // output data = grid
+  // input data = e
+  auto input = expr::BaseData<G>(e);
+}
+
+template <typename G, typename T>
+void poisson_solver_3d(OpTerm<OpIdentity, G> const& e,
+                       BoundaryGrid<T, 3>& grid) {}
+}  // namespace symphas::internal
+
+template <size_t D, typename E, typename grid_type>
+void poisson_solver(OpExpression<E> const& e, grid_type& grid) {
+  if constexpr (D == 2) {
+    symphas::internal::poisson_solver_2d(*static_cast<E const*>(&e), grid);
+  } else if constexpr (D == 3) {
+    symphas::internal::poisson_solver_3d(*static_cast<E const*>(&e), grid);
+  } else {
+    static_assert(D == 2 || D == 3,
+                  "Poisson solver only implemented for 2D and 3D.");
+  }
+}
+
+//! Rearranges a complex-valued expression determined using FFTW algorithms.
+/*!
+ * Rearranges a complex-valued expression determined using FFTW algorithms.
+ */
+template <typename E>
+struct OpMap<symphas::internal::PoissonSolver, OpIdentity, E>
+    : OpExpression<OpMap<symphas::internal::PoissonSolver, OpIdentity, E>> {
+  using result_data_type = expr::storage_type_t<E>;
+  using result_grid = std::conditional_t<
+      std::is_same_v<result_data_type, expr::symbols::Symbol>, int,
+      result_data_type>;
+
+  using result_type = expr::eval_type_t<E>;
+  static const size_t D = expr::grid_dim<E>::value;
+
+  void allocate() {
+    e.allocate();
+    grid = symphas::internal::setup_result_data<result_grid>{}(
+        expr::data_dimensions(e));
+    symphas::internal::update_temporary_grid(grid, e);
+  }
+
+  OpMap() : e{} {}
+
+  //! Create a mapping expression.
+  /*!
+   * Create an expression which maps the given expression through the
+   * the prescribed grid mapping type.
+   *
+   * \param value The coefficient of the mapping expression.
+   * \param e The expression which is evaluated and mapped.
+   */
+  OpMap(E const& e) : e{e} {}
+
+  OpMap(OpIdentity, E const& e) : OpMap(e) {}
+
+  inline auto eval(iter_type n) const { return expr::eval(grid, n); }
+
+  template <typename eval_handler_type, typename... condition_ts>
+  void update(eval_handler_type const& eval_handler,
+              symphas::lib::types_list<condition_ts...>) {
+    poisson_solver<D>(e, grid);
+  }
+
+  template <typename eval_handler_type>
+  void update(eval_handler_type const& eval_handler) {
+    update(eval_handler, symphas::lib::types_list<>{});
+  }
+
+  auto operator-() const {
+    return expr::make_map<symphas::internal::PoissonSolver>(-e);
+  }
+
+#ifdef PRINTABLE_EQUATIONS
+
+  size_t print(FILE* out) const { return e.print(out); }
+
+  size_t print(char* out) const { return e.print(out); }
+
+  size_t print_length() const { return e.print_length(); }
+
+#endif
+
+  template <typename E0>
+  friend auto const& expr::get_enclosed_expression(
+      OpMap<symphas::internal::PoissonSolver, OpIdentity, E0> const&);
+  template <typename E0>
+  friend auto& expr::get_enclosed_expression(
+      OpMap<symphas::internal::PoissonSolver, OpIdentity, E0>&);
+
+ protected:
+  result_grid grid;  //!< Grid storing the intermediate values.
+  E e;
+};
 
 //! Rearranges a complex-valued expression determined using FFTW algorithms.
 /*!
@@ -2634,6 +2750,15 @@ auto sthc_adds(OpAdd<As...> const& e, std::index_sequence<Is...>) {
 }  // namespace
 
 template <typename E>
+auto poisson_solver(OpExpression<E> const& e) {
+  if constexpr (expr::is_coeff<E>) {
+    return *static_cast<E const*>(&e);
+  } else {
+    return expr::make_map<symphas::internal::PoissonSolver>(*static_cast<E const*>(&e));
+  }
+}
+
+template <typename E>
 auto hcts(OpExpression<E> const& e) {
   if constexpr (expr::is_coeff<E>) {
     return *static_cast<E const*>(&e);
@@ -2773,6 +2898,25 @@ template <typename G>
 template <typename A>
 auto symphas::internal::make_map<G>::get(A&& a) {
   return get(OpIdentity{}, std::forward<A>(a));
+}
+
+template <typename>
+auto symphas::internal::make_map<symphas::internal::PoissonSolver>::get(
+    OpVoid) {
+  return OpVoid{};
+}
+
+template <typename V, typename E>
+auto symphas::internal::make_map<symphas::internal::PoissonSolver>::get(
+    V value, OpExpression<E> const& e) {
+  return get(value * *static_cast<E const*>(&e));
+}
+
+template <typename E>
+auto symphas::internal::make_map<symphas::internal::PoissonSolver>::get(
+    OpExpression<E> const& e) {
+  return OpMap<symphas::internal::PoissonSolver, OpIdentity, E>(
+      *static_cast<E const*>(&e));
 }
 
 template <typename>

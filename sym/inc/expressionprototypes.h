@@ -98,6 +98,8 @@ struct tensor_cast;
 struct HCTS {};
 //! A sequential complex values to half complex plane (FFTW format).
 struct STHC {};
+//! Compute the Poisson solution for the expression.
+struct PoissonSolver {};
 }  // namespace symphas::internal
 
 namespace expr {
