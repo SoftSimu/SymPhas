@@ -1237,6 +1237,50 @@ template <size_t N>
 using placeholder_N_symbol_ = placeholder_N__symbol<N>;
 }  // namespace expr::symbols
 
+template <typename E>
+struct symphas::internal::limit_has_N_trait {
+  using op_types = expr::op_types_t<E>;
+
+  template <bool V>
+  struct wrap_boolean {
+    static constexpr bool value = V;
+    template <bool V0>
+    constexpr auto _or(wrap_boolean<V0>) {
+      return wrap_boolean<V || V0>{};
+    }
+  };
+
+  template <size_t N>
+  static constexpr auto is_series_limit_N(
+      expr::symbols::placeholder_N_symbol_<N>) {
+    return wrap_boolean<true>{};
+  }
+
+  template <typename T>
+  static constexpr auto is_series_limit_N(T) {
+    return wrap_boolean<false>{};
+  }
+
+  static constexpr auto has_series_limit_impl(symphas::lib::types_list<>) {
+    return wrap_boolean<false>{};
+  }
+
+  template <typename T0, typename... Ts>
+  static constexpr auto has_series_limit_impl(
+      symphas::lib::types_list<T0, Ts...>) {
+    return has_series_limit_impl(symphas::lib::types_list<Ts...>{})
+        ._or(is_series_limit_N(T0{}));
+  }
+
+  template <typename T0>
+  static constexpr auto has_series_limit() {
+    return has_series_limit_impl(T0{});
+  }
+
+  static constexpr bool value = std::invoke_result_t<
+      decltype(&limit_has_N_trait<E>::has_series_limit<op_types>)>::value;
+};
+
 // ******************************************************************************************
 // Specializations of SymbolID and BaseData.
 // ******************************************************************************************

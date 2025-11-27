@@ -322,6 +322,22 @@ __host__ __device__ inline void get_region_intersection(
   get_region_intersection<3>(result, region0, region1);
 }
 
+__host__ __device__ inline bool is_region_empty(
+    const iter_type (&region)[1][2]) {
+  return (region[0][1] <= region[0][0]);
+}
+
+__host__ __device__ inline bool is_region_empty(
+    const iter_type (&region)[2][2]) {
+  return (region[0][1] <= region[0][0] || region[1][1] <= region[1][0]);
+}
+
+__host__ __device__ inline bool is_region_empty(
+    const iter_type (&region)[3][2]) {
+  return (region[0][1] <= region[0][0] || region[1][1] <= region[1][0] ||
+          region[2][1] <= region[2][0]);
+}
+
 //! Compute the number of interior points.
 /*!
  * For grids that include boundaries, only the interior values are typically

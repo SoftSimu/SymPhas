@@ -3894,7 +3894,8 @@ struct expr::vars<OpConvolution<V, E1, E2>> {
 };
 
 //! Specialization based on expr::vars.
-template <typename V, size_t D, template <typename, size_t> typename grid_type, typename E>
+template <typename V, size_t D, template <typename, size_t> typename grid_type,
+          typename E>
 struct expr::vars<OpConvolution<V, GaussianSmoothing<D, grid_type>, E>> {
   static constexpr auto get_ids() { return expr::vars<E>::get_ids(); }
 
@@ -4370,6 +4371,9 @@ template <>
 struct test_eval<void> {
   using type = void;
 };
+
+template <typename E>
+struct limit_has_N_trait;
 }  // namespace symphas::internal
 
 template <typename E>
@@ -4463,6 +4467,23 @@ struct expr::eval_type {
   static auto _get_eval(Substitution<T0, Ts...> const &e) ->
       typename eval_type<T0>::type {
     return {};
+  }
+
+  template <typename Op, typename... Ts, typename E0, typename Inds,
+            typename... As, typename... Bs, typename Vs>
+  static auto _get_eval(
+      SymbolicSeries<
+          Op, Substitution<Ts...>,
+          symphas::lib::types_list<
+              E0, Inds,
+              symphas::lib::types_list<expr::series_limits<As, Bs>...>,
+              Vs>> const &e) {
+    if constexpr ((symphas::internal::limit_has_N_trait<As>::value || ...) ||
+                  (symphas::internal::limit_has_N_trait<Bs>::value || ...)) {
+      return expr::symbols::Symbol{};
+    } else {
+      return typename eval_type<Substitution<Ts...>>::type{};
+    }
   }
 
   template <typename E0>
@@ -4707,14 +4728,16 @@ const auto &get_enclosed_expression(
 }
 
 //! Get the expression that the OpConvolution applies to.
-template <typename V, size_t D, template <typename, size_t> typename grid_type, typename G>
-auto get_enclosed_expression(
-    OpConvolution<V, GaussianSmoothing<D, grid_type>, OpTerm<OpIdentity, G>> const &e) {
+template <typename V, size_t D, template <typename, size_t> typename grid_type,
+          typename G>
+auto get_enclosed_expression(OpConvolution<V, GaussianSmoothing<D, grid_type>,
+                                           OpTerm<OpIdentity, G>> const &e) {
   return OpTerm<OpIdentity, G>(OpIdentity{}, e.data);
 }
 
 //! Get the expression that the OpConvolution applies to.
-template <typename V, size_t D, template <typename, size_t> typename grid_type, typename E>
+template <typename V, size_t D, template <typename, size_t> typename grid_type,
+          typename E>
 auto const &get_enclosed_expression(
     OpConvolution<V, GaussianSmoothing<D, grid_type>, E> const &e) {
   return e.e;
@@ -4829,15 +4852,18 @@ auto &get_enclosed_expression(
 }
 
 //! Get the expression that the OpConvolution applies to.
-template <typename V, size_t D, template <typename, size_t> typename grid_type, typename G>
-auto get_enclosed_expression(
-    OpConvolution<V, GaussianSmoothing<D, grid_type>, OpTerm<OpIdentity, G>> &e) {
+template <typename V, size_t D, template <typename, size_t> typename grid_type,
+          typename G>
+auto get_enclosed_expression(OpConvolution<V, GaussianSmoothing<D, grid_type>,
+                                           OpTerm<OpIdentity, G>> &e) {
   return OpTerm<OpIdentity, G>(OpIdentity{}, e.data);
 }
 
 //! Get the expression that the OpConvolution applies to.
-template <typename V, size_t D, template <typename, size_t> typename grid_type, typename E>
-auto &get_enclosed_expression(OpConvolution<V, GaussianSmoothing<D, grid_type>, E> &e) {
+template <typename V, size_t D, template <typename, size_t> typename grid_type,
+          typename E>
+auto &get_enclosed_expression(
+    OpConvolution<V, GaussianSmoothing<D, grid_type>, E> &e) {
   return e.e;
 }
 
@@ -4895,14 +4921,16 @@ auto &get_result_data(OpConvolution<V, E1, E2> &e) {
 }
 
 //! Get the grid storing the underlying data of the OpConvolution.
-template <typename V, size_t D, template <typename, size_t> typename grid_type, typename G>
-auto &get_result_data(
-    OpConvolution<V, GaussianSmoothing<D, grid_type>, OpTerm<OpIdentity, G>> &e) {
+template <typename V, size_t D, template <typename, size_t> typename grid_type,
+          typename G>
+auto &get_result_data(OpConvolution<V, GaussianSmoothing<D, grid_type>,
+                                    OpTerm<OpIdentity, G>> &e) {
   return e.g0;
 }
 
 //! Get the grid storing the underlying data of the OpConvolution.
-template <typename V, size_t D, template <typename, size_t> typename grid_type, typename E>
+template <typename V, size_t D, template <typename, size_t> typename grid_type,
+          typename E>
 auto &get_result_data(OpConvolution<V, GaussianSmoothing<D, grid_type>, E> &e) {
   return e.g0;
 }
@@ -4954,14 +4982,16 @@ auto const &get_result_data(OpConvolution<V, E1, E2> const &e) {
 }
 
 //! Get the grid storing the underlying data of the OpConvolution.
-template <typename V, size_t D, template <typename, size_t> typename grid_type, typename G>
-auto const &get_result_data(
-    OpConvolution<V, GaussianSmoothing<D, grid_type>, OpTerm<OpIdentity, G>> const &e) {
+template <typename V, size_t D, template <typename, size_t> typename grid_type,
+          typename G>
+auto const &get_result_data(OpConvolution<V, GaussianSmoothing<D, grid_type>,
+                                          OpTerm<OpIdentity, G>> const &e) {
   return e.g0;
 }
 
 //! Get the grid storing the underlying data of the OpConvolution.
-template <typename V, size_t D, template <typename, size_t> typename grid_type, typename E>
+template <typename V, size_t D, template <typename, size_t> typename grid_type,
+          typename E>
 auto const &get_result_data(
     OpConvolution<V, GaussianSmoothing<D, grid_type>, E> const &e) {
   return e.g0;

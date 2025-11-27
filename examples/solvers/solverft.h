@@ -67,18 +67,17 @@ inline void equation(std::pair<S, E>* r, len_type len) const {
 
     SYMPHAS_OMP_PARALLEL_DIRECTIVE
     for (iter_type i = 0; i < len; ++i) {
-      expr::prune::update<expr::not_<expr::matches_series>>(r[i].second,
-                                                            handler);
+      expr::prune::update<expr::not_<expr::matches_series>>(r[i].second, handler);
     }
   }
   {
     expr::eval_handler_type<E> handler;
     for (iter_type i = 0; i < len; ++i) {
-      handler.result(r[i].second, r[i].first.get().dframe);
+      //expr::result_by_term<expr::matches_series>(r[i].second,
+      //                                           r[i].first.get().dframe);
+       handler.result(r[i].second, r[i].first.get().dframe);
     }
   }
-
-  // expr::result_by_term<expr::matches_series>(r.second, r.first.get().dframe);
 }
 
 /*
@@ -115,7 +114,7 @@ auto form_expr_one(SS&&, std::pair<S, E> const& e) const {
   auto eq_ft = expr::transform::optimize(expr::apply_operators(equation));
   expr::prune::update(eq_ft);
   expr::printe(eq_ft, "scheme");
-  return std::make_pair(sys, eq_ft);
+  return std::make_pair(sys, std::move(eq_ft));
 }
 
 static auto make_solver(symphas::problem_parameters_type const& parameters) {

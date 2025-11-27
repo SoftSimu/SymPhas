@@ -193,8 +193,12 @@ template <>
 struct SymbolicCase<expr::case_entry<void, void>> : expr::symbols::Symbol {};
 
 namespace expr {
-template <typename... Ts>
-auto recreate_series(Ts&&... args);
+template <typename A, typename B, typename series_type, typename... Ts>
+auto recreate_series(A&& a, B&& b, series_type const& from_series,
+                     Ts&&... args);
+
+template <typename A, typename series_type>
+auto recreate_series(A&& a, series_type const& from_series);
 
 template <int N, int P, typename E>
 auto make_list(expr::symbols::i_<N, P>, OpExpression<E> const& e);

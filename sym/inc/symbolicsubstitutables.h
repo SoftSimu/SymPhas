@@ -659,6 +659,9 @@ struct SymbolicFunction<E, symphas::lib::types_list<Ts...>>
     : SymbolicFunction<E, Ts...> {
   using parent_type = SymbolicFunction<E, Ts...>;
   using parent_type::parent_type;
+  using this_type = SymbolicFunction<E, symphas::lib::types_list<Ts...>>;
+
+  friend void swap(this_type& first, this_type& second) {}
 
   SymbolicFunction() : parent_type() {}
   SymbolicFunction(parent_type const& parent) : parent_type(parent) {}
@@ -1263,8 +1266,8 @@ template <typename symbol_t, typename... symbol_ts,
                                      (is_symbol<symbol_t> && ... &&
                                       is_symbol<symbol_ts>)),
                                     int> = 0>
-SymbolicFunctionDef<symbol_ts...> function_of_apply(
-    symbol_t const, symbol_ts const&...) {
+SymbolicFunctionDef<symbol_ts...> function_of_apply(symbol_t const,
+                                                    symbol_ts const&...) {
   return {};
 }
 
@@ -1347,8 +1350,7 @@ auto D(SymbolicFunction<E, Variable<Z0, G0>> const& f,
 }
 
 template <typename E, size_t Z0, typename G0>
-auto D(SymbolicFunction<E, Variable<Z0, G0>> const& f,
-       OpIdentity) {
+auto D(SymbolicFunction<E, Variable<Z0, G0>> const& f, OpIdentity) {
   return expr::apply_operators(expr::make_operator_derivative<1, Z0>()(f.e));
 }
 

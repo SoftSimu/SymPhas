@@ -1648,9 +1648,28 @@ auto recreate_series_impl(
 
 }  // namespace
 
-template <typename... Ts>
-auto recreate_series(Ts&&... args) {
-  return recreate_series_impl(std::forward<Ts>(args)...);
+template <typename A, typename B, typename series_type, typename... Ts>
+auto recreate_series(A&& a, B&& b, series_type const& from_series,
+                     Ts&&... args) {
+  auto series = recreate_series_impl(std::forward<A>(a), std::forward<B>(b),
+                                     from_series, std::forward<Ts>(args)...);
+  if constexpr (expr::is_symbol<expr::eval_type_t<series_type>>) {
+    if (from_series.persistent.data) {
+      expr::prune::update(series);
+    }
+  }
+  return series;
+}
+
+template <typename A, typename series_type>
+auto recreate_series(A&& a, series_type const& from_series) {
+  auto series = recreate_series_impl(std::forward<A>(a), from_series);
+  if constexpr (expr::is_symbol<expr::eval_type_t<series_type>>) {
+    if (from_series.persistent.data) {
+      expr::prune::update(series);
+    }
+  }
+  return series;
 }
 
 template <int N, int P, typename E>

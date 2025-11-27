@@ -3229,8 +3229,8 @@ auto make_derivative_per_component(V const& v, OpExpression<E> const& e,
   constexpr size_t R = sizeof...(Is);
   return (expr::make_derivative<Dd>(
               expr::make_column_vector<Is, R>() * v,
-              expr::make_row_vector<Is, R>() *
-                                    (*static_cast<E const*>(&e)), solver) +
+              expr::make_row_vector<Is, R>() * (*static_cast<E const*>(&e)),
+              solver) +
           ...);
 }
 
@@ -3238,7 +3238,8 @@ template <typename Dd>
 template <typename V, typename E, typename Sp>
 inline auto make_derivative<Dd>::get(V const& v, OpExpression<E> const& e,
                                      solver_op_type<Sp> solver) {
-  if constexpr (expr::eval_type<E>::rank == 0) {
+  if constexpr (expr::is_symbol<expr::eval_type_t<E>> ||
+                expr::eval_type<E>::rank != expr::grid_dim<E>::value) {
     return OpDerivative<Dd, V, E, Sp>(v, *static_cast<const E*>(&e), solver);
   } else {
     constexpr size_t R = expr::eval_type<E>::rank;
@@ -3256,11 +3257,12 @@ inline auto make_derivative<Dd>::get(V const& v, OpOperator<E> const& e,
 
 template <typename Dd>
 template <typename V, typename E, typename Sp>
-inline auto make_derivative<Dd>::get(V const& v, OpOperatorChain<OpIdentity, E> const& e,
+inline auto make_derivative<Dd>::get(V const& v,
+                                     OpOperatorChain<OpIdentity, E> const& e,
                                      solver_op_type<Sp> solver) {
   return OpOperatorChain(OpIdentity{},
                          make_derivative<Dd>::get(v, e.g, solver));
-  //return OpDerivative<Dd, V, E, Sp>(v, *static_cast<const E*>(&e), solver);
+  // return OpDerivative<Dd, V, E, Sp>(v, *static_cast<const E*>(&e), solver);
 }
 
 template <typename Dd>
@@ -3303,13 +3305,17 @@ template <typename Dd>
 template <typename V, typename S, typename G, typename Sp>
 inline auto make_derivative<Dd>::get(V const& v, OpTerm<S, G> const& e,
                                      solver_op_type<Sp> solver) {
-  if constexpr (expr::eval_type<OpTerm<S, G>>::rank == 0) {
+  if constexpr (expr::is_symbol<expr::eval_type_t<OpTerm<S, G>>> ||
+                expr::eval_type<OpTerm<OpIdentity, G>>::rank !=
+                    expr::grid_dim<OpTerm<OpIdentity, G>>::value) {
     return make_derivative<Dd>::get_g(v * expr::coeff(e), expr::data(e),
                                       solver);
   } else {
-    constexpr size_t R = expr::eval_type<OpTerm<S, G>>::rank;
-    return make_derivative_per_component<Dd>(v, e, solver,
-                                             std::make_index_sequence<R>{});
+    constexpr size_t R = expr::eval_type<OpTerm<OpIdentity, G>>::rank;
+    auto coeff = v * expr::coeff(e);
+    return make_derivative_per_component<Dd>(
+        coeff, OpTerms(OpIdentity{}, expr::terms_after_first(e)), solver,
+        std::make_index_sequence<R>{});
   }
 }
 

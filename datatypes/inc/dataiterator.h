@@ -226,6 +226,9 @@ struct region_interval {
   const arr_entry_t& operator[](iter_type i) const { return intervals[i]; }
 
   region_interval& operator+=(region_interval<D> const& other) {
+    if (grid::is_region_empty(other.intervals)) {
+      return *this;
+    }
     for (iter_type i = 0; i < D; ++i) {
       intervals[i][0] = std::min(intervals[i][0], other[i][0]);
       intervals[i][1] = std::max(intervals[i][1], other[i][1]);
@@ -971,8 +974,7 @@ template <size_t D>
 auto operator/(region_interval<D> const& first, region_empty const& second) {
   auto result(first);
   for (iter_type i = 0; i < D; ++i) {
-    result[i][0] = 0;
-    result[i][1] = 0;
+    result[i][1] = result[i][0];
   }
   return result;
 }
@@ -2393,7 +2395,7 @@ struct iterator_type_impl {
 
   //! Subtract an offset from the iterator.
   specialized_iterator operator-(iter_type offset) const {
-    return (cast())-difference_type(offset);
+    return (cast()) - difference_type(offset);
   }
 
   //! Add an offset from the left hand side to an iterator.

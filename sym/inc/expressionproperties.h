@@ -1959,7 +1959,7 @@ auto iterable_domain(GaussianSmoothing<D, grid_type> const& e) {
 
 template <typename... Es, size_t... Is>
 auto iterable_domain(OpAdd<Es...> const& e, std::index_sequence<Is...>) {
-  return iterable_domain_intersection(iterable_domain(expr::get<Is>(e))...);
+  return iterable_domain_union(iterable_domain(expr::get<Is>(e))...);
 }
 
 template <typename... Es>
@@ -1986,7 +1986,7 @@ template <typename E1, typename E2>
 auto iterable_domain(OpEvaluable<E1> const& a, OpEvaluable<E2> const& b) {
   return iterable_domain_intersection(
       iterable_domain(*static_cast<const E1*>(&a)),
-                               iterable_domain(*static_cast<const E2*>(&b)));
+      iterable_domain(*static_cast<const E2*>(&b)));
 }
 
 template <typename T>

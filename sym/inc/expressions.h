@@ -1392,6 +1392,18 @@ struct OpCoeff<T, void> : OpExpression<OpCoeff<T, void>> {
     return OpCoeff<T, expr::symbols::placeholder_N_symbol_<N0>>(data);
   }
 
+  template <typename E0>
+  auto operator()(OpExpression<E0> const& e) const {
+    return OpExpression<OpCoeff<T, void>>::operator()(
+        *static_cast<E0 const*>(&e));
+  }
+
+  template <typename E0>
+  auto operator()(OpOperator<E0> const& e) const {
+    return OpExpression<OpCoeff<T, void>>::operator()(
+        *static_cast<E0 const*>(&e));
+  }
+
   auto operator[](iter_type i) const { return expr::make_literal(data[i]); }
 
   template <int N, int P>
@@ -1455,14 +1467,14 @@ struct OpCoeff : OpExpression<OpCoeff<T, I>> {
     return OpCoeff<T, expr::symbols::placeholder_N_symbol_<N0>>(data);
   }
 
-  template <typename E>
-  auto operator()(OpExpression<E> const& e) const {
-    return *this * (*static_cast<E const*>(&e));
+  template <typename E0>
+  auto operator()(OpExpression<E0> const& e) const {
+    return OpExpression<OpCoeff<T, I>>::operator()(*static_cast<E0 const*>(&e));
   }
 
-  template <typename E>
-  auto operator()(OpOperator<E> const& e) const {
-    return *this * (*static_cast<E const*>(&e));
+  template <typename E0>
+  auto operator()(OpOperator<E0> const& e) const {
+    return OpExpression<OpCoeff<T, I>>::operator()(*static_cast<E0 const*>(&e));
   }
 
   auto operator[](iter_type i) const { return expr::make_literal(data[i]); }

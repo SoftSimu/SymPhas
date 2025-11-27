@@ -2105,23 +2105,23 @@ auto compute_offset(std::integer_sequence<int, I0s...>,
 template <bool left_flag>
 inline auto limit_side(expr::symbols::Symbol const&,
                        expr::symbols::Symbol const&) {
-  return "df";
-  // static_assert(false, "limits of a series must evaluate to an integer if a
-  // series is to be computed");
+  static_assert(left_flag && !left_flag,
+                "limits of a series must evaluate to an integer if a series is "
+                "to be computed");
 }
 
 template <bool left_flag>
 inline auto limit_side(expr::symbols::Symbol const&, int value) {
-  return "df";
-  // static_assert(false, "limits of a series must evaluate to an integer if a
-  // series is to be computed");
+  static_assert(left_flag && !left_flag,
+                "limits of a series must evaluate to an integer if a series is "
+                "to be computed");
 }
 
 template <bool left_flag>
 inline auto limit_side(int value, expr::symbols::Symbol const&) {
-  return "df";
-  // static_assert(false, "limits of a series must evaluate to an integer if a
-  // series is to be computed");
+  static_assert(left_flag && !left_flag,
+                "limits of a series must evaluate to an integer if a series is "
+                "to be computed");
 }
 
 template <bool left_flag>
