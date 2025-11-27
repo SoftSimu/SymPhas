@@ -2336,6 +2336,64 @@ struct eval_fftw_sthc<3> {
 //	E e;
 //};
 
+namespace symphas::internal {
+template <typename T, typename E>
+void update_temporary_grid(T const&, OpEvaluable<E> const& e) {}
+
+template <typename T, size_t D, typename E>
+void update_temporary_grid(Grid<T, D>& grid, OpEvaluable<E> const& e) {}
+
+template <typename T, size_t D>
+void update_temporary_grid(RegionalGrid<T, D>& grid, ...) {
+  grid::region_interval<D> interval;
+  grid::resize_adjust_region(grid, interval);
+}
+
+template <typename T, size_t D>
+void update_temporary_grid(RegionalGrid<T, D>& grid,
+                           grid::region_interval<D> interval) {
+  for (iter_type i = 0; i < D; ++i) {
+    interval[i][0] -= grid.region.boundary_size;
+    interval[i][1] += grid.region.boundary_size;
+  }
+  grid::resize_adjust_region(grid, interval);
+}
+
+template <typename T, size_t D>
+void update_temporary_grid(RegionalGrid<T, D>& grid,
+                           grid::region_interval_multiple<D> const& regions) {
+  update_temporary_grid(grid, +regions);
+}
+
+template <typename T, size_t D, typename E>
+void update_temporary_grid(RegionalGrid<T, D>& grid, OpEvaluable<E> const& e) {
+  update_temporary_grid(grid,
+                        expr::iterable_domain(*static_cast<E const*>(&e)));
+}
+
+#ifdef USING_CUDA
+
+template <typename T, size_t D, typename E>
+void update_temporary_grid(GridCUDA<T, D>& grid, OpEvaluable<E> const& e);
+
+template <typename T, size_t D>
+void update_temporary_grid(RegionalGridCUDA<T, D>& grid, ...);
+
+template <typename T, size_t D>
+void update_temporary_grid(RegionalGridCUDA<T, D>& grid,
+                           grid::region_interval<D> interval);
+
+template <typename T, size_t D>
+void update_temporary_grid(RegionalGridCUDA<T, D>& grid,
+                           grid::region_interval_multiple<D> const& regions);
+
+template <typename T, size_t D, typename E>
+void update_temporary_grid(RegionalGridCUDA<T, D>& grid,
+                           OpEvaluable<E> const& e);
+
+#endif
+}  // namespace symphas::internal
+
 /*
     Compile with the following arguments:
     g++ -O3 spectralPoissonSolver.cpp -I$HOME/local/fftw3/include \
@@ -2347,18 +2405,6 @@ struct eval_fftw_sthc<3> {
 
  */
 
-inline std::vector<double> flatten(std::vector<std::vector<double>> matrix) {
-  std::vector<double> flat;
-  flat.reserve(matrix.size() * matrix[0].size());  // optional but efficient
-
-  for (const auto& row : matrix) {
-    for (double val : row) {
-      flat.push_back(val);
-    }
-  }
-
-  return flat;
-}
 
 inline std::vector<double> precompute_kx(int N, int L) {
   std::vector<double> kx(N);
@@ -2382,7 +2428,7 @@ std::tuple<fftw_plan, fftw_plan, double*, fftw_complex*, fftw_complex*, double*>
   size_t complex_size = (size_t)NX * (size_t)NYc;
   len_type dims[]{NX, NX};
 
-  // allocate FFTW input/output using fftw_malloc (recommended alignment)
+  // allocate FFTW input/output
   double* in =
       (double*)symphas::dft::fftw_alloc_real(sizeof(double) * real_size);
   fftw_complex* curl_m_fft = (fftw_complex*)symphas::dft::fftw_alloc_real(
@@ -2392,9 +2438,7 @@ std::tuple<fftw_plan, fftw_plan, double*, fftw_complex*, fftw_complex*, double*>
   double* out = (double*)symphas::dft::fftw_alloc_real(
       sizeof(double) * real_size);  // for inverse
 
-  // create plans (Can change FFTW_MEASURE to FFTW_PATIENT or even
-  // FFTW_EXHAUSTIVE for more efficient plans if poissonSolver is going to be
-  // used many times for the same system size)
+// create plans
   fftw_plan plan_forward =
       symphas::dft::new_fftw_plan<2, scalar_t, complex_t>{}(in,
                                                             curl_m_fft, dims);
@@ -2404,19 +2448,23 @@ std::tuple<fftw_plan, fftw_plan, double*, fftw_complex*, fftw_complex*, double*>
   return {plan_forward, plan_backward, in, curl_m_fft, A_fft, out};
 }
 
-// Currently takes a 2D vector and flattens it. Returns flattened solution
+// Currently takes a flat 2D vector. Returns flat solution
 inline void poissonSolver(double* A_flat, double* curl_m_flat, int N, int L,
                    fftw_plan plan_forward, fftw_plan plan_backward, double* in,
                    fftw_complex* curl_m_fft, fftw_complex* A_fft, double* out) {
-  std::vector<double> kx_list =
-      precompute_kx(N, L);  // Precompute cosines for efficiency
-  double mu_0 = 0.001;      // 10^-3 (Used by Faghihi 2012)
+
+  std::vector<double> kx_list = precompute_kx(N, L);  // Precompute cosines for efficiency
+  double mu_0 = 0.001;
 
   // FFTW variables
   int NX = N;
   int NYc = N / 2 + 1;  // number of complex columns
   size_t real_size = (size_t)NX * (size_t)NX;
 
+  //Could change it somehow so curl_m_flat is the buffer. Would remove an N^2 operation and would save memory. Get it working first though.
+  for (size_t i = 0; i < real_size; ++i) {
+        in[i] = curl_m_flat[i];
+  }
   // execute forward transform: curl_m -> curl_m_fft
   symphas::dft::fftw_execute(plan_forward);
 
@@ -2431,9 +2479,9 @@ inline void poissonSolver(double* A_flat, double* curl_m_flat, int N, int L,
       size_t idx = (size_t)n * (size_t)NYc + (size_t)m;
 
       // Compute vector potential in fourier space
-      // Multiply by -mu_0 for actual results.
-      A_fft[idx][0] = P_mn * curl_m_fft[idx][0];  // real component
-      A_fft[idx][1] = P_mn * curl_m_fft[idx][1];  // imaginary component
+      // Multiply by -mu_0 for actual results. Leave -mu_0 off to test normal Poisson equation.
+      A_fft[idx][0] = -mu_0 * P_mn * curl_m_fft[idx][0];  // real component
+      A_fft[idx][1] = -mu_0 * P_mn * curl_m_fft[idx][1];  // imaginary component
     }
   }
 
@@ -2494,11 +2542,13 @@ void poisson_solver(OpExpression<E> const& e, grid_type& grid) {
   }
 }
 
-
-template <typename E>
-struct setup_result_data {
-  E operator()(grid::dim_list const& dims) { return {dims}; }
-};
+//I enclosed this structure in the symphas namespace
+namespace symphas::internal {
+  template <typename E>
+  struct setup_result_data {
+    E operator()(grid::dim_list const& dims) { return {dims}; }
+  };
+}
 
 //! Rearranges a complex-valued expression determined using FFTW algorithms.
 /*!
