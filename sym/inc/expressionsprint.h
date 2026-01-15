@@ -203,7 +203,7 @@ auto get_limit_data(OpAdd<Es...> const& e) {
 #endif
 #define SYEX_DERIV_APPLIED_EXPR_FMT \
   SYEX_DERIV_APPLIED_EXPR_FMT_A "%s" SYEX_DERIV_APPLIED_EXPR_FMT_B
-#define SYEX_DERIV_APPLIED_EXPR_LEN \
+#define SYEX_DERIV_APPLIED_EXPR_FMT_LEN \
   STR_ARR_LEN(SYEX_DERIV_APPLIED_EXPR_FMT_A SYEX_DERIV_APPLIED_EXPR_FMT_B)
 
 #define ENABLE_UNICODE
@@ -1006,10 +1006,10 @@ struct print_deriv {
         return SYEX_DIRECTIONAL_DERIV_1_VAR_LEN(name);
       } else if constexpr (O % 2 == 1) {
         return std::strlen(name) + SYEX_DIRECTIONAL_DERIV_1_LEN +
-               SYEX_DERIV_STR_LEN(O - 1) + SYEX_DERIV_APPLIED_EXPR_LEN;
+               SYEX_DERIV_STR_LEN(O - 1) + SYEX_DERIV_APPLIED_EXPR_FMT_LEN;
       } else {
         return std::strlen(name) + SYEX_DERIV_STR_LEN(O - 1) +
-               SYEX_DERIV_APPLIED_EXPR_LEN;
+               SYEX_DERIV_APPLIED_EXPR_FMT_LEN;
       }
     } else {
       if constexpr (O == 1) {
@@ -1160,10 +1160,10 @@ struct print_deriv<O, Axis::NONE, false> {
       return SYEX_DIRECTIONAL_DERIV_1_VAR_LEN(name);
     } else if constexpr (O % 2 == 1) {
       return std::strlen(name) + SYEX_DIRECTIONAL_DERIV_1_LEN +
-             SYEX_DERIV_STR_LEN(O - 1) + SYEX_DERIV_APPLIED_EXPR_LEN;
+             SYEX_DERIV_STR_LEN(O - 1) + SYEX_DERIV_APPLIED_EXPR_FMT_LEN;
     } else {
       return std::strlen(name) + SYEX_DERIV_STR_LEN(O - 1) +
-             SYEX_DERIV_APPLIED_EXPR_LEN;
+             SYEX_DERIV_APPLIED_EXPR_FMT_LEN;
     }
   }
 
@@ -1464,7 +1464,7 @@ struct print_deriv<0, ax, is_directional> {
    */
   template <typename Sp = int>
   static size_t print_length(const char* name, Sp const& = 0) {
-    return std::strlen(name) + SYEX_DERIV_APPLIED_EXPR_LEN;
+    return std::strlen(name) + SYEX_DERIV_APPLIED_EXPR_FMT_LEN;
   }
 
   //! Print the derivative the given order to a file.
@@ -1540,7 +1540,8 @@ struct print_deriv<0, ax, is_directional> {
    */
   template <typename G>
   static size_t print_length(const char* name, SymbolicDerivative<G>) {
-    return SYEX_DERIV_APPLIED_EXPR_FMT + std::strlen(expr::get_op_name(name));
+    return SYEX_DERIV_APPLIED_EXPR_FMT_LEN +
+           std::strlen(expr::get_op_name(name));
   }
 };
 
