@@ -1558,7 +1558,9 @@ struct iterator_difference_type_impl {
 
   explicit operator size_t() const { return size_t(pos); }
 
-  explicit operator int() const { return pos; }
+  template <typename T = int,
+            std::enable_if_t<!std::is_same_v<T, difference_type>, int> = 0>
+  explicit operator T() const { return T(pos); }
 
   explicit operator difference_type() const { return difference_type(pos); }
 
@@ -2291,11 +2293,15 @@ struct iterator_type_impl {
     return cast();
   }
 
-  specialized_iterator& operator+=(int offset) {
+  template <typename T = int,
+            std::enable_if_t<!std::is_same_v<T, difference_type>, int> = 0>
+  specialized_iterator& operator+=(T offset) {
     return this->operator+=(difference_type(offset));
   }
 
-  specialized_iterator& operator-=(int offset) {
+  template <typename T = int,
+            std::enable_if_t<!std::is_same_v<T, difference_type>, int> = 0>
+  specialized_iterator& operator-=(T offset) {
     return this->operator-=(difference_type(offset));
   }
 
@@ -2387,12 +2393,16 @@ struct iterator_type_impl {
   }
 
   //! Add an offset from the iterator.
-  specialized_iterator operator+(iter_type offset) const {
+  template <typename T = iter_type,
+            std::enable_if_t<!std::is_same_v<T, difference_type>, int> = 0>
+  specialized_iterator operator+(T offset) const {
     return (cast()) + difference_type(offset);
   }
 
   //! Subtract an offset from the iterator.
-  specialized_iterator operator-(iter_type offset) const {
+  template <typename T = iter_type,
+            std::enable_if_t<!std::is_same_v<T, difference_type>, int> = 0>
+  specialized_iterator operator-(T offset) const {
     return (cast())-difference_type(offset);
   }
 

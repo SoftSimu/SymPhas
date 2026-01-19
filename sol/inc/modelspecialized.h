@@ -1672,26 +1672,26 @@ struct TraitProvisional : TraitEquation<enclosing_type, parent_trait> {
   using parent_type::temp;
 
   //! Method for using the provisional variable.
-  /*!
-   * Provisional variables are used to store the result of expressions, where
-   * they serve as an intermediate result before being used in the equations
-   * of motion.
-   *
-   * Provisional variables are given a display name that corresponds to their
-   * equation.
-   */
-  template <size_t I>
-  auto var() const {
-#ifdef PRINTABLE_EQUATIONS
-    std::ostringstream ss;
-    ss << "var" << I;
-    return expr::make_term<model_num_parameters<parent_trait>::value + I>(
-        NamedData(temp.template grid<I>(), ss.str()));
-#else
-    return expr::make_term<model_num_parameters<parent_trait>::value + I>(
-        temp.template grid<I>());
-#endif
-  }
+    /*!
+     * Provisional variables are used to store the result of expressions, where
+     * they serve as an intermediate result before being used in the equations
+     * of motion.
+     *
+     * Provisional variables are given a display name that corresponds to their
+     * equation.
+     */
+    template <size_t I>
+    auto var() {
+  #ifdef PRINTABLE_EQUATIONS
+      std::ostringstream ss;
+      ss << "var" << I;
+      return expr::make_term<model_num_parameters<parent_trait>::value + I>(
+          NamedData(temp.template grid<I>(), ss.str()));
+  #else
+      return expr::make_term<model_num_parameters<parent_trait>::value + I>(
+          temp.template grid<I>());
+  #endif
+    }
 
  protected:
   template <typename L, typename R>
