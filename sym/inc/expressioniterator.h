@@ -115,9 +115,9 @@ struct expression_iterator
       : ptr{static_cast<E const*>(&e), pos} {}
 
   expression_iterator(expression_iterator<E> const& other)
-      : expression_iterator(other.ptr) {}
+      : ptr{other.ptr} {}
   expression_iterator(expression_iterator<E>&& other)
-      : expression_iterator(other.ptr) {}
+      : ptr{std::move(other.ptr)} {}
   expression_iterator<E>& operator=(expression_iterator<E> other) {
     using std::swap;
     swap(ptr, other.ptr);
@@ -207,9 +207,9 @@ struct expression_iterator_selection
                                       pos) {}
 
   expression_iterator_selection(expression_iterator_selection<E> const& other)
-      : expression_iterator_selection(other.ptr) {}
+      : ptr{other.ptr} {}
   expression_iterator_selection(expression_iterator_selection<E>&& other)
-      : expression_iterator_selection(other.ptr) {}
+      : ptr{std::move(other.ptr)} {}
   expression_iterator_selection<E>& operator=(
       expression_iterator_selection<E> other) {
     using std::swap;
@@ -283,9 +283,9 @@ struct expression_iterator_region
       : ptr{static_cast<E const*>(&e), interval, pos} {}
 
   expression_iterator_region(expression_iterator_region<E, D> const& other)
-      : expression_iterator_region(other.ptr) {}
+      : ptr{other.ptr} {}
   expression_iterator_region(expression_iterator_region<E, D>&& other)
-      : expression_iterator_region(other.ptr) {}
+      : ptr{std::move(other.ptr)} {}
   expression_iterator_region<E, D>& operator=(
       expression_iterator_region<E, D> other) {
     using std::swap;
@@ -351,9 +351,9 @@ struct expression_iterator_group
       : ptr{static_cast<E const*>(&e), interval, pos} {}
 
   expression_iterator_group(expression_iterator_group<E, D> const& other)
-      : expression_iterator_group(other.ptr) {}
+      : ptr{other.ptr} {}
   expression_iterator_group(expression_iterator_group<E, D>&& other)
-      : expression_iterator_group(other.ptr) {}
+      : ptr{std::move(other.ptr)} {}
   expression_iterator_group<E, D>& operator=(
       expression_iterator_group<E, D> other) {
     using std::swap;

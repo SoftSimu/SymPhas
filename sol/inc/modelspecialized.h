@@ -106,7 +106,9 @@ struct MakeEquationProvisional : parent_model {
       typename symphas::provisional_system_type<solver_type>::template type<Ty,
                                                                             D>;
 
-  ProvisionalSystemGroup<ProvisionalSystemApplied, dimension, P...> temp;
+  // mutable because provisional variables need to be written during const
+  // methods like make_provisionals() - the grids store computed values
+  mutable ProvisionalSystemGroup<ProvisionalSystemApplied, dimension, P...> temp;
 
   //! Creates the provisional equation container.
   MakeEquationProvisional(double const* coeff, size_t num_coeff,
@@ -1672,29 +1674,28 @@ struct TraitProvisional : TraitEquation<enclosing_type, parent_trait> {
   using parent_type::temp;
 
   //! Method for using the provisional variable.
-    /*!
-     * Provisional variables are used to store the result of expressions, where
-     * they serve as an intermediate result before being used in the equations
-     * of motion.
-     *
-     * Provisional variables are given a display name that corresponds to their
-     * equation.
-     */
-    template <size_t I>
-    auto var() const {
-      auto& grid = const_cast<std::remove_const_t<
-          std::remove_reference_t<decltype(temp.template grid<I>())>>&>(
-          temp.template grid<I>());
-  #ifdef PRINTABLE_EQUATIONS
-      std::ostringstream ss;
-      ss << "var" << I;
-      return expr::make_term<model_num_parameters<parent_trait>::value + I>(
-          NamedData(grid, ss.str()));
-  #else
-      return expr::make_term<model_num_parameters<parent_trait>::value + I>(
-          grid);
-  #endif
-    }
+  /*!
+   * Provisional variables are used to store the result of expressions, where
+   * they serve as an intermediate result before being used in the equations
+   * of motion.
+   *
+   * Provisional variables are given a display name that corresponds to their
+   * equation.
+   */
+  template <size_t I>
+  auto var() const {
+    // temp is mutable, so we can get a non-const reference even in const context
+    auto& grid = temp.template grid<I>();
+#ifdef PRINTABLE_EQUATIONS
+    std::ostringstream ss;
+    ss << "var" << I;
+    return expr::make_term<model_num_parameters<parent_trait>::value + I>(
+        NamedData(grid, ss.str()));
+#else
+    return expr::make_term<model_num_parameters<parent_trait>::value + I>(
+        grid);
+#endif
+  }
 
  protected:
   template <typename L, typename R>

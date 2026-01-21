@@ -1905,8 +1905,8 @@ struct data_iterator
    */
   explicit data_iterator(G* data, difference_type pos = {}) : ptr{data, pos} {}
 
-  data_iterator(data_iterator<G> const& other) : data_iterator(other.ptr) {}
-  data_iterator(data_iterator<G>&& other) : data_iterator(other.ptr) {}
+  data_iterator(data_iterator<G> const& other) : ptr{other.ptr} {}
+  data_iterator(data_iterator<G>&& other) : ptr{std::move(other.ptr)} {}
   data_iterator<G>& operator=(data_iterator<G> other) {
     using std::swap;
     swap(ptr, other.ptr);
@@ -2028,9 +2028,9 @@ struct data_iterator_selection
       : data_iterator_selection(data, list.iters, pos) {}
 
   data_iterator_selection(data_iterator_selection<G> const& other)
-      : data_iterator_selection(other.ptr) {}
+      : ptr{other.ptr} {}
   data_iterator_selection(data_iterator_selection<G>&& other)
-      : data_iterator_selection(other.ptr) {}
+      : ptr{std::move(other.ptr)} {}
   data_iterator_selection<G>& operator=(data_iterator_selection<G> other) {
     using std::swap;
     swap(ptr, other.ptr);
@@ -2130,9 +2130,9 @@ struct data_iterator_region
       : ptr{data, region, pos} {}
 
   data_iterator_region(data_iterator_region<G, D> const& other)
-      : data_iterator_region(other.ptr) {}
+      : ptr{other.ptr} {}
   data_iterator_region(data_iterator_region<G, D>&& other)
-      : data_iterator_region(other.ptr) {}
+      : ptr{std::move(other.ptr)} {}
   data_iterator_region<G, D>& operator=(data_iterator_region<G, D> other) {
     using std::swap;
     swap(ptr, other.ptr);
@@ -2217,9 +2217,9 @@ struct data_iterator_group
       : ptr{data, interval, pos} {}
 
   data_iterator_group(data_iterator_group<G, D> const& other)
-      : data_iterator_group(other.ptr) {}
+      : ptr{other.ptr} {}
   data_iterator_group(data_iterator_group<G, D>&& other)
-      : data_iterator_group(other.ptr) {}
+      : ptr{std::move(other.ptr)} {}
   data_iterator_group<G, D>& operator=(data_iterator_group<G, D> other) {
     using std::swap;
     swap(ptr, other.ptr);
