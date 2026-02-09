@@ -407,23 +407,34 @@ START_NEW_SOLVER_WITH_STENCIL(SolverJFNK)
     // Solver state
     // =========================================================================
 
-    mutable bool solve_triggered;         //!< Set once Newton solve is done this step.
-    mutable int num_fields_expected;      //!< equation() calls per timestep.
-    mutable int num_fields_registered;    //!< equation() calls received so far.
-    mutable int next_field_group;         //!< Counter for field group tags.
+    mutable bool solve_triggered{false};         //!< Set once Newton solve is done this step.
+    mutable int num_fields_expected{0};      //!< equation() calls per timestep.
+    mutable int num_fields_registered{0};    //!< equation() calls received so far.
+    mutable int next_field_group{0};         //!< Counter for field group tags.
     mutable std::vector<FieldDOF> dofs;   //!< Per-component DOF data.
-    mutable len_type total_len;           //!< Sum of all DOF lengths.
+    mutable len_type total_len{0};           //!< Sum of all DOF lengths.
 
     // GMRES workspace (allocated lazily).
     mutable std::vector<double*> krylov_V;
-    mutable double* krylov_w;
+    mutable double* krylov_w{nullptr};
     mutable std::vector<double> H;
     mutable std::vector<double> gmres_g;
     mutable std::vector<double> gmres_cs;
     mutable std::vector<double> gmres_sn;
     mutable std::vector<double> gmres_y;
-    mutable double* delta_u;
-    mutable bool workspace_allocated;
+    mutable double* delta_u{nullptr};
+    mutable bool workspace_allocated{false};
+
+    // =========================================================================
+    // Destructor: free GMRES workspace
+    // =========================================================================
+
+    ~SolverJFNK() {
+        for (auto* p : krylov_V) delete[] p;
+        krylov_V.clear();
+        delete[] krylov_w; krylov_w = nullptr;
+        delete[] delta_u;  delta_u = nullptr;
+    }
 
     // =========================================================================
     // step: no-op — solution was written directly during Newton solve.
