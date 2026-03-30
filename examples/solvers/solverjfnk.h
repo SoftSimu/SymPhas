@@ -1,4 +1,7 @@
 
+// Enable verbose JFNK debugging output
+#define JFNK_VERBOSE
+
 /* ***************************************************************************
  * This file is part of the SymPhas package, containing a framework for
  * implementing solvers for phase-field problems with compile-time symbolic
@@ -764,12 +767,11 @@ private:
                 res0, static_cast<int>(tot));
 #endif
 
-        if (res0 < jfnk::NEWTON_ATOL) {
-#ifdef JFNK_VERBOSE
-            fprintf(stdout, "[JFNK] converged (initial residual < atol)\n");
-#endif
-            return;
-        }
+        // NOTE: Do NOT early-exit here based on absolute tolerance.
+        // The initial residual G(u_old) = -dt*F(u_old) scales with dt,
+        // so small dt will always have small initial residual — but the
+        // Newton solve must still proceed to apply the update.
+        // Convergence is checked AFTER at least one Newton iteration.
 
         // Step 3: Newton iteration.
         for (int k = 0; k < jfnk::MAX_NEWTON_ITERS; ++k) {
