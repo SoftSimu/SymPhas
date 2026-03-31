@@ -1,6 +1,6 @@
 
-// Enable verbose JFNK debugging output
-#define JFNK_VERBOSE
+// Uncomment to enable verbose JFNK debugging output
+// #define JFNK_VERBOSE
 
 /* ***************************************************************************
  * This file is part of the SymPhas package, containing a framework for
