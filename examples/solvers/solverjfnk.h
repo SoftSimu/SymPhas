@@ -494,12 +494,18 @@ START_NEW_SOLVER_WITH_STENCIL(SolverJFNK)
         dof.allocate(dof.interior_len);
 
         // Callback: evaluate F(u) into sys.dframe.
+        // During Newton iterations, noise must NOT be regenerated — the
+        // stochastic forcing is fixed once per timestep.  We exclude
+        // OpSymbolicEval (which wraps noise) from the prune::update so
+        // cached noise grids are read but not overwritten.
         dof.eval_rhs = [&r]() {
             auto& sys_ref = r.first.get();
             {
                 using Expr = std::remove_reference_t<decltype(r.second)>;
                 expr::eval_handler_type<Expr> handler;
-                expr::prune::update<expr::not_<expr::matches_series>>(
+                expr::prune::update<expr::not_<expr::or_<
+                        expr::matches_series,
+                        expr::matches_symbolic_eval>>>(
                         r.second, handler);
             }
             expr::result(r.second, sys_ref.dframe);
@@ -532,7 +538,9 @@ START_NEW_SOLVER_WITH_STENCIL(SolverJFNK)
                 {
                     using Expr = std::remove_reference_t<decltype(r.second)>;
                     expr::eval_handler_type<Expr> handler;
-                    expr::prune::update<expr::not_<expr::matches_series>>(
+                    expr::prune::update<expr::not_<expr::or_<
+                            expr::matches_series,
+                            expr::matches_symbolic_eval>>>(
                             r.second, handler);
                 }
                 expr::result(r.second, sys_ref.dframe);
@@ -608,7 +616,12 @@ START_NEW_SOLVER_WITH_STENCIL(SolverJFNK)
 
         auto& sys = r.first.get();
 
+        // Ensure expression sub-data (noise grids, etc.) are allocated.
+        r.second.allocate();
+
         // Evaluate F(u^current) into sys.dframe (real-space BoundaryGrid).
+        // This uses not_<matches_series> so noise IS updated here — this
+        // generates the stochastic forcing for this timestep.
         {
             expr::eval_handler_type<E> handler;
             expr::prune::update<expr::not_<expr::matches_series>>(
