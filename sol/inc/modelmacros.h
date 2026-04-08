@@ -1199,6 +1199,8 @@ using model_repeating_type_t = typename model_repeating_type<N, T>::type;
   NOISE(POISSON, SCALAR, INTENSITY, LAMBDA, __VA_ARGS__)
 
 #define _nW(TYPE, ...) WHITE_NOISE(TYPE, __VA_ARGS__)
+#define CONSERVED_WHITE_NOISE(TYPE, ...) NOISE(CONSERVED_WHITE, TYPE, __VA_ARGS__)
+#define _cW(TYPE, ...) CONSERVED_WHITE_NOISE(TYPE, __VA_ARGS__)
 #define _nP(INTENSITY, LAMBDA, ...) \
   POISSON_NOISE(INTENSITY, LAMBDA, __VA_ARGS__)
 

@@ -227,6 +227,17 @@ inline auto eigen_exponential(scalar_t intensity, scalar_t lambda_n) {
   return std::exp(-intensity * lambda_n / 2);
 }
 
+//! Eigenvalue function for conserved white noise.
+/*!
+ * Conserved noise has power spectrum proportional to k^2.
+ * In the noise_data_with_function framework, lambda_n = k^2,
+ * so the filter is |k| = sqrt(k^2) = sqrt(lambda_n).
+ * This gives divergence of vector white noise: nabla . eta.
+ */
+inline auto eigen_conserved(scalar_t intensity, scalar_t lambda_n) {
+  return intensity * std::sqrt(std::abs(lambda_n));
+}
+
 inline auto eigen_polynomial(scalar_t intensity, scalar_t lambda_n) {
   return std::pow(lambda_n, -intensity);
 }
@@ -367,6 +378,38 @@ struct noise_data<NoiseType::DECAY_POLY, D, grid_type>
 
   noise_data()
       : parent_type(&eigen_polynomial, nullptr, nullptr, nullptr, 1.0),
+        seed_type() {}
+
+  template <typename R, typename eval_handler_type>
+  void update(OpExpression<R> const& intensity,
+              eval_handler_type const& eval_handler) {
+    parent_type::update(*this, static_cast<R const*>(&intensity)->eval(), false,
+                        eval_handler);
+  }
+
+  template <typename R, typename... Ts, typename eval_handler_type>
+  void update(OpExpression<R> const& intensity, std::tuple<Ts...> const& args,
+              eval_handler_type const& eval_handler) {
+    update(*static_cast<R const*>(&intensity), eval_handler);
+  }
+};
+
+template <size_t D, template <typename, size_t> typename grid_type>
+struct noise_data<NoiseType::CONSERVED_WHITE, D, grid_type>
+    : noise_data_with_function<decltype(&eigen_conserved), D, grid_type>,
+      random_seed<NoiseType::CONSERVED_WHITE> {
+  using parent_type =
+      noise_data_with_function<decltype(&eigen_conserved), D, grid_type>;
+  using seed_type = random_seed<NoiseType::CONSERVED_WHITE>;
+  using parent_type::operator[];
+
+  void allocate() { parent_type::allocate(); }
+
+  noise_data(const len_type* dims, const double* h, const double* dt)
+      : parent_type(&eigen_conserved, dims, h, dt), seed_type() {}
+
+  noise_data()
+      : parent_type(&eigen_conserved, nullptr, nullptr, nullptr),
         seed_type() {}
 
   template <typename R, typename eval_handler_type>

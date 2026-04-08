@@ -157,6 +157,20 @@ LINK_WITH_NAME(MBB, MODELBB)
 
 #endif
 
+// Model B with conserved noise
+MODEL(MB_CN, (SCALAR),
+      EVOLUTION(
+            dop(1) = lap(c(1) * op(1) - c(2) * power(op(1), 3)) + c(3) * _cW(SCALAR))
+)
+LINK_WITH_NAME(MB_CN, MODELB_CN)
+
+// Model B with nonconserved noise
+MODEL(MB_NN, (SCALAR),
+      EVOLUTION(
+            dop(1) = lap(c(1) * op(1) - c(2) * power(op(1), 3)) + c(3) * _nW(SCALAR))
+)
+LINK_WITH_NAME(MB_NN, MODELB_NN)
+
 #endif
 
 #undef j
