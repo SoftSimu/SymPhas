@@ -67,7 +67,15 @@ inline void initiate(const char *modelname, double const *coeff,
   model_select<Simulation> m{2, StencilParams{2, 9, 6, 13}};
 #endif
 
-  if (m.call<SolverFT>(modelname, coeff, num_coeff) == INVALID_MODEL) {
+  // Try SolverJFNK first. If the model is linked with JFNK it will match;
+  // otherwise call() returns INVALID_MODEL and we fall back to SolverFT.
+  int result = m.call<SolverJFNK>(modelname, coeff, num_coeff);
+
+  if (result == INVALID_MODEL) {
+    result = m.call<SolverFT>(modelname, coeff, num_coeff);
+  }
+
+  if (result == INVALID_MODEL) {
     fprintf(SYMPHAS_ERR, "Unknown model provided, '%s'\n", modelname);
     exit(101);
   }

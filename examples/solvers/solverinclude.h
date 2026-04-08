@@ -30,5 +30,6 @@
 
 #include "solversp.h"
 #include "solverft.h"
+#include "solverjfnk.h"
 
 
