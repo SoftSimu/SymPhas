@@ -2976,7 +2976,7 @@ struct InitialConditions {
       for (auto& [axis, v] : ginfo) {
         iter_type i = symphas::axis_to_index(axis);
         double h = data.at(ax)->vdata.at(axis).width();
-        v.set_domain(interval[i][0] * h, (interval[i][1] - 1) * h);
+        v.set_domain(0, (interval.dims[i] - 1) * h);
       }
       ginfo.set_strides(interval.dims);
 
