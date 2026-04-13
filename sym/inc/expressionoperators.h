@@ -2394,18 +2394,6 @@ void update_temporary_grid(RegionalGridCUDA<T, D>& grid,
 #endif
 }  // namespace symphas::internal
 
-/*
-    Compile with the following arguments:
-    g++ -O3 spectralPoissonSolver.cpp -I$HOME/local/fftw3/include \
-    -L$HOME/local/fftw3/lib -lfftw3 -lm -o spectral_poisson_solver
-
-    //Use if it complains about not finding fftw3 library
-    export
-   LD_LIBRARY_PATH="$HOME/local/fftw3/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-
- */
-
-
 inline std::vector<double> precompute_kx(int N, int L) {
   std::vector<double> kx(N);
 
@@ -2523,6 +2511,16 @@ void poisson_solver_2d(OpExpression<E> const& e, BoundaryGrid<T, 2>& grid) {
       createFFTWPlans(dims[0]);
   poissonSolver(grid.values, input.values, dims[0], dims[1], plan_forward,
                 plan_backward, in, curl_m_fft, A_fft, out);
+
+  // If plans are being recreated and memory is being reallocated each frame then the
+  // plans need to be destroyed and the memory needs to be freed each frame too.
+  symphas::dft::fftw_destroy_plan(plan_forward);
+  symphas::dft::fftw_destroy_plan(plan_backward);
+  symphas::dft::fftw_free(in);
+  symphas::dft::fftw_free(curl_m_fft);
+  symphas::dft::fftw_free(A_fft);
+  symphas::dft::fftw_free(out);
+
 }
 
 template <typename G, typename T>
