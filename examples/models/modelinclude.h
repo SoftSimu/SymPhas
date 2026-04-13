@@ -52,9 +52,9 @@ LINK_WITH_NAME(CONV, CONVOLUTION)
 #define PoissonSolver(E) expr::poisson_solver(E)
 
 MODEL(MagneticPFC2013, (SCALAR, VECTOR),
-      PROVISIONAL_DEF((VECTOR, SCALAR), 
-        var(1) <= PoissonSolver(op(2)),
-        var(2) <= curl(var(1)))
+      PROVISIONAL_DEF((SCALAR, VECTOR), 
+        var(1) <= PoissonSolver(curl(op(2))),
+        var(2) <= var(1) * e(0))
           EVOLUTION(
               dop(1) = lap(c(1) * op(1) + c(2) * op(1) +
                            c(2) * 2_n * lap(op(1)) + c(2) * bilap(op(1)) -
@@ -65,7 +65,7 @@ MODEL(MagneticPFC2013, (SCALAR, VECTOR),
               dop(2) = c(6) * c(6) * lap(op(2)) - c(7) * op(2) +
                        c(8) * power(op(1), 2) * op(2) -
                        c(9) * op(2) * dot(op(2), op(2)) +
-                       c(10) * grad(op(1)) * dot(op(2), grad(op(1))) + var(1)))
+                       c(10) * grad(op(1)) * dot(op(2), grad(op(1))) + var(2)))
 LINK_WITH_NAME(MagneticPFC2013, MAGNETICPFC2013)
 
 // #include "advancedmodeldefs.h"
