@@ -451,10 +451,12 @@ using nth_derivative_apply =
 // template<Axis ax, typename Sp>
 // using bilaplacian_apply = nth_derivative_apply<ax, 4, Sp>;
 
-template <typename E>
-struct setup_result_data {
-  E operator()(grid::dim_list const& dims) { return {dims}; }
-};
+// I commented this out because there was an identical defintion in expessionoperators.h that I enclosed in namespace symphas::internal. 
+// This code started complaining about multiple definitions after I enclosed the other definition in symphas::internal.
+// template <typename E>
+// struct setup_result_data {
+//   E operator()(grid::dim_list const& dims) { return {dims}; }
+// };
 
 template <>
 struct setup_result_data<expr::symbols::Symbol> {
@@ -1463,64 +1465,67 @@ auto break_up_derivative(solver_op_type<Sp> solver) {
 }  // namespace expr
 
 // *************************************************************************************
+// I commented this out because I added it to expressionoperators.h which caused an error due to repeated defintions. 
+// Commenting out this code allows symphas::internal::update_temporary_grid to be used in expressionoperators.h without
+// the multiple definitions error.
+//  
+// namespace symphas::internal {
+// template <typename T, typename E>
+// void update_temporary_grid(T const&, OpEvaluable<E> const& e) {}
 
-namespace symphas::internal {
-template <typename T, typename E>
-void update_temporary_grid(T const&, OpEvaluable<E> const& e) {}
+// template <typename T, size_t D, typename E>
+// void update_temporary_grid(Grid<T, D>& grid, OpEvaluable<E> const& e) {}
 
-template <typename T, size_t D, typename E>
-void update_temporary_grid(Grid<T, D>& grid, OpEvaluable<E> const& e) {}
+// template <typename T, size_t D>
+// void update_temporary_grid(RegionalGrid<T, D>& grid, ...) {
+//   grid::region_interval<D> interval;
+//   grid::resize_adjust_region(grid, interval);
+// }
 
-template <typename T, size_t D>
-void update_temporary_grid(RegionalGrid<T, D>& grid, ...) {
-  grid::region_interval<D> interval;
-  grid::resize_adjust_region(grid, interval);
-}
+// template <typename T, size_t D>
+// void update_temporary_grid(RegionalGrid<T, D>& grid,
+//                            grid::region_interval<D> interval) {
+//   for (iter_type i = 0; i < D; ++i) {
+//     interval[i][0] -= grid.region.boundary_size;
+//     interval[i][1] += grid.region.boundary_size;
+//   }
+//   grid::resize_adjust_region(grid, interval);
+// }
 
-template <typename T, size_t D>
-void update_temporary_grid(RegionalGrid<T, D>& grid,
-                           grid::region_interval<D> interval) {
-  for (iter_type i = 0; i < D; ++i) {
-    interval[i][0] -= grid.region.boundary_size;
-    interval[i][1] += grid.region.boundary_size;
-  }
-  grid::resize_adjust_region(grid, interval);
-}
+// template <typename T, size_t D>
+// void update_temporary_grid(RegionalGrid<T, D>& grid,
+//                            grid::region_interval_multiple<D> const& regions) {
+//   update_temporary_grid(grid, +regions);
+// }
 
-template <typename T, size_t D>
-void update_temporary_grid(RegionalGrid<T, D>& grid,
-                           grid::region_interval_multiple<D> const& regions) {
-  update_temporary_grid(grid, +regions);
-}
+// template <typename T, size_t D, typename E>
+// void update_temporary_grid(RegionalGrid<T, D>& grid, OpEvaluable<E> const& e) {
+//   update_temporary_grid(grid,
+//                         expr::iterable_domain(*static_cast<E const*>(&e)));
+// }
 
-template <typename T, size_t D, typename E>
-void update_temporary_grid(RegionalGrid<T, D>& grid, OpEvaluable<E> const& e) {
-  update_temporary_grid(grid,
-                        expr::iterable_domain(*static_cast<E const*>(&e)));
-}
+// #ifdef USING_CUDA
 
-#ifdef USING_CUDA
+// template <typename T, size_t D, typename E>
+// void update_temporary_grid(GridCUDA<T, D>& grid, OpEvaluable<E> const& e);
 
-template <typename T, size_t D, typename E>
-void update_temporary_grid(GridCUDA<T, D>& grid, OpEvaluable<E> const& e);
+// template <typename T, size_t D>
+// void update_temporary_grid(RegionalGridCUDA<T, D>& grid, ...);
 
-template <typename T, size_t D>
-void update_temporary_grid(RegionalGridCUDA<T, D>& grid, ...);
+// template <typename T, size_t D>
+// void update_temporary_grid(RegionalGridCUDA<T, D>& grid,
+//                            grid::region_interval<D> interval);
 
-template <typename T, size_t D>
-void update_temporary_grid(RegionalGridCUDA<T, D>& grid,
-                           grid::region_interval<D> interval);
+// template <typename T, size_t D>
+// void update_temporary_grid(RegionalGridCUDA<T, D>& grid,
+//                            grid::region_interval_multiple<D> const& regions);
 
-template <typename T, size_t D>
-void update_temporary_grid(RegionalGridCUDA<T, D>& grid,
-                           grid::region_interval_multiple<D> const& regions);
+// template <typename T, size_t D, typename E>
+// void update_temporary_grid(RegionalGridCUDA<T, D>& grid,
+//                            OpEvaluable<E> const& e);
 
-template <typename T, size_t D, typename E>
-void update_temporary_grid(RegionalGridCUDA<T, D>& grid,
-                           OpEvaluable<E> const& e);
-
-#endif
-}  // namespace symphas::internal
+// #endif
+// }  // namespace symphas::internal
 
 //! Concrete derivative expression.
 /*!
