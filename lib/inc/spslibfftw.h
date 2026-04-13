@@ -55,6 +55,7 @@ fftw_complex* fftw_alloc_complex(size_t);
 scalar_t* fftw_alloc_real(size_t);
 //! Frees the memory associated with an aligned FFTW array.
 void fftw_free(fftw_complex*&);
+void fftw_free(double*&); //Added because fftw_free was previously only defined for complex arrays.
 
 //! Creates a new FFTW plan from the given types and dimension.
 /*!

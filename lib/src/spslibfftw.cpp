@@ -142,5 +142,6 @@ scalar_t* symphas::dft::fftw_alloc_real(size_t n) {
 }
 
 void symphas::dft::fftw_free(fftw_complex*& arr) { ::fftw_free(arr); }
+void symphas::dft::fftw_free(double*& arr) {::fftw_free(arr);} //Added because fftw_free was previously only defined for complex arrays.
 
 #endif
