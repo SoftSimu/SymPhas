@@ -707,7 +707,14 @@ inline auto inverse(int e) {
 }
 
 //! Apply an inverse to a complex value.
-inline auto inverse(complex_t const& e) { return e / symphas::math::modulus(e); }
+//!
+//! Multiplicative inverse 1/z = conj(z) / |z|^2. Uses SymPhas's own
+//! `conj` and `modulus` primitives because ::complex_t is a custom
+//! struct (lib/inc/definitions.h), not std::complex.
+inline auto inverse(complex_t const& e) {
+  scalar_t m = symphas::math::modulus(e);
+  return symphas::math::conj(e) / (m * m);
+}
 
 //! Apply an inverse to an expression.
 template <typename E>

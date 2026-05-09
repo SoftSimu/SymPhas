@@ -45,7 +45,7 @@ install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/schema.json"
 )
 
 set(USING_CONF ON)
-configure_file("conf-defs.h.in" "${CMAKE_SOURCE_DIR}/inc/conf-defs.h")
+configure_file("conf-defs.h.in" "${CMAKE_BINARY_DIR}/inc/conf-defs.h")
 
 add_library(symphas_conf SHARED)
 target_link_libraries(symphas_conf PUBLIC symphas_conf_o)

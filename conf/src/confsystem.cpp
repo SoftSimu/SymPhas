@@ -1406,12 +1406,12 @@ void DirectorySettings::set_directory(const char* directory,
 #ifdef USING_MPI
       char* new_dir = nullptr;
       if (symphas::parallel::is_host_node()) {
-        char* new_dir = new char[dlen + STR_ARR_LEN(TIMESTAMP_ID_APPEND) + 2]{};
+        new_dir = new char[dlen + STR_ARR_LEN(TIMESTAMP_ID_APPEND) + 2]{};
         sprintf(new_dir, "%s/%s" TIMESTAMP_ID_APPEND "", append_dir, ts_buffer,
                 ++i);
       } else {
         int rank = symphas::parallel::get_node_rank();
-        char* new_dir = new char[dlen + symphas::lib::num_digits(rank) +
+        new_dir = new char[dlen + symphas::lib::num_digits(rank) +
                                  STR_ARR_LEN(TIMESTAMP_ID_APPEND) + 2];
         sprintf(new_dir, "%s/%s" TIMESTAMP_ID_APPEND "/%d", append_dir,
                 ts_buffer, ++i, rank);

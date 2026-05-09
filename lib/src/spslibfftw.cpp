@@ -142,5 +142,49 @@ scalar_t* symphas::dft::fftw_alloc_real(size_t n) {
 }
 
 void symphas::dft::fftw_free(fftw_complex*& arr) { ::fftw_free(arr); }
+void symphas::dft::fftw_free(double*& arr) {::fftw_free(arr);}
+
+#ifdef USING_FFTW_MPI
+#include <fftw3-mpi.h>
+
+void symphas::dft::fftw_mpi_init() {
+  ::fftw_mpi_init();
+}
+
+void symphas::dft::fftw_mpi_cleanup() {
+  ::fftw_mpi_cleanup();
+}
+
+ptrdiff_t symphas::dft::fftw_mpi_local_size_2d(
+    ptrdiff_t n0, ptrdiff_t n1, MPI_Comm comm,
+    ptrdiff_t* local_n0, ptrdiff_t* local_0_start) {
+  return ::fftw_mpi_local_size_2d(n0, n1 / 2 + 1, comm, local_n0, local_0_start);
+}
+
+fftw_plan symphas::dft::fftw_mpi_plan_r2c_2d(
+    ptrdiff_t n0, ptrdiff_t n1, double* in, fftw_complex* out,
+    MPI_Comm comm) {
+  // FFTW_MEASURE produces typically 30-50% faster execution than
+  // FFTW_ESTIMATE. MEASURE clobbers input/output during planning, but
+  // SymPhas creates plans during construction before the data is meaningful
+  // (System ctor's IC fill happens before this for `values`, but the
+  // plans use `real_work` which is freshly allocated and uninitialized).
+  // Plans for `dframe`/`frame_t` similarly target buffers before they hold
+  // real data. The previous EFAULT issue with MEASURE was traceable to
+  // the SP MPI branch silently being dead code, which is now fixed.
+  return ::fftw_mpi_plan_dft_r2c_2d(n0, n1,
+      in, reinterpret_cast<::fftw_complex*>(out),
+      comm, FFTW_MEASURE);
+}
+
+fftw_plan symphas::dft::fftw_mpi_plan_c2r_2d(
+    ptrdiff_t n0, ptrdiff_t n1, fftw_complex* in, double* out,
+    MPI_Comm comm) {
+  return ::fftw_mpi_plan_dft_c2r_2d(n0, n1,
+      reinterpret_cast<::fftw_complex*>(in), out,
+      comm, FFTW_MEASURE);
+}
+
+#endif
 
 #endif

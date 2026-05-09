@@ -28,6 +28,7 @@
 
 #include "stencilh2.h"
 #include "stencilh4.h"
+#include "stencilh6.h"
 #include "stencildefs.h"
 
 /*!
@@ -178,6 +179,25 @@ struct StencilBase2d4h : GeneralizedStencil<2, 4> {
   // auto gradient(T* const, const len_type(&)[2]) const;
 };
 
+//! Implements the gradient for the 2-dimensional stencil.
+/*!
+ * 2-dimensional implementation for gradient with 6th order of accuracy.
+ */
+struct StencilBase2d6h : GeneralizedStencil<2, 6> {
+  using parent_type = GeneralizedStencil<2, 6>;
+  using parent_type::dims;
+
+  //! Construct a new stencil from the system dimensions and \f$h\f$.
+  StencilBase2d6h(const len_type* dims, double h)
+      : parent_type(dims, h),
+        divh2{divh * divh},
+        divh3{divh * divh2},
+        divh4{divh2 * divh2} {}
+  StencilBase2d6h() = default;
+
+  double divh2, divh3, divh4;
+};
+
 template <size_t D, typename stencil_t>
 struct StencilDefaultStride {
   template <size_t O, typename T, std::enable_if_t<(O % 2 == 0), int> = 0>
@@ -227,6 +247,14 @@ struct StencilDefaultStride {
     return cast().bilaplacian(v, stride);
   }
 
+  //! Hexalaplacian (6th order derivative) of the field.
+  template <typename T>
+  __device__ __host__ inline auto hexalaplacian(T* const v) const {
+    len_type stride[D];
+    grid::get_stride<Axis::X>(stride, cast().dims);
+    return cast().hexalaplacian(v, stride);
+  }
+
   stencil_t& cast() { return *static_cast<stencil_t*>(this); }
 
   stencil_t const& cast() const { return *static_cast<stencil_t const*>(this); }
@@ -246,6 +274,8 @@ template <size_t...>
 struct Stencil2d2h;
 template <size_t...>
 struct Stencil2d4h;
+template <size_t...>
+struct Stencil2d6h;
 template <size_t...>
 struct Stencil3d2h;
 
@@ -352,6 +382,13 @@ struct Stencil2d2h<L, G, B>
   __device__ __host__ inline auto gradlaplacian(
       T* const v, const len_type (&stride)[2]) const {
     return apply_gradlaplacian_2d2h<G>{}(v, divh3, stride);
+  }
+
+  //! Hexalaplacian (6th order derivative, nabla^6) of the field.
+  template <typename T>
+  __device__ __host__ inline auto hexalaplacian(
+      T* const v, const len_type (&stride)[2]) const {
+    return apply_hexalaplacian_2d2h<29>{}(v, divh4 * divh2, stride);
   }
 };
 
@@ -461,6 +498,58 @@ struct Stencil2d4h<L, G, B>
   }
 };
 
+//! 2-dimensional stencil with 6th order of accuracy.
+/*!
+ * Implements the 2-dimensional stencil of 6th order accuracy for all derivative
+ * orders up to fourth order. For higher orders, the generalized stencil is
+ * applied.
+ *
+ * \tparam L The number of points for the laplacian.
+ * \tparam B The number of points for the bilaplacian.
+ * \tparam G The number of points for the gradlaplacian.
+ */
+template <size_t L, size_t G, size_t B>
+struct Stencil2d6h<L, G, B>
+    : symphas::internal::StencilBase2d6h,
+      Stencil<Stencil2d6h<L, G, B>>,
+      symphas::internal::StencilDefaultStride<2, Stencil2d6h<L, G, B>> {
+  using base_type = symphas::internal::StencilBase2d6h;
+  using parent_type = Stencil<Stencil2d6h<L, G, B>>;
+  using base_derivatives =
+      symphas::internal::StencilDefaultStride<2, Stencil2d6h<L, G, B>>;
+
+  using base_type::apply;
+  using base_type::base_type;
+  using base_type::dims;
+
+  using base_derivatives::apply;
+  using base_derivatives::bilaplacian;
+  using base_derivatives::gradient;
+  using base_derivatives::gradlaplacian;
+  using base_derivatives::laplacian;
+
+  //! Laplacian (2nd order derivative) of the field.
+  template <typename T>
+  __device__ __host__ inline auto laplacian(T* const v,
+                                            const len_type (&stride)[2]) const {
+    return apply_laplacian_2d6h<L>{}(v, divh2, stride);
+  }
+
+  //! Bilaplacian (4th order derivative) of the field.
+  template <typename T>
+  __device__ __host__ inline auto bilaplacian(
+      T* const v, const len_type (&stride)[2]) const {
+    return apply_bilaplacian_2d6h<B>{}(v, divh4, stride);
+  }
+
+  //! Gradlaplacian (gradient of the laplacian) of the field.
+  template <typename T>
+  __device__ __host__ inline auto gradlaplacian(
+      T* const v, const len_type (&stride)[2]) const {
+    return apply_gradlaplacian_2d6h<G>{}(v, divh3, stride);
+  }
+};
+
 template <size_t DD, size_t OA = 2>
 struct SelfSelectingStencil : GeneralizedStencil<DD, OA>,
                               Stencil<SelfSelectingStencil<DD, OA>> {
@@ -496,6 +585,16 @@ struct SelfSelectingStencil<2, 4> : GeneralizedStencil<2, 4>,
 
   template <size_t... Ps>
   using Points = Stencil2d4h<Ps...>;
+};
+
+template <>
+struct SelfSelectingStencil<2, 6> : GeneralizedStencil<2, 6>,
+                                    Stencil<SelfSelectingStencil<2, 6>> {
+  using base_type = GeneralizedStencil<2, 6>;
+  using base_type::base_type;
+
+  template <size_t... Ps>
+  using Points = Stencil2d6h<Ps...>;
 };
 
 template <>
@@ -566,12 +665,9 @@ MAKE_AVAILABLE_ORDER_LIST(2, (2))
 #endif
 
 #ifdef ORDER_LIST_2D
-MAKE_AVAILABLE_ORDER_LIST(2, (2, 4))
+MAKE_AVAILABLE_ORDER_LIST(2, (2))
 #ifndef ORDER_LIST_2D_HAS_2H
 #define ORDER_LIST_2D_HAS_2H
-#endif
-#ifndef ORDER_LIST_2D_HAS_4H
-#define ORDER_LIST_2D_HAS_4H
 #endif
 #endif
 
@@ -683,6 +779,15 @@ MAKE_STENCIL_POINT_LIST(3, 2, 4, (14))              // Default single stencil
 #endif
 #endif
 
+// 2D Sixth-order stencils
+#ifdef ORDER_LIST_2D
+#ifdef ORDER_LIST_2D_HAS_6H
+MAKE_STENCIL_POINT_LIST(2, 2, 6, (33))   // 33-point isotropic Laplacian
+MAKE_STENCIL_POINT_LIST(4, 2, 6, (37))   // 37-point isotropic bilaplacian
+MAKE_STENCIL_POINT_LIST(3, 2, 6, (30))   // 30-point isotropic gradlaplacian
+#endif
+#endif
+
 // 3D Second-order stencils
 #ifdef ORDER_LIST_3D
 #ifdef ORDER_LIST_3D_HAS_2H
@@ -733,7 +838,7 @@ MAKE_STENCIL_POINT_LIST(3, 1, 2, (4))
 
 #ifdef ORDER_LIST_2D
 #ifdef ORDER_LIST_2D_HAS_2H
-MAKE_STENCIL_POINT_LIST(2, 2, 2, (5, 9))
+MAKE_STENCIL_POINT_LIST(2, 2, 2, (9, 5))
 MAKE_STENCIL_POINT_LIST(4, 2, 2, (13, 17, 21))
 MAKE_STENCIL_POINT_LIST(3, 2, 2, (6, 8, 12, 16))
 #endif
@@ -765,11 +870,13 @@ MAKE_STENCIL_POINT_LIST(3, 1, 2, (4))
 #endif
 #endif
 
+// 2D stencil point lists defined in the ALL_STENCILS block above
+// Re-declare here for the non-STENCIL_OVERRIDE path
 #ifdef ORDER_LIST_2D
 #ifdef ORDER_LIST_2D_HAS_2H
-MAKE_STENCIL_POINT_LIST(2, 2, 2, (9))
-MAKE_STENCIL_POINT_LIST(4, 2, 2, (13))
-MAKE_STENCIL_POINT_LIST(3, 2, 2, (6))
+MAKE_STENCIL_POINT_LIST(2, 2, 2, (5, 9))
+MAKE_STENCIL_POINT_LIST(4, 2, 2, (13, 17, 21))
+MAKE_STENCIL_POINT_LIST(3, 2, 2, (6, 8, 12, 16))
 #endif
 #endif
 
@@ -778,6 +885,14 @@ MAKE_STENCIL_POINT_LIST(3, 2, 2, (6))
 MAKE_STENCIL_POINT_LIST(2, 2, 4, (9))
 MAKE_STENCIL_POINT_LIST(4, 2, 4, (21))
 MAKE_STENCIL_POINT_LIST(3, 2, 4, (14))
+#endif
+#endif
+
+#ifdef ORDER_LIST_2D
+#ifdef ORDER_LIST_2D_HAS_6H
+MAKE_STENCIL_POINT_LIST(2, 2, 6, (33))
+MAKE_STENCIL_POINT_LIST(4, 2, 6, (37))
+MAKE_STENCIL_POINT_LIST(3, 2, 6, (30))
 #endif
 #endif
 
@@ -809,7 +924,7 @@ template <template <size_t...> typename stencil_type, size_t D, size_t O>
 using infer_default_points_t =
     typename infer_default_points<stencil_type, D, O>::type;
 
-#if defined(GENERATE_UNDEFINED_STENCILS_ON) && defined(ALL_STENCILS)
+#if defined(GENERATE_UNDEFINED_STENCILS_ON)
 
 template <size_t...>
 struct Stencil1d2h : symphas::internal::StencilBase1d2h,
@@ -863,6 +978,23 @@ struct Stencil2d4h : symphas::internal::StencilBase2d4h,
 };
 
 template <size_t...>
+struct Stencil2d6h : symphas::internal::StencilBase2d6h,
+                     Stencil<Stencil2d6h<>>,
+                     symphas::internal::StencilDefaultStride<2, Stencil2d6h<>> {
+  using base_type = symphas::internal::StencilBase2d6h;
+  using base_derivatives =
+      symphas::internal::StencilDefaultStride<2, Stencil2d6h<>>;
+
+  using base_type::apply;
+  using base_type::base_type;
+  using base_type::bilaplacian;
+  using base_type::dims;
+  using base_type::gradient;
+  using base_type::gradlaplacian;
+  using base_type::laplacian;
+};
+
+template <size_t...>
 struct Stencil3d2h : symphas::internal::StencilBase3d2h,
                      Stencil<Stencil3d2h<>>,
                      symphas::internal::StencilDefaultStride<3, Stencil3d2h<>> {
@@ -903,6 +1035,13 @@ struct Stencil2d2h<> : infer_default_points_t<Stencil2d2h, 2, 2> {
 template <>
 struct Stencil2d4h<> : infer_default_points_t<Stencil2d4h, 2, 4> {
   using parent_type = infer_default_points_t<Stencil2d4h, 2, 4>;
+  using parent_type::parent_type;
+};
+#endif
+#ifdef ORDER_LIST_2D_HAS_6H
+template <>
+struct Stencil2d6h<> : infer_default_points_t<Stencil2d6h, 2, 6> {
+  using parent_type = infer_default_points_t<Stencil2d6h, 2, 6>;
   using parent_type::parent_type;
 };
 #endif
@@ -967,7 +1106,7 @@ auto search(const size_t (&parameters)[L], CrossProductList<Seq0, Seqs...>,
   using cl_type = CrossProductList<Seq0, Seqs...>;
 
   if constexpr (Pos >= cl_type::count) {
-    return F<void>{}(typename cl_type::template row<Pos>{},
+    return F<void>{}(std::index_sequence<>{},
                      std::forward<Ts>(args)...);
   } else {
     using row_type = typename cl_type::template row<Pos>;

@@ -391,6 +391,11 @@ auto length(Block<T> const& grid) {
   return grid.len;
 }
 
+template <size_t N, typename T>
+auto length(MultiBlock<N, T> const& grid) {
+  return grid.len;
+}
+
 template <typename T, size_t D>
 auto length(RegionalGrid<T, D> const& grid) {
   return length<D>(grid.region.dims);
@@ -2167,10 +2172,36 @@ void adjust_region(RegionalGrid<T, D>& grid, T cutoff) {
   iter_type origin[D];
   get_view(grid, cutoff, origin);
 
+#ifdef SYMPHAS_RESIZE_DEBUG
+  if constexpr (D == 2) {
+    fprintf(stderr,
+            "[adjust_region] parent=(%d,%d) region=(%d,%d)@(%d,%d) "
+            "get_view->origin=(%d,%d)\n",
+            grid.dims[0], grid.dims[1], grid.region.dims[0], grid.region.dims[1],
+            grid.region.origin[0], grid.region.origin[1], origin[0], origin[1]);
+  }
+#endif
+
   for (iter_type i = 0; i < D; ++i) {
+    // When the region already covers the entire parent, the only valid
+    // origin is 0 — any shift places the region partially outside the
+    // parent, which breaks periodic-boundary fill (side_non_wrapping
+    // rejects the wrapped faces). This happens for near-uniform fields
+    // where get_view's walker returns spurious intervals.
+    if (grid.region.dims[i] == grid.dims[i]) {
+      origin[i] = 0;
+      continue;
+    }
     len_type delta = (grid.dims[i] - grid.region.boundary_size * 2);
     origin[i] += (origin[i] < 0) ? delta : (origin[i] >= delta) ? -delta : 0;
   }
+
+#ifdef SYMPHAS_RESIZE_DEBUG
+  if constexpr (D == 2) {
+    fprintf(stderr, "[adjust_region] -> final origin=(%d,%d)\n", origin[0],
+            origin[1]);
+  }
+#endif
 
   grid.adjust(origin);
 }
@@ -2206,6 +2237,54 @@ void resize_adjust_region(RegionalGrid<T, D>& grid, T cutoff,
     get_view_resized(grid, cutoff, origin, dims);
   }
 
+#ifdef SYMPHAS_RESIZE_DEBUG
+  if constexpr (D == 2) {
+    fprintf(stderr, "[resize] parent=(%d,%d) region=(%d,%d)@(%d,%d) -> view=(%d,%d)@(%d,%d)\n",
+            grid.dims[0], grid.dims[1],
+            grid.region.dims[0], grid.region.dims[1],
+            grid.region.origin[0], grid.region.origin[1],
+            dims[0], dims[1], origin[0], origin[1]);
+  }
+#endif
+
+  // Degenerate case: no cell exceeded the cutoff (field is near-uniform /
+  // empty everywhere). get_view_resized_periodic signals this by setting
+  // dims to zero. Shrinking the region to zero would corrupt periodic
+  // boundary updates (side_non_wrapping rejects the zero region and faces
+  // are left holding stale values). Keep the region covering the full
+  // parent domain in that case — there is no localized structure to track.
+  bool degenerate = false;
+  for (iter_type i = 0; i < D; ++i) {
+    if (dims[i] <= 0) {
+      degenerate = true;
+      break;
+    }
+  }
+  if (degenerate) {
+    iter_type full_origin[D]{};
+    len_type full_dims[D]{};
+    for (iter_type i = 0; i < D; ++i) {
+      full_origin[i] = 0;
+      full_dims[i] = grid.dims[i];
+    }
+    grid.adjust(grid::select_region<D>(full_origin, full_dims));
+    return;
+  }
+
+  // Clamp any axis where get_view_resized_periodic reported more cells than
+  // the parent grid has. This happens when every interior cell is above the
+  // cutoff: the bounding-box walker wraps past the end and emits
+  // dims[i] = parent_interior + 1 + 2 * boundary_size. Leaving that value
+  // sets region.origin + region.dims > parent.dims, which makes
+  // side_non_wrapping reject the region and silently disables periodic
+  // boundary fills on every side.
+  for (iter_type i = 0; i < D; ++i) {
+    if (dims[i] > grid.dims[i]) {
+      dims[i] = grid.dims[i];
+      origin[i] = 0;
+    }
+  }
+
   bool same_dims_flag = true;
   for (iter_type i = 0; i < D; ++i) {
     auto dim0 = std::min(grid.dims[i], iter_type(dims[i] * padding_factor));
@@ -2231,8 +2310,35 @@ void resize_adjust_region(RegionalGrid<T, D>& grid, T cutoff,
                            ? (grid.dims[i] - grid.region.boundary_size * 2)
                            : 0;
     }
+    // Invariant: when the region covers the whole parent domain, origin must
+    // be (0, ...). A non-zero origin on a full-domain region wraps the buffer
+    // so that interior-buffer seams appear in the middle of the parent space,
+    // which breaks raw-pointer stencils and disables periodic boundary fills
+    // (side_non_wrapping rejects origin+dims > parent.dims). This situation
+    // arises naturally when get_view_resized_periodic's bounding-box walker
+    // wraps a fully-occupied grid.
+    bool covers_parent = true;
+    for (iter_type i = 0; i < D; ++i) {
+      if (grid.region.dims[i] != grid.dims[i]) {
+        covers_parent = false;
+        break;
+      }
+    }
+    if (covers_parent) {
+      for (iter_type i = 0; i < D; ++i) origin_set[i] = 0;
+    }
     grid.adjust(grid::select_region<D>(origin_set, grid.region.dims));
   } else {
+    bool covers_parent = true;
+    for (iter_type i = 0; i < D; ++i) {
+      if (dims_set[i] != grid.dims[i]) {
+        covers_parent = false;
+        break;
+      }
+    }
+    if (covers_parent) {
+      for (iter_type i = 0; i < D; ++i) origin_set[i] = 0;
+    }
     grid.adjust(grid::select_region<D>(origin_set, dims_set));
   }
 }

@@ -19,7 +19,7 @@
  * ***************************************************************************
  *
  * This file supports the functionality of the semi-implicit Fourier
- * spectral solver (solversp.h)
+ * spectral solver (solversp2.h)
  *
  * ***************************************************************************
  */
@@ -395,7 +395,7 @@ auto anti_convolve(std::tuple<S...> const&,
                    OpFourierTransform<S1, V1, E1> const& a,
                    OpFourierTransform<S2, V2, E2> const& b) {
   auto ae = expr::get_enclosed_expression(a);
-  auto be = expr::get_enclosed_expression(a);
+  auto be = expr::get_enclosed_expression(b);
   return (expr::coeff(a) * expr::coeff(b)) * expr::make_fourier_map(ae * be);
 }
 
@@ -880,7 +880,7 @@ auto construct_nonlinear(std::tuple<S...> const& systems,
 
   auto variables = expr::get_indexed_variable_list(e);
 
-  auto ee = anti_convolve<sizeof...(S), T1, T2>(
+  auto ee = anti_convolve<0, T1, T2>(
       variables,
       (construct_nonlinear<Z0, D>(systems, OpIdentity{}, e.a, h, dims)),
       (construct_nonlinear<Z0, D>(systems, OpIdentity{}, e.b, h, dims)));
@@ -903,7 +903,7 @@ auto construct_nonlinear(std::tuple<S...> const& systems,
 
   auto variables = expr::get_indexed_variable_list(e);
 
-  auto ee = anti_convolve<sizeof...(S), T1, T2>(
+  auto ee = anti_convolve<0, T1, T2>(
       variables,
       (construct_nonlinear<Z0, D>(systems, OpIdentity{}, e.a, h, dims)),
       (construct_nonlinear<Z0, D>(systems, OpIdentity{}, expr::inverse(e.b), h,

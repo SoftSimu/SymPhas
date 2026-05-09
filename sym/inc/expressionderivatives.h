@@ -28,6 +28,7 @@
 #include "expressionaggregates.h"
 #include "expressionoperators.h"
 #include "gridfunctions.h"
+#include "boundaryupdatedata.h"
 
 template <typename G>
 struct SymbolicDerivative {
@@ -1499,6 +1500,47 @@ void update_temporary_grid(RegionalGrid<T, D>& grid, OpEvaluable<E> const& e) {
                         expr::iterable_domain(*static_cast<E const*>(&e)));
 }
 
+// After a RegionalGrid temporary has been materialized by an evaluator, its
+// halo cells may still hold stale/zero values because the materialization
+// iterates over the region's current domain only. Derivative stencils that
+// later read this grid therefore pick up those unset halo cells at the first
+// interior ring, producing a spurious non-zero value when the true RHS should
+// vanish (reproduced with MB's `-bilap(psi) - lap((c1-c2*psi^2)*psi)` at
+// uniform psi=0.5: the temp for `f(psi)` is unpopulated in its halo, so
+// `lap(temp)` drifts at the first interior ring every step).
+//
+// This helper re-applies the standard periodic halo-fill (the same 8-side
+// dispatch used on the main field) to the temporary. For a fully-covered
+// region it re-syncs the halo from the interior; for a partial/cell region
+// the BC calls remain no-ops where out of range, so the fix is safe for cell
+// simulations that rely on narrow regions.
+template <typename T, typename E>
+inline void fill_temporary_halo(T const&, OpEvaluable<E> const&) {}
+
+template <typename T, size_t D, typename E>
+inline void fill_temporary_halo(Grid<T, D>&, OpEvaluable<E> const&) {}
+
+template <typename T, size_t D, typename E>
+inline void fill_temporary_halo(RegionalGrid<T, D>& grid,
+                                OpEvaluable<E> const&) {
+  using symphas::lib::side_list;
+  if constexpr (D == 1) {
+    regional_update_boundary(side_list<Side::LEFT, Side::LEFT>{}, grid);
+    regional_update_boundary(side_list<Side::RIGHT, Side::RIGHT>{}, grid);
+  } else if constexpr (D == 2) {
+    regional_update_boundary(side_list<Side::LEFT, Side::LEFT>{}, grid);
+    regional_update_boundary(side_list<Side::RIGHT, Side::RIGHT>{}, grid);
+    regional_update_boundary(side_list<Side::TOP, Side::TOP>{}, grid);
+    regional_update_boundary(side_list<Side::BOTTOM, Side::BOTTOM>{}, grid);
+    regional_update_boundary(side_list<Side::LEFT, Side::TOP>{}, grid);
+    regional_update_boundary(side_list<Side::LEFT, Side::BOTTOM>{}, grid);
+    regional_update_boundary(side_list<Side::RIGHT, Side::TOP>{}, grid);
+    regional_update_boundary(side_list<Side::RIGHT, Side::BOTTOM>{}, grid);
+  }
+  // 3D: intentionally unhandled here; solvers with 3D RegionalGrid derivative
+  // temporaries would need the full 26-side enumeration added.
+}
+
 #ifdef USING_CUDA
 
 template <typename T, size_t D, typename E>
@@ -1557,10 +1599,48 @@ struct OpDerivative : OpExpression<OpDerivative<Dd, V, E, Sp>> {
   void allocate() {
     e.allocate();
 
-    grid = symphas::internal::setup_result_data<result_grid>{}(
-        expr::data_dimensions(e));
+    // Only (re)allocate the temporary result grid on the first call.
+    // Without this guard, the per-step `prune::update` traversal calls
+    // `allocate()` every step, and `grid = setup_result_data{}(dims)`
+    // constructs a brand-new BoundaryGrid each call: that constructor
+    // does `new T[N^2]` and `std::fill(values, values+N^2, T{})`,
+    // followed by `delete[]` of the previous buffer when the temporary
+    // is destroyed. For a 2048x2048 double grid that is 32 MB
+    // alloc + 32 MB zero-write + 32 MB free EVERY STEP, per rank. At 64
+    // ranks on one socket this saturates DRAM bandwidth and the
+    // allocator lock, producing strong-scaling collapse.
+    //
+    // The temporary's dims are determined by the inner expression's
+    // data shape and do not change during a simulation. Allocate-once
+    // is therefore safe, and `update_temporary_grid` still runs every
+    // step for the RegionalGrid case (which legitimately resizes its
+    // active region between steps).
+    if (already_allocated(grid)) {
+      symphas::internal::update_temporary_grid(grid, e);
+      return;
+    }
+    grid =
+        symphas::internal::setup_result_data<result_grid>{}(
+            expr::data_dimensions(e));
     symphas::internal::update_temporary_grid(grid, e);
   }
+
+ private:
+  // grid::Block (and derived Grid/BoundaryGrid/RegionalGrid) all expose
+  // a positive `len` once memory is committed. For non-grid result
+  // types (e.g. int when result_data_type is the Symbol sentinel),
+  // there is no per-step allocator pressure to avoid, so always
+  // reconstruct.
+  template <typename G>
+  static auto already_allocated(G const& g) -> decltype(g.len > 0, true) {
+    return g.len > 0;
+  }
+  template <typename... Args>
+  static bool already_allocated(Args&&...) {
+    return false;
+  }
+
+ public:
 
   OpDerivative() : grid{0}, value{V{}}, solver{}, e{} {}
 
@@ -1584,7 +1664,27 @@ struct OpDerivative : OpExpression<OpDerivative<Dd, V, E, Sp>> {
   void update(eval_handler_type const& eval_handler,
               symphas::lib::types_list<condition_ts...>) {
     symphas::internal::update_temporary_grid(grid, e);
-    eval_handler.result(e, grid, grid::get_data_domain(grid));
+    // Iterate over only the source expression's iterable_domain, inflated
+    // by the order of THIS derivative so the outer stencil's neighbour
+    // reads at +/-order offsets land in populated halo cells of the temp.
+    //
+    // For non-MPI builds, iterable_domain on a BoundaryGrid returns the
+    // global interior [BOUNDARY_DEPTH, dim-BOUNDARY_DEPTH); after inflation
+    // (Dd::order <= BOUNDARY_DEPTH for valid finite-difference stencils)
+    // this is equivalent to the previous full-grid iteration.
+    //
+    // For MPI builds, iterable_domain returns only the rank's local tile,
+    // so each rank now materialises only ~(local_n + 2*order)^2 cells of
+    // the inner expression instead of the full N^2 every step. Without
+    // this fix, every rank redundantly evaluated the full inner
+    // expression on every step, completely defeating MPI strong scaling
+    // for any model whose RHS contains a derivative of a non-trivial
+    // expression (e.g. Model B's lap((c1 - c2*psi^2)*psi)).
+    auto interval = expr::iterable_domain(*static_cast<E const*>(&e));
+    grid::inflate_for_halo(interval, grid.dims,
+                           static_cast<iter_type>(Dd::order));
+    eval_handler.result(*static_cast<E const*>(&e), grid, interval);
+    symphas::internal::fill_temporary_halo(grid, e);
   }
 
   template <typename eval_handler_type>

@@ -106,7 +106,9 @@ struct MakeEquationProvisional : parent_model {
       typename symphas::provisional_system_type<solver_type>::template type<Ty,
                                                                             D>;
 
-  ProvisionalSystemGroup<ProvisionalSystemApplied, dimension, P...> temp;
+  // mutable because provisional variables need to be written during const
+  // methods like make_provisionals() - the grids store computed values
+  mutable ProvisionalSystemGroup<ProvisionalSystemApplied, dimension, P...> temp;
 
   //! Creates the provisional equation container.
   MakeEquationProvisional(double const* coeff, size_t num_coeff,
@@ -374,13 +376,17 @@ struct ModelApplied<D, Sp>::OpTypes<S...>::Specialized : eq_type {
   Specialized(symphas::problem_parameters_type const& parameters)
       : Specialized(nullptr, 0, parameters) {}
 
-  void update(double time) { M::update_systems(time); }
+  void update(double time) {
+    SYMPHAS_MPI_PROFILE_SCOPE("model_update_systems");
+    M::update_systems(time);
+  }
 
   void equation() { equation(std::make_index_sequence<sizeof...(S)>{}); }
 
  protected:
   template <size_t... Is>
   void equation(std::index_sequence<Is...>) {
+    SYMPHAS_MPI_PROFILE_SCOPE("model_equation");
     (..., M::solver.equation(std::get<Is>(equations)));
   }
 
@@ -1367,8 +1373,10 @@ struct TraitEquation : parent_trait {
   template <expr::NoiseType nt, typename T, typename... T0s>
   auto make_noise(T0s&&... args) const {
     using system_grid_type = model_system_grid_t<parent_trait, 0>;
-    using enclosing_grid_type = expr::enclosing_parent_storage_t<system_grid_type>;
-    using dimensionalized_t = symphas::internal::parameterized::dimensionalized_t<Dm, T>;
+    using enclosing_grid_type =
+        expr::enclosing_parent_storage_t<system_grid_type>;
+    using dimensionalized_t =
+        symphas::internal::parameterized::dimensionalized_t<Dm, T>;
 
     return symphas::internal::parameterized::NOISE<nt, dimensionalized_t, Dm>(
         parent_trait::template system<0>().info,
@@ -1554,22 +1562,23 @@ struct TraitEquation<enclosing_type,
     using namespace symphas::internal;
 
     expr::printe(*static_cast<E const*>(&e), "free energy");
-    //return parent_trait::make_equations(
-    //    apply_special_dynamics(
-    //        std::get<
-    //            dynamics_rule_N<Is, symphas::lib::types_list<dynamics_ts...>>>(
-    //            dynamics))
-    //        .template select<Is>()(dop<Is>(), *this, *static_cast<E const*>(&e),
-    //                               solver)...);
-     //return make_equations(apply_special_dynamics().template select<0>()(
-     //   dop(), *this, *static_cast<E const*>(&e), solver));
-
-      return make_equations(apply_special_dynamics(std::get<0>(dynamics))(
-          dop(), *this, *static_cast<E const*>(&e), solver));
-
-    //return make_equations(apply_special_dynamics(dynamics_t{})
-    //                          .template select<0>()(
+    // return parent_trait::make_equations(
+    //     apply_special_dynamics(
+    //         std::get<
+    //             dynamics_rule_N<Is,
+    //             symphas::lib::types_list<dynamics_ts...>>>( dynamics))
+    //         .template select<Is>()(dop<Is>(), *this, *static_cast<E
+    //         const*>(&e),
+    //                                solver)...);
+    // return make_equations(apply_special_dynamics().template select<0>()(
     //    dop(), *this, *static_cast<E const*>(&e), solver));
+
+    return make_equations(apply_special_dynamics(std::get<0>(dynamics))(
+        dop(), *this, *static_cast<E const*>(&e), solver));
+
+    // return make_equations(apply_special_dynamics(dynamics_t{})
+    //                           .template select<0>()(
+    //     dop(), *this, *static_cast<E const*>(&e), solver));
   }
 
   template <typename Dd, typename Ee>
@@ -1679,14 +1688,16 @@ struct TraitProvisional : TraitEquation<enclosing_type, parent_trait> {
    */
   template <size_t I>
   auto var() const {
+    // temp is mutable, so we can get a non-const reference even in const context
+    auto& grid = temp.template grid<I>();
 #ifdef PRINTABLE_EQUATIONS
     std::ostringstream ss;
     ss << "var" << I;
     return expr::make_term<model_num_parameters<parent_trait>::value + I>(
-        NamedData(temp.template grid<I>(), ss.str()));
+        NamedData(grid, ss.str()));
 #else
     return expr::make_term<model_num_parameters<parent_trait>::value + I>(
-        temp.template grid<I>());
+        grid);
 #endif
   }
 
@@ -1727,17 +1738,34 @@ struct TraitProvisional : TraitEquation<enclosing_type, parent_trait> {
  *
  * \param ... The equations of the provisional variables.
  */
-#define PROVISIONAL_TRAIT_DEFINITION(...)                                   \
-  template <typename parent_trait>                                          \
-  struct TraitProvisionalModel                                              \
-      : TraitProvisional<TraitEquationModel, parent_trait> {                \
-    using parent_type = TraitProvisional<TraitEquationModel, parent_trait>; \
-    using parent_type::parent_type;                                         \
-    using parent_type::solver;                                              \
-    using parent_type::c;                                                   \
-    auto make_provisionals() {                                              \
-      return parent_type::make_provisionals(__VA_ARGS__);                   \
-    }                                                                       \
+#define PROVISIONAL_TRAIT_DEFINITION(...)                                     \
+  template <typename parent_trait>                                            \
+  struct TraitProvisionalModel                                                \
+      : TraitProvisional<TraitEquationModel, parent_trait> {                  \
+    using parent_type = TraitProvisional<TraitEquationModel, parent_trait>;   \
+    using parent_type::parent_type;                                           \
+    using parent_type::solver;                                                \
+    using parent_type::c;                                                     \
+    static const size_t Dm = model_dimension<parent_type>::value;             \
+    auto make_provisionals() {                                                \
+      using namespace std;                                                    \
+      using namespace expr;                                                   \
+      using expr::modulus;                                                    \
+      using expr::dot;                                                        \
+      using namespace expr::symbols;                                          \
+      using namespace symphas;                                                \
+      using namespace std::complex_literals;                                  \
+      auto [x, y, z] = expr::make_coords<Dm>(DIMENSIONS_OF(0), INTERVALS(0)); \
+      auto t = parent_type::get_time_var();                                   \
+      using symphas::internal::parameterized::INT;                            \
+      constexpr size_t D = model_dimension<parent_type>::value;               \
+      UNUSED(D);                                                              \
+      UNUSED(x);                                                              \
+      UNUSED(y);                                                              \
+      UNUSED(z);                                                              \
+      UNUSED(t);                                                              \
+      return parent_type::make_provisionals(__VA_ARGS__);                     \
+    }                                                                         \
   };
 
 //! Defines a TraitEquation child class used to define dynamical equations.

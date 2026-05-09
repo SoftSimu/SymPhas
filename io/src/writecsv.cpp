@@ -179,10 +179,8 @@ void symphas::io::csv::save_grid_plotting(const vector_t<3>* grid, symphas::io::
 				iter_type ii = i + j * L + k * L * M;
 
 				vector_t<3> v = grid[ii];
-				double m = sqrt(v.v[0] * v.v[0] + v.v[1] * v.v[1] + v.v[2] * v.v[2]),
-					dx = v.v[0] / m,
-					dy = v.v[1] / m,
-					dz = v.v[2] / m;
+				double m, dx, dy, dz;
+				symphas::io::safe_normalize(v.v[0], v.v[1], v.v[2], dx, dy, dz, m);
 
 				fprintf(f,
 					"\"%" DATA_OUTPUT_ACCURACY_STR "f "
@@ -219,9 +217,8 @@ void symphas::io::csv::save_grid_plotting(const vector_t<2>* grid, symphas::io::
 				iter_type ii = i + j * L + k * L * M;
 
 				vector_t<2> v = grid[ii];
-				double m = sqrt(v.v[0] * v.v[0] + v.v[1] * v.v[1]),
-					dx = v.v[0] / m,
-					dy = v.v[1] / m;
+				double m, dx, dy;
+				symphas::io::safe_normalize(v.v[0], v.v[1], dx, dy, m);
 
 				fprintf(f,
 					"\"%" DATA_OUTPUT_ACCURACY_STR "f "
@@ -292,10 +289,9 @@ void symphas::io::csv::save_grid_plotting(const scalar_ptr_t(&grid)[3], symphas:
 			{
 				iter_type ii = i + j * L + k * L * M;
 
-				double m = sqrt(grid[0][ii] * grid[0][ii] + grid[1][ii] * grid[1][ii] + grid[2][ii] * grid[2][ii]),
-					dx = grid[0][ii] / m,
-					dy = grid[1][ii] / m,
-					dz = grid[2][ii] / m;
+				double m, dx, dy, dz;
+				symphas::io::safe_normalize(grid[0][ii], grid[1][ii], grid[2][ii],
+				                            dx, dy, dz, m);
 
 				fprintf(f,
 					"\"%" DATA_OUTPUT_ACCURACY_STR "f "
@@ -331,9 +327,8 @@ void symphas::io::csv::save_grid_plotting(const scalar_ptr_t(&grid)[2], symphas:
 			{
 				iter_type ii = i + j * L + k * L * M;
 
-				double m = sqrt(grid[0][ii] * grid[0][ii] + grid[1][ii] * grid[1][ii]),
-					dx = grid[0][ii] / m,
-					dy = grid[1][ii] / m;
+				double m, dx, dy;
+				symphas::io::safe_normalize(grid[0][ii], grid[1][ii], dx, dy, m);
 
 				fprintf(f,
 					"\"%" DATA_OUTPUT_ACCURACY_STR "f "

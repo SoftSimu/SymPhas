@@ -29,6 +29,10 @@
 #include "grid.h"
 #include "gridcudaincludes.h"
 
+#ifdef USING_MPI
+#include "spsmpi.h"
+#endif
+
 namespace grid {
 template <size_t D>
 struct region_interval_multiple;
@@ -1558,7 +1562,9 @@ struct iterator_difference_type_impl {
 
   explicit operator size_t() const { return size_t(pos); }
 
-  explicit operator int() const { return pos; }
+  template <typename T = int,
+            std::enable_if_t<!std::is_same_v<T, difference_type>, int> = 0>
+  explicit operator T() const { return T(pos); }
 
   explicit operator difference_type() const { return difference_type(pos); }
 
@@ -1903,8 +1909,8 @@ struct data_iterator
    */
   explicit data_iterator(G* data, difference_type pos = {}) : ptr{data, pos} {}
 
-  data_iterator(data_iterator<G> const& other) : data_iterator(other.ptr) {}
-  data_iterator(data_iterator<G>&& other) : data_iterator(other.ptr) {}
+  data_iterator(data_iterator<G> const& other) : ptr{other.ptr} {}
+  data_iterator(data_iterator<G>&& other) : ptr{std::move(other.ptr)} {}
   data_iterator<G>& operator=(data_iterator<G> other) {
     using std::swap;
     swap(ptr, other.ptr);
@@ -2026,9 +2032,9 @@ struct data_iterator_selection
       : data_iterator_selection(data, list.iters, pos) {}
 
   data_iterator_selection(data_iterator_selection<G> const& other)
-      : data_iterator_selection(other.ptr) {}
+      : ptr{other.ptr} {}
   data_iterator_selection(data_iterator_selection<G>&& other)
-      : data_iterator_selection(other.ptr) {}
+      : ptr{std::move(other.ptr)} {}
   data_iterator_selection<G>& operator=(data_iterator_selection<G> other) {
     using std::swap;
     swap(ptr, other.ptr);
@@ -2128,9 +2134,9 @@ struct data_iterator_region
       : ptr{data, region, pos} {}
 
   data_iterator_region(data_iterator_region<G, D> const& other)
-      : data_iterator_region(other.ptr) {}
+      : ptr{other.ptr} {}
   data_iterator_region(data_iterator_region<G, D>&& other)
-      : data_iterator_region(other.ptr) {}
+      : ptr{std::move(other.ptr)} {}
   data_iterator_region<G, D>& operator=(data_iterator_region<G, D> other) {
     using std::swap;
     swap(ptr, other.ptr);
@@ -2215,9 +2221,9 @@ struct data_iterator_group
       : ptr{data, interval, pos} {}
 
   data_iterator_group(data_iterator_group<G, D> const& other)
-      : data_iterator_group(other.ptr) {}
+      : ptr{other.ptr} {}
   data_iterator_group(data_iterator_group<G, D>&& other)
-      : data_iterator_group(other.ptr) {}
+      : ptr{std::move(other.ptr)} {}
   data_iterator_group<G, D>& operator=(data_iterator_group<G, D> other) {
     using std::swap;
     swap(ptr, other.ptr);
@@ -2291,11 +2297,15 @@ struct iterator_type_impl {
     return cast();
   }
 
-  specialized_iterator& operator+=(int offset) {
+  template <typename T = int,
+            std::enable_if_t<!std::is_same_v<T, difference_type>, int> = 0>
+  specialized_iterator& operator+=(T offset) {
     return this->operator+=(difference_type(offset));
   }
 
-  specialized_iterator& operator-=(int offset) {
+  template <typename T = int,
+            std::enable_if_t<!std::is_same_v<T, difference_type>, int> = 0>
+  specialized_iterator& operator-=(T offset) {
     return this->operator-=(difference_type(offset));
   }
 
@@ -2387,12 +2397,16 @@ struct iterator_type_impl {
   }
 
   //! Add an offset from the iterator.
-  specialized_iterator operator+(iter_type offset) const {
+  template <typename T = iter_type,
+            std::enable_if_t<!std::is_same_v<T, difference_type>, int> = 0>
+  specialized_iterator operator+(T offset) const {
     return (cast()) + difference_type(offset);
   }
 
   //! Subtract an offset from the iterator.
-  specialized_iterator operator-(iter_type offset) const {
+  template <typename T = iter_type,
+            std::enable_if_t<!std::is_same_v<T, difference_type>, int> = 0>
+  specialized_iterator operator-(T offset) const {
     return (cast())-difference_type(offset);
   }
 
@@ -2446,6 +2460,26 @@ auto get_iterable_domain(BoundaryGrid<T, D> const& data) {
     region[i][0] = BOUNDARY_DEPTH;
     region[i][1] = data.dims[i] - BOUNDARY_DEPTH;
   }
+#if defined(USING_MPI) && !defined(SYMPHAS_MPI_LOCAL_STORAGE)
+  // Legacy MPI: every rank holds the full N² grid. Iteration must be
+  // sliced to the rank's global block. With SYMPHAS_MPI_LOCAL_STORAGE,
+  // each rank's storage IS the local block (with halo) so the default
+  // [BOUNDARY_DEPTH, dim-BOUNDARY_DEPTH) interior bounds above are
+  // already correct.
+  if constexpr (D >= 2) {
+    if (symphas::parallel::get_num_nodes() > 1) {
+      symphas::parallel::domain_info<D> dinfo(data.dims, BOUNDARY_DEPTH);
+      // X-axis: slice only when 2-D Cartesian decomposition splits X (Px>1).
+      // For Px==1 (legacy 1-D Y-slab), local_x_start=0 and local_nx covers
+      // the full interior, so the bounds below are equivalent to the
+      // unsliced [BOUNDARY_DEPTH, dim-BOUNDARY_DEPTH) range.
+      region[0][0] = BOUNDARY_DEPTH + dinfo.local_x_start;
+      region[0][1] = BOUNDARY_DEPTH + dinfo.local_x_end;
+      region[1][0] = BOUNDARY_DEPTH + dinfo.local_y_start;
+      region[1][1] = BOUNDARY_DEPTH + dinfo.local_y_end;
+    }
+  }
+#endif
   return region;
 }
 
@@ -2495,6 +2529,30 @@ auto get_data_domain(RegionalGrid<T, D> const& data) {
   }
   return region;
 }
+
+//! Inflate a region_interval by a halo width, clamped to global bounds.
+/*!
+ * Used by expression-temporary materialization (e.g. derivative inner
+ * expressions) to ensure that when a stencil reads `temp[i +/- halo]`, the
+ * neighbor cells in `temp` were populated by the inner-expression
+ * evaluation. Under MPI, `iterable_domain` returns the rank's local update
+ * tile only; without this inflation, the outer derivative would read
+ * uninitialized halo cells in `temp` at MPI-internal boundaries.
+ */
+template <size_t D>
+inline void inflate_for_halo(region_interval<D>& region,
+                             const len_type (&global_dims)[D],
+                             iter_type halo) {
+  for (iter_type i = 0; i < D; ++i) {
+    region[i][0] = std::max<iter_type>(0, region[i][0] - halo);
+    region[i][1] =
+        std::min<iter_type>(global_dims[i], region[i][1] + halo);
+  }
+}
+
+//! No-op fallback for region types that have no D-indexed bounds.
+template <typename Region, size_t D>
+inline void inflate_for_halo(Region&, const len_type (&)[D], iter_type) {}
 
 }  // namespace grid
 

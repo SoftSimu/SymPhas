@@ -88,6 +88,43 @@ MODEL(MH, (SCALAR, VECTOR),
 LINK_WITH_NAME(MH, MODELH)
 DEFINE_MODEL_FIELD_NAMES(MH, ("m", "j"))
 
+//! Model F (Hohenberg-Halperin): superfluid. Complex order parameter psi
+//! represented as two real scalars (pR = Re psi, pI = Im psi), plus a
+//! conserved scalar m. Coefficients:
+//!   c(1) = r    (mass term in Landau free energy)
+//!   c(2) = u    (quartic coupling)
+//!   c(3) = g_c  (coupling between |psi|^2 and m)
+//!   c(4) = g_m  (mode-coupling / Poisson-bracket strength)
+//! The model is derived from
+//!   F = int [ 1/2 |grad psi|^2 + r/2 |psi|^2 + u/4 |psi|^4
+//!            + 1/2 m^2 + g_c m |psi|^2 ]
+//! with EOMs
+//!   dpsi/dt   = -Gamma (dF/dpsi*) - i g_m psi (dF/dm)
+//!   dm/dt     =  D lap (dF/dm) + 2 g_m Im[psi* (dF/dpsi*)]
+//! taking Gamma = D = 1.
+#define pR op(1)
+#define dpR dop(1)
+#define pI op(2)
+#define dpI dop(2)
+#define mF op(3)
+#define dmF dop(3)
+MODEL(MF, (SCALAR, SCALAR, SCALAR),
+      EVOLUTION_PREAMBLE(
+          (auto rho2 = pR * pR + pI * pI;
+           auto mu = mF + c(3) * rho2;
+           auto mass = c(1) + 2_n * c(2) * rho2 + c(3) * mF;),
+          dpR = lap(pR) - mass * pR + c(4) * pI * mu,
+          dpI = lap(pI) - mass * pI - c(4) * pR * mu,
+          dmF = lap(mu) + c(4) * (pI * lap(pR) - pR * lap(pI))))
+LINK_WITH_NAME(MF, MODELF)
+DEFINE_MODEL_FIELD_NAMES(MF, ("psi_R", "psi_I", "m"))
+#undef pR
+#undef dpR
+#undef pI
+#undef dpI
+#undef mF
+#undef dmF
+
 #endif
 
 #ifdef MODEL_SET_2
@@ -156,6 +193,20 @@ MODEL(MBB, (SCALAR),
 LINK_WITH_NAME(MBB, MODELBB)
 
 #endif
+
+// Model B with conserved noise
+MODEL(MB_CN, (SCALAR),
+      EVOLUTION(
+            dop(1) = lap(c(1) * op(1) - c(2) * power(op(1), 3)) + c(3) * _cW(SCALAR))
+)
+LINK_WITH_NAME(MB_CN, MODELB_CN)
+
+// Model B with nonconserved noise
+MODEL(MB_NN, (SCALAR),
+      EVOLUTION(
+            dop(1) = lap(c(1) * op(1) - c(2) * power(op(1), 3)) + c(3) * _nW(SCALAR))
+)
+LINK_WITH_NAME(MB_NN, MODELB_NN)
 
 #endif
 

@@ -653,14 +653,6 @@ auto make_lhs(RegionalGrid<T, D> const& data) {
 #ifdef USING_MPI
 
 template <typename T, size_t D>
-auto make_lhs(GridMPI<T, D> const& data) {
-  return OpLHS<Grid<T, D>>(data);
-}
-template <typename T, size_t D>
-auto make_lhs(BoundaryGridMPI<T, D> const& data) {
-  return OpLHS<BoundaryGrid<T, D>>(data);
-}
-template <typename T, size_t D>
 auto make_lhs(RegionalGridMPI<T, D> const& data) {
   return OpLHS<RegionalGrid<T, D>>(data);
 }

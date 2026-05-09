@@ -1404,6 +1404,23 @@ void regional_update_boundary(symphas::lib::side_list<sides...>,
   iter_type overlaps[D][2];
   get_overlap(overlaps, grid, interval);
 
+#ifdef SYMPHAS_BC_DEBUG
+  if constexpr (D == 2 && sizeof...(sides) == 2) {
+    Side sa[] = {sides...};
+    fprintf(stderr,
+            "[BC] sides=(%d,%d) parent=(%d,%d) region=(%d,%d)@(%d,%d) bs=%d "
+            "stride=(%d,%d) initial origin=(%d,%d) dims=(%d,%d) overlap_ok=%d "
+            "non_wrap=%d\n",
+            (int)sa[0], (int)sa[1], grid.dims[0], grid.dims[1],
+            grid.region.dims[0], grid.region.dims[1], grid.region.origin[0],
+            grid.region.origin[1], (int)grid.region.boundary_size,
+            grid.region.stride[0], grid.region.stride[1], interval.origin[0],
+            interval.origin[1], interval.dims[0], interval.dims[1],
+            (int)is_overlapping(overlaps),
+            (int)side_non_wrapping<sides...>(grid));
+  }
+#endif
+
   if (is_overlapping(overlaps) && side_non_wrapping<sides...>(grid)) {
     get_dims_and_origin(interval.origin, interval.dims, overlaps);
 
@@ -1421,10 +1438,31 @@ void regional_update_boundary(symphas::lib::side_list<sides...>,
 
       iter_type m =
           grid::index_from_position(offset.data(), grid.region.stride);
+#ifdef SYMPHAS_BC_DEBUG
+      if constexpr (D == 2 && sizeof...(sides) == 2) {
+        Side sa[] = {sides...};
+        fprintf(stderr,
+                "[BC]   after offset origin=(%d,%d) dims=(%d,%d) offset=(%d,%d) "
+                "m=%d loop_len=%d\n",
+                interval.origin[0], interval.origin[1], interval.dims[0],
+                interval.dims[1], offset[0], offset[1], m,
+                grid::length<D>(interval.dims));
+      }
+#endif
       for (iter_type n = 0; n < grid::length<D>(interval.dims); ++n) {
         iter_type pos[D]{};
         grid::get_grid_position_offset(pos, interval.dims, interval.origin, n);
         iter_type index = get_regional_index<sides...>(pos, grid);
+#ifdef SYMPHAS_BC_DEBUG
+        if constexpr (D == 2 && sizeof...(sides) == 2) {
+          if (n < 3 || n == grid::length<D>(interval.dims) - 1) {
+            fprintf(stderr,
+                    "[BC]     n=%d pos=(%d,%d) src_idx=%d dst_idx=%d src_val=%.6g dst_val_pre=%.6g\n",
+                    n, pos[0], pos[1], index, index - m,
+                    (double)grid.values[index], (double)grid.values[index - m]);
+          }
+        }
+#endif
         grid.values[index - m] = grid.values[index];
       }
     }

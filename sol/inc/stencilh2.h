@@ -152,7 +152,7 @@ struct apply_bilaplacian_2d2h<21>
 			- 2. * (vxy + vx_y + vxy_ + vx_y_)
 			- 10. * (vx + vx_ + vy + vy_)
 			+ 36. * v0
-			) * divh4 * (1.0 / 12);
+			) * divh4 * (1.0 / 3);
 	}
 };
 
@@ -221,8 +221,37 @@ struct apply_gradlaplacian_2d2h<16>
 };
 
 
+template<size_t H>
+struct apply_hexalaplacian_2d2h;
 
-
+//! 29-point 2nd-order isotropic hexalaplacian (nabla^6).
+/*!
+ * Weights (multiply by 1/(2 h^6)):
+ *   center:      -72
+ *   (+-1,0):      16   (x4)
+ *   (+-1,+-1):    14   (x4)
+ *   (+-2,+-1):    -8   (x8)
+ *   (+-2,+-2):     2   (x4)
+ *   (+-3,+-1):     1   (x8)
+ *
+ * Note: (+-2,0) and (+-3,0) have weight 0 and are excluded.
+ */
+template<>
+struct apply_hexalaplacian_2d2h<29>
+{
+	template<typename T>
+	__device__ __host__ auto operator()(T* const v, double divh6, const len_type(&stride)[2])
+	{
+		return (
+			(vx3y + vx3_y + vx3y_ + vx3_y_ + vxy3 + vx_y3 + vxy3_ + vx_y3_)
+			+ 2. * (vx2y2 + vx2_y2 + vx2y2_ + vx2_y2_)
+			- 8. * (vx2y + vx2_y + vx2y_ + vx2_y_ + vxy2 + vx_y2 + vxy2_ + vx_y2_)
+			+ 14. * (vxy + vx_y + vxy_ + vx_y_)
+			+ 16. * (vx + vx_ + vy + vy_)
+			- 72. * v0
+			) * divh6 * 0.5;
+	}
+};
 
 
 template<size_t L>

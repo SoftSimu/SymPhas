@@ -194,9 +194,8 @@ struct select_convolution_data_type {
   auto get(G const& g) { return _get(g); }
 
  public:
-  using type = typename std::invoke_result_t<
-      decltype(&select_convolution_data_type::get),
-      select_convolution_data_type, G>::type;
+  using type = typename decltype(std::declval<select_convolution_data_type>()
+                                      .get(std::declval<G>()))::type;
 };
 
 template <typename G>
@@ -225,9 +224,8 @@ struct select_convolution_data_pair_type {
   auto get(G const& g) { return _get(g); }
 
  public:
-  using type = typename std::invoke_result_t<
-      decltype(&select_convolution_data_pair_type::get),
-      select_convolution_data_pair_type, G>::type;
+  using type = typename decltype(std::declval<select_convolution_data_pair_type>()
+                                      .get(std::declval<G>()))::type;
 };
 
 template <typename G>
@@ -565,15 +563,28 @@ template <typename V, size_t D, template <typename, size_t> typename grid_type,
 struct OpConvolution<V, GaussianSmoothing<D, grid_type>, E>
     : OpExpression<OpConvolution<V, GaussianSmoothing<D, grid_type>, E>> {
   using G_T = typename expr::eval_type<E>::type;
-  using result_type = grid_type<G_T, D>;
+  // Use plain Grid for convolution internals to avoid BoundaryGrid iterable
+  // domain issues (ghost cell padding zeroes out the FFT input).
+  using result_type = Grid<G_T, D>;
   using convolution_type = expr::internal::convolution_data_type<result_type>;
-  using data_type = result_type;
+  using data_type = Grid<G_T, D>;
 
   void allocate() {
     e.allocate();
 
     if (g0.len == 0) {
       smoother.allocate();
+      // The convolution multiplies smoother values with FFT'd field data in
+      // k-space, so the smoother must be in Fourier space regardless of how
+      // it was constructed. Convert if necessary.
+      if (!smoother.fourier_space) {
+        auto ft_smoother = GaussianSmoothing<D, grid_type>(
+            smoother.dims, smoother.h, smoother.sigma, true);
+        ft_smoother.allocate();
+        smoother = ft_smoother;
+        fprintf(stderr, "GaussSmooth: converted to k-space, dims=[%d,%d], smoother.data.len=%d, ft=%d, val[0]=%g\n",
+                (int)smoother.dims[0], (int)smoother.dims[1], (int)smoother.data.len, (int)smoother.fourier_space, smoother.eval(0));
+      }
       g0 = result_type(expr::data_dimensions(smoother));
       data = data_type(expr::data_dimensions(smoother));
 

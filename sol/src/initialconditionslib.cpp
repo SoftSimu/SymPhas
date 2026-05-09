@@ -96,7 +96,9 @@ std::map<const char*, Inside, symphas::lib::any_case_comparator>
                                        {"SH", Inside::SPIRALHEX},
                                        {"SIN", Inside::SIN},
                                        {"COS", Inside::COS},
-                                       {"EXPRESSION", Inside::EXPRESSION}};
+                                       {"EXPRESSION", Inside::EXPRESSION},
+                                       {"FILE", Inside::FILE},
+                                       {"CHECKPOINT", Inside::CHECKPOINT}};
 
 std::map<const char*, InsideTag, symphas::lib::any_case_comparator>
     symphas::internal::init_tag_key_map = {

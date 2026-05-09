@@ -392,7 +392,7 @@ auto to_axis(V const& value, OpExpression<E> const& e);
 template <Axis ax, typename E>
 auto to_axis(OpExpression<E> const& e);
 
-enum class NoiseType { WHITE, NONE, DECAY_EXP, DECAY_POLY, POISSON };
+enum class NoiseType { WHITE, CONSERVED_WHITE, NONE, DECAY_EXP, DECAY_POLY, POISSON };
 
 template <NoiseType nt, size_t D,
           template <typename, size_t> typename grid_type>

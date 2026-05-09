@@ -234,14 +234,12 @@ struct CrossProductFunctions {
     if constexpr (L == 0) {
       return select_non_empty_seq<N>(
           types_list<>{}, types_list<seq_t<E, Es...>, Seq, Seqs...>{});
-    } else if constexpr (N < L) {
+    } else {
       constexpr size_t N0 = N / L;
-      constexpr size_t N1 = N - N0 * L;
+      constexpr size_t N1 = N % L;
       return seq_join(
           std::integer_sequence<T, seq_value<N0>(seq_t<E, Es...>{})>{},
           select<N1>(Seq{}, Seqs{}...));
-    } else {
-      return select<N % L>(seq_t<E, Es...>{}, Seq{}, Seqs{}...);
     }
   }
 

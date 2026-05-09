@@ -214,6 +214,14 @@ struct matches_operator : expr_cond<matches_operator> {
   }
 };
 
+struct matches_symbolic_eval : expr_cond<matches_symbolic_eval> {
+  using expr_cond<matches_symbolic_eval>::operator();
+  template <typename V, typename sub_t, typename eval_t>
+  auto operator()(OpSymbolicEval<V, sub_t, eval_t> const& e) const {
+    return matches_symbolic_eval{};
+  }
+};
+
 template <typename matches_t, typename A, typename B>
 struct matching_in_mul_apply {
   static const bool value =

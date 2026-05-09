@@ -30,6 +30,45 @@
 #include "io.h"
 #include "plottername.h"
 
+// =============================================================================
+// Inline helpers for safe vector normalization (avoids NaN from zero-magnitude).
+// =============================================================================
+
+namespace symphas::io {
+
+//! Minimum magnitude for safe vector normalization; below this, direction is zero.
+inline constexpr double NORMALIZE_EPS = 1e-30;
+
+//! Safely normalize a 2D vector into unit direction (dx,dy) and magnitude m.
+inline void safe_normalize(double vx, double vy,
+                           double& dx, double& dy, double& m) {
+    m = std::sqrt(vx * vx + vy * vy);
+    if (m > NORMALIZE_EPS) {
+        dx = vx / m;
+        dy = vy / m;
+    } else {
+        dx = 0.0;
+        dy = 0.0;
+    }
+}
+
+//! Safely normalize a 3D vector into unit direction (dx,dy,dz) and magnitude m.
+inline void safe_normalize(double vx, double vy, double vz,
+                           double& dx, double& dy, double& dz, double& m) {
+    m = std::sqrt(vx * vx + vy * vy + vz * vz);
+    if (m > NORMALIZE_EPS) {
+        dx = vx / m;
+        dy = vy / m;
+        dz = vz / m;
+    } else {
+        dx = 0.0;
+        dy = 0.0;
+        dz = 0.0;
+    }
+}
+
+}  // namespace symphas::io
+
 namespace symphas::internal {
 template <typename T>
 struct field_array_t {};
@@ -191,7 +230,7 @@ struct write_info {
   size_t id;                 //!< The ID of the grid being written.
   DataFileType type;     //!< The type of data that is written, typically this
                          //!< should be phase field data.
-  interval_t intervals;  //!< Extent of the global domain in the spatial axes.
+  mutable interval_t intervals;  //!< Extent of the global domain in the spatial axes.
 };
 
 //! Produces a file name for data to be written to.

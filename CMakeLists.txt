@@ -27,6 +27,11 @@ project(SymPhas
 
 set(USING_CUDA OFF CACHE BOOL "use CUDA (must be installed)")
 set(USING_MPI OFF CACHE BOOL "use MPI (must be installed)")
+set(SYMPHAS_MPI_PROFILE OFF CACHE BOOL "Phase 3.5: instrument the per-step MPI/compute path with phase timers (zero overhead when OFF)")
+if(SYMPHAS_MPI_PROFILE)
+	list(APPEND SYMPHAS_DEFINITIONS SYMPHAS_MPI_PROFILE)
+	message(STATUS "MPI profile timers ENABLED (Phase 3.5)")
+endif()
 
 if(USING_CUDA)
 	message(STATUS "CUDA is enabled")
@@ -140,8 +145,8 @@ if(USE_FFTW3)
 		set(DISABLE_FORTRAN			ON CACHE BOOL "" FORCE)
 	
 		set(ENABLE_OPENMP			${FFTW3_ENABLE_OPENMP} CACHE BOOL "" FORCE)
-		set(ENABLE_THREADS			ON CACHE BOOL "" FORCE)
-		set(WITH_COMBINED_THREADS	ON CACHE BOOL "" FORCE)  
+		set(ENABLE_THREADS			OFF CACHE BOOL "" FORCE)
+		set(WITH_COMBINED_THREADS	OFF CACHE BOOL "" FORCE)  
 		set(ENABLE_SSE2				${FFTW3_ENABLE_SSE2} CACHE BOOL "" FORCE)
 		set(ENABLE_AVX				${FFTW3_ENABLE_AVX} CACHE BOOL "" FORCE)
 	
@@ -164,9 +169,56 @@ if(USE_FFTW3)
 	unset(ENABLE_AVX CACHE)
 	unset(BUILD_BENCH CACHE)
 
+	list(APPEND SYMPHAS_DEFINITIONS USING_FFTW)
 	list(APPEND SYMPHAS_LIBS fftw3)
+
+	# FetchContent FFTW3 (the autotools-style cmake bundled with the FFTW3
+	# tarball) does NOT build the MPI variant — only the serial library.
+	# Under MPI, the SP solver's MPI branch is gated on USING_FFTW_MPI being
+	# defined; if it isn't, every rank silently runs the serial code path
+	# and the solver does no parallel work (just overhead). To avoid that
+	# silent failure, also try to find a system-installed libfftw3_mpi and
+	# link it alongside the FetchContent serial lib. If MPI is on but no
+	# system fftw3_mpi exists, error out — this build cannot run SP+MPI
+	# correctly.
+	if(USING_MPI)
+		find_library(FFTW3_MPI_LIB fftw3_mpi)
+		if(FFTW3_MPI_LIB)
+			message(STATUS "Found system FFTW3 MPI (alongside FetchContent FFTW3 serial): ${FFTW3_MPI_LIB}")
+			list(APPEND SYMPHAS_SYSTEM_LIBS ${FFTW3_MPI_LIB})
+			list(APPEND SYMPHAS_DEFINITIONS USING_FFTW_MPI)
+			set(USING_FFTW_MPI ON)
+		else()
+			message(WARNING
+				"USING_MPI=ON with USE_FFTW3=ON (FetchContent FFTW3) but no "
+				"system libfftw3_mpi found. The SP MPI solver branch will "
+				"NOT be compiled, so every rank will run a serial global FFT "
+				"and the solver will not parallelize across ranks. Install "
+				"libfftw3-mpi-dev (Debian/Ubuntu) or fftw-mpi (modules), or "
+				"set USE_FFTW3=OFF and let CMake find a system FFTW3 "
+				"installation that includes the MPI variant.")
+		endif()
+	endif()
 else()
 	unset(FFTW3_VER)
+	# Try to find system FFTW3 if not building from source
+	find_library(FFTW3_SYSTEM_LIB fftw3)
+	if(FFTW3_SYSTEM_LIB)
+		message(STATUS "Found system FFTW3: ${FFTW3_SYSTEM_LIB}")
+		list(APPEND SYMPHAS_SYSTEM_LIBS ${FFTW3_SYSTEM_LIB})
+		list(APPEND SYMPHAS_DEFINITIONS USING_FFTW)
+		set(USING_FFTW ON)
+		set(FFTW3_FOUND ON)
+		if(USING_MPI)
+			find_library(FFTW3_MPI_LIB fftw3_mpi)
+			if(FFTW3_MPI_LIB)
+				message(STATUS "Found system FFTW3 MPI: ${FFTW3_MPI_LIB}")
+				list(APPEND SYMPHAS_SYSTEM_LIBS ${FFTW3_MPI_LIB})
+				list(APPEND SYMPHAS_DEFINITIONS USING_FFTW_MPI)
+				set(USING_FFTW_MPI ON)
+			endif()
+		endif()
+	endif()
 endif()
 
 if(USE_CONF)
@@ -360,7 +412,7 @@ endforeach()
 
 set_target_properties(${SYMPHAS_DEP_LIBS} ${PROJECT_NAME} PROPERTIES CXX_STANDARD 17)
 message(STATUS "the following def files are configured: ${CONFIGURED_DEF_FILES}")
-configure_file("configured-defs.h.in" "${CMAKE_SOURCE_DIR}/inc/configured-defs.h")
+configure_file("configured-defs.h.in" "${CMAKE_BINARY_DIR}/inc/configured-defs.h")
 
 if (USE_TESTS)
 	target_include_directories(${PROJECT_NAME} PUBLIC 
@@ -423,7 +475,7 @@ if (USE_TESTS)
 
 endif()
 
-configure_file("prereq-defs.h.in" "${CMAKE_SOURCE_DIR}/inc/prereq-defs.h")
+configure_file("prereq-defs.h.in" "${CMAKE_BINARY_DIR}/inc/prereq-defs.h")
 
 if (USE_CONF)
 	message(STATUS "exporting 'nlohmann_json' library")
@@ -496,7 +548,10 @@ message(STATUS "finished installing all headers to ${INCLUDEDIR}")
 # check if MAIN_FILE is set and create an executable
 if (MAIN_FILE)
 	add_executable(symphas_main ${MAIN_FILE})
-	target_link_libraries(symphas_main ${SYMPHAS_LIBS})
+	target_link_libraries(symphas_main ${SYMPHAS_LIBS} ${SYMPHAS_SYSTEM_LIBS})
+	if (WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+		target_link_options(symphas_main PRIVATE /pdbpagesize:8192)
+	endif()
 	
 	#if (WIN32)
 	#	target_compile_options(symphas_main PRIVATE -v -fmacro-backtrace-limit=0)

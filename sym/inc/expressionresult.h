@@ -60,74 +60,15 @@ struct forward_value {
   }
 };
 
-template <typename assign_type>
-struct evaluate_expression_trait {
-  template <typename E, size_t D>
-  evaluate_expression_trait(OpEvaluable<E> const& e, assign_type& data,
-                            grid::region_interval<D> const& interval) {
-    symphas::data_iterator_group it(data, interval);
-
-#ifdef EXECUTION_HEADER_AVAILABLE
-    if (params::parallelization)
-      std::transform(
-          std::execution::par,
-          static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
-          static_cast<const E*>(&e)->end(symphas::it_grp, interval), it,
-          forward_value{});
-    else
-#endif
-      std::transform(
-          static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
-          static_cast<const E*>(&e)->end(symphas::it_grp, interval), it,
-          forward_value{});
-  }
-  template <typename E>
-  evaluate_expression_trait(OpEvaluable<E> const& e, assign_type& data,
-                            grid::region_interval<0> const& interval) {
-    auto data_region = expr::iterable_domain(data);
-    if (grid::length(data_region) > 1) {
-      result(*static_cast<E const*>(&e), data, data_region);
-    } else {
-      result(*static_cast<E const*>(&e), data, 1);
-    }
-  }
-
-  template <typename E>
-  evaluate_expression_trait(OpEvaluable<E> const& e, assign_type& data,
-                            len_type len) {
-    symphas::data_iterator<assign_type> it(data);
-
-#ifdef EXECUTION_HEADER_AVAILABLE
-    if (params::parallelization)
-      std::transform(std::execution::par,
-                     static_cast<const E*>(&e)->begin(),
-                     static_cast<const E*>(&e)->end(len), it, forward_value{});
-    else
-#endif
-      std::transform(static_cast<const E*>(&e)->begin(),
-                     static_cast<const E*>(&e)->end(len), it, forward_value{});
-  }
-
-  template <typename E>
-  evaluate_expression_trait(equation_ptr_list_type<assign_type, E>* eq_list,
-                            len_type len) {
-    auto range = symphas::parallel::get_index_range(len);
-    iter_type start = range.first;
-    iter_type end = range.second;
-
-    SYMPHAS_OMP_PARALLEL_DIRECTIVE
-    for (iter_type i = start; i < end; ++i) {
-      evaluate_expression_trait(*eq_list[i].right, *eq_list[i].left,
-                                expr::iterable_domain(*eq_list[i].left));
-    }
-  }
-};
+// Forward declarations for GCC two-phase lookup compliance.
+template <typename E, typename assign_type>
+void result(OpEvaluable<E> const& e, assign_type&& data, len_type len);
+template <typename E, typename assign_type, size_t D>
+void result(OpEvaluable<E> const& e, assign_type&& data,
+            grid::region_interval<D> const& interval);
 
 template <typename assign_type>
-struct evaluate_expression_trait<assign_type&>
-    : evaluate_expression_trait<assign_type> {
-  using evaluate_expression_trait<assign_type>::evaluate_expression_trait;
-};
+struct evaluate_expression_trait;
 
 //! Evaluate the expression into the underlying data member.
 /*!
@@ -231,8 +172,7 @@ struct accumulate_expression_trait {
 
 #ifdef EXECUTION_HEADER_AVAILABLE
     if (params::parallelization)
-      std::transform(std::execution::par,
-                     static_cast<const E*>(&e)->begin(),
+      std::transform(std::execution::par, static_cast<const E*>(&e)->begin(),
                      static_cast<const E*>(&e)->end(len), it, it,
                      [](auto expr_value, auto data_value) {
                        return data_value + expr_value;
@@ -445,9 +385,9 @@ struct result_sum_trait {
   void result(OpEvaluable<E> const& e, assign_type&& assign, len_type len) {
 #ifdef EXECUTION_HEADER_AVAILABLE
     if (params::parallelization)
-      assign = std::reduce(std::execution::par,
-                           static_cast<const E*>(&e)->begin(),
-                           static_cast<const E*>(&e)->end(len));
+      assign =
+          std::reduce(std::execution::par, static_cast<const E*>(&e)->begin(),
+                      static_cast<const E*>(&e)->end(len));
     else
 #endif
       assign = std::reduce(static_cast<const E*>(&e)->begin(),
@@ -1089,8 +1029,7 @@ struct result_only_trait {
 
 #ifdef EXECUTION_HEADER_AVAILABLE
     if (params::parallelization)
-      std::transform(std::execution::par, start, end, it,
-                     forward_value{});
+      std::transform(std::execution::par, start, end, it, forward_value{});
     else
 #endif
       std::transform(start, end, it, forward_value{});
@@ -1105,8 +1044,7 @@ struct result_only_trait {
 
 #ifdef EXECUTION_HEADER_AVAILABLE
     if (params::parallelization)
-      std::transform(std::execution::par, start, end, it,
-                     forward_value{});
+      std::transform(std::execution::par, start, end, it, forward_value{});
     else
 #endif
       std::transform(start, end, it, forward_value{});
@@ -1534,5 +1472,73 @@ void result_sum_by_term(OpAdd<Es...> const& e, assign_type&& assign) {
                      std::make_index_sequence<sizeof...(Es)>{});
   std::forward<assign_type>(assign) += sum;
 }
+
+template <typename assign_type>
+struct evaluate_expression_trait {
+  template <typename E, size_t D>
+  evaluate_expression_trait(OpEvaluable<E> const& e, assign_type& data,
+                            grid::region_interval<D> const& interval) {
+    symphas::data_iterator_group it(data, interval);
+
+#ifdef EXECUTION_HEADER_AVAILABLE
+    if (params::parallelization)
+      std::transform(
+          std::execution::par,
+          static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
+          static_cast<const E*>(&e)->end(symphas::it_grp, interval), it,
+          forward_value{});
+    else
+#endif
+      std::transform(
+          static_cast<const E*>(&e)->begin(symphas::it_grp, interval),
+          static_cast<const E*>(&e)->end(symphas::it_grp, interval), it,
+          forward_value{});
+  }
+  template <typename E>
+  evaluate_expression_trait(OpEvaluable<E> const& e, assign_type& data,
+                            grid::region_interval<0> const& interval) {
+    auto data_region = expr::iterable_domain(data);
+    if (grid::length(data_region) > 1) {
+      result(*static_cast<E const*>(&e), data, data_region);
+    } else {
+      result(*static_cast<E const*>(&e), data, 1);
+    }
+  }
+
+  template <typename E>
+  evaluate_expression_trait(OpEvaluable<E> const& e, assign_type& data,
+                            len_type len) {
+    symphas::data_iterator<assign_type> it(data);
+
+#ifdef EXECUTION_HEADER_AVAILABLE
+    if (params::parallelization)
+      std::transform(std::execution::par, static_cast<const E*>(&e)->begin(),
+                     static_cast<const E*>(&e)->end(len), it, forward_value{});
+    else
+#endif
+      std::transform(static_cast<const E*>(&e)->begin(),
+                     static_cast<const E*>(&e)->end(len), it, forward_value{});
+  }
+
+  template <typename E>
+  evaluate_expression_trait(equation_ptr_list_type<assign_type, E>* eq_list,
+                            len_type len) {
+    auto range = symphas::parallel::get_index_range(len);
+    iter_type start = range.first;
+    iter_type end = range.second;
+
+    SYMPHAS_OMP_PARALLEL_DIRECTIVE
+    for (iter_type i = start; i < end; ++i) {
+      evaluate_expression_trait(*eq_list[i].right, *eq_list[i].left,
+                                expr::iterable_domain(*eq_list[i].left));
+    }
+  }
+};
+
+template <typename assign_type>
+struct evaluate_expression_trait<assign_type&>
+    : evaluate_expression_trait<assign_type> {
+  using evaluate_expression_trait<assign_type>::evaluate_expression_trait;
+};
 
 }  // namespace expr

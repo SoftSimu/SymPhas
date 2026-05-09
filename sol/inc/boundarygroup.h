@@ -356,6 +356,16 @@ struct update_boundary_call {
                 BoundaryType::PERIODIC0, symphas::index_to_side(I), D - 1>{}(
                 boundaries[I], grid);
             break;
+#ifdef USING_MPI
+          case BoundaryType::MPI:
+            if constexpr (symphas::index_to_side(I) == Side::TOP ||
+                          symphas::index_to_side(I) == Side::BOTTOM) {
+              symphas::internal::update_boundary<
+                  BoundaryType::MPI, symphas::index_to_side(I), D - 1>{}(
+                  boundaries[I], grid);
+            }
+            break;
+#endif
           default:
             throw;
         }

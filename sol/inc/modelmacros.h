@@ -234,7 +234,7 @@
  * 4. Test with model_select::call()
  *
  * Adding New Solvers:
- * 1. Create solver class following SolverFT/SolverSP pattern
+ * 1. Create solver class following SolverFT/SolverSP2 pattern
  * 2. Ensure compatibility with ModelSelectStencil template resolution
  * 3. Test integration with existing models via LINK_WITH_NAME
  *
@@ -320,7 +320,7 @@ struct ModelSelectStencil {
  protected:
   template <typename>
   struct StencilFromSeq {
-#if defined(ALL_STENCILS) && defined(GENERATE_UNDEFINED_STENCILS_ON)
+#if defined(GENERATE_UNDEFINED_STENCILS_ON)
     template <typename T0, typename... Ts>
     auto operator()(T0 const&, Ts&&...) {
       fprintf(SYMPHAS_WARN,
@@ -1199,6 +1199,8 @@ using model_repeating_type_t = typename model_repeating_type<N, T>::type;
   NOISE(POISSON, SCALAR, INTENSITY, LAMBDA, __VA_ARGS__)
 
 #define _nW(TYPE, ...) WHITE_NOISE(TYPE, __VA_ARGS__)
+#define CONSERVED_WHITE_NOISE(TYPE, ...) NOISE(CONSERVED_WHITE, TYPE, __VA_ARGS__)
+#define _cW(TYPE, ...) CONSERVED_WHITE_NOISE(TYPE, __VA_ARGS__)
 #define _nP(INTENSITY, LAMBDA, ...) \
   POISSON_NOISE(INTENSITY, LAMBDA, __VA_ARGS__)
 

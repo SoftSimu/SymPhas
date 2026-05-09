@@ -26,6 +26,13 @@
 #pragma once
 
 #include "dft.h"
+
+// MPI headers must be included before C++ standard headers to avoid conflicts.
+// dft.h includes definitions.h -> lib-defs.h which defines USING_FFTW_MPI.
+#ifdef USING_FFTW_MPI
+#include <mpi.h>
+#endif
+
 #include "spslibfftwarrange.h"
 
 struct fftw_plan_s;
@@ -55,6 +62,28 @@ fftw_complex* fftw_alloc_complex(size_t);
 scalar_t* fftw_alloc_real(size_t);
 //! Frees the memory associated with an aligned FFTW array.
 void fftw_free(fftw_complex*&);
+void fftw_free(double*&);
+
+#ifdef USING_FFTW_MPI
+//! Initialize FFTW MPI. Must be called after MPI_Init.
+void fftw_mpi_init();
+//! Cleanup FFTW MPI. Call before MPI_Finalize.
+void fftw_mpi_cleanup();
+//! Get local data distribution for 2D MPI r2c transform.
+ptrdiff_t fftw_mpi_local_size_2d(ptrdiff_t n0, ptrdiff_t n1, MPI_Comm comm,
+                                  ptrdiff_t* local_n0, ptrdiff_t* local_0_start);
+//! Create a distributed r2c plan for 2D data. Uses FFTW_ESTIMATE; see
+//! implementation notes before switching to FFTW_MEASURE (MPI_Bcast EFAULT
+//! observed during early-init planning when buffers are already populated).
+fftw_plan fftw_mpi_plan_r2c_2d(ptrdiff_t n0, ptrdiff_t n1,
+                                double* in, fftw_complex* out,
+                                MPI_Comm comm);
+//! Create a distributed c2r plan for 2D data. Uses FFTW_ESTIMATE; see
+//! fftw_mpi_plan_r2c_2d for rationale.
+fftw_plan fftw_mpi_plan_c2r_2d(ptrdiff_t n0, ptrdiff_t n1,
+                                fftw_complex* in, double* out,
+                                MPI_Comm comm);
+#endif
 
 //! Creates a new FFTW plan from the given types and dimension.
 /*!

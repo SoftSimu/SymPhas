@@ -45,6 +45,7 @@ START_NEW_SOLVER_WITH_STENCIL(SolverFT)
  */
 template <typename S>
 void step(S& sys) const {
+  SYMPHAS_MPI_PROFILE_SCOPE("step_euler");
   expr::result(expr::make_term(sys.as_grid()) + expr::make_term(dt, sys.dframe),
                sys.as_grid(), expr::iterable_domain(sys.as_grid()));
 }
@@ -90,16 +91,18 @@ inline void equation(std::pair<S, E>* r, len_type len) const {
 template <typename S, typename E>
 inline void equation(std::pair<S, E>& r) const {
   TIME_THIS_CONTEXT_LIFETIME(solverft_equation);
+  SYMPHAS_MPI_PROFILE_SCOPE("equation_total");
 
   {
+    SYMPHAS_MPI_PROFILE_SCOPE("equation_prune_update");
     expr::eval_handler_type<E> handler;
     expr::prune::update<expr::not_<expr::matches_series>>(r.second, handler);
   }
-  expr::result(r.second, r.first.get().dframe);
-  // expr::eval_handler_type<E> handler;
-  // handler.result(r.second, r.first.get().dframe);
-  //  expr::result_by_term<expr::matches_series>(r.second,
-  //  r.first.get().dframe);
+
+  {
+    SYMPHAS_MPI_PROFILE_SCOPE("equation_result");
+    expr::result(r.second, r.first.get().dframe);
+  }
 }
 
 /*
@@ -205,7 +208,6 @@ bool check_overlapping_domain(grid::region_interval_multiple<D> region,
 }
 
 #ifdef USING_MPI
-#include "solverftmpisort.h"
 #include "solverftmpisync.h"
 
 template <typename T, size_t D>
@@ -216,20 +218,30 @@ void PhaseFieldSystem<RegionalGridMPI, T, D>::synchronize(Ts&&... args) {
 
 #endif
 
+// Build-time guard: under an MPI build, RegionalGrid variants are NOT
+// registered as selectable solver systems. RegionalGrid assumes a single
+// process owns the full sparse domain, which is incompatible with MPI's
+// spatial decomposition. Valid `solver_variation` values:
+//   serial build   : 0 = SolverSystemFD (Grid), 1 = SolverSystemFDwSD (RegionalGrid)
+//   MPI build      : 0 = SolverSystemFD (Grid) only
+// The `SolverSystemFDwSDMPI` class body itself carries a static_assert
+// (see sol/inc/solversystem.h) that fires if anything tries to instantiate it.
 ASSOCIATE_SELECTABLE_SOLVER_SYSTEM_TYPE(SolverFT, SolverSystemFD)
+#ifndef USING_MPI
 ASSOCIATE_SELECTABLE_SOLVER_SYSTEM_TYPE(SolverFT, SolverSystemFDwSD)
+#endif
 
 #ifdef USING_CUDA
 ASSOCIATE_SELECTABLE_SOLVER_SYSTEM_TYPE(SolverFT, SolverSystemFDCUDA)
 ASSOCIATE_SELECTABLE_SOLVER_SYSTEM_TYPE(SolverFT, SolverSystemFDwSDCUDA)
 #endif
 
-#ifdef USING_MPI
-ASSOCIATE_SELECTABLE_SOLVER_SYSTEM_TYPE(SolverFT, SolverSystemFDwSDMPI)
-#endif
+// NOTE: SolverSystemFDwSDMPI (RegionalGrid + MPI) is intentionally NOT
+// registered. See the static_assert guard in sol/inc/solversystem.h.
+
+ASSOCIATE_PROVISIONAL_SYSTEM_TYPE(SolverFT, ProvisionalSystemFD)
 
 #ifdef USING_CUDA
-ASSOCIATE_PROVISIONAL_SYSTEM_TYPE(SolverFT, ProvisionalSystemFD)
 ASSOCIATE_PROVISIONAL_SYSTEM_TYPE_FOR_SPECIFIC(SolverFT, SolverSystemFDCUDA,
                                                ProvisionalSystemFDCUDA)
 ASSOCIATE_PROVISIONAL_SYSTEM_TYPE_FOR_SPECIFIC(SolverFT, SolverSystemFDwSDCUDA,

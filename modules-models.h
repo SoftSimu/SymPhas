@@ -434,34 +434,53 @@ void print_timings(FILE* out);
  */
 template <typename M>
 void model_iteration(M& model, double dt, double time) {
+  SYMPHAS_MPI_PROFILE_SCOPE("iteration_total");
 #ifdef PRINT_TIMINGS
   symphas::Time t;
 
   {
     symphas::Time tt;
-    model.equation();
+    {
+      SYMPHAS_MPI_PROFILE_SCOPE("model_update_outer");
+      model.update(time);
+    }
+    model_update_time += tt.current_duration();
+  }
+
+  {
+    symphas::Time tt;
+    {
+      SYMPHAS_MPI_PROFILE_SCOPE("model_equation_outer");
+      model.equation();
+    }
     model_equation_time += tt.current_duration();
   }
 
   {
     symphas::Time tt;
-    model.step(dt);
+    {
+      SYMPHAS_MPI_PROFILE_SCOPE("model_step_outer");
+      model.step(dt);
+    }
     model_step_time += tt.current_duration();
-  }
-
-  {
-    symphas::Time tt;
-    model.update(time + dt);
-    model_update_time += tt.current_duration();
   }
 
   iteration_time += t.current_duration();
   iteration_count += 1;
 #else
 
-  model.update(time);
-  model.equation();
-  model.step(dt);
+  {
+    SYMPHAS_MPI_PROFILE_SCOPE("model_update_outer");
+    model.update(time);
+  }
+  {
+    SYMPHAS_MPI_PROFILE_SCOPE("model_equation_outer");
+    model.equation();
+  }
+  {
+    SYMPHAS_MPI_PROFILE_SCOPE("model_step_outer");
+    model.step(dt);
+  }
 
 #endif
 }

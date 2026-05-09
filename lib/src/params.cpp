@@ -99,8 +99,19 @@ DLLLIB int params::start_index = INDEX_INIT;
 DLLLIB config_key_value_type params::config_key_values = {};
 
 #ifdef EXECUTION_HEADER_AVAILABLE
+// Default parallelization policy. Under MPI builds, every rank already
+// occupies a core (--cpus-per-task=1), so per-rank parallel-STL would spawn
+// hardware_concurrency() worker threads inside each rank, causing severe
+// oversubscription (e.g., 64 ranks * 192 workers = 12,288 threads on a 192-
+// core node, contending for the same physical cores). Default to SEQ for MPI
+// builds; users who want hybrid MPI+threads must opt in with `-P par`.
+#ifdef USING_MPI
+DLLLIB symphas::ParallelizationType params::parallelization =
+    symphas::ParallelizationType::SEQ;
+#else
 DLLLIB symphas::ParallelizationType params::parallelization =
     symphas::ParallelizationType::PAR;
+#endif
 #endif
 
 DLLLIB void* params::viz_interval_enable[2]{(void*)&params::viz_interval,

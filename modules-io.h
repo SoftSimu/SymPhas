@@ -402,6 +402,82 @@ void find_solution(M* models, len_type num_models,
   };
 
   auto data_persistence = [&]() {
+#ifdef USING_MPI
+#ifdef SYMPHAS_MPI_LOCAL_STORAGE
+    // Under local-storage mode, every rank's grid.dims is its local
+    // sub-region, not the global grid. The legacy sync_all_slabs path
+    // assumed each rank held the full N² grid and just broadcast its
+    // slab into the global frame; that's incompatible with local
+    // storage. The proper fix is a Phase-6 gather adapter that
+    // collects local slabs into a global host buffer for I/O. Until
+    // then, save paths are no-ops under local storage; benchmarks set
+    // save_iter > steps so this is fine for scaling measurement.
+    if (symphas::parallel::get_num_nodes() > 1) {
+      // Phase-6 TODO: gather local slabs into a global host buffer.
+    }
+#else
+    // Gather all MPI slabs to every rank before any I/O
+    if (symphas::parallel::get_num_nodes() > 1) {
+      for (iter_type i = 0; i < num_models; ++i) {
+        auto& tup = models[i].systems_tuple();
+        constexpr size_t DD = model_dimension<M>::value;
+        std::apply([](auto&... sys) {
+          auto sync_one = [](auto& s) {
+            using sys_t = std::remove_reference_t<decltype(s)>;
+#if defined(USING_FFTW) && defined(USING_FFTW_MPI)
+            // Spectral MPI: sync full grid via Allgatherv.
+            if constexpr (std::is_base_of_v<SolverSystemSpectralMPI, sys_t>) {
+              const_cast<SolverSystemSpectralMPI&>(
+                  static_cast<SolverSystemSpectralMPI const&>(s))
+                  .sync_full_grid();
+            } else
+#endif
+            if constexpr (std::is_base_of_v<BoundaryGroup<scalar_t, DD>, sys_t>) {
+              // FD under MPI: setup_mpi_boundaries replaces TOP/BOTTOM
+              // with BoundaryType::MPI, which makes each rank own only
+              // its local slab (halo rows are exchanged per-step but the
+              // interior of non-owned slabs is never updated on this rank).
+              // Broadcast each rank's slab so the full grid is reconstructed
+              // on every rank before I/O. This matches the decomposition
+              // performed in setup_mpi_boundaries (same BoundaryGroup gate).
+              //
+              // Applies to SolverSystemFD and SolverSystemFDMPI alike.
+              // Spectral systems (non-BoundaryGroup) are either handled
+              // by the SolverSystemSpectralMPI branch above, or remain
+              // replicated (full identical grid on every rank) and need
+              // no sync.
+              auto& g = const_cast<std::remove_const_t<
+                  std::remove_reference_t<decltype(s.as_grid())>>&>(s.as_grid());
+              symphas::parallel::domain_info<DD> dinfo(g.dims, BOUNDARY_DEPTH);
+              symphas::parallel::sync_all_slabs(g.values, dinfo);
+            } else if constexpr (
+                // Vector-valued grids inherit BoundaryGroup<vector_t<2>, DD>
+                // (or any_vector_t<T, DD>), which won't match the scalar test
+                // above. Their backing storage is a MultiBlock with one scalar
+                // array per component (g.values is `T*[D]`), so each component
+                // must be synced separately.
+                std::is_base_of_v<BoundaryGroup<any_vector_t<scalar_t, DD>, DD>,
+                                  sys_t>) {
+              auto& g = const_cast<std::remove_const_t<
+                  std::remove_reference_t<decltype(s.as_grid())>>&>(s.as_grid());
+              symphas::parallel::domain_info<DD> dinfo(g.dims, BOUNDARY_DEPTH);
+              for (size_t c = 0; c < DD; ++c) {
+                symphas::parallel::sync_all_slabs(g.values[c], dinfo);
+              }
+            }
+          };
+          (sync_one(sys), ...);
+        }, tup);
+      }
+    }
+#endif  // !SYMPHAS_MPI_LOCAL_STORAGE
+#endif  // USING_MPI
+
+#ifdef USING_MPI
+    // Only rank 0 writes output to avoid file collisions
+    if (!symphas::parallel::is_host_node()) return;
+#endif
+
     if (checkpoint) {
       fprintf(SYMPHAS_LOG, "%25s", "checkpoint...");
       save_if_checkpoint(model, save, dir);
@@ -439,7 +515,13 @@ void find_solution(M* models, len_type num_models,
   };
 
   if (!symphas::io::is_last_save(model.get_index(), save_points)) {
+    auto t_first_dp = std::chrono::high_resolution_clock::now();
     data_persistence();
+    auto t_first_dp_end = std::chrono::high_resolution_clock::now();
+    double first_dp_ms = std::chrono::duration<double, std::milli>(
+        t_first_dp_end - t_first_dp).count();
+    fprintf(stderr, "[PHASE rank=%d find_solution_first_data_persistence_ms=%.3f]\n",
+            symphas::parallel::get_node_rank(), first_dp_ms);
     print_progress();
 
     fprintf(SYMPHAS_LOG, "%7s", "Progress");
@@ -447,9 +529,15 @@ void find_solution(M* models, len_type num_models,
     fprintf(SYMPHAS_LOG, "%19s\n", "Runtime (seconds)");
 
     bool running = true;
+    auto t_init_update = std::chrono::high_resolution_clock::now();
     for (iter_type i = 0; i < num_models; ++i) {
       models[i].update(TIME_INIT);
     }
+    auto t_init_update_end = std::chrono::high_resolution_clock::now();
+    double init_update_ms = std::chrono::duration<double, std::milli>(
+        t_init_update_end - t_init_update).count();
+    fprintf(stderr, "[PHASE rank=%d find_solution_init_update_ms=%.3f]\n",
+            symphas::parallel::get_node_rank(), init_update_ms);
     while (running) {
       {
         symphas::Time t;
@@ -470,7 +558,13 @@ void find_solution(M* models, len_type num_models,
       }
 
       print_progress();
+      auto t_seg_dp = std::chrono::high_resolution_clock::now();
       data_persistence();
+      auto t_seg_dp_end = std::chrono::high_resolution_clock::now();
+      double seg_dp_ms = std::chrono::duration<double, std::milli>(
+          t_seg_dp_end - t_seg_dp).count();
+      fprintf(stderr, "[PHASE rank=%d find_solution_seg_data_persistence_ms=%.3f]\n",
+              symphas::parallel::get_node_rank(), seg_dp_ms);
     }
   } else {
     data_persistence();

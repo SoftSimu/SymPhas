@@ -351,13 +351,22 @@ inline void symphas::dft::arrange_fftw_iptr<2>(const scalar_t* src,
 }
 
 //! Specialization based on symphas::dft::arrange_fftw_stip.
+// NOTE: Currently unreferenced by any solver (3D real-inplace arrangement is
+// not used in the present code paths). The body below was originally
+// adapted from the 2D version and still contains stride inconsistencies
+// (e.g. the `k * dims[0] * hsize` term on the `j > hsize` branch mixes
+// dims[0] with hsize, unlike the matching `k * dims[1] * hsize` on the
+// sibling branches). Before ever enabling a 3D real-inplace spectral
+// solver, verify the half-complex stride layout against the 2D version
+// and add coverage. The obvious `dims[0]` / `dims[10]` typos in the
+// j-loop bound and the z-reflected j-stride have been corrected below.
 template <>
 inline void symphas::dft::arrange_fftw_iptr<3>(const scalar_t* src,
                                                scalar_t* target,
                                         const len_type* dims) {
   int hsize = dims[0] / 2 + 1;
   for (int k = 0; k < dims[2]; ++k) {
-    for (int j = 0; j < dims[0]; ++j) {
+    for (int j = 0; j < dims[1]; ++j) {
       for (int i = 0; i < hsize; ++i) {
         if (k <= hsize) {
           if (j <= hsize) {
@@ -372,7 +381,7 @@ inline void symphas::dft::arrange_fftw_iptr<3>(const scalar_t* src,
             target[i + j * dims[0] + (dims[2] - k) * dims[1] * dims[0]] =
                 src[i + j * hsize + k * dims[1] * hsize];  // Real part
           } else {
-            target[i + (dims[10] - j) * dims[0] +
+            target[i + (dims[1] - j) * dims[0] +
                    (dims[2] - k) * dims[1] * dims[0]] =
                 src[i + j * hsize + k * dims[1] * hsize];  // Real part
           }

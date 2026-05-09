@@ -28,6 +28,7 @@
 
 #include "boundarysystem.h"
 #include "spslibfftw.h"
+#include "spsmpi.h"
 
 #ifdef EXECUTION_HEADER_AVAILABLE
 #include <execution>
@@ -52,11 +53,148 @@ struct SolverSystemFD : BoundarySystem<T, D> {
   using BoundarySystem<T, D>::dims;
 
   BoundaryGrid<T, D> dframe;  // the working grid for the solver
+
+#if defined(USING_MPI) && defined(SYMPHAS_MPI_LOCAL_STORAGE)
+  // SYMPHAS_MPI_LOCAL_STORAGE: each rank allocates only its sub-region
+  // of the global grid (with halo). Phase 1-4 of the local-storage
+  // refactor live here, on the actually-registered FD system class
+  // (see ASSOCIATE_SELECTABLE_SOLVER_SYSTEM_TYPE in solverft.h).
+  symphas::parallel::domain_info<D> dinfo;
+
+ private:
+  // Compute global+halo dims from the user-facing vdata (matches what
+  // the legacy global-storage parent ctor would produce).
+  static grid::dim_list compute_global_dims(
+      symphas::interval_data_type const& vdata) {
+    auto v = vdata;
+    if (params::extend_boundary) {
+      for (auto& [_, iv] : v) {
+        iv.set_count(iv.get_count() + 2 * BOUNDARY_DEPTH);
+        iv.interval_to_domain();
+      }
+    }
+    return symphas::grid_info(v).get_dims();
+  }
+
+  // domain_info wants a fixed-size array; convert from dim_list and tag
+  // the result as local-storage (so halo + iterable_domain consumers know
+  // grid.dims is local, not global).
+  static symphas::parallel::domain_info<D> make_dinfo(
+      grid::dim_list const& gd) {
+    len_type fixed[D];
+    for (size_t i = 0; i < D; ++i) fixed[i] = gd[i];
+    auto di = symphas::parallel::domain_info<D>(fixed, BOUNDARY_DEPTH);
+    di.local_storage = true;
+    return di;
+  }
+
+  // Build a vdata describing this rank's local sub-region INCLUDING halo
+  // on each side. Total per-axis count = local_n + 2*BOUNDARY_DEPTH;
+  // the physical interval is positioned at the rank's slice of the user
+  // domain, extended by BOUNDARY_DEPTH cells of halo.
+  static symphas::interval_data_type make_local_vdata(
+      symphas::interval_data_type const& vdata,
+      symphas::parallel::domain_info<D> const& di) {
+    if constexpr (D < 2) {
+      return vdata;
+    } else {
+      if (di.num_ranks <= 1) return vdata;
+      symphas::interval_data_type local = vdata;
+      Axis xa = symphas::index_to_axis(0);
+      Axis ya = symphas::index_to_axis(1);
+      auto& xv = local.at(xa);
+      auto& yv = local.at(ya);
+      double xh = xv.width();
+      double yh = yv.width();
+      len_type local_total_x = di.local_nx + 2 * BOUNDARY_DEPTH;
+      len_type local_total_y = di.local_ny + 2 * BOUNDARY_DEPTH;
+      double x_left = xv.domain_left() +
+                      (di.local_x_start - BOUNDARY_DEPTH) * xh;
+      double x_right = x_left + (local_total_x - 1) * xh;
+      double y_left = yv.domain_left() +
+                      (di.local_y_start - BOUNDARY_DEPTH) * yh;
+      double y_right = y_left + (local_total_y - 1) * yh;
+      xv.set_domain(x_left, x_right, xh);
+      xv.set_interval(x_left, x_right);
+      yv.set_domain(y_left, y_right, yh);
+      yv.set_interval(y_left, y_right);
+      return local;
+    }
+  }
+
+  // Replace the four periodic boundary updaters with MPI exchange
+  // updaters carrying the rank-local domain_info. Cart topology has
+  // periods={1,1}; every rank has neighbors on every side. Side::TOP
+  // is the one that actually triggers exchange_halos at update time;
+  // the other three are no-ops, gating exchange_halos to fire exactly
+  // once per step.
+  void rewire_mpi_boundaries() {
+    if constexpr (D < 2) return;
+    if (dinfo.num_ranks <= 1) return;
+    int rk = dinfo.rank;
+    constexpr iter_type TOP_IDX = static_cast<iter_type>(Side::TOP);
+    constexpr iter_type BOT_IDX = static_cast<iter_type>(Side::BOTTOM);
+    constexpr iter_type LEFT_IDX = static_cast<iter_type>(Side::LEFT);
+    constexpr iter_type RIGHT_IDX = static_cast<iter_type>(Side::RIGHT);
+    auto& bg = static_cast<BoundaryGroup<T, D>&>(*this);
+
+    auto install_mpi = [&](iter_type idx, int neighbor) {
+      delete bg.boundaries[idx];
+      bg.types[idx] = BoundaryType::MPI;
+      auto* b = new grid::BoundaryApplied<T, D - 1, BoundaryType::MPI>(
+          neighbor, rk);
+      // Attach the local-storage dinfo so the halo updater uses it
+      // directly instead of constructing one from grid.dims.
+      b->dinfo_storage = new symphas::parallel::domain_info<D>(dinfo);
+      bg.boundaries[idx] = b;
+    };
+
+    install_mpi(TOP_IDX, dinfo.neighbor_above);
+    install_mpi(BOT_IDX, dinfo.neighbor_below);
+    if (dinfo.dims_cart[0] > 1) {
+      install_mpi(LEFT_IDX, dinfo.neighbor_left);
+      install_mpi(RIGHT_IDX, dinfo.neighbor_right);
+    }
+  }
+
+  // Delegating ctor: builds dinfo from global dims, then constructs
+  // parent with rank-local vdata so the BoundaryGrid storage is sized
+  // (local_n + 2*bdepth) per axis instead of global N.
+  SolverSystemFD(symphas::init_data_type const& tdata,
+                 symphas::interval_data_type const& vdata,
+                 symphas::b_data_type const& bdata, size_t id,
+                 grid::dim_list const& global_dims)
+      : BoundarySystem<T, D>(
+            tdata,
+            make_local_vdata(vdata, make_dinfo(global_dims)),
+            bdata, id),
+        dframe{dims},
+        dinfo{make_dinfo(global_dims)} {
+    if (dinfo.num_ranks > 1) {
+      fprintf(stderr,
+              "[SolverSystemFD::ctor LOCAL_STORAGE] rank=%d global_dims=%dx%d "
+              "local_nx=%d local_ny=%d after-ctor dims=%dx%d\n",
+              dinfo.rank, (int)global_dims[0], (int)global_dims[1],
+              (int)dinfo.local_nx, (int)dinfo.local_ny,
+              (int)dims[0], (int)dims[1]);
+    }
+    rewire_mpi_boundaries();
+  }
+
+ public:
+  SolverSystemFD(symphas::init_data_type const& tdata,
+                 symphas::interval_data_type const& vdata,
+                 symphas::b_data_type const& bdata, size_t id = 0)
+      : SolverSystemFD(tdata, vdata, bdata, id,
+                       compute_global_dims(vdata)) {}
+  SolverSystemFD() : BoundarySystem<T, D>(), dframe{0}, dinfo{} {}
+#else
   SolverSystemFD(symphas::init_data_type const& tdata,
                  symphas::interval_data_type const& vdata,
                  symphas::b_data_type const& bdata, size_t id = 0)
       : BoundarySystem<T, D>(tdata, vdata, bdata, id), dframe{dims} {}
   SolverSystemFD() : BoundarySystem<T, D>(), dframe{0} {}
+#endif
 };
 
 template <typename T, size_t D>
@@ -78,8 +216,39 @@ struct SolverSystemFDwSD : RegionalSystem<T, D> {
 
 #ifdef USING_MPI
 
+// =====================================================================
+// BUILD-TIME GUARD — SolverSystemFDwSDMPI is structurally unsound.
+//
+// SolverSystemFDwSDMPI combines:
+//   * RegionalSystemMPI<T,D>   (MPI-decomposed sparse region storage)
+//   * RegionalGrid<T,D>        (single-process sparse working frame)
+//
+// These assumptions conflict: RegionalGrid assumes one process owns the
+// full sparse domain, while RegionalSystemMPI decomposes it across ranks.
+// In practice, using this class produces access violations and
+// MPI_Bcast: Invalid buffer pointer errors.
+//
+// The `static_assert` below is a template-instantiation guard. The class
+// declaration is kept so existing headers still parse, but any attempt
+// to instantiate it (e.g. through SolverFT's selectable-system machinery)
+// triggers a compile-time error at the instantiation site. The registration
+// macro ASSOCIATE_SELECTABLE_SOLVER_SYSTEM_TYPE(SolverFT, SolverSystemFDwSDMPI)
+// in examples/solvers/solverft.h is also intentionally omitted.
+// =====================================================================
+
+namespace symphas::internal {
+template <typename, size_t>
+struct solver_system_fdwsdmpi_forbidden : std::false_type {};
+}  // namespace symphas::internal
+
 template <typename T, size_t D>
 struct SolverSystemFDwSDMPI : RegionalSystemMPI<T, D> {
+  static_assert(symphas::internal::solver_system_fdwsdmpi_forbidden<T, D>::value,
+                "SolverSystemFDwSDMPI is forbidden: RegionalGrid is not "
+                "compatible with MPI spatial decomposition. Use "
+                "SolverSystemFD (variation 0) under MPI builds, or switch "
+                "to a serial build to use SolverSystemFDwSD (variation 1).");
+
   using RegionalSystemMPI<T, D>::dims;
   using RegionalSystemMPI<T, D>::thr_info;
 
@@ -96,6 +265,180 @@ struct SolverSystemFDwSDMPI : RegionalSystemMPI<T, D> {
     if (thr_info.is_in_node()) {
       dframe.adjust(RegionalSystemMPI<T, D>::region);
     }
+  }
+};
+
+template <typename T, size_t D>
+struct SolverSystemFDMPI : BoundarySystem<T, D> {
+  using BoundarySystem<T, D>::dims;
+
+  BoundaryGrid<T, D> dframe;
+  symphas::parallel::domain_info<D> dinfo;
+
+ private:
+  // Compute global+halo dims from the user-facing vdata. This mirrors
+  // what BoundarySystem's parent ctor would produce so we can construct
+  // a global domain_info before delegating to the parent.
+  static grid::dim_list compute_global_extended_dims(
+      symphas::interval_data_type const& vdata) {
+    auto v = vdata;
+    if (params::extend_boundary) {
+      for (auto& [_, iv] : v) {
+        iv.set_count(iv.get_count() + 2 * BOUNDARY_DEPTH);
+        iv.interval_to_domain();
+      }
+    }
+    return symphas::grid_info(v).get_dims();
+  }
+
+  // Compute a vdata that describes ONLY this rank's local sub-region of
+  // the global grid PLUS the boundary halo on each side. The result has
+  // count = local_n + 2*BOUNDARY_DEPTH on each axis (matching what the
+  // grid will allocate as `dims`), and the physical interval positioned
+  // at the rank's slice of the user domain.
+  //
+  // Why +2*BOUNDARY_DEPTH: SymPhas's BoundaryGrid stores `dims` as the
+  // total array size (interior + halo on both sides). The interval
+  // `count` is interpreted by `grid::construct<BoundaryGrid>(vdata)` as
+  // exactly the number of cells to allocate, so we must include halo.
+  //
+  // For non-MPI / single-rank fallback or when D < 2, returns vdata
+  // unchanged.
+  static symphas::interval_data_type make_local_vdata(
+      symphas::interval_data_type const& vdata,
+      symphas::parallel::domain_info<D> const& di) {
+    if constexpr (D < 2) {
+      return vdata;
+    } else {
+      if (di.num_ranks <= 1) return vdata;
+      symphas::interval_data_type local = vdata;
+      Axis xa = symphas::index_to_axis(0);
+      Axis ya = symphas::index_to_axis(1);
+      auto& xv = local.at(xa);
+      auto& yv = local.at(ya);
+      double xh = xv.width();
+      double yh = yv.width();
+      // Total local extent (interior + 2*halo) on each axis.
+      len_type local_total_x = di.local_nx + 2 * BOUNDARY_DEPTH;
+      len_type local_total_y = di.local_ny + 2 * BOUNDARY_DEPTH;
+      // Position the slice in physical coords. domain_info splits the
+      // GLOBAL INTERIOR; the interior starts at xv.left() in physical
+      // coords (xv from vdata represents the user-facing interior).
+      // Each cell is xh wide; we extend by BOUNDARY_DEPTH cells on each
+      // side to cover halo too.
+      double x_left = xv.domain_left() +
+                      (di.local_x_start - BOUNDARY_DEPTH) * xh;
+      double x_right = x_left + (local_total_x - 1) * xh;
+      double y_left = yv.domain_left() +
+                      (di.local_y_start - BOUNDARY_DEPTH) * yh;
+      double y_right = y_left + (local_total_y - 1) * yh;
+      xv.set_domain(x_left, x_right, xh);
+      xv.set_interval(x_left, x_right);
+      yv.set_domain(y_left, y_right, yh);
+      yv.set_interval(y_left, y_right);
+      return local;
+    }
+  }
+
+#ifdef SYMPHAS_MPI_LOCAL_STORAGE
+  // Delegating ctor: builds dinfo from the global vdata, then constructs
+  // the parent with the rank-local vdata. Storage allocates only
+  // (local_n + 2*bdepth) per axis.
+  SolverSystemFDMPI(symphas::init_data_type const& tdata,
+                    symphas::interval_data_type const& vdata,
+                    symphas::b_data_type const& bdata, size_t id,
+                    grid::dim_list const& global_dims)
+      : BoundarySystem<T, D>(
+            tdata,
+            make_local_vdata(
+                vdata,
+                make_domain_info(global_dims)),
+            bdata, id),
+        dframe{dims},
+        dinfo{make_domain_info(global_dims)} {
+    fprintf(stderr,
+            "[SOLVER_LOCALSTOR] rank=%d global_dims=%dx%d local_nx=%d "
+            "local_ny=%d after-ctor dims=%dx%d\n",
+            dinfo.rank, (int)global_dims[0], (int)global_dims[1],
+            (int)dinfo.local_nx, (int)dinfo.local_ny,
+            (int)dims[0], (int)dims[1]);
+    rewire_mpi_boundaries();
+  }
+
+  // Helper: domain_info wants a fixed-size array. Convert from dim_list.
+  static symphas::parallel::domain_info<D> make_domain_info(
+      grid::dim_list const& gd) {
+    len_type fixed[D];
+    for (size_t i = 0; i < D; ++i) fixed[i] = gd[i];
+    auto di = symphas::parallel::domain_info<D>(fixed, BOUNDARY_DEPTH);
+    di.local_storage = true;
+    return di;
+  }
+
+  void rewire_mpi_boundaries() {
+    if constexpr (D < 2) return;
+    if (dinfo.num_ranks <= 1) return;
+    int rk = dinfo.rank;
+    constexpr iter_type TOP_IDX = static_cast<iter_type>(Side::TOP);
+    constexpr iter_type BOT_IDX = static_cast<iter_type>(Side::BOTTOM);
+    constexpr iter_type LEFT_IDX = static_cast<iter_type>(Side::LEFT);
+    constexpr iter_type RIGHT_IDX = static_cast<iter_type>(Side::RIGHT);
+    auto& bg = static_cast<BoundaryGroup<T, D>&>(*this);
+
+    delete bg.boundaries[TOP_IDX];
+    delete bg.boundaries[BOT_IDX];
+    bg.types[TOP_IDX] = BoundaryType::MPI;
+    bg.types[BOT_IDX] = BoundaryType::MPI;
+    bg.boundaries[TOP_IDX] =
+        new grid::BoundaryApplied<T, D - 1, BoundaryType::MPI>(
+            dinfo.neighbor_above, rk);
+    bg.boundaries[BOT_IDX] =
+        new grid::BoundaryApplied<T, D - 1, BoundaryType::MPI>(
+            dinfo.neighbor_below, rk);
+    if (dinfo.dims_cart[0] > 1) {
+      delete bg.boundaries[LEFT_IDX];
+      delete bg.boundaries[RIGHT_IDX];
+      bg.types[LEFT_IDX] = BoundaryType::MPI;
+      bg.types[RIGHT_IDX] = BoundaryType::MPI;
+      bg.boundaries[LEFT_IDX] =
+          new grid::BoundaryApplied<T, D - 1, BoundaryType::MPI>(
+              dinfo.neighbor_left, rk);
+      bg.boundaries[RIGHT_IDX] =
+          new grid::BoundaryApplied<T, D - 1, BoundaryType::MPI>(
+              dinfo.neighbor_right, rk);
+    }
+  }
+#endif
+
+ public:
+#ifdef SYMPHAS_MPI_LOCAL_STORAGE
+  SolverSystemFDMPI(symphas::init_data_type const& tdata,
+                    symphas::interval_data_type const& vdata,
+                    symphas::b_data_type const& bdata, size_t id = 0)
+      : SolverSystemFDMPI(tdata, vdata, bdata, id,
+                          compute_global_extended_dims(vdata)) {}
+#else
+  SolverSystemFDMPI(symphas::init_data_type const& tdata,
+                    symphas::interval_data_type const& vdata,
+                    symphas::b_data_type const& bdata, size_t id = 0)
+      : BoundarySystem<T, D>(tdata, vdata, bdata, id),
+        dframe{dims},
+        dinfo{dims, BOUNDARY_DEPTH} {}
+#endif
+
+  SolverSystemFDMPI() : BoundarySystem<T, D>(), dframe{0}, dinfo{} {}
+
+  inline void update(iter_type index, double time) {
+    // BoundarySystem::update -> BoundaryGroup::update_boundaries iterates
+    // the four sides and dispatches per-side updaters. Under MPI the TOP
+    // side updater calls exchange_halos (Y+X in a single 2-step exchange).
+    // No additional exchange is needed here.
+    //
+    // Phase 1: removed redundant exchange_halos(dframe.values, dinfo).
+    // Phase 3 prep: removed redundant exchange_halos(values, dinfo) — that
+    // exchange was already performed by the MPI boundary updater chain
+    // above, so calling it again was a 2x halo-traffic wastage.
+    BoundarySystem<T, D>::update(index, time);
   }
 };
 
@@ -228,8 +571,7 @@ struct SolverSystemSpectral<scalar_t, D> : System<scalar_t, D> {
 
   ~SolverSystemSpectral();
 
- protected:
-  fftw_plan p_to_t;
+  fftw_plan p_to_t;  // Made public for SolverSP2 access.
 };
 
 //! The phase field system used by the spectral solver.
@@ -808,6 +1150,237 @@ inline SolverSystemSpectral<scalar_t, D>::~SolverSystemSpectral() {
   symphas::dft::fftw_free(reinterpret_cast<fftw_complex*&>(dframe));
   symphas::dft::fftw_free(reinterpret_cast<fftw_complex*&>(frame_t));
 }
+
+#if defined(USING_FFTW) && defined(USING_MPI) && defined(USING_FFTW_MPI)
+
+//! Distributed spectral system for MPI.
+/*!
+ * Uses fftw_mpi distributed r2c/c2r transforms. Data is distributed
+ * along the y-axis (leftmost dimension in FFTW row-major convention).
+ * Each rank holds local_n0 rows of k-space data.
+ *
+ * The real-space grid (values[]) holds the FULL global grid, but only the
+ * local slab [local_0_start .. local_0_start+local_n0) is kept up-to-date
+ * during the solve loop. No MPI communication occurs per timestep.
+ * Call sync_full_grid() before I/O to reconstruct the full grid via Allgatherv.
+ */
+struct SolverSystemSpectralMPI : System<scalar_t, 2> {
+  using System<scalar_t, 2>::System;
+  using Grid<scalar_t, 2>::dims;
+  using Grid<scalar_t, 2>::values;
+
+  len_type transformed_len;   //!< Local k-space length (local_n0 * (Nx/2+1)).
+  complex_t* frame_t;         //!< Local k-space snapshot (previous step).
+  complex_t* dframe;          //!< Local k-space accumulator (solver writes here).
+  scalar_t* real_work;        //!< Padded real workspace for MPI FFT.
+
+  fftw_plan p;       //!< Inverse FFT plan (c2r).
+  fftw_plan p_to_t;  //!< Forward FFT plan (r2c).
+  bool owns_plans;   //!< Whether this instance owns (and should destroy) the plans.
+
+  ptrdiff_t local_n0;       //!< Number of y-rows on this rank.
+  ptrdiff_t local_0_start;  //!< Global y-offset of this rank's slab.
+  ptrdiff_t alloc_local;    //!< Allocation size returned by fftw_mpi.
+
+  SolverSystemSpectralMPI(symphas::init_data_type const& tdata,
+                          symphas::interval_data_type const& vdata,
+                          symphas::b_data_type const& bdata, size_t id);
+
+  SolverSystemSpectralMPI()
+      : System<scalar_t, 2>(),
+        transformed_len{0}, frame_t{nullptr}, dframe{nullptr},
+        real_work{nullptr}, p{0}, p_to_t{0}, owns_plans{false},
+        local_n0{0}, local_0_start{0}, alloc_local{0} {}
+
+  SolverSystemSpectralMPI(SolverSystemSpectralMPI&& other) noexcept
+      : SolverSystemSpectralMPI() {
+    swap(*this, other);
+  }
+
+  SolverSystemSpectralMPI(SolverSystemSpectralMPI const& other);
+
+  SolverSystemSpectralMPI& operator=(SolverSystemSpectralMPI other) {
+    swap(*this, other);
+    return *this;
+  }
+
+  //! Local slab offset and length in the values[] array.
+  len_type local_real_start() const { return static_cast<len_type>(local_0_start) * dims[0]; }
+  len_type local_real_len() const { return static_cast<len_type>(local_n0) * dims[0]; }
+
+  //! Copy local real-space slab into padded MPI workspace.
+  void scatter_real_to_work() {
+    len_type Nx = dims[0];
+    len_type row_pad = 2 * (Nx / 2 + 1);
+    for (ptrdiff_t j = 0; j < local_n0; ++j) {
+      ptrdiff_t global_j = local_0_start + j;
+      for (len_type i = 0; i < Nx; ++i) {
+        real_work[j * row_pad + i] = values[global_j * Nx + i];
+      }
+    }
+  }
+
+  //! Unpad inverse FFT result into the local slab of values[].
+  void unpad_local_slab() {
+    len_type Nx = dims[0];
+    len_type row_pad = 2 * (Nx / 2 + 1);
+    for (ptrdiff_t j = 0; j < local_n0; ++j) {
+      ptrdiff_t global_j = local_0_start + j;
+      for (len_type i = 0; i < Nx; ++i) {
+        values[global_j * Nx + i] = real_work[j * row_pad + i];
+      }
+    }
+  }
+
+  //! Allgatherv to reconstruct full grid on all ranks. Call before I/O only.
+  void sync_full_grid() {
+    len_type Nx = dims[0];
+    int nprocs;
+    MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+    std::vector<int> recvcounts(nprocs), displs(nprocs);
+    int local_count = static_cast<int>(local_n0 * Nx);
+    MPI_Allgather(&local_count, 1, MPI_INT,
+                  recvcounts.data(), 1, MPI_INT, MPI_COMM_WORLD);
+    displs[0] = 0;
+    for (int r = 1; r < nprocs; ++r)
+      displs[r] = displs[r-1] + recvcounts[r-1];
+    MPI_Allgatherv(MPI_IN_PLACE, local_count, MPI_DOUBLE,
+                   values, recvcounts.data(), displs.data(),
+                   MPI_DOUBLE, MPI_COMM_WORLD);
+  }
+
+  void update(iter_type index, double) {
+    SYMPHAS_MPI_PROFILE_SCOPE("sp2_update");
+    // Periodically refresh k-space from local real-space to prevent drift.
+    if (index % 100 == 0) {
+      SYMPHAS_MPI_PROFILE_SCOPE("sp2_update_refresh");
+      scatter_real_to_work();
+      symphas::dft::fftw_execute(p_to_t);
+    }
+    // dframe has the updated k-space solution; copy to frame_t.
+    {
+      SYMPHAS_MPI_PROFILE_SCOPE("sp2_update_copy_dframe");
+      std::copy(dframe, dframe + transformed_len, frame_t);
+    }
+    // Inverse FFT (c2r): dframe → real_work.
+    {
+      SYMPHAS_MPI_PROFILE_SCOPE("sp2_update_inv_fft");
+      symphas::dft::fftw_execute(p);
+    }
+    // Unpad only local slab — no MPI communication.
+    {
+      SYMPHAS_MPI_PROFILE_SCOPE("sp2_update_unpad");
+      unpad_local_slab();
+    }
+    // Scale only the local slab by 1/(Nx*Ny).
+    {
+      SYMPHAS_MPI_PROFILE_SCOPE("sp2_update_scale");
+      len_type start = local_real_start();
+      len_type len = local_real_len();
+      double scale = 1.0 / static_cast<double>(dims[0] * dims[1]);
+      for (len_type i = start; i < start + len; ++i)
+        values[i] *= scale;
+    }
+  }
+
+  friend void swap(SolverSystemSpectralMPI& a, SolverSystemSpectralMPI& b) {
+    using std::swap;
+    swap(static_cast<System<scalar_t, 2>&>(a),
+         static_cast<System<scalar_t, 2>&>(b));
+    swap(a.transformed_len, b.transformed_len);
+    swap(a.frame_t, b.frame_t);
+    swap(a.dframe, b.dframe);
+    swap(a.real_work, b.real_work);
+    swap(a.p, b.p);
+    swap(a.p_to_t, b.p_to_t);
+    swap(a.owns_plans, b.owns_plans);
+    swap(a.local_n0, b.local_n0);
+    swap(a.local_0_start, b.local_0_start);
+    swap(a.alloc_local, b.alloc_local);
+  }
+
+  ~SolverSystemSpectralMPI() {
+    if (owns_plans) {
+      if (p) symphas::dft::fftw_destroy_plan(p);
+      if (p_to_t) symphas::dft::fftw_destroy_plan(p_to_t);
+    }
+    if (dframe) symphas::dft::fftw_free(reinterpret_cast<fftw_complex*&>(dframe));
+    if (frame_t) symphas::dft::fftw_free(reinterpret_cast<fftw_complex*&>(frame_t));
+    if (real_work) symphas::dft::fftw_free(real_work);
+  }
+};
+
+inline SolverSystemSpectralMPI::SolverSystemSpectralMPI(
+    symphas::init_data_type const& tdata,
+    symphas::interval_data_type const& vdata,
+    symphas::b_data_type const&, size_t id)
+    : System<scalar_t, 2>(tdata, vdata, id),
+      transformed_len{0}, frame_t{nullptr}, dframe{nullptr},
+      real_work{nullptr}, p{0}, p_to_t{0}, owns_plans{true},
+      local_n0{0}, local_0_start{0}, alloc_local{0}
+{
+  // FFTW MPI distributes along the first dimension (n0 = Ny, n1 = Nx).
+  ptrdiff_t Nx = dims[0], Ny = dims[1];
+  alloc_local = symphas::dft::fftw_mpi_local_size_2d(
+      Ny, Nx, MPI_COMM_WORLD, &local_n0, &local_0_start);
+  transformed_len = static_cast<len_type>(local_n0 * (Nx / 2 + 1));
+
+  // Allocate k-space arrays. Must use alloc_local (not transformed_len)
+  // because FFTW MPI may need extra space for the internal transpose.
+  frame_t = reinterpret_cast<complex_t*>(
+      symphas::dft::fftw_alloc_complex(alloc_local));
+  dframe = reinterpret_cast<complex_t*>(
+      symphas::dft::fftw_alloc_complex(alloc_local));
+
+  // Allocate padded real workspace for MPI r2c/c2r.
+  // alloc_local is in units of complex, so 2*alloc_local doubles.
+  real_work = symphas::dft::fftw_alloc_real(2 * alloc_local);
+
+  // Create MPI plans (in-place on real_work / cast to dframe).
+  p_to_t = symphas::dft::fftw_mpi_plan_r2c_2d(
+      Ny, Nx, real_work, reinterpret_cast<fftw_complex*>(dframe),
+      MPI_COMM_WORLD);
+  p = symphas::dft::fftw_mpi_plan_c2r_2d(
+      Ny, Nx, reinterpret_cast<fftw_complex*>(dframe), real_work,
+      MPI_COMM_WORLD);
+
+  // Initial forward FFT.
+  scatter_real_to_work();
+  symphas::dft::fftw_execute(p_to_t);
+}
+
+inline SolverSystemSpectralMPI::SolverSystemSpectralMPI(
+    SolverSystemSpectralMPI const& other)
+    : System<scalar_t, 2>(other),
+      transformed_len{other.transformed_len}, frame_t{nullptr}, dframe{nullptr},
+      real_work{nullptr}, p{0}, p_to_t{0}, owns_plans{true},
+      local_n0{other.local_n0}, local_0_start{other.local_0_start},
+      alloc_local{other.alloc_local}
+{
+  // Allocate own buffers. Must use alloc_local for k-space arrays
+  // (FFTW MPI may need extra space beyond transformed_len for transpose).
+  frame_t = reinterpret_cast<complex_t*>(
+      symphas::dft::fftw_alloc_complex(alloc_local));
+  dframe = reinterpret_cast<complex_t*>(
+      symphas::dft::fftw_alloc_complex(alloc_local));
+  real_work = symphas::dft::fftw_alloc_real(2 * alloc_local);
+
+  // Create own MPI plans bound to our buffers.
+  // fftw_mpi_plan_* are collective — all ranks must call simultaneously.
+  ptrdiff_t Nx = dims[0], Ny = dims[1];
+  p_to_t = symphas::dft::fftw_mpi_plan_r2c_2d(
+      Ny, Nx, real_work, reinterpret_cast<fftw_complex*>(dframe),
+      MPI_COMM_WORLD);
+  p = symphas::dft::fftw_mpi_plan_c2r_2d(
+      Ny, Nx, reinterpret_cast<fftw_complex*>(dframe), real_work,
+      MPI_COMM_WORLD);
+
+  // Copy k-space state from the original.
+  std::copy(other.frame_t, other.frame_t + transformed_len, frame_t);
+  std::copy(other.dframe, other.dframe + transformed_len, dframe);
+}
+
+#endif  // USING_FFTW && USING_MPI && USING_FFTW_MPI
 
 template <size_t D>
 inline SolverSystemSpectral<complex_t, D>::~SolverSystemSpectral() {

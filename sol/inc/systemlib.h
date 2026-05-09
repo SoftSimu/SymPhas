@@ -266,9 +266,18 @@ struct SystemData<BoundaryGrid<T, D>> : BoundaryGrid<T, D>, SystemInfo {
    * the boundary.
    */
   void persist(T* out) const {
-    auto interval = grid::get_iterable_domain(*this);
-    auto it = symphas::data_iterator_region(as_grid(), interval);
-    auto end = it + grid::length<D>(interval);
+    // Use the full interior region (not the MPI-restricted
+    // get_iterable_domain, which narrows to the local slab under MPI).
+    // Under MPI, modules-io.h syncs all slabs into the full grid on every
+    // rank before writing, so persist must copy the entire interior —
+    // not just the local slab — into the snapshot buffer.
+    grid::region_interval<D> region(dims);
+    for (iter_type i = 0; i < D; ++i) {
+      region[i][0] = BOUNDARY_DEPTH;
+      region[i][1] = dims[i] - BOUNDARY_DEPTH;
+    }
+    auto it = symphas::data_iterator_region(as_grid(), region);
+    auto end = it + grid::length<D>(region);
     while (it < end) {
       *out++ = *it++;
     }
@@ -430,7 +439,7 @@ struct SystemData<RegionalGridMPI<T, D>> : RegionalGridMPI<T, D>, SystemInfo {
   void fill(const T* in) const { grid::fill_interior(in, *this, dims); }
 
  protected:
-  SystemData() : RegionalGridMPI<T, D>{}, SystemInfo{{{}}, 0} {}
+  SystemData() : RegionalGridMPI<T, D>{}, SystemInfo{} {}
 };
 
 #endif
@@ -722,7 +731,7 @@ struct PersistentSystemData<RegionalGridMPI<T, D>>
       : parent_type(vdata, thr_info) {}
 
   void write(symphas::io::write_info const& w,
-             symphas::grid_info const& g) const {
+             symphas::grid_info& g) const {
     for (auto& [axis, interval] : g) {
       w.intervals[axis][0] = interval.domain_left();
       w.intervals[axis][1] = interval.domain_right();

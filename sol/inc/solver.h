@@ -213,7 +213,7 @@ struct provisional_system_type {
  * is ::SolverSystem, specialized on the order parameter type and model
  * dimension. This can be another type, such as the specialized systems
  * SolverSystemFD or SolverSystemSpectral that are used for ::SolverFT and
- ::SolverSP,
+ ::SolverSP2,
  * respectively, if it is added through #ASSOCIATE_SOLVER_SYSTEM_TYPE. It is
  * also possible to associate a custom system, but this has to be
  * included in the *SymPhas* installation beforehand.

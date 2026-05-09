@@ -1751,3 +1751,125 @@ operator()(const grid::Boundary<T, 0>* b, RegionalGrid<T, 1>& grid,
   regional_update_boundary(symphas::lib::side_list<Side::RIGHT>{}, b, grid,
                            time);
 }
+
+// **************************************************************************************
+// MPI halo exchange boundary updates
+// **************************************************************************************
+
+#ifdef USING_MPI
+
+#include "spsmpi.h"
+
+//! MPI TOP boundary for 2D grids: performs full bidirectional halo exchange.
+/*!
+ * Since halo exchange is inherently bidirectional (sending to and receiving
+ * from both neighbors simultaneously), the TOP boundary handles the complete
+ * exchange for the Y-direction, and the BOTTOM boundary is a no-op.
+ */
+namespace symphas::internal {
+// Trait: detect whether T is a VectorValue<U, N>. Used to pick the
+// per-component halo exchange path on vector-valued grids whose backing
+// storage is MultiBlock<N, U> (`T* values[N]`) instead of a flat Block<T>.
+template <typename T>
+struct is_vector_value : std::false_type {};
+template <typename U, size_t N>
+struct is_vector_value<VectorValue<U, N>> : std::true_type {
+  using element_type = U;
+  static constexpr size_t dim = N;
+};
+}  // namespace symphas::internal
+
+template <>
+template <typename T>
+void symphas::internal::update_boundary<BoundaryType::MPI, Side::TOP, 1>::
+operator()(const grid::Boundary<T, 1>* boundary, Grid<T, 2>& grid) {
+  auto* mpi_b = static_cast<const grid::BoundaryApplied<T, 1, BoundaryType::MPI>*>(boundary);
+  // If the boundary carries a preset domain_info (built at system
+  // construction time, e.g. by SolverSystemFD's SYMPHAS_MPI_LOCAL_STORAGE
+  // path), use it directly. Otherwise fall back to constructing one from
+  // grid.dims, which is correct under the legacy global-storage path
+  // (every rank holds the full N² grid, so grid.dims encodes the global
+  // decomposition).
+  if (mpi_b->dinfo_storage != nullptr) {
+    auto const& dinfo = *mpi_b->dinfo_storage;
+    if constexpr (symphas::internal::is_vector_value<T>::value) {
+      using trait = symphas::internal::is_vector_value<T>;
+      for (size_t c = 0; c < trait::dim; ++c) {
+        symphas::parallel::exchange_halos(grid.values[c], dinfo);
+      }
+    } else {
+      symphas::parallel::exchange_halos(grid.values, dinfo);
+    }
+    return;
+  }
+  symphas::parallel::domain_info<2> dinfo(grid.dims, BOUNDARY_DEPTH);
+  if constexpr (symphas::internal::is_vector_value<T>::value) {
+    // Vector grid: storage is MultiBlock<N, U>; values is U*[N]. Exchange
+    // each component buffer independently.
+    using trait = symphas::internal::is_vector_value<T>;
+    for (size_t c = 0; c < trait::dim; ++c) {
+      symphas::parallel::exchange_halos(grid.values[c], dinfo);
+    }
+  } else {
+    symphas::parallel::exchange_halos(grid.values, dinfo);
+  }
+}
+
+//! MPI BOTTOM boundary for 2D: no-op (exchange already done by TOP).
+template <>
+template <typename T>
+void symphas::internal::update_boundary<BoundaryType::MPI, Side::BOTTOM, 1>::
+operator()(const grid::Boundary<T, 1>*, Grid<T, 2>&) {
+  // Halo exchange already performed by the TOP boundary update.
+}
+
+//! MPI LEFT boundary for 2D: no-op (exchange already done by TOP).
+//! exchange_halos performs both Y and X exchange in a single call; LEFT
+//! and RIGHT MPI boundary handlers exist only so that setup_mpi_boundaries
+//! can tag those sides as MPI under 2-D Cartesian decomposition (Px>1)
+//! and prevent the periodic boundary updater from also copying X halos.
+template <>
+template <typename T>
+void symphas::internal::update_boundary<BoundaryType::MPI, Side::LEFT, 1>::
+operator()(const grid::Boundary<T, 1>*, Grid<T, 2>&) {
+  // Halo exchange already performed by the TOP boundary update.
+}
+
+//! MPI RIGHT boundary for 2D: no-op (exchange already done by TOP).
+template <>
+template <typename T>
+void symphas::internal::update_boundary<BoundaryType::MPI, Side::RIGHT, 1>::
+operator()(const grid::Boundary<T, 1>*, Grid<T, 2>&) {
+  // Halo exchange already performed by the TOP boundary update.
+}
+
+//! MPI TOP boundary for 2D RegionalGrid: performs halo exchange.
+template <>
+template <typename T>
+void symphas::internal::update_boundary<BoundaryType::MPI, Side::TOP, 1>::
+operator()(const grid::Boundary<T, 1>* boundary, RegionalGrid<T, 2>& grid) {
+  operator()(boundary, static_cast<Grid<T, 2>&>(grid));
+}
+
+//! MPI BOTTOM boundary for 2D RegionalGrid: no-op.
+template <>
+template <typename T>
+void symphas::internal::update_boundary<BoundaryType::MPI, Side::BOTTOM, 1>::
+operator()(const grid::Boundary<T, 1>*, RegionalGrid<T, 2>&) {
+}
+
+//! MPI LEFT boundary for 2D RegionalGrid: no-op.
+template <>
+template <typename T>
+void symphas::internal::update_boundary<BoundaryType::MPI, Side::LEFT, 1>::
+operator()(const grid::Boundary<T, 1>*, RegionalGrid<T, 2>&) {
+}
+
+//! MPI RIGHT boundary for 2D RegionalGrid: no-op.
+template <>
+template <typename T>
+void symphas::internal::update_boundary<BoundaryType::MPI, Side::RIGHT, 1>::
+operator()(const grid::Boundary<T, 1>*, RegionalGrid<T, 2>&) {
+}
+
+#endif

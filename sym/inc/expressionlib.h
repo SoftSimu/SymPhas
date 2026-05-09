@@ -4489,17 +4489,16 @@ struct expr::eval_type {
 
   template <typename E0>
   using eval_t =
-      std::invoke_result_t<decltype(&eval_type<E>::template get_eval<E0>), E0>;
+      decltype(eval_type<E>::template get_eval<E0>(std::declval<E0>()));
 
  public:
   using type = typename symphas::internal::test_eval<eval_t<E>>::type;
   static constexpr size_t rank = symphas::lib::seq_index_value<
-      0, std::invoke_result_t<decltype(&eval_type<E>::get_rank<type>)>>::value;
+      0, decltype(eval_type<E>::template get_rank<type>())>::value;
 
  protected:
   static constexpr size_t rank_1 = symphas::lib::seq_index_value<
-      0, std::invoke_result_t<
-             decltype(&expr::eval_type<E>::get_rank_1<type>)>>::value;
+      0, decltype(expr::eval_type<E>::template get_rank_1<type>())>::value;
 
  public:
   template <size_t D>

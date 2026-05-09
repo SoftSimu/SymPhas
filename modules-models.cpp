@@ -20,6 +20,14 @@
 
 #include "symphas.h"
 
+#ifdef USING_MPI
+#include "spsmpi.h"
+#endif
+
+#ifdef USING_FFTW_MPI
+#include "spslibfftw.h"
+#endif
+
 #ifdef PRINT_TIMINGS
 DLLMOD double symphas::iteration_time = 0;
 DLLMOD double symphas::init_time = 0;
@@ -100,6 +108,10 @@ void symphas::init(const char* config, const char* const* param_list,
                    int num_params) {
 #ifdef USING_MPI
   MPI_Init(NULL, NULL);
+#endif
+
+#ifdef USING_FFTW_MPI
+  symphas::dft::fftw_mpi_init();
 #endif
 
 #ifdef PRINT_TIMINGS
@@ -185,7 +197,13 @@ void symphas::init(const char* title, const char* const* param_list,
 #endif
 
 void symphas::finalize() {
+#ifdef USING_FFTW_MPI
+  symphas::dft::fftw_mpi_cleanup();
+#endif
 #ifdef USING_MPI
+  // Phase 3.5: dump per-step phase timers before finalize. No-op unless
+  // SYMPHAS_MPI_PROFILE was enabled at compile time.
+  SYMPHAS_MPI_PROFILE_DUMP();
   MPI_Finalize();
 #endif
 }

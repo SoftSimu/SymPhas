@@ -1255,10 +1255,39 @@ grid::dim_list data_dimensions(GaussianSmoothing<D, grid_type> const& e) {
   return data_dimensions_data(e.data);
 }
 
+namespace {
+template <typename... Es>
+grid::dim_list data_dimensions_add_walk(OpAdd<Es...> const&,
+                                        std::index_sequence<>) {
+  return {};
+}
+
+template <typename... Es, size_t I0, size_t... Is>
+grid::dim_list data_dimensions_add_walk(OpAdd<Es...> const& e,
+                                        std::index_sequence<I0, Is...>) {
+  auto dims = data_dimensions(expr::get<I0>(e));
+  return (dims.n > 0)
+             ? dims
+             : data_dimensions_add_walk(e, std::index_sequence<Is...>{});
+}
+}  // namespace
+
+// PFC_MATRIX Bug 2 fix: walk all terms by index instead of relying on
+// terms_after_first(OpAdd<...>) returning a reference that triggers the
+// data_dimensions overload set. The previous implementation called
+// data_dimensions(terms_after_first(e)) which returns an OpAddList<...>&
+// (no data_dimensions overload exists for OpAddList), so dispatch fell
+// through to the generic catch-all returning an empty dim_list. The bug
+// only surfaced when the first OpAdd term itself reported n=0 (e.g. an
+// OpLiteral added in front of spectral derivative OpTerms — the case for
+// non-conserved single-field PFC l_op = -alpha - beta*|k|^4 - 2*beta*|k|^2).
+// The empty dim_list propagated up to OpMap<STHC, ...> ctor, which used
+// D=grid_dim<E>::value=2 to write past the (zero-sized) dim_list buffer
+// → heap corruption / access violation in solver_sp form_expr_one.
 template <typename E0, typename... Es>
 grid::dim_list data_dimensions(OpAdd<E0, Es...> const& e) {
-  auto dims = data_dimensions(expr::get<0>(e));
-  return (dims.n > 0) ? dims : data_dimensions(expr::terms_after_first(e));
+  return data_dimensions_add_walk(
+      e, std::make_index_sequence<sizeof...(Es) + 1>{});
 }
 
 template <typename E1, typename E2>

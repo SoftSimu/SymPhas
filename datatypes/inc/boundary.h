@@ -98,6 +98,10 @@ enum class BoundaryType {
                 //!< Periodic in x and y (but not z).
   PERIODIC3YZ  //!< Same as PERIODIC when used as a boundary parameter. Periodic
                //!< in y and z (but not x).
+#ifdef USING_MPI
+  ,
+  MPI  //!< MPI halo exchange boundary for distributed parallel computation.
+#endif
 };
 
 //! Value representing a modifier of the boundary.
@@ -429,6 +433,79 @@ struct BoundaryApplied<T, D, BoundaryType::PERIODIC> : Boundary<T, D> {
     return symphas::b_element_type(BoundaryType::PERIODIC);
   }
 };
+
+// **************************************************************************************
+
+#ifdef USING_MPI
+
+}  // namespace grid (temporarily close so we can forward-declare in
+   // symphas::parallel at the proper scope)
+
+// Forward-declare domain_info so we can hold a pointer without dragging
+// in the full spsmpi.h dependency. The pointed-to type is fully defined
+// in lib/inc/spsmpi.h, which the consumers (boundaryupdate.h,
+// solversystem.h) include directly.
+namespace symphas::parallel {
+template <size_t D>
+struct domain_info;
+}
+
+namespace grid {
+
+//! MPI halo exchange boundary.
+/*!
+ * Implements boundary updates via MPI communication between neighboring
+ * ranks in a Y-slab domain decomposition. The grid index of each side
+ * is accessible from the boundary object.
+ *
+ * Optionally carries a `domain_info` describing the rank-local
+ * decomposition; when present, halo-exchange code uses it directly
+ * instead of constructing one from the grid's `dims` at every step.
+ * The pointer is null in the legacy global-storage path (where every
+ * rank's grid.dims = global, and reconstructing dinfo from dims is
+ * correct), and non-null when the system was built with
+ * SYMPHAS_MPI_LOCAL_STORAGE (where grid.dims = local + halo, and the
+ * dinfo must be threaded through explicitly because grid.dims no
+ * longer encodes the global decomposition).
+ */
+template <typename T, size_t D>
+struct BoundaryApplied<T, D, BoundaryType::MPI> : Boundary<T, D> {
+  int neighbor_rank;  //!< MPI rank of the neighbor on this side.
+  int my_rank;        //!< MPI rank of this process.
+  //! Optional rank-local decomposition info. Heap-allocated when present
+  //! so that the deep dependency on spsmpi.h is contained at consumer
+  //! sites that include both headers. nullptr in legacy mode.
+  symphas::parallel::domain_info<D + 1>* dinfo_storage;
+
+  BoundaryApplied(int neighbor_rank, int my_rank)
+      : neighbor_rank{neighbor_rank},
+        my_rank{my_rank},
+        dinfo_storage{nullptr} {}
+  BoundaryApplied()
+      : neighbor_rank{0}, my_rank{0}, dinfo_storage{nullptr} {}
+
+  //! Copy ctor: deep-copies the dinfo (if any).
+  BoundaryApplied(BoundaryApplied const& other)
+      : neighbor_rank{other.neighbor_rank},
+        my_rank{other.my_rank},
+        dinfo_storage{
+            other.dinfo_storage
+                ? new symphas::parallel::domain_info<D + 1>(
+                      *other.dinfo_storage)
+                : nullptr} {}
+
+  ~BoundaryApplied() { delete dinfo_storage; }
+
+  Boundary<T, D>* clone() const {
+    return new BoundaryApplied<T, D, BoundaryType::MPI>(*this);
+  }
+
+  symphas::b_element_type get_parameters() const {
+    return symphas::b_element_type(BoundaryType::PERIODIC);
+  }
+};
+
+#endif
 
 // **************************************************************************************
 
