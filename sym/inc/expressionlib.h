@@ -4489,16 +4489,88 @@ struct expr::eval_type {
 
   template <typename E0>
   using eval_t =
-      decltype(eval_type<E>::template get_eval<E0>(std::declval<E0>()));
+      std::invoke_result_t<decltype(&eval_type<E>::template get_eval<E0>), E0>;
 
  public:
   using type = typename symphas::internal::test_eval<eval_t<E>>::type;
   static constexpr size_t rank = symphas::lib::seq_index_value<
-      0, decltype(eval_type<E>::template get_rank<type>())>::value;
+      0, std::invoke_result_t<decltype(&eval_type<E>::get_rank<type>)>>::value;
 
  protected:
   static constexpr size_t rank_1 = symphas::lib::seq_index_value<
-      0, decltype(expr::eval_type<E>::template get_rank_1<type>())>::value;
+      0, std::invoke_result_t<
+             decltype(&expr::eval_type<E>::get_rank_1<type>)>>::value;
+
+ public:
+  template <size_t D>
+  static constexpr size_t rank_ = (D == 0)   ? rank
+                                  : (D == 1) ? rank_1
+                                             : 0;
+};
+
+// Helper: invoke expr::eval_type<E>::type safely.  If the underlying
+// invoke_result deduction would hard-fail (e.g. because E's eval is
+// still being deduced), substitute symbols::Symbol so a surrounding
+// rank query can still proceed.
+namespace symphas::internal {
+template <typename E, typename = void>
+struct safe_eval_type {
+  using type = expr::symbols::Symbol;
+  static constexpr size_t rank = 0;
+  template <size_t D>
+  static constexpr size_t rank_ = 0;
+};
+template <typename E>
+struct safe_eval_type<E, std::void_t<typename expr::eval_type<E>::type>> {
+  using type = typename expr::eval_type<E>::type;
+  static constexpr size_t rank = expr::eval_type<E>::rank;
+  template <size_t D>
+  static constexpr size_t rank_ = expr::eval_type<E>::template rank_<D>;
+};
+}  // namespace symphas::internal
+
+// Partial specialization for OpAdd<E0, Es...>: determine the eval type
+// from the first summand without invoking OpAdd::eval(0).  This avoids
+// a hard-fail when the summands' eval return types cannot be combined
+// by the OpAddList fold (e.g. a scalar derivative summed with a vector
+// derivative produced by div() expansion).  Downstream consumers that
+// genuinely require all summands to have a common type still detect
+// the inconsistency when they actually evaluate.
+template <typename E0, typename... Es>
+struct expr::eval_type<OpAdd<E0, Es...>> {
+ private:
+  using head_t = symphas::internal::safe_eval_type<E0>;
+
+ public:
+  using type = typename head_t::type;
+  static constexpr size_t rank = head_t::rank;
+
+ protected:
+  static constexpr size_t rank_1 = head_t::template rank_<1>;
+
+ public:
+  template <size_t D>
+  static constexpr size_t rank_ = (D == 0)   ? rank
+                                  : (D == 1) ? rank_1
+                                             : 0;
+};
+
+// Partial specialization for OpOperatorChain<F, OpAdd<...>>: the chain
+// would otherwise try to evaluate f.eval(n) * g.eval(n) and hit the
+// same OpAdd-fold issue.  We use the inner OpAdd's eval type as the
+// representative.  When the chain wraps a non-OpAdd operand, the
+// generic struct above still handles it correctly.
+template <typename F, typename E0, typename... Es>
+struct expr::eval_type<OpOperatorChain<F, OpAdd<E0, Es...>>> {
+ private:
+  using inner_t = symphas::internal::safe_eval_type<OpAdd<E0, Es...>>;
+
+ public:
+  using type = typename inner_t::type;
+  static constexpr size_t rank = inner_t::rank;
+
+ protected:
+  static constexpr size_t rank_1 = inner_t::template rank_<1>;
 
  public:
   template <size_t D>

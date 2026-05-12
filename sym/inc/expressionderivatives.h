@@ -28,7 +28,6 @@
 #include "expressionaggregates.h"
 #include "expressionoperators.h"
 #include "gridfunctions.h"
-#include "boundaryupdatedata.h"
 
 template <typename G>
 struct SymbolicDerivative {
@@ -224,6 +223,24 @@ struct make_derivative {
   //! Constructs the derivative applied to an expression.
   template <typename V, typename E, typename Sp>
   static auto get(V const& v, OpExpression<E> const& e,
+                  solver_op_type<Sp> solver);
+
+  // Distribute over OpAdd at construction.  Takes the concrete OpAdd<...>
+  // type so it is preferred over the OpExpression<OpAdd<...>> overload.
+  template <typename V, typename... Es, typename Sp>
+  static auto get(V const& v, OpAdd<Es...> const& e,
+                  solver_op_type<Sp> solver);
+
+  // Wrap an existing OpDerivative directly without going through the
+  // per-component (vector) decomposition.  The inner OpDerivative may
+  // carry tensor indexing whose eval_type rank cannot be reliably
+  // queried (it reflects the symbolic tensor shape rather than the
+  // scalar nature of the partial derivative it computes); downstream
+  // apply_operators collapses the nested derivative properly.
+  template <typename V, typename Dd_inner, typename V_inner,
+            typename E_inner, typename Sp_inner, typename Sp>
+  static auto get(V const& v,
+                  OpDerivative<Dd_inner, V_inner, E_inner, Sp_inner> const& e,
                   solver_op_type<Sp> solver);
 
   template <typename V, typename E, typename Sp>
@@ -452,10 +469,12 @@ using nth_derivative_apply =
 // template<Axis ax, typename Sp>
 // using bilaplacian_apply = nth_derivative_apply<ax, 4, Sp>;
 
-template <typename E>
-struct setup_result_data {
-  E operator()(grid::dim_list const& dims) { return {dims}; }
-};
+// I commented this out because there was an identical defintion in expessionoperators.h that I enclosed in namespace symphas::internal. 
+// This code started complaining about multiple definitions after I enclosed the other definition in symphas::internal.
+// template <typename E>
+// struct setup_result_data {
+//   E operator()(grid::dim_list const& dims) { return {dims}; }
+// };
 
 template <>
 struct setup_result_data<expr::symbols::Symbol> {
@@ -1464,105 +1483,67 @@ auto break_up_derivative(solver_op_type<Sp> solver) {
 }  // namespace expr
 
 // *************************************************************************************
+// I commented this out because I added it to expressionoperators.h which caused an error due to repeated defintions. 
+// Commenting out this code allows symphas::internal::update_temporary_grid to be used in expressionoperators.h without
+// the multiple definitions error.
+//  
+// namespace symphas::internal {
+// template <typename T, typename E>
+// void update_temporary_grid(T const&, OpEvaluable<E> const& e) {}
 
-namespace symphas::internal {
-template <typename T, typename E>
-void update_temporary_grid(T const&, OpEvaluable<E> const& e) {}
+// template <typename T, size_t D, typename E>
+// void update_temporary_grid(Grid<T, D>& grid, OpEvaluable<E> const& e) {}
 
-template <typename T, size_t D, typename E>
-void update_temporary_grid(Grid<T, D>& grid, OpEvaluable<E> const& e) {}
+// template <typename T, size_t D>
+// void update_temporary_grid(RegionalGrid<T, D>& grid, ...) {
+//   grid::region_interval<D> interval;
+//   grid::resize_adjust_region(grid, interval);
+// }
 
-template <typename T, size_t D>
-void update_temporary_grid(RegionalGrid<T, D>& grid, ...) {
-  grid::region_interval<D> interval;
-  grid::resize_adjust_region(grid, interval);
-}
+// template <typename T, size_t D>
+// void update_temporary_grid(RegionalGrid<T, D>& grid,
+//                            grid::region_interval<D> interval) {
+//   for (iter_type i = 0; i < D; ++i) {
+//     interval[i][0] -= grid.region.boundary_size;
+//     interval[i][1] += grid.region.boundary_size;
+//   }
+//   grid::resize_adjust_region(grid, interval);
+// }
 
-template <typename T, size_t D>
-void update_temporary_grid(RegionalGrid<T, D>& grid,
-                           grid::region_interval<D> interval) {
-  for (iter_type i = 0; i < D; ++i) {
-    interval[i][0] -= grid.region.boundary_size;
-    interval[i][1] += grid.region.boundary_size;
-  }
-  grid::resize_adjust_region(grid, interval);
-}
+// template <typename T, size_t D>
+// void update_temporary_grid(RegionalGrid<T, D>& grid,
+//                            grid::region_interval_multiple<D> const& regions) {
+//   update_temporary_grid(grid, +regions);
+// }
 
-template <typename T, size_t D>
-void update_temporary_grid(RegionalGrid<T, D>& grid,
-                           grid::region_interval_multiple<D> const& regions) {
-  update_temporary_grid(grid, +regions);
-}
+// template <typename T, size_t D, typename E>
+// void update_temporary_grid(RegionalGrid<T, D>& grid, OpEvaluable<E> const& e) {
+//   update_temporary_grid(grid,
+//                         expr::iterable_domain(*static_cast<E const*>(&e)));
+// }
 
-template <typename T, size_t D, typename E>
-void update_temporary_grid(RegionalGrid<T, D>& grid, OpEvaluable<E> const& e) {
-  update_temporary_grid(grid,
-                        expr::iterable_domain(*static_cast<E const*>(&e)));
-}
+// #ifdef USING_CUDA
 
-// After a RegionalGrid temporary has been materialized by an evaluator, its
-// halo cells may still hold stale/zero values because the materialization
-// iterates over the region's current domain only. Derivative stencils that
-// later read this grid therefore pick up those unset halo cells at the first
-// interior ring, producing a spurious non-zero value when the true RHS should
-// vanish (reproduced with MB's `-bilap(psi) - lap((c1-c2*psi^2)*psi)` at
-// uniform psi=0.5: the temp for `f(psi)` is unpopulated in its halo, so
-// `lap(temp)` drifts at the first interior ring every step).
-//
-// This helper re-applies the standard periodic halo-fill (the same 8-side
-// dispatch used on the main field) to the temporary. For a fully-covered
-// region it re-syncs the halo from the interior; for a partial/cell region
-// the BC calls remain no-ops where out of range, so the fix is safe for cell
-// simulations that rely on narrow regions.
-template <typename T, typename E>
-inline void fill_temporary_halo(T const&, OpEvaluable<E> const&) {}
+// template <typename T, size_t D, typename E>
+// void update_temporary_grid(GridCUDA<T, D>& grid, OpEvaluable<E> const& e);
 
-template <typename T, size_t D, typename E>
-inline void fill_temporary_halo(Grid<T, D>&, OpEvaluable<E> const&) {}
+// template <typename T, size_t D>
+// void update_temporary_grid(RegionalGridCUDA<T, D>& grid, ...);
 
-template <typename T, size_t D, typename E>
-inline void fill_temporary_halo(RegionalGrid<T, D>& grid,
-                                OpEvaluable<E> const&) {
-  using symphas::lib::side_list;
-  if constexpr (D == 1) {
-    regional_update_boundary(side_list<Side::LEFT, Side::LEFT>{}, grid);
-    regional_update_boundary(side_list<Side::RIGHT, Side::RIGHT>{}, grid);
-  } else if constexpr (D == 2) {
-    regional_update_boundary(side_list<Side::LEFT, Side::LEFT>{}, grid);
-    regional_update_boundary(side_list<Side::RIGHT, Side::RIGHT>{}, grid);
-    regional_update_boundary(side_list<Side::TOP, Side::TOP>{}, grid);
-    regional_update_boundary(side_list<Side::BOTTOM, Side::BOTTOM>{}, grid);
-    regional_update_boundary(side_list<Side::LEFT, Side::TOP>{}, grid);
-    regional_update_boundary(side_list<Side::LEFT, Side::BOTTOM>{}, grid);
-    regional_update_boundary(side_list<Side::RIGHT, Side::TOP>{}, grid);
-    regional_update_boundary(side_list<Side::RIGHT, Side::BOTTOM>{}, grid);
-  }
-  // 3D: intentionally unhandled here; solvers with 3D RegionalGrid derivative
-  // temporaries would need the full 26-side enumeration added.
-}
+// template <typename T, size_t D>
+// void update_temporary_grid(RegionalGridCUDA<T, D>& grid,
+//                            grid::region_interval<D> interval);
 
-#ifdef USING_CUDA
+// template <typename T, size_t D>
+// void update_temporary_grid(RegionalGridCUDA<T, D>& grid,
+//                            grid::region_interval_multiple<D> const& regions);
 
-template <typename T, size_t D, typename E>
-void update_temporary_grid(GridCUDA<T, D>& grid, OpEvaluable<E> const& e);
+// template <typename T, size_t D, typename E>
+// void update_temporary_grid(RegionalGridCUDA<T, D>& grid,
+//                            OpEvaluable<E> const& e);
 
-template <typename T, size_t D>
-void update_temporary_grid(RegionalGridCUDA<T, D>& grid, ...);
-
-template <typename T, size_t D>
-void update_temporary_grid(RegionalGridCUDA<T, D>& grid,
-                           grid::region_interval<D> interval);
-
-template <typename T, size_t D>
-void update_temporary_grid(RegionalGridCUDA<T, D>& grid,
-                           grid::region_interval_multiple<D> const& regions);
-
-template <typename T, size_t D, typename E>
-void update_temporary_grid(RegionalGridCUDA<T, D>& grid,
-                           OpEvaluable<E> const& e);
-
-#endif
-}  // namespace symphas::internal
+// #endif
+// }  // namespace symphas::internal
 
 //! Concrete derivative expression.
 /*!
@@ -1599,48 +1580,10 @@ struct OpDerivative : OpExpression<OpDerivative<Dd, V, E, Sp>> {
   void allocate() {
     e.allocate();
 
-    // Only (re)allocate the temporary result grid on the first call.
-    // Without this guard, the per-step `prune::update` traversal calls
-    // `allocate()` every step, and `grid = setup_result_data{}(dims)`
-    // constructs a brand-new BoundaryGrid each call: that constructor
-    // does `new T[N^2]` and `std::fill(values, values+N^2, T{})`,
-    // followed by `delete[]` of the previous buffer when the temporary
-    // is destroyed. For a 2048x2048 double grid that is 32 MB
-    // alloc + 32 MB zero-write + 32 MB free EVERY STEP, per rank. At 64
-    // ranks on one socket this saturates DRAM bandwidth and the
-    // allocator lock, producing strong-scaling collapse.
-    //
-    // The temporary's dims are determined by the inner expression's
-    // data shape and do not change during a simulation. Allocate-once
-    // is therefore safe, and `update_temporary_grid` still runs every
-    // step for the RegionalGrid case (which legitimately resizes its
-    // active region between steps).
-    if (already_allocated(grid)) {
-      symphas::internal::update_temporary_grid(grid, e);
-      return;
-    }
-    grid =
-        symphas::internal::setup_result_data<result_grid>{}(
-            expr::data_dimensions(e));
+    grid = symphas::internal::setup_result_data<result_grid>{}(
+        expr::data_dimensions(e));
     symphas::internal::update_temporary_grid(grid, e);
   }
-
- private:
-  // grid::Block (and derived Grid/BoundaryGrid/RegionalGrid) all expose
-  // a positive `len` once memory is committed. For non-grid result
-  // types (e.g. int when result_data_type is the Symbol sentinel),
-  // there is no per-step allocator pressure to avoid, so always
-  // reconstruct.
-  template <typename G>
-  static auto already_allocated(G const& g) -> decltype(g.len > 0, true) {
-    return g.len > 0;
-  }
-  template <typename... Args>
-  static bool already_allocated(Args&&...) {
-    return false;
-  }
-
- public:
 
   OpDerivative() : grid{0}, value{V{}}, solver{}, e{} {}
 
@@ -1664,27 +1607,7 @@ struct OpDerivative : OpExpression<OpDerivative<Dd, V, E, Sp>> {
   void update(eval_handler_type const& eval_handler,
               symphas::lib::types_list<condition_ts...>) {
     symphas::internal::update_temporary_grid(grid, e);
-    // Iterate over only the source expression's iterable_domain, inflated
-    // by the order of THIS derivative so the outer stencil's neighbour
-    // reads at +/-order offsets land in populated halo cells of the temp.
-    //
-    // For non-MPI builds, iterable_domain on a BoundaryGrid returns the
-    // global interior [BOUNDARY_DEPTH, dim-BOUNDARY_DEPTH); after inflation
-    // (Dd::order <= BOUNDARY_DEPTH for valid finite-difference stencils)
-    // this is equivalent to the previous full-grid iteration.
-    //
-    // For MPI builds, iterable_domain returns only the rank's local tile,
-    // so each rank now materialises only ~(local_n + 2*order)^2 cells of
-    // the inner expression instead of the full N^2 every step. Without
-    // this fix, every rank redundantly evaluated the full inner
-    // expression on every step, completely defeating MPI strong scaling
-    // for any model whose RHS contains a derivative of a non-trivial
-    // expression (e.g. Model B's lap((c1 - c2*psi^2)*psi)).
-    auto interval = expr::iterable_domain(*static_cast<E const*>(&e));
-    grid::inflate_for_halo(interval, grid.dims,
-                           static_cast<iter_type>(Dd::order));
-    eval_handler.result(*static_cast<E const*>(&e), grid, interval);
-    symphas::internal::fill_temporary_halo(grid, e);
+    eval_handler.result(e, grid, grid::get_data_domain(grid));
   }
 
   template <typename eval_handler_type>
@@ -3194,6 +3117,7 @@ auto apply_derivative_dot(OpVoid, solver_op_type<Sp> solver) {
 }
 
 template <size_t R, size_t O, typename E, typename Sp,
+          typename std::enable_if_t<!expr::is_add<E>, int> = 0,
           size_t R0 = expr::eval_type<E>::rank,
           typename std::enable_if_t<(R0 > 0 && O % 2 == 1), int> = 0>
 auto apply_derivative_dot(OpExpression<E> const& e, solver_op_type<Sp> solver) {
@@ -3212,13 +3136,15 @@ auto apply_derivative_dot(OpExpression<E> const& e, solver_op_type<Sp> solver) {
 }
 
 template <size_t R, size_t O, typename E, typename Sp,
+          typename std::enable_if_t<!expr::is_add<E>, int> = 0,
           size_t R0 = expr::eval_type<E>::rank,
           typename std::enable_if_t<(R0 == 0 || O % 2 == 0), int> = 0>
 auto apply_derivative_dot(OpExpression<E> const& e, solver_op_type<Sp> solver) {
   return apply_derivative<R, O, R0>{}(*static_cast<E const*>(&e), solver);
 }
 
-template <size_t O, typename E, typename Sp>
+template <size_t O, typename E, typename Sp,
+          typename std::enable_if_t<!expr::is_add<E>, int> = 0>
 auto apply_derivative_dot(OpExpression<E> const& e, solver_op_type<Sp> solver) {
   if constexpr (expr::is_symbol<expr::eval_type_t<E>> &&
                 expr::grid_dim<E>::value == 0) {
@@ -3234,6 +3160,24 @@ auto apply_derivative_dot(OpExpression<E> const& e, solver_op_type<Sp> solver) {
   }
 }
 
+// Distribute a generalized derivative over a sum at construction time.
+// Avoids asking eval_type<OpAdd<...>>::rank when one sibling in the sum
+// is an operator-derivative-based expression (e.g. div, curl) whose
+// runtime eval(0) type can't be unified with scalar siblings.  Math is
+// linearity: D^O(a + b + ...) = D^O(a) + D^O(b) + ...
+template <size_t O, typename... Es, typename Sp, size_t... Is>
+auto _apply_derivative_dot_add(OpAdd<Es...> const& e,
+                               solver_op_type<Sp> solver,
+                               std::index_sequence<Is...>) {
+  return (apply_derivative_dot<O>(expr::get<Is>(e), solver) + ...);
+}
+
+template <size_t O, typename... Es, typename Sp>
+auto apply_derivative_dot(OpAdd<Es...> const& e, solver_op_type<Sp> solver) {
+  return _apply_derivative_dot_add<O>(
+      e, solver, std::make_index_sequence<sizeof...(Es)>{});
+}
+
 template <size_t O, typename E, typename G>
 auto apply_derivative_dot(OpExpression<E> const& e,
                           SymbolicDerivative<G> const& solver) {
@@ -3243,9 +3187,11 @@ auto apply_derivative_dot(OpExpression<E> const& e,
 template <size_t O>
 struct initialize_derivative_order {
   template <typename V, typename E, typename Sp,
-            size_t R = expr::eval_type<E>::rank,
             typename std::enable_if_t<
-                !(expr::is_coeff<E> || expr::is_identity<E>), int> = 0>
+                !(expr::is_coeff<E> || expr::is_identity<E>) &&
+                    !expr::is_add<E>,
+                int> = 0,
+            size_t R = expr::eval_type<E>::rank>
   auto operator()(V const& v, OpExpression<E> const& e,
                   solver_op_type<Sp> solver) {
     if constexpr (expr::is_symbol<expr::eval_type_t<E>> &&
@@ -3258,10 +3204,31 @@ struct initialize_derivative_order {
     }
   }
 
+  // Distribute a generalized derivative over a sum at construction time.
+  // Avoids asking eval_type<OpAdd<...>>::rank, which fails when one
+  // sibling in the sum is an operator-derivative-based expression
+  // (e.g. div, curl) whose eval(0) type can't be unified with scalar
+  // siblings.  Math is linearity: D^O(a + b + ...) = D^O(a) + D^O(b) + ...
+  template <typename V, typename Sp, typename... Es, size_t... Is>
+  auto _apply_to_add(V const& v, OpAdd<Es...> const& e,
+                     solver_op_type<Sp> solver,
+                     std::index_sequence<Is...>) {
+    return ((*this)(v, expr::get<Is>(e), solver) + ...);
+  }
+
+  template <typename V, typename Sp, typename... Es>
+  auto operator()(V const& v, OpAdd<Es...> const& e,
+                  solver_op_type<Sp> solver) {
+    return _apply_to_add(v, e, solver,
+                         std::make_index_sequence<sizeof...(Es)>{});
+  }
+
   template <typename V, typename E, typename Sp,
-            size_t R = expr::eval_type<E>::rank,
             typename std::enable_if_t<
-                (expr::is_coeff<E> || expr::is_identity<E>), int> = 0>
+                (expr::is_coeff<E> || expr::is_identity<E>) &&
+                    !expr::is_add<E>,
+                int> = 0,
+            size_t R = expr::eval_type<E>::rank>
   auto operator()(V const& v, OpExpression<E> const& e,
                   solver_op_type<Sp> solver) {
     return OpVoid{};
@@ -3345,6 +3312,35 @@ inline auto make_derivative<Dd>::get(V const& v, OpExpression<E> const& e,
     return make_derivative_per_component<Dd>(
         v, *static_cast<E const*>(&e), solver, std::make_index_sequence<R>{});
   }
+}
+
+template <typename Dd>
+template <typename V, typename... Es, typename Sp>
+inline auto make_derivative<Dd>::get(V const& v, OpAdd<Es...> const& e,
+                                     solver_op_type<Sp> solver) {
+  // Build OpDerivative<Dd, V, OpAdd<Es...>, Sp> directly; do not query
+  // eval_type<OpAdd<...>>::rank, which can hard-fail when the summands
+  // have inconsistent ranks (e.g. from div() expansion).  Downstream
+  // apply_operators(OpDerivative<Dd, V, OpAdd<...>, Sp>) distributes
+  // this into per-term derivatives via apply_operators_adds in
+  // expressionapply.h.
+  using AddT = OpAdd<Es...>;
+  return OpDerivative<Dd, V, AddT, Sp>(v, e, solver);
+}
+
+template <typename Dd>
+template <typename V, typename Dd_inner, typename V_inner, typename E_inner,
+          typename Sp_inner, typename Sp>
+inline auto make_derivative<Dd>::get(
+    V const& v, OpDerivative<Dd_inner, V_inner, E_inner, Sp_inner> const& e,
+    solver_op_type<Sp> solver) {
+  // Take a derivative of an existing derivative.  Wrap directly, skipping
+  // the per-component vector split that the OpExpression overload would
+  // otherwise perform (the eval_type of OpDerivative is unreliable when
+  // tensor indexing is present, but the partial derivative is always a
+  // scalar in the directions it covers).
+  using InnerT = OpDerivative<Dd_inner, V_inner, E_inner, Sp_inner>;
+  return OpDerivative<Dd, V, InnerT, Sp>(v, e, solver);
 }
 
 template <typename Dd>
