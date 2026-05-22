@@ -390,6 +390,14 @@ struct Stencil2d2h<L, G, B>
       T* const v, const len_type (&stride)[2]) const {
     return apply_hexalaplacian_2d2h<29>{}(v, divh4 * divh2, stride);
   }
+
+  //! Override apply<6> to use the isotropic hexalaplacian stencil.
+  template <size_t OD, typename T,
+            std::enable_if_t<OD == 6, int> = 0>
+  __device__ __host__ inline auto apply(
+      T* const v, const len_type (&stride)[2]) const {
+    return hexalaplacian(v, stride);
+  }
 };
 
 //! 3-dimensional stencil with 2nd order of accuracy.
