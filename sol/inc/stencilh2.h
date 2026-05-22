@@ -152,7 +152,7 @@ struct apply_bilaplacian_2d2h<21>
 			- 2. * (vxy + vx_y + vxy_ + vx_y_)
 			- 10. * (vx + vx_ + vy + vy_)
 			+ 36. * v0
-			) * divh4 * (1.0 / 12);
+			) * divh4 * (1.0 / 3);
 	}
 };
 

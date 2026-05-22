@@ -111,6 +111,58 @@ MODEL(FMPFCLinearField, (SCALAR, VECTOR),
 )
 LINK_WITH_NAME(FMPFCLinearField, FMPFCLINEARFIELD)
 
+// AnisotropicFMPFC: MagneticPFC2013 plus higher-order magnetostriction.
+//
+// Adds free-energy contributions
+//   F += -omega * alpha3 * (m . grad n)^4 / 4
+//   F += -omega * alpha5 * (m . grad n)^6 / 6
+// and a uniform applied magnetic field (c(13), c(14)).  In the EOM the
+// functional derivatives become the c(11) and c(12) terms below; each
+// power is split into two pieces by the product rule
+//   div( m * (m.grad n)^k ) = (m.grad n)^k div(m)
+//                           + k * (m.grad n)^(k-1) * m.grad(m.grad n)
+//
+// Coefficient slots:
+//   c(1)..c(10) match MagneticPFC2013 (DeltaB, Bs, t, v, unused, W0,
+//   omega*r_c, omega*beta, omega*gamma, omega*alpha).
+//   c(11) = cubic magnetostriction (alpha3).
+//   c(12) = quintic magnetostriction (alpha5).
+//   c(13), c(14) = uniform applied field (B_app_x, B_app_y).
+MODEL(AnisotropicFMPFC, (SCALAR, VECTOR),
+      EVOLUTION(
+            dop(1) = lap(c(1) * op(1) + c(2) * op(1) +
+                        c(2) * 2_n * lap(op(1)) + c(2) * bilap(op(1)) -
+                        c(3) * power(op(1), 2) + c(4) * power(op(1), 3) -
+                        c(8) * op(1) * dot(op(2), op(2))) +
+                  lap(c(10) * dot(op(2), grad(op(1))) * div(op(2))) +
+                  lap(c(10) * dot(op(2), grad(dot(grad(op(1)), op(2))))) +
+                  lap(c(11) * power(dot(op(2), grad(op(1))), 3) * div(op(2))) +
+                  lap(c(11) * 3_n * power(dot(op(2), grad(op(1))), 2) * dot(op(2), grad(dot(grad(op(1)), op(2))))) +
+                  lap(c(12) * power(dot(op(2), grad(op(1))), 5) * div(op(2))) +
+                  lap(c(12) * 5_n * power(dot(op(2), grad(op(1))), 4) * dot(op(2), grad(dot(grad(op(1)), op(2))))),
+            dop(2) = c(6) * c(6) * lap(op(2)) - c(7) * op(2) +
+                  c(8) * power(op(1), 2) * op(2) -
+                  c(9) * op(2) * dot(op(2), op(2)) +
+                  c(10) * grad(op(1)) * dot(op(2), grad(op(1))) +
+                  c(11) * grad(op(1)) * power(dot(op(2), grad(op(1))), 3) +
+                  c(12) * grad(op(1)) * power(dot(op(2), grad(op(1))), 5) +
+                  grady(PoissonSolver(curl(op(2)))) * e(x) -
+                  gradx(PoissonSolver(curl(op(2)))) * e(y) +
+                  c(13) * e(x) + c(14) * e(y)
+      )
+)
+LINK_WITH_NAME(AnisotropicFMPFC, ANISOTROPICFMPFC)
+
+#if defined(ANISO_T1) || defined(ANISO_T2) || defined(ANISO_T3) || defined(ANISO_T4) || defined(ANISO_T5) || defined(ANISO_T6) || \
+    defined(ANISO_T3a) || defined(ANISO_T3b) || defined(ANISO_T3c) || defined(ANISO_T3d) || defined(ANISO_T3e) || \
+    defined(ANISO_T7) || defined(ANISO_T8) || \
+    defined(ANISO_L6) || defined(ANISO_L7) || defined(ANISO_L8)
+// Bisection-ladder test fixtures used by tests/testanisocompile.  These
+// stay guarded because they intentionally exercise many overlapping
+// model templates that drive cc1plus to several GB just by instantiation.
+#include "aniso_fmpfc_test_models.h"
+#endif
+
 // #include "advancedmodeldefs.h"
 // #include "modeldefinitions.h"
 // #include "pfcdefs.h"

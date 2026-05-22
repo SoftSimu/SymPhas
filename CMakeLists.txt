@@ -208,22 +208,30 @@ if (USE_TESTS)
 			set(INCLUDE_TEST_FILES "${INCLUDE_TEST_FILES}\n#include \"${CHOSEN_TEST_NAME}.h\"")
 			set(RUN_TEST_FILES "${RUN_TEST_FILES}\n\t${CHOSEN_TEST_NAME}();")
 		endforeach()
+	elseif(NOT "${CHOSEN_TESTS}" STREQUAL "")
+		# Build *only* the chosen test sources -- not every file in tests/.
+		# This lets a user select an in-progress test without being blocked
+		# by an unrelated test that doesn't compile in the current
+		# configuration.
+		set(SELECTED_SOURCES "")
+		set(INCLUDE_TEST_FILES "")
+		set(RUN_TEST_FILES "")
+		foreach(CHOSEN_TEST ${CHOSEN_TEST_LIST})
+			get_filename_component(CHOSEN_TEST_NAME ${CHOSEN_TEST} NAME_WE)
+			set(CHOSEN_TEST_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/tests/${CHOSEN_TEST_NAME}.cpp")
+			if("${CHOSEN_TEST_SOURCE}" IN_LIST SOURCES_TESTS)
+				list(APPEND SELECTED_SOURCES ${CHOSEN_TEST_SOURCE})
+				set(INCLUDE_TEST_FILES "${INCLUDE_TEST_FILES}\n#include \"${CHOSEN_TEST_NAME}.h\"")
+				set(RUN_TEST_FILES "${RUN_TEST_FILES}\n\t${CHOSEN_TEST_NAME}();")
+			else()
+				message(STATUS "test '${CHOSEN_TEST}' does not exist")
+			endif()
+		endforeach()
+		set(SOURCES_TESTS ${SELECTED_SOURCES})
+	else()
+		# No test selected -- compile no test sources at all.
+		set(SOURCES_TESTS "")
 	endif()
-
-	foreach(CHOSEN_TEST ${CHOSEN_TEST_LIST})
-
-		get_filename_component(CHOSEN_TEST_NAME ${CHOSEN_TEST} NAME_WE)
-		set(CHOSEN_TEST_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/tests/${CHOSEN_TEST_NAME}.cpp")
-	
-		if("${CHOSEN_TEST_SOURCE}" IN_LIST SOURCES_TESTS)
-			list(APPEND SOURCES_TESTS ${CHOSEN_TEST_SOURCE})
-			set(INCLUDE_TEST_FILES "#include \"${CHOSEN_TEST_NAME}.h\"")
-			set(RUN_TEST_FILES "\t${CHOSEN_TEST_NAME}();")
-		else()
-			message(STATUS "test '${CHOSEN_TEST}' does not exist")
-			set(SOURCES_TESTS "")
-		endif()
-	endforeach()
 
 endif()
 

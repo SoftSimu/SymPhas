@@ -320,7 +320,7 @@ struct ModelSelectStencil {
  protected:
   template <typename>
   struct StencilFromSeq {
-#if defined(ALL_STENCILS) && defined(GENERATE_UNDEFINED_STENCILS_ON)
+#if defined(GENERATE_UNDEFINED_STENCILS_ON)
     template <typename T0, typename... Ts>
     auto operator()(T0 const&, Ts&&...) {
       fprintf(SYMPHAS_WARN,

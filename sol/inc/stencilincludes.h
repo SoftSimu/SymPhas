@@ -390,14 +390,6 @@ struct Stencil2d2h<L, G, B>
       T* const v, const len_type (&stride)[2]) const {
     return apply_hexalaplacian_2d2h<29>{}(v, divh4 * divh2, stride);
   }
-
-  //! Override apply<6> to use the isotropic hexalaplacian stencil.
-  template <size_t OD, typename T,
-            std::enable_if_t<OD == 6, int> = 0>
-  __device__ __host__ inline auto apply(
-      T* const v, const len_type (&stride)[2]) const {
-    return hexalaplacian(v, stride);
-  }
 };
 
 //! 3-dimensional stencil with 2nd order of accuracy.
@@ -673,15 +665,9 @@ MAKE_AVAILABLE_ORDER_LIST(2, (2))
 #endif
 
 #ifdef ORDER_LIST_2D
-MAKE_AVAILABLE_ORDER_LIST(2, (2, 4, 6))
+MAKE_AVAILABLE_ORDER_LIST(2, (2))
 #ifndef ORDER_LIST_2D_HAS_2H
 #define ORDER_LIST_2D_HAS_2H
-#endif
-#ifndef ORDER_LIST_2D_HAS_4H
-#define ORDER_LIST_2D_HAS_4H
-#endif
-#ifndef ORDER_LIST_2D_HAS_6H
-#define ORDER_LIST_2D_HAS_6H
 #endif
 #endif
 
@@ -852,7 +838,7 @@ MAKE_STENCIL_POINT_LIST(3, 1, 2, (4))
 
 #ifdef ORDER_LIST_2D
 #ifdef ORDER_LIST_2D_HAS_2H
-MAKE_STENCIL_POINT_LIST(2, 2, 2, (5, 9))
+MAKE_STENCIL_POINT_LIST(2, 2, 2, (9, 5))
 MAKE_STENCIL_POINT_LIST(4, 2, 2, (13, 17, 21))
 MAKE_STENCIL_POINT_LIST(3, 2, 2, (6, 8, 12, 16))
 #endif
@@ -884,11 +870,13 @@ MAKE_STENCIL_POINT_LIST(3, 1, 2, (4))
 #endif
 #endif
 
+// 2D stencil point lists defined in the ALL_STENCILS block above
+// Re-declare here for the non-STENCIL_OVERRIDE path
 #ifdef ORDER_LIST_2D
 #ifdef ORDER_LIST_2D_HAS_2H
-MAKE_STENCIL_POINT_LIST(2, 2, 2, (9))
-MAKE_STENCIL_POINT_LIST(4, 2, 2, (13))
-MAKE_STENCIL_POINT_LIST(3, 2, 2, (6))
+MAKE_STENCIL_POINT_LIST(2, 2, 2, (5, 9))
+MAKE_STENCIL_POINT_LIST(4, 2, 2, (13, 17, 21))
+MAKE_STENCIL_POINT_LIST(3, 2, 2, (6, 8, 12, 16))
 #endif
 #endif
 
@@ -936,16 +924,20 @@ template <template <size_t...> typename stencil_type, size_t D, size_t O>
 using infer_default_points_t =
     typename infer_default_points<stencil_type, D, O>::type;
 
-#if defined(GENERATE_UNDEFINED_STENCILS_ON) && defined(ALL_STENCILS)
+#if defined(GENERATE_UNDEFINED_STENCILS_ON)
 
+#ifdef ORDER_LIST_1D_HAS_2H
+template <size_t...>
+struct Stencil1d2h : infer_default_points_t<Stencil1d2h, 1, 2> {
+  using parent_type = infer_default_points_t<Stencil1d2h, 1, 2>;
+  using parent_type::parent_type;
+};
+#else
 template <size_t...>
 struct Stencil1d2h : symphas::internal::StencilBase1d2h,
                      Stencil<Stencil1d2h<>>,
                      symphas::internal::StencilDefaultStride<1, Stencil1d2h<>> {
   using base_type = symphas::internal::StencilBase1d2h;
-  using base_derivatives =
-      symphas::internal::StencilDefaultStride<1, Stencil1d2h<>>;
-
   using base_type::apply;
   using base_type::base_type;
   using base_type::bilaplacian;
@@ -954,15 +946,20 @@ struct Stencil1d2h : symphas::internal::StencilBase1d2h,
   using base_type::gradlaplacian;
   using base_type::laplacian;
 };
+#endif
 
+#ifdef ORDER_LIST_2D_HAS_2H
+template <size_t...>
+struct Stencil2d2h : infer_default_points_t<Stencil2d2h, 2, 2> {
+  using parent_type = infer_default_points_t<Stencil2d2h, 2, 2>;
+  using parent_type::parent_type;
+};
+#else
 template <size_t...>
 struct Stencil2d2h : symphas::internal::StencilBase2d2h,
                      Stencil<Stencil2d2h<>>,
                      symphas::internal::StencilDefaultStride<2, Stencil2d2h<>> {
   using base_type = symphas::internal::StencilBase2d2h;
-  using base_derivatives =
-      symphas::internal::StencilDefaultStride<2, Stencil2d2h<>>;
-
   using base_type::apply;
   using base_type::base_type;
   using base_type::bilaplacian;
@@ -971,15 +968,20 @@ struct Stencil2d2h : symphas::internal::StencilBase2d2h,
   using base_type::gradlaplacian;
   using base_type::laplacian;
 };
+#endif
 
+#ifdef ORDER_LIST_2D_HAS_4H
+template <size_t...>
+struct Stencil2d4h : infer_default_points_t<Stencil2d4h, 2, 4> {
+  using parent_type = infer_default_points_t<Stencil2d4h, 2, 4>;
+  using parent_type::parent_type;
+};
+#else
 template <size_t...>
 struct Stencil2d4h : symphas::internal::StencilBase2d4h,
                      Stencil<Stencil2d4h<>>,
                      symphas::internal::StencilDefaultStride<2, Stencil2d4h<>> {
   using base_type = symphas::internal::StencilBase2d4h;
-  using base_derivatives =
-      symphas::internal::StencilDefaultStride<2, Stencil2d4h<>>;
-
   using base_type::apply;
   using base_type::base_type;
   using base_type::bilaplacian;
@@ -988,15 +990,20 @@ struct Stencil2d4h : symphas::internal::StencilBase2d4h,
   using base_type::gradlaplacian;
   using base_type::laplacian;
 };
+#endif
 
+#ifdef ORDER_LIST_2D_HAS_6H
+template <size_t...>
+struct Stencil2d6h : infer_default_points_t<Stencil2d6h, 2, 6> {
+  using parent_type = infer_default_points_t<Stencil2d6h, 2, 6>;
+  using parent_type::parent_type;
+};
+#else
 template <size_t...>
 struct Stencil2d6h : symphas::internal::StencilBase2d6h,
                      Stencil<Stencil2d6h<>>,
                      symphas::internal::StencilDefaultStride<2, Stencil2d6h<>> {
   using base_type = symphas::internal::StencilBase2d6h;
-  using base_derivatives =
-      symphas::internal::StencilDefaultStride<2, Stencil2d6h<>>;
-
   using base_type::apply;
   using base_type::base_type;
   using base_type::bilaplacian;
@@ -1005,15 +1012,20 @@ struct Stencil2d6h : symphas::internal::StencilBase2d6h,
   using base_type::gradlaplacian;
   using base_type::laplacian;
 };
+#endif
 
+#ifdef ORDER_LIST_3D_HAS_2H
+template <size_t...>
+struct Stencil3d2h : infer_default_points_t<Stencil3d2h, 3, 2> {
+  using parent_type = infer_default_points_t<Stencil3d2h, 3, 2>;
+  using parent_type::parent_type;
+};
+#else
 template <size_t...>
 struct Stencil3d2h : symphas::internal::StencilBase3d2h,
                      Stencil<Stencil3d2h<>>,
                      symphas::internal::StencilDefaultStride<3, Stencil3d2h<>> {
   using base_type = symphas::internal::StencilBase3d2h;
-  using base_derivatives =
-      symphas::internal::StencilDefaultStride<3, Stencil3d2h<>>;
-
   using base_type::apply;
   using base_type::base_type;
   using base_type::bilaplacian;
@@ -1022,6 +1034,7 @@ struct Stencil3d2h : symphas::internal::StencilBase3d2h,
   using base_type::gradlaplacian;
   using base_type::laplacian;
 };
+#endif
 
 #else
 
@@ -1118,7 +1131,7 @@ auto search(const size_t (&parameters)[L], CrossProductList<Seq0, Seqs...>,
   using cl_type = CrossProductList<Seq0, Seqs...>;
 
   if constexpr (Pos >= cl_type::count) {
-    return F<void>{}(typename cl_type::template row<Pos>{},
+    return F<void>{}(std::index_sequence<>{},
                      std::forward<Ts>(args)...);
   } else {
     using row_type = typename cl_type::template row<Pos>;

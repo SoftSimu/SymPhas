@@ -4487,25 +4487,370 @@ struct expr::eval_type {
     return _get_eval(e0);
   }
 
+  // Use `decltype(get_eval(declval<>()))` instead of
+  // `invoke_result_t<decltype(&get_eval), E0>` to make this trait
+  // SFINAE-friendly.  libstdc++'s `invoke_result_t` is gated by a
+  // `static_assert(__is_complete_or_unbounded(...))` that emits a HARD
+  // ERROR (not SFINAE) when any argument type is mid-instantiation.
+  // That hard-error short-circuits partial-specialization selection at
+  // surrounding sites — e.g. `eval_type<OpOperatorCombination<...>>`
+  // queried inside an autogen-internal `coeff_t * OpTerms` overload's
+  // enable_if while the OpOperatorCombination type is still being
+  // formed.  Equivalent to the fix recorded for `expressionconvolution.h`
+  // and an earlier site in this file (see symphas-build-notes, commit
+  // 9958676).
   template <typename E0>
   using eval_t =
-      std::invoke_result_t<decltype(&eval_type<E>::template get_eval<E0>), E0>;
+      decltype(eval_type<E>::template get_eval<E0>(std::declval<E0>()));
 
  public:
   using type = typename symphas::internal::test_eval<eval_t<E>>::type;
   static constexpr size_t rank = symphas::lib::seq_index_value<
-      0, std::invoke_result_t<decltype(&eval_type<E>::get_rank<type>)>>::value;
+      0, decltype(eval_type<E>::template get_rank<type>())>::value;
 
  protected:
   static constexpr size_t rank_1 = symphas::lib::seq_index_value<
-      0, std::invoke_result_t<
-             decltype(&expr::eval_type<E>::get_rank_1<type>)>>::value;
+      0, decltype(expr::eval_type<E>::template get_rank_1<type>())>::value;
 
  public:
   template <size_t D>
   static constexpr size_t rank_ = (D == 0)   ? rank
                                   : (D == 1) ? rank_1
                                              : 0;
+};
+
+// Helper: invoke expr::eval_type<E>::type safely.  If the underlying
+// invoke_result deduction would hard-fail (e.g. because E's eval is
+// still being deduced), substitute symbols::Symbol so a surrounding
+// rank query can still proceed.
+namespace symphas::internal {
+template <typename E, typename = void>
+struct safe_eval_type {
+  using type = expr::symbols::Symbol;
+  static constexpr size_t rank = 0;
+  template <size_t D>
+  static constexpr size_t rank_ = 0;
+};
+template <typename E>
+struct safe_eval_type<E, std::void_t<typename expr::eval_type<E>::type>> {
+  using type = typename expr::eval_type<E>::type;
+  static constexpr size_t rank = expr::eval_type<E>::rank;
+  template <size_t D>
+  static constexpr size_t rank_ = expr::eval_type<E>::template rank_<D>;
+};
+}  // namespace symphas::internal
+
+// Partial specialization for OpAdd<E0, Es...>: determine the eval type
+// from the first summand without invoking OpAdd::eval(0).  This avoids
+// a hard-fail when the summands' eval return types cannot be combined
+// by the OpAddList fold (e.g. a scalar derivative summed with a vector
+// derivative produced by div() expansion).  Downstream consumers that
+// genuinely require all summands to have a common type still detect
+// the inconsistency when they actually evaluate.
+template <typename E0, typename... Es>
+struct expr::eval_type<OpAdd<E0, Es...>> {
+ private:
+  using head_t = symphas::internal::safe_eval_type<E0>;
+
+ public:
+  using type = typename head_t::type;
+  static constexpr size_t rank = head_t::rank;
+
+ protected:
+  static constexpr size_t rank_1 = head_t::template rank_<1>;
+
+ public:
+  template <size_t D>
+  static constexpr size_t rank_ = (D == 0)   ? rank
+                                  : (D == 1) ? rank_1
+                                             : 0;
+};
+
+// Partial specialization for OpOperatorChain<F, OpAdd<...>>: the chain
+// would otherwise try to evaluate f.eval(n) * g.eval(n) and hit the
+// same OpAdd-fold issue.  We use the inner OpAdd's eval type as the
+// representative.  When the chain wraps a non-OpAdd operand, the
+// generic struct above still handles it correctly.
+template <typename F, typename E0, typename... Es>
+struct expr::eval_type<OpOperatorChain<F, OpAdd<E0, Es...>>> {
+ private:
+  using inner_t = symphas::internal::safe_eval_type<OpAdd<E0, Es...>>;
+
+ public:
+  using type = typename inner_t::type;
+  static constexpr size_t rank = inner_t::rank;
+
+ protected:
+  static constexpr size_t rank_1 = inner_t::template rank_<1>;
+
+ public:
+  template <size_t D>
+  static constexpr size_t rank_ = (D == 0)   ? rank
+                                  : (D == 1) ? rank_1
+                                             : 0;
+};
+
+// Mirror spec: OpOperatorChain<OpAdd<F0, Fs...>, G>.  Autogen's
+// `pow<O/2>(op_deriv<2,x> + op_deriv<2,y>)` chains an OpAdd of
+// operator-derivatives on the *left* of an OpOperatorChain.  Without a
+// declared-shape spec the primary template's eval-deduction recursively
+// asks for `f.eval(n) * g.eval(n)` and hits `__is_complete_or_unbounded`.
+// We use the inner G's safe_eval_type (the operand the chain applies to)
+// as the representative — the chain produces the operand's shape.
+template <typename F0, typename... Fs, typename G>
+struct expr::eval_type<OpOperatorChain<OpAdd<F0, Fs...>, G>> {
+ private:
+  using g_t = symphas::internal::safe_eval_type<G>;
+
+ public:
+  using type = typename g_t::type;
+  static constexpr size_t rank = g_t::rank;
+
+ protected:
+  static constexpr size_t rank_1 = g_t::template rank_<1>;
+
+ public:
+  template <size_t D>
+  static constexpr size_t rank_ = (D == 0)   ? rank
+                                  : (D == 1) ? rank_1
+                                             : 0;
+};
+
+// Declared-shape spec for OpDerivative.  An applied derivative
+// `D(V * E)` evaluates pointwise to `V * Dd(grid_of_E)(n)` where Dd is
+// the (axis-decomposed) differential operator and V is a coefficient.
+// The result shape is the tensor product of V and the per-component
+// scalar contribution: in practice rank == V::rank when V is a tensor
+// (the derivative-along-axis gives a scalar that V scales), or rank
+// == E::rank when V is a plain scalar (lap/bilap preserve operand shape).
+//
+// Without this spec, eval_type's primary template invokes
+// `decltype(&OpDerivative::eval)` which under
+// AVAILABLE_STENCILS_AUTOGENERATION=ON tries to instantiate the autogen
+// stencil's `auto (*)()` -> incomplete `invoke_result`.  Declaring the
+// answer here closes that path (a separate failure mode from C1, only
+// surfaced under autogen).
+template <typename Dd, typename V, typename E, typename Sp>
+struct expr::eval_type<OpDerivative<Dd, V, E, Sp>> {
+ private:
+  using v_t = symphas::internal::safe_eval_type<V>;
+  using e_t = symphas::internal::safe_eval_type<E>;
+
+ public:
+  using type = expr::symbols::Symbol;
+  // If V is a tensor coefficient (rank > 0) the derivative gives a
+  // scalar contribution that V multiplies; result has V's shape.
+  // Otherwise V is scalar-like and the derivative preserves E's rank.
+  static constexpr size_t rank = (v_t::rank > 0) ? v_t::rank : e_t::rank;
+
+ protected:
+  static constexpr size_t rank_1 = (v_t::rank > 0) ? v_t::template rank_<1>
+                                                   : e_t::template rank_<1>;
+
+ public:
+  template <size_t D>
+  static constexpr size_t rank_ = (D == 0)   ? rank
+                                  : (D == 1) ? rank_1
+                                             : 0;
+};
+
+// Declared-shape spec for OpOperatorCombination (sum of two operators).
+// Same structure as OpAdd: result has the head operator's shape, since
+// the two operators must produce same-shape outputs to be sum-combined.
+// Without this spec the primary template instantiates `f.eval(n) +
+// g.eval(n)` which on operator nodes (whose eval returns Symbol)
+// triggers the __is_complete_or_unbounded cascade.
+template <typename A1, typename A2>
+struct expr::eval_type<OpOperatorCombination<A1, A2>> {
+ private:
+  using head_t = symphas::internal::safe_eval_type<A1>;
+
+ public:
+  using type = expr::symbols::Symbol;
+  static constexpr size_t rank = head_t::rank;
+
+ protected:
+  static constexpr size_t rank_1 = head_t::template rank_<1>;
+
+ public:
+  template <size_t D>
+  static constexpr size_t rank_ = (D == 0)   ? rank
+                                  : (D == 1) ? rank_1
+                                             : 0;
+};
+
+// Declared-shape spec for OpOperatorDerivative.  An "operator derivative"
+template <size_t O, typename V, typename Sp>
+struct expr::eval_type<OpOperatorDerivative<O, V, Sp>> {
+ private:
+  using v_t = symphas::internal::safe_eval_type<V>;
+
+ public:
+  using type = expr::symbols::Symbol;
+  static constexpr size_t rank = v_t::rank;
+
+ protected:
+  static constexpr size_t rank_1 = v_t::template rank_<1>;
+
+ public:
+  template <size_t D>
+  static constexpr size_t rank_ = (D == 0)   ? rank
+                                  : (D == 1) ? rank_1
+                                             : 0;
+};
+
+// Declared-shape spec for the un-applied divergence form.
+// `divergence_of(E)` is built via `expr::dot(make_operator_derivative<1>(s), E)`
+// which dispatches to `apply_dot(OpOperator, OpExpression)` -> a plain
+// `make_mul(op, E)`.  That OpBinaryMul wrapper carries no information that
+// the un-applied form denotes a *contraction* (dot of the row-vector of
+// partial derivatives against the column-vector operand), and the primary
+// eval_type would instantiate `op.eval(n) * E.eval(n)` -> Symbol * vector
+// which reports the operand's vector rank instead of the divergence's
+// scalar rank.
+//
+// This specialization handles the dot-built form directly.  The applied
+// rule:  op of order 1 dot vector  =  scalar (the divergence);
+//        op of order 1 dot matrix  =  row of div-of-each-column (rank lr-1);
+//        op of order >=2 preserves rank (laplacian / bilaplacian).
+// gradient (op of order 1 times scalar) is NOT routed through this path
+// because OpOperatorDerivative::operator*(OpExpression) returns an
+// OpDerivative directly; if a future caller does build that shape via
+// dot, this branch falls through to preserve the scalar operand's rank.
+template <size_t O, typename V_op, typename Sp, typename E>
+struct expr::eval_type<OpBinaryMul<OpOperatorDerivative<O, V_op, Sp>, E>> {
+ private:
+  using e_t = symphas::internal::safe_eval_type<E>;
+  static constexpr bool is_divergence_form = (O == 1) && (e_t::rank > 0);
+
+ public:
+  using type = expr::symbols::Symbol;
+  static constexpr size_t rank =
+      is_divergence_form ? size_t(0) : e_t::rank;
+
+ protected:
+  static constexpr size_t rank_1 =
+      is_divergence_form ? size_t(0) : e_t::template rank_<1>;
+
+ public:
+  template <size_t D>
+  static constexpr size_t rank_ = (D == 0)   ? rank
+                                  : (D == 1) ? rank_1
+                                             : 0;
+};
+
+// Propagate the declared rank of an OpBinaryMul<op_deriv, E> (divergence /
+// lap-of-X) when it is itself wrapped by an outer OpBinaryMul.
+//
+// Without this spec the outer OpBinaryMul falls through to the primary
+// eval_type, which calls .eval() on the divergence wrapper and gets back
+// `Symbol * E.eval()` -- a value of the operand's shape, not the contracted
+// shape.  So the outer mul reports the operand's rank, not 0.  These two
+// specs encode plain tensor multiplication between an arbitrary L (whose
+// shape we look up via safe_eval_type) and the divergence-form inner mul.
+// They are intentionally narrow: only OpBinaryMul nesting *one specific*
+// inner shape on either side, so we don't disturb the general dispatch
+// landscape that the model-machinery template chain relies on.
+template <typename E_outer, size_t O, typename V_op, typename Sp, typename E_in>
+struct expr::eval_type<
+    OpBinaryMul<E_outer, OpBinaryMul<OpOperatorDerivative<O, V_op, Sp>, E_in>>> {
+ private:
+  using L = symphas::internal::safe_eval_type<E_outer>;
+  using R = symphas::internal::safe_eval_type<
+      OpBinaryMul<OpOperatorDerivative<O, V_op, Sp>, E_in>>;
+
+ public:
+  using type = expr::symbols::Symbol;
+  // Scalar L preserves R; otherwise just report L's rank as a stand-in.
+  static constexpr size_t rank = (L::rank == 0) ? R::rank : L::rank;
+
+ protected:
+  static constexpr size_t rank_1 =
+      (L::rank == 0) ? R::template rank_<1> : L::template rank_<1>;
+
+ public:
+  template <size_t D>
+  static constexpr size_t rank_ = (D == 0)   ? rank
+                                  : (D == 1) ? rank_1
+                                             : 0;
+};
+
+template <typename E_outer, size_t O, typename V_op, typename Sp, typename E_in>
+struct expr::eval_type<
+    OpBinaryMul<OpBinaryMul<OpOperatorDerivative<O, V_op, Sp>, E_in>, E_outer>> {
+ private:
+  using L = symphas::internal::safe_eval_type<
+      OpBinaryMul<OpOperatorDerivative<O, V_op, Sp>, E_in>>;
+  using R = symphas::internal::safe_eval_type<E_outer>;
+
+ public:
+  using type = expr::symbols::Symbol;
+  static constexpr size_t rank = (R::rank == 0) ? L::rank : R::rank;
+
+ protected:
+  static constexpr size_t rank_1 =
+      (R::rank == 0) ? L::template rank_<1> : R::template rank_<1>;
+
+ public:
+  template <size_t D>
+  static constexpr size_t rank_ = (D == 0)   ? rank
+                                  : (D == 1) ? rank_1
+                                             : 0;
+};
+
+// Same propagation when an OpDerivative (e.g. an *applied* laplacian)
+// wraps the same divergence/lap-of-X pattern.  The applied form's rank
+// equals the operand's rank (laplacian / bilaplacian preserve rank);
+// for grad / directional derivatives the operand's eval-deduction would
+// already report the right shape, so this narrow spec is only triggered
+// where the inner shape is the dot-built divergence wrapper.
+template <typename Dd, typename V_outer, typename E_inner_l,
+          size_t O, typename V_op, typename Sp_op, typename E_inner_r,
+          typename Sp_outer>
+struct expr::eval_type<OpDerivative<
+    Dd, V_outer,
+    OpBinaryMul<E_inner_l, OpBinaryMul<OpOperatorDerivative<O, V_op, Sp_op>,
+                                       E_inner_r>>,
+    Sp_outer>> {
+ private:
+  using inner_t = symphas::internal::safe_eval_type<
+      OpBinaryMul<E_inner_l, OpBinaryMul<OpOperatorDerivative<O, V_op, Sp_op>,
+                                         E_inner_r>>>;
+
+ public:
+  using type = expr::symbols::Symbol;
+  static constexpr size_t rank = inner_t::rank;
+
+ protected:
+  static constexpr size_t rank_1 = inner_t::template rank_<1>;
+
+ public:
+  template <size_t D>
+  static constexpr size_t rank_ = (D == 0)   ? rank
+                                  : (D == 1) ? rank_1
+                                             : 0;
+};
+
+// Declared-shape spec: a 1x1 OpTensor is algebraically a scalar.
+//
+// At runtime an `OpTensor<T, N1, N2, 1, 1>` evaluates to a 1x1 matrix
+// (any_matrix_t<T, 1, 1>) -- the value-level representation has to keep
+// the wrapping so the per-component decomposition machinery used by
+// derivative and pow rules sees consistent shapes.  Algebraically
+// however a 1x1 matrix denotes a scalar.  Declaring rank=0 here lets
+// the type-level rank queries report the math-level answer; downstream
+// runtime consumers continue to see the 1x1-matrix eval value.
+template <typename T, size_t N1, size_t N2>
+struct expr::eval_type<OpTensor<T, N1, N2, 1, 1>> {
+  using type = T;
+  static constexpr size_t rank = 0;
+
+ protected:
+  static constexpr size_t rank_1 = 0;
+
+ public:
+  template <size_t D>
+  static constexpr size_t rank_ = 0;
 };
 
 namespace expr {

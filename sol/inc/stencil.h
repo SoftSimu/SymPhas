@@ -684,25 +684,28 @@ __host__ __device__ void print_no_derivative_message() {
   no_derivative_message_printed message{OD, OA, D};
 }
 
+template <size_t OD, size_t OA, size_t D>
+struct stencil_apply_type;
+
 template <size_t OD, size_t OA, typename T>
 __host__ __device__ auto apply_generalized_derivative(
     T *const v, double divh, const len_type (&stride)[1]) {
-  print_no_derivative_message<OD, OA, 1>();
-  return T{};
+  // Delegate to stencil_apply_type so a static specialization (e.g. for
+  // OD=1 axial gradients) can intercept; the primary template falls
+  // through to print_no_derivative_message on its own.
+  return stencil_apply_type<OD, OA, 1>{}(v, stride, divh);
 }
 
 template <size_t OD, size_t OA, typename T>
 __host__ __device__ auto apply_generalized_derivative(
     T *const v, double divh, const len_type (&stride)[2]) {
-  print_no_derivative_message<OD, OA, 2>();
-  return T{};
+  return stencil_apply_type<OD, OA, 2>{}(v, stride, divh);
 }
 
 template <size_t OD, size_t OA, typename T>
 __host__ __device__ auto apply_generalized_derivative(
     T *const v, double divh, const len_type (&stride)[3]) {
-  print_no_derivative_message<OD, OA, 3>();
-  return T{};
+  return stencil_apply_type<OD, OA, 3>{}(v, stride, divh);
 }
 
 template <size_t OD, size_t OA, size_t D>
@@ -711,6 +714,112 @@ struct stencil_apply_type {
   __host__ __device__ auto operator()(const T *, ...) const {
     print_no_derivative_message<OD, OA, D>();
     return T{};
+  }
+};
+
+// Statically-registered 1D central-difference stencils (1 axis through
+// any-D grid).  Without these, models that decompose grad / div / curl
+// per-axis at apply-time fail with "no derivative of order N accuracy 2
+// available in dimension 1" unless AVAILABLE_STENCILS_AUTOGENERATION=ON
+// (which has its own pre-existing internal bugs).
+//
+// The 1D stencil's `apply_directional<ax, OD>` calls
+// `stencil_apply_type<OD, OA, 1>(v, stride, divh)` where `v` points at
+// a sample, `stride` is the linear index step along the chosen axis,
+// and `divh = 1/h` (so divh^k = 1/h^k).  These specializations use
+// standard 2nd-order accurate central differences.
+
+// Order 1: (f(+h) - f(-h)) / (2h)
+template <>
+struct stencil_apply_type<1, 2, 1> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v, len_type stride,
+                                      double divh) const {
+    return 0.5 * divh * (v[stride] - v[-stride]);
+  }
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[1],
+                                      double divh) const {
+    return 0.5 * divh * (v[stride[0]] - v[-stride[0]]);
+  }
+};
+
+// Order 3: (-f(-2h) + 2f(-h) - 2f(+h) + f(+2h)) / (2 h^3)
+template <>
+struct stencil_apply_type<3, 2, 1> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v, len_type stride,
+                                      double divh) const {
+    const double divh3 = divh * divh * divh;
+    return 0.5 * divh3 *
+           (-v[-2 * stride] + 2.0 * v[-stride] - 2.0 * v[stride] +
+            v[2 * stride]);
+  }
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[1],
+                                      double divh) const {
+    return (*this)(v, stride[0], divh);
+  }
+};
+
+// Order 4: (f(-2h) - 4f(-h) + 6f(0) - 4f(+h) + f(+2h)) / h^4
+template <>
+struct stencil_apply_type<4, 2, 1> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v, len_type stride,
+                                      double divh) const {
+    const double divh4 = divh * divh * divh * divh;
+    return divh4 * (v[-2 * stride] - 4.0 * v[-stride] + 6.0 * v[0] -
+                    4.0 * v[stride] + v[2 * stride]);
+  }
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[1],
+                                      double divh) const {
+    return (*this)(v, stride[0], divh);
+  }
+};
+
+// 2D-stride single-axis stencils.  These are reached when the generalized
+// dispatch routes `applied_generalized_derivative<ax, O>(grid_2D, n)` ->
+// `apply<O>(v, stride[2])` -> `stencil_apply_type<O, 2, 2>(v, stride[2], divh)`.
+// `grid::get_stride<ax>(stride, dims)` puts the relevant axis step in
+// stride[0]; the other entries are inactive for an axial derivative.
+template <>
+struct stencil_apply_type<1, 2, 2> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[2],
+                                      double divh) const {
+    return 0.5 * divh * (v[stride[0]] - v[-stride[0]]);
+  }
+};
+
+template <>
+struct stencil_apply_type<3, 2, 2> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[2],
+                                      double divh) const {
+    const double divh3 = divh * divh * divh;
+    const len_type s = stride[0];
+    return 0.5 * divh3 *
+           (-v[-2 * s] + 2.0 * v[-s] - 2.0 * v[s] + v[2 * s]);
+  }
+};
+
+template <>
+struct stencil_apply_type<4, 2, 2> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[2],
+                                      double divh) const {
+    const double divh4 = divh * divh * divh * divh;
+    const len_type s = stride[0];
+    return divh4 * (v[-2 * s] - 4.0 * v[-s] + 6.0 * v[0] -
+                    4.0 * v[s] + v[2 * s]);
   }
 };
 
@@ -724,6 +833,22 @@ struct mixed_stencil_apply_type<OA, std::index_sequence<Os...>> {
                                       ...) const {
     print_no_derivative_message<(0 + ... + Os), OA, D>();
     return T{};
+  }
+};
+
+// Mixed (1,1) on a 2D grid: cross-derivative d^2 f / (dx dy)
+// = (f(+h,+h) - f(+h,-h) - f(-h,+h) + f(-h,-h)) / (4 h^2)
+template <>
+struct mixed_stencil_apply_type<2, std::index_sequence<1, 1>> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[2],
+                                      double divh) const {
+    const double divh2 = divh * divh;
+    const len_type sxy_pp = stride[0] + stride[1];
+    const len_type sxy_pm = stride[0] - stride[1];
+    return 0.25 * divh2 *
+           (v[sxy_pp] - v[sxy_pm] - v[-sxy_pm] + v[-sxy_pp]);
   }
 };
 

@@ -225,6 +225,24 @@ struct make_derivative {
   static auto get(V const& v, OpExpression<E> const& e,
                   solver_op_type<Sp> solver);
 
+  // Distribute over OpAdd at construction.  Takes the concrete OpAdd<...>
+  // type so it is preferred over the OpExpression<OpAdd<...>> overload.
+  template <typename V, typename... Es, typename Sp>
+  static auto get(V const& v, OpAdd<Es...> const& e,
+                  solver_op_type<Sp> solver);
+
+  // Wrap an existing OpDerivative directly without going through the
+  // per-component (vector) decomposition.  The inner OpDerivative may
+  // carry tensor indexing whose eval_type rank cannot be reliably
+  // queried (it reflects the symbolic tensor shape rather than the
+  // scalar nature of the partial derivative it computes); downstream
+  // apply_operators collapses the nested derivative properly.
+  template <typename V, typename Dd_inner, typename V_inner,
+            typename E_inner, typename Sp_inner, typename Sp>
+  static auto get(V const& v,
+                  OpDerivative<Dd_inner, V_inner, E_inner, Sp_inner> const& e,
+                  solver_op_type<Sp> solver);
+
   template <typename V, typename E, typename Sp>
   static auto get(V const& v, OpOperator<E> const& e,
                   solver_op_type<Sp> solver);
@@ -1588,8 +1606,10 @@ struct OpDerivative : OpExpression<OpDerivative<Dd, V, E, Sp>> {
   template <typename eval_handler_type, typename... condition_ts>
   void update(eval_handler_type const& eval_handler,
               symphas::lib::types_list<condition_ts...>) {
-    symphas::internal::update_temporary_grid(grid, e);
-    eval_handler.result(e, grid, grid::get_data_domain(grid));
+    if constexpr (!std::is_same_v<result_grid, int>) {
+      symphas::internal::update_temporary_grid(grid, e);
+      eval_handler.result(e, grid, grid::get_data_domain(grid));
+    }
   }
 
   template <typename eval_handler_type>
@@ -3099,6 +3119,7 @@ auto apply_derivative_dot(OpVoid, solver_op_type<Sp> solver) {
 }
 
 template <size_t R, size_t O, typename E, typename Sp,
+          typename std::enable_if_t<!expr::is_add<E>, int> = 0,
           size_t R0 = expr::eval_type<E>::rank,
           typename std::enable_if_t<(R0 > 0 && O % 2 == 1), int> = 0>
 auto apply_derivative_dot(OpExpression<E> const& e, solver_op_type<Sp> solver) {
@@ -3117,13 +3138,15 @@ auto apply_derivative_dot(OpExpression<E> const& e, solver_op_type<Sp> solver) {
 }
 
 template <size_t R, size_t O, typename E, typename Sp,
+          typename std::enable_if_t<!expr::is_add<E>, int> = 0,
           size_t R0 = expr::eval_type<E>::rank,
           typename std::enable_if_t<(R0 == 0 || O % 2 == 0), int> = 0>
 auto apply_derivative_dot(OpExpression<E> const& e, solver_op_type<Sp> solver) {
   return apply_derivative<R, O, R0>{}(*static_cast<E const*>(&e), solver);
 }
 
-template <size_t O, typename E, typename Sp>
+template <size_t O, typename E, typename Sp,
+          typename std::enable_if_t<!expr::is_add<E>, int> = 0>
 auto apply_derivative_dot(OpExpression<E> const& e, solver_op_type<Sp> solver) {
   if constexpr (expr::is_symbol<expr::eval_type_t<E>> &&
                 expr::grid_dim<E>::value == 0) {
@@ -3139,6 +3162,24 @@ auto apply_derivative_dot(OpExpression<E> const& e, solver_op_type<Sp> solver) {
   }
 }
 
+// Distribute a generalized derivative over a sum at construction time.
+// Avoids asking eval_type<OpAdd<...>>::rank when one sibling in the sum
+// is an operator-derivative-based expression (e.g. div, curl) whose
+// runtime eval(0) type can't be unified with scalar siblings.  Math is
+// linearity: D^O(a + b + ...) = D^O(a) + D^O(b) + ...
+template <size_t O, typename... Es, typename Sp, size_t... Is>
+auto _apply_derivative_dot_add(OpAdd<Es...> const& e,
+                               solver_op_type<Sp> solver,
+                               std::index_sequence<Is...>) {
+  return (apply_derivative_dot<O>(expr::get<Is>(e), solver) + ...);
+}
+
+template <size_t O, typename... Es, typename Sp>
+auto apply_derivative_dot(OpAdd<Es...> const& e, solver_op_type<Sp> solver) {
+  return _apply_derivative_dot_add<O>(
+      e, solver, std::make_index_sequence<sizeof...(Es)>{});
+}
+
 template <size_t O, typename E, typename G>
 auto apply_derivative_dot(OpExpression<E> const& e,
                           SymbolicDerivative<G> const& solver) {
@@ -3148,9 +3189,11 @@ auto apply_derivative_dot(OpExpression<E> const& e,
 template <size_t O>
 struct initialize_derivative_order {
   template <typename V, typename E, typename Sp,
-            size_t R = expr::eval_type<E>::rank,
             typename std::enable_if_t<
-                !(expr::is_coeff<E> || expr::is_identity<E>), int> = 0>
+                !(expr::is_coeff<E> || expr::is_identity<E>) &&
+                    !expr::is_add<E>,
+                int> = 0,
+            size_t R = expr::eval_type<E>::rank>
   auto operator()(V const& v, OpExpression<E> const& e,
                   solver_op_type<Sp> solver) {
     if constexpr (expr::is_symbol<expr::eval_type_t<E>> &&
@@ -3163,10 +3206,31 @@ struct initialize_derivative_order {
     }
   }
 
+  // Distribute a generalized derivative over a sum at construction time.
+  // Avoids asking eval_type<OpAdd<...>>::rank, which fails when one
+  // sibling in the sum is an operator-derivative-based expression
+  // (e.g. div, curl) whose eval(0) type can't be unified with scalar
+  // siblings.  Math is linearity: D^O(a + b + ...) = D^O(a) + D^O(b) + ...
+  template <typename V, typename Sp, typename... Es, size_t... Is>
+  auto _apply_to_add(V const& v, OpAdd<Es...> const& e,
+                     solver_op_type<Sp> solver,
+                     std::index_sequence<Is...>) {
+    return ((*this)(v, expr::get<Is>(e), solver) + ...);
+  }
+
+  template <typename V, typename Sp, typename... Es>
+  auto operator()(V const& v, OpAdd<Es...> const& e,
+                  solver_op_type<Sp> solver) {
+    return _apply_to_add(v, e, solver,
+                         std::make_index_sequence<sizeof...(Es)>{});
+  }
+
   template <typename V, typename E, typename Sp,
-            size_t R = expr::eval_type<E>::rank,
             typename std::enable_if_t<
-                (expr::is_coeff<E> || expr::is_identity<E>), int> = 0>
+                (expr::is_coeff<E> || expr::is_identity<E>) &&
+                    !expr::is_add<E>,
+                int> = 0,
+            size_t R = expr::eval_type<E>::rank>
   auto operator()(V const& v, OpExpression<E> const& e,
                   solver_op_type<Sp> solver) {
     return OpVoid{};
@@ -3250,6 +3314,35 @@ inline auto make_derivative<Dd>::get(V const& v, OpExpression<E> const& e,
     return make_derivative_per_component<Dd>(
         v, *static_cast<E const*>(&e), solver, std::make_index_sequence<R>{});
   }
+}
+
+template <typename Dd>
+template <typename V, typename... Es, typename Sp>
+inline auto make_derivative<Dd>::get(V const& v, OpAdd<Es...> const& e,
+                                     solver_op_type<Sp> solver) {
+  // Build OpDerivative<Dd, V, OpAdd<Es...>, Sp> directly; do not query
+  // eval_type<OpAdd<...>>::rank, which can hard-fail when the summands
+  // have inconsistent ranks (e.g. from div() expansion).  Downstream
+  // apply_operators(OpDerivative<Dd, V, OpAdd<...>, Sp>) distributes
+  // this into per-term derivatives via apply_operators_adds in
+  // expressionapply.h.
+  using AddT = OpAdd<Es...>;
+  return OpDerivative<Dd, V, AddT, Sp>(v, e, solver);
+}
+
+template <typename Dd>
+template <typename V, typename Dd_inner, typename V_inner, typename E_inner,
+          typename Sp_inner, typename Sp>
+inline auto make_derivative<Dd>::get(
+    V const& v, OpDerivative<Dd_inner, V_inner, E_inner, Sp_inner> const& e,
+    solver_op_type<Sp> solver) {
+  // Take a derivative of an existing derivative.  Wrap directly, skipping
+  // the per-component vector split that the OpExpression overload would
+  // otherwise perform (the eval_type of OpDerivative is unreliable when
+  // tensor indexing is present, but the partial derivative is always a
+  // scalar in the directions it covers).
+  using InnerT = OpDerivative<Dd_inner, V_inner, E_inner, Sp_inner>;
+  return OpDerivative<Dd, V, InnerT, Sp>(v, e, solver);
 }
 
 template <typename Dd>

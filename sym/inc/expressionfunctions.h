@@ -167,6 +167,21 @@ auto pow(OpNegIdentity);
 
 inline auto pow(expr::symbols::Symbol) { return expr::symbols::Symbol{}; }
 
+// pow<N>(OpVoid) == 0 for N >= 1; pow<0>(OpVoid) == 1 (OpIdentity) by the
+// usual convention that x^0 = 1.  Without this overload, autogen stencil-
+// coefficient simplification builds OpPow<N, OpIdentity, OpVoid> nodes when
+// a generated dictionary row has no coefficient on a given symbol; later
+// the symbolic Gaussian-elimination step divides by such a term and hits
+// `operator/(E, OpVoid) = delete` (expressionrules.h:838).
+template <size_t N>
+constexpr auto pow(OpVoid) {
+  if constexpr (N == 0) {
+    return OpIdentity{};
+  } else {
+    return OpVoid{};
+  }
+}
+
 namespace {
 
 template <typename G>
@@ -212,15 +227,14 @@ auto pow(OpExpression<E> const& e) {
   } else if constexpr (N == 2) {
     return (*static_cast<E const*>(&e)) * (*static_cast<E const*>(&e));
   } else {
-    constexpr size_t N2 = N / 2;
-    constexpr size_t N0 = N - N2 * 2;
-
-    auto p = pow<N2>(*static_cast<E const*>(&e));
-    if constexpr (N0 == 0) {
-      return p * p;
-    } else {
-      return p * p * *static_cast<E const*>(&e);
-    }
+    // For higher powers of an arbitrary expression, collapse to a single
+    // OpPow<N, OpIdentity, E> node.  The exponentiation-by-squaring path
+    // below would otherwise expand to OpBinaryMul<E, OpBinaryMul<E, ...>>
+    // carrying N copies of E's full type — when E is a deep subtree
+    // (e.g. dot(op(2), grad(op(1))) raised to power 5) this is the
+    // dominant driver of template-instantiation explosions.  OpPow holds
+    // exactly one copy of E and computes the power at eval time.
+    return expr::make_pow<expr::Xk<N>>(*static_cast<E const*>(&e));
   }
 }
 

@@ -918,6 +918,46 @@ auto self_complete(types_list<std::pair<Ss, Es>...> const& dict) {
       std::pair<Ss, decltype(make_all_substitutions(dict, Es{}))>...>{};
 }
 
+// -----------------------------------------------------------------------------
+// Tautology closure for the autogen stencil dictionary.
+//
+// After `self_complete`, even-order single-axis derivative dictionaries can
+// leave one entry as a tautology `Sₖ -> Sₖ` because the elimination order
+// consumes the moment-0 (sum = 0) equation before it can isolate the center
+// coefficient.  The universal consistency relation `sum_i c_i = 0` holds for
+// any derivative operator of order O >= 1, so a single tautological entry
+// can be solved as `c_unsolved = -sum(c_solved)`.
+//
+// `tautology_value` strips the value down to OpVoid if it is the trivial
+// self-reference `OpTerms<OpIdentity, Term<Sself, 1>>`; otherwise it keeps
+// the value.  `resolve_tautologies` then assigns `-sum(stripped values)`
+// to each tautological entry.
+// -----------------------------------------------------------------------------
+
+template <typename Sself, typename E>
+struct strip_tautology {
+  using type = E;
+  static constexpr bool tautological = false;
+};
+
+template <typename Sself>
+struct strip_tautology<Sself, OpTerms<OpIdentity, Term<Sself, 1u>>> {
+  using type = OpVoid;
+  static constexpr bool tautological = true;
+};
+
+template <typename... Ss, typename... Es>
+auto resolve_tautologies(types_list<std::pair<Ss, Es>...> const& dict) {
+  // sum of all non-tautological values (tautological ones contribute OpVoid)
+  using sum_t =
+      decltype((OpVoid{} + ... + typename strip_tautology<Ss, Es>::type{}));
+  using neg_sum_t = decltype(-sum_t{});
+  return types_list<std::pair<
+      Ss, std::conditional_t<strip_tautology<Ss, Es>::tautological, neg_sum_t,
+                             Es>>...>{};
+}
+
+
 ////! Perform back substitution on the dictionary to update it.
 // template<typename SymbolKey, typename... Symbols, typename... Es>
 // auto back_substitution(types_list<std::pair<Symbols, Es>...> const& dict,
@@ -1916,6 +1956,131 @@ auto as_stencil_vector_impl(OpVoid, std::index_sequence<N0s...>) {
       symphas::lib::types_list<symphas::type_ignore_index<N0s, OpVoid>...>>{};
 }
 
+// Bare scalar literal moments (e.g. d/dx applied to x reduces to OpIdentity)
+// must be representable as a moment vector.  The literal becomes the
+// constant entry (position 0) of the resulting moment vector.
+namespace stencil_lit_detail {
+template <typename Lit, size_t I>
+constexpr auto pick() {
+  if constexpr (I == 0) return Lit{};
+  else return OpVoid{};
+}
+}  // namespace stencil_lit_detail
+
+template <size_t... N0s>
+auto as_stencil_vector_impl(OpIdentity, std::index_sequence<N0s...>) {
+  return stencil_vector_type<
+      0, 0,
+      symphas::lib::types_list<
+          decltype(stencil_lit_detail::pick<OpIdentity, N0s>())...>>{};
+}
+
+template <size_t... N0s>
+auto as_stencil_vector_impl(OpNegIdentity, std::index_sequence<N0s...>) {
+  return stencil_vector_type<
+      0, 0,
+      symphas::lib::types_list<
+          decltype(stencil_lit_detail::pick<OpNegIdentity, N0s>())...>>{};
+}
+
+template <size_t... N0s, size_t... N1s>
+auto as_stencil_vector_impl(OpIdentity, std::index_sequence<N0s...>,
+                            std::index_sequence<N1s...>) {
+  return stencil_vector_type<
+             0, 0,
+             symphas::lib::types_list<
+                 decltype(stencil_lit_detail::pick<OpIdentity, N0s>())...>>{} *
+         stencil_vector_type<
+             0, 1,
+             symphas::lib::types_list<
+                 decltype(stencil_lit_detail::pick<OpIdentity, N1s>())...>>{};
+}
+
+template <size_t... N0s, size_t... N1s>
+auto as_stencil_vector_impl(OpNegIdentity, std::index_sequence<N0s...>,
+                            std::index_sequence<N1s...>) {
+  return stencil_vector_type<
+             0, 0,
+             symphas::lib::types_list<
+                 decltype(stencil_lit_detail::pick<OpNegIdentity, N0s>())...>>{} *
+         stencil_vector_type<
+             0, 1,
+             symphas::lib::types_list<
+                 decltype(stencil_lit_detail::pick<OpIdentity, N1s>())...>>{};
+}
+
+// Generic scalar literal (OpLiteral, OpFractionLiteral, OpNegFractionLiteral)
+// pass-through as the constant moment entry.
+template <size_t A, size_t B, size_t... N0s>
+auto as_stencil_vector_impl(OpFractionLiteral<A, B>,
+                            std::index_sequence<N0s...>) {
+  return stencil_vector_type<
+      0, 0,
+      symphas::lib::types_list<decltype(stencil_lit_detail::pick<
+                                        OpFractionLiteral<A, B>, N0s>())...>>{};
+}
+
+template <size_t A, size_t B, size_t... N0s>
+auto as_stencil_vector_impl(OpNegFractionLiteral<A, B>,
+                            std::index_sequence<N0s...>) {
+  return stencil_vector_type<
+      0, 0,
+      symphas::lib::types_list<
+          decltype(stencil_lit_detail::pick<OpNegFractionLiteral<A, B>,
+                                            N0s>())...>>{};
+}
+
+template <size_t A, size_t B, size_t... N0s, size_t... N1s>
+auto as_stencil_vector_impl(OpFractionLiteral<A, B>,
+                            std::index_sequence<N0s...>,
+                            std::index_sequence<N1s...>) {
+  return stencil_vector_type<
+             0, 0,
+             symphas::lib::types_list<decltype(stencil_lit_detail::pick<
+                                               OpFractionLiteral<A, B>,
+                                               N0s>())...>>{} *
+         stencil_vector_type<
+             0, 1,
+             symphas::lib::types_list<
+                 decltype(stencil_lit_detail::pick<OpIdentity, N1s>())...>>{};
+}
+
+template <size_t A, size_t B, size_t... N0s, size_t... N1s>
+auto as_stencil_vector_impl(OpNegFractionLiteral<A, B>,
+                            std::index_sequence<N0s...>,
+                            std::index_sequence<N1s...>) {
+  return stencil_vector_type<
+             0, 0,
+             symphas::lib::types_list<
+                 decltype(stencil_lit_detail::pick<OpNegFractionLiteral<A, B>,
+                                                   N0s>())...>>{} *
+         stencil_vector_type<
+             0, 1,
+             symphas::lib::types_list<
+                 decltype(stencil_lit_detail::pick<OpIdentity, N1s>())...>>{};
+}
+
+template <typename T, size_t... N0s>
+auto as_stencil_vector_impl(OpLiteral<T> lit, std::index_sequence<N0s...>) {
+  return stencil_vector_type<
+      0, 0,
+      symphas::lib::types_list<
+          decltype(stencil_lit_detail::pick<OpLiteral<T>, N0s>())...>>{};
+}
+
+template <typename T, size_t... N0s, size_t... N1s>
+auto as_stencil_vector_impl(OpLiteral<T> lit, std::index_sequence<N0s...>,
+                            std::index_sequence<N1s...>) {
+  return stencil_vector_type<
+             0, 0,
+             symphas::lib::types_list<decltype(stencil_lit_detail::pick<
+                                               OpLiteral<T>, N0s>())...>>{} *
+         stencil_vector_type<
+             0, 1,
+             symphas::lib::types_list<
+                 decltype(stencil_lit_detail::pick<OpIdentity, N1s>())...>>{};
+}
+
 template <size_t... N0s, size_t... N1s>
 auto as_stencil_vector_impl(OpVoid, std::index_sequence<N0s...>,
                             std::index_sequence<N1s...>) {
@@ -1945,6 +2110,28 @@ auto as_stencil_vector_impl(OpVoid, std::index_sequence<N0s...>,
                                  symphas::type_ignore_index<N2s, OpVoid>...>>{};
 }
 
+// Catch-alls for expressions that don't decompose into the recognized
+// scalar / OpVoid forms above.  When apply_operators leaves an unreduced
+// OpOperator * polynomial (e.g. d^k/dx^k applied to a polynomial of
+// degree < k, which is mathematically zero but the symbolic system
+// doesn't always collapse), the corresponding moment-vector contribution
+// is zero.  These must be visible to the OpAdd dispatcher below via
+// ordinary lookup, so they're declared first.
+template <typename A, typename B, typename... Seqs>
+auto as_stencil_vector_impl(OpBinaryMul<A, B>, Seqs... seqs) {
+  return as_stencil_vector_impl(OpVoid{}, seqs...);
+}
+
+template <typename A, typename B, typename... Seqs>
+auto as_stencil_vector_impl(OpOperatorCombination<A, B>, Seqs... seqs) {
+  return as_stencil_vector_impl(OpVoid{}, seqs...);
+}
+
+template <size_t O, typename V, typename G, typename... Seqs>
+auto as_stencil_vector_impl(OpOperatorDerivative<O, V, G>, Seqs... seqs) {
+  return as_stencil_vector_impl(OpVoid{}, seqs...);
+}
+
 template <typename... Es, typename... Seqs>
 auto as_stencil_vector_impl(OpAdd<Es...>, Seqs...) {
   return (as_stencil_vector_impl(Es{}, Seqs{}...) + ...);
@@ -1953,6 +2140,30 @@ auto as_stencil_vector_impl(OpAdd<Es...>, Seqs...) {
 template <typename E, size_t... Ns>
 auto as_stencil_vector(OpExpression<E>, std::index_sequence<Ns...>) {
   return as_stencil_vector_impl(E{}, std::make_index_sequence<Ns>{}...);
+}
+
+// An unreduced OpOperator (e.g. d/dx applied to a polynomial that no longer
+// contains x) is mathematically zero at the moment-matching point.  Treat
+// it as the zero moment vector so the equation contributes no constraint.
+template <typename E, size_t... Ns>
+auto as_stencil_vector(OpOperator<E>, std::index_sequence<Ns...>) {
+  return as_stencil_vector_impl(OpVoid{}, std::make_index_sequence<Ns>{}...);
+}
+
+// Same for an unreduced OpBinaryMul of operator-bearing factors -- this
+// arises when apply_operators leaves `(higher-order operator) * (polynomial)`
+// unsimplified because the operator's order exceeds the polynomial's
+// degree, in which case the action is identically zero on a polynomial of
+// that degree.  Treat as the zero moment vector.
+template <typename A, typename B, size_t... Ns>
+auto as_stencil_vector(OpBinaryMul<A, B>, std::index_sequence<Ns...>) {
+  return as_stencil_vector_impl(OpVoid{}, std::make_index_sequence<Ns>{}...);
+}
+
+template <typename A, typename B, size_t... Ns>
+auto as_stencil_vector(OpOperatorCombination<A, B>,
+                       std::index_sequence<Ns...>) {
+  return as_stencil_vector_impl(OpVoid{}, std::make_index_sequence<Ns>{}...);
 }
 
 template <size_t I, typename... Es>
@@ -2683,7 +2894,7 @@ template <typename... Symbols, typename... Es>
 auto update_stencil_dictionary(
     types_list<std::pair<Symbols, Es>...> const& dict,
     types_list<> const& exprs) {
-  return self_complete(dict);
+  return resolve_tautologies(self_complete(dict));
 }
 
 template <typename... Symbols, typename... Es, typename... E0s>
@@ -2702,7 +2913,7 @@ auto update_stencil_dictionary(
     return update_stencil_dictionary(update_stencil_dictionary(dict, E0{}),
                                      types_list<E0s...>{});
   } else {
-    return dict;
+    return resolve_tautologies(dict);
   }
 }
 
@@ -2711,6 +2922,39 @@ auto update_stencil_dictionary(
     types_list<std::pair<Symbols, Es>...> const& dict,
     stencil_vector_type<0, 0, symphas::lib::types_list<E0s...>>) {
   return update_stencil_dictionary(dict, symphas::lib::types_list<E0s...>{});
+}
+
+// Flatten a higher-rank stencil_vector (a "matrix" or "tensor" of equation
+// expressions, as produced by 2D / 3D moment-equation generation) into a
+// flat types_list and feed it back to the regular elimination loop.  Each
+// nested row is itself a stencil_vector_type<0, _, ...> which is unpacked
+// by the existing rank-0 overload above.
+template <typename... Symbols, typename... Es, size_t N, size_t I,
+          typename... E0s,
+          std::enable_if_t<(N > 0), int> = 0>
+auto update_stencil_dictionary(
+    types_list<std::pair<Symbols, Es>...> const& dict,
+    stencil_vector_type<N, I, symphas::lib::types_list<E0s...>>) {
+  return update_stencil_dictionary(dict, symphas::lib::types_list<E0s...>{});
+}
+
+// When the equation list contains higher-rank stencil_vector_type entries
+// (the 2D path emits stencil_vector<1, 0, list<stencil_vector<0,0,...>>>),
+// flatten the outer one element at a time before feeding to the rank-0
+// elimination.  The flattener simply forwards into the existing
+// types_list overload.
+template <typename... Symbols, typename... Es, size_t N, size_t I,
+          typename... Cells, typename... E0s>
+auto update_stencil_dictionary(
+    types_list<std::pair<Symbols, Es>...> const& dict,
+    symphas::lib::types_list<
+        stencil_vector_type<N, I, symphas::lib::types_list<Cells...>>,
+        E0s...> const&) {
+  return update_stencil_dictionary(
+      update_stencil_dictionary(
+          dict,
+          stencil_vector_type<N, I, symphas::lib::types_list<Cells...>>{}),
+      symphas::lib::types_list<E0s...>{});
 }
 
 // template<typename... Symbols, typename... Es, size_t N, typename... E0s>
@@ -2786,18 +3030,59 @@ auto get_mixed_derivative() {
 }
 
 //! Separates a list of equations based on the order of the x and y variables.
+//
+// The autogen 2D stencil system needs a moment-matching equation for each
+// monomial x^K y^L with 0 < K + L <= Q where Q = O + N - 1.  The original
+// implementation only emitted the single anti-diagonal K + L = Q, which is
+// sufficient when the parity-reduced dictionary has exactly Q independent
+// unknowns (the classical Laplacian/bilaplacian cases the framework
+// originally targeted) but is structurally insufficient for general
+// directional/mixed derivatives.  We now generate the full triangular
+// list 1 <= K + L <= Q, which fully pins the moment basis.
+template <size_t T, size_t L, int... Is, int... Js, typename... Es,
+          typename E>
+auto setup_stencil_equation_triangle_at(
+    types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>,
+                         Es>...> const& dict,
+    E const& d_op) {
+  return expr::setup_stencil_equation<T - L, L>(dict, d_op);
+}
+
+template <size_t T, int... Is, int... Js, typename... Es, size_t... Ls,
+          typename E>
+auto setup_stencil_equation_triangle_row(
+    types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>,
+                         Es>...> const& dict,
+    E const& d_op, std::index_sequence<Ls...>) {
+  using expr_types = symphas::lib::types_list<
+      decltype(setup_stencil_equation_triangle_at<T, Ls>(dict, d_op))...>;
+  return symphas::internal::filter_zeros_t<expr_types>{};
+}
+
+template <int... Is, int... Js, typename... Es, size_t... Ts, typename E>
+auto setup_stencil_equation_triangle_concat(
+    types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>,
+                         Es>...> const& dict,
+    E const& d_op, std::index_sequence<Ts...>) {
+  // Each row contributes a types_list of equations; concatenate them.
+  // expand_types_list does the flattening (defined elsewhere in this file).
+  return expand_types_list<
+      decltype(setup_stencil_equation_triangle_row<Ts + 1>(
+          dict, d_op, std::make_index_sequence<Ts + 2>{}))...>{};
+}
+
 template <size_t Q, int... Is, int... Js, typename... Es, size_t... Ls,
           typename E>
 auto setup_stencil_equation_list(
     types_list<std::pair<expr::symbols::internal::S2_symbol<Is, Js>,
                          Es>...> const& dict,
     E const& d_op, std::index_sequence<Ls...>) {
-  using symphas::internal::reverse_types_list;
-  using symphas::internal::split_by;
-
-  using expr_types =
-      types_list<decltype(expr::setup_stencil_equation<Q - Ls, Ls>(dict,
-                                                                   d_op))...>;
+  // Triangular set: total degree T in [1, Q], with L in [0, T].
+  // Ts = {0, 1, ..., Q-1} represents T = Ts + 1.
+  using ts_seq = std::make_index_sequence<Q>;
+  auto all_eqs =
+      setup_stencil_equation_triangle_concat(dict, d_op, ts_seq{});
+  using expr_types = decltype(all_eqs);
   return symphas::internal::filter_zeros_t<expr_types>{};
 }
 
@@ -2957,12 +3242,35 @@ auto get_central_space_stencil() {
   }
 }
 
+// Transpose the 2D key indices (i, j) -> (j, i) of a stencil dictionary.
+// Used to map the (O2, O1) mixed-derivative stencil to the (O1, O2) one
+// when O1 < O2 (see get_central_space_mixed_stencil).
+template <int... Is, int... Js, typename... Es>
+auto transpose_s2_dict(types_list<std::pair<
+                          expr::symbols::internal::S2_symbol<Is, Js>,
+                          Es>...> const&) {
+  return types_list<
+      std::pair<expr::symbols::internal::S2_symbol<Js, Is>, Es>...>{};
+}
+
 template <size_t N, size_t O1, size_t O2>
 auto get_central_space_mixed_stencil(std::index_sequence<O1, O2>) {
-  constexpr int R = symphas::internal::R_<fixed_max<O1, O2>, N>;
-  auto dict = simplify_central_mixed_stencils<O1, O2, N>(
-      make_central_stencil_dictionary<2, R>());
-  return get_stencil<N, 2>(expr::get_mixed_derivative<O1, O2>(), dict);
+  if constexpr (O1 < O2) {
+    // The parity simplifier `simplify_central_mixed_stencils<Ox, Oy, N>`
+    // uses radius-based parity tests that are tuned for Ox >= Oy and
+    // zero out every coefficient when Ox < Oy.  By 2D symmetry,
+    // (d^Ox/dx^Ox)(d^Oy/dy^Oy) at stencil point (i, j) equals
+    // (d^Oy/dx^Oy)(d^Ox/dy^Ox) at point (j, i), so we build the
+    // larger-order-first stencil and transpose its keys.
+    auto base = get_central_space_mixed_stencil<N>(
+        std::index_sequence<O2, O1>{});
+    return transpose_s2_dict(base);
+  } else {
+    constexpr int R = symphas::internal::R_<fixed_max<O1, O2>, N>;
+    auto dict = simplify_central_mixed_stencils<O1, O2, N>(
+        make_central_stencil_dictionary<2, R>());
+    return get_stencil<N, 2>(expr::get_mixed_derivative<O1, O2>(), dict);
+  }
 }
 
 template <size_t N, size_t O1, size_t O2, size_t O3>
@@ -3014,6 +3322,18 @@ struct StencilCoeff<std::pair<S, E>> {
   template <typename T, size_t D>
   __host__ __device__ constexpr auto operator()(T const* v,
                                                 const len_type (&stride)[D]) {
+    return E{}.eval(0);
+  }
+
+  // Single-stride overload to match the single-axis GeneratedStencilApply
+  // call site (`StencilCoeff<>{}(v, stride)` with stride a plain
+  // `len_type`).  Autogen-generated dictionaries sometimes leave a
+  // coefficient in non-canonical form (e.g. plain `OpTerms<S, ...>` rather
+  // than `OpBinaryDiv<Nt, OpTerms<Dt, h^P>>`), causing this primary
+  // template to be selected; without this overload the call site fails to
+  // resolve.
+  template <typename T>
+  __host__ __device__ constexpr auto operator()(T const* v, len_type) {
     return E{}.eval(0);
   }
 
