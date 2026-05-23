@@ -2113,7 +2113,8 @@ auto curl_of(OpExpression<E> const& e, solver_op_type<Sp> solver) {
   auto y = expr::make_row_vector<1, 2>() * (*static_cast<E const*>(&e));
   auto opx = expr::make_operator_directional_derivative<Axis::X, 1>(solver);
   auto opy = expr::make_operator_directional_derivative<Axis::Y, 1>(solver);
-  return opx(x) - opy(y);
+  // 2D curl (z-component): dm_y/dx - dm_x/dy
+  return opx(y) - opy(x);
 }
 
 template <typename Sp, typename E,
@@ -2128,7 +2129,8 @@ auto curl_of(OpOperator<E> const& e, solver_op_type<Sp> solver) {
   auto y = expr::make_row_vector<1, 2>() * (*static_cast<E const*>(&e));
   auto opx = expr::make_operator_directional_derivative<Axis::X, 1>(solver);
   auto opy = expr::make_operator_directional_derivative<Axis::Y, 1>(solver);
-  return opx(x) - opy(y);
+  // 2D curl (z-component): dm_y/dx - dm_x/dy
+  return opx(y) - opy(x);
 }
 }  // namespace expr
 

@@ -1248,6 +1248,18 @@ using model_repeating_type_t = typename model_repeating_type<N, T>::type;
  */
 #define e(...) expr::make_unit_vector<Dm>(__VA_ARGS__)
 
+//! Constant basis vectors along the X, Y, Z axes.
+/*!
+ * Equivalent to `[1;0;0]`, `[0;1;0]`, `[0;0;1]` respectively, but
+ * constructed through the symbolic algebra so they can compose with
+ * expressions.  Use these instead of `e(x)`/`e(y)`/`e(z)` -- the
+ * latter pass the spatial coordinate `x` to `make_unit_vector` as an
+ * angle, producing the position-dependent vector `[cos(x);sin(x)]`.
+ */
+#define e_x expr::make_column_vector<0, Dm>()
+#define e_y expr::make_column_vector<1, Dm>()
+#define e_z expr::make_column_vector<2, Dm>()
+
 //! The unit row vector, which can be defined with one or two (for 3D) angles.
 /*!
  * The correct unit vector will be chosen according to the dimension. In two
