@@ -259,6 +259,21 @@ int testequationaudit() {
            "2D curl renders as dm_y/dx - dm_x/dy (not dm_x/dx - dm_y/dy)",
            curl_ok, j);
 
+    // Cross-equation leak check.  The density equation dop(1) in the
+    // model has NO PoissonSolver invocation -- the magnetic Poisson
+    // chain is only in dop(2).  If `V^*` (the print glyph for
+    // PoissonSolver) appears in eq[0], the algebra has leaked m-eqn
+    // terms into the rho-eqn.  Setting c(10)=0 zeroes the runtime
+    // contribution, but the structural leak is a real bug.  This is
+    // CURRENTLY KNOWN-FAILING -- left in the suite as a regression
+    // tracker until the algebra rule is found and fixed.
+    if (!eqs.empty()) {
+      bool no_leak = eqs[0].find("V^*") == std::string::npos;
+      report("MagneticPFC2013",
+             "no PoissonSolver leak into rho-eqn (KNOWN-FAILING)", no_leak,
+             eqs[0]);
+    }
+
     // Conservation: the rho-equation (dop(1)) is V^2(...) of something,
     // so the printed equation should NOT have a bare V^0 term outside a
     // V^2 wrapper.  Look for the outer laplacian.
