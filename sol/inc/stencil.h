@@ -852,6 +852,26 @@ struct mixed_stencil_apply_type<2, std::index_sequence<1, 1>> {
   }
 };
 
+// Mixed (2,2) on a 2D grid: d^4 f / (dx^2 dy^2) via tensor product of
+// the 1D 3-point second derivatives.
+// = sum_{i,j in {-1,0,+1}} w_i w_j * f(i h_x, j h_y) / (h_x^2 h_y^2)
+// with w = (1, -2, 1).
+template <>
+struct mixed_stencil_apply_type<2, std::index_sequence<2, 2>> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[2],
+                                      double divh) const {
+    const double divh4 = divh * divh * divh * divh;
+    const len_type sx = stride[0];
+    const len_type sy = stride[1];
+    return divh4 *
+           (v[sx + sy] - 2.0 * v[sy] + v[-sx + sy] -
+            2.0 * v[sx] + 4.0 * v[0] - 2.0 * v[-sx] +
+            v[sx - sy] - 2.0 * v[-sy] + v[-sx - sy]);
+  }
+};
+
 #endif
 }  // namespace symphas::internal
 
