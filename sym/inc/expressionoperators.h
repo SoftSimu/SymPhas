@@ -2409,6 +2409,8 @@ inline std::vector<double> precompute_kx(int N, int L) {
   return kx;
 }
 
+#ifdef USING_FFTW
+
 std::tuple<fftw_plan, fftw_plan, double*, fftw_complex*, fftw_complex*, double*> inline createFFTWPlans(int N) {
   int NX = N;
   int NYc = N / 2 + 1;  // number of complex columns
@@ -2484,6 +2486,8 @@ inline void poissonSolver(double* A_flat, double* curl_m_flat, int N, int L,
   }
 }
 
+#endif  // USING_FFTW
+
 namespace symphas::internal {
 template <typename E, typename grid_type>
 void poisson_solver_2d(OpExpression<E> const& e, grid_type& grid) {}
@@ -2493,6 +2497,7 @@ void poisson_solver_3d(OpExpression<E> const& e, grid_type& grid) {}
 
 template <typename E, typename T>
 void poisson_solver_2d(OpExpression<E> const& e, BoundaryGrid<T, 2>& grid) {
+#ifdef USING_FFTW
 
 
   // YOUR POISSON IMPLEMENTATION HERE
@@ -2520,6 +2525,7 @@ void poisson_solver_2d(OpExpression<E> const& e, BoundaryGrid<T, 2>& grid) {
   symphas::dft::fftw_free(curl_m_fft);
   symphas::dft::fftw_free(A_fft);
   symphas::dft::fftw_free(out);
+#endif  // USING_FFTW
 
 }
 
