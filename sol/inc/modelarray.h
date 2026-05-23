@@ -164,6 +164,24 @@ inline OpLiteral<double> pi_n = expr::make_literal(symphas::PI);
  */
 inline OpLiteral<double> e_n = expr::make_literal(symphas::E);
 
+//! Constant basis vectors along the X, Y, Z axes for D-dimensional fields.
+/*!
+ * Equivalent to `[1;0;...]`, `[0;1;...]`, `[0;0;1;...]` respectively,
+ * but constructed through the symbolic algebra so they compose with
+ * expressions.  Use these instead of `e(x)`/`e(y)`/`e(z)` -- the
+ * latter pass the spatial coordinate `x` to `make_unit_vector` as an
+ * angle, producing the position-dependent vector `[cos(x);sin(x)]`.
+ *
+ * The template parameter `D` must be provided by the caller from the
+ * model's `Dm` parameter, e.g. `e_x<Dm>`.
+ */
+template <size_t D>
+inline auto e_x = expr::make_column_vector<0, D>();
+template <size_t D>
+inline auto e_y = expr::make_column_vector<1, D>();
+template <size_t D>
+inline auto e_z = expr::make_column_vector<2, D>();
+
 //! Access statistics about the system, such as the mean.
 /*!
  * Included statistics are: mean, max, min and sum.

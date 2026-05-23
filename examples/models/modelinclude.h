@@ -84,8 +84,8 @@ MODEL(MagneticPFC2013, (SCALAR, VECTOR),
                   c(8) * power(op(1), 2) * op(2) -
                   c(9) * op(2) * dot(op(2), op(2)) +
                   c(10) * grad(op(1)) * dot(op(2), grad(op(1))) +
-                  grady(PoissonSolver(curl(op(2)))) * e_x -
-                  gradx(PoissonSolver(curl(op(2)))) * e_y
+                  grady(PoissonSolver(curl(op(2)))) * e_x<Dm> -
+                  gradx(PoissonSolver(curl(op(2)))) * e_y<Dm>
       )
 )
 LINK_WITH_NAME(MagneticPFC2013, MAGNETICPFC2013)
@@ -93,7 +93,7 @@ LINK_WITH_NAME(MagneticPFC2013, MAGNETICPFC2013)
 MODEL(FMPFCLinearField, (SCALAR, VECTOR),
       PROVISIONAL_DEF((SCALAR, VECTOR, SCALAR), 
         var(1) <= PoissonSolver(curl(op(2))),
-        var(2) <= grady(var(1)) * e_x - gradx(var(1)) * e_y,
+        var(2) <= grady(var(1)) * e_x<Dm> - gradx(var(1)) * e_y<Dm>,
         var(3) <= c(11) * asin(sin(2 * pi_n * t / c(12)))
       )
       EVOLUTION(
@@ -106,7 +106,7 @@ MODEL(FMPFCLinearField, (SCALAR, VECTOR),
             dop(2) = c(6) * c(6) * lap(op(2)) - c(7) * op(2) +
                   c(8) * power(op(1), 2) * op(2) -
                   c(9) * op(2) * dot(op(2), op(2)) +
-                  c(10) * grad(op(1)) * dot(op(2), grad(op(1))) + var(2) + var(3) * e_y
+                  c(10) * grad(op(1)) * dot(op(2), grad(op(1))) + var(2) + var(3) * e_y<Dm>
       )
 )
 LINK_WITH_NAME(FMPFCLinearField, FMPFCLINEARFIELD)
@@ -146,9 +146,9 @@ MODEL(AnisotropicFMPFC, (SCALAR, VECTOR),
                   c(10) * grad(op(1)) * dot(op(2), grad(op(1))) +
                   c(11) * grad(op(1)) * power(dot(op(2), grad(op(1))), 3) +
                   c(12) * grad(op(1)) * power(dot(op(2), grad(op(1))), 5) +
-                  grady(PoissonSolver(curl(op(2)))) * e_x -
-                  gradx(PoissonSolver(curl(op(2)))) * e_y +
-                  c(13) * e_x + c(14) * e_y
+                  grady(PoissonSolver(curl(op(2)))) * e_x<Dm> -
+                  gradx(PoissonSolver(curl(op(2)))) * e_y<Dm> +
+                  c(13) * e_x<Dm> + c(14) * e_y<Dm>
       )
 )
 LINK_WITH_NAME(AnisotropicFMPFC, ANISOTROPICFMPFC)
