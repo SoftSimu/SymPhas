@@ -745,6 +745,23 @@ struct stencil_apply_type<1, 2, 1> {
   }
 };
 
+// Order 2: (f(+h) - 2 f(0) + f(-h)) / h^2
+template <>
+struct stencil_apply_type<2, 2, 1> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v, len_type stride,
+                                      double divh) const {
+    const double divh2 = divh * divh;
+    return divh2 * (v[stride] - 2.0 * v[0] + v[-stride]);
+  }
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[1],
+                                      double divh) const {
+    return (*this)(v, stride[0], divh);
+  }
+};
+
 // Order 3: (-f(-2h) + 2f(-h) - 2f(+h) + f(+2h)) / (2 h^3)
 template <>
 struct stencil_apply_type<3, 2, 1> {
@@ -798,6 +815,18 @@ struct stencil_apply_type<1, 2, 2> {
 };
 
 template <>
+struct stencil_apply_type<2, 2, 2> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[2],
+                                      double divh) const {
+    const double divh2 = divh * divh;
+    const len_type s = stride[0];
+    return divh2 * (v[s] - 2.0 * v[0] + v[-s]);
+  }
+};
+
+template <>
 struct stencil_apply_type<3, 2, 2> {
   template <typename T>
   __host__ __device__ auto operator()(T *const v,
@@ -836,6 +865,108 @@ struct mixed_stencil_apply_type<OA, std::index_sequence<Os...>> {
   }
 };
 
+// 2D axial-as-mixed: the symbolic layer encodes directional_derivative<X,O>
+// as mixed (O, 0) and directional_derivative<Y,O> as mixed (0, O). These
+// reduce to plain 1D central differences applied along the appropriate
+// stride. OA = 2, axial order O in {1, 2, 3, 4}.
+template <>
+struct mixed_stencil_apply_type<2, std::index_sequence<1, 0>> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[2],
+                                      double divh) const {
+    const len_type sx = stride[0];
+    return 0.5 * divh * (v[sx] - v[-sx]);
+  }
+};
+
+template <>
+struct mixed_stencil_apply_type<2, std::index_sequence<0, 1>> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[2],
+                                      double divh) const {
+    const len_type sy = stride[1];
+    return 0.5 * divh * (v[sy] - v[-sy]);
+  }
+};
+
+template <>
+struct mixed_stencil_apply_type<2, std::index_sequence<2, 0>> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[2],
+                                      double divh) const {
+    const double divh2 = divh * divh;
+    const len_type sx = stride[0];
+    return divh2 * (v[sx] - 2.0 * v[0] + v[-sx]);
+  }
+};
+
+template <>
+struct mixed_stencil_apply_type<2, std::index_sequence<0, 2>> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[2],
+                                      double divh) const {
+    const double divh2 = divh * divh;
+    const len_type sy = stride[1];
+    return divh2 * (v[sy] - 2.0 * v[0] + v[-sy]);
+  }
+};
+
+template <>
+struct mixed_stencil_apply_type<2, std::index_sequence<3, 0>> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[2],
+                                      double divh) const {
+    const double divh3 = divh * divh * divh;
+    const len_type sx = stride[0];
+    return 0.5 * divh3 *
+           (-v[-2 * sx] + 2.0 * v[-sx] - 2.0 * v[sx] + v[2 * sx]);
+  }
+};
+
+template <>
+struct mixed_stencil_apply_type<2, std::index_sequence<0, 3>> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[2],
+                                      double divh) const {
+    const double divh3 = divh * divh * divh;
+    const len_type sy = stride[1];
+    return 0.5 * divh3 *
+           (-v[-2 * sy] + 2.0 * v[-sy] - 2.0 * v[sy] + v[2 * sy]);
+  }
+};
+
+template <>
+struct mixed_stencil_apply_type<2, std::index_sequence<4, 0>> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[2],
+                                      double divh) const {
+    const double divh4 = divh * divh * divh * divh;
+    const len_type sx = stride[0];
+    return divh4 * (v[-2 * sx] - 4.0 * v[-sx] + 6.0 * v[0] -
+                    4.0 * v[sx] + v[2 * sx]);
+  }
+};
+
+template <>
+struct mixed_stencil_apply_type<2, std::index_sequence<0, 4>> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[2],
+                                      double divh) const {
+    const double divh4 = divh * divh * divh * divh;
+    const len_type sy = stride[1];
+    return divh4 * (v[-2 * sy] - 4.0 * v[-sy] + 6.0 * v[0] -
+                    4.0 * v[sy] + v[2 * sy]);
+  }
+};
+
 // Mixed (1,1) on a 2D grid: cross-derivative d^2 f / (dx dy)
 // = (f(+h,+h) - f(+h,-h) - f(-h,+h) + f(-h,-h)) / (4 h^2)
 template <>
@@ -869,6 +1000,86 @@ struct mixed_stencil_apply_type<2, std::index_sequence<2, 2>> {
            (v[sx + sy] - 2.0 * v[sy] + v[-sx + sy] -
             2.0 * v[sx] + 4.0 * v[0] - 2.0 * v[-sx] +
             v[sx - sy] - 2.0 * v[-sy] + v[-sx - sy]);
+  }
+};
+
+// Mixed (1,2) on a 2D grid: d^3 f / (dx dy^2)
+// = (1/(2 h_x h_y^2)) * [ (f(+x,+y) - 2 f(+x,0) + f(+x,-y))
+//                       - (f(-x,+y) - 2 f(-x,0) + f(-x,-y)) ]
+template <>
+struct mixed_stencil_apply_type<2, std::index_sequence<1, 2>> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[2],
+                                      double divh) const {
+    const double divh3 = divh * divh * divh;
+    const len_type sx = stride[0];
+    const len_type sy = stride[1];
+    return 0.5 * divh3 *
+           ((v[sx + sy] - 2.0 * v[sx] + v[sx - sy]) -
+            (v[-sx + sy] - 2.0 * v[-sx] + v[-sx - sy]));
+  }
+};
+
+// Mixed (2,1) on a 2D grid: d^3 f / (dx^2 dy)
+// = (1/(h_x^2 * 2 h_y)) * [ (f(+x,+y) - f(+x,-y))
+//                         - 2 (f(0,+y) - f(0,-y))
+//                         + (f(-x,+y) - f(-x,-y)) ]
+template <>
+struct mixed_stencil_apply_type<2, std::index_sequence<2, 1>> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[2],
+                                      double divh) const {
+    const double divh3 = divh * divh * divh;
+    const len_type sx = stride[0];
+    const len_type sy = stride[1];
+    return 0.5 * divh3 *
+           ((v[sx + sy] - v[sx - sy]) -
+            2.0 * (v[sy] - v[-sy]) +
+            (v[-sx + sy] - v[-sx - sy]));
+  }
+};
+
+// Mixed (1,3) on a 2D grid: d^4 f / (dx dy^3) via tensor product of
+// the 1D 2-point first derivative (weights +/- 1/2) with the 1D 5-point
+// third derivative (weights (-1, +2, 0, -2, +1)/2).
+// = (1/(4 h_x h_y^3)) * sum_{i,j} w1_i w3_j f(i h_x, j h_y).
+template <>
+struct mixed_stencil_apply_type<2, std::index_sequence<1, 3>> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[2],
+                                      double divh) const {
+    const double divh4 = divh * divh * divh * divh;
+    const len_type sx = stride[0];
+    const len_type sy = stride[1];
+    return 0.25 * divh4 *
+           ((-v[sx - 2 * sy] + 2.0 * v[sx - sy] -
+             2.0 * v[sx + sy] + v[sx + 2 * sy]) -
+            (-v[-sx - 2 * sy] + 2.0 * v[-sx - sy] -
+             2.0 * v[-sx + sy] + v[-sx + 2 * sy]));
+  }
+};
+
+// Mixed (3,1) on a 2D grid: d^4 f / (dx^3 dy) via tensor product of
+// the 1D 5-point third derivative (weights (-1, +2, 0, -2, +1)/2) with
+// the 1D 2-point first derivative (weights +/- 1/2).
+// = (1/(4 h_x^3 h_y)) * sum_{i,j} w3_i w1_j f(i h_x, j h_y).
+template <>
+struct mixed_stencil_apply_type<2, std::index_sequence<3, 1>> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[2],
+                                      double divh) const {
+    const double divh4 = divh * divh * divh * divh;
+    const len_type sx = stride[0];
+    const len_type sy = stride[1];
+    return 0.25 * divh4 *
+           ((-(v[-2 * sx + sy] - v[-2 * sx - sy])) +
+            2.0 * (v[-sx + sy] - v[-sx - sy]) -
+            2.0 * (v[sx + sy] - v[sx - sy]) +
+            (v[2 * sx + sy] - v[2 * sx - sy]));
   }
 };
 

@@ -1,6 +1,8 @@
 
 // Uncomment to enable verbose JFNK debugging output
 // #define JFNK_VERBOSE
+// #define JFNK_VERBOSE
+#define JFNK_VERBOSE
 
 /* ***************************************************************************
  * This file is part of the SymPhas package, containing a framework for
@@ -102,7 +104,7 @@ constexpr double NEWTON_RTOL = 1e-4;
 constexpr double EPSILON_BASE = 1.49011611938476e-08;
 
 //! Maximum GMRES iterations (with restarts).
-constexpr int MAX_GMRES_ITERS = 200;
+constexpr int MAX_GMRES_ITERS = 5000;
 
 //! GMRES convergence tolerance (relative to Newton residual norm).
 constexpr double GMRES_RTOL = 1e-3;
@@ -794,27 +796,56 @@ private:
             int gmres_iters = 0;
             bool gmres_ok = solve_gmres(gmres_tol, gmres_iters);
 
-            // Apply Newton update: u ← u + delta_u (scattered to grid interior).
-            scatter_update(delta_u, 1.0);
-
-            // Refresh boundary ghost cells after modification.
-            update_all_boundaries();
-
-            // Re-evaluate F(u_new).
-            evaluate_all_rhs();
-            for (auto& d : dofs) {
-                d.gather(d.dframe_values, d.F_u);
+            // Armijo backtracking line search: accept the largest alpha in
+            // {1, 1/2, 1/4, ...} for which ||G(u + alpha*du)|| < (1 - 1e-4*alpha)*||G(u)||.
+            // Without this, full Newton on PFC (6th-order, ill-conditioned)
+            // diverges immediately because the GMRES direction overshoots.
+            constexpr int LS_MAX = 20;
+            constexpr double LS_SIGMA = 1e-4;
+            double alpha = 1.0;
+            double res_trial = res;
+            double res_prev = res;
+            bool ls_ok = false;
+            for (int ls = 0; ls < LS_MAX; ++ls) {
+                scatter_update(delta_u, alpha);
+                update_all_boundaries();
+                evaluate_all_rhs();
+                for (auto& d : dofs) {
+                    d.gather(d.dframe_values, d.F_u);
+                }
+                compute_newton_residual();
+                res_trial = compute_residual_norm();
+                if (res_trial <= (1.0 - LS_SIGMA * alpha) * res_prev) {
+                    ls_ok = true;
+                    break;
+                }
+                // Reject: undo step, halve alpha, retry.
+                scatter_update(delta_u, -alpha);
+                alpha *= 0.5;
             }
-
-            // Recompute Newton residual from updated grid and new F(u).
-            // G[j] = grid[map[j]] - u_n[j] - dt*F_u[j]
-            compute_newton_residual();
-            res = compute_residual_norm();
+            if (!ls_ok) {
+                // No descent direction found. Keep the last (rejected) trial
+                // applied so state advances; warn and break.
+                scatter_update(delta_u, alpha);
+                update_all_boundaries();
+                evaluate_all_rhs();
+                for (auto& d : dofs) {
+                    d.gather(d.dframe_values, d.F_u);
+                }
+                compute_newton_residual();
+                res_trial = compute_residual_norm();
+#ifdef JFNK_VERBOSE
+                fprintf(stdout, "[JFNK] newton %2d: LINE SEARCH FAILED, "
+                        "accepting alpha=%.3e, ||G||=%.6e\n",
+                        k + 1, alpha, res_trial);
+#endif
+            }
+            res = res_trial;
 
 #ifdef JFNK_VERBOSE
-            fprintf(stdout, "[JFNK] newton %2d: ||G|| = %.6e, "
+            fprintf(stdout, "[JFNK] newton %2d: ||G|| = %.6e, alpha = %.3e, "
                     "GMRES iters = %d (%s)\n",
-                    k + 1, res, gmres_iters,
+                    k + 1, res, alpha, gmres_iters,
                     gmres_ok ? "conv" : "maxiter");
 #endif
 
