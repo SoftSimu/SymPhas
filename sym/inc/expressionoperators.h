@@ -28,6 +28,9 @@
 #include "expressions.h"
 #include "gridpair.h"
 
+#include <map>
+#include <cstring>
+
 //! \cond
 
 #ifdef LATEX_PLOT
@@ -2411,6 +2414,100 @@ inline std::vector<double> precompute_kx(int N, int L) {
 
 #ifdef USING_FFTW
 
+// Cached per-size Poisson workspace.  FFTW plans + buffers depend only on
+// grid size, not on data, so creating/destroying them on every call (which
+// happens once per Newton/GMRES inner iteration) was producing many thousands
+// of plan-create/destroy pairs per timestep.  Keep one set per grid size for
+// the program lifetime instead.
+struct PoissonFFTWWorkspace {
+  fftw_plan plan_forward = nullptr;
+  fftw_plan plan_backward = nullptr;
+  double* in = nullptr;
+  fftw_complex* curl_m_fft = nullptr;
+  fftw_complex* A_fft = nullptr;
+  double* out = nullptr;
+  int N = 0;
+  // Cached evaluation buffer for the curl(m) RHS expression.  Previously
+  // allocated as a BoundaryGrid<T,2> on every call.
+  double* rhs_buf = nullptr;
+  // Frequency list cache.  Plain function of N (and L, currently equal to N
+  // at the call site), recomputed only on init.
+  std::vector<double> kx_list;
+
+  PoissonFFTWWorkspace() = default;
+  PoissonFFTWWorkspace(PoissonFFTWWorkspace const&) = delete;
+  PoissonFFTWWorkspace& operator=(PoissonFFTWWorkspace const&) = delete;
+
+  void init(int N_) {
+    if (N == N_) return;
+    destroy();
+    N = N_;
+    int NX = N;
+    int NYc = N / 2 + 1;
+    size_t real_size = (size_t)NX * (size_t)NX;
+    size_t complex_size = (size_t)NX * (size_t)NYc;
+    len_type dims[]{NX, NX};
+    in =
+        (double*)symphas::dft::fftw_alloc_real(sizeof(double) * real_size);
+    curl_m_fft = (fftw_complex*)symphas::dft::fftw_alloc_real(
+        sizeof(fftw_complex) * complex_size);
+    A_fft = (fftw_complex*)symphas::dft::fftw_alloc_real(
+        sizeof(fftw_complex) * complex_size);
+    out =
+        (double*)symphas::dft::fftw_alloc_real(sizeof(double) * real_size);
+    rhs_buf =
+        (double*)symphas::dft::fftw_alloc_real(sizeof(double) * real_size);
+    plan_forward = symphas::dft::new_fftw_plan<2, scalar_t, complex_t>{}(
+        in, curl_m_fft, dims);
+    plan_backward = symphas::dft::new_fftw_plan<2, complex_t, scalar_t>{}(
+        A_fft, out, dims);
+    // Precompute frequencies once.  L is passed as int N at the call site
+    // currently, so cache against N as well; if call-site L ever decouples
+    // from N, recompute on demand instead.
+    kx_list.assign(N, 0.0);
+    for (int n = 0; n <= (N / 2); ++n) kx_list[n] = 2 * symphas::PI * n / N;
+    for (int n = (N / 2); n < N; ++n) {
+      double neg = -(N / 2) + (n - N / 2);
+      kx_list[n] = 2 * symphas::PI * neg / N;
+    }
+  }
+
+  void destroy() {
+    if (plan_forward) symphas::dft::fftw_destroy_plan(plan_forward);
+    if (plan_backward) symphas::dft::fftw_destroy_plan(plan_backward);
+    if (in) symphas::dft::fftw_free(in);
+    if (curl_m_fft) symphas::dft::fftw_free(curl_m_fft);
+    if (A_fft) symphas::dft::fftw_free(A_fft);
+    if (out) symphas::dft::fftw_free(out);
+    if (rhs_buf) symphas::dft::fftw_free(rhs_buf);
+    plan_forward = nullptr;
+    plan_backward = nullptr;
+    in = nullptr;
+    curl_m_fft = nullptr;
+    A_fft = nullptr;
+    out = nullptr;
+    rhs_buf = nullptr;
+    kx_list.clear();
+    N = 0;
+  }
+
+  ~PoissonFFTWWorkspace() { destroy(); }
+};
+
+inline PoissonFFTWWorkspace& get_poisson_workspace(int N) {
+  // One workspace per grid size, persisted for program lifetime.  Map
+  // because nothing here knows the eventual set of sizes used; a single
+  // run typically only touches one size.
+  static std::map<int, PoissonFFTWWorkspace> table;
+  PoissonFFTWWorkspace& ws = table[N];
+  ws.init(N);
+  return ws;
+}
+
+#endif  // USING_FFTW
+
+#ifdef USING_FFTW
+
 std::tuple<fftw_plan, fftw_plan, double*, fftw_complex*, fftw_complex*, double*> inline createFFTWPlans(int N) {
   int NX = N;
   int NYc = N / 2 + 1;  // number of complex columns
@@ -2441,9 +2538,9 @@ std::tuple<fftw_plan, fftw_plan, double*, fftw_complex*, fftw_complex*, double*>
 // Currently takes a flat 2D vector. Returns flat solution
 inline void poissonSolver(double* A_flat, double* curl_m_flat, int N, int L,
                    fftw_plan plan_forward, fftw_plan plan_backward, double* in,
-                   fftw_complex* curl_m_fft, fftw_complex* A_fft, double* out) {
+                   fftw_complex* curl_m_fft, fftw_complex* A_fft, double* out,
+                   const double* kx_list) {
 
-  std::vector<double> kx_list = precompute_kx(N, L);  // Precompute cosines for efficiency
   double mu_0 = 0.001;
 
   // FFTW variables
@@ -2451,10 +2548,8 @@ inline void poissonSolver(double* A_flat, double* curl_m_flat, int N, int L,
   int NYc = N / 2 + 1;  // number of complex columns
   size_t real_size = (size_t)NX * (size_t)NX;
 
-  //Could change it somehow so curl_m_flat is the buffer. Would remove an N^2 operation and would save memory. Get it working first though.
-  for (size_t i = 0; i < real_size; ++i) {
-        in[i] = curl_m_flat[i];
-  }
+  // Copy curl_m_flat into the FFTW input buffer.
+  std::memcpy(in, curl_m_flat, real_size * sizeof(double));
   // execute forward transform: curl_m -> curl_m_fft
   symphas::dft::fftw_execute(plan_forward);
 
@@ -2498,33 +2593,27 @@ void poisson_solver_3d(OpExpression<E> const& e, grid_type& grid) {}
 template <typename E, typename T>
 void poisson_solver_2d(OpExpression<E> const& e, BoundaryGrid<T, 2>& grid) {
 #ifdef USING_FFTW
-
-
-  // YOUR POISSON IMPLEMENTATION HERE
-  // output data = grid
-  // input data = e
-  BoundaryGrid<T, 2> input(grid.dims);
-  expr::result(e, input);
+  // The plans, buffers, frequency table, *and* the BoundaryGrid used as a
+  // scratch buffer for `expr::result` are all cached for the lifetime of
+  // the program (keyed by grid size).  Earlier this function reallocated
+  // ~10 buffers and rebuilt two FFTW plans on every call, which the
+  // implicit JFNK solver invokes hundreds of times per timestep.
   len_type* dims = grid.dims;
-  len_type interior_dims[]{dims[0] - 6, dims[1] - 6};
-  // write function to copy interior cells
-  Grid<T, 2> input_interior(interior_dims);
-  Grid<T, 2> output(interior_dims);
+  auto& ws = ::get_poisson_workspace(dims[0]);
+  // Reuse a single scratch BoundaryGrid across calls.  The per-size cache
+  // is keyed on dims[0] (square grids assumed, which is what the FFTW path
+  // already requires).
+  static thread_local std::map<int, BoundaryGrid<T, 2>> input_cache;
+  auto it = input_cache.find(dims[0]);
+  if (it == input_cache.end()) {
+    it = input_cache.emplace(dims[0], BoundaryGrid<T, 2>(grid.dims)).first;
+  }
+  BoundaryGrid<T, 2>& input = it->second;
 
-
-  auto [plan_forward, plan_backward, in, curl_m_fft, A_fft, out] =
-      createFFTWPlans(dims[0]);
-  poissonSolver(grid.values, input.values, dims[0], dims[1], plan_forward,
-                plan_backward, in, curl_m_fft, A_fft, out);
-
-  // If plans are being recreated and memory is being reallocated each frame then the
-  // plans need to be destroyed and the memory needs to be freed each frame too.
-  symphas::dft::fftw_destroy_plan(plan_forward);
-  symphas::dft::fftw_destroy_plan(plan_backward);
-  symphas::dft::fftw_free(in);
-  symphas::dft::fftw_free(curl_m_fft);
-  symphas::dft::fftw_free(A_fft);
-  symphas::dft::fftw_free(out);
+  expr::result(e, input);
+  poissonSolver(grid.values, input.values, dims[0], dims[1],
+                ws.plan_forward, ws.plan_backward,
+                ws.in, ws.curl_m_fft, ws.A_fft, ws.out, ws.kx_list.data());
 #endif  // USING_FFTW
 
 }

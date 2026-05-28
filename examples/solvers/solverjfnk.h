@@ -1,8 +1,6 @@
 
 // Uncomment to enable verbose JFNK debugging output
 // #define JFNK_VERBOSE
-// #define JFNK_VERBOSE
-#define JFNK_VERBOSE
 
 /* ***************************************************************************
  * This file is part of the SymPhas package, containing a framework for
@@ -104,7 +102,7 @@ constexpr double NEWTON_RTOL = 1e-4;
 constexpr double EPSILON_BASE = 1.49011611938476e-08;
 
 //! Maximum GMRES iterations (with restarts).
-constexpr int MAX_GMRES_ITERS = 5000;
+constexpr int MAX_GMRES_ITERS = 200;
 
 //! GMRES convergence tolerance (relative to Newton residual norm).
 constexpr double GMRES_RTOL = 1e-3;
