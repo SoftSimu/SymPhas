@@ -105,7 +105,19 @@ constexpr double EPSILON_BASE = 1.49011611938476e-08;
 constexpr int MAX_GMRES_ITERS = 200;
 
 //! GMRES convergence tolerance (relative to Newton residual norm).
+//! Used as a hard floor; the actual per-iteration tolerance is computed
+//! adaptively (Eisenstat-Walker forcing) inside perform_newton_solve.
 constexpr double GMRES_RTOL = 1e-3;
+
+//! Eisenstat-Walker forcing parameters.  The GMRES tolerance for Newton
+//! iteration k is min(EW_ETA_MAX, EW_GAMMA * (res_k/res_{k-1})^EW_ALPHA),
+//! safeguarded against oscillation per Eisenstat & Walker SISC 1996.
+//! This loosens GMRES when Newton is far from the solution (saving inner
+//! work) and tightens automatically as Newton converges.
+constexpr double EW_ETA_MAX = 0.5;     //!< maximum forcing term (loose)
+constexpr double EW_ETA_MIN = 1e-3;    //!< minimum (= GMRES_RTOL floor)
+constexpr double EW_GAMMA   = 0.9;     //!< Walker gamma in (0,1]
+constexpr double EW_ALPHA   = 1.5;     //!< exponent, (1, 2]
 
 // =============================================================================
 // Type Traits for Vector Field Detection
@@ -179,6 +191,45 @@ inline void compute_givens(double a, double b, double& cs, double& sn) {
         sn = tau * cs;
     }
 }
+
+// Profiling counters.  All increment-only (no chrono inside hot paths), so
+// they don't pessimize the inlined evaluator.  Summary is printed once at
+// program exit, regardless of how many SolverJFNK instances were created.
+struct Profile {
+    long long n_steps              = 0;  // perform_newton_solve calls
+    long long n_steps_nonconv      = 0;  // steps that hit MAX_NEWTON_ITERS
+    long long n_newton_iters       = 0;  // total Newton inner iters across all steps
+    long long n_gmres_iters        = 0;  // total GMRES iters across all Newton iters
+    long long n_gmres_calls        = 0;  // total solve_gmres calls
+    long long n_gmres_maxiter      = 0;  // GMRES calls that hit MAX_GMRES_ITERS
+    long long n_line_search_trials = 0;  // total Armijo backtracks attempted
+    long long n_line_search_fail   = 0;  // line searches that gave up
+    long long n_rhs_evals          = 0;  // calls to evaluate_all_rhs()
+
+    static Profile& get() { static Profile p; return p; }
+
+    ~Profile() {
+        if (n_steps == 0) return;  // solver was never invoked
+        fprintf(stderr,
+                "\n[JFNK-PROFILE]\n"
+                "  steps               %lld  (nonconv: %lld)\n"
+                "  newton iters / step %.2f  (total %lld)\n"
+                "  gmres calls         %lld  (maxiter: %lld)\n"
+                "  gmres iters / call  %.1f  (total %lld)\n"
+                "  gmres iters / step  %.1f\n"
+                "  line search trials  %lld  (failures: %lld)\n"
+                "  rhs evals           %lld  (%.1f per gmres iter)\n",
+                n_steps, n_steps_nonconv,
+                double(n_newton_iters) / n_steps, n_newton_iters,
+                n_gmres_calls, n_gmres_maxiter,
+                n_gmres_calls > 0 ? double(n_gmres_iters) / n_gmres_calls : 0.0,
+                n_gmres_iters,
+                double(n_gmres_iters) / n_steps,
+                n_line_search_trials, n_line_search_fail,
+                n_rhs_evals,
+                n_gmres_iters > 0 ? double(n_rhs_evals) / n_gmres_iters : 0.0);
+    }
+};
 
 }  // namespace jfnk
 
@@ -756,6 +807,7 @@ private:
         // On the very first timestep, dt=0 (framework sets dt after step()).
         // G(u) = u - u_n - 0*F(u) = 0, so skip immediately.
         if (dt <= 0.0) return;
+        ++jfnk::Profile::get().n_steps;
 
         // Compute total interior DOFs across all components.
         len_type tot = 0;
@@ -787,12 +839,41 @@ private:
         // Convergence is checked AFTER at least one Newton iteration.
 
         // Step 3: Newton iteration.
+        // Eisenstat-Walker forcing: start with a loose GMRES tolerance and
+        // tighten it as Newton converges, so we don't burn inner iterations
+        // hitting 1e-7 when Newton still has 4 orders of magnitude to drop.
+        double eta_prev = jfnk::EW_ETA_MAX;
+        double res_prev_newton = res;  // residual at end of previous Newton iter
         for (int k = 0; k < jfnk::MAX_NEWTON_ITERS; ++k) {
             // Solve J * delta_u = -G(u) via GMRES.
             jfnk::zero_vec(delta_u, total_len);
-            double gmres_tol = jfnk::GMRES_RTOL * res;
+
+            double eta_k;
+            if (k == 0) {
+                // No previous Newton residual yet — go in loose.
+                eta_k = jfnk::EW_ETA_MAX;
+            } else {
+                double ratio = res / res_prev_newton;
+                eta_k = jfnk::EW_GAMMA *
+                        std::pow(std::max(ratio, 1e-16), jfnk::EW_ALPHA);
+                // Safeguard against oscillation (Walker 1996, eq. 3.3).
+                double safeguard = jfnk::EW_GAMMA *
+                                   std::pow(std::max(eta_prev, 1e-16),
+                                            jfnk::EW_ALPHA);
+                if (safeguard > 0.1) eta_k = std::max(eta_k, safeguard);
+            }
+            // Clamp.
+            if (eta_k > jfnk::EW_ETA_MAX) eta_k = jfnk::EW_ETA_MAX;
+            if (eta_k < jfnk::EW_ETA_MIN) eta_k = jfnk::EW_ETA_MIN;
+            eta_prev = eta_k;
+
+            double gmres_tol = eta_k * res;
             int gmres_iters = 0;
             bool gmres_ok = solve_gmres(gmres_tol, gmres_iters);
+            ++jfnk::Profile::get().n_gmres_calls;
+            jfnk::Profile::get().n_gmres_iters += gmres_iters;
+            if (!gmres_ok) ++jfnk::Profile::get().n_gmres_maxiter;
+            ++jfnk::Profile::get().n_newton_iters;
 
             // Armijo backtracking line search: accept the largest alpha in
             // {1, 1/2, 1/4, ...} for which ||G(u + alpha*du)|| < (1 - 1e-4*alpha)*||G(u)||.
@@ -805,6 +886,7 @@ private:
             double res_prev = res;
             bool ls_ok = false;
             for (int ls = 0; ls < LS_MAX; ++ls) {
+                ++jfnk::Profile::get().n_line_search_trials;
                 scatter_update(delta_u, alpha);
                 update_all_boundaries();
                 evaluate_all_rhs();
@@ -822,6 +904,7 @@ private:
                 alpha *= 0.5;
             }
             if (!ls_ok) {
+                ++jfnk::Profile::get().n_line_search_fail;
                 // No descent direction found. Keep the last (rejected) trial
                 // applied so state advances; warn and break.
                 scatter_update(delta_u, alpha);
@@ -855,11 +938,13 @@ private:
 #endif
                 return;
             }
+            res_prev_newton = res;
         }
 
         fprintf(SYMPHAS_WARN, "[JFNK] did NOT converge after %d Newton "
                 "iterations (||G|| = %.6e)\n",
                 jfnk::MAX_NEWTON_ITERS, res);
+        ++jfnk::Profile::get().n_steps_nonconv;
     }
 
     // =========================================================================
@@ -871,6 +956,7 @@ private:
     //! For vector fields, multiple DOFs share the same eval_rhs callback
     //! via field_group — we call it only once per group.
     void evaluate_all_rhs() const {
+        ++jfnk::Profile::get().n_rhs_evals;
         int last_group = -1;
         for (auto& d : dofs) {
             if (d.field_group != last_group) {
