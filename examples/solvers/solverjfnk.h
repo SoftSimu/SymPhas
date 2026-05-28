@@ -87,7 +87,7 @@
 namespace jfnk {
 
 //! Default GMRES restart dimension.
-constexpr int GMRES_M = 20;
+constexpr int GMRES_M = 100;
 
 //! Maximum Newton iterations per timestep.
 constexpr int MAX_NEWTON_ITERS = 50;
