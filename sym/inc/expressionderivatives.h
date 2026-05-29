@@ -3247,6 +3247,23 @@ struct initialize_derivative_order {
                   SymbolicDerivative<G> const& solver) {
     return v * expr::make_derivative<O, G>(*static_cast<E const*>(&e), solver);
   }
+
+  // Apply derivative-of-order-O over a plain (non-symbolic) solver to an
+  // OpOperator (e.g. OpOperatorChain<F, inner_derivative>). Unwrap the
+  // chain and dispatch into the OpExpression path so the inner is
+  // captured correctly. This case arises with FE-defined models like
+  // MH_FE where `EQUATION_OF` produces `lap(-DF(N))` and `grad(-DF(N))`:
+  // the outer derivative becomes an order-O derivative applied to a
+  // chain that already wraps an inner derivative. The chain's outer
+  // factor F is preserved by re-multiplying after the recursive call.
+  template <typename V, typename F, typename E, typename Sp,
+            typename = std::enable_if_t<expr::is_coeff<F> ||
+                                            expr::is_identity<F>,
+                                        int>>
+  auto operator()(V const& v, OpOperatorChain<F, E> const& e,
+                  solver_op_type<Sp> solver) {
+    return (*this)(v * e.f, e.g, solver);
+  }
 };
 
 template <size_t O>
