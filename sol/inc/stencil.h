@@ -442,6 +442,51 @@ struct Stencil {
     return gradient(data.values + n, stride);
   }
 
+  // -------------------------------------------------------------------------
+  // Cross-axis VectorComponentData overloads. The derivative axis `axd`
+  // is independent of the component axis `axc`. The original overloads
+  // above tied them together (single template param `ax`), which silently
+  // refused to match expressions like `gradx(my)` (∂/∂x of the y-component
+  // of m); SFINAE failure there fell through to a fallback that returned
+  // wrong values. Provide explicit cross-axis overloads.
+  // The component axis selects WHICH array (data.values is the right one
+  // already, picked by resolve_axis_component<axc>). The derivative axis
+  // controls the stride used by the stencil.
+  // -------------------------------------------------------------------------
+  template <Axis axd, size_t O, Axis axc, typename T, size_t D,
+            typename = std::enable_if_t<axd != axc, int>>
+  __host__ __device__ auto applied_generalized_directional_derivative(
+      VectorComponentData<axc, T *, D> const &data, iter_type n) const {
+    return cast().template apply_directional<axd, O>(data.values + n);
+  }
+
+  template <Axis axd, size_t O, Axis axc, typename T, size_t D,
+            typename = std::enable_if_t<axd != axc, int>>
+  __host__ __device__ auto applied_generalized_derivative(
+      VectorComponentData<axc, T *, D> const &data, iter_type n) const {
+    len_type stride[D];
+    grid::get_stride<axd>(stride, cast().dims);
+    return cast().template apply<O>(data.values + n, stride);
+  }
+
+  template <Axis axd, Axis axc, typename T, size_t D,
+            typename = std::enable_if_t<axd != axc, int>>
+  __host__ __device__ auto applied_gradlaplacian(
+      VectorComponentData<axc, T *, D> const &data, iter_type n) const {
+    len_type stride[D];
+    grid::get_stride<axd>(stride, cast().dims);
+    return gradlaplacian(data.values + n, stride);
+  }
+
+  template <Axis axd, Axis axc, typename T, size_t D,
+            typename = std::enable_if_t<axd != axc, int>>
+  __host__ __device__ auto applied_gradient(
+      VectorComponentData<axc, T *, D> const &data, iter_type n) const {
+    len_type stride[D];
+    grid::get_stride<axd>(stride, cast().dims);
+    return gradient(data.values + n, stride);
+  }
+
   template <Axis ax, size_t O, typename T, size_t D>
   __host__ __device__ auto applied_generalized_directional_derivative(
       VectorComponentRegionData<ax, T *, D> const &data, iter_type n) const {
