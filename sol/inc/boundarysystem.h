@@ -568,13 +568,36 @@ using RegionalSystemMPI = PhaseFieldSystem<RegionalGridMPI, T, D>;
 
 DEFINE_SYMBOL_ID((typename T, size_t D), (RegionalGridMPI<T, D>),
                  return data.values)
+template <typename T, size_t D>
+struct expr::SymbolID<RegionalGridMPI<VectorValue<T, D>, D>> {
+  static T* get(RegionalGridMPI<VectorValue<T, D>, D> const& data) {
+    return data.values[0];
+  }
+};
 
 #endif
 
 DEFINE_SYMBOL_ID((typename T, size_t D), (BoundaryGrid<T, D>),
                  return data.values)
+// Vector-grid overrides: BoundaryGrid<VectorValue<T,D>,D> inherits from
+// MultiBlock whose `values` is `T*[D]` (an array). Returning that from
+// `decltype(auto)` is illegal (arrays cannot be returned by value).
+// Use the first axis pointer as the symbol id — uniquely identifies the
+// underlying storage.
+template <typename T, size_t D>
+struct expr::SymbolID<BoundaryGrid<VectorValue<T, D>, D>> {
+  static T* get(BoundaryGrid<VectorValue<T, D>, D> const& data) {
+    return data.values[0];
+  }
+};
 DEFINE_SYMBOL_ID((typename T, size_t D), (RegionalGrid<T, D>),
                  return data.values)
+template <typename T, size_t D>
+struct expr::SymbolID<RegionalGrid<VectorValue<T, D>, D>> {
+  static T* get(RegionalGrid<VectorValue<T, D>, D> const& data) {
+    return data.values[0];
+  }
+};
 DEFINE_BASE_DATA_INHERITED((template <typename, size_t> typename grid_t,
                             typename T, size_t D),
                            (PhaseFieldSystem<grid_t, T, D>), (grid_t<T, D>))

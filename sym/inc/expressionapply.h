@@ -1230,6 +1230,25 @@ struct combine_mixed_derivatives {
                                directional_derivative<ax2, O2>{},
                                symphas::lib::axis_list<axs...>{}) +
               ...);
+    } else if constexpr (O1 == 1) {
+      // `derivative<ax1, 1>` is a single-axis ∂/∂ax1, not a multi-axis
+      // aggregate, so composing it with `directional_derivative<ax2, O2>`
+      // is just a single composed derivative. Bypass the gradlaplacian-style
+      // fold (which would produce `axs...` copies of the same term and
+      // double-count when O1 - 1 = 0).
+      if constexpr (ax1 == ax2) {
+        using Dd =
+            typename Solver<Sp>::template directional_derivative<ax1, 1 + O2>;
+        return expr::make_derivative<Dd>(*static_cast<E const*>(&enclosed),
+                                         solver);
+      } else {
+        using Dd = typename Solver<Sp>::template mixed_derivative<(
+            (ax1 == axs)   ? 1
+            : (ax2 == axs) ? O2
+                           : 0)...>;
+        return expr::make_derivative<Dd>(*static_cast<E const*>(&enclosed),
+                                         solver);
+      }
     } else {
       // it is like the gradlaplacian
       if constexpr (ax1 == ax2) {
