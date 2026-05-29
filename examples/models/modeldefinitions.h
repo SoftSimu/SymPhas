@@ -88,6 +88,21 @@ MODEL(MH, (SCALAR, VECTOR),
 LINK_WITH_NAME(MH, MODELH)
 DEFINE_MODEL_FIELD_NAMES(MH, ("m", "j"))
 
+// Model F: superfluid/vector order parameter conserved dynamics.
+// A non-conserved scalar `n` (density) coupled to a conserved vector
+// `g` (current/momentum) via the standard model-F coupling.
+//   dn/dt   = -A * lap(n) + (c1 - c2*n^2)*n - c3 * div(g)
+//   dg/dt   = -lap g + c3 * grad(n)
+// c1, c2 set the Landau potential; c3 couples density to momentum.
+MODEL(MF, (SCALAR, VECTOR),
+      EVOLUTION(
+            dpsi = -c(4) * lap(psi) + (c(1) - c(2) * psi * psi) * psi
+                   - c(3) * div(j),
+            dj = -lap(j) + c(3) * grad(psi)
+      ))
+LINK_WITH_NAME(MF, MODELF)
+DEFINE_MODEL_FIELD_NAMES(MF, ("n", "g"))
+
 #endif
 
 #ifdef MODEL_SET_2
