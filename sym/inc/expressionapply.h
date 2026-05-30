@@ -1295,6 +1295,16 @@ template <typename Dd1, typename V1, typename E, typename Sp2>
 auto apply_operator_derivative_nested(OpDerivative<Dd1, V1, E, Sp2> const& e) {
   return expr::apply_operators(e);
 }
+
+// FE models with reversible vector coupling (e.g. MF_FE's `grad * DF(2)`)
+// produce an OpAdd of per-axis OpDerivatives (one for each vector
+// component) before the outer apply_operators reaches here. The two
+// overloads above are written for a single OpDerivative; without an
+// OpAdd specialization the dispatch fails. Distribute over the sum.
+template <typename... Es>
+auto apply_operator_derivative_nested(OpAdd<Es...> const& e) {
+  return expr::apply_operators(e);
+}
 }  // namespace
 
 //! Distribute operators so they are applied to individual expressions.
