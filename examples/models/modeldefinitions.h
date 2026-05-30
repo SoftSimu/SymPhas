@@ -131,6 +131,16 @@ MODEL(MH_FE, (SCALAR, VECTOR),
 LINK_WITH_NAME(MH_FE, MODELH_FE)
 DEFINE_MODEL_FIELD_NAMES(MH_FE, ("m", "j"))
 
+//! Model F by the free energy: superfluid density coupled to current.
+//!   dn/dt = -dF/dn - c3 * div(g)
+//!   dg/dt = -dF/dg + c3 * grad(n)
+MODEL(MF_FE, (SCALAR, VECTOR),
+      FREE_ENERGY((EQUATION_OF(1)(-DF(1) - c(3) * (grad * DF(2))),
+                   EQUATION_OF(2)(-DF(2) + c(3) * grad(DF(1)))),
+                  INT(LANDAU_FE(op(1), c(1), c(2)) + _2 * pow<2>(op(2)))))
+LINK_WITH_NAME(MF_FE, MODELF_FE)
+DEFINE_MODEL_FIELD_NAMES(MF_FE, ("n", "g"))
+
 #endif
 
 #ifdef MODEL_SET_3
