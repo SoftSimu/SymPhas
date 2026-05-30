@@ -63,6 +63,26 @@ struct make_data<DynamicVariable<G>> {
 // would create a dangling reference.
 // Instead, NamedData's move constructor is specialized to handle this case
 // without requiring default construction.
+//
+// Compile-time-only workaround: certain FE-derived models (MA_FE, MB_FE,
+// MH_FE, MF_FE, plus any future model with grad/lap of a functional
+// derivative) trigger template instantiation of
+// `Term<NamedData<reference_wrapper<G>>, X>::Term()` and downstream
+// default-construction of `NamedData<reference_wrapper<G>>`, even though
+// these constructors are never called at runtime (the model_select
+// dispatch only ever instantiates one specialization at a time and
+// always wires real data through). The body must type-check though, so
+// provide a specialization that returns a reference to a static buffer
+// reinterpreted as G. This is type-safe; runtime behavior is undefined
+// for any code that actually reaches the default-constructed wrapper,
+// which is fine since by construction such code is unreachable.
+template <typename G>
+struct make_data<std::reference_wrapper<G>> {
+  std::reference_wrapper<G> operator()() {
+    alignas(G) static thread_local unsigned char buf[sizeof(G)]{};
+    return std::ref(*reinterpret_cast<G*>(buf));
+  }
+};
 }  // namespace symphas::internal
 
 //! Gives a name to data, to be used in expressions.
