@@ -385,13 +385,21 @@ struct Stencil2d2h<L, G, B>
   }
 
   //! Hexalaplacian (6th order derivative, nabla^6) of the field.
+  /*!
+   * Defaults to the 49-point isotropic stencil, which is both isotropic in the
+   * physical band and stable for explicit conserved PFC. Also available:
+   * the 25-point separable stencil (apply_hexalaplacian_2d2h<25>, exact
+   * on-axis but anisotropic) and the 29-point compact-isotropic stencil
+   * (apply_hexalaplacian_2d2h<29>, which is unstable for explicit time
+   * stepping at h=1 since its symbol vanishes at the BZ corner).
+   */
   template <typename T>
   __device__ __host__ inline auto hexalaplacian(
       T* const v, const len_type (&stride)[2]) const {
-    return apply_hexalaplacian_2d2h<29>{}(v, divh4 * divh2, stride);
+    return apply_hexalaplacian_2d2h<49>{}(v, divh4 * divh2, stride);
   }
 
-  //! Override apply<6> to use the isotropic hexalaplacian stencil.
+  //! Override apply<6> to use the default hexalaplacian stencil.
   template <size_t OD, typename T,
             std::enable_if_t<OD == 6, int> = 0>
   __device__ __host__ inline auto apply(
@@ -1312,6 +1320,14 @@ struct DefaultStencil {
 #undef vx3y3_
 #undef vx3_y3
 #undef vx3_y3_
+#undef vx3y2
+#undef vx3y2_
+#undef vx3_y2
+#undef vx3_y2_
+#undef vx2y3
+#undef vx2y3_
+#undef vx2_y3
+#undef vx2_y3_
 #undef vxz
 #undef vxz_
 #undef vx_z

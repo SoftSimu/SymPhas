@@ -20,6 +20,36 @@
 
 #include "symphas.h"
 
+#ifndef _WIN32
+#include <sys/resource.h>
+
+namespace {
+// Raise the soft stack limit at process startup. SymPhas's variadic
+// expression builders (notably expr::make_add) recursively construct
+// nested OpAdd<> values where each frame holds a large templated
+// temporary by value. Equations with many terms (e.g. AnisotropicFMPFC's
+// psi equation) can exhaust the default 8MB stack during model
+// construction. Bump to 256MB if the current limit is lower.
+struct stack_limit_raiser {
+  stack_limit_raiser() {
+    constexpr rlim_t kDesired = static_cast<rlim_t>(256) * 1024 * 1024;
+    struct rlimit rl;
+    if (getrlimit(RLIMIT_STACK, &rl) == 0) {
+      rlim_t target = kDesired;
+      if (rl.rlim_max != RLIM_INFINITY && rl.rlim_max < target) {
+        target = rl.rlim_max;
+      }
+      if (rl.rlim_cur != RLIM_INFINITY && rl.rlim_cur < target) {
+        rl.rlim_cur = target;
+        (void)setrlimit(RLIMIT_STACK, &rl);
+      }
+    }
+  }
+};
+static stack_limit_raiser _symphas_stack_limit_raiser;
+}  // namespace
+#endif
+
 #ifdef PRINT_TIMINGS
 DLLMOD double symphas::iteration_time = 0;
 DLLMOD double symphas::init_time = 0;

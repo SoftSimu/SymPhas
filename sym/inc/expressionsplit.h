@@ -1400,11 +1400,38 @@ auto _factor(OpOperator<E> const& e) {
 // Helper functions for factoring.
 // **************************************************************************************
 
+// True iff every type in the types_list is the same as the first.
+template <typename L>
+struct _factor_adds_firsts_all_same;
+
+template <typename T0, typename... Ts>
+struct _factor_adds_firsts_all_same<symphas::lib::types_list<T0, Ts...>> {
+  static constexpr bool value = (std::is_same_v<T0, Ts> && ...);
+};
+
+template <>
+struct _factor_adds_firsts_all_same<symphas::lib::types_list<>> {
+  static constexpr bool value = true;
+};
+
 template <size_t N, typename C, typename... Es, size_t... Is>
 auto _factor_adds(OpAdd<Es...> const& e, std::index_sequence<Is...>) {
-  return adds_expand_pair_no_first(_factor<N, C>(expr::get<Is>(e))...);
-  // return std::make_pair(std::get<0>(a).first,
-  // expr::add_all(std::get<Is>(a).second...));
+  // BUG (May 2026): adds_expand_pair_no_first uses pair0.first as the
+  // common "factored out" part and sums every child's .second as the
+  // residual. This is sound ONLY when every child returned the same
+  // factored-out part. When children return DIFFERENT .first values
+  // (asymmetric factor extraction), the residual sum drops factors
+  // silently. Verify all children's .first types match before applying
+  // the expansion. See tests/testspectralop.cpp for the regression case
+  // (factoring k^2 out of -k^4 - k^2 used to produce 1/(-k^4 - 1)).
+  using firsts_t = symphas::lib::types_list<std::decay_t<
+      decltype(_factor<N, C>(expr::get<Is>(e)).first)>...>;
+  if constexpr (symphas::lib::types_list_size<firsts_t>::value <= 1 ||
+                _factor_adds_firsts_all_same<firsts_t>::value) {
+    return adds_expand_pair_no_first(_factor<N, C>(expr::get<Is>(e))...);
+  } else {
+    return std::make_pair(OpIdentity{}, e);
+  }
 }
 
 template <typename V, typename G0, exp_key_t X0, typename... Gs,
@@ -1469,9 +1496,24 @@ auto _factor(OpTerms<V, Term<Gs, Xs>...> const& e, std::index_sequence<Is...>,
 template <size_t N, typename C, typename V, typename... Gs, exp_key_t... Xs>
 auto _factor(OpTerms<V, Term<Gs, Xs>...> const& e) {
   using seq_t = std::make_index_sequence<sizeof...(Gs)>;
+  // BUG (May 2026): the previous mask
+  //   factor_count<C, Term<Gs, Xs>>::value >= N && is_combinable<Gs>
+  // allowed factoring when a single Term<Gs,Xs> contains MULTIPLE copies
+  // of C via type-relationship (e.g. WaveVectorData<2,D> divides
+  // WaveVectorData<4,D> twice — factor_count<k2, k4> = 2). But
+  // _select_terms below constructs the "factored out" part as Term(Gs)
+  // (the SOURCE type), not Term<C, N>, producing wrong algebra:
+  // factoring k2 from k4 returned (k4, k4) instead of (k2, k2).
+  // Constrain to terms whose Gs contains AT MOST one copy of C; this
+  // means either Gs == C or Gs is some wrapper for which factor_count
+  // happens to be 1. Heterogeneous "k2 divides k4" extraction is
+  // suppressed; the caller falls back to plain make_div, which is
+  // mathematically correct (just unsimplified). See
+  // tests/testspectralop.cpp for the regression case.
   using mask_t =
       std::integer_sequence<bool, (factor_count<C, Term<Gs, Xs>>::value >= N &&
-                                   expr::is_combinable<Gs>)...>;
+                                   expr::is_combinable<Gs> &&
+                                   factor_count<C, Gs>::value <= 1)...>;
   return _factor<N, C>(e, seq_t{}, mask_t{});
 }
 

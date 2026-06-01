@@ -296,6 +296,18 @@ struct make_derivative {
     return get(v.value, std::forward<E1>(e1), std::forward<E2>(e2));
   }
 
+  // Disambiguate OpLiteral-unwrap vs the OpDerivative-specific overload:
+  // the forwarder above wins partial ordering on arg1 while the OpDerivative
+  // overload wins on args 2-3, producing an ambiguity. This explicit
+  // specialization is strictly more specialized than both.
+  template <typename V, typename Dd_inner, typename V_inner,
+            typename E_inner, typename Sp_inner, typename Sp>
+  static auto get(OpLiteral<V> const& v,
+                  OpDerivative<Dd_inner, V_inner, E_inner, Sp_inner> const& e,
+                  solver_op_type<Sp> solver) {
+    return get(v.value, e, solver);
+  }
+
   // If passed an OpLiteral, uses its value rather than the object.
   template <typename V, typename G, typename Sp>
   static auto get_g(OpLiteral<V> const& v, G g, solver_op_type<Sp> solver) {

@@ -149,9 +149,25 @@ void testferegression() {
   // std::string s7 = capture_printe(fe7);
   // expect_no_substring(s7, "2d/dxd", "FE7 no factor-2 cross-deriv", fail_count);
 
+  // FE8: PFC equation construction pattern. PFC_TYPE/LINK_PFC_WITH_NAME
+  // built `coeff * OpAdd<OpDerivative, OpDerivative>` which distributes
+  // through `distribute_adds` into `coeff * OpDerivative` and resolves
+  // via `make_derivative<Dd>::get(literal, expr, solver)`. Pre-fix this
+  // call was ambiguous between the OpLiteral-unwrap forwarder and the
+  // specific OpDerivative overload (PFC_C / MagneticPFC2013 failed to
+  // compile against every solver). Compile-only contract.
+  auto d2x = expr::make_derivative<Sp::derivative<Axis::X, 2>>(psi, solver);
+  auto d2y = expr::make_derivative<Sp::derivative<Axis::Y, 2>>(psi, solver);
+  auto fe8_literal = expr::make_literal(0.5) * (d2x + d2y);
+  auto fe8_double = 0.5 * (d2x + d2y);
+  (void)fe8_literal;
+  (void)fe8_double;
+  fprintf(stdout, "[FE8] PFC coeff*OpAdd<OpDeriv,OpDeriv>\n");
+  fprintf(stdout, "  PASS [FE8 compile-only]\n");
+
   if (fail_count == 0) {
     fprintf(stdout, "\nFE-regression: ALL TESTS PASS (%d checks).\n",
-            6 + 2 + 2 + 2 + 2 + 3);
+            6 + 2 + 2 + 2 + 2 + 3 + 1);
   } else {
     fprintf(stderr, "\nFE-regression: %d FAILURES\n", fail_count);
     std::exit(1);

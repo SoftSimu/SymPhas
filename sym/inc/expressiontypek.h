@@ -26,6 +26,8 @@
 
 #pragma once
 
+#include <cstring>
+
 #include "expressionaggregates.h"
 
 //! \cond
@@ -1265,15 +1267,25 @@ auto change_k_order(WaveVectorDataAxis<ax, O, D> const& k) {
  * \param degree The order of the exponent applied to the wavenumber.
  */
 inline char* new_k_name(size_t degree) {
+  // The runtime value of WaveVectorData<O,D> for even O is
+  // pow((kk·kk).real(), O/2) = pow(-|k|^2, O/2) = (-1)^(O/2) * |k|^O.
+  // For odd O it is kk * pow(-|k|^2, (O-1)/2), i.e. the same sign on the
+  // |k|^(O-1) factor. The symbolic name must carry that sign or the
+  // displayed equation lies (see SP_BUG: MB printed l_op as
+  // "-|k|^4 - |k|^2" when the runtime value is "-|k|^4 + |k|^2").
+  bool negative =
+      (degree % 2 == 0) ? ((degree / 2) % 2 == 1) : (((degree - 1) / 2) % 2 == 1);
+  const char* sign = negative ? "-" : "";
   if (degree % 2 == 0) {
-    char* name =
-        new char[SYEX_K_EVEN_FMT_LEN + symphas::lib::num_digits(degree) + 1];
-    sprintf(name, SYEX_K_EVEN_FMT, degree);
+    char* name = new char[SYEX_K_EVEN_FMT_LEN + symphas::lib::num_digits(degree) +
+                          std::strlen(sign) + 1];
+    sprintf(name, "%s" SYEX_K_EVEN_FMT, sign, degree);
     return name;
   } else {
-    char* name =
-        new char[SYEX_K_ODD_FMT_LEN + symphas::lib::num_digits(degree - 1) + 1];
-    sprintf(name, SYEX_K_ODD_FMT, degree - 1);
+    char* name = new char[SYEX_K_ODD_FMT_LEN +
+                          symphas::lib::num_digits(degree - 1) +
+                          std::strlen(sign) + 1];
+    sprintf(name, "%s" SYEX_K_ODD_FMT, sign, degree - 1);
     return name;
   }
 }

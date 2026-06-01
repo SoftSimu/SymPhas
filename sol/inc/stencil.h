@@ -1451,6 +1451,16 @@ struct GeneralizedStencil<0, DEFAULT_STENCIL_ACCURACY> {
 #define vx3_y3 v[-__3DX + __3DY]
 #define vx3_y3_ v[-__3DX - __3DY]
 
+#define vx3y2 v[__3DX + __2DY]
+#define vx3y2_ v[__3DX - __2DY]
+#define vx3_y2 v[-__3DX + __2DY]
+#define vx3_y2_ v[-__3DX - __2DY]
+
+#define vx2y3 v[__2DX + __3DY]
+#define vx2y3_ v[__2DX - __3DY]
+#define vx2_y3 v[-__2DX + __3DY]
+#define vx2_y3_ v[-__2DX - __3DY]
+
 /*
  * all xz combinations
  */
