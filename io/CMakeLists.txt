@@ -56,9 +56,9 @@ else()
 	set(GNU_PLOTTER "qt")
 endif()
 
-configure_file("inc/plottername.h.in" "${CMAKE_BINARY_DIR}/inc/plottername.h")
-configure_file("inc/readincludes.h.in" "${CMAKE_BINARY_DIR}/inc/readincludes.h")
-configure_file("inc/writeincludes.h.in" "${CMAKE_BINARY_DIR}/inc/writeincludes.h")
+configure_file("inc/plottername.h.in" "${CMAKE_SOURCE_DIR}/inc/plottername.h")
+configure_file("inc/readincludes.h.in" "${CMAKE_SOURCE_DIR}/inc/readincludes.h")
+configure_file("inc/writeincludes.h.in" "${CMAKE_SOURCE_DIR}/inc/writeincludes.h")
 
 
 add_library(symphas_io_o OBJECT ${SOURCES_IO})
@@ -74,7 +74,7 @@ if(USE_LATEX_FORMAT)
 endif()
 
 set(USING_IO ON)
-configure_file("io-defs.h.in" "${CMAKE_BINARY_DIR}/inc/io-defs.h")
+configure_file("io-defs.h.in" "${CMAKE_SOURCE_DIR}/inc/io-defs.h")
 
 message(STATUS "LaTeX formats is ${USE_LATEX_FORMAT}")
 

@@ -17,10 +17,17 @@
 # ***************************************************************************
 
 find_package(Threads REQUIRED)
-find_package(FFTW3)
 find_package(TBB)
 
-include_directories(SYSTEM ${FFTW_INCLUDE_PATH})
+if (USE_FFTW3)
+	set(USING_FFTW ON)
+	set(ADD_FFTW3_LIB fftw3)
+	set(ADD_FFTW3_INC ${fftw3_SOURCE_DIR}/api)
+else()
+	unset(USING_FFTW)
+endif()
+
+
 
 file(GLOB_RECURSE SOURCES_LIB "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 
@@ -36,37 +43,24 @@ set(VECTOR_TYPE_NAME VectorValue)
 set(ENABLE_TIMINGS ON CACHE BOOL "enable collecting the elapsed time information of the simulation")
 set(ENABLE_INLINE_TIMINGS OFF CACHE BOOL "enable collecting the elapsed time of inline timings")
 
-# add_library(fftw3_imported SHARED IMPORTED)
-# set_target_properties(fftw3_imported PROPERTIES
-# IMPORTED_LOCATION "${FFTW_DIR}/bin/fftw3.dll"
-# IMPORTED_IMPLIB "${FFTW3_LIBRARY_DIRS}/fftw3.lib")
 if(NOT WIN32)
 	list(APPEND ADD_LINUX_LIBS m ${CMAKE_THREAD_LIBS_INIT})
 endif()
 
 add_library(symphas_lib_o OBJECT ${SOURCES_LIB})
-# Note: ${CMAKE_BINARY_DIR}/inc holds the per-build configure_file outputs
-# (lib-defs.h, conf-defs.h, etc.). It must come before any source-tree inc/
-# in the search path so that per-combo builds don't share the same generated
-# headers via the source tree (which used to cause USING_MPI/USING_FFTW
-# state from the last-configured combo to leak into all subsequent builds).
-target_include_directories(symphas_lib_o PRIVATE ${FFTW3_INCLUDE_DIRS} PUBLIC
-	$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/inc>
+target_include_directories(symphas_lib_o PRIVATE ${ADD_FFTW3_INC} PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
+	$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/inc>
 	$<INSTALL_INTERFACE:include>)
-target_link_directories(symphas_lib_o PUBLIC ${FFTW3_LIBRARY_DIRS})
-target_link_libraries(symphas_lib_o PUBLIC ${ADD_LINUX_LIBS} ${SYMPHAS_SYSTEM_LIBS} PRIVATE ${FFTW3_LIBRARIES})
+target_link_libraries(symphas_lib_o PUBLIC ${ADD_LINUX_LIBS} ${ADD_FFTW3_LIB})
 target_compile_definitions(symphas_lib_o PRIVATE LIB_EXPORTS)
+
 
 if(ENABLE_TIMINGS)
 	set(PRINT_TIMINGS ON)
 endif()
 
-if(FFTW3_FOUND OR USING_FFTW)
-	set(USING_FFTW ON)
-else()
-	unset(USING_FFTW)
-endif()
+
 
 if(TBB_FOUND)
 	target_link_libraries(symphas_lib_o PUBLIC TBB::tbb)
@@ -95,11 +89,14 @@ endif()
 
 if(CMAKE_CUDA_COMPILER)
 	if(USING_CUDA)
-		find_package(CUDA REQUIRED)
-		target_include_directories(symphas_lib_o PUBLIC ${CUDA_INCLUDE_DIRS})
-
+		# Use modern CMake CUDA support
+		find_package(CUDAToolkit REQUIRED)
+		
+		# Link CUDA runtime and cuFFT libraries
+		target_link_libraries(symphas_lib_o PUBLIC CUDA::cudart CUDA::cufft)
+		
 		message(STATUS "using CUDA architectures: '${CMAKE_CUDA_ARCHITECTURES}'")
-		message(STATUS "using CUDA v${CUDA_VERSION}")
+		message(STATUS "using CUDA Toolkit version: ${CUDAToolkit_VERSION}")
 	else()
 		message(STATUS "CUDA found but not enabled")
 	endif()
@@ -159,9 +156,12 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 	if(DISABLE_EXCEPTIONS)
 		# target_compile_options(symphas_lib_o PUBLIC /EHs-c-)
 	endif()
-else()
+endif()
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	message(STATUS "compiling with GNU")
     target_compile_options(symphas_lib_o PUBLIC
-        $<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:-ftemplate-backtrace-limit=0>
+        -ftemplate-backtrace-limit=0
     )
 endif()
 
@@ -171,7 +171,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 		$<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:-Wno-unused-variable>
 		$<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:-Wno-unused-function>
 		$<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:-Wno-format-security>
-		$<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:-Wno-missing-template-arg-list-after-template-kw>
 		$<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:-ftime-trace>
 		$<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:-mavx>
 		$<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:-fno-limit-debug-info>
@@ -181,7 +180,13 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 	if(MSVC)
 		target_compile_options(symphas_lib_o PUBLIC
 			$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler /bigobj>
+			$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler -ftrace-time> # Increase heap size to 1024MB
+			$<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:-Xclang -ftemplate-backtrace-limit=0>
 		)
+	else()
+        target_compile_options(symphas_lib_o PUBLIC
+			$<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:-ftemplate-backtrace-limit=0>
+        )
 	endif()
 
 	if(DISABLE_EXCEPTIONS)
@@ -197,7 +202,7 @@ if(WIN32)
 	target_compile_definitions(symphas_lib_o PUBLIC _CRT_SECURE_NO_WARNINGS)
 endif()
 
-configure_file("lib-defs.h.in" "${CMAKE_BINARY_DIR}/inc/lib-defs.h")
+configure_file("lib-defs.h.in" "${CMAKE_SOURCE_DIR}/inc/lib-defs.h")
 
 add_library(symphas_lib SHARED)
 target_link_libraries(symphas_lib PUBLIC symphas_lib_o)

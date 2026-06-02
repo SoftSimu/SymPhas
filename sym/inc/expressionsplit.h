@@ -1400,11 +1400,33 @@ auto _factor(OpOperator<E> const& e) {
 // Helper functions for factoring.
 // **************************************************************************************
 
+// True iff every type in the types_list is the same as the first.
+template <typename L>
+struct _factor_adds_firsts_all_same;
+
+template <typename T0, typename... Ts>
+struct _factor_adds_firsts_all_same<symphas::lib::types_list<T0, Ts...>> {
+  static constexpr bool value = (std::is_same_v<T0, Ts> && ...);
+};
+
+template <>
+struct _factor_adds_firsts_all_same<symphas::lib::types_list<>> {
+  static constexpr bool value = true;
+};
+
 template <size_t N, typename C, typename... Es, size_t... Is>
 auto _factor_adds(OpAdd<Es...> const& e, std::index_sequence<Is...>) {
-  return adds_expand_pair_no_first(_factor<N, C>(expr::get<Is>(e))...);
-  // return std::make_pair(std::get<0>(a).first,
-  // expr::add_all(std::get<Is>(a).second...));
+  // adds_expand_pair_no_first assumes every child returns the same
+  // factored-out part; asymmetric factor extraction otherwise drops
+  // factors silently. Bail when the children's .first types diverge.
+  using firsts_t = symphas::lib::types_list<std::decay_t<
+      decltype(_factor<N, C>(expr::get<Is>(e)).first)>...>;
+  if constexpr (symphas::lib::types_list_size<firsts_t>::value <= 1 ||
+                _factor_adds_firsts_all_same<firsts_t>::value) {
+    return adds_expand_pair_no_first(_factor<N, C>(expr::get<Is>(e))...);
+  } else {
+    return std::make_pair(OpIdentity{}, e);
+  }
 }
 
 template <typename V, typename G0, exp_key_t X0, typename... Gs,
@@ -1469,9 +1491,14 @@ auto _factor(OpTerms<V, Term<Gs, Xs>...> const& e, std::index_sequence<Is...>,
 template <size_t N, typename C, typename V, typename... Gs, exp_key_t... Xs>
 auto _factor(OpTerms<V, Term<Gs, Xs>...> const& e) {
   using seq_t = std::make_index_sequence<sizeof...(Gs)>;
+  // Suppress extraction when a single Term<Gs,Xs> contains multiple copies
+  // of C via type-relationship (e.g. k^2 divides k^4 twice); _select_terms
+  // would emit the source Gs as the factored-out part, which is wrong when
+  // Gs != C. Falls back to plain make_div (unsimplified but correct).
   using mask_t =
       std::integer_sequence<bool, (factor_count<C, Term<Gs, Xs>>::value >= N &&
-                                   expr::is_combinable<Gs>)...>;
+                                   expr::is_combinable<Gs> &&
+                                   factor_count<C, Gs>::value <= 1)...>;
   return _factor<N, C>(e, seq_t{}, mask_t{});
 }
 

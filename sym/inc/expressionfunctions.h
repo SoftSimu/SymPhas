@@ -167,6 +167,21 @@ auto pow(OpNegIdentity);
 
 inline auto pow(expr::symbols::Symbol) { return expr::symbols::Symbol{}; }
 
+// pow<N>(OpVoid) == 0 for N >= 1; pow<0>(OpVoid) == 1 (OpIdentity) by the
+// usual convention that x^0 = 1.  Without this overload, autogen stencil-
+// coefficient simplification builds OpPow<N, OpIdentity, OpVoid> nodes when
+// a generated dictionary row has no coefficient on a given symbol; later
+// the symbolic Gaussian-elimination step divides by such a term and hits
+// `operator/(E, OpVoid) = delete` (expressionrules.h:838).
+template <size_t N>
+constexpr auto pow(OpVoid) {
+  if constexpr (N == 0) {
+    return OpIdentity{};
+  } else {
+    return OpVoid{};
+  }
+}
+
 namespace {
 
 template <typename G>

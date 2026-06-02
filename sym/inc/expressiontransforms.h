@@ -769,9 +769,24 @@ auto remove_factors(
                              std::pair<std::index_sequence<N1s>, G1s>...>) {
   auto f = expr::split::factor<N01, G01>(e1);
   auto g = expr::split::factor<N01, G01>(e2);
-  return remove_factors(
-      f.second, g.second,
-      symphas::lib::types_list<std::pair<std::index_sequence<N1s>, G1s>...>{});
+  // factor<N, C> can fail asymmetrically: extract from one operand but
+  // bail on the other. Proceeding with mismatched residual + original
+  // silently drops the factor. Skip this factor unless both succeeded.
+  using f_first_t = std::decay_t<decltype(f.first)>;
+  using g_first_t = std::decay_t<decltype(g.first)>;
+  constexpr bool f_ok = !std::is_same_v<f_first_t, OpIdentity>;
+  constexpr bool g_ok = !std::is_same_v<g_first_t, OpIdentity>;
+  if constexpr (f_ok == g_ok) {
+    return remove_factors(
+        f.second, g.second,
+        symphas::lib::types_list<
+            std::pair<std::index_sequence<N1s>, G1s>...>{});
+  } else {
+    return remove_factors(
+        e1, e2,
+        symphas::lib::types_list<
+            std::pair<std::index_sequence<N1s>, G1s>...>{});
+  }
 }
 
 }  // namespace symphas::internal
@@ -830,8 +845,19 @@ struct divide_with_factors<
     auto [numerator, denominator] = symphas::internal::remove_factors(
         *static_cast<E1 const*>(&a), *static_cast<E2 const*>(&b), factors_t{});
 
-    return symphas::internal::terminate_div(numerator,
-                                            expr::inverse(denominator));
+    // Guard against infinite recursion: if remove_factors skipped every
+    // factor (asymmetric extraction defended at remove_factors-level),
+    // the result's factor_list_all is unchanged and `terminate_div` would
+    // recurse back into operator/ → divide_with_factors. Fall back to a
+    // plain make_div instead.
+    using num_t = std::decay_t<decltype(numerator)>;
+    using den_t = std::decay_t<decltype(denominator)>;
+    if constexpr (expr::factor_list_all<num_t, den_t>::value == 0) {
+      return symphas::internal::terminate_div(numerator,
+                                              expr::inverse(denominator));
+    } else {
+      return expr::make_div(numerator, denominator);
+    }
   }
 
   template <typename E1, typename E2>

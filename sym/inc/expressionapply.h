@@ -1230,6 +1230,25 @@ struct combine_mixed_derivatives {
                                directional_derivative<ax2, O2>{},
                                symphas::lib::axis_list<axs...>{}) +
               ...);
+    } else if constexpr (O1 == 1) {
+      // `derivative<ax1, 1>` is a single-axis ∂/∂ax1, not a multi-axis
+      // aggregate, so composing it with `directional_derivative<ax2, O2>`
+      // is just a single composed derivative. Bypass the gradlaplacian-style
+      // fold (which would produce `axs...` copies of the same term and
+      // double-count when O1 - 1 = 0).
+      if constexpr (ax1 == ax2) {
+        using Dd =
+            typename Solver<Sp>::template directional_derivative<ax1, 1 + O2>;
+        return expr::make_derivative<Dd>(*static_cast<E const*>(&enclosed),
+                                         solver);
+      } else {
+        using Dd = typename Solver<Sp>::template mixed_derivative<(
+            (ax1 == axs)   ? 1
+            : (ax2 == axs) ? O2
+                           : 0)...>;
+        return expr::make_derivative<Dd>(*static_cast<E const*>(&enclosed),
+                                         solver);
+      }
     } else {
       // it is like the gradlaplacian
       if constexpr (ax1 == ax2) {
@@ -1274,6 +1293,16 @@ auto apply_operator_derivative_nested(
 
 template <typename Dd1, typename V1, typename E, typename Sp2>
 auto apply_operator_derivative_nested(OpDerivative<Dd1, V1, E, Sp2> const& e) {
+  return expr::apply_operators(e);
+}
+
+// FE models with reversible vector coupling (e.g. MF_FE's `grad * DF(2)`)
+// produce an OpAdd of per-axis OpDerivatives (one for each vector
+// component) before the outer apply_operators reaches here. The two
+// overloads above are written for a single OpDerivative; without an
+// OpAdd specialization the dispatch fails. Distribute over the sum.
+template <typename... Es>
+auto apply_operator_derivative_nested(OpAdd<Es...> const& e) {
   return expr::apply_operators(e);
 }
 }  // namespace
@@ -2113,7 +2142,8 @@ auto curl_of(OpExpression<E> const& e, solver_op_type<Sp> solver) {
   auto y = expr::make_row_vector<1, 2>() * (*static_cast<E const*>(&e));
   auto opx = expr::make_operator_directional_derivative<Axis::X, 1>(solver);
   auto opy = expr::make_operator_directional_derivative<Axis::Y, 1>(solver);
-  return opx(x) - opy(y);
+  // 2D curl (z-component): dm_y/dx - dm_x/dy
+  return opx(y) - opy(x);
 }
 
 template <typename Sp, typename E,
@@ -2128,7 +2158,8 @@ auto curl_of(OpOperator<E> const& e, solver_op_type<Sp> solver) {
   auto y = expr::make_row_vector<1, 2>() * (*static_cast<E const*>(&e));
   auto opx = expr::make_operator_directional_derivative<Axis::X, 1>(solver);
   auto opy = expr::make_operator_directional_derivative<Axis::Y, 1>(solver);
-  return opx(x) - opy(y);
+  // 2D curl (z-component): dm_y/dx - dm_x/dy
+  return opx(y) - opy(x);
 }
 }  // namespace expr
 

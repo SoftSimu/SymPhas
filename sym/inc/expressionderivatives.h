@@ -296,6 +296,18 @@ struct make_derivative {
     return get(v.value, std::forward<E1>(e1), std::forward<E2>(e2));
   }
 
+  // Disambiguate OpLiteral-unwrap vs the OpDerivative-specific overload:
+  // the forwarder above wins partial ordering on arg1 while the OpDerivative
+  // overload wins on args 2-3, producing an ambiguity. This explicit
+  // specialization is strictly more specialized than both.
+  template <typename V, typename Dd_inner, typename V_inner,
+            typename E_inner, typename Sp_inner, typename Sp>
+  static auto get(OpLiteral<V> const& v,
+                  OpDerivative<Dd_inner, V_inner, E_inner, Sp_inner> const& e,
+                  solver_op_type<Sp> solver) {
+    return get(v.value, e, solver);
+  }
+
   // If passed an OpLiteral, uses its value rather than the object.
   template <typename V, typename G, typename Sp>
   static auto get_g(OpLiteral<V> const& v, G g, solver_op_type<Sp> solver) {
@@ -1606,8 +1618,10 @@ struct OpDerivative : OpExpression<OpDerivative<Dd, V, E, Sp>> {
   template <typename eval_handler_type, typename... condition_ts>
   void update(eval_handler_type const& eval_handler,
               symphas::lib::types_list<condition_ts...>) {
-    symphas::internal::update_temporary_grid(grid, e);
-    eval_handler.result(e, grid, grid::get_data_domain(grid));
+    if constexpr (!std::is_same_v<result_grid, int>) {
+      symphas::internal::update_temporary_grid(grid, e);
+      eval_handler.result(e, grid, grid::get_data_domain(grid));
+    }
   }
 
   template <typename eval_handler_type>
@@ -3244,6 +3258,23 @@ struct initialize_derivative_order {
   auto operator()(V const& v, OpOperator<E> const& e,
                   SymbolicDerivative<G> const& solver) {
     return v * expr::make_derivative<O, G>(*static_cast<E const*>(&e), solver);
+  }
+
+  // Apply derivative-of-order-O over a plain (non-symbolic) solver to an
+  // OpOperator (e.g. OpOperatorChain<F, inner_derivative>). Unwrap the
+  // chain and dispatch into the OpExpression path so the inner is
+  // captured correctly. This case arises with FE-defined models like
+  // MH_FE where `EQUATION_OF` produces `lap(-DF(N))` and `grad(-DF(N))`:
+  // the outer derivative becomes an order-O derivative applied to a
+  // chain that already wraps an inner derivative. The chain's outer
+  // factor F is preserved by re-multiplying after the recursive call.
+  template <typename V, typename F, typename E, typename Sp,
+            typename = std::enable_if_t<expr::is_coeff<F> ||
+                                            expr::is_identity<F>,
+                                        int>>
+  auto operator()(V const& v, OpOperatorChain<F, E> const& e,
+                  solver_op_type<Sp> solver) {
+    return (*this)(v * e.f, e.g, solver);
   }
 };
 

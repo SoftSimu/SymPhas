@@ -235,6 +235,13 @@ struct apply_hexalaplacian_2d2h;
  *   (+-3,+-1):     1   (x8)
  *
  * Note: (+-2,0) and (+-3,0) have weight 0 and are excluded.
+ *
+ * WARNING: this stencil's discrete symbol vanishes at the Brillouin-zone
+ * corner k=(pi,pi). In an explicit conserved-PFC step the +2 nabla^4 term is
+ * then unopposed there, giving an unconditional (any-dt) Nyquist instability
+ * at h=1. Prefer the 25-point separable stencil (default) for explicit time
+ * stepping; this isotropic variant remains available for implicit/spectral
+ * solvers or higher-resolution (small h) explicit runs.
  */
 template<>
 struct apply_hexalaplacian_2d2h<29>
@@ -250,6 +257,84 @@ struct apply_hexalaplacian_2d2h<29>
 			+ 16. * (vx + vx_ + vy + vy_)
 			- 72. * v0
 			) * divh6 * 0.5;
+	}
+};
+
+//! 25-point 2nd-order separable hexalaplacian (nabla^6). Default for h2.
+/*!
+ * Direct discretization of nabla^6 = d6x + 3 d4x d2y + 3 d2x d4y + d6y,
+ * each factor a standard 2nd-order central difference. Weights (multiply by
+ * 1/h^6):
+ *   center:      -112
+ *   (+-1,0):       57   (x4)
+ *   (+-2,0):      -12   (x4)
+ *   (+-3,0):        1   (x4)
+ *   (+-1,+-1):    -24   (x4)
+ *   (+-2,+-1):      3   (x8)
+ *
+ * Unlike the 29-point isotropic stencil, the discrete symbol stays strongly
+ * negative at the Brillouin-zone corner, so explicit (e.g. forward-Euler)
+ * conserved PFC_C is stable at h=1.
+ */
+template<>
+struct apply_hexalaplacian_2d2h<25>
+{
+	template<typename T>
+	__device__ __host__ auto operator()(T* const v, double divh6, const len_type(&stride)[2])
+	{
+		return (
+			-112. * v0
+			+ 57. * (vx + vx_ + vy + vy_)
+			- 12. * (vx2 + vx2_ + vy2 + vy2_)
+			+ 1. * (vx3 + vx3_ + vy3 + vy3_)
+			- 24. * (vxy + vxy_ + vx_y + vx_y_)
+			+ 3. * (vx2y + vx2y_ + vx2_y + vx2_y_ + vxy2 + vxy2_ + vx_y2 + vx_y2_)
+			) * divh6;
+	}
+};
+
+
+//! 49-point 2nd-order isotropic hexalaplacian (nabla^6). Stable + isotropic.
+/*!
+ * Full 7x7-box stencil. Weights (multiply by 1/(20 h^6)):
+ *   center:      -1120
+ *   (+-1,0):       460   (x4)
+ *   (+-1,+-1):     -85   (x4)
+ *   (+-2,0):      -120   (x4)
+ *   (+-2,+-1):      10   (x8)
+ *   (+-2,+-2):     -16   (x4)
+ *   (+-3,0):        20   (x4)
+ *   (+-3,+-1):      -5   (x8)
+ *   (+-3,+-2):       6   (x8)
+ *   (+-3,+-3):      -1   (x4)
+ *
+ * The 29-point isotropic stencil is the most compact isotropic nabla^6, but
+ * its symbol vanishes at the Brillouin-zone corner (-> explicit instability).
+ * This stencil keeps the same leading-order rotational invariance (O(k^8)
+ * error is proportional to |k|^8) while using the extra (+-3,+-2)/(+-3,+-3)
+ * freedom to keep the corner symbol strongly negative (~ -205 / h^6), so it is
+ * both isotropic in the physical band AND explicit-stable. Angular anisotropy
+ * of the symbol at |k|=1 is ~1e-3 (vs the separable 25-point stencil, which is
+ * exact on-axis but anisotropic off-axis).
+ */
+template<>
+struct apply_hexalaplacian_2d2h<49>
+{
+	template<typename T>
+	__device__ __host__ auto operator()(T* const v, double divh6, const len_type(&stride)[2])
+	{
+		return (
+			-1120. * v0
+			+ 460. * (vx + vx_ + vy + vy_)
+			- 85. * (vxy + vxy_ + vx_y + vx_y_)
+			- 120. * (vx2 + vx2_ + vy2 + vy2_)
+			+ 10. * (vx2y + vx2y_ + vx2_y + vx2_y_ + vxy2 + vxy2_ + vx_y2 + vx_y2_)
+			- 16. * (vx2y2 + vx2y2_ + vx2_y2 + vx2_y2_)
+			+ 20. * (vx3 + vx3_ + vy3 + vy3_)
+			- 5. * (vx3y + vx3y_ + vx3_y + vx3_y_ + vxy3 + vxy3_ + vx_y3 + vx_y3_)
+			+ 6. * (vx3y2 + vx3y2_ + vx3_y2 + vx3_y2_ + vx2y3 + vx2y3_ + vx2_y3 + vx2_y3_)
+			- 1. * (vx3y3 + vx3y3_ + vx3_y3 + vx3_y3_)
+			) * divh6 * 0.05;
 	}
 };
 

@@ -2923,7 +2923,9 @@ struct OpBinaryMul : OpExpression<OpBinaryMul<E1, E2>> {
     return symphas::internal::mul_print(out, a, b);
   }
 
-  size_t print_length() const { return mul_print_length(a, b); }
+  size_t print_length() const {
+    return symphas::internal::mul_print_length(a, b);
+  }
 
 #endif
 

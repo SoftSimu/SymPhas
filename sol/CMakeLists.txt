@@ -272,7 +272,7 @@ endif()
 
 
 
-configure_file("inc/stencildefs.h.in" "${CMAKE_BINARY_DIR}/inc/stencildefs.h")
+configure_file("inc/stencildefs.h.in" "${CMAKE_SOURCE_DIR}/inc/stencildefs.h")
 
 
 add_library(symphas_sol_o OBJECT ${SOURCES_SOL})

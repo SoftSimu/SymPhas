@@ -234,7 +234,7 @@
  * 4. Test with model_select::call()
  *
  * Adding New Solvers:
- * 1. Create solver class following SolverFT/SolverSP2 pattern
+ * 1. Create solver class following SolverFT/SolverSP pattern
  * 2. Ensure compatibility with ModelSelectStencil template resolution
  * 3. Test integration with existing models via LINK_WITH_NAME
  *

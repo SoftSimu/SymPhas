@@ -20,12 +20,34 @@
 
 #include "symphas.h"
 
-#ifdef USING_MPI
-#include "spsmpi.h"
-#endif
+#ifndef _WIN32
+#include <sys/resource.h>
 
-#ifdef USING_FFTW_MPI
-#include "spslibfftw.h"
+namespace {
+// Raise the soft stack limit at process startup. SymPhas's variadic
+// expression builders (notably expr::make_add) recursively construct
+// nested OpAdd<> values where each frame holds a large templated
+// temporary by value. Equations with many terms (e.g. AnisotropicFMPFC's
+// psi equation) can exhaust the default 8MB stack during model
+// construction. Bump to 256MB if the current limit is lower.
+struct stack_limit_raiser {
+  stack_limit_raiser() {
+    constexpr rlim_t kDesired = static_cast<rlim_t>(256) * 1024 * 1024;
+    struct rlimit rl;
+    if (getrlimit(RLIMIT_STACK, &rl) == 0) {
+      rlim_t target = kDesired;
+      if (rl.rlim_max != RLIM_INFINITY && rl.rlim_max < target) {
+        target = rl.rlim_max;
+      }
+      if (rl.rlim_cur != RLIM_INFINITY && rl.rlim_cur < target) {
+        rl.rlim_cur = target;
+        (void)setrlimit(RLIMIT_STACK, &rl);
+      }
+    }
+  }
+};
+static stack_limit_raiser _symphas_stack_limit_raiser;
+}  // namespace
 #endif
 
 #ifdef PRINT_TIMINGS
@@ -108,10 +130,6 @@ void symphas::init(const char* config, const char* const* param_list,
                    int num_params) {
 #ifdef USING_MPI
   MPI_Init(NULL, NULL);
-#endif
-
-#ifdef USING_FFTW_MPI
-  symphas::dft::fftw_mpi_init();
 #endif
 
 #ifdef PRINT_TIMINGS
@@ -197,13 +215,7 @@ void symphas::init(const char* title, const char* const* param_list,
 #endif
 
 void symphas::finalize() {
-#ifdef USING_FFTW_MPI
-  symphas::dft::fftw_mpi_cleanup();
-#endif
 #ifdef USING_MPI
-  // Phase 3.5: dump per-step phase timers before finalize. No-op unless
-  // SYMPHAS_MPI_PROFILE was enabled at compile time.
-  SYMPHAS_MPI_PROFILE_DUMP();
   MPI_Finalize();
 #endif
 }

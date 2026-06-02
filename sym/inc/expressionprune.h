@@ -790,7 +790,7 @@ inline void _update(SymbolicCase<Ts...>& e,
 template <typename... condition_ts, typename E, typename eval_handler_type>
 inline void update(E& e,
                    BaseEvalHandler<eval_handler_type> const& eval_handler) {
-  e.allocate();
+  //e.allocate();
   TIME_THIS_CONTEXT_LIFETIME(expression_update)
   _update(e, *static_cast<eval_handler_type const*>(&eval_handler),
           symphas::lib::types_list<condition_ts...>{});

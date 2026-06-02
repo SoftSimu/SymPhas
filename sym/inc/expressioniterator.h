@@ -656,7 +656,12 @@ struct iterator_group_operation<operation_t, iterator_group_t,
 
 template <typename E, size_t D>
 struct iterator_group_expression {
-  using eval_type = std::invoke_result_t<decltype(&E::eval), E, iter_type>;
+  // SFINAE-friendly eval-type deduction.  `invoke_result_t<decltype(&E::eval),
+  // E, iter_type>` would emit libstdc++'s __is_complete_or_unbounded
+  // hard error on autogen-internal E shapes; the `decltype(declval<>())`
+  // form avoids it.  Same pattern as expressionlib.h primary `eval_type`
+  // and expressionconvolution.h (commit 9958676).
+  using eval_type = decltype(std::declval<E const&>().eval(iter_type{}));
 
   iterator_group_expression(
       symphas::internal::iterator_group_difference_type<E, D> const& ptr,

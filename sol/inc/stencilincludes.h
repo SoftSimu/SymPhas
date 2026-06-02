@@ -385,10 +385,26 @@ struct Stencil2d2h<L, G, B>
   }
 
   //! Hexalaplacian (6th order derivative, nabla^6) of the field.
+  /*!
+   * Defaults to the 49-point isotropic stencil, which is both isotropic in the
+   * physical band and stable for explicit conserved PFC. Also available:
+   * the 25-point separable stencil (apply_hexalaplacian_2d2h<25>, exact
+   * on-axis but anisotropic) and the 29-point compact-isotropic stencil
+   * (apply_hexalaplacian_2d2h<29>, which is unstable for explicit time
+   * stepping at h=1 since its symbol vanishes at the BZ corner).
+   */
   template <typename T>
   __device__ __host__ inline auto hexalaplacian(
       T* const v, const len_type (&stride)[2]) const {
-    return apply_hexalaplacian_2d2h<29>{}(v, divh4 * divh2, stride);
+    return apply_hexalaplacian_2d2h<49>{}(v, divh4 * divh2, stride);
+  }
+
+  //! Override apply<6> to use the default hexalaplacian stencil.
+  template <size_t OD, typename T,
+            std::enable_if_t<OD == 6, int> = 0>
+  __device__ __host__ inline auto apply(
+      T* const v, const len_type (&stride)[2]) const {
+    return hexalaplacian(v, stride);
   }
 };
 
@@ -926,14 +942,18 @@ using infer_default_points_t =
 
 #if defined(GENERATE_UNDEFINED_STENCILS_ON)
 
+#ifdef ORDER_LIST_1D_HAS_2H
+template <size_t...>
+struct Stencil1d2h : infer_default_points_t<Stencil1d2h, 1, 2> {
+  using parent_type = infer_default_points_t<Stencil1d2h, 1, 2>;
+  using parent_type::parent_type;
+};
+#else
 template <size_t...>
 struct Stencil1d2h : symphas::internal::StencilBase1d2h,
                      Stencil<Stencil1d2h<>>,
                      symphas::internal::StencilDefaultStride<1, Stencil1d2h<>> {
   using base_type = symphas::internal::StencilBase1d2h;
-  using base_derivatives =
-      symphas::internal::StencilDefaultStride<1, Stencil1d2h<>>;
-
   using base_type::apply;
   using base_type::base_type;
   using base_type::bilaplacian;
@@ -942,15 +962,20 @@ struct Stencil1d2h : symphas::internal::StencilBase1d2h,
   using base_type::gradlaplacian;
   using base_type::laplacian;
 };
+#endif
 
+#ifdef ORDER_LIST_2D_HAS_2H
+template <size_t...>
+struct Stencil2d2h : infer_default_points_t<Stencil2d2h, 2, 2> {
+  using parent_type = infer_default_points_t<Stencil2d2h, 2, 2>;
+  using parent_type::parent_type;
+};
+#else
 template <size_t...>
 struct Stencil2d2h : symphas::internal::StencilBase2d2h,
                      Stencil<Stencil2d2h<>>,
                      symphas::internal::StencilDefaultStride<2, Stencil2d2h<>> {
   using base_type = symphas::internal::StencilBase2d2h;
-  using base_derivatives =
-      symphas::internal::StencilDefaultStride<2, Stencil2d2h<>>;
-
   using base_type::apply;
   using base_type::base_type;
   using base_type::bilaplacian;
@@ -959,15 +984,20 @@ struct Stencil2d2h : symphas::internal::StencilBase2d2h,
   using base_type::gradlaplacian;
   using base_type::laplacian;
 };
+#endif
 
+#ifdef ORDER_LIST_2D_HAS_4H
+template <size_t...>
+struct Stencil2d4h : infer_default_points_t<Stencil2d4h, 2, 4> {
+  using parent_type = infer_default_points_t<Stencil2d4h, 2, 4>;
+  using parent_type::parent_type;
+};
+#else
 template <size_t...>
 struct Stencil2d4h : symphas::internal::StencilBase2d4h,
                      Stencil<Stencil2d4h<>>,
                      symphas::internal::StencilDefaultStride<2, Stencil2d4h<>> {
   using base_type = symphas::internal::StencilBase2d4h;
-  using base_derivatives =
-      symphas::internal::StencilDefaultStride<2, Stencil2d4h<>>;
-
   using base_type::apply;
   using base_type::base_type;
   using base_type::bilaplacian;
@@ -976,15 +1006,20 @@ struct Stencil2d4h : symphas::internal::StencilBase2d4h,
   using base_type::gradlaplacian;
   using base_type::laplacian;
 };
+#endif
 
+#ifdef ORDER_LIST_2D_HAS_6H
+template <size_t...>
+struct Stencil2d6h : infer_default_points_t<Stencil2d6h, 2, 6> {
+  using parent_type = infer_default_points_t<Stencil2d6h, 2, 6>;
+  using parent_type::parent_type;
+};
+#else
 template <size_t...>
 struct Stencil2d6h : symphas::internal::StencilBase2d6h,
                      Stencil<Stencil2d6h<>>,
                      symphas::internal::StencilDefaultStride<2, Stencil2d6h<>> {
   using base_type = symphas::internal::StencilBase2d6h;
-  using base_derivatives =
-      symphas::internal::StencilDefaultStride<2, Stencil2d6h<>>;
-
   using base_type::apply;
   using base_type::base_type;
   using base_type::bilaplacian;
@@ -993,15 +1028,20 @@ struct Stencil2d6h : symphas::internal::StencilBase2d6h,
   using base_type::gradlaplacian;
   using base_type::laplacian;
 };
+#endif
 
+#ifdef ORDER_LIST_3D_HAS_2H
+template <size_t...>
+struct Stencil3d2h : infer_default_points_t<Stencil3d2h, 3, 2> {
+  using parent_type = infer_default_points_t<Stencil3d2h, 3, 2>;
+  using parent_type::parent_type;
+};
+#else
 template <size_t...>
 struct Stencil3d2h : symphas::internal::StencilBase3d2h,
                      Stencil<Stencil3d2h<>>,
                      symphas::internal::StencilDefaultStride<3, Stencil3d2h<>> {
   using base_type = symphas::internal::StencilBase3d2h;
-  using base_derivatives =
-      symphas::internal::StencilDefaultStride<3, Stencil3d2h<>>;
-
   using base_type::apply;
   using base_type::base_type;
   using base_type::bilaplacian;
@@ -1010,6 +1050,7 @@ struct Stencil3d2h : symphas::internal::StencilBase3d2h,
   using base_type::gradlaplacian;
   using base_type::laplacian;
 };
+#endif
 
 #else
 
@@ -1279,6 +1320,14 @@ struct DefaultStencil {
 #undef vx3y3_
 #undef vx3_y3
 #undef vx3_y3_
+#undef vx3y2
+#undef vx3y2_
+#undef vx3_y2
+#undef vx3_y2_
+#undef vx2y3
+#undef vx2y3_
+#undef vx2_y3
+#undef vx2_y3_
 #undef vxz
 #undef vxz_
 #undef vx_z

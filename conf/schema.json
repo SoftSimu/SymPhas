@@ -165,7 +165,7 @@
             "$ref": "#/definitions/numberOrDefinitionRef"
           },
           "width": {
-            "description": "Spatial distance between discrete points (lattice spacing h). NOT the span of the interval; end-start gives the span. Example: start=0, end=10, width=0.02 produces 501 points.",
+            "description": "Width of the interval",
             "$ref": "#/definitions/PositiveNumberOrDefinitionRef"
           },
           "points": {

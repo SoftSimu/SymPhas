@@ -88,42 +88,20 @@ MODEL(MH, (SCALAR, VECTOR),
 LINK_WITH_NAME(MH, MODELH)
 DEFINE_MODEL_FIELD_NAMES(MH, ("m", "j"))
 
-//! Model F (Hohenberg-Halperin): superfluid. Complex order parameter psi
-//! represented as two real scalars (pR = Re psi, pI = Im psi), plus a
-//! conserved scalar m. Coefficients:
-//!   c(1) = r    (mass term in Landau free energy)
-//!   c(2) = u    (quartic coupling)
-//!   c(3) = g_c  (coupling between |psi|^2 and m)
-//!   c(4) = g_m  (mode-coupling / Poisson-bracket strength)
-//! The model is derived from
-//!   F = int [ 1/2 |grad psi|^2 + r/2 |psi|^2 + u/4 |psi|^4
-//!            + 1/2 m^2 + g_c m |psi|^2 ]
-//! with EOMs
-//!   dpsi/dt   = -Gamma (dF/dpsi*) - i g_m psi (dF/dm)
-//!   dm/dt     =  D lap (dF/dm) + 2 g_m Im[psi* (dF/dpsi*)]
-//! taking Gamma = D = 1.
-#define pR op(1)
-#define dpR dop(1)
-#define pI op(2)
-#define dpI dop(2)
-#define mF op(3)
-#define dmF dop(3)
-MODEL(MF, (SCALAR, SCALAR, SCALAR),
-      EVOLUTION_PREAMBLE(
-          (auto rho2 = pR * pR + pI * pI;
-           auto mu = mF + c(3) * rho2;
-           auto mass = c(1) + 2_n * c(2) * rho2 + c(3) * mF;),
-          dpR = lap(pR) - mass * pR + c(4) * pI * mu,
-          dpI = lap(pI) - mass * pI - c(4) * pR * mu,
-          dmF = lap(mu) + c(4) * (pI * lap(pR) - pR * lap(pI))))
+// Model F: superfluid/vector order parameter conserved dynamics.
+// A non-conserved scalar `n` (density) coupled to a conserved vector
+// `g` (current/momentum) via the standard model-F coupling.
+//   dn/dt   = -A * lap(n) + (c1 - c2*n^2)*n - c3 * div(g)
+//   dg/dt   = -lap g + c3 * grad(n)
+// c1, c2 set the Landau potential; c3 couples density to momentum.
+MODEL(MF, (SCALAR, VECTOR),
+      EVOLUTION(
+            dpsi = -c(4) * lap(psi) + (c(1) - c(2) * psi * psi) * psi
+                   - c(3) * div(j),
+            dj = -lap(j) + c(3) * grad(psi)
+      ))
 LINK_WITH_NAME(MF, MODELF)
-DEFINE_MODEL_FIELD_NAMES(MF, ("psi_R", "psi_I", "m"))
-#undef pR
-#undef dpR
-#undef pI
-#undef dpI
-#undef mF
-#undef dmF
+DEFINE_MODEL_FIELD_NAMES(MF, ("n", "g"))
 
 #endif
 
@@ -152,6 +130,16 @@ MODEL(MH_FE, (SCALAR, VECTOR),
                   INT(LANDAU_FE(op(1)) + _2 * pow<2>(op(2)))))
 LINK_WITH_NAME(MH_FE, MODELH_FE)
 DEFINE_MODEL_FIELD_NAMES(MH_FE, ("m", "j"))
+
+//! Model F by the free energy: superfluid density coupled to current.
+//!   dn/dt = -dF/dn - c3 * div(g)
+//!   dg/dt = -dF/dg + c3 * grad(n)
+MODEL(MF_FE, (SCALAR, VECTOR),
+      FREE_ENERGY((EQUATION_OF(1)(-DF(1) - c(3) * (grad * DF(2))),
+                   EQUATION_OF(2)(-DF(2) + c(3) * grad(DF(1)))),
+                  INT(LANDAU_FE(op(1), c(1), c(2)) + _2 * pow<2>(op(2)))))
+LINK_WITH_NAME(MF_FE, MODELF_FE)
+DEFINE_MODEL_FIELD_NAMES(MF_FE, ("n", "g"))
 
 #endif
 

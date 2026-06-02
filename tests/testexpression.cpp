@@ -565,7 +565,7 @@ void testexpressionkgrid() {
   K<2> kgrid1(dims, h);
   auto constexpr order1 = order_K_type<K<2>>::value;
 }
-#include "solversp2.h"
+#include "solversp.h"
 #include "spectrallib.h"
 void testderivativefactor() {
   Grid<double, 2> grid0({100, 100});
