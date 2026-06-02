@@ -359,23 +359,13 @@ inline void initiate(const char *modelname, double const *coeff,
 
   int result = INVALID_MODEL;
 
-  // Runtime solver selection via simulation.solver_variation:
-  //   0 = auto (prefer SP2 if compiled, else FT)
-  //   1 = force SP2
-  //   2 = force FT
-  int solver_pick = 0;
-#ifdef USING_CONF
-  solver_pick = symphas::conf::config().simulation_settings.stp.type;
-#endif
-
-#if defined(USING_FFTW) && !defined(SYMPHAS_DISABLE_SP2)
-  if (solver_pick == 0 || solver_pick == 1) {
-    result = m.call<SolverSP2>(modelname, coeff, num_coeff);
-  }
+#if defined(USING_FFTW) && defined(USE_SPECTRAL_SOLVER) && \
+    !defined(SYMPHAS_DISABLE_SP2)
+  result = m.call<SolverSP2>(modelname, coeff, num_coeff);
 #endif
 
 #ifndef SYMPHAS_DISABLE_FT
-  if (result == INVALID_MODEL && (solver_pick == 0 || solver_pick == 2)) {
+  if (result == INVALID_MODEL) {
     result = m.call<SolverFT>(modelname, coeff, num_coeff);
   }
 #endif

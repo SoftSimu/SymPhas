@@ -102,6 +102,7 @@ MODEL(MC, (SCALARS(2)),
 LINK_WITH_NAME(MC, MODELC)
 DEFINE_MODEL_FIELD_NAMES(MC, ("psi", "m"))
 
+#ifndef USE_GRID_HH_SCALAR_ONLY
 MODEL(MH, (SCALAR, VECTOR),
       EVOLUTION_PREAMBLE((auto f = lap(psi) + (c(1) - c(2) * psi * psi) * psi;),
                          dpsi = -lap(f) - c(3) * grad * (psi * j),
@@ -117,6 +118,7 @@ MODEL(MF, (SCALAR, VECTOR),
       ))
 LINK_WITH_NAME(MF, MODELF)
 DEFINE_MODEL_FIELD_NAMES(MF, ("n", "g"))
+#endif
 
 #undef dpsi
 #undef psi
