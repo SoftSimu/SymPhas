@@ -112,9 +112,9 @@ DEFINE_MODEL_FIELD_NAMES(MH, ("m", "j"))
 
 MODEL(MF, (SCALAR, VECTOR),
       EVOLUTION(
-            dpsi = -c(4) * lap(psi) + (c(1) - c(2) * psi * psi) * psi
+            dpsi = c(4) * lap(psi) + (c(1) - c(2) * psi * psi) * psi
                    - c(3) * div(j),
-            dj = -lap(j) + c(3) * grad(psi)
+            dj = lap(j) + c(3) * grad(psi)
       ))
 LINK_WITH_NAME(MF, MODELF)
 DEFINE_MODEL_FIELD_NAMES(MF, ("n", "g"))
