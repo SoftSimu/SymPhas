@@ -28,10 +28,13 @@
 
 #pragma once
 
-// By default a basic set of models is compiled. Define USE_EXTENDED_MODELS
-// (optionally together with MODEL_SET_n and USE_PFC_MODELS) to opt into the
-// extended model definitions in modeldefinitions.h / pfcdefs.h.
-#if !defined(BASIC_MODELS) && !defined(USE_EXTENDED_MODELS)
+// By default a basic set of models is compiled. Define one or more of
+//   USE_EXTENDED_MODELS  - the H&H family (Models A-F, FE variants, etc.)
+//   USE_PFC_MODELS       - the PFC family (PFC_C, PFC_NC, PFC_NC4)
+// to opt into the extended model definitions. Either may be used alone or
+// together. When neither is set the basic in-line definitions below are used.
+#if !defined(BASIC_MODELS) && !defined(USE_EXTENDED_MODELS) && \
+    !defined(USE_PFC_MODELS)
 #define BASIC_MODELS
 #endif
 
@@ -72,10 +75,14 @@ DEFINE_MODEL_FIELD_NAMES(MC, ("psi", "m"))
 
 #else
 
+#ifdef USE_EXTENDED_MODELS
 // #include "advancedmodeldefs.h"
 #include "modeldefinitions.h"
+// #include "modelacmms.h"
+#endif
+
 #ifdef USE_PFC_MODELS
 #include "pfcdefs.h"
 #endif
-// #include "modelacmms.h"
+
 #endif
