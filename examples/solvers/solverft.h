@@ -28,6 +28,10 @@
 #pragma once
 
 #include "expressions.h"
+
+#ifndef SYMPHAS_MPI_PROFILE_SCOPE
+#define SYMPHAS_MPI_PROFILE_SCOPE(name) ((void)0)
+#endif
 #include "solver.h"
 
 //! Finite difference solver.

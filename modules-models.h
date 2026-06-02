@@ -33,6 +33,10 @@
 
 #include "prereq-defs.h"
 
+#ifndef SYMPHAS_MPI_PROFILE_SCOPE
+#define SYMPHAS_MPI_PROFILE_SCOPE(name) ((void)0)
+#endif
+
 #ifdef MODULES_EXPORT
 #define DLLMOD DLLEXPORT
 #else

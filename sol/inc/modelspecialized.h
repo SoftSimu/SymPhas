@@ -28,6 +28,10 @@
 #include "model.h"
 #include "provisionalsystemgroup.h"
 
+#ifndef SYMPHAS_MPI_PROFILE_SCOPE
+#define SYMPHAS_MPI_PROFILE_SCOPE(name) ((void)0)
+#endif
+
 namespace expr {
 //! -c1/2 * op^2 + c2/4 * op^4 + |grad(op)|^2
 template <typename G, typename Sp, typename coeff_t1 = OpIdentity,

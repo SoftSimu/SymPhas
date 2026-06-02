@@ -779,6 +779,13 @@ using info_type = size_t;
 
 #endif
 
+#ifndef SYMPHAS_MPI_PROFILE_SCOPE
+#define SYMPHAS_MPI_PROFILE_SCOPE(name) ((void)0)
+#endif
+#ifndef SYMPHAS_MPI_PROFILE_DUMP
+#define SYMPHAS_MPI_PROFILE_DUMP()      ((void)0)
+#endif
+
 namespace symphas {
 using multi_thr_info_type = symphas::parallel::info_type;
 }
