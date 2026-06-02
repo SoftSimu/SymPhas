@@ -31,10 +31,13 @@
 // By default a basic set of models is compiled. Define one or more of
 //   USE_EXTENDED_MODELS  - the H&H family (Models A-F, FE variants, etc.)
 //   USE_PFC_MODELS       - the PFC family (PFC_C, PFC_NC, PFC_NC4)
+//   USE_GRID_HH          - minimal H&H subset (MA, MB, MC, MH, MF) used for
+//                          the validation grid; cheaper to compile than the
+//                          full USE_EXTENDED_MODELS set.
 // to opt into the extended model definitions. Either may be used alone or
 // together. When neither is set the basic in-line definitions below are used.
 #if !defined(BASIC_MODELS) && !defined(USE_EXTENDED_MODELS) && \
-    !defined(USE_PFC_MODELS)
+    !defined(USE_PFC_MODELS) && !defined(USE_GRID_HH)
 #define BASIC_MODELS
 #endif
 
@@ -74,6 +77,52 @@ DEFINE_MODEL_FIELD_NAMES(MC, ("psi", "m"))
 #undef rho
 
 #else
+
+#ifdef USE_GRID_HH
+// Minimal HH subset for the validation grid: MA, MB, MC, MH, MF only.
+#include "modelmacros.h"
+#define dpsi dop(1)
+#define psi op(1)
+#define dj dop(2)
+#define j op(2)
+
+MODEL(MA, (SCALAR),
+      EVOLUTION(dpsi = lap(psi) + (c(0) - 4_n * c(1) * psi * psi) * psi))
+LINK_WITH_NAME(MA, MODELA)
+
+MODEL(MB, (SCALAR),
+      EVOLUTION(dpsi = -bilap(psi) - lap((c(1) - c(2) * psi * psi) * psi)))
+LINK_WITH_NAME(MB, MODELB)
+
+MODEL(MC, (SCALARS(2)),
+      EVOLUTION(dpsi = -bilap(psi) -
+                       lap((c(1) - c(2) * psi * psi) * psi + c(5) * j * j),
+                dj    = lap(j) + (c(3) - c(4) * j * j) * j +
+                        2_n * c(5) * psi * j))
+LINK_WITH_NAME(MC, MODELC)
+DEFINE_MODEL_FIELD_NAMES(MC, ("psi", "m"))
+
+MODEL(MH, (SCALAR, VECTOR),
+      EVOLUTION_PREAMBLE((auto f = lap(psi) + (c(1) - c(2) * psi * psi) * psi;),
+                         dpsi = -lap(f) - c(3) * grad * (psi * j),
+                         dj = lap(j) - c(3) * psi * grad(f)))
+LINK_WITH_NAME(MH, MODELH)
+DEFINE_MODEL_FIELD_NAMES(MH, ("m", "j"))
+
+MODEL(MF, (SCALAR, VECTOR),
+      EVOLUTION(
+            dpsi = -c(4) * lap(psi) + (c(1) - c(2) * psi * psi) * psi
+                   - c(3) * div(j),
+            dj = -lap(j) + c(3) * grad(psi)
+      ))
+LINK_WITH_NAME(MF, MODELF)
+DEFINE_MODEL_FIELD_NAMES(MF, ("n", "g"))
+
+#undef dpsi
+#undef psi
+#undef dj
+#undef j
+#endif
 
 #ifdef USE_EXTENDED_MODELS
 // #include "advancedmodeldefs.h"
