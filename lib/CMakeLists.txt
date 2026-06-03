@@ -24,7 +24,22 @@ if (USE_FFTW3)
 	set(ADD_FFTW3_LIB fftw3)
 	set(ADD_FFTW3_INC ${fftw3_SOURCE_DIR}/api)
 else()
-	unset(USING_FFTW)
+	# When USE_FFTW3=OFF the top-level CMakeLists may have detected a
+	# system-installed FFTW3 (serial + MPI variants, e.g. from a cluster
+	# fftw-mpi module). Honour that: if the top-level appended the libs
+	# to SYMPHAS_SYSTEM_LIBS and set USING_FFTW in SYMPHAS_DEFINITIONS,
+	# propagate USING_FFTW (and USING_FFTW_MPI) here so the gated source
+	# in lib/src/spslibfftw.cpp actually gets compiled. Without this,
+	# `symphas::dft::fftw_*` wrappers are empty and the SP MPI binary
+	# fails to link (silent at cmake-time, loud at link-time).
+	if("USING_FFTW" IN_LIST SYMPHAS_DEFINITIONS)
+		set(USING_FFTW ON)
+	else()
+		unset(USING_FFTW)
+	endif()
+	if("USING_FFTW_MPI" IN_LIST SYMPHAS_DEFINITIONS)
+		set(USING_FFTW_MPI ON)
+	endif()
 endif()
 
 
@@ -52,8 +67,14 @@ target_include_directories(symphas_lib_o PRIVATE ${ADD_FFTW3_INC} PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
 	$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/inc>
 	$<INSTALL_INTERFACE:include>)
-target_link_libraries(symphas_lib_o PUBLIC ${ADD_LINUX_LIBS} ${ADD_FFTW3_LIB})
+target_link_libraries(symphas_lib_o PUBLIC ${ADD_LINUX_LIBS} ${ADD_FFTW3_LIB} ${SYMPHAS_SYSTEM_LIBS})
 target_compile_definitions(symphas_lib_o PRIVATE LIB_EXPORTS)
+if(USING_FFTW)
+	target_compile_definitions(symphas_lib_o PUBLIC USING_FFTW)
+endif()
+if(USING_FFTW_MPI)
+	target_compile_definitions(symphas_lib_o PUBLIC USING_FFTW_MPI)
+endif()
 
 
 if(ENABLE_TIMINGS)
