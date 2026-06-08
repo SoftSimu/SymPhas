@@ -654,173 +654,69 @@ __device__ inline scalar_t modulus(const complex_t &z) {
 }
 }  // namespace cuda_math
 
+// nvcc rejects both (a) explicit specializations of a member template inside an
+// un-specialized enclosing class template, and (b) partial specializations whose
+// non-type argument type (auto f -> a T-dependent function-pointer type) depends
+// on the specialization parameter. Use a single primary template with
+// if-constexpr dispatch instead: there are no specializations to parse-reject,
+// and each branch is only instantiated when actually used (never for models that
+// use no symbolic functions). cuda_function_wrapper<T> remains a thin alias so
+// existing call sites (CuFunctionApply) are unchanged.
+template <typename T, auto f>
+struct cuda_function_impl {
+  __device__ static auto apply(T x) {
+    using namespace cuda_math;
+    if constexpr (f == &symphas::math::sin<T>)
+      return sin(x);
+    else if constexpr (f == &symphas::math::cos<T>)
+      return cos(x);
+    else if constexpr (f == &symphas::math::tan<T>)
+      return tan(x);
+    else if constexpr (f == &symphas::math::cosh<T>)
+      return cosh(x);
+    else if constexpr (f == &symphas::math::sinh<T>)
+      return sinh(x);
+    else if constexpr (f == &symphas::math::tanh<T>)
+      return tanh(x);
+    else if constexpr (f == &symphas::math::acosh<T>)
+      return acosh(x);
+    else if constexpr (f == &symphas::math::asinh<T>)
+      return asinh(x);
+    else if constexpr (f == &symphas::math::atanh<T>)
+      return atanh(x);
+    else if constexpr (f == &symphas::math::acos<T>)
+      return acos(x);
+    else if constexpr (f == &symphas::math::asin<T>)
+      return asin(x);
+    else if constexpr (f == &symphas::math::atan<T>)
+      return atan(x);
+    else if constexpr (f == &symphas::math::sec<T>)
+      return sec(x);
+    else if constexpr (f == &symphas::math::csc<T>)
+      return csc(x);
+    else if constexpr (f == &symphas::math::cot<T>)
+      return cot(x);
+    else if constexpr (f == &symphas::math::log<T>)
+      return log(x);
+    else if constexpr (f == &symphas::math::sqrt<T>)
+      return sqrt(x);
+    else if constexpr (f == &symphas::math::abs<T>)
+      return abs(x);
+    else if constexpr (f == &symphas::math::modulus<T>)
+      return modulus(x);
+    else if constexpr (f == &symphas::math::real<T>)
+      return x.real();
+    else if constexpr (f == &symphas::math::imag<T>)
+      return x.imag();
+    else
+      return f(x);
+  }
+};
+
 template <typename T>
 struct cuda_function_wrapper {
   template <auto f>
-  struct function_impl;
-
-  // Specializations for common math functions
-  template <>
-  struct function_impl<&symphas::math::sin<T>> {
-    __device__ static auto apply(T x) {
-      using namespace cuda_math;
-      return sin(x);
-    }
-  };
-
-  template <>
-  struct function_impl<&symphas::math::cos<T>> {
-    __device__ static auto apply(T x) {
-      using namespace cuda_math;
-      return cos(x);
-    }
-  };
-
-  template <>
-  struct function_impl<&symphas::math::tan<T>> {
-    __device__ static auto apply(T x) {
-      using namespace cuda_math;
-      return tan(x);
-    }
-  };
-
-  template <>
-  struct function_impl<&symphas::math::cosh<T>> {
-    __device__ static auto apply(T x) {
-      using namespace cuda_math;
-      return cosh(x);
-    }
-  };
-
-  template <>
-  struct function_impl<&symphas::math::sinh<T>> {
-    __device__ static auto apply(T x) {
-      using namespace cuda_math;
-      return sinh(x);
-    }
-  };
-
-  template <>
-  struct function_impl<&symphas::math::tanh<T>> {
-    __device__ static auto apply(T x) {
-      using namespace cuda_math;
-      return tanh(x);
-    }
-  };
-
-  template <>
-  struct function_impl<&symphas::math::acosh<T>> {
-    __device__ static auto apply(T x) {
-      using namespace cuda_math;
-      return acosh(x);
-    }
-  };
-
-  template <>
-  struct function_impl<&symphas::math::asinh<T>> {
-    __device__ static auto apply(T x) {
-      using namespace cuda_math;
-      return asinh(x);
-    }
-  };
-
-  template <>
-  struct function_impl<&symphas::math::atanh<T>> {
-    __device__ static auto apply(T x) {
-      using namespace cuda_math;
-      return atanh(x);
-    }
-  };
-
-  template <>
-  struct function_impl<&symphas::math::acos<T>> {
-    __device__ static auto apply(T x) {
-      using namespace cuda_math;
-      return acos(x);
-    }
-  };
-
-  template <>
-  struct function_impl<&symphas::math::asin<T>> {
-    __device__ static auto apply(T x) {
-      using namespace cuda_math;
-      return asin(x);
-    }
-  };
-
-  template <>
-  struct function_impl<&symphas::math::atan<T>> {
-    __device__ static auto apply(T x) {
-      using namespace cuda_math;
-      return atan(x);
-    }
-  };
-
-  template <>
-  struct function_impl<&symphas::math::sec<T>> {
-    __device__ static auto apply(T x) {
-      using namespace cuda_math;
-      return sec(x);
-    }
-  };
-
-  template <>
-  struct function_impl<&symphas::math::csc<T>> {
-    __device__ static auto apply(T x) {
-      using namespace cuda_math;
-      return csc(x);
-    }
-  };
-
-  template <>
-  struct function_impl<&symphas::math::cot<T>> {
-    __device__ static auto apply(T x) {
-      using namespace cuda_math;
-      return cot(x);
-    }
-  };
-
-  template <>
-  struct function_impl<&symphas::math::log<T>> {
-    __device__ static auto apply(T x) {
-      using namespace cuda_math;
-      return log(x);
-    }
-  };
-
-  template <>
-  struct function_impl<&symphas::math::sqrt<T>> {
-    __device__ static auto apply(T x) {
-      using namespace cuda_math;
-      return sqrt(x);
-    }
-  };
-
-  template <>
-  struct function_impl<&symphas::math::abs<T>> {
-    __device__ static auto apply(T x) {
-      using namespace cuda_math;
-      return abs(x);
-    }
-  };
-
-  template <>
-  struct function_impl<&symphas::math::modulus<T>> {
-    __device__ static auto apply(T x) {
-      using namespace cuda_math;
-      return modulus(x);
-    }
-  };
-
-  template <>
-  struct function_impl<&symphas::math::real<T>> {
-    __device__ static auto apply(complex_t x) { return x.real(); }
-  };
-
-  template <>
-  struct function_impl<&symphas::math::imag<T>> {
-    __device__ static auto apply(complex_t x) { return x.imag(); }
-  };
+  using function_impl = cuda_function_impl<T, f>;
 };
 
 // Modify CuFunctionApply to use cuda_math

@@ -1,6 +1,15 @@
 
 #include "symphas.cuh"
 
+// main.cu uses SolverFT directly; ensure the configured solver header is in
+// scope (the CUDA symphas.cuh include chain does not pull it in, unlike the CPU
+// examples which include solverinclude.h explicitly -- cf. main_fe_regression.cpp).
+#ifdef SOLVER_INCLUDE_HEADER
+#include SOLVER_INCLUDE_HEADER
+#else
+#include "solverinclude.h"
+#endif
+
 using namespace symphas;
 
 template <typename M>

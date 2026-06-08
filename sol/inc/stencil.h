@@ -716,11 +716,13 @@ __host__ __device__ auto apply_generalized_derivative(
 struct no_derivative_message_printed {
   __host__ __device__ no_derivative_message_printed(size_t OD, size_t OA,
                                                     size_t D) {
+#ifndef __CUDA_ARCH__
     fprintf(
         SYMPHAS_ERR,
         "no derivative of order %zd accuracy %zd available in dimension %zd\n",
         OD, OA, D);
     exit(565);
+#endif
   }
 };
 
