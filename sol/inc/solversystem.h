@@ -1164,12 +1164,16 @@ inline SolverSystemSpectral<scalar_t, D>::~SolverSystemSpectral() {
  * during the solve loop. No MPI communication occurs per timestep.
  * Call sync_full_grid() before I/O to reconstruct the full grid via Allgatherv.
  */
-struct SolverSystemSpectralMPI : System<scalar_t, 2> {
-  using System<scalar_t, 2>::System;
-  using Grid<scalar_t, 2>::dims;
-  using Grid<scalar_t, 2>::values;
+template <size_t D>
+struct SolverSystemSpectralMPI : System<scalar_t, D> {
+  using System<scalar_t, D>::System;
+  using Grid<scalar_t, D>::dims;
+  using Grid<scalar_t, D>::values;
 
-  len_type transformed_len;   //!< Local k-space length (local_n0 * (Nx/2+1)).
+  static_assert(D == 2 || D == 3,
+                "distributed spectral MPI system supports D=2 and D=3");
+
+  len_type transformed_len;   //!< Local k-space length.
   complex_t* frame_t;         //!< Local k-space snapshot (previous step).
   complex_t* dframe;          //!< Local k-space accumulator (solver writes here).
   scalar_t* real_work;        //!< Padded real workspace for MPI FFT.
@@ -1178,8 +1182,8 @@ struct SolverSystemSpectralMPI : System<scalar_t, 2> {
   fftw_plan p_to_t;  //!< Forward FFT plan (r2c).
   bool owns_plans;   //!< Whether this instance owns (and should destroy) the plans.
 
-  ptrdiff_t local_n0;       //!< Number of y-rows on this rank.
-  ptrdiff_t local_0_start;  //!< Global y-offset of this rank's slab.
+  ptrdiff_t local_n0;       //!< Number of slab rows/planes on this rank.
+  ptrdiff_t local_0_start;  //!< Global slab offset of this rank.
   ptrdiff_t alloc_local;    //!< Allocation size returned by fftw_mpi.
 
   SolverSystemSpectralMPI(symphas::init_data_type const& tdata,
@@ -1187,7 +1191,7 @@ struct SolverSystemSpectralMPI : System<scalar_t, 2> {
                           symphas::b_data_type const& bdata, size_t id);
 
   SolverSystemSpectralMPI()
-      : System<scalar_t, 2>(),
+      : System<scalar_t, D>(),
         transformed_len{0}, frame_t{nullptr}, dframe{nullptr},
         real_work{nullptr}, p{0}, p_to_t{0}, owns_plans{false},
         local_n0{0}, local_0_start{0}, alloc_local{0} {}
@@ -1204,18 +1208,44 @@ struct SolverSystemSpectralMPI : System<scalar_t, 2> {
     return *this;
   }
 
+  //! Number of real cells per slab index (a y-row in 2D, a z-plane in 3D).
+  len_type plane_size() const {
+    if constexpr (D == 2) {
+      return dims[0];
+    } else {
+      return dims[0] * dims[1];
+    }
+  }
+
   //! Local slab offset and length in the values[] array.
-  len_type local_real_start() const { return static_cast<len_type>(local_0_start) * dims[0]; }
-  len_type local_real_len() const { return static_cast<len_type>(local_n0) * dims[0]; }
+  len_type local_real_start() const {
+    return static_cast<len_type>(local_0_start) * plane_size();
+  }
+  len_type local_real_len() const {
+    return static_cast<len_type>(local_n0) * plane_size();
+  }
 
   //! Copy local real-space slab into padded MPI workspace.
   void scatter_real_to_work() {
     len_type Nx = dims[0];
     len_type row_pad = 2 * (Nx / 2 + 1);
-    for (ptrdiff_t j = 0; j < local_n0; ++j) {
-      ptrdiff_t global_j = local_0_start + j;
-      for (len_type i = 0; i < Nx; ++i) {
-        real_work[j * row_pad + i] = values[global_j * Nx + i];
+    if constexpr (D == 2) {
+      for (ptrdiff_t j = 0; j < local_n0; ++j) {
+        ptrdiff_t global_j = local_0_start + j;
+        for (len_type i = 0; i < Nx; ++i) {
+          real_work[j * row_pad + i] = values[global_j * Nx + i];
+        }
+      }
+    } else {
+      len_type Ny = dims[1];
+      for (ptrdiff_t k = 0; k < local_n0; ++k) {
+        ptrdiff_t global_k = local_0_start + k;
+        for (len_type j = 0; j < Ny; ++j) {
+          for (len_type i = 0; i < Nx; ++i) {
+            real_work[(k * Ny + j) * row_pad + i] =
+                values[(global_k * Ny + j) * Nx + i];
+          }
+        }
       }
     }
   }
@@ -1224,21 +1254,33 @@ struct SolverSystemSpectralMPI : System<scalar_t, 2> {
   void unpad_local_slab() {
     len_type Nx = dims[0];
     len_type row_pad = 2 * (Nx / 2 + 1);
-    for (ptrdiff_t j = 0; j < local_n0; ++j) {
-      ptrdiff_t global_j = local_0_start + j;
-      for (len_type i = 0; i < Nx; ++i) {
-        values[global_j * Nx + i] = real_work[j * row_pad + i];
+    if constexpr (D == 2) {
+      for (ptrdiff_t j = 0; j < local_n0; ++j) {
+        ptrdiff_t global_j = local_0_start + j;
+        for (len_type i = 0; i < Nx; ++i) {
+          values[global_j * Nx + i] = real_work[j * row_pad + i];
+        }
+      }
+    } else {
+      len_type Ny = dims[1];
+      for (ptrdiff_t k = 0; k < local_n0; ++k) {
+        ptrdiff_t global_k = local_0_start + k;
+        for (len_type j = 0; j < Ny; ++j) {
+          for (len_type i = 0; i < Nx; ++i) {
+            values[(global_k * Ny + j) * Nx + i] =
+                real_work[(k * Ny + j) * row_pad + i];
+          }
+        }
       }
     }
   }
 
   //! Allgatherv to reconstruct full grid on all ranks. Call before I/O only.
   void sync_full_grid() {
-    len_type Nx = dims[0];
     int nprocs;
     MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
     std::vector<int> recvcounts(nprocs), displs(nprocs);
-    int local_count = static_cast<int>(local_n0 * Nx);
+    int local_count = static_cast<int>(local_n0 * plane_size());
     MPI_Allgather(&local_count, 1, MPI_INT,
                   recvcounts.data(), 1, MPI_INT, MPI_COMM_WORLD);
     displs[0] = 0;
@@ -1272,12 +1314,14 @@ struct SolverSystemSpectralMPI : System<scalar_t, 2> {
       SYMPHAS_MPI_PROFILE_SCOPE("sp2_update_unpad");
       unpad_local_slab();
     }
-    // Scale only the local slab by 1/(Nx*Ny).
+    // Scale only the local slab by 1/(total grid points).
     {
       SYMPHAS_MPI_PROFILE_SCOPE("sp2_update_scale");
       len_type start = local_real_start();
       len_type len = local_real_len();
-      double scale = 1.0 / static_cast<double>(dims[0] * dims[1]);
+      double total = static_cast<double>(dims[0] * dims[1]);
+      if constexpr (D == 3) total *= static_cast<double>(dims[2]);
+      double scale = 1.0 / total;
       for (len_type i = start; i < start + len; ++i)
         values[i] *= scale;
     }
@@ -1285,8 +1329,8 @@ struct SolverSystemSpectralMPI : System<scalar_t, 2> {
 
   friend void swap(SolverSystemSpectralMPI& a, SolverSystemSpectralMPI& b) {
     using std::swap;
-    swap(static_cast<System<scalar_t, 2>&>(a),
-         static_cast<System<scalar_t, 2>&>(b));
+    swap(static_cast<System<scalar_t, D>&>(a),
+         static_cast<System<scalar_t, D>&>(b));
     swap(a.transformed_len, b.transformed_len);
     swap(a.frame_t, b.frame_t);
     swap(a.dframe, b.dframe);
@@ -1310,20 +1354,45 @@ struct SolverSystemSpectralMPI : System<scalar_t, 2> {
   }
 };
 
-inline SolverSystemSpectralMPI::SolverSystemSpectralMPI(
+//! Detects whether a solver-system type is a distributed spectral MPI system.
+/*!
+ * Matches any \c SolverSystemSpectralMPI<D> regardless of dimension so that
+ * dispatch sites (solver equation branch, I/O gather) can recognize the
+ * distributed spectral path uniformly across 2D and 3D.
+ */
+template <typename S>
+struct is_spectral_mpi_system : std::false_type {};
+template <size_t D>
+struct is_spectral_mpi_system<SolverSystemSpectralMPI<D>> : std::true_type {};
+template <typename S>
+inline constexpr bool is_spectral_mpi_system_v =
+    is_spectral_mpi_system<std::decay_t<S>>::value;
+
+template <size_t D>
+inline SolverSystemSpectralMPI<D>::SolverSystemSpectralMPI(
     symphas::init_data_type const& tdata,
     symphas::interval_data_type const& vdata,
     symphas::b_data_type const&, size_t id)
-    : System<scalar_t, 2>(tdata, vdata, id),
+    : System<scalar_t, D>(tdata, vdata, id),
       transformed_len{0}, frame_t{nullptr}, dframe{nullptr},
       real_work{nullptr}, p{0}, p_to_t{0}, owns_plans{true},
       local_n0{0}, local_0_start{0}, alloc_local{0}
 {
-  // FFTW MPI distributes along the first dimension (n0 = Ny, n1 = Nx).
-  ptrdiff_t Nx = dims[0], Ny = dims[1];
-  alloc_local = symphas::dft::fftw_mpi_local_size_2d(
-      Ny, Nx, MPI_COMM_WORLD, &local_n0, &local_0_start);
-  transformed_len = static_cast<len_type>(local_n0 * (Nx / 2 + 1));
+  // FFTW MPI slab-decomposes along the first (slowest) logical axis. The grid
+  // is stored x-contiguous, so the FFTW logical dimensions are (Ny,Nx) in 2D
+  // and (Nz,Ny,Nx) in 3D; the contiguous half-spectrum axis is Nx.
+  ptrdiff_t Nx = dims[0];
+  if constexpr (D == 2) {
+    ptrdiff_t Ny = dims[1];
+    alloc_local = symphas::dft::fftw_mpi_local_size_2d(
+        Ny, Nx, MPI_COMM_WORLD, &local_n0, &local_0_start);
+    transformed_len = static_cast<len_type>(local_n0 * (Nx / 2 + 1));
+  } else {
+    ptrdiff_t Ny = dims[1], Nz = dims[2];
+    alloc_local = symphas::dft::fftw_mpi_local_size_3d(
+        Nz, Ny, Nx, MPI_COMM_WORLD, &local_n0, &local_0_start);
+    transformed_len = static_cast<len_type>(local_n0 * Ny * (Nx / 2 + 1));
+  }
 
   // Allocate k-space arrays. Must use alloc_local (not transformed_len)
   // because FFTW MPI may need extra space for the internal transpose.
@@ -1337,21 +1406,33 @@ inline SolverSystemSpectralMPI::SolverSystemSpectralMPI(
   real_work = symphas::dft::fftw_alloc_real(2 * alloc_local);
 
   // Create MPI plans (in-place on real_work / cast to dframe).
-  p_to_t = symphas::dft::fftw_mpi_plan_r2c_2d(
-      Ny, Nx, real_work, reinterpret_cast<fftw_complex*>(dframe),
-      MPI_COMM_WORLD);
-  p = symphas::dft::fftw_mpi_plan_c2r_2d(
-      Ny, Nx, reinterpret_cast<fftw_complex*>(dframe), real_work,
-      MPI_COMM_WORLD);
+  if constexpr (D == 2) {
+    ptrdiff_t Ny = dims[1];
+    p_to_t = symphas::dft::fftw_mpi_plan_r2c_2d(
+        Ny, Nx, real_work, reinterpret_cast<fftw_complex*>(dframe),
+        MPI_COMM_WORLD);
+    p = symphas::dft::fftw_mpi_plan_c2r_2d(
+        Ny, Nx, reinterpret_cast<fftw_complex*>(dframe), real_work,
+        MPI_COMM_WORLD);
+  } else {
+    ptrdiff_t Ny = dims[1], Nz = dims[2];
+    p_to_t = symphas::dft::fftw_mpi_plan_r2c_3d(
+        Nz, Ny, Nx, real_work, reinterpret_cast<fftw_complex*>(dframe),
+        MPI_COMM_WORLD);
+    p = symphas::dft::fftw_mpi_plan_c2r_3d(
+        Nz, Ny, Nx, reinterpret_cast<fftw_complex*>(dframe), real_work,
+        MPI_COMM_WORLD);
+  }
 
   // Initial forward FFT.
   scatter_real_to_work();
   symphas::dft::fftw_execute(p_to_t);
 }
 
-inline SolverSystemSpectralMPI::SolverSystemSpectralMPI(
+template <size_t D>
+inline SolverSystemSpectralMPI<D>::SolverSystemSpectralMPI(
     SolverSystemSpectralMPI const& other)
-    : System<scalar_t, 2>(other),
+    : System<scalar_t, D>(other),
       transformed_len{other.transformed_len}, frame_t{nullptr}, dframe{nullptr},
       real_work{nullptr}, p{0}, p_to_t{0}, owns_plans{true},
       local_n0{other.local_n0}, local_0_start{other.local_0_start},
@@ -1367,13 +1448,24 @@ inline SolverSystemSpectralMPI::SolverSystemSpectralMPI(
 
   // Create own MPI plans bound to our buffers.
   // fftw_mpi_plan_* are collective — all ranks must call simultaneously.
-  ptrdiff_t Nx = dims[0], Ny = dims[1];
-  p_to_t = symphas::dft::fftw_mpi_plan_r2c_2d(
-      Ny, Nx, real_work, reinterpret_cast<fftw_complex*>(dframe),
-      MPI_COMM_WORLD);
-  p = symphas::dft::fftw_mpi_plan_c2r_2d(
-      Ny, Nx, reinterpret_cast<fftw_complex*>(dframe), real_work,
-      MPI_COMM_WORLD);
+  ptrdiff_t Nx = dims[0];
+  if constexpr (D == 2) {
+    ptrdiff_t Ny = dims[1];
+    p_to_t = symphas::dft::fftw_mpi_plan_r2c_2d(
+        Ny, Nx, real_work, reinterpret_cast<fftw_complex*>(dframe),
+        MPI_COMM_WORLD);
+    p = symphas::dft::fftw_mpi_plan_c2r_2d(
+        Ny, Nx, reinterpret_cast<fftw_complex*>(dframe), real_work,
+        MPI_COMM_WORLD);
+  } else {
+    ptrdiff_t Ny = dims[1], Nz = dims[2];
+    p_to_t = symphas::dft::fftw_mpi_plan_r2c_3d(
+        Nz, Ny, Nx, real_work, reinterpret_cast<fftw_complex*>(dframe),
+        MPI_COMM_WORLD);
+    p = symphas::dft::fftw_mpi_plan_c2r_3d(
+        Nz, Ny, Nx, reinterpret_cast<fftw_complex*>(dframe), real_work,
+        MPI_COMM_WORLD);
+  }
 
   // Copy k-space state from the original.
   std::copy(other.frame_t, other.frame_t + transformed_len, frame_t);
@@ -1420,4 +1512,22 @@ template <typename T, size_t D>
 struct SolverSystemFDwSDCUDA;
 template <typename T, size_t D>
 struct SolverSystemFDCUDA;
+
+// Forward declaration of the GPU spectral system (defined in solversystem.cuh,
+// which carries device syntax and is only included by nvcc translation units).
+// Declaring it here — in the host-parseable header — lets the SP2 solver's
+// system-type association and the is_spectral_cuda_system trait below be named
+// by ordinary (host-compiled) translation units without pulling in cuFFT.
+template <size_t D>
+struct SolverSystemSpectralCUDA;
+
+//! Detects a GPU spectral solver system (any dimension) for solver dispatch.
+//! Visible to both host and device translation units (no CUDA syntax here).
+template <typename S>
+struct is_spectral_cuda_system : std::false_type {};
+template <size_t D>
+struct is_spectral_cuda_system<SolverSystemSpectralCUDA<D>> : std::true_type {};
+template <typename S>
+inline constexpr bool is_spectral_cuda_system_v =
+    is_spectral_cuda_system<std::decay_t<S>>::value;
 #endif

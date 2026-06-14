@@ -2079,6 +2079,19 @@ void populate_tdata(symphas::init_data_type const& tdata,
   populate_tdata(tdata, data, info, grid::region_interval<D>(info->get_dims()),
                  id);
 }
+
+#ifdef USING_CUDA
+// Declared here (in the same namespace as the host overloads, before
+// PhaseFieldSystem<GridCUDA>'s constructor is defined in system.h) so it is
+// part of the qualified-call overload set at the template definition point.
+// Defined in systemlib.cuh, which carries the CUDA include for cudaMemcpy.
+// Populates the GPU order-parameter grid by filling a host Grid via the
+// host InitialConditions path, then uploading to the device.
+template <size_t D>
+void populate_tdata(symphas::init_data_type const& tdata,
+                    GridCUDA<scalar_t, D>& data, symphas::grid_info* info,
+                    size_t id);
+#endif
 }  // namespace symphas::internal
 
 namespace symphas {

@@ -616,11 +616,16 @@ struct box_list : symphas::lib::array_container<T> {
     }
   }
 
-  __host__ __device__ auto operator[](iter_type i) const {
+  // Returns T explicitly (not `auto`): the two branches would otherwise deduce
+  // conflicting types for box_list<double> (`data[i]` is double, `0` is int),
+  // which nvcc rejects during device instantiation. This const accessor
+  // returns by value; element assignment (`box[i] = v`) resolves to the
+  // inherited non-const array_container::operator[] returning T&.
+  __host__ __device__ T operator[](iter_type i) const {
     if (i < n) {
       return data[i];
     } else {
-      return 0;
+      return T{};
     }
   }
 

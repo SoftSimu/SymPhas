@@ -83,6 +83,23 @@ fftw_plan fftw_mpi_plan_r2c_2d(ptrdiff_t n0, ptrdiff_t n1,
 fftw_plan fftw_mpi_plan_c2r_2d(ptrdiff_t n0, ptrdiff_t n1,
                                 fftw_complex* in, double* out,
                                 MPI_Comm comm);
+//! Get local data distribution for 3D MPI r2c transform.
+/*!
+ * Slab-decomposes along the first (slowest) logical axis n0. For SymPhas
+ * 3D grids stored x-contiguous (index = (k*Ny + j)*Nx + i), the FFTW logical
+ * dimensions are (n0,n1,n2) = (Nz,Ny,Nx) so the contiguous, half-spectrum axis
+ * is Nx. Returns the local complex allocation; local_n0 z-planes start at
+ * local_0_start.
+ */
+ptrdiff_t fftw_mpi_local_size_3d(ptrdiff_t n0, ptrdiff_t n1, ptrdiff_t n2,
+                                 MPI_Comm comm, ptrdiff_t* local_n0,
+                                 ptrdiff_t* local_0_start);
+//! Create a distributed r2c plan for 3D data. See fftw_mpi_plan_r2c_2d.
+fftw_plan fftw_mpi_plan_r2c_3d(ptrdiff_t n0, ptrdiff_t n1, ptrdiff_t n2,
+                                double* in, fftw_complex* out, MPI_Comm comm);
+//! Create a distributed c2r plan for 3D data. See fftw_mpi_plan_r2c_2d.
+fftw_plan fftw_mpi_plan_c2r_3d(ptrdiff_t n0, ptrdiff_t n1, ptrdiff_t n2,
+                                fftw_complex* in, double* out, MPI_Comm comm);
 #endif
 
 //! Creates a new FFTW plan from the given types and dimension.

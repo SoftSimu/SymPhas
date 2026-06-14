@@ -32,6 +32,23 @@
 
 #ifdef USING_CUDA
 
+namespace symphas::internal {
+//! Definition of the GridCUDA initial-condition population declared in
+//! systemlib.h. Fills a host Grid via the host InitialConditions path, then
+//! uploads to the device order-parameter grid.
+template <size_t D>
+void populate_tdata(symphas::init_data_type const& tdata,
+                    GridCUDA<scalar_t, D>& data, symphas::grid_info* info,
+                    size_t id) {
+  Grid<scalar_t, D> host_grid(data.dims);
+  populate_tdata(tdata, host_grid, info,
+                 grid::region_interval<D>(info->get_dims()), id);
+  CHECK_CUDA_ERROR(cudaMemcpy(data.values, host_grid.values,
+                              data.len * sizeof(scalar_t),
+                              cudaMemcpyHostToDevice));
+}
+}  // namespace symphas::internal
+
 //! Maintains grid data and associated information.
 /*!
  * Maintains grid data and parameters, and defines the ability to use data

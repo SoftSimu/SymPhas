@@ -425,11 +425,9 @@ void find_solution(M* models, len_type num_models,
           auto sync_one = [](auto& s) {
             using sys_t = std::remove_reference_t<decltype(s)>;
 #if defined(USING_FFTW) && defined(USING_FFTW_MPI)
-            // Spectral MPI: sync full grid via Allgatherv.
-            if constexpr (std::is_base_of_v<SolverSystemSpectralMPI, sys_t>) {
-              const_cast<SolverSystemSpectralMPI&>(
-                  static_cast<SolverSystemSpectralMPI const&>(s))
-                  .sync_full_grid();
+            // Spectral MPI: sync full grid via Allgatherv (2D or 3D).
+            if constexpr (is_spectral_mpi_system_v<sys_t>) {
+              const_cast<std::remove_const_t<sys_t>&>(s).sync_full_grid();
             } else
 #endif
             if constexpr (std::is_base_of_v<BoundaryGroup<scalar_t, DD>, sys_t>) {

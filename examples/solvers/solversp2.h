@@ -61,6 +61,15 @@ struct SpectralDataSP2 {
   std::shared_ptr<complex_t[]> cross_kernels[MAX_CROSS];
   complex_t* cross_frame_ts[MAX_CROSS];
   size_t num_cross;
+#ifdef USING_CUDA
+  // Device mirrors of the spectral operators for the GPU spectral path.
+  // Lazily allocated/filled on the first CUDA equation() call (the A/B
+  // arrays are constant in time). Stored as void* so this header needs no
+  // cuFFT types in non-CUDA translation units; reinterpret_cast at use.
+  mutable void* A_dev = nullptr;
+  mutable void* B_dev = nullptr;
+  mutable bool dev_ready = false;
+#endif
   SpectralDataSP2(complex_t* A, complex_t* B, len_type klen, len_type rlen, NL_type const& nl)
       : A_data{A, std::default_delete<complex_t[]>()},
         B_data{B, std::default_delete<complex_t[]>()},
@@ -86,7 +95,8 @@ void equation(std::pair<Variable<Z, symphas::ref<S>>, SpectralDataSP2<NL_type>>&
   }
   len_type rlen = grid::length(s);
 #if defined(USING_FFTW) && defined(USING_MPI) && defined(USING_FFTW_MPI)
-  if constexpr (std::is_same_v<S, SolverSystemSpectralMPI>) {
+  if constexpr (is_spectral_mpi_system_v<S>) {
+    constexpr size_t Dm = grid::dimension_of<S>::value;
     // MPI path: save/restore only local slab, no Allgatherv.
     len_type lstart = s.local_real_start();
     len_type llen = s.local_real_len();
@@ -100,15 +110,21 @@ void equation(std::pair<Variable<Z, symphas::ref<S>>, SpectralDataSP2<NL_type>>&
     // (neighbors' data from a prior step), but they are not read here
     // because the expression iterator steps only over [lstart, lstart+llen).
     // Only local entries of ψ are valid; scatter_real_to_work reads
-    // only the local slab of the result.
+    // only the local slab of the result. The slab is the trailing axis
+    // (y in 2D, z in 3D), so only that axis is restricted to the rank range.
     {
       SYMPHAS_MPI_PROFILE_SCOPE("sp2_nl_eval");
-      len_type global_dims[2] = {s.dims[0], s.dims[1]};
-      len_type intervals[2][2] = {
-          {0, s.dims[0]},
-          {static_cast<len_type>(s.local_0_start),
-           static_cast<len_type>(s.local_0_start + s.local_n0)}};
-      grid::region_interval<2> local_region{global_dims, intervals};
+      len_type global_dims[Dm];
+      len_type intervals[Dm][2];
+      for (size_t d = 0; d < Dm; ++d) {
+        global_dims[d] = s.dims[d];
+        intervals[d][0] = 0;
+        intervals[d][1] = s.dims[d];
+      }
+      intervals[Dm - 1][0] = static_cast<len_type>(s.local_0_start);
+      intervals[Dm - 1][1] =
+          static_cast<len_type>(s.local_0_start + s.local_n0);
+      grid::region_interval<Dm> local_region{global_dims, intervals};
       expr::result(data.nl_expr, s.values, local_region);
     }
     // Scatter local NL into padded workspace and forward FFT.
@@ -127,15 +143,45 @@ void equation(std::pair<Variable<Z, symphas::ref<S>>, SpectralDataSP2<NL_type>>&
     }
     {
       SYMPHAS_MPI_PROFILE_SCOPE("sp2_spectral_mul");
-      // A/B are global arrays; offset to local k-space slab.
+      // A/B are global arrays; offset to this rank's local k-space slab.
+      // The k-space slab stride per slab index is (Nx/2+1) in 2D and
+      // Ny*(Nx/2+1) in 3D (the trailing real axis is half-spectrum).
       len_type tlen = s.transformed_len;
       len_type kx_len = s.dims[0] / 2 + 1;
-      len_type offset = static_cast<len_type>(s.local_0_start) * kx_len;
+      len_type kplane = (Dm == 2) ? kx_len : s.dims[1] * kx_len;
+      len_type offset = static_cast<len_type>(s.local_0_start) * kplane;
       auto* A = data.A_data.get() + offset;
       auto* B = data.B_data.get() + offset;
       for (len_type i = 0; i < tlen; ++i)
         s.dframe[i] = A[i] * s.frame_t[i] + B[i] * s.dframe[i];
     }
+  } else
+#endif
+#if defined(USING_CUDA)
+  if constexpr (is_spectral_cuda_system_v<S>) {
+    // GPU spectral path. All cuFFT calls and kernel launches are encapsulated
+    // in SolverSystemSpectralCUDA methods (defined in solversystem.cuh, only
+    // under nvcc) so this shared header carries no device syntax.
+    s.upload_operators(data.A_dev, data.B_dev, data.dev_ready,
+                       data.A_data.get(), data.B_data.get());
+    // Save field, evaluate NL into the device field, transform + spectral
+    // step, then restore the field for the next iteration's NL evaluation.
+    // The NL expression must be evaluated on the GPU: select the kernel eval
+    // handler (KernelEvalHandler for CUDA storage) exactly as the FD CUDA
+    // solver does, so the symbolic evaluation runs in device kernels rather
+    // than the host loop (which would dereference device memory on the host).
+    s.save_field();
+    {
+      using nl_t = std::decay_t<decltype(data.nl_expr)>;
+      expr::eval_handler_type<nl_t> handler;
+      // Pass the device GridCUDA object (not a raw pointer): the CUDA
+      // evaluate_expression_trait constructor binds GridCUDA<T,D>& and writes
+      // its .values on device. grid::length(s) selects the contiguous-length
+      // overload (full-grid evaluation).
+      handler.result(data.nl_expr, s.as_grid(), grid::length(s));
+    }
+    s.solve_spectral_step(data.A_dev, data.B_dev);
+    s.restore_field();
   } else
 #endif
   {
@@ -174,8 +220,17 @@ decltype(auto) form_expr_one(std::tuple<Ss...> const& systems,
   len_type tlen = sys.get().transformed_len;
   len_type ab_len = tlen;
 #if defined(USING_MPI) && defined(USING_FFTW_MPI)
-  if constexpr (std::is_same_v<S, SolverSystemSpectralMPI>) {
-    ab_len = static_cast<len_type>(sys.get().dims[1] * (sys.get().dims[0] / 2 + 1));
+  if constexpr (is_spectral_mpi_system_v<S>) {
+    // A/B(k) are built for the FULL global k-space (each rank slices its slab
+    // at evaluation time). Global k-space size: 2D = Ny*(Nx/2+1),
+    // 3D = Nz*Ny*(Nx/2+1); the trailing real axis Nx is half-spectrum.
+    len_type kx_len = sys.get().dims[0] / 2 + 1;
+    if constexpr (D == 2) {
+      ab_len = static_cast<len_type>(sys.get().dims[1] * kx_len);
+    } else {
+      ab_len = static_cast<len_type>(
+          sys.get().dims[2] * sys.get().dims[1] * kx_len);
+    }
   }
 #endif
   complex_t* A_data = new complex_t[ab_len];
@@ -268,7 +323,13 @@ decltype(auto) form_expr_one(std::tuple<Ss...> const& systems,
           }
           size_t idx = data.num_cross++;
           data.cross_kernels[idx] = std::shared_ptr<complex_t[]>(ck, std::default_delete<complex_t[]>());
-          data.cross_frame_ts[idx] = std::get<J>(systems).frame_t;
+          // frame_t is complex_t* for host systems and cufftDoubleComplex* for
+          // the GPU spectral system; both are layout-compatible double2. The
+          // GPU path targets single-field models (num_cross stays 0), so this
+          // cross-field branch is only exercised by the host solvers, but the
+          // assignment must still compile when instantiated for either type.
+          data.cross_frame_ts[idx] =
+              reinterpret_cast<complex_t*>(std::get<J>(systems).frame_t);
           expr::printe(lop_J, "SP2 cross-field (spectral)");
         }
       }
@@ -306,15 +367,30 @@ static auto make_solver(symphas::problem_parameters_type const& parameters) {
 }
 END_SOLVER
 
-#if defined(USING_MPI) && defined(USING_FFTW_MPI)
-// SolverSystemSpectralMPI is a concrete (non-template) type, so we manually
-// write the specialization that the ASSOCIATE_SOLVER_SYSTEM_TYPE macro would
-// generate. This selects the distributed-FFT system when MPI is active.
+#if defined(USING_CUDA)
+// GPU spectral build: the SP2 solver uses the device-resident spectral system
+// (cuFFT transforms + device spectral algebra). Manually written specialization
+// (as the ASSOCIATE_SOLVER_SYSTEM_TYPE macro would generate) forwarding the
+// simulation dimension D.
 namespace symphas::internal {
 template <>
 struct solver_system_type_match<solver_id_type_SolverSP2, 0> {
   template <typename Ty, size_t D>
-  using type = SolverSystemSpectralMPI;
+  using type = SolverSystemSpectralCUDA<D>;
+};
+constexpr solver_count_index<solver_id_type_SolverSP2, 1>
+    solver_counter(solver_count_index<solver_id_type_SolverSP2, 1>);
+}
+#elif defined(USING_MPI) && defined(USING_FFTW_MPI)
+// SolverSystemSpectralMPI<D> is selected (instead of the serial spectral
+// system) when MPI is active. We manually write the specialization that the
+// ASSOCIATE_SOLVER_SYSTEM_TYPE macro would generate, forwarding the simulation
+// dimension D so the distributed-FFT system is 2D or 3D as appropriate.
+namespace symphas::internal {
+template <>
+struct solver_system_type_match<solver_id_type_SolverSP2, 0> {
+  template <typename Ty, size_t D>
+  using type = SolverSystemSpectralMPI<D>;
 };
 constexpr solver_count_index<solver_id_type_SolverSP2, 1>
     solver_counter(solver_count_index<solver_id_type_SolverSP2, 1>);

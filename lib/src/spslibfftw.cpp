@@ -185,6 +185,30 @@ fftw_plan symphas::dft::fftw_mpi_plan_c2r_2d(
       comm, FFTW_MEASURE);
 }
 
+ptrdiff_t symphas::dft::fftw_mpi_local_size_3d(
+    ptrdiff_t n0, ptrdiff_t n1, ptrdiff_t n2, MPI_Comm comm,
+    ptrdiff_t* local_n0, ptrdiff_t* local_0_start) {
+  // Half-spectrum on the contiguous (last) axis, matching the r2c layout.
+  return ::fftw_mpi_local_size_3d(n0, n1, n2 / 2 + 1, comm,
+                                  local_n0, local_0_start);
+}
+
+fftw_plan symphas::dft::fftw_mpi_plan_r2c_3d(
+    ptrdiff_t n0, ptrdiff_t n1, ptrdiff_t n2, double* in, fftw_complex* out,
+    MPI_Comm comm) {
+  return ::fftw_mpi_plan_dft_r2c_3d(n0, n1, n2,
+      in, reinterpret_cast<::fftw_complex*>(out),
+      comm, FFTW_MEASURE);
+}
+
+fftw_plan symphas::dft::fftw_mpi_plan_c2r_3d(
+    ptrdiff_t n0, ptrdiff_t n1, ptrdiff_t n2, fftw_complex* in, double* out,
+    MPI_Comm comm) {
+  return ::fftw_mpi_plan_dft_c2r_3d(n0, n1, n2,
+      reinterpret_cast<::fftw_complex*>(in), out,
+      comm, FFTW_MEASURE);
+}
+
 #endif
 
 #endif

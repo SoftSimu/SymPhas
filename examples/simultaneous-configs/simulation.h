@@ -58,7 +58,15 @@ template <typename M>
 void setup_mpi_boundaries(M& model) {
   if (symphas::parallel::get_num_nodes() <= 1) return;
 
-#ifdef SYMPHAS_MPI_LOCAL_STORAGE
+#if defined(USE_SPECTRAL_SOLVER)
+  // The spectral (SP) solver distributes work through FFTW-MPI's own slab
+  // decomposition (see SolverSystemSpectralMPI<D>), not through finite-
+  // difference halo-exchange boundaries. The FD MPI boundary substitution
+  // below does not apply and is skipped; this also avoids the 2D-only
+  // FD-boundary restriction for 3D spectral runs.
+  (void)model;
+  return;
+#elif defined(SYMPHAS_MPI_LOCAL_STORAGE)
   // Under SYMPHAS_MPI_LOCAL_STORAGE, the MPI boundaries are already
   // installed (with rank-local domain_info attached) by SolverSystemFD's
   // gated ctor. Re-running the substitution here would delete those

@@ -72,7 +72,18 @@ inline void initiate(const char *modelname, double const *coeff,
   model_select<Simulation> m{2, StencilParams{2, 9, 6, 13}};
 #endif
 
-  if (m.call<SolverFT>(modelname, coeff, num_coeff) == INVALID_MODEL) {
+  int result = INVALID_MODEL;
+#if defined(USING_FFTW) && defined(USE_SPECTRAL_SOLVER) && \
+    !defined(SYMPHAS_DISABLE_SP2)
+  // GPU spectral solver (SolverSP2 -> SolverSystemSpectralCUDA).
+  result = m.call<SolverSP2>(modelname, coeff, num_coeff);
+#endif
+#ifndef SYMPHAS_DISABLE_FT
+  if (result == INVALID_MODEL) {
+    result = m.call<SolverFT>(modelname, coeff, num_coeff);
+  }
+#endif
+  if (result == INVALID_MODEL) {
     fprintf(SYMPHAS_ERR, "Unknown model provided, '%s'\n", modelname);
     exit(101);
   }
