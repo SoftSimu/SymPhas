@@ -571,7 +571,7 @@ struct SolverSystemSpectral<scalar_t, D> : System<scalar_t, D> {
 
   ~SolverSystemSpectral();
 
-  fftw_plan p_to_t;  // Made public for SolverSP2 access.
+  fftw_plan p_to_t;  // Made public for SolverSP access.
 };
 
 //! The phase field system used by the spectral solver.
@@ -1292,35 +1292,39 @@ struct SolverSystemSpectralMPI : System<scalar_t, D> {
   }
 
   void update(iter_type index, double) {
-    SYMPHAS_MPI_PROFILE_SCOPE("sp2_update");
+    SYMPHAS_MPI_PROFILE_SCOPE("sp_update");
     // Periodically refresh k-space from local real-space to prevent drift.
     if (index % 100 == 0) {
-      SYMPHAS_MPI_PROFILE_SCOPE("sp2_update_refresh");
+      SYMPHAS_MPI_PROFILE_SCOPE("sp_update_refresh");
       scatter_real_to_work();
       symphas::dft::fftw_execute(p_to_t);
     }
     // dframe has the updated k-space solution; copy to frame_t.
     {
-      SYMPHAS_MPI_PROFILE_SCOPE("sp2_update_copy_dframe");
+      SYMPHAS_MPI_PROFILE_SCOPE("sp_update_copy_dframe");
       std::copy(dframe, dframe + transformed_len, frame_t);
     }
     // Inverse FFT (c2r): dframe → real_work.
     {
-      SYMPHAS_MPI_PROFILE_SCOPE("sp2_update_inv_fft");
+      SYMPHAS_MPI_PROFILE_SCOPE("sp_update_inv_fft");
       symphas::dft::fftw_execute(p);
     }
     // Unpad only local slab — no MPI communication.
     {
-      SYMPHAS_MPI_PROFILE_SCOPE("sp2_update_unpad");
+      SYMPHAS_MPI_PROFILE_SCOPE("sp_update_unpad");
       unpad_local_slab();
     }
     // Scale only the local slab by 1/(total grid points).
     {
-      SYMPHAS_MPI_PROFILE_SCOPE("sp2_update_scale");
+      SYMPHAS_MPI_PROFILE_SCOPE("sp_update_scale");
       len_type start = local_real_start();
       len_type len = local_real_len();
-      double total = static_cast<double>(dims[0] * dims[1]);
-      if constexpr (D == 3) total *= static_cast<double>(dims[2]);
+      // The inverse FFT is unnormalized; divide by the GLOBAL total real-grid
+      // point count (product of every global dimension). The local `len` above
+      // is only this rank's slab and must not be used here. Looping over all D
+      // dimensions is correct for any dimensionality (including D == 1).
+      double total = 1.0;
+      for (size_t d = 0; d < D; ++d) total *= static_cast<double>(dims[d]);
       double scale = 1.0 / total;
       for (len_type i = start; i < start + len; ++i)
         values[i] *= scale;
@@ -1515,7 +1519,7 @@ struct SolverSystemFDCUDA;
 
 // Forward declaration of the GPU spectral system (defined in solversystem.cuh,
 // which carries device syntax and is only included by nvcc translation units).
-// Declaring it here — in the host-parseable header — lets the SP2 solver's
+// Declaring it here — in the host-parseable header — lets the SP solver's
 // system-type association and the is_spectral_cuda_system trait below be named
 // by ordinary (host-compiled) translation units without pulling in cuFFT.
 template <size_t D>

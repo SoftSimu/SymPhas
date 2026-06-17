@@ -30,6 +30,8 @@
 
 #ifdef USING_CUDA
 
+#include <vector>
+
 #include "boundarysystem.cuh"
 #include "systemlib.cuh"
 
@@ -92,7 +94,7 @@ DEFINE_BASE_DATA_INHERITED((typename T, size_t D),
 // The real axis dims[0] (the contiguous x-axis in SymPhas storage) is the
 // half-spectrum axis, exactly matching the CPU layout
 // (symphas::dft::length<scalar_t,D> = (dims[0]/2+1)*dims[1][*dims[2]]), so the
-// A(k)/B(k) operator arrays built by the SP2 solver transfer to the device
+// A(k)/B(k) operator arrays built by the SP solver transfer to the device
 // unchanged.
 // ===========================================================================
 
@@ -246,17 +248,23 @@ struct SolverSystemSpectralCUDA : SystemCUDA<scalar_t, D> {
   //! One-time host->device upload of the constant spectral operators A(k),
   //! B(k) into device cufftDoubleComplex arrays. No-op after first upload.
   //! host_A/host_B are host arrays of length transformed_len in the same
-  //! (dims[0]/2+1)-major layout as the field FFT.
-  void upload_operators(void*& A_dev, void*& B_dev, bool& ready,
+  //! (dims[0]/2+1)-major layout as the field FFT. The device buffers are held
+  //! in shared_ptr<void> with a cudaFree deleter so they release when the last
+  //! SpectralDataSP copy is destroyed.
+  void upload_operators(std::shared_ptr<void>& A_dev,
+                        std::shared_ptr<void>& B_dev,
                         const complex_t* host_A, const complex_t* host_B) {
-    if (ready) return;
+    if (A_dev) return;
     size_t bytes =
         static_cast<size_t>(transformed_len) * sizeof(cufftDoubleComplex);
-    CHECK_CUDA_ERROR(cudaMalloc(&A_dev, bytes));
-    CHECK_CUDA_ERROR(cudaMalloc(&B_dev, bytes));
-    CHECK_CUDA_ERROR(cudaMemcpy(A_dev, host_A, bytes, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(B_dev, host_B, bytes, cudaMemcpyHostToDevice));
-    ready = true;
+    void* a = nullptr;
+    void* b = nullptr;
+    CHECK_CUDA_ERROR(cudaMalloc(&a, bytes));
+    CHECK_CUDA_ERROR(cudaMalloc(&b, bytes));
+    CHECK_CUDA_ERROR(cudaMemcpy(a, host_A, bytes, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERROR(cudaMemcpy(b, host_B, bytes, cudaMemcpyHostToDevice));
+    A_dev = std::shared_ptr<void>(a, [](void* p) { if (p) cudaFree(p); });
+    B_dev = std::shared_ptr<void>(b, [](void* p) { if (p) cudaFree(p); });
   }
 
   //! Forward-transform the (already NL-evaluated) device field into dframe and
@@ -284,6 +292,46 @@ struct SolverSystemSpectralCUDA : SystemCUDA<scalar_t, D> {
                                 cudaMemcpyDeviceToDevice));
   }
 
+  //! Apply cross-field spectral contributions on the GPU path. The GPU spectral
+  //! step (solve_spectral_step) only applies the self-field A/B operators; for
+  //! multi-field models with LINEAR cross-coupling (e.g. Model D, KKS) the
+  //! serial/MPI paths additionally accumulate  dframe += sum_c K_c(k)*frame_t_j(k).
+  //! Without this the GPU silently drops those terms and diverges from serial.
+  //!
+  //! K_host[c] are host arrays (length transformed_len) and other_frame_t_dev[c]
+  //! are DEVICE pointers to the coupled field's k-space snapshot (each coupled
+  //! field is itself a SolverSystemSpectralCUDA, so its frame_t lives on device).
+  //! We copy this field's dframe and each coupled frame_t to the host, apply the
+  //! multiply-add there, and copy dframe back. num_cross is tiny (<= a few) and
+  //! this runs once per field per step, so the transfer cost is acceptable and
+  //! the result is bit-consistent with the host solver's complex arithmetic.
+  void apply_cross_fields_host(size_t num_cross,
+                               complex_t* const* K_host,
+                               void* const* other_frame_t_dev) {
+    if (num_cross == 0) return;
+    size_t n = static_cast<size_t>(transformed_len);
+    std::vector<complex_t> df(n), ft(n);
+    CHECK_CUDA_ERROR(cudaMemcpy(df.data(), dframe,
+                                n * sizeof(cufftDoubleComplex),
+                                cudaMemcpyDeviceToHost));
+    for (size_t c = 0; c < num_cross; ++c) {
+      CHECK_CUDA_ERROR(cudaMemcpy(ft.data(), other_frame_t_dev[c],
+                                  n * sizeof(cufftDoubleComplex),
+                                  cudaMemcpyDeviceToHost));
+      const complex_t* K = K_host[c];
+      for (size_t i = 0; i < n; ++i) df[i] += K[i] * ft[i];
+    }
+    CHECK_CUDA_ERROR(cudaMemcpy(dframe, df.data(),
+                                n * sizeof(cufftDoubleComplex),
+                                cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+  }
+
+  //! Device pointer to this system's k-space snapshot (for cross-field coupling
+  //! from another field's GPU spectral step).
+  void* frame_t_device() { return reinterpret_cast<void*>(frame_t); }
+
+
   //! Recover the real field: inverse FFT (dframe -> values) and normalize.
   void update(iter_type index, double) {
     // Periodically rebuild the k-space accumulator from the real field to
@@ -302,12 +350,13 @@ struct SolverSystemSpectralCUDA : SystemCUDA<scalar_t, D> {
                                 transformed_len * sizeof(cufftDoubleComplex),
                                 cudaMemcpyDeviceToDevice));
     CHECK_CUFFT_ERROR(cufftExecZ2D(p, dframe, values));
-    double total = static_cast<double>(dims[0]) * dims[1];
-    if constexpr (D == 3) total *= static_cast<double>(dims[2]);
+    // Inverse FFT (cuFFT Z2D) is unnormalized; divide by the total real-grid
+    // point count. `len` (= product of all dims, the real field allocation
+    // length) is the correct factor for every dimension, including D == 1.
     int threads = 256;
     int blocks = static_cast<int>((len + threads - 1) / threads);
     symphas::internal::sp_cuda_scale_kernel<<<blocks, threads>>>(
-        values, len, 1.0 / total);
+        values, len, 1.0 / static_cast<double>(len));
     CHECK_CUDA_ERROR(cudaDeviceSynchronize());
   }
 

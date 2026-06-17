@@ -899,6 +899,64 @@ struct stencil_apply_type<4, 2, 2> {
   }
 };
 
+// 3D-stride single-axis stencils.  Mirror of the 2D-stride block above: the
+// generalized dispatch routes an axial derivative on a 3D grid through
+// `apply<O>(v, stride[3])` -> `stencil_apply_type<O, 2, 3>(v, stride[3], divh)`,
+// with `grid::get_stride<ax>(stride, dims)` placing the active axis step in
+// stride[0] (the other entries are inactive for an axial derivative).  Without
+// these, the vector-current models (F, H) — which form grad / div as first
+// derivatives along each axis — fail in 3D with "no derivative of order 1
+// accuracy 2 available in dimension 3" unless AVAILABLE_STENCILS_AUTOGENERATION
+// is ON (which has its own pre-existing internal bugs).  These are the same
+// 2nd-order central differences used in 1D/2D.
+template <>
+struct stencil_apply_type<1, 2, 3> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[3],
+                                      double divh) const {
+    return 0.5 * divh * (v[stride[0]] - v[-stride[0]]);
+  }
+};
+
+template <>
+struct stencil_apply_type<2, 2, 3> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[3],
+                                      double divh) const {
+    const double divh2 = divh * divh;
+    const len_type s = stride[0];
+    return divh2 * (v[s] - 2.0 * v[0] + v[-s]);
+  }
+};
+
+template <>
+struct stencil_apply_type<3, 2, 3> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[3],
+                                      double divh) const {
+    const double divh3 = divh * divh * divh;
+    const len_type s = stride[0];
+    return 0.5 * divh3 *
+           (-v[-2 * s] + 2.0 * v[-s] - 2.0 * v[s] + v[2 * s]);
+  }
+};
+
+template <>
+struct stencil_apply_type<4, 2, 3> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[3],
+                                      double divh) const {
+    const double divh4 = divh * divh * divh * divh;
+    const len_type s = stride[0];
+    return divh4 * (v[-2 * s] - 4.0 * v[-s] + 6.0 * v[0] -
+                    4.0 * v[s] + v[2 * s]);
+  }
+};
+
 template <size_t OA, typename Seq>
 struct mixed_stencil_apply_type;
 
@@ -1127,6 +1185,115 @@ struct mixed_stencil_apply_type<2, std::index_sequence<3, 1>> {
             2.0 * (v[-sx + sy] - v[-sx - sy]) -
             2.0 * (v[sx + sy] - v[sx - sy]) +
             (v[2 * sx + sy] - v[2 * sx - sy]));
+  }
+};
+
+// 3D axis-pair mixed third derivatives.  These are the cross terms produced by
+// the 3D gradlaplacian grad(lap f): its a-component is
+//   d^3 f/da^3 + d^3 f/(da db^2) + d^3 f/(da dc^2),
+// where the pure d^3/da^3 routes through apply_directional -> the 1D
+// stencil_apply_type<3,2,1> (already present, like the 2D case), and the two
+// cross terms are these axis-pair mixed derivatives on a 3D stride.  Each is the
+// tensor product of a 1D 2-point first derivative (weights +/-1/2) with a 1D
+// 3-point second derivative (weights 1,-2,1) — identical math to the 2D <1,2> /
+// <2,1> specializations, just selecting the relevant pair of axis strides (the
+// third axis has order 0 and is inactive).  Vector model H needs these in 3D;
+// without them grad(lap psi) aborts with "no derivative of order 3 ... in
+// dimension 3" (the message sums the mixed orders).
+
+// d^3 f/(dx dy^2): order 1 in x (stride[0]), order 2 in y (stride[1]).
+template <>
+struct mixed_stencil_apply_type<2, std::index_sequence<1, 2, 0>> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[3],
+                                      double divh) const {
+    const double divh3 = divh * divh * divh;
+    const len_type sa = stride[0];
+    const len_type sb = stride[1];
+    return 0.5 * divh3 *
+           ((v[sa + sb] - 2.0 * v[sa] + v[sa - sb]) -
+            (v[-sa + sb] - 2.0 * v[-sa] + v[-sa - sb]));
+  }
+};
+
+// d^3 f/(dx dz^2): order 1 in x (stride[0]), order 2 in z (stride[2]).
+template <>
+struct mixed_stencil_apply_type<2, std::index_sequence<1, 0, 2>> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[3],
+                                      double divh) const {
+    const double divh3 = divh * divh * divh;
+    const len_type sa = stride[0];
+    const len_type sb = stride[2];
+    return 0.5 * divh3 *
+           ((v[sa + sb] - 2.0 * v[sa] + v[sa - sb]) -
+            (v[-sa + sb] - 2.0 * v[-sa] + v[-sa - sb]));
+  }
+};
+
+// d^3 f/(dx^2 dy): order 2 in x (stride[0]), order 1 in y (stride[1]).
+template <>
+struct mixed_stencil_apply_type<2, std::index_sequence<2, 1, 0>> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[3],
+                                      double divh) const {
+    const double divh3 = divh * divh * divh;
+    const len_type sa = stride[0];
+    const len_type sb = stride[1];
+    return 0.5 * divh3 *
+           ((v[sa + sb] - v[sa - sb]) - 2.0 * (v[sb] - v[-sb]) +
+            (v[-sa + sb] - v[-sa - sb]));
+  }
+};
+
+// d^3 f/(dy dz^2): order 1 in y (stride[1]), order 2 in z (stride[2]).
+template <>
+struct mixed_stencil_apply_type<2, std::index_sequence<0, 1, 2>> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[3],
+                                      double divh) const {
+    const double divh3 = divh * divh * divh;
+    const len_type sa = stride[1];
+    const len_type sb = stride[2];
+    return 0.5 * divh3 *
+           ((v[sa + sb] - 2.0 * v[sa] + v[sa - sb]) -
+            (v[-sa + sb] - 2.0 * v[-sa] + v[-sa - sb]));
+  }
+};
+
+// d^3 f/(dx^2 dz): order 2 in x (stride[0]), order 1 in z (stride[2]).
+template <>
+struct mixed_stencil_apply_type<2, std::index_sequence<2, 0, 1>> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[3],
+                                      double divh) const {
+    const double divh3 = divh * divh * divh;
+    const len_type sa = stride[0];
+    const len_type sb = stride[2];
+    return 0.5 * divh3 *
+           ((v[sa + sb] - v[sa - sb]) - 2.0 * (v[sb] - v[-sb]) +
+            (v[-sa + sb] - v[-sa - sb]));
+  }
+};
+
+// d^3 f/(dy^2 dz): order 2 in y (stride[1]), order 1 in z (stride[2]).
+template <>
+struct mixed_stencil_apply_type<2, std::index_sequence<0, 2, 1>> {
+  template <typename T>
+  __host__ __device__ auto operator()(T *const v,
+                                      const len_type (&stride)[3],
+                                      double divh) const {
+    const double divh3 = divh * divh * divh;
+    const len_type sa = stride[1];
+    const len_type sb = stride[2];
+    return 0.5 * divh3 *
+           ((v[sa + sb] - v[sa - sb]) - 2.0 * (v[sb] - v[-sb]) +
+            (v[-sa + sb] - v[-sa - sb]));
   }
 };
 

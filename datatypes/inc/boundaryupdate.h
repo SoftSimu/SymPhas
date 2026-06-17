@@ -1872,4 +1872,64 @@ void symphas::internal::update_boundary<BoundaryType::MPI, Side::RIGHT, 1>::
 operator()(const grid::Boundary<T, 1>*, RegionalGrid<T, 2>&) {
 }
 
+// ---- 3D MPI halo exchange (Z-slab decomposition) ----
+// The 3-D finite-difference MPI path decomposes only the slowest (Z) axis into
+// contiguous slabs (the direct analog of the bit-exact 2-D Y-slab). The Z
+// (FRONT/BACK) halos are exchanged over MPI: FRONT performs the full
+// bidirectional exchange (front and back neighbors at once), BACK is a no-op.
+// X and Y stay PERIODIC and are filled locally by the periodic updater on every
+// rank, since each rank owns the full X,Y extent of its Z-slab.
+
+//! MPI FRONT boundary for 3D: performs full bidirectional Z halo exchange.
+template <>
+template <typename T>
+void symphas::internal::update_boundary<BoundaryType::MPI, Side::FRONT, 2>::
+operator()(const grid::Boundary<T, 2>* boundary, Grid<T, 3>& grid) {
+  auto* mpi_b = static_cast<const grid::BoundaryApplied<T, 2, BoundaryType::MPI>*>(boundary);
+  if (mpi_b->dinfo_storage != nullptr) {
+    auto const& dinfo = *mpi_b->dinfo_storage;
+    if constexpr (symphas::internal::is_vector_value<T>::value) {
+      using trait = symphas::internal::is_vector_value<T>;
+      for (size_t c = 0; c < trait::dim; ++c) {
+        symphas::parallel::exchange_halos(grid.values[c], dinfo);
+      }
+    } else {
+      symphas::parallel::exchange_halos(grid.values, dinfo);
+    }
+    return;
+  }
+  symphas::parallel::domain_info<3> dinfo(grid.dims, BOUNDARY_DEPTH);
+  if constexpr (symphas::internal::is_vector_value<T>::value) {
+    using trait = symphas::internal::is_vector_value<T>;
+    for (size_t c = 0; c < trait::dim; ++c) {
+      symphas::parallel::exchange_halos(grid.values[c], dinfo);
+    }
+  } else {
+    symphas::parallel::exchange_halos(grid.values, dinfo);
+  }
+}
+
+//! MPI BACK boundary for 3D: no-op (exchange already done by FRONT).
+template <>
+template <typename T>
+void symphas::internal::update_boundary<BoundaryType::MPI, Side::BACK, 2>::
+operator()(const grid::Boundary<T, 2>*, Grid<T, 3>&) {
+  // Halo exchange already performed by the FRONT boundary update.
+}
+
+//! MPI FRONT boundary for 3D RegionalGrid: performs halo exchange.
+template <>
+template <typename T>
+void symphas::internal::update_boundary<BoundaryType::MPI, Side::FRONT, 2>::
+operator()(const grid::Boundary<T, 2>* boundary, RegionalGrid<T, 3>& grid) {
+  operator()(boundary, static_cast<Grid<T, 3>&>(grid));
+}
+
+//! MPI BACK boundary for 3D RegionalGrid: no-op.
+template <>
+template <typename T>
+void symphas::internal::update_boundary<BoundaryType::MPI, Side::BACK, 2>::
+operator()(const grid::Boundary<T, 2>*, RegionalGrid<T, 3>&) {
+}
+
 #endif

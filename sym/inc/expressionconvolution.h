@@ -440,6 +440,11 @@ struct OpConvolution : OpExpression<OpConvolution<V, E1, E2>> {
   template <typename eval_handler_type, typename... condition_ts>
   void update(eval_handler_type const& eval_handler,
               symphas::lib::types_list<condition_ts...>) {
+    // Rebind FFTW plans/buffers to the current data (see the single-operand
+    // convolution update() above): a copy resets the plans to null and g0 to
+    // length 0; allocate() (guarded by g0.len == 0) restores them and is a
+    // no-op once allocated.
+    allocate();
     // compute the result of the expressions and update the grids
     eval_handler.result(a, data_a.values, data_a.len);
     eval_handler.result(b, data_b.values, data_b.len);
@@ -729,6 +734,12 @@ struct OpConvolution<V, GaussianSmoothing<D, grid_type>, E>
   template <typename eval_handler_type, typename... condition_ts>
   void update(eval_handler_type const& eval_handler,
               symphas::lib::types_list<condition_ts...>) {
+    // Rebind FFTW plans/buffers to the current data: the copy constructor
+    // resets `compute` (null plans, ConvolutionData copy is deleted) and `g0`
+    // to length 0, so a convolution copied during multi-field model assembly
+    // would otherwise execute a null plan. allocate() is guarded by
+    // `g0.len == 0`, so this is a no-op once allocated.
+    allocate();
     eval_handler.result(e, data, data.len);
     compute.transform_in_out(&expr::BaseData<data_type>::get(data)[0],
                              g0.dims);
@@ -992,6 +1003,13 @@ struct OpConvolution<V, GaussianSmoothing<D, grid_type>, OpTerm<OpIdentity, G>>
   template <typename eval_handler_type, typename... condition_ts>
   void update(eval_handler_type const& eval_handler,
               symphas::lib::types_list<condition_ts...>) {
+    // Ensure the FFTW plans/buffers are bound to the CURRENT field data. The
+    // copy constructor resets `compute` to a default (null plans) and `g0` to
+    // length 0 because FFTW plans cannot be copied; if this convolution was
+    // copied during model assembly (as happens for multi-field models) the
+    // external allocate() may not have re-run, leaving p_in_out null. allocate()
+    // is guarded by `g0.len == 0`, so this is a no-op once allocated.
+    allocate();
     compute.transform_in_out(&expr::BaseData<G>::get(data)[0], g0.dims);
 
     // Dispatch to CPU or CUDA implementation

@@ -19,7 +19,7 @@
  * ***************************************************************************
  *
  * This file supports the functionality of the semi-implicit Fourier
- * spectral solver (solversp2.h)
+ * spectral solver (solversp.h)
  *
  * ***************************************************************************
  */

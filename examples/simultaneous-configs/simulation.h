@@ -77,8 +77,10 @@ void setup_mpi_boundaries(M& model) {
 #else
 
   constexpr size_t D = model_dimension<M>::value;
-  static_assert(D == 2, "MPI boundaries currently implemented for 2D only");
+  static_assert(D == 2 || D == 3,
+                "MPI boundaries implemented for 2D (Cartesian) and 3D (Z-slab)");
 
+  if constexpr (D == 2) {
   // Resolve the 2-D Cartesian decomposition (cached). Px==1 reproduces the
   // legacy 1-D Y-slab behavior (only TOP/BOTTOM tagged as MPI; LEFT/RIGHT
   // remain PERIODIC and the periodic boundary updater handles X locally).
@@ -175,6 +177,60 @@ void setup_mpi_boundaries(M& model) {
           "neighbors below=%d above=%d left=%d right=%d\n",
           rank, px, py, ix, iy,
           neighbor_below, neighbor_above, neighbor_left, neighbor_right);
+
+  } else if constexpr (D == 3) {
+    // 3-D Z-slab decomposition: split only the slowest (Z) axis into contiguous
+    // slabs (the direct analog of the bit-exact 2-D Y-slab). Tag the FRONT/BACK
+    // (−Z/+Z) boundaries as MPI; LEFT/RIGHT/TOP/BOTTOM stay PERIODIC and are
+    // filled locally by the periodic updater on every rank (each rank owns the
+    // full X,Y extent of its slab).
+    int rank = symphas::parallel::get_node_rank();
+    int nranks = symphas::parallel::get_num_nodes();
+    int neighbor_front = (rank - 1 + nranks) % nranks;  // -Z
+    int neighbor_back = (rank + 1) % nranks;             // +Z
+
+    auto& tup = model.systems_tuple();
+    std::apply([&](auto&... sys) {
+      auto setup_one = [&](auto& s) {
+        using sys_type = std::remove_const_t<std::remove_reference_t<decltype(s)>>;
+        constexpr iter_type FRONT_IDX = static_cast<iter_type>(Side::FRONT);
+        constexpr iter_type BACK_IDX = static_cast<iter_type>(Side::BACK);
+        if constexpr (std::is_base_of_v<BoundaryGroup<scalar_t, D>, sys_type>) {
+          auto& s_mut = const_cast<sys_type&>(s);
+          delete s_mut.boundaries[FRONT_IDX];
+          delete s_mut.boundaries[BACK_IDX];
+          s_mut.types[FRONT_IDX] = BoundaryType::MPI;
+          s_mut.types[BACK_IDX] = BoundaryType::MPI;
+          s_mut.boundaries[FRONT_IDX] =
+              new grid::BoundaryApplied<scalar_t, D - 1, BoundaryType::MPI>(
+                  neighbor_front, rank);
+          s_mut.boundaries[BACK_IDX] =
+              new grid::BoundaryApplied<scalar_t, D - 1, BoundaryType::MPI>(
+                  neighbor_back, rank);
+        } else if constexpr (
+            std::is_base_of_v<BoundaryGroup<any_vector_t<scalar_t, D>, D>,
+                              sys_type>) {
+          auto& s_mut = const_cast<sys_type&>(s);
+          delete s_mut.boundaries[FRONT_IDX];
+          delete s_mut.boundaries[BACK_IDX];
+          s_mut.types[FRONT_IDX] = BoundaryType::MPI;
+          s_mut.types[BACK_IDX] = BoundaryType::MPI;
+          s_mut.boundaries[FRONT_IDX] =
+              new grid::BoundaryApplied<any_vector_t<scalar_t, D>, D - 1,
+                                         BoundaryType::MPI>(neighbor_front, rank);
+          s_mut.boundaries[BACK_IDX] =
+              new grid::BoundaryApplied<any_vector_t<scalar_t, D>, D - 1,
+                                         BoundaryType::MPI>(neighbor_back, rank);
+        }
+      };
+      (setup_one(sys), ...);
+    }, tup);
+
+    fprintf(SYMPHAS_LOG,
+            "MPI boundaries configured (3D Z-slab): rank %d of %d, "
+            "front=%d back=%d\n",
+            rank, nranks, neighbor_front, neighbor_back);
+  }
 #endif  // SYMPHAS_MPI_LOCAL_STORAGE
 }
 #else
@@ -368,8 +424,8 @@ inline void initiate(const char *modelname, double const *coeff,
   int result = INVALID_MODEL;
 
 #if defined(USING_FFTW) && defined(USE_SPECTRAL_SOLVER) && \
-    !defined(SYMPHAS_DISABLE_SP2)
-  result = m.call<SolverSP2>(modelname, coeff, num_coeff);
+    !defined(SYMPHAS_DISABLE_SP)
+  result = m.call<SolverSP>(modelname, coeff, num_coeff);
 #endif
 
 #ifndef SYMPHAS_DISABLE_FT

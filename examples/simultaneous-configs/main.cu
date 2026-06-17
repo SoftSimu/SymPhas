@@ -74,9 +74,9 @@ inline void initiate(const char *modelname, double const *coeff,
 
   int result = INVALID_MODEL;
 #if defined(USING_FFTW) && defined(USE_SPECTRAL_SOLVER) && \
-    !defined(SYMPHAS_DISABLE_SP2)
-  // GPU spectral solver (SolverSP2 -> SolverSystemSpectralCUDA).
-  result = m.call<SolverSP2>(modelname, coeff, num_coeff);
+    !defined(SYMPHAS_DISABLE_SP)
+  // GPU spectral solver (SolverSP -> SolverSystemSpectralCUDA).
+  result = m.call<SolverSP>(modelname, coeff, num_coeff);
 #endif
 #ifndef SYMPHAS_DISABLE_FT
   if (result == INVALID_MODEL) {

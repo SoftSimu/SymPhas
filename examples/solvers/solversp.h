@@ -7,7 +7,7 @@
 #ifdef USING_MPI
 #include "spsmpi.h"
 #endif
-namespace solver_sp2_detail {
+namespace solver_sp_detail {
   template <typename T> struct is_derivative : std::false_type {};
   template <typename Dd, typename V, typename E, typename Sp>
   struct is_derivative<OpDerivative<Dd, V, E, Sp>> : std::true_type {};
@@ -48,11 +48,10 @@ namespace solver_sp2_detail {
   }
 }
 template <typename NL_type>
-struct SpectralDataSP2 {
+struct SpectralDataSP {
   std::shared_ptr<complex_t[]> A_data;
   std::shared_ptr<complex_t[]> B_data;
   std::shared_ptr<scalar_t[]> nl_scratch;
-  len_type klen;
   len_type rlen;
   NL_type nl_expr;
   // Cross-field spectral contributions: one kernel per coupled field.
@@ -64,33 +63,34 @@ struct SpectralDataSP2 {
 #ifdef USING_CUDA
   // Device mirrors of the spectral operators for the GPU spectral path.
   // Lazily allocated/filled on the first CUDA equation() call (the A/B
-  // arrays are constant in time). Stored as void* so this header needs no
-  // cuFFT types in non-CUDA translation units; reinterpret_cast at use.
-  mutable void* A_dev = nullptr;
-  mutable void* B_dev = nullptr;
-  mutable bool dev_ready = false;
+  // arrays are constant in time). Held in shared_ptr<void> with a cudaFree
+  // deleter so the device buffers free with the last copy (mirroring the host
+  // A_data/B_data ownership) and carry no cuFFT types into non-CUDA
+  // translation units; reinterpret_cast at use.
+  mutable std::shared_ptr<void> A_dev;
+  mutable std::shared_ptr<void> B_dev;
 #endif
-  SpectralDataSP2(complex_t* A, complex_t* B, len_type klen, len_type rlen, NL_type const& nl)
+  SpectralDataSP(complex_t* A, complex_t* B, len_type rlen, NL_type const& nl)
       : A_data{A, std::default_delete<complex_t[]>()},
         B_data{B, std::default_delete<complex_t[]>()},
         nl_scratch{new scalar_t[rlen], std::default_delete<scalar_t[]>()},
-        klen{klen}, rlen{rlen}, nl_expr{nl},
+        rlen{rlen}, nl_expr{nl},
         cross_kernels{}, cross_frame_ts{}, num_cross{0} {}
   void update() { expr::prune::update(nl_expr); }
 };
-START_NEW_SOLVER(SolverSP2)
+START_NEW_SOLVER(SolverSP)
 double h[3];
-SolverSP2(const double* h = nullptr, double dt = 1, size_t dim = 0)
+SolverSP(const double* h = nullptr, double dt = 1, size_t dim = 0)
     : parent_type(dt), h{0} { std::copy(h, h + dim, this->h); }
 template <typename S> void step(S&&) const {}
 
 template <size_t Z, typename S, typename NL_type>
-void equation(std::pair<Variable<Z, symphas::ref<S>>, SpectralDataSP2<NL_type>>& r) const {
-  SYMPHAS_MPI_PROFILE_SCOPE("sp2_equation");
+void equation(std::pair<Variable<Z, symphas::ref<S>>, SpectralDataSP<NL_type>>& r) const {
+  SYMPHAS_MPI_PROFILE_SCOPE("sp_equation");
   auto& [sys, data] = r;
   auto& s = sys.get();
   {
-    SYMPHAS_MPI_PROFILE_SCOPE("sp2_data_update");
+    SYMPHAS_MPI_PROFILE_SCOPE("sp_data_update");
     data.update();
   }
   len_type rlen = grid::length(s);
@@ -102,7 +102,7 @@ void equation(std::pair<Variable<Z, symphas::ref<S>>, SpectralDataSP2<NL_type>>&
     len_type llen = s.local_real_len();
     // Save local slab of ψ.
     {
-      SYMPHAS_MPI_PROFILE_SCOPE("sp2_save_psi");
+      SYMPHAS_MPI_PROFILE_SCOPE("sp_save_psi");
       std::copy(s.values + lstart, s.values + lstart + llen, data.nl_scratch.get());
     }
     // Evaluate NL only on this rank's local slab via region_interval
@@ -113,7 +113,7 @@ void equation(std::pair<Variable<Z, symphas::ref<S>>, SpectralDataSP2<NL_type>>&
     // only the local slab of the result. The slab is the trailing axis
     // (y in 2D, z in 3D), so only that axis is restricted to the rank range.
     {
-      SYMPHAS_MPI_PROFILE_SCOPE("sp2_nl_eval");
+      SYMPHAS_MPI_PROFILE_SCOPE("sp_nl_eval");
       len_type global_dims[Dm];
       len_type intervals[Dm][2];
       for (size_t d = 0; d < Dm; ++d) {
@@ -129,20 +129,20 @@ void equation(std::pair<Variable<Z, symphas::ref<S>>, SpectralDataSP2<NL_type>>&
     }
     // Scatter local NL into padded workspace and forward FFT.
     {
-      SYMPHAS_MPI_PROFILE_SCOPE("sp2_scatter_to_work");
+      SYMPHAS_MPI_PROFILE_SCOPE("sp_scatter_to_work");
       s.scatter_real_to_work();
     }
     // Restore local slab of ψ.
     {
-      SYMPHAS_MPI_PROFILE_SCOPE("sp2_restore_psi");
+      SYMPHAS_MPI_PROFILE_SCOPE("sp_restore_psi");
       std::copy(data.nl_scratch.get(), data.nl_scratch.get() + llen, s.values + lstart);
     }
     {
-      SYMPHAS_MPI_PROFILE_SCOPE("sp2_fwd_fft");
+      SYMPHAS_MPI_PROFILE_SCOPE("sp_fwd_fft");
       symphas::dft::fftw_execute(s.p_to_t);
     }
     {
-      SYMPHAS_MPI_PROFILE_SCOPE("sp2_spectral_mul");
+      SYMPHAS_MPI_PROFILE_SCOPE("sp_spectral_mul");
       // A/B are global arrays; offset to this rank's local k-space slab.
       // The k-space slab stride per slab index is (Nx/2+1) in 2D and
       // Ny*(Nx/2+1) in 3D (the trailing real axis is half-spectrum).
@@ -154,6 +154,21 @@ void equation(std::pair<Variable<Z, symphas::ref<S>>, SpectralDataSP2<NL_type>>&
       auto* B = data.B_data.get() + offset;
       for (len_type i = 0; i < tlen; ++i)
         s.dframe[i] = A[i] * s.frame_t[i] + B[i] * s.dframe[i];
+      // Add cross-field spectral contributions. The cross kernels are built
+      // for the FULL global k-space (ab_len) exactly like A/B, so they must be
+      // offset to this rank's local k-space slab with the same `offset`. The
+      // other field's frame_t is already this rank's local k-space slab (same
+      // FFTW-MPI decomposition), so it is indexed by the local i directly.
+      // Without this loop the linear cross-field terms (e.g. Model D's
+      // -c5*rho and lap(-c5*psi), KKS's lap(-c5*psi)) were silently dropped
+      // under MPI, making those multi-field models diverge from the serial
+      // result across rank counts.
+      for (size_t c = 0; c < data.num_cross; ++c) {
+        auto* K = data.cross_kernels[c].get() + offset;
+        auto* Ft = data.cross_frame_ts[c];
+        for (len_type i = 0; i < tlen; ++i)
+          s.dframe[i] += K[i] * Ft[i];
+      }
     }
   } else
 #endif
@@ -162,7 +177,7 @@ void equation(std::pair<Variable<Z, symphas::ref<S>>, SpectralDataSP2<NL_type>>&
     // GPU spectral path. All cuFFT calls and kernel launches are encapsulated
     // in SolverSystemSpectralCUDA methods (defined in solversystem.cuh, only
     // under nvcc) so this shared header carries no device syntax.
-    s.upload_operators(data.A_dev, data.B_dev, data.dev_ready,
+    s.upload_operators(data.A_dev, data.B_dev,
                        data.A_data.get(), data.B_data.get());
     // Save field, evaluate NL into the device field, transform + spectral
     // step, then restore the field for the next iteration's NL evaluation.
@@ -180,7 +195,22 @@ void equation(std::pair<Variable<Z, symphas::ref<S>>, SpectralDataSP2<NL_type>>&
       // overload (full-grid evaluation).
       handler.result(data.nl_expr, s.as_grid(), grid::length(s));
     }
-    s.solve_spectral_step(data.A_dev, data.B_dev);
+    s.solve_spectral_step(data.A_dev.get(), data.B_dev.get());
+    // Apply cross-field spectral coupling on the GPU path. solve_spectral_step
+    // only applied the self-field A/B operators; multi-field models with linear
+    // cross terms (Model D, KKS) also need dframe += sum_c K_c(k)*frame_t_j(k),
+    // exactly as the serial/MPI paths do. cross_frame_ts holds DEVICE pointers
+    // to each coupled field's k-space snapshot (each coupled field is itself a
+    // GPU spectral system). Without this the GPU silently dropped these terms.
+    if (data.num_cross > 0) {
+      complex_t* K_host[SpectralDataSP<std::decay_t<decltype(data.nl_expr)>>::MAX_CROSS];
+      void* other_ft_dev[SpectralDataSP<std::decay_t<decltype(data.nl_expr)>>::MAX_CROSS];
+      for (size_t c = 0; c < data.num_cross; ++c) {
+        K_host[c] = data.cross_kernels[c].get();
+        other_ft_dev[c] = reinterpret_cast<void*>(data.cross_frame_ts[c]);
+      }
+      s.apply_cross_fields_host(data.num_cross, K_host, other_ft_dev);
+    }
     s.restore_field();
   } else
 #endif
@@ -245,7 +275,7 @@ decltype(auto) form_expr_one(std::tuple<Ss...> const& systems,
       std::copy(B_grid.values, B_grid.values + ab_len, B_data);
     }
   }
-  expr::printe(A_expression, "SP2 A(k)");
+  expr::printe(A_expression, "SP A(k)");
 
   // ---------- Nonlinear handling ----------
   // The NL has three components with potentially different derivative structures:
@@ -259,10 +289,10 @@ decltype(auto) form_expr_one(std::tuple<Ss...> const& systems,
   // For non-conserved: nonlinear = n² + n³ + ... → no derivative to factor.
   using nonlinear_type = std::decay_t<decltype(nonlinear)>;
   auto factor_nl = [&]() {
-    if constexpr (solver_sp2_detail::is_derivative<nonlinear_type>::value) {
+    if constexpr (solver_sp_detail::is_derivative<nonlinear_type>::value) {
       return expr::split::separate_operator(nonlinear);
-    } else if constexpr (solver_sp2_detail::all_terms_derivative<nonlinear_type>::value) {
-      return solver_sp2_detail::factor_derivative_sum(nonlinear);
+    } else if constexpr (solver_sp_detail::all_terms_derivative<nonlinear_type>::value) {
+      return solver_sp_detail::factor_derivative_sum(nonlinear);
     } else {
       return std::make_pair(OpIdentity{}, nonlinear);
     }
@@ -276,7 +306,7 @@ decltype(auto) form_expr_one(std::tuple<Ss...> const& systems,
     if constexpr (!std::is_arithmetic_v<decltype(deriv_grid)>) {
       for (len_type i = 0; i < ab_len; ++i) B_data[i] *= deriv_grid.values[i];
     }
-    expr::printe(nl_deriv_op, "SP2 factored derivative (applied to B(k))");
+    expr::printe(nl_deriv_op, "SP factored derivative (applied to B(k))");
   }
 
   // Build the real-space NL expression: non_op + factored nonlinear inner.
@@ -293,7 +323,7 @@ decltype(auto) form_expr_one(std::tuple<Ss...> const& systems,
     // Use get_l_op on linear_in_nonZ with each other variable index to extract
     // the k-space operator. For 2-field systems, all cross terms reference one
     // other field. For N>2, separate_var first isolates each field's terms.
-    auto data = SpectralDataSP2<decltype(nl_real)>(A_data, B_data, tlen,
+    auto data = SpectralDataSP<decltype(nl_real)>(A_data, B_data,
         grid::length(sys.get()), nl_real);
 
     // For each other field J != Z: extract spectral operator, build cross kernel.
@@ -330,7 +360,7 @@ decltype(auto) form_expr_one(std::tuple<Ss...> const& systems,
           // assignment must still compile when instantiated for either type.
           data.cross_frame_ts[idx] =
               reinterpret_cast<complex_t*>(std::get<J>(systems).frame_t);
-          expr::printe(lop_J, "SP2 cross-field (spectral)");
+          expr::printe(lop_J, "SP cross-field (spectral)");
         }
       }
     };
@@ -346,12 +376,12 @@ decltype(auto) form_expr_one(std::tuple<Ss...> const& systems,
       (maybe_add(std::integral_constant<size_t, Is>{}), ...);
     }(std::make_index_sequence<sizeof...(Ss)>{});
 
-    expr::printe(nl_real, "SP2 nonlinear (real-space)");
+    expr::printe(nl_real, "SP nonlinear (real-space)");
     return std::make_pair(sys, data);
   } else {
     // No cross-field terms: pure pointwise NL.
-    expr::printe(nl_real, "SP2 nonlinear (real-space)");
-    auto data = SpectralDataSP2<decltype(nl_real)>(A_data, B_data, tlen,
+    expr::printe(nl_real, "SP nonlinear (real-space)");
+    auto data = SpectralDataSP<decltype(nl_real)>(A_data, B_data,
         grid::length(sys.get()), nl_real);
     return std::make_pair(sys, data);
   }
@@ -361,25 +391,25 @@ static auto make_solver(symphas::problem_parameters_type const& parameters) {
   double* h = new double[dim];
   for (iter_type i = 0; i < dim; ++i)
     h[i] = parameters.get_interval_data()[0].at(symphas::index_to_axis(i)).width();
-  auto s = SolverSP2{h, parameters.get_time_step(), dim};
+  auto s = SolverSP{h, parameters.get_time_step(), dim};
   delete[] h;
   return s;
 }
 END_SOLVER
 
 #if defined(USING_CUDA)
-// GPU spectral build: the SP2 solver uses the device-resident spectral system
+// GPU spectral build: the SP solver uses the device-resident spectral system
 // (cuFFT transforms + device spectral algebra). Manually written specialization
 // (as the ASSOCIATE_SOLVER_SYSTEM_TYPE macro would generate) forwarding the
 // simulation dimension D.
 namespace symphas::internal {
 template <>
-struct solver_system_type_match<solver_id_type_SolverSP2, 0> {
+struct solver_system_type_match<solver_id_type_SolverSP, 0> {
   template <typename Ty, size_t D>
   using type = SolverSystemSpectralCUDA<D>;
 };
-constexpr solver_count_index<solver_id_type_SolverSP2, 1>
-    solver_counter(solver_count_index<solver_id_type_SolverSP2, 1>);
+constexpr solver_count_index<solver_id_type_SolverSP, 1>
+    solver_counter(solver_count_index<solver_id_type_SolverSP, 1>);
 }
 #elif defined(USING_MPI) && defined(USING_FFTW_MPI)
 // SolverSystemSpectralMPI<D> is selected (instead of the serial spectral
@@ -388,17 +418,17 @@ constexpr solver_count_index<solver_id_type_SolverSP2, 1>
 // dimension D so the distributed-FFT system is 2D or 3D as appropriate.
 namespace symphas::internal {
 template <>
-struct solver_system_type_match<solver_id_type_SolverSP2, 0> {
+struct solver_system_type_match<solver_id_type_SolverSP, 0> {
   template <typename Ty, size_t D>
   using type = SolverSystemSpectralMPI<D>;
 };
-constexpr solver_count_index<solver_id_type_SolverSP2, 1>
-    solver_counter(solver_count_index<solver_id_type_SolverSP2, 1>);
+constexpr solver_count_index<solver_id_type_SolverSP, 1>
+    solver_counter(solver_count_index<solver_id_type_SolverSP, 1>);
 }
 #else
-ASSOCIATE_SOLVER_SYSTEM_TYPE(SolverSP2, SolverSystemSpectral)
+ASSOCIATE_SOLVER_SYSTEM_TYPE(SolverSP, SolverSystemSpectral)
 #endif
 
-ASSOCIATE_PROVISIONAL_SYSTEM_TYPE(SolverSP2, ProvisionalSystemSpectral)
-SYMPHAS_SOLVER_ALL_SUPPORTED(SolverSP2)
+ASSOCIATE_PROVISIONAL_SYSTEM_TYPE(SolverSP, ProvisionalSystemSpectral)
+SYMPHAS_SOLVER_ALL_SUPPORTED(SolverSP)
 #endif

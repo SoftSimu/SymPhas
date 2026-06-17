@@ -304,6 +304,14 @@ struct domain_info {
   len_type local_y_end;
   len_type local_ny;
 
+  // Local block extents along Z (3-D Z-slab decomposition only). For D<3 these
+  // are unused. The 3-D path decomposes ONLY the slowest (Z) axis across all
+  // ranks, keeping the full X and Y extent on every rank — the direct analog of
+  // the bit-exact 1-D Y-slab (Px==1) used in 2-D.
+  len_type local_z_start;
+  len_type local_z_end;
+  len_type local_nz;
+
   // Periodic neighbor ranks for Y halos (always valid for periodic BCs).
   int neighbor_below;     // -Y
   int neighbor_above;     // +Y
@@ -314,6 +322,12 @@ struct domain_info {
   // either case.
   int neighbor_left;      // -X
   int neighbor_right;     // +X
+
+  // Periodic neighbor ranks for Z halos (3-D Z-slab only). For the Z-slab the
+  // X and Y halos are handled locally by the periodic boundary updater (every
+  // rank owns the full X,Y extent), so only the Z halos cross the wire.
+  int neighbor_front;     // -Z
+  int neighbor_back;      // +Z
 
   len_type boundary_depth;
 
@@ -331,8 +345,10 @@ struct domain_info {
         dims_cart{1, 1}, coords{0, 0},
         local_x_start{}, local_x_end{}, local_nx{},
         local_y_start{}, local_y_end{}, local_ny{},
+        local_z_start{}, local_z_end{}, local_nz{},
         neighbor_below{MPI_PROC_NULL}, neighbor_above{MPI_PROC_NULL},
         neighbor_left{MPI_PROC_NULL}, neighbor_right{MPI_PROC_NULL},
+        neighbor_front{MPI_PROC_NULL}, neighbor_back{MPI_PROC_NULL},
         boundary_depth{}, local_storage{false} {}
 
   domain_info(const len_type (&dims)[D], len_type bdepth)
@@ -342,15 +358,41 @@ struct domain_info {
         coords{0, get_node_rank()},
         local_x_start{}, local_x_end{}, local_nx{},
         local_y_start{}, local_y_end{}, local_ny{},
+        local_z_start{}, local_z_end{}, local_nz{},
         neighbor_below{MPI_PROC_NULL}, neighbor_above{MPI_PROC_NULL},
         neighbor_left{MPI_PROC_NULL}, neighbor_right{MPI_PROC_NULL},
+        neighbor_front{MPI_PROC_NULL}, neighbor_back{MPI_PROC_NULL},
         boundary_depth{bdepth}, local_storage{false} {
     for (iter_type i = 0; i < D; ++i) {
       global_dims[i] = dims[i];
       interior_dims[i] = dims[i] - 2 * bdepth;
     }
 
-    if constexpr (D >= 2) {
+    if constexpr (D == 3) {
+      // 3-D Z-slab: decompose ONLY the slowest (Z) axis across all ranks;
+      // every rank keeps the full X and Y extent. This is the direct analog of
+      // the bit-exact 1-D Y-slab (Px==1) 2-D path: the rank's block is a
+      // contiguous range of Z-planes, so halo exchange and I/O sync are plain
+      // contiguous sends (no MPI_Type_vector). X and Y periodicity is handled
+      // locally by the periodic boundary updater on every rank.
+      local_x_start = 0;
+      local_x_end = interior_dims[0];
+      local_nx = interior_dims[0];
+      local_y_start = 0;
+      local_y_end = interior_dims[1];
+      local_ny = interior_dims[1];
+
+      len_type nz_total = interior_dims[2];
+      len_type z_base = nz_total / num_ranks;
+      len_type z_rem = nz_total % num_ranks;
+      local_z_start = z_base * rank + std::min((len_type)rank, z_rem);
+      local_z_end = z_base * (rank + 1) + std::min((len_type)(rank + 1), z_rem);
+      local_nz = local_z_end - local_z_start;
+
+      // Periodic Z neighbors (front = -Z, back = +Z).
+      neighbor_front = (rank - 1 + num_ranks) % num_ranks;
+      neighbor_back = (rank + 1) % num_ranks;
+    } else if constexpr (D == 2) {
       auto [px, py] = get_mpi_dims_cart();
       dims_cart[0] = px;
       dims_cart[1] = py;
@@ -496,8 +538,38 @@ inline MPI_Datatype get_cached_y_strip(int bdepth, int local_nx, int row_len) {
 //! is correct (and bit-identical) for the legacy 1-D Y-slab case.
 template <typename T, size_t D>
 inline void exchange_halos(T* values, const domain_info<D>& dinfo) {
-  static_assert(D == 2, "Halo exchange implemented for 2D only");
+  static_assert(D == 2 || D == 3,
+                "Halo exchange implemented for 2D and 3D");
   SYMPHAS_MPI_PROFILE_SCOPE("halo_total");
+
+  if constexpr (D == 3) {
+    // 3-D Z-slab: contiguous front/back (−Z/+Z) halo exchange. The rank owns a
+    // contiguous range of Z-planes spanning the full X×Y extent, so a Z-halo of
+    // width bdepth is exactly bdepth whole XY-planes of contiguous memory — the
+    // direct analog of the 2-D Px==1 contiguous full-row send. X and Y
+    // periodicity is filled locally by the periodic boundary updater on every
+    // rank (each rank owns the full X,Y extent), so no X/Y MPI traffic.
+    len_type bdepth = dinfo.boundary_depth;
+    len_type plane = dinfo.global_dims[0] * dinfo.global_dims[1];
+    len_type strip = bdepth * plane;
+    len_type my_first = bdepth + dinfo.local_z_start;
+    len_type my_last = bdepth + dinfo.local_z_start + dinfo.local_nz;
+    T* send_front = values + my_first * plane;
+    T* send_back = values + (my_last - bdepth) * plane;
+    T* recv_front = values + (my_first - bdepth) * plane;
+    T* recv_back = values + my_last * plane;
+    MPI_Request requests[4];
+    MPI_Isend(send_front, static_cast<int>(strip), mpi_type<T>(),
+              dinfo.neighbor_front, 0, MPI_COMM_WORLD, &requests[0]);
+    MPI_Irecv(recv_front, static_cast<int>(strip), mpi_type<T>(),
+              dinfo.neighbor_front, 1, MPI_COMM_WORLD, &requests[1]);
+    MPI_Isend(send_back, static_cast<int>(strip), mpi_type<T>(),
+              dinfo.neighbor_back, 1, MPI_COMM_WORLD, &requests[2]);
+    MPI_Irecv(recv_back, static_cast<int>(strip), mpi_type<T>(),
+              dinfo.neighbor_back, 0, MPI_COMM_WORLD, &requests[3]);
+    MPI_Waitall(4, requests, MPI_STATUSES_IGNORE);
+    return;
+  } else {
   len_type bdepth = dinfo.boundary_depth;
   // Row stride and per-rank origin depend on storage layout:
   //   - Legacy: every rank holds full N² → row_len = global_dims[0],
@@ -605,6 +677,7 @@ inline void exchange_halos(T* values, const domain_info<D>& dinfo) {
     MPI_Waitall(4, requests, MPI_STATUSES_IGNORE);
     // No MPI_Type_free: datatype is cached for the lifetime of the run.
   }
+  }  // end else (D == 2)
 }
 
 //! Recompute another rank's local (x_start, x_end, y_start, y_end) given
@@ -632,8 +705,40 @@ inline void rank_block_extents(const domain_info<D>& dinfo, int r,
 
 template <typename T, size_t D>
 inline void sync_all_slabs(T* values, const domain_info<D>& dinfo) {
-  static_assert(D == 2, "Slab sync implemented for 2D only");
+  static_assert(D == 2 || D == 3, "Slab sync implemented for 2D and 3D");
   SYMPHAS_MPI_PROFILE_SCOPE("io_sync");
+
+  if constexpr (D == 3) {
+    // 3-D Z-slab: each rank's block is a contiguous range of whole XY-planes,
+    // so the sync is a plain contiguous broadcast per rank (mirrors the 2-D
+    // Px==1 contiguous path). X and Y periodic ghosts are already filled in
+    // each plane by the per-rank periodic boundary updater; only the Z (front/
+    // back) ghost planes need a wrap refresh afterwards.
+    len_type bdepth = dinfo.boundary_depth;
+    len_type plane = dinfo.global_dims[0] * dinfo.global_dims[1];
+    len_type nz_total = dinfo.interior_dims[2];
+    for (int r = 0; r < dinfo.num_ranks; ++r) {
+      len_type z_base = nz_total / dinfo.num_ranks;
+      len_type z_rem = nz_total % dinfo.num_ranks;
+      len_type rz0 = z_base * r + std::min((len_type)r, z_rem);
+      len_type rz1 = z_base * (r + 1) + std::min((len_type)(r + 1), z_rem);
+      len_type r_nz = rz1 - rz0;
+      T* block_ptr = values + (bdepth + rz0) * plane;
+      MPI_Bcast(block_ptr, static_cast<int>(r_nz * plane), mpi_type<T>(), r,
+                MPI_COMM_WORLD);
+    }
+    // Refresh Z periodic ghost planes (front = -Z, back = +Z).
+    for (len_type b = 0; b < bdepth; ++b) {
+      T* front_ghost = values + b * plane;
+      T* front_src = values + (bdepth + nz_total - bdepth + b) * plane;
+      std::copy(front_src, front_src + plane, front_ghost);
+      T* back_ghost = values + (bdepth + nz_total + b) * plane;
+      T* back_src = values + (bdepth + b) * plane;
+      std::copy(back_src, back_src + plane, back_ghost);
+    }
+    return;
+  }
+
   len_type row_len = dinfo.global_dims[0];
   len_type bdepth = dinfo.boundary_depth;
 
@@ -690,8 +795,34 @@ inline void sync_all_slabs(T* values, const domain_info<D>& dinfo) {
 
 template <typename T, size_t D>
 inline void gather_field_to_host(T* values, const domain_info<D>& dinfo) {
-  static_assert(D == 2, "Gather implemented for 2D only");
+  static_assert(D == 2 || D == 3, "Gather implemented for 2D and 3D");
   SYMPHAS_MPI_PROFILE_SCOPE("io_gather");
+
+  if constexpr (D == 3) {
+    // 3-D Z-slab gather: host receives each rank's contiguous Z-slab of whole
+    // XY-planes. Mirrors the 2-D Px==1 contiguous path.
+    len_type bdepth = dinfo.boundary_depth;
+    len_type plane = dinfo.global_dims[0] * dinfo.global_dims[1];
+    len_type nz_total = dinfo.interior_dims[2];
+    if (is_host_node()) {
+      for (int r = 1; r < dinfo.num_ranks; ++r) {
+        len_type z_base = nz_total / dinfo.num_ranks;
+        len_type z_rem = nz_total % dinfo.num_ranks;
+        len_type rz0 = z_base * r + std::min((len_type)r, z_rem);
+        len_type rz1 = z_base * (r + 1) + std::min((len_type)(r + 1), z_rem);
+        len_type r_nz = rz1 - rz0;
+        T* block_ptr = values + (bdepth + rz0) * plane;
+        MPI_Recv(block_ptr, static_cast<int>(r_nz * plane), mpi_type<T>(), r,
+                 100, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      }
+    } else {
+      T* my_block = values + (bdepth + dinfo.local_z_start) * plane;
+      MPI_Send(my_block, static_cast<int>(dinfo.local_nz * plane), mpi_type<T>(),
+               SYMPHAS_MPI_HOST_RANK, 100, MPI_COMM_WORLD);
+    }
+    return;
+  }
+
   len_type row_len = dinfo.global_dims[0];
   len_type bdepth = dinfo.boundary_depth;
   if (is_host_node()) {
