@@ -34,10 +34,12 @@
 //   USE_GRID_HH          - minimal H&H subset (MA, MB, MC, MH, MF) used for
 //                          the validation grid; cheaper to compile than the
 //                          full USE_EXTENDED_MODELS set.
+//   USE_KKS_MODELS       - the Kim-Kim-Suzuki coupled solidification model.
 // to opt into the extended model definitions. Either may be used alone or
 // together. When neither is set the basic in-line definitions below are used.
 #if !defined(BASIC_MODELS) && !defined(USE_EXTENDED_MODELS) && \
-    !defined(USE_PFC_MODELS) && !defined(USE_GRID_HH)
+    !defined(USE_PFC_MODELS) && !defined(USE_GRID_HH) && \
+    !defined(USE_KKS_MODELS)
 #define BASIC_MODELS
 #endif
 
@@ -134,6 +136,10 @@ DEFINE_MODEL_FIELD_NAMES(MF, ("n", "g"))
 
 #ifdef USE_PFC_MODELS
 #include "pfcdefs.h"
+#endif
+
+#ifdef USE_KKS_MODELS
+#include "kksdefs.h"
 #endif
 
 #endif
