@@ -565,8 +565,16 @@ struct box_list : symphas::lib::array_container<T> {
   using parent_type::data;
   using parent_type::n;
   // using parent_type::parent_type;
-  using parent_type::operator T*;
-  using parent_type::operator const T*;
+  // NOTE: do NOT `using parent_type::operator T*;` / `operator const T*;` here.
+  // box_list re-declares both conversion operators directly below, so the
+  // using-declarations are redundant. More importantly, having both the
+  // inherited (via using-declaration) and the directly-declared conversion
+  // operator with the same signature makes nvcc's cudafe++ front-end emit a
+  // bogus parse error ("'_Tp' does not name a type") on this line, which
+  // breaks every CUDA build that includes this header (all GPU solvers).
+  // g++ tolerates the redundancy, but nvcc does not, so keep only the direct
+  // declarations. `operator[]` IS inherited below because box_list only
+  // declares the const overload and needs the base's non-const T& overload.
   using parent_type::operator[];
 
   __host__ __device__ box_list(T dim0, T dim1, T dim2)

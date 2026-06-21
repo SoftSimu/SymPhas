@@ -398,18 +398,34 @@ static auto make_solver(symphas::problem_parameters_type const& parameters) {
 END_SOLVER
 
 #if defined(USING_CUDA)
-// GPU spectral build: the SP solver uses the device-resident spectral system
-// (cuFFT transforms + device spectral algebra). Manually written specialization
-// (as the ASSOCIATE_SOLVER_SYSTEM_TYPE macro would generate) forwarding the
-// simulation dimension D.
+// GPU spectral build. To match SolverFT's selectable CPU/GPU registration,
+// BOTH the serial (FFTW) and device (cuFFT) spectral systems are compiled into
+// a CUDA build and chosen at runtime by the JSON `solver_variation`, exactly
+// like the finite-difference solver's CPU/CUDA systems:
+//   solver_variation 0 -> SolverSystemSpectral<scalar_t, D>  (CPU, FFTW)
+//   solver_variation 1 -> SolverSystemSpectralCUDA<D>        (GPU, cuFFT)
+// The serial system registers through the standard selectable macro (it takes
+// <Ty, D>). The device system takes only <D> (it is always real-valued), so it
+// cannot use that macro; its registration is written out by hand below,
+// mirroring the macro's solver_counter increment so it lands at the next
+// variation index (1).
+ASSOCIATE_SELECTABLE_SOLVER_SYSTEM_TYPE(SolverSP, SolverSystemSpectral)
 namespace symphas::internal {
+constexpr size_t SOLVER_INDEX_NAME(SolverSystemSpectralCUDA) =
+    decltype(solver_counter(
+        solver_count_index<solver_id_type_SolverSP,
+                           SOLVER_MAX_VARIATIONS>{}))::value;
 template <>
-struct solver_system_type_match<solver_id_type_SolverSP, 0> {
+struct solver_system_type_match<
+    solver_id_type_SolverSP,
+    SOLVER_INDEX_NAME(SolverSystemSpectralCUDA) - 1> {
   template <typename Ty, size_t D>
   using type = SolverSystemSpectralCUDA<D>;
 };
-constexpr solver_count_index<solver_id_type_SolverSP, 1>
-    solver_counter(solver_count_index<solver_id_type_SolverSP, 1>);
+constexpr solver_count_index<solver_id_type_SolverSP,
+                             SOLVER_INDEX_NAME(SolverSystemSpectralCUDA)>
+    solver_counter(solver_count_index<solver_id_type_SolverSP,
+                                      SOLVER_INDEX_NAME(SolverSystemSpectralCUDA)>);
 }
 #elif defined(USING_MPI) && defined(USING_FFTW_MPI)
 // SolverSystemSpectralMPI<D> is selected (instead of the serial spectral

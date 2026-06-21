@@ -366,7 +366,7 @@ struct model_select {
       constexpr int last_index = decltype(symphas::internal::model_counter(
           symphas::internal::model_count_index<MAX_DEFINED_MODELS>{}))::value;
       return model_call_wrapper<model_apply_type, last_index - 1>::
-          template call<AppliedSolver>(dimension, name,
+          template call<AppliedSolver>(dimension, stp, name,
                                        std::forward<Ts>(args)...);
     } else {
       return 0;

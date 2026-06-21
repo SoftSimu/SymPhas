@@ -283,15 +283,16 @@
                                                std::forward<Ts>(args)...);     \
     }                                                                          \
     template <template <size_t> typename AppliedSolver, typename... Ts>        \
-    static int call(size_t dimension, const char* name, Ts&&... args) {        \
+    static int call(size_t dimension, StencilParams stp, const char* name,     \
+                    Ts&&... args) {                                            \
       if (std::strcmp(name, #GIVEN_NAME) == 0) {                               \
         return ModelSelect<model_apply_type, MODEL, AppliedSolver>{            \
-            name, dimension}(std::forward<Ts>(args)...);                       \
+            name, dimension, stp.type}(std::forward<Ts>(args)...);             \
       }                                                                        \
       return model_call_wrapper<                                               \
           model_apply_type,                                                    \
           symphas::internal::MODEL_INDEX_NAME(NAME, GIVEN_NAME) -              \
-              1>::template call<AppliedSolver>(dimension, name,                \
+              1>::template call<AppliedSolver>(dimension, stp, name,           \
                                                std::forward<Ts>(args)...);     \
     }                                                                          \
   };

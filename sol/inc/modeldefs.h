@@ -188,7 +188,7 @@ struct model_call_wrapper {
   }
 
   template <template <size_t> typename AppliedSolver, typename... Ts>
-  static int call(size_t, const char*, Ts&&...) {
+  static int call(size_t, StencilParams, const char*, Ts&&...) {
     return INVALID_MODEL;
   }
 };
