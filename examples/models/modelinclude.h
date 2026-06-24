@@ -60,7 +60,7 @@ LINK_WITH_NAME(CONV, CONVOLUTION)
 // that form_expr receives the provisional expressions alongside the evolution
 // equations, allowing re-evaluation during the solve.
 
-// MagneticPFC2013: Magnetic Phase-Field Crystal (Faghihi et al., PRE 88, 2013)
+// FMPFC: Ferromagnetic Phase-Field Crystal (Faghihi et al., PRE 88, 2013)
 //
 // The demagnetizing field B_ind = curl(A_z) where A_z = PoissonSolver(curl(M))
 // is inlined directly into the magnetization evolution equation rather than
@@ -72,7 +72,7 @@ LINK_WITH_NAME(CONV, CONVOLUTION)
 // B_ind_x =  dAz/dy = grady(PoissonSolver(curl(M)))
 // B_ind_y = -dAz/dx = -gradx(PoissonSolver(curl(M)))
 
-MODEL(MagneticPFC2013, (SCALAR, VECTOR),
+MODEL(FMPFC, (SCALAR, VECTOR),
       EVOLUTION(
             dop(1) = lap(c(1) * op(1) + c(2) * op(1) +
                         c(2) * 2_n * lap(op(1)) + c(2) * bilap(op(1)) -
@@ -85,12 +85,13 @@ MODEL(MagneticPFC2013, (SCALAR, VECTOR),
                   c(9) * op(2) * dot(op(2), op(2)) +
                   c(10) * grad(op(1)) * dot(op(2), grad(op(1))) +
                   grady(PoissonSolver(curl(op(2)))) * e_x<Dm> -
-                  gradx(PoissonSolver(curl(op(2)))) * e_y<Dm>
+                  gradx(PoissonSolver(curl(op(2)))) * e_y<Dm> +
+                  c(11) * e_x<Dm> + c(12) * e_y<Dm> + c(13)*_cW(VECTOR)
       )
 )
-LINK_WITH_NAME(MagneticPFC2013, MAGNETICPFC2013)
+LINK_WITH_NAME(FMPFC, FMPFC)
 
-MODEL(FMPFCLinearField, (SCALAR, VECTOR),
+MODEL(FMPFCTriangleWave, (SCALAR, VECTOR),
       PROVISIONAL_DEF((SCALAR, VECTOR, SCALAR), 
         var(1) <= PoissonSolver(curl(op(2))),
         var(2) <= grady(var(1)) * e_x<Dm> - gradx(var(1)) * e_y<Dm>,
@@ -109,9 +110,9 @@ MODEL(FMPFCLinearField, (SCALAR, VECTOR),
                   c(10) * grad(op(1)) * dot(op(2), grad(op(1))) + var(2) + var(3) * e_y<Dm>
       )
 )
-LINK_WITH_NAME(FMPFCLinearField, FMPFCLINEARFIELD)
+LINK_WITH_NAME(FMPFCTriangleWave, FMPFCTRIANGLEWAVE)
 
-// AnisotropicFMPFC: MagneticPFC2013 plus higher-order magnetostriction.
+// AnisotropicFMPFC: FMPFC plus higher-order magnetostriction.
 //
 // Adds free-energy contributions
 //   F += -omega * alpha3 * (m . grad n)^4 / 4
@@ -123,7 +124,7 @@ LINK_WITH_NAME(FMPFCLinearField, FMPFCLINEARFIELD)
 //                           + k * (m.grad n)^(k-1) * m.grad(m.grad n)
 //
 // Coefficient slots:
-//   c(1)..c(10) match MagneticPFC2013 (DeltaB, Bs, t, v, unused, W0,
+//   c(1)..c(10) match FMPFC (DeltaB, Bs, t, v, unused, W0,
 //   omega*r_c, omega*beta, omega*gamma, omega*alpha).
 //   c(11) = cubic magnetostriction (alpha3).
 //   c(12) = quintic magnetostriction (alpha5).
