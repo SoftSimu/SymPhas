@@ -92,11 +92,6 @@ MODEL(FMPFC, (SCALAR, VECTOR),
 LINK_WITH_NAME(FMPFC, FMPFC)
 
 MODEL(FMPFCTriangleWave, (SCALAR, VECTOR),
-      PROVISIONAL_DEF((SCALAR, VECTOR, SCALAR), 
-        var(1) <= PoissonSolver(curl(op(2))),
-        var(2) <= grady(var(1)) * e_x<Dm> - gradx(var(1)) * e_y<Dm>,
-        var(3) <= c(11) * asin(sin(2 * pi_n * t / c(12)))
-      )
       EVOLUTION(
             dop(1) = lap(c(1) * op(1) + c(2) * op(1) +
                         c(2) * 2_n * lap(op(1)) + c(2) * bilap(op(1)) -
@@ -107,7 +102,11 @@ MODEL(FMPFCTriangleWave, (SCALAR, VECTOR),
             dop(2) = c(6) * c(6) * lap(op(2)) - c(7) * op(2) +
                   c(8) * power(op(1), 2) * op(2) -
                   c(9) * op(2) * dot(op(2), op(2)) +
-                  c(10) * grad(op(1)) * dot(op(2), grad(op(1))) + var(2) + var(3) * e_y<Dm>
+                  c(10) * grad(op(1)) * dot(op(2), grad(op(1))) +
+                  grady(PoissonSolver(curl(op(2)))) * e_x<Dm> -
+                  gradx(PoissonSolver(curl(op(2)))) * e_y<Dm> +
+                  c(11) * (2/pi_n) *asin(sin(2 * pi_n * t / c(12))) * e_y<Dm>
+                  
       )
 )
 LINK_WITH_NAME(FMPFCTriangleWave, FMPFCTRIANGLEWAVE)
