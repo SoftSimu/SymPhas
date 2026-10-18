@@ -2078,10 +2078,10 @@ auto index_variables(std::tuple<Variable<Z0, G0>, Gs...> const& data_list,
         index_variables(symphas::lib::get_tuple_ge<1>(data_list),
                         std::index_sequence<Is...>{}));
   } else if constexpr (Z0 < I0) {
-    return std::tuple_cat(
-        std::make_tuple(OpVoid{}),
-        index_variables(symphas::lib::get_tuple_ge<1>(data_list),
-                        std::index_sequence<Is...>{}));
+    // A repeated variable that was already placed: skip it without using up
+    // the current index, otherwise the following variable is lost.
+    return index_variables(symphas::lib::get_tuple_ge<1>(data_list),
+                           std::index_sequence<I0, Is...>{});
   } else {
     return std::tuple_cat(
         std::make_tuple(OpVoid{}),
