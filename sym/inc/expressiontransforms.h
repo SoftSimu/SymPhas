@@ -646,10 +646,25 @@ auto to_ft(OpAdd<Es...> const& e, double const* h, const len_type* dims) {
   return to_ft_adds<D>(e, h, dims, std::make_index_sequence<sizeof...(Es)>{});
 }
 
+namespace {
+// True for unapplied operators (and products of them), whose Fourier
+// transforms compose by pointwise multiplication rather than convolution.
+template <typename E>
+constexpr bool is_ft_operator_v = std::is_base_of_v<OpOperator<E>, E>;
+template <typename E1, typename E2>
+constexpr bool is_ft_operator_v<OpBinaryMul<E1, E2>> =
+    is_ft_operator_v<E1> && is_ft_operator_v<E2>;
+}  // namespace
+
 template <size_t D, typename E1, typename E2>
 auto to_ft(OpBinaryMul<E1, E2> const& e, double const* h,
            const len_type* dims) {
-  return expr::make_convolution(to_ft<D>(e.a, h, dims), to_ft<D>(e.b, h, dims));
+  if constexpr (is_ft_operator_v<E1> && is_ft_operator_v<E2>) {
+    return to_ft<D>(e.a, h, dims) * to_ft<D>(e.b, h, dims);
+  } else {
+    return expr::make_convolution(to_ft<D>(e.a, h, dims),
+                                  to_ft<D>(e.b, h, dims));
+  }
 }
 
 template <size_t D, typename E>
