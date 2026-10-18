@@ -325,10 +325,15 @@ struct MapGridFourier : FourierGridTarget<T, D> {
     len = src.len;
   }
 
-  MapGridFourier(MapGridFourier<S, T, D>&& other) noexcept : MapGridFourier() {
+  // The move constructor and assignment take the full type (including
+  // make_ft_helper); otherwise backward plan maps get an implicit memberwise
+  // assignment that shares, and later dangles, the FFTW plan.
+  MapGridFourier(MapGridFourier<S, T, D, make_ft_helper>&& other) noexcept
+      : MapGridFourier() {
     swap(*this, other);
   }
-  MapGridFourier<S, T, D>& operator=(MapGridFourier<S, T, D> other) {
+  MapGridFourier<S, T, D, make_ft_helper>& operator=(
+      MapGridFourier<S, T, D, make_ft_helper> other) {
     swap(*this, other);
     return *this;
   }
@@ -401,17 +406,16 @@ struct MapGridFourier<any_vector_t<S, D>, any_vector_t<T, D>, D, make_ft_helper>
     }
   }
 
-  MapGridFourier(MapGridFourier<S, T, D>&& other) noexcept : MapGridFourier() {
+  MapGridFourier(MapGridFourier&& other) noexcept : MapGridFourier() {
     swap(*this, other);
   }
 
-  MapGridFourier<S, T, D>& operator=(MapGridFourier<S, T, D> other) {
+  MapGridFourier& operator=(MapGridFourier other) {
     swap(*this, other);
     return *this;
   }
 
-  friend void swap(MapGridFourier<S, T, D>& first,
-                   MapGridFourier<S, T, D>& second) {
+  friend void swap(MapGridFourier& first, MapGridFourier& second) {
     using std::swap;
 
     // swap(*static_cast<source_parent_type*>(&first),
