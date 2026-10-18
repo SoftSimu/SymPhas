@@ -3026,6 +3026,26 @@ auto operator*(coeff_t const& value,
       value * expr::get_enclosed_expression(b));
 }
 
+// The Poisson solve is linear, so a scalar coefficient moves inside the map.
+template <typename coeff_t, typename E,
+          typename std::enable_if_t<
+              (expr::is_coeff<coeff_t> && !expr::is_tensor<coeff_t>), int> = 0>
+auto operator*(coeff_t const& value,
+               OpMap<symphas::internal::PoissonSolver, OpIdentity, E> const& b) {
+  return expr::make_map<symphas::internal::PoissonSolver>(
+      value * expr::get_enclosed_expression(b));
+}
+
+// A tensor coefficient (e.g. a basis vector) stays outside, so the source of
+// the Poisson solve remains scalar.
+template <typename coeff_t, typename E,
+          typename std::enable_if_t<
+              (expr::is_coeff<coeff_t> && expr::is_tensor<coeff_t>), int> = 0>
+auto operator*(coeff_t const& value,
+               OpMap<symphas::internal::PoissonSolver, OpIdentity, E> const& b) {
+  return expr::make_mul(value, b);
+}
+
 //! Rearranges a complex-valued expression determined using FFTW algorithms.
 /*!
  * Rearranges a complex-valued expression determined using FFTW algorithms.
