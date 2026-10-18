@@ -910,6 +910,10 @@ auto real_space_form(std::tuple<S...> const& systems,
 template <size_t Z0, size_t D, typename... S, typename... Es>
 auto real_space_form(std::tuple<S...> const& systems, OpAdd<Es...> const& e,
                      double const* h, const len_type* dims);
+template <size_t Z0, size_t D, typename... S, expr::exp_key_t X, typename V,
+          typename E>
+auto real_space_form(std::tuple<S...> const& systems, OpPow<X, V, E> const& e,
+                     double const* h, const len_type* dims);
 template <size_t Z0, size_t D, typename... S, typename Dd, typename V,
           typename E, typename Sp>
 auto real_space_form(std::tuple<S...> const& systems,
@@ -1241,6 +1245,20 @@ auto real_space_form(std::tuple<S...> const& systems,
   }
 }
 
+//! A power of an expression (e.g. (M.grad n)^5): the power of the real-space
+//! form of its base, evaluated pointwise.
+template <size_t Z0, size_t D, typename... S, expr::exp_key_t X, typename V,
+          typename E>
+auto real_space_form(std::tuple<S...> const& systems, OpPow<X, V, E> const& e,
+                     double const* h, const len_type* dims) {
+  if constexpr (expr::grid_dim<OpPow<X, V, E>>::value == 0) {
+    return e;  // no grid data (e.g. a function of the time t)
+  } else {
+    return expr::make_pow<X>(e.value,
+                             real_space_form<Z0, D>(systems, e.e, h, dims));
+  }
+}
+
 //! A derivative: its coefficient is applied in real space, so that the
 //! transform of the derivative itself can be shared with other terms.
 template <size_t Z0, size_t D, typename... S, typename Dd, typename V,
@@ -1406,6 +1424,19 @@ auto construct_nonlinear(std::tuple<S...> const& systems,
     // One forward transform of the product evaluated in real space.
     return B_term * expr::make_fourier_map(real_space_form<Z0, D>(systems, e, h, dims));
   }
+}
+
+//! A power of an expression: one forward transform of the power evaluated
+//! in real space, as for a product.
+template <size_t Z0, size_t D, typename... S, typename B, expr::exp_key_t X,
+          typename V, typename E>
+auto construct_nonlinear(std::tuple<S...> const& systems,
+                         OpExpression<B> const& bop, OpPow<X, V, E> const& e,
+                         double const* h, const len_type* dims) {
+  using vt = variable_type<symphas::lib::type_at_index<Z0, S...>>;
+  auto B_term = get_B_term<vt>(*static_cast<B const*>(&bop));
+  return B_term *
+         expr::make_fourier_map(real_space_form<Z0, D>(systems, e, h, dims));
 }
 
 template <size_t Z0, size_t D, typename... S, typename B, typename E1,
