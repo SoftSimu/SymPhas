@@ -188,11 +188,6 @@ struct SolverSystemSpectral<scalar_t, D> : System<scalar_t, D> {
    * \param index The index of the solution.
    */
   void update(iter_type index, double) {
-    if (index % 100 == 0) {
-      symphas::dft::arrange_fftw_stip<D>(
-          values, reinterpret_cast<scalar_t*>(dframe), dims);
-      symphas::dft::fftw_execute(p_to_t);
-    }
     std::copy(
 #ifdef EXECUTION_HEADER_AVAILABLE
         std::execution::par,
@@ -203,6 +198,18 @@ struct SolverSystemSpectral<scalar_t, D> : System<scalar_t, D> {
     symphas::dft::arrange_fftw_ipts<D>(reinterpret_cast<scalar_t*>(dframe),
                                        values, dims);
     grid::scale(System<scalar_t, D>::as_grid());
+
+    // Every 100 iterations the transform is recomputed from the (new) real
+    // values, so that round-off cannot accumulate in the transformed data.
+    // This used to be done before the solver's result in dframe was used,
+    // which replaced that result by the transform of the previous values,
+    // so every 100th step was lost.
+    if (index % 100 == 0) {
+      symphas::dft::arrange_fftw_stip<D>(
+          values, reinterpret_cast<scalar_t*>(dframe), dims);
+      symphas::dft::fftw_execute(p_to_t);
+      std::copy(dframe, dframe + transformed_len, frame_t);
+    }
   }
 
   friend void swap(SolverSystemSpectral<scalar_t, D>& first,
@@ -388,14 +395,6 @@ struct SolverSystemSpectral<vector_t<D>, D> : System<vector_t<D>, D> {
    * \param index The index of the solution.
    */
   void update(iter_type index, double) {
-    if (index % 100 == 0) {
-      for (iter_type i = 0; i < D; ++i) {
-        Axis ax = symphas::index_to_axis(i);
-        symphas::dft::arrange_fftw_stip<D>(
-            axis(ax), reinterpret_cast<scalar_t*>(dframe(ax)), dims);
-        symphas::dft::fftw_execute(p_to_t[i]);
-      }
-    }
     for (iter_type i = 0; i < D; ++i) {
       Axis ax = symphas::index_to_axis(i);
 
@@ -410,6 +409,19 @@ struct SolverSystemSpectral<vector_t<D>, D> : System<vector_t<D>, D> {
           reinterpret_cast<scalar_t*>(dframe(ax)), axis(ax), dims);
     }
     grid::scale(System<base_type, D>::as_grid());
+
+    // Every 100 iterations the transform is recomputed from the (new) real
+    // values (see the scalar system: done before the inverse transform, this
+    // replaced the solver's result and lost every 100th step).
+    if (index % 100 == 0) {
+      for (iter_type i = 0; i < D; ++i) {
+        Axis ax = symphas::index_to_axis(i);
+        symphas::dft::arrange_fftw_stip<D>(
+            axis(ax), reinterpret_cast<scalar_t*>(dframe(ax)), dims);
+        symphas::dft::fftw_execute(p_to_t[i]);
+        std::copy(dframe(ax), dframe(ax) + transformed_len, frame_t(ax));
+      }
+    }
   }
 
   friend void swap(SolverSystemSpectral<base_type, D>& first,
