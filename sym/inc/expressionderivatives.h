@@ -493,6 +493,28 @@ struct setup_result_data<expr::symbols::Symbol> {
   expr::symbols::Symbol operator()(grid::dim_list const& dims) { return {}; }
 };
 
+//! Region over which a derivative fills its temporary grid.
+/*!
+ * For a BoundaryGrid, the outermost ring is excluded: any stencil in the
+ * enclosed expression would read past the ends of the underlying allocation
+ * there (causing a segfault when the neighbouring page is unmapped), and the
+ * outer derivative, evaluated on the interior, never reads that ring.
+ */
+template <typename G>
+auto get_derivative_update_domain(G const& grid) {
+  return grid::get_data_domain(grid);
+}
+
+template <typename T, size_t D>
+auto get_derivative_update_domain(BoundaryGrid<T, D> const& grid) {
+  auto region = grid::get_data_domain(grid);
+  for (iter_type i = 0; i < D; ++i) {
+    region[i][0] += 1;
+    region[i][1] -= 1;
+  }
+  return region;
+}
+
 }  // namespace symphas::internal
 
 namespace expr {
@@ -1620,7 +1642,8 @@ struct OpDerivative : OpExpression<OpDerivative<Dd, V, E, Sp>> {
               symphas::lib::types_list<condition_ts...>) {
     if constexpr (!std::is_same_v<result_grid, int>) {
       symphas::internal::update_temporary_grid(grid, e);
-      eval_handler.result(e, grid, grid::get_data_domain(grid));
+      eval_handler.result(
+          e, grid, symphas::internal::get_derivative_update_domain(grid));
     }
   }
 
