@@ -103,8 +103,11 @@ decltype(auto) form_expr_one(
   auto&& name = expr::get_fourier_name(
       expr::get_op_name(expr::get_variable<Z>(equation)));
 
+  // The transformed data has the dimensions of the system being solved. They
+  // are not read from the equation, since not every term reports them (the
+  // FMPFC magnetization equation reports none).
   len_type dims[D];
-  expr::fill_data_dimensions(equation, dims);
+  std::copy(sys.get().dims, sys.get().dims + D, dims);
   auto term_ft = expr::as_grid_data<D>(sys.get().frame_t, dims);
 
   auto&& A_term = solver_sp::get_A_term<T_src>(A_expression);
