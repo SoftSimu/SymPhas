@@ -1788,6 +1788,43 @@ auto mul_tensor_components(OpExpression<E1> const& a, OpExpression<E2> const& b,
           symphas::lib::seq_repeating_value_t<R, size_t, Ps>...>{});
 }
 
+//! Removes the tensor coefficient like tensor_cancel, keeping its value.
+/*!
+ * Multiplying by tensor_cancel removes the leading tensor coefficient
+ * entirely, including its value (such as a negative sign). Here, the value is
+ * multiplied back. Sums are handled term by term, and products through their
+ * first factor, which is where tensor_cancel acts.
+ */
+template <typename E>
+auto tensor_cancel_keep_value(OpExpression<E> const& e);
+
+template <typename... Es, size_t... Is>
+auto tensor_cancel_keep_value(OpAdd<Es...> const& e,
+                              std::index_sequence<Is...>) {
+  return (tensor_cancel_keep_value(expr::get<Is>(e)) + ...);
+}
+
+template <typename... Es>
+auto tensor_cancel_keep_value(OpAdd<Es...> const& e) {
+  return tensor_cancel_keep_value(e, std::make_index_sequence<sizeof...(Es)>{});
+}
+
+template <typename A, typename B>
+auto tensor_cancel_keep_value(OpBinaryMul<A, B> const& e) {
+  return expr::make_mul(tensor_cancel_keep_value(e.a), e.b);
+}
+
+template <typename E>
+auto tensor_cancel_keep_value(OpExpression<E> const& e) {
+  using coeff_t = std::decay_t<decltype(expr::coeff(std::declval<E>()))>;
+  if constexpr (expr::is_tensor<coeff_t>) {
+    return tensor_cast::cast(expr::coeff(*static_cast<E const*>(&e))) *
+           (tensor_cancel{} * (*static_cast<E const*>(&e)));
+  } else {
+    return tensor_cancel{} * (*static_cast<E const*>(&e));
+  }
+}
+
 template <typename E1, typename E2, size_t R1 = expr::eval_type<E1>::rank,
           size_t R2 = expr::eval_type<E2>::rank,
           size_t Q1 = expr::eval_type<E1>::template rank_<1>,
@@ -1799,9 +1836,12 @@ auto apply_dot(OpExpression<E1> const& a, OpExpression<E2> const& b) {
   }
   // in the special case when 1D tensors are being multiplied
   else if constexpr (R1 == 1 && Q2 == 1 && Q1 == 1 && R1 == 1) {
-    return (symphas::internal::tensor_cancel{} *
-            (*static_cast<E1 const*>(&a))) *
-           (symphas::internal::tensor_cancel{} * (*static_cast<E2 const*>(&b)));
+    // tensor_cancel alone would drop the values of the tensor coefficients
+    // (e.g. the sign of a negative coefficient), so they are kept.
+    return symphas::internal::tensor_cancel_keep_value(
+               *static_cast<E1 const*>(&a)) *
+           symphas::internal::tensor_cancel_keep_value(
+               *static_cast<E2 const*>(&b));
   }
   // multiply a row type by a column type
   else if constexpr (R1 == 1 && Q2 == 1 && Q1 == R2 && R2 > 1) {
