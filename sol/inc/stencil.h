@@ -1204,6 +1204,45 @@ struct GeneralizedStencil {
     return symphas::internal::stencil_apply_type<OD, OA, 1>{}(v, stride, divh);
   }
 
+  //! Mixed derivative as the tensor product of 1D central stencils.
+  /*!
+   * The 1D stencil of order Os[I] along axis I is applied to the values of
+   * the mixed derivative over the remaining axes (I + 1, ...), evaluated at
+   * each point the 1D stencil reads. The generated 2D mixed stencils
+   * (expr::get_central_space_mixed_stencil, used when
+   * GENERATE_UNDEFINED_STENCILS_ON is defined) are wrong whenever an odd
+   * order is combined with an order of 2 or more on the other axis, e.g.
+   * (1, 3) gives -3 times and (3, 1) 0.75 times the derivative, and (3, 2)
+   * and (1, 4) give 0.
+   */
+  template <size_t I, size_t... Os, typename T>
+  __host__ __device__ auto apply_mixed_tensor(
+      T *const v, const len_type (&stride)[sizeof...(Os)]) const {
+    constexpr size_t orders[]{Os...};
+    constexpr size_t O = orders[I];
+    if constexpr (I + 1 == sizeof...(Os)) {
+      if constexpr (O == 0) {
+        return *v;
+      } else {
+        return symphas::internal::stencil_apply_type<O, OA, 1>{}(
+            v, stride[I], divh);
+      }
+    } else if constexpr (O == 0) {
+      return apply_mixed_tensor<I + 1, Os...>(v, stride);
+    } else {
+      constexpr int R = int(symphas::internal::R_<O, OA>);
+      using V = std::remove_const_t<std::remove_reference_t<decltype(
+          apply_mixed_tensor<I + 1, Os...>(v, stride))>>;
+      V values[2 * R + 1];
+      for (int k = -R; k <= R; ++k) {
+        values[k + R] = apply_mixed_tensor<I + 1, Os...>(v + k * stride[I],
+                                                         stride);
+      }
+      return symphas::internal::stencil_apply_type<O, OA, 1>{}(values + R, 1,
+                                                                divh);
+    }
+  }
+
   //! Determine the finite difference approximation to the mixed derivative.
   /*!
    * Determine the finite difference approximation to the mixed derivative of
@@ -1217,8 +1256,12 @@ struct GeneralizedStencil {
 	{
     len_type stride[DD];
     grid::get_stride<Axis::X>(stride, dims);
-    return symphas::internal::mixed_stencil_apply_type<
-        OA, std::index_sequence<OD1, OD2, OD3>>{}(v, stride, divh);
+    if constexpr (DD == 3) {
+      return apply_mixed_tensor<0, OD1, OD2, OD3>(v, stride);
+    } else {
+      return symphas::internal::mixed_stencil_apply_type<
+          OA, std::index_sequence<OD1, OD2, OD3>>{}(v, stride, divh);
+    }
   }
 
   //! Determine the finite difference approximation to the mixed derivative.
@@ -1234,8 +1277,12 @@ struct GeneralizedStencil {
 	{
     len_type stride[DD];
     grid::get_stride<Axis::X>(stride, dims);
-    return symphas::internal::mixed_stencil_apply_type<
-        OA, std::index_sequence<OD1, OD2>>{}(v, stride, divh);
+    if constexpr (DD == 2) {
+      return apply_mixed_tensor<0, OD1, OD2>(v, stride);
+    } else {
+      return symphas::internal::mixed_stencil_apply_type<
+          OA, std::index_sequence<OD1, OD2>>{}(v, stride, divh);
+    }
   }
 
   //! Determine the finite difference approximation to the mixed derivative.
@@ -1271,8 +1318,12 @@ struct GeneralizedStencil {
       T *const v, len_type const (&override_dims)[DD]) const {
     len_type stride[DD];
     grid::get_stride<Axis::X>(stride, override_dims);
-    return symphas::internal::mixed_stencil_apply_type<
-        OA, std::index_sequence<OD1, OD2, OD3>>{}(v, stride, divh);
+    if constexpr (DD == 3) {
+      return apply_mixed_tensor<0, OD1, OD2, OD3>(v, stride);
+    } else {
+      return symphas::internal::mixed_stencil_apply_type<
+          OA, std::index_sequence<OD1, OD2, OD3>>{}(v, stride, divh);
+    }
   }
 
   //! Determine the finite difference approximation to the mixed derivative.
@@ -1288,8 +1339,12 @@ struct GeneralizedStencil {
       T *const v, len_type const (&override_dims)[DD]) const {
     len_type stride[DD];
     grid::get_stride<Axis::X>(stride, override_dims);
-    return symphas::internal::mixed_stencil_apply_type<
-        OA, std::index_sequence<OD1, OD2>>{}(v, stride, divh);
+    if constexpr (DD == 2) {
+      return apply_mixed_tensor<0, OD1, OD2>(v, stride);
+    } else {
+      return symphas::internal::mixed_stencil_apply_type<
+          OA, std::index_sequence<OD1, OD2>>{}(v, stride, divh);
+    }
   }
 
   //! Determine the finite difference approximation to the mixed derivative.
