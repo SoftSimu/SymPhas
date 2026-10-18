@@ -672,6 +672,141 @@ auto handle_apply_mul(Sp const& solver, OpOperatorChain<E10, E11> const& lhs0,
   return apply_operators(expr::make_derivative<Dd>(
       lhs0.f(lhs0.g * (*static_cast<E2 const*>(&rhs0))), solver));
 }
+
+template <typename E>
+constexpr bool is_op_operator_v = std::is_base_of<OpOperator<E>, E>::value;
+
+//! Sum over axes of (d_i a)(d_i b), the cross term of the laplacian rule.
+template <typename Sp, typename E1, typename E2, Axis... axs>
+auto product_rule_cross(Sp const& solver, E1 const& a, E2 const& b,
+                        symphas::lib::axis_list<axs...>) {
+  return (OpVoid{} + ... +
+          (apply_operators(expr::make_derivative<
+                           typename Solver<Sp>::template derivative<axs, 1>>(
+               a, solver)) *
+           apply_operators(expr::make_derivative<
+                           typename Solver<Sp>::template derivative<axs, 1>>(
+               b, solver))));
+}
+
+template <size_t... Os>
+constexpr size_t first_nonzero_order() {
+  constexpr size_t orders[]{Os...};
+  size_t i = 0;
+  while (i < sizeof...(Os) && orders[i] == 0) ++i;
+  return i;
+}
+
+//! Mixed derivative of a product: takes one first-order derivative along the
+//! first axis with a nonzero order, then applies the rest. The rest is built
+//! with one order per grid axis (axs), the form the derivative combination
+//! rules expect.
+template <typename Sp, typename E1, typename E2, size_t... Os, Axis... axs>
+auto apply_mixed_product_rule(Sp const& solver, E1 const& a, E2 const& b,
+                              std::index_sequence<Os...>,
+                              symphas::lib::axis_list<axs...>) {
+  constexpr size_t orders[]{Os...};
+  constexpr Axis axes[]{axs...};
+  constexpr size_t i0 = first_nonzero_order<Os...>();
+  static_assert(i0 < sizeof...(axs), "mixed derivative along a missing axis");
+  using D1 = typename Solver<Sp>::template directional_derivative<axes[i0], 1>;
+  using Dr = typename Solver<Sp>::template mixed_derivative<(
+      orders[static_cast<size_t>(axs)] - ((axs == axes[i0]) ? 1 : 0))...>;
+  return apply_operators(expr::make_derivative<Dr>(
+      handle_apply_mul<D1>(solver, a, b), solver));
+}
+
+//! Recovers the per-axis orders of a mixed derivative type, which cannot be
+//! deduced from the nested template. Returns std::false_type if no match.
+template <typename Sp, typename Dd, size_t O, size_t Rem, size_t... Os>
+auto mixed_derivative_orders();
+
+template <typename Sp, typename Dd, size_t O, size_t Rem, size_t K,
+          size_t... Os>
+auto mixed_derivative_orders_from() {
+  using r = decltype(mixed_derivative_orders<Sp, Dd, O, Rem - 1, Os..., K>());
+  if constexpr (!std::is_same<r, std::false_type>::value) {
+    return r{};
+  } else if constexpr (K < O) {
+    return mixed_derivative_orders_from<Sp, Dd, O, Rem, K + 1, Os...>();
+  } else {
+    return std::false_type{};
+  }
+}
+
+template <typename Sp, typename Dd, size_t O, size_t Rem, size_t... Os>
+auto mixed_derivative_orders() {
+  if constexpr (Rem > 0) {
+    return mixed_derivative_orders_from<Sp, Dd, O, Rem, 0, Os...>();
+  } else if constexpr (std::is_same<Dd, typename Solver<Sp>::template
+                                            mixed_derivative<Os...>>::value) {
+    return std::index_sequence<Os...>{};
+  } else {
+    return std::false_type{};
+  }
+}
+
+//! Product rule for a spatial derivative Dd of any order.
+/*!
+ * handle_apply_mul applies D(ab) = (Da) b + a (Db), which holds only for
+ * first-order D. A higher-order derivative is split into first-order steps
+ * and the laplacian:
+ * - laplacian: lap(ab) = (lap a) b + 2 grad a . grad b + a lap b;
+ * - derivative<ax, O>, O even: lap^(O/2), one laplacian at a time;
+ * - derivative<ax, O>, O odd: d_ax lap^((O-1)/2), d_ax applied first;
+ * - directional and mixed derivatives: one first-order derivative at a time.
+ */
+template <typename Dd, typename Sp, typename E1, typename E2>
+auto apply_product_rule(Sp const& solver, E1 const& a, E2 const& b) {
+  using solver_type = Solver<Sp>;
+  constexpr size_t D = expr::grid_dim<OpBinaryMul<E1, E2>>::value;
+  constexpr size_t O = Dd::order;
+  constexpr Axis ax = Dd::axis;
+
+  // An operator on the left is composed with the right side, not multiplied
+  // (see handle_apply_mul). An operator on the right, such as the row vector
+  // in a dot product, is multiplied like any expression.
+  if constexpr (O <= 1 || D == 0 || is_op_operator_v<E1>) {
+    return handle_apply_mul<Dd>(solver, a, b);
+  } else if constexpr (Dd::is_mixed) {
+    // The mixed derivative factories list D orders or, for the axis-named
+    // forms, always 3.
+    using orders_d = decltype(mixed_derivative_orders<Sp, Dd, O, D>());
+    using orders_t =
+        std::conditional_t<std::is_same<orders_d, std::false_type>::value,
+                           decltype(mixed_derivative_orders<Sp, Dd, O, 3>()),
+                           orders_d>;
+    static_assert(!std::is_same<orders_t, std::false_type>::value,
+                  "unrecognized mixed derivative");
+    return apply_mixed_product_rule(
+        solver, a, b, orders_t{},
+        symphas::lib::make_axis_list<D>());
+  } else if constexpr (Dd::is_directional) {
+    using D1 = typename solver_type::template directional_derivative<ax, 1>;
+    using Dr = typename solver_type::template directional_derivative<ax, O - 1>;
+    return apply_operators(expr::make_derivative<Dr>(
+        handle_apply_mul<D1>(solver, a, b), solver));
+  } else if constexpr (O % 2 == 1) {
+    using D1 = typename solver_type::template derivative<ax, 1>;
+    using Dr = typename solver_type::template derivative<ax, O - 1>;
+    return apply_operators(expr::make_derivative<Dr>(
+        handle_apply_mul<D1>(solver, a, b), solver));
+  } else {
+    using L = typename solver_type::template derivative<ax, 2>;
+    auto lap = apply_operators(expr::make_derivative<L>(a, solver)) * b +
+               expr::make_integer<2>() *
+                   product_rule_cross(solver, a, b,
+                                      symphas::lib::make_axis_list<D>()) +
+               a * apply_operators(expr::make_derivative<L>(b, solver));
+    if constexpr (O == 2) {
+      return lap;
+    } else {
+      using Dr = typename solver_type::template derivative<ax, O - 2>;
+      return apply_operators(expr::make_derivative<Dr>(lap, solver));
+    }
+  }
+}
+
 }  // namespace
 
 //! Implementation of the quotient rule for symbolic derivatives.
@@ -722,9 +857,9 @@ template <typename Dd, typename Sp, typename V, typename E1, typename E2,
               (OpDerivative<Dd, V, OpBinaryMul<E1, E2>, Sp>::order > 0), int>>
 auto apply_operators(OpDerivative<Dd, V, OpBinaryMul<E1, E2>, Sp> const& e) {
   auto expr = expr::get_enclosed_expression(e);
-  return expr::coeff(e) * handle_apply_mul<Dd>(e.solver,
-                                               apply_operators(expr.a),
-                                               apply_operators(expr.b));
+  return expr::coeff(e) * apply_product_rule<Dd>(e.solver,
+                                                 apply_operators(expr.a),
+                                                 apply_operators(expr.b));
 
   // auto expr = expr::get_enclosed_expression(e);
   // auto a = apply_operators(expr.a);
