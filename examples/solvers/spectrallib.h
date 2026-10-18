@@ -738,10 +738,34 @@ auto construct_nonlinear(std::tuple<S...> const& systems,
                          OpExpression<B> const& bop,
                          OpBinaryDiv<OpIdentity, E2> const& e, double const* h,
                          const len_type* dims);
+template <size_t Z0, size_t D, typename... S, typename B, typename E>
+auto construct_nonlinear(
+    std::tuple<S...> const& systems, OpExpression<B> const& bop,
+    OpMap<symphas::internal::PoissonSolver, OpIdentity, E> const& e,
+    double const* h, const len_type* dims);
 
 template <typename S>
 // using variable_type = decltype(std::declval<S>()[0]);
 using variable_type = typename grid::value_type_of<S>::type;
+
+namespace {
+// Some expressions (e.g. applied derivatives) only declare their rank and
+// report expr::symbols::Symbol as their evaluation type, so the real space
+// type is reconstructed from the rank.
+template <typename E, typename T = expr::eval_type_t<E>,
+          size_t R = expr::eval_type<E>::rank>
+struct real_space_eval_type {
+  using type = T;
+};
+
+template <typename E, size_t R>
+struct real_space_eval_type<E, expr::symbols::Symbol, R> {
+  using type = std::conditional_t<(R == 0), scalar_t, vector_t<R>>;
+};
+
+template <typename E>
+using real_space_eval_t = typename real_space_eval_type<E>::type;
+}  // namespace
 
 template <size_t Z0, size_t D, typename... S, typename B, typename E>
 auto construct_nonlinear(std::tuple<S...> const& systems,
@@ -902,17 +926,28 @@ auto construct_nonlinear(std::tuple<S...> const& systems,
 
   auto B_term = get_B_term<vt>(*static_cast<B const*>(&bop));
 
-  using T1 = expr::eval_type_t<E1>;
-  using T2 = expr::eval_type_t<E2>;
+  // A constant factor (e.g. a basis vector) is unchanged by the transform.
+  if constexpr (expr::is_coeff<E1>) {
+    return B_term *
+           (e.a * construct_nonlinear<Z0, D>(systems, OpIdentity{}, e.b, h,
+                                             dims));
+  } else if constexpr (expr::is_coeff<E2>) {
+    return B_term * (construct_nonlinear<Z0, D>(systems, OpIdentity{}, e.a,
+                                                h, dims) *
+                     e.b);
+  } else {
+    using T1 = real_space_eval_t<E1>;
+    using T2 = real_space_eval_t<E2>;
 
-  auto variables = expr::get_indexed_variable_list(e);
+    auto variables = expr::get_indexed_variable_list(e);
 
-  auto ee = anti_convolve<sizeof...(S), T1, T2>(
-      variables,
-      (construct_nonlinear<Z0, D>(systems, OpIdentity{}, e.a, h, dims)),
-      (construct_nonlinear<Z0, D>(systems, OpIdentity{}, e.b, h, dims)));
+    auto ee = anti_convolve<sizeof...(S), T1, T2>(
+        variables,
+        (construct_nonlinear<Z0, D>(systems, OpIdentity{}, e.a, h, dims)),
+        (construct_nonlinear<Z0, D>(systems, OpIdentity{}, e.b, h, dims)));
 
-  return B_term * ee;
+    return B_term * ee;
+  }
 }
 
 template <size_t Z0, size_t D, typename... S, typename B, typename E1,
@@ -925,8 +960,8 @@ auto construct_nonlinear(std::tuple<S...> const& systems,
 
   auto B_term = get_B_term<vt>(*static_cast<B const*>(&bop));
 
-  using T1 = expr::eval_type_t<E1>;
-  using T2 = expr::eval_type_t<E2>;
+  using T1 = real_space_eval_t<E1>;
+  using T2 = real_space_eval_t<E2>;
 
   auto variables = expr::get_indexed_variable_list(e);
 
@@ -949,6 +984,43 @@ auto construct_nonlinear(std::tuple<S...> const& systems,
   auto B_term = get_B_term<vt>(*static_cast<B const*>(&bop));
   auto ft = expr::transform::to_ft<D>(e, h, dims);
   return B_term * ft;
+}
+
+namespace {
+//! Fourier space kernel of PoissonSolver, mu0 / |k|^2 (0 at k = 0).
+/*!
+ * PoissonSolver(E) returns A solving lap(A) = -mu0 E, so in Fourier space
+ * A(k) = mu0 E(k) / |k|^2. The k = 0 mode is set to 0, as in the real space
+ * solver. The wavenumbers are those of the transformed system data.
+ */
+template <size_t D>
+auto poisson_kernel(double const* h, const len_type* dims) {
+  WaveVectorData<2, D> k2(dims, h);  // evaluates to -|k|^2
+  Grid<scalar_t, D> kernel(dims);
+  for (iter_type n = 0; n < kernel.len; ++n) {
+    scalar_t v = k2[n];
+    kernel[n] = (n == 0 || v == 0)
+                    ? 0.
+                    : -symphas::internal::POISSON_MU0 / v;
+  }
+  return expr::make_term(NamedData(std::move(kernel), "mu0/k^2"));
+}
+}  // namespace
+
+//! Solve the Poisson equation in Fourier space.
+/*!
+ * Instead of evaluating the source in real space and solving with an FFT
+ * (which needs real space derivatives), the transform of the source is
+ * constructed like any other nonlinear term and multiplied by mu0 / |k|^2.
+ */
+template <size_t Z0, size_t D, typename... S, typename B, typename E>
+auto construct_nonlinear(
+    std::tuple<S...> const& systems, OpExpression<B> const& bop,
+    OpMap<symphas::internal::PoissonSolver, OpIdentity, E> const& e,
+    double const* h, const len_type* dims) {
+  return poisson_kernel<D>(h, dims) *
+         construct_nonlinear<Z0, D>(systems, *static_cast<B const*>(&bop),
+                                    expr::get_enclosed_expression(e), h, dims);
 }
 
 // **************************************************************************************
