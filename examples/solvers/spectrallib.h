@@ -422,7 +422,7 @@ auto anti_convolve(std::tuple<S...> const&,
                    OpFourierTransform<S1, V1, E1> const& a,
                    OpFourierTransform<S2, V2, E2> const& b) {
   auto ae = expr::get_enclosed_expression(a);
-  auto be = expr::get_enclosed_expression(a);
+  auto be = expr::get_enclosed_expression(b);
   return (expr::coeff(a) * expr::coeff(b)) * expr::make_fourier_map(ae * be);
 }
 
@@ -547,7 +547,7 @@ template <size_t Zn, typename T1, typename T2, typename... S, typename E1,
 auto anti_convolve(std::tuple<S...> const& variables, OpExpression<E1> const& a,
                    OpTermHCTS<T, Variable<Z, G>> const& b) {
   auto ae = expr::make_inv_fourier_map<T1>(*static_cast<E1 const*>(&a));
-  auto be = expr::transform::swap_grid<Z>(b, std::get<Z - Zn>(variables));
+  auto be = expr::transform::swap_grid<Z>(b.e, std::get<Z - Zn>(variables));
   return expr::make_fourier_map(ae * be);
 }
 
