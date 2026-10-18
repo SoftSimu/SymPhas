@@ -1257,31 +1257,43 @@ struct combine_mixed_derivatives {
     }
   }
 
+  //! derivative<ax, O> composed with another derivative D2.
+  /*!
+   * derivative<ax, O> is lap^(O/2) for even O and d/dax lap^((O-1)/2) for
+   * odd O. One laplacian, sum_i d2/dx_i2, is composed with D2 at a time and
+   * the rest, derivative<ax, O - 2>, is applied to the result; d/dax is
+   * composed last. Composing every axis with the full order O at once, as
+   * was done before, is only correct for O = 2, and folding an order-0
+   * directional derivative over the axes counted the term once per axis.
+   */
+  template <Axis ax, size_t O, typename E, typename D2, Axis... axs>
+  auto compose_derivative(OpExpression<E> const& enclosed, Sp const& solver,
+                          D2, symphas::lib::axis_list<axs...>) const {
+    if constexpr (O == 1) {
+      return this->operator()(*static_cast<E const*>(&enclosed), solver,
+                              directional_derivative<ax, 1>{}, D2{},
+                              symphas::lib::axis_list<axs...>{});
+    } else {
+      auto lap = (this->operator()(*static_cast<E const*>(&enclosed), solver,
+                                   directional_derivative<axs, 2>{}, D2{},
+                                   symphas::lib::axis_list<axs...>{}) +
+                  ...);
+      if constexpr (O == 2) {
+        return lap;
+      } else {
+        return apply_operators(
+            expr::make_derivative<derivative<ax, O - 2>>(lap, solver));
+      }
+    }
+  }
+
   template <typename E, Axis ax1, size_t O1, Axis ax2, size_t O2, Axis... axs>
   auto operator()(OpExpression<E> const& enclosed, Sp const& solver,
                   derivative<ax1, O1>, derivative<ax2, O2>,
                   symphas::lib::axis_list<axs...>) const {
-    if constexpr (O1 % 2 == 0) {
-      // it is like the laplacian
-      return (this->operator()(*static_cast<E const*>(&enclosed), solver,
-                               directional_derivative<axs, O1>{},
-                               derivative<ax2, O2>{},
-                               symphas::lib::axis_list<axs...>{}) +
-              ...);
-    } else {
-      if constexpr (O2 % 2 == 0) {
-        // it is like the laplacian
-        return (this->operator()(*static_cast<E const*>(&enclosed), solver,
-                                 derivative<ax1, O1>{},
-                                 directional_derivative<axs, O2>{},
-                                 symphas::lib::axis_list<axs...>{}) +
-                ...);
-
-      } else {
-        // both of them are odd ordered derivatives, like 3 and 1
-        // static_assert(false, "not implemented yet");
-      }
-    }
+    return compose_derivative<ax1, O1>(*static_cast<E const*>(&enclosed),
+                                       solver, derivative<ax2, O2>{},
+                                       symphas::lib::axis_list<axs...>{});
   }
 
   template <size_t... O1s>
@@ -1327,22 +1339,9 @@ struct combine_mixed_derivatives {
   auto operator()(OpExpression<E> const& enclosed, Sp const& solver,
                   derivative<ax, O>, mixed_derivative<O2s...>,
                   symphas::lib::axis_list<axs...>) const {
-    if constexpr (O % 2 == 0) {
-      // it is something like the laplacian
-      return (this->operator()(*static_cast<E const*>(&enclosed), solver,
-                               directional_derivative<axs, O>{},
-                               mixed_derivative<O2s...>{},
-                               symphas::lib::axis_list<axs...>{}) +
-              ...);
-    } else {
-      // it is like the gradlaplacian
-      using mixed_deriv_t = mixed_derivative<((ax == axs) ? O + O2s : O2s)...>;
-      return (this->operator()(*static_cast<E const*>(&enclosed), solver,
-                               directional_derivative<axs, O - 1>{},
-                               mixed_deriv_t{},
-                               symphas::lib::axis_list<axs...>{}) +
-              ...);
-    }
+    return compose_derivative<ax, O>(*static_cast<E const*>(&enclosed), solver,
+                                     mixed_derivative<O2s...>{},
+                                     symphas::lib::axis_list<axs...>{});
   }
 
   template <typename E, Axis ax, size_t O, size_t... O1s, Axis... axs>
@@ -1358,51 +1357,9 @@ struct combine_mixed_derivatives {
   auto operator()(OpExpression<E> const& enclosed, Sp const& solver,
                   derivative<ax1, O1>, directional_derivative<ax2, O2>,
                   symphas::lib::axis_list<axs...>) const {
-    if constexpr (O1 % 2 == 0) {
-      // it is something like the laplacian
-      return (this->operator()(*static_cast<E const*>(&enclosed), solver,
-                               directional_derivative<axs, O1>{},
-                               directional_derivative<ax2, O2>{},
-                               symphas::lib::axis_list<axs...>{}) +
-              ...);
-    } else if constexpr (O1 == 1) {
-      // `derivative<ax1, 1>` is a single-axis ∂/∂ax1, not a multi-axis
-      // aggregate, so composing it with `directional_derivative<ax2, O2>`
-      // is just a single composed derivative. Bypass the gradlaplacian-style
-      // fold (which would produce `axs...` copies of the same term and
-      // double-count when O1 - 1 = 0).
-      if constexpr (ax1 == ax2) {
-        using Dd =
-            typename Solver<Sp>::template directional_derivative<ax1, 1 + O2>;
-        return expr::make_derivative<Dd>(*static_cast<E const*>(&enclosed),
-                                         solver);
-      } else {
-        using Dd = typename Solver<Sp>::template mixed_derivative<(
-            (ax1 == axs)   ? 1
-            : (ax2 == axs) ? O2
-                           : 0)...>;
-        return expr::make_derivative<Dd>(*static_cast<E const*>(&enclosed),
-                                         solver);
-      }
-    } else {
-      // it is like the gradlaplacian
-      if constexpr (ax1 == ax2) {
-        return (this->operator()(*static_cast<E const*>(&enclosed), solver,
-                                 directional_derivative<axs, O1 - 1>{},
-                                 directional_derivative<ax2, O2 + 1>{},
-                                 symphas::lib::axis_list<axs...>{}) +
-                ...);
-      } else {
-        using mixed_deriv_t = mixed_derivative<((ax1 == axs)   ? O1
-                                                : (ax2 == axs) ? O2
-                                                               : 0)...>;
-        return (this->operator()(*static_cast<E const*>(&enclosed), solver,
-                                 directional_derivative<axs, O1 - 1>{},
-                                 mixed_deriv_t{},
-                                 symphas::lib::axis_list<axs...>{}) +
-                ...);
-      }
-    }
+    return compose_derivative<ax1, O1>(*static_cast<E const*>(&enclosed),
+                                       solver, directional_derivative<ax2, O2>{},
+                                       symphas::lib::axis_list<axs...>{});
   }
 
   template <typename E, Axis ax1, size_t O1, Axis ax2, size_t O2, Axis... axs>
