@@ -205,27 +205,53 @@ auto form_A_op(OpVoid, double dt, len_type const* dims) {
   return OpIdentity{};
 }
 
-//! Given the linear expression, returns the \f$A\f$ operator.
+namespace {
+//! (exp(dt L) - 1) / L, including its limit dt as L -> 0.
+/*!
+ * Evaluating (exp(z) - 1) / L directly gives 0/0 where L = 0 and loses
+ * digits to cancellation where |z| = |dt L| is small, so a series is used
+ * there.
+ */
+template <typename T>
+T etd_b_value(T L, double dt) {
+  T z = dt * L;
+  if (std::abs(z) < 1e-4) {
+    return dt * (T(1) + z * (1. / 2 + z * (1. / 6 + z * (1. / 24))));
+  }
+  return (std::exp(z) - T(1)) / L;
+}
+
+//! Evaluates the \f$B\f$ operator of a scalar linear operator into a grid.
+template <size_t D, typename E>
+auto make_B_term(OpExpression<E> const& l_op, double dt,
+                 len_type const* dims) {
+  using T = expr::eval_type_t<E>;
+  Grid<T, D> B(dims);
+  expr::result(*static_cast<E const*>(&l_op), B);
+  for (iter_type n = 0; n < B.len; ++n) {
+    B[n] = etd_b_value(B[n], dt);
+  }
+  return expr::make_term(NamedData(std::move(B), "(exp(L dt) - 1)/L"));
+}
+}  // namespace
+
+//! Given the linear expression, returns the \f$B\f$ operator.
 template <size_t D, typename E, size_t R = expr::eval_type<E>::rank,
           size_t... Rs>
 auto form_B_op(OpExpression<E> const& l_op, double dt, len_type const* dims,
                std::index_sequence<Rs...>) {
-  auto A_expr = form_A_op<D>(*static_cast<E const*>(&l_op), dt, dims);
-  auto B_expr =
-      ((expr::make_column_vector<Rs, R>() *
-        ((expr::make_row_vector<Rs, R>() * A_expr - expr::symbols::one) /
-         (expr::make_row_vector<Rs, R>() * (*static_cast<E const*>(&l_op))))) +
-       ...);
-  return B_expr;
+  return ((expr::make_column_vector<Rs, R>() *
+           make_B_term<D>(expr::make_row_vector<Rs, R>() *
+                              (*static_cast<E const*>(&l_op)),
+                          dt, dims)) +
+          ...);
 }
 
-//! Given the linear expression, returns the \f$A\f$ operator.
+//! Given the linear expression, returns the \f$B\f$ operator.
 template <size_t D, typename E, size_t R = expr::eval_type<E>::rank,
           typename std::enable_if_t<(R == 0), int> = 0>
 auto form_B_op(OpExpression<E> const& l_op, double dt, len_type const* dims) {
-  auto A_expr = form_A_op<D>(*static_cast<E const*>(&l_op), dt, dims);
-  auto B_expr = (A_expr - expr::symbols::one) / *static_cast<E const*>(&l_op);
-  return B_expr;
+  return make_B_term<D>(*static_cast<E const*>(&l_op), dt, dims);
 }
 
 //! Given the linear expression, returns the \f$A\f$ operator.
