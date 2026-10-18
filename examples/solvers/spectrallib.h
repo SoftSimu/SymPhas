@@ -1202,7 +1202,9 @@ auto group_part(E const& term) {
 template <size_t Z0, size_t D, typename... S, typename E>
 auto real_space_form(std::tuple<S...> const& systems, OpExpression<E> const& e,
                      double const* h, const len_type* dims) {
-  if constexpr (expr::is_coeff<E>) {
+  // Constants and expressions without grid data (functions of the time t)
+  // have the same value at every point: they are used as they are.
+  if constexpr (expr::is_coeff<E> || expr::grid_dim<E>::value == 0) {
     return *static_cast<E const*>(&e);
   } else {
     return shared_inv_fourier_map<real_space_eval_t<E>>(OpIdentity{},
@@ -1231,8 +1233,12 @@ template <size_t Z0, size_t D, typename... S, typename E1, typename E2>
 auto real_space_form(std::tuple<S...> const& systems,
                      OpBinaryMul<E1, E2> const& e, double const* h,
                      const len_type* dims) {
-  return expr::make_mul(real_space_form<Z0, D>(systems, e.a, h, dims),
-                        real_space_form<Z0, D>(systems, e.b, h, dims));
+  if constexpr (expr::grid_dim<OpBinaryMul<E1, E2>>::value == 0) {
+    return e;  // no grid data (e.g. a function of the time t)
+  } else {
+    return expr::make_mul(real_space_form<Z0, D>(systems, e.a, h, dims),
+                          real_space_form<Z0, D>(systems, e.b, h, dims));
+  }
 }
 
 //! A derivative: its coefficient is applied in real space, so that the
@@ -1287,11 +1293,14 @@ auto real_space_form_adds(std::tuple<S...> const& systems,
 template <size_t Z0, size_t D, typename... S, typename... Es>
 auto real_space_form(std::tuple<S...> const& systems, OpAdd<Es...> const& e,
                      double const* h, const len_type* dims) {
-  // A sum with products is formed term by term, and so is a vector-valued
-  // sum (a gradient, whose components are single derivatives, which can be
-  // shared with other terms).
-  if constexpr (sp_group::needs_real_space<OpAdd<Es...>>::value ||
-                (expr::eval_type<OpAdd<Es...>>::rank > 0)) {
+  // A sum without grid data (e.g. a function of the time t) is the same
+  // everywhere and is used as it is. A sum with products is formed term by
+  // term, and so is a vector-valued sum (a gradient, whose components are
+  // single derivatives, which can be shared with other terms).
+  if constexpr (expr::grid_dim<OpAdd<Es...>>::value == 0) {
+    return e;
+  } else if constexpr (sp_group::needs_real_space<OpAdd<Es...>>::value ||
+                       (expr::eval_type<OpAdd<Es...>>::rank > 0)) {
     return real_space_form_adds<Z0, D>(
         systems, e, h, dims, std::make_index_sequence<sizeof...(Es)>{});
   } else {  // e.g. a sum of derivatives (div M): one inverse transform of the sum
