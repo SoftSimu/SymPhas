@@ -676,6 +676,23 @@ auto handle_apply_mul(Sp const& solver, OpOperatorChain<E10, E11> const& lhs0,
 template <typename E>
 constexpr bool is_op_operator_v = std::is_base_of<OpOperator<E>, E>::value;
 
+}  // namespace
+
+//! Whether apply_operators keeps spatial derivatives of products unexpanded.
+/*!
+ * By default a derivative of a product is expanded with the product rule, so
+ * that finite-difference solvers only differentiate variables. A solver that
+ * differentiates exactly in Fourier space (the spectral solver) instead
+ * transforms the product once and applies the derivative as a wave-vector
+ * multiplier, which needs far fewer transforms than the expansion; such a
+ * solver specializes this to true. It applies to powers of the laplacian
+ * (even-order derivative<ax, O>); gradients of products are still expanded.
+ */
+template <typename Sp>
+struct keep_derivatives_of_products : std::false_type {};
+
+namespace {
+
 //! Sum over axes of (d_i a)(d_i b), the cross term of the laplacian rule.
 template <typename Sp, typename E1, typename E2, Axis... axs>
 auto product_rule_cross(Sp const& solver, E1 const& a, E2 const& b,
@@ -857,9 +874,20 @@ template <typename Dd, typename Sp, typename V, typename E1, typename E2,
               (OpDerivative<Dd, V, OpBinaryMul<E1, E2>, Sp>::order > 0), int>>
 auto apply_operators(OpDerivative<Dd, V, OpBinaryMul<E1, E2>, Sp> const& e) {
   auto expr = expr::get_enclosed_expression(e);
-  return expr::coeff(e) * apply_product_rule<Dd>(e.solver,
-                                                 apply_operators(expr.a),
-                                                 apply_operators(expr.b));
+  // Only scalar derivatives (powers of the laplacian) are kept: a gradient
+  // of a product is vector valued, and its components are only formed by
+  // the product rule.
+  if constexpr (keep_derivatives_of_products<Sp>::value && !Dd::is_directional &&
+                !Dd::is_mixed && Dd::order % 2 == 0) {
+    return expr::coeff(e) *
+           expr::make_derivative<Dd>(
+               expr::make_mul(apply_operators(expr.a), apply_operators(expr.b)),
+               e.solver);
+  } else {
+    return expr::coeff(e) * apply_product_rule<Dd>(e.solver,
+                                                   apply_operators(expr.a),
+                                                   apply_operators(expr.b));
+  }
 
   // auto expr = expr::get_enclosed_expression(e);
   // auto a = apply_operators(expr.a);

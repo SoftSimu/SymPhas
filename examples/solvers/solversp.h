@@ -34,6 +34,14 @@
 
 inline len_type SP_DIMS[] = {BOUNDARY_DEPTH * 2 + 1, BOUNDARY_DEPTH * 2 + 1};
 
+template <size_t N>
+struct SolverSP;
+
+//! The spectral solver differentiates products in Fourier space (see
+//! expr::keep_derivatives_of_products), so they are not expanded.
+template <size_t N>
+struct expr::keep_derivatives_of_products<SolverSP<N>> : std::true_type {};
+
 //! Semi-implicit Fourier Spectral solver.
 /*!
  * The spectral method approximates the derivatives in Fourier space by
@@ -96,9 +104,14 @@ decltype(auto) form_expr_one(
   auto&& A_expression = solver_sp::form_A_op<D>(l_op, dt, sys.get().dims);
   auto&& B_expression = solver_sp::form_B_op<D>(l_op, dt, sys.get().dims);
 
+  // Inverse transforms needed by several terms are made once (see
+  // solver_sp::InverseMapCache) and updated before the scheme each step.
+  auto cache = std::make_shared<solver_sp::InverseMapCache>();
+  solver_sp::InverseMapCache::current() = cache.get();
   auto&& nonlinear_scheme = solver_sp::construct_nonlinear<Z, D>(
       systems, B_expression, linear_in_nonZ + non_op + nonlinear, h,
       sys.get().dims);
+  solver_sp::InverseMapCache::current() = nullptr;
 
   auto&& name = expr::get_fourier_name(
       expr::get_op_name(expr::get_variable<Z>(equation)));
@@ -117,7 +130,7 @@ decltype(auto) form_expr_one(
                      solver_sp::sthc_apply_on_scalar<T_src>(nonlinear_scheme));
   expr::printe(scheme, "spectral scheme");
 
-  auto data = SpectralData(scheme);
+  auto data = SpectralData(scheme, cache);
   return std::make_pair(sys, data);
 }
 

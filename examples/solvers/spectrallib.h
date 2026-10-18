@@ -31,6 +31,13 @@
 #include "indexseqhelpers.h"
 #include "spslib.h"
 
+#include <functional>
+#include <memory>
+#include <string>
+#include <typeinfo>
+#include <unordered_map>
+#include <vector>
+
 namespace solver_sp {
 
 namespace {
@@ -744,6 +751,171 @@ auto construct_nonlinear(
     OpMap<symphas::internal::PoissonSolver, OpIdentity, E> const& e,
     double const* h, const len_type* dims);
 
+//! Inverse transforms shared by all the terms of one equation.
+/*!
+ * Several terms of an equation often need the same field in real space, such
+ * as dn/dx. Each distinct inverse transform is made once, stored here, and
+ * every term refers to its result; the transforms are updated once per step,
+ * before the equation is evaluated (SpectralData::update).
+ *
+ * Transforms are identified by the type of their Fourier-space expression.
+ * The type only determines the value when the expression holds no run-time
+ * coefficients (variables, wave vectors and type-level constants only), so
+ * expressions with an OpLiteral are not shared.
+ */
+struct InverseMapCache {
+  std::vector<std::shared_ptr<void>> maps;
+  std::vector<std::function<void()>> updaters;
+  std::unordered_map<std::string, void*> index;
+
+  void update() {
+    for (auto& u : updaters) u();
+  }
+
+  //! The cache of the equation being constructed, or nullptr.
+  static InverseMapCache*& current() {
+    static InverseMapCache* c = nullptr;
+    return c;
+  }
+
+  //! A stored transform; exposes the grid that holds its result.
+  template <typename M>
+  struct Entry : M {
+    Entry(M const& m) : M(m) {}
+    auto& grid() { return this->data; }
+  };
+
+  template <typename M>
+  Entry<M>& get(M const& map) {
+    std::string key = typeid(M).name();
+    auto it = index.find(key);
+    if (it != index.end()) {
+      return *static_cast<Entry<M>*>(it->second);
+    }
+    auto m = std::make_shared<Entry<M>>(map);
+    Entry<M>* ptr = m.get();
+    maps.push_back(m);
+    index[key] = ptr;
+    updaters.push_back([ptr, first = true]() mutable {
+      M& base = *ptr;
+      if (first) {
+        base.allocate();
+        first = false;
+      }
+      expr::prune::update(base);
+    });
+    return *ptr;
+  }
+};
+
+//! Whether a type holds run-time values that its type does not determine.
+/*!
+ * Run-time coefficients (OpLiteral) and data grids (e.g. a stored
+ * wave-vector polynomial) are such values. Variables are identified by
+ * their index, and wave vectors by their axis and order (all transforms of
+ * one equation are on the same grid), so their types determine them.
+ */
+template <typename T>
+struct holds_literal : std::false_type {};
+template <typename T>
+struct holds_literal<OpLiteral<T>> : std::true_type {};
+template <typename T>
+struct holds_literal<NamedData<T>> : std::true_type {};
+template <size_t O, size_t D>
+struct holds_literal<NamedData<WaveVectorData<O, D>>> : std::false_type {};
+template <Axis ax, size_t O, size_t D>
+struct holds_literal<NamedData<WaveVectorDataAxis<ax, O, D>>> : std::false_type {};
+template <template <typename...> typename C, typename... Ts>
+struct holds_literal<C<Ts...>>
+    : std::integral_constant<bool, (holds_literal<Ts>::value || ...)> {};
+template <typename V, size_t... Ns>
+struct holds_literal<OpTensor<V, Ns...>> : holds_literal<V> {};
+template <size_t Z, typename G>
+struct holds_literal<Variable<Z, G>> : std::false_type {};
+template <typename G, expr::exp_key_t X>
+struct holds_literal<Term<G, X>> : holds_literal<G> {};
+template <Axis ax, typename G>
+struct holds_literal<VectorComponent<ax, G>> : holds_literal<G> {};
+
+template <typename T, typename V, typename E, size_t... Rs>
+auto shared_inv_fourier_map_components(V const& value, E const& e,
+                                       std::index_sequence<Rs...>);
+
+//! An inverse transform, shared through the current InverseMapCache.
+/*!
+ * Same result as expr::make_inv_fourier_map(value, e). A vector expression
+ * is split into components, as make_inv_fourier_map does, and each scalar
+ * transform without run-time coefficients is shared.
+ */
+template <typename T, typename V, typename E>
+auto shared_inv_fourier_map(V const& value, OpExpression<E> const& e) {
+  constexpr size_t R = expr::eval_type<E>::rank;
+  using rt = typename symphas::internal::real_space_type<T>::type;
+  if constexpr (R > 0) {
+    return shared_inv_fourier_map_components<T>(
+        value, *static_cast<E const*>(&e), std::make_index_sequence<R>{});
+  } else if constexpr (std::is_same<rt, scalar_t>::value &&
+                       !holds_literal<E>::value) {
+    auto map = expr::make_inv_fourier_map<T>(OpIdentity{}, *static_cast<E const*>(&e));
+    using M = decltype(map);
+    InverseMapCache* cache = InverseMapCache::current();
+    if (cache == nullptr) {
+      fprintf(SYMPHAS_ERR, "spectral solver: no transform cache while forming the scheme\n");
+      exit(1);
+    }
+    auto& shared = cache->get(map);
+    constexpr size_t D = expr::grid_dim<E>::value;
+    return value * expr::make_term(NamedData(
+                       std::ref(static_cast<Grid<scalar_t, D>&>(shared.grid())),
+                       static_cast<M const&>(shared)));
+  } else {
+    return expr::make_inv_fourier_map<T>(value, *static_cast<E const*>(&e));
+  }
+}
+
+template <typename T, typename V>
+auto shared_inv_fourier_map(V const& value, OpVoid) {
+  return OpVoid{};
+}
+
+template <typename T, typename V, typename E, size_t... Rs>
+auto shared_inv_fourier_map_components(V const& value, E const& e,
+                                       std::index_sequence<Rs...>) {
+  constexpr size_t R = sizeof...(Rs);
+  return (shared_inv_fourier_map<T>(expr::make_column_vector<Rs, R>() * value,
+                                    expr::make_row_vector<Rs, R>() * e) +
+          ...);
+}
+
+//! Real-space form of a nonlinear expression (see the definitions below). All
+//! overloads are declared here, so that they see each other when nested.
+template <size_t Z0, size_t D, typename... S, typename E>
+auto real_space_form(std::tuple<S...> const& systems, OpExpression<E> const& e,
+                     double const* h, const len_type* dims);
+template <size_t Z0, size_t D, typename... S, typename V, typename... Ts>
+auto real_space_form(std::tuple<S...> const& systems,
+                     OpTerms<V, Ts...> const& e, double const* h,
+                     const len_type* dims);
+template <size_t Z0, size_t D, typename... S, typename E>
+auto real_space_form(std::tuple<S...> const& systems, OpOperator<E> const& e,
+                     double const* h, const len_type* dims);
+template <size_t Z0, size_t D, typename... S, typename E>
+auto real_space_form(std::tuple<S...> const& systems,
+                     OpOperatorChain<OpIdentity, E> const& e, double const* h,
+                     const len_type* dims);
+template <size_t Z0, size_t D, typename... S, typename E1, typename E2>
+auto real_space_form(std::tuple<S...> const& systems,
+                     OpBinaryMul<E1, E2> const& e, double const* h,
+                     const len_type* dims);
+template <size_t Z0, size_t D, typename... S, typename... Es>
+auto real_space_form(std::tuple<S...> const& systems, OpAdd<Es...> const& e,
+                     double const* h, const len_type* dims);
+template <size_t Z0, size_t D, typename... S, typename Dd, typename V,
+          typename E, typename Sp>
+auto real_space_form(std::tuple<S...> const& systems,
+                     OpDerivative<Dd, V, E, Sp> const& e, double const* h,
+                     const len_type* dims);
+
 template <typename S>
 // using variable_type = decltype(std::declval<S>()[0]);
 using variable_type = typename grid::value_type_of<S>::type;
@@ -891,19 +1063,304 @@ auto construct_nonlinear(std::tuple<S...> const& systems,
   return construct_nonlinear<Z0, D>(systems, *static_cast<B const*>(&bop), e.g,
                                     h, dims);
 }
+/*
+ * Transform grouping.
+ *
+ * The nonlinear part of an equation is a sum of terms, and the transform is
+ * linear, so all terms that share one Fourier-space multiplier can be summed
+ * in real space and transformed together:
+ *  - pointwise products of fields (n^3, n^2 M, ...) are summed and transformed
+ *    once;
+ *  - derivatives of nonlinear expressions, such as lap(n^2) or
+ *    lap((M.grad n) div M), are grouped by derivative, and each group is
+ *    transformed once and multiplied by the derivative's wave-vector factor;
+ *  - the other terms (constants, terms that are linear in Fourier space such
+ *    as the Poisson solve) are constructed one by one as before.
+ * Inside a product, each factor that is not a field (a derivative, a sum
+ * with derivatives, ...) is brought to real space with one inverse transform
+ * (real_space_form), instead of transforming the product of two factors at
+ * a time (anti_convolve), which also transformed every intermediate product
+ * forward and back.
+ */
+namespace sp_group {
+
+template <typename Sp>
+struct is_symbolic_solver : std::false_type {};
+template <typename G>
+struct is_symbolic_solver<SymbolicDerivative<G>> : std::true_type {};
+
+//! Whether evaluating E needs a pointwise product of fields in real space.
+template <typename E>
+struct needs_real_space : std::false_type {};
+
+template <typename V, typename... Ts>
+struct needs_real_space<OpTerms<V, Ts...>>
+    : std::integral_constant<bool, (sizeof...(Ts) > 0) &&
+                                       !expr::is_linear<OpTerms<V, Ts...>>::value> {};
+
+template <typename E1, typename E2>
+struct needs_real_space<OpBinaryMul<E1, E2>>
+    : std::integral_constant<bool, expr::is_coeff<E1>   ? needs_real_space<E2>::value
+                                   : expr::is_coeff<E2> ? needs_real_space<E1>::value
+                                                        : true> {};
+
+template <expr::exp_key_t X, typename V, typename E>
+struct needs_real_space<OpPow<X, V, E>> : std::true_type {};
+
+template <typename... Es>
+struct needs_real_space<OpAdd<Es...>>
+    : std::integral_constant<bool, (needs_real_space<Es>::value || ...)> {};
+
+//! The derivative a term is grouped under, or void if it is not a spatial
+//! derivative of a nonlinear expression with a scalar coefficient. Even-order derivative<ax, O> are
+//! powers of the laplacian, whatever their axis tag, so they share one key.
+template <typename E>
+struct deriv_key {
+  using type = void;
+};
+
+template <typename Dd, typename V, typename E, typename Sp>
+struct deriv_key<OpDerivative<Dd, V, E, Sp>> {
+  static const bool even_laplacian =
+      !Dd::is_directional && !Dd::is_mixed && (Dd::order % 2 == 0);
+  using norm_t =
+      std::conditional_t<even_laplacian,
+                         typename Solver<Sp>::template derivative<Axis::X, Dd::order>,
+                         Dd>;
+  // A tensor coefficient (e.g. a basis vector) is kept outside: moved into
+  // the enclosed product it would be pushed into its factors.
+  using type = std::conditional_t<!is_symbolic_solver<Sp>::value &&
+                                      needs_real_space<E>::value &&
+                                      !expr::is_tensor<V>,
+                                  norm_t, void>;
+};
+
+template <typename E>
+using deriv_key_t = typename deriv_key<E>::type;
+
+//! 0: other term, 1: pointwise product, 2: derivative of a nonlinear expression
+template <typename E>
+constexpr int kind = !std::is_void<deriv_key_t<E>>::value ? 2
+                     : needs_real_space<E>::value         ? 1
+                                                          : 0;
+
+template <typename... Ks>
+struct key_list {};
+
+template <typename L, typename K>
+struct key_add;
+
+template <typename... Ks, typename K>
+struct key_add<key_list<Ks...>, K> {
+  using type = std::conditional_t<std::is_void<K>::value ||
+                                      (std::is_same<K, Ks>::value || ...),
+                                  key_list<Ks...>, key_list<Ks..., K>>;
+};
+
+template <typename L, typename... Es>
+struct keys_of {
+  using type = L;
+};
+
+template <typename L, typename E0, typename... Es>
+struct keys_of<L, E0, Es...> {
+  using type =
+      typename keys_of<typename key_add<L, deriv_key_t<E0>>::type, Es...>::type;
+};
+
+//! The solver of the first term grouped under K.
+template <typename K, typename... Es, size_t I0, size_t... Is>
+auto const& group_solver(OpAdd<Es...> const& e, std::index_sequence<I0, Is...>) {
+  using E0 = std::decay_t<decltype(expr::get<I0>(e))>;
+  if constexpr (std::is_same<deriv_key_t<E0>, K>::value) {
+    return expr::get<I0>(e).solver;
+  } else {
+    return group_solver<K>(e, std::index_sequence<Is...>{});
+  }
+}
+
+//! The enclosed expression, with its coefficient, of a term grouped under K.
+template <typename K, typename E>
+auto group_part(E const& term) {
+  if constexpr (std::is_same<deriv_key_t<E>, K>::value) {
+    return expr::coeff(term) * expr::get_enclosed_expression(term);
+  } else {
+    return OpVoid{};
+  }
+}
+
+}  // namespace sp_group
+
+//! Real-space form of a nonlinear expression.
+/*!
+ * Returns an expression that is evaluated pointwise in real space. Fields
+ * and constants are used as they are; sums and products are formed from the
+ * real-space forms of their parts; every other factor (a derivative, or a
+ * sum with derivatives) is constructed in Fourier space and brought back
+ * with one inverse transform, as anti_convolve did for each factor.
+ */
+template <size_t Z0, size_t D, typename... S, typename E>
+auto real_space_form(std::tuple<S...> const& systems, OpExpression<E> const& e,
+                     double const* h, const len_type* dims) {
+  if constexpr (expr::is_coeff<E>) {
+    return *static_cast<E const*>(&e);
+  } else {
+    return shared_inv_fourier_map<real_space_eval_t<E>>(OpIdentity{},
+        construct_nonlinear<Z0, D>(systems, OpIdentity{},
+                                   *static_cast<E const*>(&e), h, dims));
+  }
+}
+
+template <size_t Z0, size_t D, typename... S, typename V, typename... Ts>
+auto real_space_form(std::tuple<S...> const& systems,
+                     OpTerms<V, Ts...> const& e, double const* h,
+                     const len_type* dims) {
+  return e;
+}
+
+//! An operator used as a factor, such as the row vector of a dot product.
+template <size_t Z0, size_t D, typename... S, typename E>
+auto real_space_form(std::tuple<S...> const& systems, OpOperator<E> const& e,
+                     double const* h, const len_type* dims) {
+  return shared_inv_fourier_map<real_space_eval_t<E>>(OpIdentity{},
+      construct_nonlinear<Z0, D>(systems, OpIdentity{},
+                                 *static_cast<E const*>(&e), h, dims));
+}
+
+template <size_t Z0, size_t D, typename... S, typename E1, typename E2>
+auto real_space_form(std::tuple<S...> const& systems,
+                     OpBinaryMul<E1, E2> const& e, double const* h,
+                     const len_type* dims) {
+  return expr::make_mul(real_space_form<Z0, D>(systems, e.a, h, dims),
+                        real_space_form<Z0, D>(systems, e.b, h, dims));
+}
+
+//! A derivative: its coefficient is applied in real space, so that the
+//! transform of the derivative itself can be shared with other terms.
+template <size_t Z0, size_t D, typename... S, typename Dd, typename V,
+          typename E, typename Sp>
+auto real_space_form(std::tuple<S...> const& systems,
+                     OpDerivative<Dd, V, E, Sp> const& e, double const* h,
+                     const len_type* dims) {
+  using vt = OpDerivative<Dd, V, E, Sp>;
+  if constexpr (std::is_same<V, OpIdentity>::value) {
+    return shared_inv_fourier_map<real_space_eval_t<vt>>(
+        OpIdentity{}, construct_nonlinear<Z0, D>(systems, OpIdentity{}, e, h, dims));
+  } else {
+    return expr::coeff(e) *
+           real_space_form<Z0, D>(
+               systems,
+               expr::make_derivative<Dd>(expr::get_enclosed_expression(e), e.solver),
+               h, dims);
+  }
+}
+
+//! The row vector of a dot product: when it holds products (the gradient
+//! of a product expanded by the product rule) or is a vector of derivatives
+//! (a gradient), it is kept and its content is formed in real space, so that
+//! products are not transformed forward and back and the derivatives can be
+//! shared with other terms.
+template <size_t Z0, size_t D, typename... S, typename E>
+auto real_space_form(std::tuple<S...> const& systems,
+                     OpOperatorChain<OpIdentity, E> const& e, double const* h,
+                     const len_type* dims) {
+  if constexpr (sp_group::needs_real_space<E>::value ||
+                (expr::eval_type<E>::rank > 0)) {
+    auto content = real_space_form<Z0, D>(systems, e.g, h, dims);
+    return OpOperatorChain<OpIdentity, decltype(content)>(OpIdentity{}, content);
+  } else {
+    return shared_inv_fourier_map<real_space_eval_t<OpOperatorChain<OpIdentity, E>>>(OpIdentity{},
+        construct_nonlinear<Z0, D>(systems, OpIdentity{}, e, h, dims));
+  }
+}
+
 namespace {
+template <size_t Z0, size_t D, typename... S, typename... Es, size_t... Is>
+auto real_space_form_adds(std::tuple<S...> const& systems,
+                          OpAdd<Es...> const& e, double const* h,
+                          const len_type* dims, std::index_sequence<Is...>) {
+  return (OpVoid{} + ... +
+          real_space_form<Z0, D>(systems, expr::get<Is>(e), h, dims));
+}
+}  // namespace
+
+template <size_t Z0, size_t D, typename... S, typename... Es>
+auto real_space_form(std::tuple<S...> const& systems, OpAdd<Es...> const& e,
+                     double const* h, const len_type* dims) {
+  // A sum with products is formed term by term, and so is a vector-valued
+  // sum (a gradient, whose components are single derivatives, which can be
+  // shared with other terms).
+  if constexpr (sp_group::needs_real_space<OpAdd<Es...>>::value ||
+                (expr::eval_type<OpAdd<Es...>>::rank > 0)) {
+    return real_space_form_adds<Z0, D>(
+        systems, e, h, dims, std::make_index_sequence<sizeof...(Es)>{});
+  } else {  // e.g. a sum of derivatives (div M): one inverse transform of the sum
+    return shared_inv_fourier_map<real_space_eval_t<OpAdd<Es...>>>(OpIdentity{},
+        construct_nonlinear<Z0, D>(systems, OpIdentity{}, e, h, dims));
+  }
+}
+
+namespace {
+template <size_t Z0, size_t D, typename... S, typename B, typename E>
+auto construct_other(std::tuple<S...> const& systems,
+                     OpExpression<B> const& bop, E const& term, double const* h,
+                     const len_type* dims) {
+  if constexpr (sp_group::kind<E> == 0) {
+    using vt = variable_type<symphas::lib::type_at_index<Z0, S...>>;
+    auto B_term = solver_sp::get_B_term<vt>(*static_cast<B const*>(&bop));
+    return B_term *
+           construct_nonlinear<Z0, D>(systems, OpIdentity{}, term, h, dims);
+  } else {
+    return OpVoid{};
+  }
+}
+
+template <size_t Z0, size_t D, typename... S, typename E>
+auto pointwise_part(std::tuple<S...> const& systems, E const& term,
+                    double const* h, const len_type* dims) {
+  if constexpr (sp_group::kind<E> == 1) {
+    return real_space_form<Z0, D>(systems, term, h, dims);
+  } else {
+    return OpVoid{};
+  }
+}
+
+template <typename K, size_t Z0, size_t D, typename... S, typename B,
+          typename... Es, size_t... Is>
+auto construct_group(std::tuple<S...> const& systems,
+                     OpExpression<B> const& bop, OpAdd<Es...> const& e,
+                     double const* h, const len_type* dims,
+                     std::index_sequence<Is...> seq) {
+  auto inner = (OpVoid{} + ... + sp_group::group_part<K>(expr::get<Is>(e)));
+  auto const& solver = sp_group::group_solver<K>(e, seq);
+  return construct_nonlinear<Z0, D>(systems, *static_cast<B const*>(&bop),
+                                    expr::make_derivative<K>(inner, solver), h,
+                                    dims);
+}
+
 template <size_t Z0, size_t D, typename... S, typename B, typename... Es,
-          size_t... Is>
+          size_t... Is, typename... Ks>
 auto construct_nonlinear_adds(std::tuple<S...> const& systems,
                               OpExpression<B> const& bop, OpAdd<Es...> const& e,
                               double const* h, const len_type* dims,
-                              std::index_sequence<Is...>) {
+                              std::index_sequence<Is...> seq,
+                              sp_group::key_list<Ks...>) {
   using vt = variable_type<symphas::lib::type_at_index<Z0, S...>>;
-  auto B_term = solver_sp::get_B_term<vt>(*static_cast<B const*>(&bop));
+  B const& b = *static_cast<B const*>(&bop);
 
-  return expr::make_add(
-      B_term * construct_nonlinear<Z0, D>(systems, OpIdentity{},
-                                          expr::get<Is>(e), h, dims)...);
+  auto others = (OpVoid{} + ... +
+                 construct_other<Z0, D>(systems, b, expr::get<Is>(e), h, dims));
+  auto pointwise = (OpVoid{} + ... + pointwise_part<Z0, D>(
+                                         systems, expr::get<Is>(e), h, dims));
+  auto groups = (OpVoid{} + ... +
+                 construct_group<Ks, Z0, D>(systems, b, e, h, dims, seq));
+
+  if constexpr (std::is_same<decltype(pointwise), OpVoid>::value) {
+    return others + groups;
+  } else {
+    auto B_term = solver_sp::get_B_term<vt>(b);
+    return others + B_term * expr::make_fourier_map(pointwise) + groups;
+  }
 }
 }  // namespace
 
@@ -913,7 +1370,8 @@ auto construct_nonlinear(std::tuple<S...> const& systems,
                          double const* h, const len_type* dims) {
   return construct_nonlinear_adds<Z0, D>(
       systems, *static_cast<B const*>(&bop), e, h, dims,
-      std::make_index_sequence<sizeof...(Es)>{});
+      std::make_index_sequence<sizeof...(Es)>{},
+      typename sp_group::keys_of<sp_group::key_list<>, Es...>::type{});
 }
 
 template <size_t Z0, size_t D, typename... S, typename B, typename E1,
@@ -936,17 +1394,8 @@ auto construct_nonlinear(std::tuple<S...> const& systems,
                                                 h, dims) *
                      e.b);
   } else {
-    using T1 = real_space_eval_t<E1>;
-    using T2 = real_space_eval_t<E2>;
-
-    auto variables = expr::get_indexed_variable_list(e);
-
-    auto ee = anti_convolve<sizeof...(S), T1, T2>(
-        variables,
-        (construct_nonlinear<Z0, D>(systems, OpIdentity{}, e.a, h, dims)),
-        (construct_nonlinear<Z0, D>(systems, OpIdentity{}, e.b, h, dims)));
-
-    return B_term * ee;
+    // One forward transform of the product evaluated in real space.
+    return B_term * expr::make_fourier_map(real_space_form<Z0, D>(systems, e, h, dims));
   }
 }
 
@@ -1366,8 +1815,15 @@ auto get_l_op(OpDerivative<Dd, V, E, Sp> const& e, double const* h) {
 template <typename E>
 struct SpectralData {
   E scheme;
+  //! Inverse transforms shared by the terms of the scheme.
+  std::shared_ptr<solver_sp::InverseMapCache> cache;
 
-  SpectralData(E const& scheme) : scheme{scheme} {}
+  SpectralData(E const& scheme,
+               std::shared_ptr<solver_sp::InverseMapCache> cache = nullptr)
+      : scheme{scheme}, cache{cache} {}
 
-  void update() { expr::prune::update(scheme); }
+  void update() {
+    if (cache) cache->update();
+    expr::prune::update(scheme);
+  }
 };
