@@ -316,9 +316,10 @@ template <typename T, typename A, size_t R, size_t... Rs>
 auto get_A_term(OpExpression<A> const& A_expression,
                 std::index_sequence<Rs...>) {
   return ((expr::make_tensor<Rs, Rs, R, R>() *
+           // The scalar get_A_term applies the half-complex arrangement (sthc)
+           // to each component; applying it here as well would arrange twice.
            get_A_term<T>(expr::make_row_vector<Rs, R>() *
-                         sthc_apply_on_scalar<T>(
-                             *static_cast<A const*>(&A_expression)))) +
+                         (*static_cast<A const*>(&A_expression)))) +
           ...);
 }
 
