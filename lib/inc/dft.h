@@ -123,11 +123,18 @@ namespace grid {
 
 /*
  * functions to scale the data after fourier transforms
+ *
+ * The loops are serial. They run after every inverse transform, which the
+ * spectral solver does many times per step; as OpenMP parallel regions they
+ * started an OpenMP thread team alongside the TBB threads that evaluate the
+ * expressions, and the two pools competed for the same cores (with OMP_NUM_THREADS
+ * unset, the spectral solver ran 2 to 10 times slower than with
+ * OMP_NUM_THREADS=1). A serial pass over the grid is cheap next to the transform
+ * itself.
  */
 
 template <typename T>
 void scale(T* data_y, len_type len, double r) {
-#pragma omp parallel for
   for (iter_type i = 0; i < len; ++i) {
     data_y[i] *= r;
   }
@@ -135,7 +142,6 @@ void scale(T* data_y, len_type len, double r) {
 
 template <typename T>
 void scale(T (*data_y)[2], len_type len, double r) {
-#pragma omp parallel for
   for (iter_type i = 0; i < len; ++i) {
     data_y[i][0] *= r;
     data_y[i][1] *= r;
