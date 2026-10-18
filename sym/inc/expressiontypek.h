@@ -97,6 +97,16 @@ using wave_vector_axis_grid =
  *
  * \tparam D The dimension of the wavevector field.
  */
+//! Fills grids with powers of the wave vector.
+/*!
+ * Components that are zero are kept exactly zero. They used to be replaced by
+ * pow(symphas::EPS, 1/O), presumably to avoid dividing by zero at k = 0. That
+ * made the k = 0 mode of a conserved equation decay, and changed the even
+ * powers |k|^4 and |k|^6 of every mode with a zero component (by up to 6 %
+ * for |k|^6 at the smallest wavenumber of a 122-point grid). The spectral
+ * solver handles k = 0 itself (the B operator uses a series for small
+ * |L dt|, and the Poisson kernel is set to 0 at k = 0).
+ */
 template <size_t D>
 struct k_field;
 
@@ -121,9 +131,6 @@ struct k_field<1> {
 
     for (iter_type i = 0; i < L; ++i) {
       scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
-      if (kx == 0) {
-        kx = std::pow(symphas::EPS, 1.0 / (double)(O));
-      }
 
       cvector_t<1> kk{Ii * kx};
       scalar_t k2 = (kk * kk).real();
@@ -157,9 +164,6 @@ struct k_field<1> {
     iter_type ii = 0;
     for (iter_type i = 0; i < L; ++i) {
       scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
-      if (kx == 0) {
-        kx = std::pow(symphas::EPS, 1.0 / (double)(O));
-      }
 
       complex_t kc = Ii * ((ax == Axis::X) ? kx : -Ii);
       cvector_t<1> k{Ii * kx};
@@ -193,9 +197,6 @@ struct k_field<1> {
 
     for (iter_type i = 0; i < L; ++i) {
       scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
-      if (kx == 0) {
-        kx = std::pow(symphas::EPS, 1.0 / (double)(O));
-      }
 
       complex_t kk = Ii * ((ax == Axis::X) ? kx : -Ii);
       scalar_t k2 = (kk * kk).real();
@@ -236,14 +237,8 @@ struct k_field<2> {
     iter_type ii = 0;
     for (iter_type j = 0; j < M; ++j) {
       scalar_t ky = (j < M / 2) ? j * dk_j : (j - M) * dk_j;
-      if (ky == 0) {
-        ky = std::pow(symphas::EPS, 1.0 / (double)(O));
-      }
       for (iter_type i = 0; i < L; ++i) {
         scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
-        if (kx == 0) {
-          kx = std::pow(symphas::EPS, 1.0 / (double)(O));
-        }
         cvector_t<2> kk{Ii * kx, Ii * ky};
         scalar_t k2 = (kk * kk).real();
 
@@ -280,15 +275,9 @@ struct k_field<2> {
     iter_type ii = 0;
     for (iter_type j = 0; j < M; ++j) {
       scalar_t ky = (j < M / 2) ? j * dk_j : (j - M) * dk_j;
-      if (ky == 0) {
-        ky = std::pow(symphas::EPS, 1.0 / (double)(O));
-      }
 
       for (iter_type i = 0; i < L; ++i) {
         scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
-        if (kx == 0) {
-          kx = std::pow(symphas::EPS, 1.0 / (double)(O));
-        }
 
         complex_t kc = Ii * ((ax == Axis::X) ? kx : (ax == Axis::Y) ? ky : -Ii);
         cvector_t<2> k{Ii * kx, Ii * ky};
@@ -327,15 +316,9 @@ struct k_field<2> {
     iter_type ii = 0;
     for (iter_type j = 0; j < M; ++j) {
       scalar_t ky = (j < M / 2) ? j * dk_j : (j - M) * dk_j;
-      if (ky == 0) {
-        ky = std::pow(symphas::EPS, 1.0 / (double)(O));
-      }
 
       for (iter_type i = 0; i < L; ++i) {
         scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
-        if (kx == 0) {
-          kx = std::pow(symphas::EPS, 1.0 / (double)(O));
-        }
 
         complex_t kk = Ii * ((ax == Axis::X) ? kx : (ax == Axis::Y) ? ky : -Ii);
         scalar_t k2 = (kk * kk).real();
@@ -379,21 +362,12 @@ struct k_field<3> {
     iter_type ii = 0;
     for (iter_type k = 0; k < N; ++k) {
       scalar_t kz = (k < N / 2) ? k * dk_k : (k - N) * dk_k;
-      if (kz == 0) {
-        kz = std::pow(symphas::EPS, 1.0 / (double)(O));
-      }
 
       for (iter_type j = 0; j < M; ++j) {
         scalar_t ky = (j < M / 2) ? j * dk_j : (j - M) * dk_j;
-        if (ky == 0) {
-          ky = std::pow(symphas::EPS, 1.0 / (double)(O));
-        }
 
         for (iter_type i = 0; i < L; ++i) {
           scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
-          if (kx == 0) {
-            kx = std::pow(symphas::EPS, 1.0 / (double)(O));
-          }
 
           cvector_t<3> kk{Ii * kx, Ii * ky, Ii * kz};
           scalar_t k2 = (kk * kk).real();
@@ -434,19 +408,10 @@ struct k_field<3> {
     iter_type ii = 0;
     for (iter_type k = 0; k < N; ++k) {
       scalar_t kz = (k < N / 2) ? k * dk_k : (k - N) * dk_k;
-      if (kz == 0) {
-        kz = std::pow(symphas::EPS, 1.0 / (double)(O));
-      }
       for (iter_type j = 0; j < M; ++j) {
         scalar_t ky = (j < M / 2) ? j * dk_j : (j - M) * dk_j;
-        if (ky == 0) {
-          ky = std::pow(symphas::EPS, 1.0 / (double)(O));
-        }
         for (iter_type i = 0; i < L; ++i) {
           scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
-          if (kx == 0) {
-            kx = std::pow(symphas::EPS, 1.0 / (double)(O));
-          }
 
           complex_t kc = Ii * ((ax == Axis::X)   ? kx
                                : (ax == Axis::Y) ? ky
@@ -491,19 +456,10 @@ struct k_field<3> {
     iter_type ii = 0;
     for (iter_type k = 0; k < N; ++k) {
       scalar_t kz = (k < N / 2) ? k * dk_k : (k - N) * dk_k;
-      if (kz == 0) {
-        kz = std::pow(symphas::EPS, 1.0 / (double)(O));
-      }
       for (iter_type j = 0; j < M; ++j) {
         scalar_t ky = (j < M / 2) ? j * dk_j : (j - M) * dk_j;
-        if (ky == 0) {
-          ky = std::pow(symphas::EPS, 1.0 / (double)(O));
-        }
         for (iter_type i = 0; i < L; ++i) {
           scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
-          if (kx == 0) {
-            kx = std::pow(symphas::EPS, 1.0 / (double)(O));
-          }
 
           complex_t kk = Ii * ((ax == Axis::X)   ? kx
                                : (ax == Axis::Y) ? ky
@@ -556,15 +512,6 @@ struct k_field_axis_entry<ax, O, 3> {
     scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
     scalar_t ky = (j < M / 2) ? j * dk_j : (j - M) * dk_j;
     scalar_t kz = (k < N / 2) ? k * dk_k : (k - N) * dk_k;
-    if (kz == 0) {
-      kz = std::pow(symphas::EPS, 1.0 / (double)(O));
-    }
-    if (ky == 0) {
-      ky = std::pow(symphas::EPS, 1.0 / (double)(O));
-    }
-    if (kx == 0) {
-      kx = std::pow(symphas::EPS, 1.0 / (double)(O));
-    }
 
     complex_t kk = Ii * ((ax == Axis::X)   ? kx
                          : (ax == Axis::Y) ? ky
@@ -607,12 +554,6 @@ struct k_field_axis_entry<ax, O, 2> {
 
     scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
     scalar_t ky = (j < M / 2) ? j * dk_j : (j - M) * dk_j;
-    if (ky == 0) {
-      ky = std::pow(symphas::EPS, 1.0 / (double)(O));
-    }
-    if (kx == 0) {
-      kx = std::pow(symphas::EPS, 1.0 / (double)(O));
-    }
 
     complex_t kk = Ii * ((ax == Axis::X) ? kx : (ax == Axis::Y) ? ky : -Ii);
     scalar_t k2 = (kk * kk).real();
@@ -648,9 +589,6 @@ struct k_field_axis_entry<ax, O, 1> {
     scalar_t dk_i = 2 * symphas::PI / (h[0] * L);
 
     scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
-    if (kx == 0) {
-      kx = std::pow(symphas::EPS, 1.0 / (double)(O));
-    }
 
     complex_t kk = Ii * kx;
     scalar_t k2 = (kk * kk).real();
@@ -697,15 +635,6 @@ struct k_field_entry<ax, O, 3> {
     scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
     scalar_t ky = (j < M / 2) ? j * dk_j : (j - M) * dk_j;
     scalar_t kz = (k < N / 2) ? k * dk_k : (k - N) * dk_k;
-    if (kz == 0) {
-      kz = std::pow(symphas::EPS, 1.0 / (double)(O));
-    }
-    if (ky == 0) {
-      ky = std::pow(symphas::EPS, 1.0 / (double)(O));
-    }
-    if (kx == 0) {
-      kx = std::pow(symphas::EPS, 1.0 / (double)(O));
-    }
 
     complex_t kc = Ii * ((ax == Axis::X)   ? kx
                          : (ax == Axis::Y) ? ky
@@ -749,12 +678,6 @@ struct k_field_entry<ax, O, 2> {
 
     scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
     scalar_t ky = (j < M / 2) ? j * dk_j : (j - M) * dk_j;
-    if (ky == 0) {
-      ky = std::pow(symphas::EPS, 1.0 / (double)(O));
-    }
-    if (kx == 0) {
-      kx = std::pow(symphas::EPS, 1.0 / (double)(O));
-    }
 
     complex_t kc = Ii * ((ax == Axis::X) ? kx : (ax == Axis::Y) ? ky : -Ii);
     cvector_t<2> kk{Ii * kx, Ii * ky};
@@ -791,9 +714,6 @@ struct k_field_entry<ax, O, 1> {
     scalar_t dk_i = 2 * symphas::PI / (h[0] * L);
 
     scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
-    if (kx == 0) {
-      kx = std::pow(symphas::EPS, 1.0 / (double)(O));
-    }
 
     complex_t kc = Ii * kx;
     cvector_t<1> kk{Ii * kx};
@@ -838,15 +758,6 @@ struct k_field_entry<Axis::NONE, O, 3> {
     scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
     scalar_t ky = (j < M / 2) ? j * dk_j : (j - M) * dk_j;
     scalar_t kz = (k < N / 2) ? k * dk_k : (k - N) * dk_k;
-    if (kz == 0) {
-      kz = std::pow(symphas::EPS, 1.0 / (double)(O));
-    }
-    if (ky == 0) {
-      ky = std::pow(symphas::EPS, 1.0 / (double)(O));
-    }
-    if (kx == 0) {
-      kx = std::pow(symphas::EPS, 1.0 / (double)(O));
-    }
 
     cvector_t<3> kk{Ii * kx, Ii * ky, Ii * kz};
     scalar_t k2 = (kk * kk).real();
@@ -886,12 +797,6 @@ struct k_field_entry<Axis::NONE, O, 2> {
 
     scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
     scalar_t ky = (j < M / 2) ? j * dk_j : (j - M) * dk_j;
-    if (ky == 0) {
-      ky = std::pow(symphas::EPS, 1.0 / (double)(O));
-    }
-    if (kx == 0) {
-      kx = std::pow(symphas::EPS, 1.0 / (double)(O));
-    }
 
     cvector_t<2> kk{Ii * kx, Ii * ky};
     scalar_t k2 = (kk * kk).real();
@@ -927,9 +832,6 @@ struct k_field_entry<Axis::NONE, O, 1> {
     scalar_t dk_i = 2 * symphas::PI / (h[0] * L);
 
     scalar_t kx = (i < L / 2) ? i * dk_i : (i - L) * dk_i;
-    if (kx == 0) {
-      kx = std::pow(symphas::EPS, 1.0 / (double)(O));
-    }
 
     cvector_t<1> kk{Ii * kx};
     scalar_t k2 = (kk * kk).real();

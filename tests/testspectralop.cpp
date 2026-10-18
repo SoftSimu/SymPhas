@@ -122,14 +122,12 @@ void testspectralop() {
   for (auto& p : probes) {
     int i = p[0], j = p[1];
     auto k = kindex(i, j, dims, h);
-    // k_field_entry substitutes a different epsilon per derivative order
-    // when a component is exactly zero, so compute k^2 and k^4
-    // separately, mirroring that substitution. For O=2 the zero-axis
-    // floor is pow(EPS, 1/2); for O=4 it is pow(EPS, 1/4).
-    double kx2 = (k.kx == 0) ? std::pow(symphas::EPS, 1.0 / 2.0) : k.kx;
-    double ky2 = (k.ky == 0) ? std::pow(symphas::EPS, 1.0 / 2.0) : k.ky;
-    double kx4 = (k.kx == 0) ? std::pow(symphas::EPS, 1.0 / 4.0) : k.kx;
-    double ky4 = (k.ky == 0) ? std::pow(symphas::EPS, 1.0 / 4.0) : k.ky;
+    // k_field_entry keeps zero components exactly zero (it used to
+    // substitute pow(EPS, 1/O)), so k^2 and k^4 are the exact values.
+    double kx2 = k.kx;
+    double ky2 = k.ky;
+    double kx4 = k.kx;
+    double ky4 = k.ky;
     double k2_o2 = kx2 * kx2 + ky2 * ky2;
     double k2_o4 = kx4 * kx4 + ky4 * ky4;
     double expected = -k2_o4 * k2_o4 + k2_o2;  // -|k|^4 + |k|^2
@@ -632,10 +630,10 @@ void testspectralop() {
   for (auto& p : probes) {
     int i = p[0], j = p[1];
     auto k = kindex(i, j, dims, h);
-    double kx2 = (k.kx == 0) ? std::pow(symphas::EPS, 1.0 / 2.0) : k.kx;
-    double ky2 = (k.ky == 0) ? std::pow(symphas::EPS, 1.0 / 2.0) : k.ky;
-    double kx4 = (k.kx == 0) ? std::pow(symphas::EPS, 1.0 / 4.0) : k.kx;
-    double ky4 = (k.ky == 0) ? std::pow(symphas::EPS, 1.0 / 4.0) : k.ky;
+    double kx2 = k.kx;
+    double ky2 = k.ky;
+    double kx4 = k.kx;
+    double ky4 = k.ky;
     double k2_o2 = kx2 * kx2 + ky2 * ky2;
     double k2_o4 = kx4 * kx4 + ky4 * ky4;
     double correct_L = -k2_o4 * k2_o4 + k2_o2;  // what MB *should* give
