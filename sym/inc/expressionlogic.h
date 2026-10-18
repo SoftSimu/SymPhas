@@ -1692,6 +1692,17 @@ struct expr::factor_count<Variable<Y, VectorComponent<ax0, G>>,
 };
 
 //! Specialization based on expr::factor_count;
+/*!
+ * Resolves the ambiguity between the same-type and vector component
+ * specializations when both variables are the same component of the same data.
+ */
+template <size_t Y, size_t Z, Axis ax, typename G>
+struct expr::factor_count<Variable<Y, VectorComponent<ax, G>>,
+                          Variable<Z, VectorComponent<ax, G>>> {
+  static const size_t value = (Y == Z) ? 1 : 0;
+};
+
+//! Specialization based on expr::factor_count;
 template <size_t Y, size_t Z, Axis ax0, Axis ax1, typename F>
 struct expr::factor_count<Variable<Y, VectorComponent<ax0>>,
                           Variable<Z, VectorComponent<ax1, F>>> {
