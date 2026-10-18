@@ -688,8 +688,17 @@ constexpr bool is_op_operator_v = std::is_base_of<OpOperator<E>, E>::value;
  * solver specializes this to true. It applies to powers of the laplacian
  * (even-order derivative<ax, O>); gradients of products are still expanded.
  */
+#ifdef SYMPHAS_KEEP_LAPLACIAN_OF_PRODUCTS
+// Opt-in for every solver: finite-difference solvers then apply the laplacian
+// stencil to the product evaluated pointwise, a conservative form (the
+// discrete laplacian of a periodic field sums to zero), instead of the
+// product-rule expansion, whose terms are not a discrete divergence.
+template <typename Sp>
+struct keep_derivatives_of_products : std::true_type {};
+#else
 template <typename Sp>
 struct keep_derivatives_of_products : std::false_type {};
+#endif
 
 namespace {
 
