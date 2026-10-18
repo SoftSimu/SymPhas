@@ -2506,6 +2506,12 @@ inline PoissonFFTWWorkspace& get_poisson_workspace(int N) {
 
 #endif  // USING_FFTW
 
+namespace symphas::internal {
+//! Permeability used by PoissonSolver (real space and spectral solvers).
+// Niloufar's 2013 paper uses mu_0 = 1 and W_0 = 0.5.
+inline constexpr double POISSON_MU0 = 0.001;
+}  // namespace symphas::internal
+
 #ifdef USING_FFTW
 
 std::tuple<fftw_plan, fftw_plan, double*, fftw_complex*, fftw_complex*, double*> inline createFFTWPlans(int N) {
@@ -2536,12 +2542,15 @@ std::tuple<fftw_plan, fftw_plan, double*, fftw_complex*, fftw_complex*, double*>
 }
 
 // Currently takes a flat 2D vector. Returns flat solution
+//
+// kx_list holds wavenumbers in grid units (2 pi n / N), so the physical
+// inverse Laplacian -1/k^2 is -h^2/kx^2 for grid spacing h.
 inline void poissonSolver(double* A_flat, double* curl_m_flat, int N, int L,
                    fftw_plan plan_forward, fftw_plan plan_backward, double* in,
                    fftw_complex* curl_m_fft, fftw_complex* A_fft, double* out,
-                   const double* kx_list) {
+                   const double* kx_list, double h = 1.0) {
 
-  double mu_0 = 0.001;
+  double mu_0 = symphas::internal::POISSON_MU0;
 
   // FFTW variables
   int NX = N;
@@ -2559,7 +2568,7 @@ inline void poissonSolver(double* A_flat, double* curl_m_flat, int N, int L,
     for (int m = 0; m < NYc; m++) {
       double ky = kx_list[m];
       double denominator = kx * kx + ky * ky;
-      double P_mn = (denominator == 0) ? 0.0 : -1 / denominator;
+      double P_mn = (denominator == 0) ? 0.0 : -(h * h) / denominator;
 
       size_t idx = (size_t)n * (size_t)NYc + (size_t)m;
 
@@ -2590,16 +2599,68 @@ void poisson_solver_2d(OpExpression<E> const& e, grid_type& grid) {}
 template <typename E, typename grid_type>
 void poisson_solver_3d(OpExpression<E> const& e, grid_type& grid) {}
 
+template <typename Sp, typename = void>
+struct solver_has_divh : std::false_type {};
+
+template <typename Sp>
+struct solver_has_divh<Sp, std::void_t<decltype(std::declval<Sp const&>().divh)>>
+    : std::true_type {};
+
+// Grid spacing of the solver applying a derivative; stencil based solvers
+// store 1/h as `divh`.
+template <typename Sp>
+double poisson_solver_spacing(Sp const& solver) {
+  if constexpr (solver_has_divh<Sp>::value) {
+    return (solver.divh != 0) ? 1. / solver.divh : 0.;
+  } else {
+    return 0.;
+  }
+}
+
+//! Grid spacing used by the derivatives in the Poisson source term.
+/*!
+ * Returns 0 if the expression has no derivative to take it from.
+ */
+template <typename E>
+double poisson_grid_spacing(OpExpression<E> const&) {
+  return 0.;
+}
+
+template <typename Dd, typename V, typename E, typename Sp>
+double poisson_grid_spacing(OpDerivative<Dd, V, E, Sp> const& e) {
+  return poisson_solver_spacing(e.solver);
+}
+
+template <typename... Es, size_t... Is>
+double poisson_grid_spacing(OpAdd<Es...> const& e,
+                            std::index_sequence<Is...>) {
+  double h = 0.;
+  ((h = (h == 0.) ? poisson_grid_spacing(expr::get<Is>(e)) : h), ...);
+  return h;
+}
+
+template <typename... Es>
+double poisson_grid_spacing(OpAdd<Es...> const& e) {
+  return poisson_grid_spacing(e, std::make_index_sequence<sizeof...(Es)>{});
+}
+
 template <typename E, typename T>
 void poisson_solver_2d(OpExpression<E> const& e, BoundaryGrid<T, 2>& grid) {
 #ifdef USING_FFTW
+  // The grid includes BOUNDARY_DEPTH ghost cells on each side, so the
+  // periodic domain that is transformed is the interior. The solution is
+  // written back to the interior and the ghost cells are filled
+  // periodically, since the FFT already assumes periodic boundaries.
+  //
   // The plans, buffers, frequency table, *and* the BoundaryGrid used as a
   // scratch buffer for `expr::result` are all cached for the lifetime of
   // the program (keyed by grid size).  Earlier this function reallocated
   // ~10 buffers and rebuilt two FFTW plans on every call, which the
   // implicit JFNK solver invokes hundreds of times per timestep.
   len_type* dims = grid.dims;
-  auto& ws = ::get_poisson_workspace(dims[0]);
+  const len_type B = BOUNDARY_DEPTH;
+  const len_type N = dims[0] - 2 * B;  // square interior assumed, as before
+  auto& ws = ::get_poisson_workspace(N);
   // Reuse a single scratch BoundaryGrid across calls.  The per-size cache
   // is keyed on dims[0] (square grids assumed, which is what the FFTW path
   // already requires).
@@ -2610,12 +2671,39 @@ void poisson_solver_2d(OpExpression<E> const& e, BoundaryGrid<T, 2>& grid) {
   }
   BoundaryGrid<T, 2>& input = it->second;
 
-  expr::result(e, input);
-  poissonSolver(grid.values, input.values, dims[0], dims[1],
-                ws.plan_forward, ws.plan_backward,
-                ws.in, ws.curl_m_fft, ws.A_fft, ws.out, ws.kx_list.data());
-#endif  // USING_FFTW
+  double h = poisson_grid_spacing(*static_cast<E const*>(&e));
+  if (h == 0.) {
+    static bool warned = false;
+    if (!warned) {
+      fprintf(SYMPHAS_WARN,
+              "the Poisson solver could not determine the grid spacing; "
+              "using grid units (h = 1)\n");
+      warned = true;
+    }
+    h = 1.;
+  }
 
+  expr::result(e, input);
+  for (len_type j = 0; j < N; ++j) {
+    for (len_type i = 0; i < N; ++i) {
+      ws.rhs_buf[i + j * N] = input.values[(i + B) + (j + B) * dims[0]];
+    }
+  }
+
+  static thread_local std::vector<double> solution;
+  solution.resize((size_t)N * (size_t)N);
+  poissonSolver(solution.data(), ws.rhs_buf, N, N, ws.plan_forward,
+                ws.plan_backward, ws.in, ws.curl_m_fft, ws.A_fft, ws.out,
+                ws.kx_list.data(), h);
+
+  for (len_type j = 0; j < dims[1]; ++j) {
+    len_type sj = ((j - B) % N + N) % N;
+    for (len_type i = 0; i < dims[0]; ++i) {
+      len_type si = ((i - B) % N + N) % N;
+      grid.values[i + j * dims[0]] = solution[si + sj * N];
+    }
+  }
+#endif  // USING_FFTW
 }
 
 template <typename G, typename T>
@@ -2650,14 +2738,20 @@ namespace symphas::internal {
 template <typename E>
 struct OpMap<symphas::internal::PoissonSolver, OpIdentity, E>
     : OpExpression<OpMap<symphas::internal::PoissonSolver, OpIdentity, E>> {
-  using result_data_type = expr::storage_type_t<E>;
-  using result_grid = std::conditional_t<
-      std::is_same_v<result_data_type, expr::symbols::Symbol>, int,
-      result_data_type>;
-
-  using result_type = expr::eval_type_t<E>;
   static const size_t D = expr::grid_dim<E>::value;
 
+  // The Poisson solve is only implemented for real-valued BoundaryGrid data
+  // (see poisson_solver_2d). The result grid is not derived from
+  // expr::storage_type_t<E>, because applied derivatives report
+  // expr::symbols::Symbol as their evaluation type, which would turn the
+  // grid into the int placeholder and silently skip the solve. The
+  // placeholder is kept only for expressions without any data.
+  using result_grid = std::conditional_t<
+      std::is_same_v<typename expr::storage_type<E>::check_t,
+                     expr::symbols::Symbol>,
+      int, BoundaryGrid<scalar_t, D>>;
+
+  using result_type = expr::eval_type_t<E>;
   void allocate() {
     e.allocate();
     grid = symphas::internal::setup_result_data<result_grid>{}(
