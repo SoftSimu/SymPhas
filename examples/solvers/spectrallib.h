@@ -943,6 +943,21 @@ template <typename E>
 using real_space_eval_t = typename real_space_eval_type<E>::type;
 }  // namespace
 
+//! Fourier transform of a spatially uniform value of 1.
+/*!
+ * The transform is unnormalized (the inverse divides by the number of
+ * points N), so a uniform value of 1 transforms to N at k = 0 and zero at
+ * every other wave vector. Index 0 is k = 0 in both the full and half-complex
+ * arrangements.
+ */
+template <size_t D>
+auto uniform_ft(const len_type* dims) {
+  Grid<scalar_t, D> delta(dims);
+  std::fill(delta.values, delta.values + delta.len, scalar_t{});
+  delta.values[0] = static_cast<scalar_t>(delta.len);
+  return expr::make_term(NamedData(std::move(delta), "N.delta_k"));
+}
+
 template <size_t Z0, size_t D, typename... S, typename B, typename E>
 auto construct_nonlinear(std::tuple<S...> const& systems,
                          OpExpression<B> const& bop, OpExpression<E> const& e,
@@ -950,8 +965,16 @@ auto construct_nonlinear(std::tuple<S...> const& systems,
   using vt = variable_type<symphas::lib::type_at_index<Z0, S...>>;
 
   auto B_term = get_B_term<vt>(*static_cast<B const*>(&bop));
-  auto ft = expr::transform::to_ft<D>(*static_cast<E const*>(&e), h, dims);
-  return B_term * ft;
+  if constexpr (expr::grid_dim<E>::value == 0) {
+    // A term without spatial data (a constant such as an applied field, or a
+    // factor that only depends on time) is uniform in space. to_ft() returns
+    // it unchanged, which has no data to be evaluated over and contributed
+    // nothing.
+    return B_term * (*static_cast<E const*>(&e) * uniform_ft<D>(dims));
+  } else {
+    auto ft = expr::transform::to_ft<D>(*static_cast<E const*>(&e), h, dims);
+    return B_term * ft;
+  }
 }
 
 template <size_t Z0, size_t D, typename... S, typename B, typename Dd,

@@ -901,6 +901,20 @@ inline complex_t operator+(complex_t const& a, int const b) {
   return complex_t{a.real() + b, a.imag()};
 }
 
+// Without these, a real value added to a complex one is converted to int by
+// the overloads above (a standard conversion, preferred over constructing a
+// complex_t), which truncates it toward zero.
+
+//! Addition between real and complex types.
+inline complex_t operator+(scalar_t const a, complex_t const& b) {
+  return complex_t{a + b.real(), b.imag()};
+}
+
+//! Addition between complex and real types.
+inline complex_t operator+(complex_t const& a, scalar_t const b) {
+  return complex_t{a.real() + b, a.imag()};
+}
+
 //! Addition between anything and the 0 identity.
 template <typename E>
 decltype(auto) operator+(E&& a, OpVoid) {
@@ -1054,6 +1068,16 @@ inline complex_t operator-(int const a, complex_t const& b) {
 //! Subtraction between complex and integer types.
 inline complex_t operator-(complex_t const& a, int const b) {
   return complex_t{a.real() - static_cast<scalar_t>(b), a.imag()};
+}
+
+//! Subtraction between real and complex types (see operator+ above).
+inline complex_t operator-(scalar_t const a, complex_t const& b) {
+  return complex_t{a - b.real(), -b.imag()};
+}
+
+//! Subtraction between complex and real types (see operator+ above).
+inline complex_t operator-(complex_t const& a, scalar_t const b) {
+  return complex_t{a.real() - b, a.imag()};
 }
 
 //! Subtraction between anything and the 0 identity.

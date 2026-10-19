@@ -239,9 +239,7 @@ struct complex_t {
     return complex_t{_real - other._real, _imag - other._imag};
   }
   __device__ __host__ complex_t& operator*=(const complex_t& other) {
-    _real = _real * other._real - _imag * other._imag;
-    _imag = _real * other._imag + _imag * other._real;
-    return *this;
+    return *this = *this * other;
   }
   __device__ __host__ complex_t& operator+=(const complex_t& other) {
     _real += other._real;
