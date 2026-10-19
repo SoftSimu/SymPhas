@@ -2508,8 +2508,13 @@ inline PoissonFFTWWorkspace& get_poisson_workspace(int N) {
 
 namespace symphas::internal {
 //! Permeability used by PoissonSolver (real space and spectral solvers).
-// Niloufar's 2013 paper uses mu_0 = 1 and W_0 = 0.5.
-inline constexpr double POISSON_MU0 = 0.001;
+// Niloufar's 2012 PhD thesis uses mu_0 = 0.001 (the default); her 2013 paper
+// uses mu_0 = 1 and W_0 = 0.5. A build can set it with
+// -DSYMPHAS_POISSON_MU0=<value>.
+#ifndef SYMPHAS_POISSON_MU0
+#define SYMPHAS_POISSON_MU0 0.001
+#endif
+inline constexpr double POISSON_MU0 = SYMPHAS_POISSON_MU0;
 }  // namespace symphas::internal
 
 #ifdef USING_FFTW
