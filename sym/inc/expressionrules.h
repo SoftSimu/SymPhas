@@ -2324,11 +2324,39 @@ auto operator-(OpAdd<As...> const& a, OpAdd<Bs...> const& b) {
 //	return symphas::internal::terminate_mul(a * b.a, b.b);
 //}
 
+namespace symphas::internal {
+template <typename E>
+constexpr bool is_column_vector = expr::eval_type<E>::rank > 1 &&
+                                  expr::eval_type<E>::template rank_<1> == 1;
+
+template <typename E>
+constexpr bool is_nonscalar = expr::eval_type<E>::rank > 0 ||
+                              expr::eval_type<E>::template rank_<1> > 0;
+
+//! Whether the dot product a * b may not be split up by a nonscalar factor c.
+/*!
+ * Products of shaped tensors (row by column, matrix by vector) are associative,
+ * but the product of two column vectors is their dot product, which is not:
+ * (a . b) c is not a (b . c), and for a row vector r, r (a . b) is not
+ * (r a) b. So (a * b) * c is not regrouped as a * (b * c) when a and b are
+ * column vectors and c is not a scalar. (tensor * (a * b) is still regrouped
+ * as (tensor * a) * b, which the derivative expansions use to take components,
+ * except when a is a scalar and b a tensor; see operator*(OpTensor, OpBinaryMul).)
+ */
+template <typename A, typename B, typename C>
+constexpr bool keep_product_grouping =
+    is_column_vector<A> && is_column_vector<B> && is_nonscalar<C>;
+}  // namespace symphas::internal
+
 template <
     typename A1, typename A2,
     typename E /*, typename std::enable_if_t<!expr::is_coeff<E>, int> = 0*/>
 auto operator*(OpBinaryMul<A1, A2> const& a, OpExpression<E> const& b) {
-  return expr::make_mul(a.a, a.b * (*static_cast<E const*>(&b)));
+  if constexpr (symphas::internal::keep_product_grouping<A1, A2, E>) {
+    return expr::make_mul(a, *static_cast<E const*>(&b));
+  } else {
+    return expr::make_mul(a.a, a.b * (*static_cast<E const*>(&b)));
+  }
 }
 
 template <typename A1, typename A2>
@@ -2361,7 +2389,12 @@ auto operator*(OpBinaryMul<A1, A2> const& a, OpNegFractionLiteral<N, D>) {
 
 template <typename A1, typename A2, typename B1, typename B2>
 auto operator*(OpBinaryMul<A1, A2> const& a, OpBinaryMul<B1, B2> const& b) {
-  return expr::make_mul(a.a, a.b * b);
+  if constexpr (symphas::internal::keep_product_grouping<A1, A2,
+                                                         OpBinaryMul<B1, B2>>) {
+    return expr::make_mul(a, b);
+  } else {
+    return expr::make_mul(a.a, a.b * b);
+  }
 }
 
 namespace symphas::internal {
@@ -3398,13 +3431,26 @@ auto operator*(OpOperator<E> const& e, OpTensor<T, Ns...> const& tensor) {
 //! Ensure a value constant is always multiplied on the left by anything else.
 template <typename A, typename B, typename T, size_t... Ns>
 auto operator*(OpBinaryMul<A, B> const& e, OpTensor<T, Ns...> const& tensor) {
-  return e.a * (e.b * tensor);
+  // e.g. (m . grad psi) e_y must not become m (grad psi . e_y)
+  if constexpr (symphas::internal::keep_product_grouping<A, B,
+                                                         OpTensor<T, Ns...>>) {
+    return expr::make_mul(e, tensor);
+  } else {
+    return e.a * (e.b * tensor);
+  }
 }
 
 //! Ensure a value constant is always multiplied on the left by anything else.
 template <typename A, typename B, typename T, size_t... Ns>
 auto operator*(OpTensor<T, Ns...> const& tensor, OpBinaryMul<A, B> const& e) {
-  return (tensor * e.a) * e.b;
+  if constexpr (!symphas::internal::is_nonscalar<A> && expr::is_tensor<B>) {
+    // A scalar (e.g. a dot product m . grad psi) times a tensor: the tensor
+    // multiplies the tensor, rather than being pushed into the factors of the
+    // scalar. This is how components of (m . grad psi) e_y are taken.
+    return e.a * (tensor * e.b);
+  } else {
+    return (tensor * e.a) * e.b;
+  }
 }
 
 template <typename T, size_t N0, size_t N1, size_t... Ns, typename S, size_t M0,
