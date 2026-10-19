@@ -116,7 +116,7 @@ MODEL(FMPFCFrozenMx, (SCALAR, VECTOR),
                   c(10) * grad(op(1)) * dot(op(2), grad(op(1))) +
                   grady(PoissonSolver(curl(op(2)))) * e_x<Dm> -
                   gradx(PoissonSolver(curl(op(2)))) * e_y<Dm> +
-                  c(11) * e_x<Dm> + c(12) * e_y<Dm> + c(13)*_cW(VECTOR), e_y<Dm>) * e_y<Dm>
+                  c(11) * e_x<Dm> + c(12) * e_y<Dm>, e_y<Dm>) * e_y<Dm>
       )
 )
 LINK_WITH_NAME(FMPFCFrozenMx, FMPFCFROZENMX)
