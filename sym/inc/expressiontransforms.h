@@ -127,7 +127,14 @@ auto to_grid(OpLiteral<T> const e) {
  */
 template <typename T, typename G>
 auto to_grid(OpTerm<T, G> const e) {
-  return expr::BaseData<G>::get(expr::get<1>(e).data());
+  if constexpr (expr::is_identity<T>) {
+    return expr::BaseData<G>::get(expr::get<1>(e).data());
+  } else {
+    // The coefficient (e.g. the time step multiplying a wave-vector term)
+    // is part of the value.
+    return symphas::internal::construct_grid_of_dimension<
+        expr::grid_dim<OpTerm<T, G>>::value>{}(e);
+  }
 }
 
 //! Evaluating an identity or fraction as a grid returns just the value of the
