@@ -452,11 +452,11 @@ auto make_function(V const& v, OpExpression<E> const& e, std::string name, F f,
  * \param v The coefficient to the function expression.
  * \param a The expression to which the function is applied.
  */
-template <typename V, typename E, typename F, typename Arg0, typename... Args>
+template <typename E, typename F, typename Arg0, typename... Args>
 auto make_function(OpExpression<E> const& e, std::string name, F f,
                    std::tuple<Arg0, Args...> const& args) {
   return OpFunction<OpIdentity, E, F, Arg0, Args...>(
-      OpIdentity{}, *static_cast<E const*>(&e), f, args);
+      name, OpIdentity{}, *static_cast<E const*>(&e), f, args);
 }
 
 //! Create a function expression of another expression.
@@ -470,7 +470,7 @@ auto make_function(OpExpression<E> const& e, std::string name, F f,
 template <typename V, typename E, typename F>
 auto make_function(V const& v, OpExpression<E> const& e, std::string name,
                    F f) {
-  return OpFunction<V, E, F, void>(v, *static_cast<E const*>(&e), f);
+  return OpFunction<V, E, F, void>(name, v, *static_cast<E const*>(&e), f);
 }
 
 //! Create a function expression of another expression.
@@ -481,9 +481,9 @@ auto make_function(V const& v, OpExpression<E> const& e, std::string name,
  * \param v The coefficient to the function expression.
  * \param a The expression to which the function is applied.
  */
-template <typename V, typename E, typename F>
+template <typename E, typename F>
 auto make_function(OpExpression<E> const& e, std::string name, F f) {
-  return OpFunction<OpIdentity, E, F, void>(OpIdentity{},
+  return OpFunction<OpIdentity, E, F, void>(name, OpIdentity{},
                                             *static_cast<E const*>(&e), f);
 }
 
