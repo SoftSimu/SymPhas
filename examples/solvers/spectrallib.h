@@ -36,6 +36,7 @@
 #include <string>
 #include <typeinfo>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace solver_sp {
@@ -767,6 +768,7 @@ struct InverseMapCache {
   std::vector<std::shared_ptr<void>> maps;
   std::vector<std::function<void()>> updaters;
   std::unordered_map<std::string, void*> index;
+  std::unordered_set<std::string> types;
 
   void update() {
     for (auto& u : updaters) u();
@@ -785,13 +787,37 @@ struct InverseMapCache {
     auto& grid() { return this->data; }
   };
 
+  //! Printed form of a transform, or "" without PRINTABLE_EQUATIONS.
+  template <typename M>
+  static std::string printed(M const& map) {
+#ifdef PRINTABLE_EQUATIONS
+    std::string out(map.print_length() + 1, '\0');
+    map.print(out.data());
+    return out.c_str();
+#else
+    return "";
+#endif
+  }
+
+  //! The shared transform equal to map. Transforms are matched by type and
+  //! by printed form: the type misses run-time values that holds_literal
+  //! does not know about, and a type match that prints differently is
+  //! reported (it would have been a wrong share if keyed by type alone).
   template <typename M>
   Entry<M>& get(M const& map) {
-    std::string key = typeid(M).name();
+    std::string type = typeid(M).name();
+    std::string key = type + "|" + printed(map);
     auto it = index.find(key);
     if (it != index.end()) {
       return *static_cast<Entry<M>*>(it->second);
     }
+    if (types.count(type)) {
+      fprintf(SYMPHAS_WARN,
+              "spectral solver: transforms of one type print differently, "
+              "not shared: %s\n",
+              printed(map).c_str());
+    }
+    types.insert(type);
     auto m = std::make_shared<Entry<M>>(map);
     Entry<M>* ptr = m.get();
     maps.push_back(m);
@@ -834,6 +860,12 @@ template <size_t Z, typename G>
 struct holds_literal<Variable<Z, G>> : std::false_type {};
 template <typename G, expr::exp_key_t X>
 struct holds_literal<Term<G, X>> : holds_literal<G> {};
+// Functions keep their coefficient as a plain value (OpFunction strips the
+// OpLiteral) and may apply a functor with state.
+template <typename V, typename E, typename F, typename... Args>
+struct holds_literal<OpFunction<V, E, F, Args...>> : std::true_type {};
+template <auto f, typename V, typename E>
+struct holds_literal<OpFunctionApply<f, V, E>> : std::true_type {};
 template <Axis ax, typename G>
 struct holds_literal<VectorComponent<ax, G>> : holds_literal<G> {};
 
